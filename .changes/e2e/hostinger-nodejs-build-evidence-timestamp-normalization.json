@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-nodejs-build-evidence-timestamp-normalization",
+  "title": "Normalize equivalent Hostinger evidence timestamps",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-build-evidence-timestamp-normalization.json",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml",
+      "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Accept ISO-8601 deployment timestamps that represent the same instant even when one representation includes fractional seconds, while continuing to fail closed on invalid or different timestamps.",
+      "e2e_journeys": [
+        {
+          "id": "validate-equivalent-production-merge-instants",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted Hostinger evidence dispatch bridge",
+          "entrypoint": "A structured Hostinger evidence artifact reports production_merged_at with normalized milliseconds while the immutable workflow binding uses an equivalent second-precision ISO timestamp.",
+          "terminal_outcome": "The bridge parses both timestamps, requires finite epoch values, accepts only exact instant equality, validates every remaining identity and side-effect assertion, and records the artifact classification instead of producing a false contract failure.",
+          "steps": [
+            "Parse the artifact production_merged_at value with Date.parse.",
+            "Parse the immutable expected merge timestamp with Date.parse.",
+            "Reject either value when parsing is not finite.",
+            "Require the parsed epoch millisecond values to be equal.",
+            "Continue validating expected SHA, branch, domain, GET method, token-returned false, secret-free evidence, and false mutation side effects."
+          ],
+          "assertions": [
+            "2026-08-03T00:53:07Z and 2026-08-03T00:53:07.000Z are accepted as the same instant.",
+            "Invalid timestamps and timestamps representing different instants remain rejected.",
+            "The bridge no longer compares production_merged_at using raw string equality.",
+            "No Hostinger request, credential access, build creation, deployment, restart, provider mutation, repository contents mutation, SQL, migration Apply, database mutation, protected-ref update, force push, or external send is introduced by this change."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-nodejs-build-evidence-dispatch-bridge-timestamp-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe a fresh authorized evidence run record a blocked or completed Hostinger classification when equivalent timestamp representations are present."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise malformed timestamps, timezone-equivalent timestamps, and genuinely different instants while preserving fail-closed behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This is evidence validation only and performs no provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change does not deploy or mutate Production."
+    }
+  ],
+  "secrets_included": false
+}

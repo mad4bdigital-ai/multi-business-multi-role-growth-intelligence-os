@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-durable-registry-commit-identity-blocker.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "source_integration_commit": "2f6e910a2afd1a5b413327bdb7f62ff5eb5b73cb",
+  "blocker_evidence": {
+    "pull_request": 4922,
+    "feature_head": "e34c80a5cfa3ecca8f140adc9e5bc3e9f976ecd7",
+    "integration_merge_sha": "be84a5bcdbfa933ab2ee3dc11dce3c1576730b2c",
+    "forty_character_git_commit_rejected_before_repair": true,
+    "historical_failure_code": "STORAGE_DURABLE_INJECTION_HASH_INVALID",
+    "historical_failure_field": "schema_verification.source_commit"
+  },
+  "producer_contract": {
+    "module": "http-generic-api/hostingerStorageSchemaVerification.js",
+    "source_commit_format": "git_object_id",
+    "accepted_lengths": [40, 64],
+    "current_repository_hash_length": 40
+  },
+  "consumer_contract": {
+    "module": "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+    "consumer": "assertSchemaVerification",
+    "current_validator": "commit",
+    "current_accepted_lengths": [40, 64],
+    "lowercase_required": true,
+    "truncation_allowed": false,
+    "invalid_identity_code": "STORAGE_DURABLE_INJECTION_COMMIT_INVALID",
+    "source_field": "schema_verification.source_commit",
+    "runtime_field": "schema_verification.deployed_runtime_sha"
+  },
+  "repair": {
+    "pull_request": 4926,
+    "source_patch_commit": "97c719e04f430daf142cab83ed09a7877b93f0f9",
+    "source_commit_validator_replaced": true,
+    "deployed_runtime_sha_validator_replaced": true,
+    "sha256_evidence_digest_validation_preserved": true,
+    "sha256_database_fingerprint_validation_preserved": true,
+    "exact_source_runtime_parity_preserved": true,
+    "forty_character_git_commit_accepted": true,
+    "sixty_four_character_git_commit_accepted": true,
+    "uppercase_rejected": true,
+    "unsupported_lengths_rejected": true
+  },
+  "terminal_boundary": {
+    "blocker_reproduced": true,
+    "runtime_repair_performed": true,
+    "durable_registry_runtime_acceptance_ready": true,
+    "live_database_access_performed": false,
+    "signature_created": false,
+    "migration_sql_executed": false,
+    "provider_dispatch_allowed": false,
+    "deployment_authorized": false,
+    "production_ready": false,
+    "secrets_included": false
+  },
+  "blockers": [],
+  "secrets_included": false
+}

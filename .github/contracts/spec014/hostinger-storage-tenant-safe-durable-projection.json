@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "contract_key": "hostinger_storage_tenant_safe_durable_projection_v1",
+  "spec": "014-governed-hostinger-storage-orchestration",
+  "capability": "tenant_safe_durable_projection",
+  "capability_status": "implemented_unmounted_dependencies_schema_unapplied",
+  "purpose": "Reconstruct a Tenant-exclusive durable readback from canonical SQL operation, plan, run, journal, reconciliation, authority, and one-shot enablement state while redacting filesystem, worker, connector, host-key, snapshot, inode, and internal evidence references.",
+  "projection": {
+    "projection_key": "hostinger_storage_tenant_safe_durable_projection_v1",
+    "projection_version": "spec014-hostinger-storage-tenant-safe-durable-projection-v1",
+    "async_only": true,
+    "read_only": true,
+    "tenant_exclusive": true,
+    "durable_sql": true,
+    "raw_dependencies_exposed": false,
+    "factory_database_reads": 0
+  },
+  "canonical_dependencies": {
+    "verified_sql_runtime_composition": {
+      "required": true,
+      "run_reader_required": true,
+      "component_version": "spec014-hostinger-storage-sql-run-reader-v1"
+    },
+    "durable_tenant_authority_store": {
+      "required": true,
+      "version": "spec014-hostinger-storage-durable-tenant-authority-store-v1"
+    },
+    "durable_tenant_enablement_registry": {
+      "required": true,
+      "version": "spec014-hostinger-storage-durable-tenant-enablement-registry-v1"
+    },
+    "same_database_fingerprint_required": true
+  },
+  "audience_gate": {
+    "performed_before_secondary_reads": true,
+    "operation_context_mode_required": "tenant",
+    "required_exact_bindings": [
+      "tenant_id",
+      "workspace_id",
+      "resource_id",
+      "operation_id"
+    ],
+    "mismatch_status": 403,
+    "authority_or_enablement_read_after_mismatch": false
+  },
+  "binding_requirements": [
+    "operation_to_plan",
+    "operation_plan_to_run",
+    "operation_target_to_allowlist",
+    "tenant_workspace_resource_to_allowlist",
+    "operation_target_plan_to_workspace_owner_approval",
+    "operation_run_to_enablement",
+    "enablement_consumed_state_to_immutable_receipt"
+  ],
+  "safe_output": {
+    "allowed_classes": [
+      "tenant_workspace_resource_target_identifiers",
+      "operation_plan_run_states",
+      "operation_and_run_generations",
+      "bounded_item_and_byte_counts",
+      "bounded_timestamps",
+      "allowlist_and_approval_status",
+      "enablement_consumption_status",
+      "journal_phase_and_result_counts",
+      "latest_reconciliation_outcome",
+      "plan_hash",
+      "result_digest",
+      "aggregate_digest"
+    ],
+    "forbidden_fields": [
+      "root_ref",
+      "path_ref_prefix",
+      "tenant_safe_relative_path",
+      "path_ref",
+      "worker_ref",
+      "connector_ref",
+      "dispatch_certification_ref",
+      "host_key_evidence_ref",
+      "before_snapshot_id",
+      "after_snapshot_id",
+      "device_id_digest",
+      "inode_value",
+      "ctime_ns",
+      "mtime_ns",
+      "ownership_evidence_ref",
+      "observed_stat_digest",
+      "result_evidence_digest",
+      "input_evidence_hashes",
+      "record_json"
+    ],
+    "raw_journal_rows_exposed": false,
+    "raw_reconciliation_rows_exposed": false,
+    "raw_run_metadata_exposed": false,
+    "live_provider_payload_exposed": false,
+    "secrets_included": false
+  },
+  "retry_semantics": {
+    "retry_allowed_only_when_latest_reconciliation_outcome": "not_applied",
+    "retry_permission_required": true,
+    "read_before_retry_required": true,
+    "automatic_retry_allowed": false
+  },
+  "public_methods": ["project"],
+  "remaining_bridge_capabilities": [
+    "dedicated_worker_certification",
+    "fixed_dispatch_certification",
+    "crash_safe_restart_reconciliation",
+    "separate_mount_authorization"
+  ],
+  "integration_boundary": {
+    "tenant_runtime_changed": false,
+    "tenant_route_changed": false,
+    "route_dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false
+  },
+  "operational_blockers": [
+    "Authority-store DDL is contract-local and unapplied.",
+    "Enablement-registry DDL is contract-local and unapplied.",
+    "No live signed schema verification exists for those stores.",
+    "No async Tenant runtime bridge or route mount authorization exists."
+  ],
+  "non_goals": {
+    "database_write": false,
+    "live_database_access_in_ci": false,
+    "hostinger_access": false,
+    "migration_promotion": false,
+    "migration_authorization": false,
+    "migration_apply": false,
+    "route_mount": false,
+    "worker_mount": false,
+    "provider_dispatch": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_mutation": false
+  },
+  "evidence": {
+    "database_calls_during_factory_creation": 0,
+    "database_writes": 0,
+    "provider_calls": 0,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "secrets_included": false
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "source_integration_commit": "1c7263a0d44152272da43f23bf231cf90b3b13e4",
+  "candidate_source": {
+    "pull_request": 4879,
+    "candidate_head_sha": "25f937c5ee0ff68a65da245c8af607e66eafa737",
+    "integration_merge_sha": "4ca8d8691baa66210b679da51c5d92909c88c14c",
+    "migration": "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql",
+    "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+    "statement_count": 2
+  },
+  "promotion": {
+    "wave": 4,
+    "runtime_sequence_promoted": true,
+    "dependency_registry_updated": true,
+    "dependency": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+    "dependency_checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+    "dependency_statement_count": 9,
+    "required_ledger_mode": "apply",
+    "preflight_status": "pass",
+    "preflight_risk_count": 0,
+    "preflight_risk_codes": []
+  },
+  "terminal_boundary": {
+    "ready_for_repository_authorization_inspection": true,
+    "ready_for_authorization": false,
+    "ready_for_apply": false,
+    "authorization_created": false,
+    "authorization_registry_mutated": false,
+    "capability_envelope_resolved": false,
+    "dry_run_performed": false,
+    "migration_sql_executed": false,
+    "live_database_access_performed": false,
+    "live_schema_readback_performed": false,
+    "signed_schema_verification_contract_refreshed": false,
+    "schema_verified": false,
+    "provider_dispatch_allowed": false,
+    "worker_mounted": false,
+    "deployment_authorized": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false,
+    "secrets_included": false
+  },
+  "blockers": [
+    "WAVE_3_APPLY_LEDGER_REQUIRED",
+    "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+    "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+    "SAME_CYCLE_DRY_RUN_REQUIRED",
+    "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED",
+    "SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED",
+    "SIGNED_POST_APPLY_SCHEMA_VERIFICATION_REQUIRED"
+  ],
+  "forbidden_authority": {
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "live_database_access": false,
+    "provider_dispatch": false,
+    "worker_mount": false,
+    "migration_authorization": false,
+    "migration_dry_run": false,
+    "migration_apply": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "secrets_included": false
+}

@@ -1,0 +1,93 @@
+name: Hostinger Storage Tenant-safe Durable Projection Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-tenant-safe-durable-projection.json'
+      - '.changes/e2e/spec014-verified-sql-runtime-composition.json'
+      - '.github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json'
+      - '.github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json'
+      - '.github/workflows/hostinger-storage-tenant-safe-durable-projection-guard.yml'
+      - '.github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml'
+      - 'http-generic-api/hostingerStorageTenantSafeDurableProjection.js'
+      - 'http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs'
+      - 'http-generic-api/hostingerStorageSqlRunReader.js'
+      - 'http-generic-api/test-hostinger-storage-sql-run-reader.mjs'
+      - 'http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js'
+      - 'http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-tenant-safe-durable-projection-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tenant-safe-durable-projection:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check projection and run-reader syntax
+        run: |
+          node --check http-generic-api/hostingerStorageSqlRunReader.js
+          node --check http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          node --check http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          node --check http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs
+          node --check http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js
+          node --check http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+
+      - name: Validate canonical read path and regression fixtures
+        run: |
+          node http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          node http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs
+          node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs
+          node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs
+
+      - name: Validate Tenant audience gate and redaction
+        run: node http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs
+
+      - name: Preserve read-only unmounted boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageTenantSafeDurableProjection.js \
+            http-generic-api/test-hostinger-storage-tenant-safe-durable-projection.mjs \
+            http-generic-api/hostingerStorageSqlRunReader.js \
+            http-generic-api/test-hostinger-storage-sql-run-reader.mjs
+          ! grep -E '\b(providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageTenantSafeDurableProjection.js \
+            http-generic-api/hostingerStorageSqlRunReader.js
+          ! grep -E '\b(INSERT|UPDATE|DELETE|REPLACE|ALTER|CREATE|DROP)\b' \
+            http-generic-api/hostingerStorageTenantSafeDurableProjection.js \
+            http-generic-api/hostingerStorageSqlRunReader.js
+          grep -q 'read_only: true' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'tenant_exclusive: true' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'raw_dependencies_exposed: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'live_provider_payload_exposed: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageTenantSafeDurableProjection.js
+          grep -q '"raw_journal_rows_exposed": false' .github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json
+          grep -q '"raw_run_metadata_exposed": false' .github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json
+          grep -q '"database_writes": 0' .github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-tenant-safe-durable-projection.json

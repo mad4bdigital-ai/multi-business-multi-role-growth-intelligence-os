@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "phase": "phase4_reconciliation_readback_wave",
+  "status": "complete_on_main",
+  "tasks": ["T160", "T161", "T162", "T163", "T164", "T165", "T166"],
+  "implementation_pull_request": 4238,
+  "implementation_branch": "gpt/spec-011-phase4-reconciliation-readback-wave-final-v3-20260731",
+  "final_head_sha": "b3475e06dae0a3ac10c486aadfe304555b896129",
+  "merge_sha": "f76f43755dfb212eab66dc5c96e8859a75ae5415",
+  "merged_at": "2026-08-01T06:07:40Z",
+  "ci": {
+    "run_id": 30686941596,
+    "conclusion": "success",
+    "checks": {
+      "syntax_check": "success",
+      "architecture_drift_detection": "success",
+      "execution_resolver_gate": "success",
+      "unit_and_integration_tests": "success"
+    }
+  },
+  "supplementary_checks": {
+    "frontend_surface_dispatch_run_id": 30686941592,
+    "frontend_surface_dispatch": "success",
+    "spec011_delegation_mariadb_certification_run_id": 30686941586,
+    "spec011_delegation_mariadb_certification": "success",
+    "branch_test_diagnostic_shards_run_id": 30686941575,
+    "branch_test_diagnostic_shards": "success"
+  },
+  "readback": {
+    "kernel_path": "http-generic-api/governedReconciliationKernel.js",
+    "kernel_version": "spec011-governed-reconciliation-kernel-v3",
+    "delivery_path": "specs/011-durable-governed-execution-and-agent-delegation/phase4-reconciliation-readback-wave-delivery.json",
+    "main_verified": true
+  },
+  "boundaries": {
+    "production_mutation": false,
+    "migration_apply": false,
+    "provider_write": false,
+    "automatic_retry": false,
+    "public_route": false,
+    "runtime_authority_changed": false,
+    "secrets_included": false
+  }
+}

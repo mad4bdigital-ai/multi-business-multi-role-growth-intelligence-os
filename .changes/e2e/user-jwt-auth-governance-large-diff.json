@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "user-jwt-auth-governance-large-diff",
+  "title": "User JWT Auth Governance Large-Diff Reliability",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/user-jwt-auth-governance-large-diff.json",
+      "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+      "http-generic-api/test-user-jwt-auth-governance-large-diff-buffer.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Run the centralized fail-closed User JWT governance scan across a large baseline-to-head diff without child-process buffer exhaustion while preserving every existing auth rule and fail-closed decision.",
+      "e2e_journeys": [
+        {
+          "id": "user-jwt-governance-large-diff-scan",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository CI reviewer",
+          "entrypoint": "The official user-jwt-auth-governance.mjs command on the exact pull-request head with origin/main as its explicit baseline",
+          "terminal_outcome": "The full large repository diff is scanned through the bounded Git subprocess, the guard reports zero violations for the candidate, and no ENOBUFS or rule bypass occurs.",
+          "steps": [
+            "Validate that the Git subprocess buffer is bounded at 64 MiB and is wired into the same helper used by baseline-to-head scanning.",
+            "Execute the official User JWT auth governance command against origin/main on the exact candidate head.",
+            "Retain all hardened-file, secret-fallback, route-local-guard, and route-local-jsonwebtoken-import checks unchanged.",
+            "Return the normal fail-closed result without reading GitHub Job logs or exposing source evidence beyond the existing annotations."
+          ],
+          "assertions": [
+            "The governed Git helper uses GIT_MAX_BUFFER_BYTES equal to 64 MiB.",
+            "The baseline-to-head diff continues through the same governed Git helper.",
+            "The official scan completes without ENOBUFS on the current large Rollup diff.",
+            "The official scan reports zero User JWT auth violations on the candidate head.",
+            "No JWT governance rule, protected file list, runtime authorization behavior, secret boundary, provider dispatch, migration, deployment, or Production authority changes."
+          ],
+          "tests": [
+            {
+              "id": "user-jwt-large-diff-buffer-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-user-jwt-auth-governance-large-diff-buffer.mjs",
+              "args": []
+            },
+            {
+              "id": "user-jwt-official-large-diff-governance-scan",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/user-jwt-auth-governance.mjs",
+              "args": [
+                "--baseline-ref=origin/main"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/user-jwt-auth-governance-large-diff.json",
+            "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+            "http-generic-api/test-user-jwt-auth-governance-large-diff-buffer.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain exact-head structured CI evidence that the official guard completes on future large Rollup diffs without buffer exhaustion."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise bounded failure behavior for malformed Git refs, unavailable baselines, and diffs larger than the configured safety ceiling."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This is a repository CI governance reliability change and performs no live canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This change grants no deployment, provider, migration, or Production authority."
+    }
+  ]
+}

@@ -65,7 +65,25 @@ function ruleEnabled(policy, key) {
 }
 
 function containsBranchSpecificLiteral(content) {
-  return WORK_BRANCH_PATTERN.test(content);
+  const lines = content.split(/\r?\n/u);
+  let pathFilterIndent = null;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const indentation = line.match(/^\s*/u)?.[0].length || 0;
+
+    if (/^(?:paths|paths-ignore):\s*$/u.test(trimmed)) {
+      pathFilterIndent = indentation;
+      continue;
+    }
+    if (pathFilterIndent !== null) {
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      if (indentation > pathFilterIndent) continue;
+      pathFilterIndent = null;
+    }
+    if (WORK_BRANCH_PATTERN.test(line)) return true;
+  }
+  return false;
 }
 
 function hasAnyWritePermission(content) {

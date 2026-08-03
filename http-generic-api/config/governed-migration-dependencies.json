@@ -12,6 +12,42 @@
           "required_ledger_mode": "apply"
         }
       ]
+    },
+    "20260802_02_spec014_hostinger_storage_control_plane.sql": {
+      "checksum_sha256": "80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33",
+      "statement_count": 6,
+      "dependencies": [
+        {
+          "migration": "20260802_01_spec014_hostinger_storage_foundation.sql",
+          "checksum_sha256": "9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053",
+          "statement_count": 4,
+          "required_ledger_mode": "apply"
+        }
+      ]
+    },
+    "20260802_03_spec014_hostinger_storage_execution_evidence.sql": {
+      "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+      "statement_count": 9,
+      "dependencies": [
+        {
+          "migration": "20260802_02_spec014_hostinger_storage_control_plane.sql",
+          "checksum_sha256": "80d0006012b48a022f19b70174ccaf5bf922cad87255c47e1eb08e23da3c4b33",
+          "statement_count": 6,
+          "required_ledger_mode": "apply"
+        }
+      ]
+    },
+    "20260802_04_spec014_hostinger_storage_authorized_injection_state.sql": {
+      "checksum_sha256": "fbc70636d07b2ae2e757ab20f48538746ea773bdba1c19e2604aeaa292b31981",
+      "statement_count": 2,
+      "dependencies": [
+        {
+          "migration": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+          "checksum_sha256": "cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096",
+          "statement_count": 9,
+          "required_ledger_mode": "apply"
+        }
+      ]
     }
   }
 }

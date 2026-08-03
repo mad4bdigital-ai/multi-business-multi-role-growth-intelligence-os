@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 613
+- Paths: 614
 - Operations: 566
 - Top-level tags: 36
 
@@ -84,7 +84,50 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge-contract.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence.yml`
+- `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
+- `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
+- `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
+- `.github/workflows/hostinger-storage-cleanup-guard.yml`
+- `.github/workflows/hostinger-storage-control-plane-guard.yml`
+- `.github/workflows/hostinger-storage-crash-safe-restart-reconciliation-guard.yml`
+- `.github/workflows/hostinger-storage-dedicated-worker-certification-guard.yml`
+- `.github/workflows/hostinger-storage-deferred-child-fk-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-lifecycle-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-migration-candidate-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-schema-promotion-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-durable-authorized-injection-state-guard.yml`
+- `.github/workflows/hostinger-storage-durable-mount-authorization-registry-guard.yml`
+- `.github/workflows/hostinger-storage-durable-registry-commit-identity-blocker-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-authority-store-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-enablement-registry-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-repository-facade-guard.yml`
+- `.github/workflows/hostinger-storage-durable-tenant-runtime-bridge-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-final-work-map-readback-guard.yml`
+- `.github/workflows/hostinger-storage-fixed-dispatch-certification-guard.yml`
+- `.github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml`
+- `.github/workflows/hostinger-storage-migration-drafts-guard.yml`
+- `.github/workflows/hostinger-storage-parent-aware-async-execution-engine-guard.yml`
+- `.github/workflows/hostinger-storage-production-preflight-guard.yml`
+- `.github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml`
+- `.github/workflows/hostinger-storage-schema-classification-guard.yml`
+- `.github/workflows/hostinger-storage-schema-verification-guard.yml`
+- `.github/workflows/hostinger-storage-separate-mount-authorization-guard.yml`
+- `.github/workflows/hostinger-storage-shared-canary-guard.yml`
+- `.github/workflows/hostinger-storage-sql-child-evidence-writer-guard.yml`
+- `.github/workflows/hostinger-storage-sql-control-plane-guard.yml`
+- `.github/workflows/hostinger-storage-sql-parent-writer-guard.yml`
+- `.github/workflows/hostinger-storage-synthetic-executor-guard.yml`
 - `.github/workflows/hostinger-storage-tenant-canary-canonical-guard.yml`
+- `.github/workflows/hostinger-storage-tenant-runtime-guard.yml`
+- `.github/workflows/hostinger-storage-tenant-safe-durable-projection-guard.yml`
+- `.github/workflows/hostinger-storage-toolchain-guard.yml`
+- `.github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
@@ -155,6 +198,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-gpt-schema-db-coverage-guard.mjs`
 - `http-generic-api/test-gpt-schema-db-coverage-migration.mjs`
 - `http-generic-api/test-growth-control-openapi-auth-contracts.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs`
+- `http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-promotion-readiness.mjs`
+- `http-generic-api/test-hostinger-storage-root-openapi-parity.mjs`
+- `http-generic-api/test-hostinger-storage-schema-verification.mjs`
 - `http-generic-api/test-openapi-autofill-missing-routes.mjs`
 - `http-generic-api/test-openapi-builder-schema-guard.mjs`
 - `http-generic-api/test-openapi-endpoint-inventory-sync.mjs`

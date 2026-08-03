@@ -1,0 +1,8 @@
+export {
+  HOSTINGER_STORAGE_TENANT_CANARY_VERSION,
+  createHostingerStorageTenantCanaryControlPlaneRepository,
+  createHostingerStorageTenantCanarySyntheticAdapter,
+  createMemoryHostingerStorageTenantCanaryAuthorityStore,
+  createMemoryHostingerStorageTenantCanaryEnablementRegistry,
+  executeHostingerStorageTenantCanary,
+} from './hostingerStorageTenantCanaryBase.js';

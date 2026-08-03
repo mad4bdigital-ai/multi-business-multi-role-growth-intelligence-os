@@ -1,0 +1,93 @@
+{
+  "contract_key": "spec014_hostinger_storage_durable_authorized_injection_state",
+  "schema_version": 1,
+  "implementation_version": "spec014-hostinger-storage-durable-authorized-injection-state-v1",
+  "purpose": "Persist only exact data-only authorized dependency-injection Receipt, verified mount Readback, and immutable Rollback evidence so restart reconciliation can reconstruct the route dependency through the canonical bundle without storing runtime material or consuming authorization again.",
+  "schema_contract": {
+    "contract_key": "hostinger_storage_durable_authorized_injection_state_schema_v1",
+    "tables": [
+      "storage_authorized_injection_states",
+      "storage_authorized_injection_rollbacks"
+    ],
+    "ddl_contract_path": ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+    "ddl_contract_present": true,
+    "ddl_matches_registry_sql": true,
+    "contract_local_only": true,
+    "governed_runtime_migration_promoted": false,
+    "migration_apply_authorized": false,
+    "one_active_state_per_injection": true,
+    "exact_receipt_readback_binding": true,
+    "immutable_rollback_receipt": true,
+    "row_version_cas": true,
+    "runtime_material_persisted": false
+  },
+  "registration": {
+    "canonical_injection_receipt_required": true,
+    "canonical_mount_readback_required": true,
+    "receipt_digest_recomputed": true,
+    "readback_digest_recomputed": true,
+    "receipt_readback_exact_binding_required": true,
+    "same_transaction_insert_readback_required": true,
+    "exact_replay_idempotent": true,
+    "conflicting_replay_rejected": true,
+    "rolled_back_reactivation_rejected": true
+  },
+  "restart_reconciliation": {
+    "durable_receipt_available": true,
+    "durable_readback_available": true,
+    "canonical_bundle_stored": false,
+    "runtime_object_stored": false,
+    "second_authorization_consumption_allowed": false,
+    "coordinator_reconstruction_supported": true,
+    "exact_mount_readback_digest_preserved": true,
+    "tampered_rehashed_evidence_rejected": true,
+    "automatic_retry_allowed": false
+  },
+  "rollback": {
+    "exact_active_mount_readback_required": true,
+    "row_version_cas_required": true,
+    "immutable_rollback_receipt_required": true,
+    "same_transaction_state_and_rollback_readback_required": true,
+    "active_state_cleared": true,
+    "fail_closed_route_restored": true,
+    "rollback_replay_rejected": true,
+    "reactivation_rejected": true
+  },
+  "factory_boundary": {
+    "database_connections": 0,
+    "live_database_access_performed": false,
+    "runtime_material_persisted": false,
+    "route_files_modified": 0,
+    "server_files_modified": 0,
+    "migration_files_modified": 0,
+    "provider_files_modified": 0,
+    "deployment_files_modified": 0
+  },
+  "forbidden_authority": {
+    "hostinger_access": false,
+    "ssh_access": false,
+    "credential_access": false,
+    "live_database_access": false,
+    "provider_dispatch": false,
+    "worker_mount": false,
+    "migration_apply": false,
+    "deployment": false,
+    "main_merge": false,
+    "production_promotion": false,
+    "production_mutation": false,
+    "force_push": false
+  },
+  "terminal_state": {
+    "durable_sql_contract_ready": true,
+    "explicit_ddl_contract_present": true,
+    "schema_verified": true,
+    "migration_apply_authorized": false,
+    "runtime_material_persisted": false,
+    "worker_mounted": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "automatic_retry_allowed": false,
+    "secrets_included": false
+  },
+  "secrets_included": false
+}

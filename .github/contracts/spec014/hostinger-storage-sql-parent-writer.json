@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-sql-parent-writer.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unmounted",
+  "writer_key": "hostinger_storage_sql_parent_writer_v1",
+  "parent_tables": [
+    "storage_cleanup_plan_items",
+    "storage_cleanup_runs"
+  ],
+  "child_tables_not_written": [
+    "storage_cleanup_run_items",
+    "storage_reconciliation_results"
+  ],
+  "required_schema_verification": {
+    "ready": true,
+    "schema_verified": true,
+    "runtime_parity": true,
+    "zero_blockers": true,
+    "public_evidence_digest_required": true,
+    "database_fingerprint_required": true,
+    "unexpired": true
+  },
+  "plan_item_registration": {
+    "append_only": true,
+    "same_set_replay_allowed": true,
+    "mismatched_replay_rejected": true,
+    "contiguous_ordinals_from_one": true,
+    "unique_runtime_item_ids": true,
+    "unique_item_hashes": true,
+    "deterministic_parent_ids": true,
+    "plan_hash_binding_required": true,
+    "exact_item_count_required": true,
+    "exact_total_bytes_required": true,
+    "protected_items_forbidden": true,
+    "root_relative_path_refs_only": true,
+    "same_transaction_readback_required": true
+  },
+  "run_start": {
+    "initial_state": "executing",
+    "plan_consumed_by_exact_run_required": true,
+    "complete_plan_item_parent_set_required": true,
+    "operation_executing_required": true,
+    "exact_active_lease_required": true,
+    "unexpired_lease_required": true,
+    "before_snapshot_required": true,
+    "monotonic_generation_required": true,
+    "same_envelope_replay_allowed": true,
+    "mismatched_replay_rejected": true,
+    "same_transaction_readback_required": true
+  },
+  "run_finalization": {
+    "checkpoint_compare_and_swap_required": true,
+    "bounded_state_transitions": true,
+    "terminal_result_digest_required": true,
+    "terminal_item_accounting_complete": true,
+    "after_snapshot_must_exist_when_supplied": true,
+    "same_transaction_readback_required": true
+  },
+  "transaction_boundary": {
+    "mysql_advisory_lock": "spec014:hostinger-storage-parent-writer",
+    "select_for_update": true,
+    "rollback_on_failure": true,
+    "no_delete": true,
+    "no_plan_item_update": true
+  },
+  "deferred_foreign_keys": [
+    "storage_cleanup_run_items.run_id -> storage_cleanup_runs.id",
+    "storage_cleanup_run_items.plan_item_id -> storage_cleanup_plan_items.id",
+    "storage_reconciliation_results.run_id -> storage_cleanup_runs.id"
+  ],
+  "foreign_keys_enabled_by_this_change": false,
+  "runtime_mounted": false,
+  "live_database_access_performed": false,
+  "migration_apply_performed": false,
+  "provider_dispatch_allowed": false,
+  "production_ready": false,
+  "secrets_included": false
+}

@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-tenant-runtime-bridge",
+  "title": "Spec 014 Tenant Context-to-Canary Runtime Bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-tenant-runtime-bridge.json",
+      ".github/workflows/hostinger-storage-tenant-runtime-guard.yml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/hostingerStorageTenantRuntime.js",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/routes/hostingerStorageTenantRoutes.js",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Mount a fail-closed Tenant route that binds a Context Kernel execution capsule and current effective-authority evidence to the existing synthetic Tenant canary and returns bounded readback.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-context-to-synthetic-storage-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_workspace_owner",
+          "entrypoint": "POST /tenant/storage-operations/apply-plan",
+          "terminal_outcome": "The exact synthetic plan is applied once and a Tenant-safe readback is returned without exposing paths, credentials, authority payloads, or provider dispatch.",
+          "steps": [
+            "Authenticate a Tenant user and accept only operation_id plus expected_sha from the HTTP request.",
+            "Resolve a canonical Execution Capsule, governance decision, current Context Kernel state, and dynamic effective-authority evidence through injected runtime dependencies.",
+            "Load the immutable synthetic execution package and verify Tenant, Workspace, Resource, operation, target, context hash, and expected SHA bindings.",
+            "Execute through the reversible Execution Capsule mutation dispatch gate and the factory-owned Tenant canary repositories and adapter.",
+            "Consume the one-shot enablement only after all current authority, plan, lease, adapter, and Context Kernel checks pass.",
+            "Return bounded Tenant-safe readback while provider dispatch and Production readiness remain false."
+          ],
+          "assertions": [
+            "Request-provided capsule or authority fields are rejected before Context resolution.",
+            "Expected SHA mismatch and cross-Tenant context mismatch are rejected before canary mutation.",
+            "The successful route consumes one-shot enablement and returns the applied synthetic outcome.",
+            "The response contains no path references, raw protocol, canary authorization, capsule, credentials, or secrets.",
+            "An unmounted runtime fails closed with HTTP 503.",
+            "Provider dispatch and Production readiness remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-tenant-runtime-route",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-tenant-runtime-route.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs",
+            ".github/workflows/hostinger-storage-tenant-runtime-guard.yml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This bridge introduces no scheduler, queue, or independent operational control surface."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Unknown-outcome and restart reconciliation remain governed by the existing synthetic executor and are outside this HTTP bridge slice."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The route remains synthetic-only and does not target a live non-production Hostinger account."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The bridge grants no provider dispatch, deployment, Production promotion, or Production mutation authority."
+    }
+  ]
+}

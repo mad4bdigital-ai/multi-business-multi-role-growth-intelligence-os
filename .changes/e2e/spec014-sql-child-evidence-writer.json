@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-sql-child-evidence-writer",
+  "title": "Spec 014 SQL Child Evidence Writer",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-sql-child-evidence-writer.json",
+      ".github/contracts/spec014/hostinger-storage-sql-child-evidence-writer.json",
+      ".github/workflows/hostinger-storage-sql-child-evidence-writer-guard.yml",
+      "http-generic-api/hostingerStorageSqlChildEvidenceWriter.js",
+      "http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist journal and reconciliation child evidence only after exact cleanup-run and deterministic plan-item parents exist, without changing the existing SQL state adapter, enabling foreign keys, mounting runtime composition, or applying migrations.",
+      "e2e_journeys": [
+        {
+          "id": "durable-execution-parents-to-parent-aware-child-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed storage child evidence writer",
+          "entrypoint": "Hostinger Storage SQL Child Evidence Writer Guard",
+          "terminal_outcome": "Journal and reconciliation evidence are appended with exact run and deterministic plan-item parent bindings, contiguous phase ordering, exact replay, durable accounting, shared locking, rollback, and same-transaction readback while all live and production capabilities remain disabled.",
+          "steps": [
+            "Bind factory creation to current successful signed schema verification and exact runtime parity.",
+            "Use the parent writer deterministic ID derivation to resolve the exact plan-item parent.",
+            "Acquire the same advisory lock used by the parent writer and read the run and plan-item parents with SELECT FOR UPDATE.",
+            "Reject missing, mismatched, terminal, or legacy unbound parent states.",
+            "Append prepared, result, and readback rows only in contiguous order and accept only exact replay.",
+            "Read back every immutable journal row inside the same transaction.",
+            "Compare reconciliation accounting with durable parent-aware journal rows and require complete readback for an applied outcome.",
+            "Insert and read back immutable reconciliation evidence or roll back on mismatch.",
+            "Prove no adapter expansion, foreign-key enablement, migration apply, live database access, runtime mounting, provider dispatch, or secret use occurred."
+          ],
+          "assertions": [
+            "Every new journal row has a non-null deterministic plan_item_id and exact run/operation/plan binding.",
+            "Legacy rows with null plan_item_id fail closed rather than being silently mixed with parent-aware evidence.",
+            "Result requires prepared evidence and readback requires result evidence for the same plan-item parent.",
+            "Journal sequence is append-only and contiguous across the run.",
+            "Applied reconciliation requires readback evidence for every plan-item parent.",
+            "The writer remains unmounted, foreign_keys_enabled=false, provider_dispatch_allowed=false, and production_ready=false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-child-evidence-writer",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageSqlChildEvidenceWriter.js",
+            "http-generic-api/test-hostinger-storage-sql-child-evidence-writer.mjs",
+            ".github/contracts/spec014/hostinger-storage-sql-child-evidence-writer.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "Operational mounting requires live migration apply, signed current schema verification, canonical composition, and separately governed foreign-key enablement."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Crash-safe restart convergence and live parent-child parity remain separate production slices."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database or provider canary is executed by this unmounted writer slice."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production and deferred foreign-key enablement remain blocked."
+    }
+  ]
+}

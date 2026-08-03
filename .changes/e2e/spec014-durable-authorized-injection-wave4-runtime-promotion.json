@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-wave4-runtime-promotion",
+  "title": "Promote the reviewed Durable Authorized Injection migration candidate into the governed runtime sequence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-wave4-runtime-promotion.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+      ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+      ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+      ".github/workflows/hostinger-storage-runtime-migration-promotion-guard.yml",
+      ".github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml",
+      "http-generic-api/config/governed-migration-dependencies.json",
+      "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+      "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+      "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Register the exact Wave 4 migration and its Wave 3 apply-ledger dependency while preserving an unapplied, unauthorized, secret-free repository boundary.",
+      "e2e_journeys": [
+        {
+          "id": "promote-wave4-without-authorizing-or-applying",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 governed migration promotion controller",
+          "entrypoint": "The exact reviewed Wave 4 migration candidate merged by PR #4879",
+          "terminal_outcome": "The runtime sequence and dependency registry contain exact Wave 4 identities, authorization inspection recognizes the fourth wave, and all live or mutating actions remain blocked.",
+          "steps": [
+            "Verify the exact candidate checksum, statement count, two-table set, and executable parity with the reviewed contract-local DDL.",
+            "Append Wave 4 after Wave 3 in the governed runtime sequence.",
+            "Register one exact Wave 3 apply-ledger dependency for Wave 4.",
+            "Inspect all four waves through the repository-only authorization readiness surface using their exact reviewed promotion provenance.",
+            "Require Wave 4 dependency, live compatibility readback, and signed-verification refresh blockers.",
+            "Reject checksum, ordering, dependency, provenance, authority, or Apply drift."
+          ],
+          "assertions": [
+            "Wave 4 is the fourth and final registered runtime wave in this slice.",
+            "Wave 4 depends only on exact successful Wave 3 apply-ledger evidence.",
+            "Wave 4 repository candidate inspection passes but authorization remains uncreated.",
+            "Wave 3 remains fail-closed on its existing live view and tool-key absence requirements.",
+            "No capability envelope, authorization registry write, dry-run, SQL Apply, live database access, Hostinger access, provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "wave4-runtime-promotion",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+              "args": []
+            },
+            {
+              "id": "four-wave-authorization-readiness",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-runtime-sequence-promotion.json",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+            ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+            "http-generic-api/config/governed-migration-dependencies.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Refresh signed schema verification and later create a separately governed Wave 4 authorization only after exact Wave 3 apply-ledger evidence exists.",
+      "blockers": [
+        "SIGNED_SCHEMA_VERIFICATION_CONTRACT_REFRESH_REQUIRED",
+        "WAVE_3_APPLY_LEDGER_REQUIRED",
+        "FRESH_CAPABILITY_ENVELOPE_REQUIRED",
+        "CHECKSUM_BOUND_AUTHORIZATION_REGISTRY_WRITE_REQUIRED",
+        "SAME_CYCLE_DRY_RUN_REQUIRED",
+        "LIVE_TABLE_ABSENCE_OR_EXACT_COMPATIBILITY_READBACK_REQUIRED"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Bind Wave 4 execution and restart reconciliation to exact same-cycle ledger and signed schema-readback evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production Wave 4 schema and durable lifecycle canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only promotion grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

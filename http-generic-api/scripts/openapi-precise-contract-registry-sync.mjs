@@ -10,6 +10,7 @@ import {
 const ROOT = process.cwd();
 const OPENAPI_PATH = path.join(ROOT, "openapi.yaml");
 const CONTRACT_REGISTRY_PATH = path.join(ROOT, "openapi-route-contracts.yaml");
+const CONTRACT_REGISTRY_FRAGMENT_DIR = path.join(ROOT, "openapi-route-contracts.d");
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const HTTP_METHOD_KEYS = new Set([...HTTP_METHODS].map((method) => method.toLowerCase()));
 const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
@@ -28,6 +29,45 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
 function loadYaml(filePath, fallback) {
   if (!fs.existsSync(filePath)) return fallback;
   return YAML.parse(fs.readFileSync(filePath, "utf8")) || fallback;
+}
+
+function relativeSource(filePath) {
+  return path.relative(ROOT, filePath).replaceAll(path.sep, "/");
+}
+
+function loadCombinedRegistry() {
+  const sources = [CONTRACT_REGISTRY_PATH];
+  if (fs.existsSync(CONTRACT_REGISTRY_FRAGMENT_DIR)) {
+    const fragments = fs.readdirSync(CONTRACT_REGISTRY_FRAGMENT_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && /\.ya?ml$/u.test(entry.name))
+      .map((entry) => path.join(CONTRACT_REGISTRY_FRAGMENT_DIR, entry.name))
+      .sort((left, right) => left.localeCompare(right));
+    sources.push(...fragments);
+  }
+
+  const contracts = {};
+  const contractSources = new Map();
+  for (const sourcePath of sources) {
+    const registry = loadYaml(sourcePath, { version: 1, contracts: {} });
+    if (registry?.version !== undefined && registry.version !== 1) {
+      throw new Error(`Unsupported OpenAPI route contract registry version in ${relativeSource(sourcePath)}.`);
+    }
+    const entries = registry?.contracts && typeof registry.contracts === "object"
+      ? registry.contracts
+      : {};
+    for (const [signature, contract] of Object.entries(entries)) {
+      if (Object.hasOwn(contracts, signature)) {
+        throw new Error(`Duplicate OpenAPI route contract signature ${signature} in ${contractSources.get(signature)} and ${relativeSource(sourcePath)}.`);
+      }
+      contracts[signature] = contract;
+      contractSources.set(signature, relativeSource(sourcePath));
+    }
+  }
+  return {
+    version: 1,
+    contracts,
+    source_files: sources.map(relativeSource),
+  };
 }
 
 function normalizePath(routePath) {
@@ -259,7 +299,8 @@ function main() {
   const openApiSource = fs.readFileSync(OPENAPI_PATH, "utf8");
   const doc = YAML.parse(openApiSource) || {};
   doc.paths ||= {};
-  const { contracts, pathRefs } = normalizeRegistry(loadYaml(CONTRACT_REGISTRY_PATH, { contracts: {} }));
+  const combinedRegistry = loadCombinedRegistry();
+  const { contracts, pathRefs } = normalizeRegistry(combinedRegistry);
   const runtimeOperations = collectSupportTicketRuntimeOperations(ROOT);
   const beforeRegistry = inspectRegistry(doc, pathRefs, contracts);
   const beforeRuntime = inspectSupportTicketRuntimeContracts(doc, runtimeOperations, contracts, pathRefs);
@@ -268,6 +309,8 @@ function main() {
     console.error(JSON.stringify({
       ok: false,
       code: "openapi_precise_contract_path_conflict",
+      registry_source_count: combinedRegistry.source_files.length,
+      registry_sources: combinedRegistry.source_files,
       precise_contract_count: contracts.length,
       support_ticket_runtime_operation_count: runtimeOperations.length,
       missing_count: beforeRegistry.missing.length,
@@ -324,6 +367,8 @@ function main() {
       && afterRuntime.replaceableByPath.size === 0
       && afterRuntime.conflicts.length === 0,
     changed: write && entries.size > 0,
+    registry_source_count: combinedRegistry.source_files.length,
+    registry_sources: combinedRegistry.source_files,
     precise_contract_count: contracts.length,
     applied_precise_contracts: appliedPreciseContracts,
     applied_registered_path_replacements: appliedRegisteredPathReplacements,

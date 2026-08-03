@@ -1,0 +1,72 @@
+name: Hostinger Storage Durable Tenant Repository Facade Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-tenant-repository-facade.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json'
+      - '.github/workflows/hostinger-storage-durable-tenant-repository-facade-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js'
+      - 'http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs'
+      - 'http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js'
+      - 'http-generic-api/hostingerStorageControlPlaneRepository.js'
+      - 'http-generic-api/hostingerStorageSqlPersistenceAdapter.js'
+      - 'http-generic-api/hostingerStorageSqlParentWriter.js'
+      - 'http-generic-api/hostingerStorageSqlChildEvidenceWriter.js'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-durable-tenant-repository-facade-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  durable-tenant-repository-facade:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check facade syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          node --check http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs
+
+      - name: Validate async parent orchestration and unique child paths
+        run: node http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs
+
+      - name: Preserve unmounted non-provider boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
+          ! printf '%s\n' "$changed_files" | grep -E '^http-generic-api/(server\.js$|routes/|migrations/)'
+          ! grep -E "from ['\"](?:mysql2|node:child_process|node:net|node:tls)['\"]|\b(exec|execFile|spawn|fork)\s*\(" \
+            http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js \
+            http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs
+          ! grep -E '\b(getConnection|providerDispatch|dispatchProvider|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          ! grep -E "hostingerStorage(?:SyntheticExecutorBase|TenantCanaryBase|TenantRuntime)" \
+            http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'legacy_synthetic_executor_compatible: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'raw_composition_exposed: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'runtime_mounted: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'route_mounted: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'worker_mounted: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'provider_dispatch_allowed: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q 'production_ready: false' http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js
+          grep -q '"factory_database_calls": 0' .github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json
+          grep -q '"route_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json
+          grep -q '"migration_files_modified": 0' .github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json
+          grep -q '"secrets_included": false' .github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json
