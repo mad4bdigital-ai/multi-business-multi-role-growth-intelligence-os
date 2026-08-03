@@ -63,6 +63,18 @@ jobs:
             'assert.equal(success.status, 200, JSON.stringify(success));',
             'if (success.status !== 200) { await new Promise((resolve) => setTimeout(resolve, 0)); console.error("T031_SUCCESS_FAILURE", JSON.stringify({ success, diagnostics: harness.diagnostics }, null, 2)); }\n  assert.equal(success.status, 200, JSON.stringify(success));',
           );
+          source = source.replace(
+            'assert.equal(result.body.secrets_included, false);',
+            'assert.equal(result.body.secrets_included, false, `secrets_included ${JSON.stringify(result)}`);',
+          );
+          source = source.replace(
+            'assert.equal(result.cacheControl.includes("no-store"), true);',
+            'assert.equal(result.cacheControl.includes("no-store"), true, `cache-control ${JSON.stringify(result)}`);',
+          );
+          source = source.replace(
+            'assert.equal(result.pragma.includes("no-cache"), true);',
+            'assert.equal(result.pragma.includes("no-cache"), true, `pragma ${JSON.stringify(result)}`);',
+          );
           fs.writeFileSync(path, source);
           NODE
           set +e
