@@ -1,0 +1,441 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-retail-commerce-operations-growth-os",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "f282e53d6620e906ca48ff703e2e0b65c5fde6b10d20194b596c2bd2e687f235",
+    "index_source_hash": "752bc2ef9ed7417689f1644ab9b492009fa4611a2c91e4bf0d2ddf0326d25073",
+    "coverage_source_hash": "0cdfc494f247174aa8badfb019a7ce3aec1df42173f69b0f870ea9d55012159f",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "integrate",
+      "rationale": "Commerce capabilities, Brand stores, channels, provider adapters, and operational cockpits require existing eligibility, activation, access, revoke, and disable authority.",
+      "owner": "platform-team",
+      "integration_points": ["commerce capability eligibility", "Brand store activation", "channel enablement", "adapter disable and revoke"],
+      "requirement_refs": ["spec.md", "brand-scoped-commerce-authority.md"],
+      "task_refs": ["brand-commerce-tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md", "commerce-enablement-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/activation-access-map.md", "checklists/brand-commerce.md"],
+      "depends_on": ["policy-authority-map", "platform-resource-graph-map"]
+    },
+    "activation-onboarding-map": {
+      "decision": "extend",
+      "rationale": "Business Operating Profile discovery, owner confirmation, activity selection, Brand commerce setup, and legacy connect migration extend governed onboarding without treating free text as authority.",
+      "owner": "platform-team",
+      "integration_points": ["business profile discovery", "owner-confirmed activity selection", "Brand commerce onboarding", "legacy connect candidate migration"],
+      "requirement_refs": ["business-activity-profile-and-inheritance.md", "spec.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md", "brand-commerce-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/activation-onboarding-map.md", "business-activity-brownfield-review.md"],
+      "depends_on": ["policy-authority-map", "data-model-domain-map"]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "integrate",
+      "rationale": "Agents may discover capabilities, explain gaps, and propose Blueprints, but they consume the same effective profile and never create execution authority.",
+      "owner": "platform-team",
+      "integration_points": ["profile-aware agent context", "capability discovery", "Blueprint recommendation", "non-authorizing proposal output"],
+      "requirement_refs": ["commerce-enablement-and-solution-blueprints.md", "spec.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/agent-skill-plugin-map.md", "concerns.md"],
+      "depends_on": ["policy-authority-map", "platform-runtime-map"]
+    },
+    "asset-package-map": {
+      "decision": "extend",
+      "rationale": "Catalog media, product photography, documents, Brand files, themes, plugin profiles, and launch packages require versioned asset and package governance.",
+      "owner": "platform-team",
+      "integration_points": ["catalog media", "Brand file packages", "site themes and extensions", "launch and rollback assets"],
+      "requirement_refs": ["external-system-and-workspace-file-fabric.md", "wordpress-woocommerce-authority-and-operations.md"],
+      "task_refs": ["external-integration-and-drive-tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["external-integration-and-drive-acceptance.md", "commerce-enablement-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/asset-package-map.md", "contracts/workspace-files.openapi.yaml"],
+      "depends_on": ["platform-resource-graph-map", "policy-authority-map"]
+    },
+    "commercial-usage-map": {
+      "decision": "extend",
+      "rationale": "Pricing, margins, taxes, payment methods, subscription or commission models, provider costs, quotas, and channel economics require commercial and usage governance.",
+      "owner": "platform-team",
+      "integration_points": ["pricing and margin policy", "payment and tax posture", "provider cost attribution", "quota and channel economics"],
+      "requirement_refs": ["commerce-enablement-and-solution-blueprints.md", "data-model.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/commercial-usage-map.md", "contracts/commerce-capability-catalog.schema.json"],
+      "depends_on": ["brand-and-business", "policy-authority-map"]
+    },
+    "connector-provider-map": {
+      "decision": "extend",
+      "rationale": "WordPress, WooCommerce, ERPNext, payment, shipping, catalog, webhook, and Google Drive adapters require exact Brand-owned or explicitly delegated provider connections.",
+      "owner": "platform-team",
+      "integration_points": ["Brand-owned provider connections", "WooCommerce and ERPNext adapters", "payment and fulfillment providers", "Google Drive Brand root"],
+      "requirement_refs": ["adapter-certification.md", "external-system-and-workspace-file-fabric.md"],
+      "task_refs": ["external-integration-and-drive-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["external-integration-and-drive-acceptance.md", "brand-commerce-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/connector-provider-map.md", "contracts/commerce-provider-adapter.schema.json"],
+      "depends_on": ["policy-authority-map", "platform-resource-graph-map"]
+    },
+    "data-model-domain-map": {
+      "decision": "extend",
+      "rationale": "Business profiles, activity packs, effective snapshots, capability catalogs, Blueprints, Brand commerce contexts, adapter certifications, webhook inboxes, and file bindings require classified models.",
+      "owner": "platform-team",
+      "integration_points": ["Business Operating Profile model", "effective profile snapshots", "capability and Blueprint registries", "commerce and file authority bindings"],
+      "requirement_refs": ["data-model.md", "business-activity-profile-and-inheritance.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/data-model-domain-map.md", "contracts/business-activity-profile-inheritance.schema.json"],
+      "depends_on": ["migration-lifecycle-map", "policy-authority-map"]
+    },
+    "delivery-support-map": {
+      "decision": "extend",
+      "rationale": "Store launch, adapter failures, unknown outcomes, order and payment incidents, reconciliation, provider escalation, and operational takeover require support and handoff paths.",
+      "owner": "platform-team",
+      "integration_points": ["commerce incident handling", "provider escalation", "unknown-outcome support", "launch and takeover handoff"],
+      "requirement_refs": ["operation-paths.md", "concerns.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md", "external-integration-and-drive-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/delivery-support-map.md", "checklists/operations.md"],
+      "depends_on": ["observability-release-map", "execution-log-evidence-map"]
+    },
+    "execution-log-evidence-map": {
+      "decision": "extend",
+      "rationale": "Profile compilation, capability decisions, reservations, payments, orders, webhooks, file writes, provider calls, readback, and reconciliation require bounded no-secret evidence.",
+      "owner": "platform-team",
+      "integration_points": ["effective profile compilation evidence", "commerce operation evidence", "provider readback", "reconciliation and denial evidence"],
+      "requirement_refs": ["brand-scoped-commerce-authority.md", "operation-paths.md"],
+      "task_refs": ["brand-commerce-tasks.md", "external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/execution-log-evidence-map.md", "contracts/commerce-events.schema.json"],
+      "depends_on": ["workflow-task-orchestration-map", "observability-release-map"]
+    },
+    "migration-lifecycle-map": {
+      "decision": "extend",
+      "rationale": "New profile, activity, capability, Blueprint, commerce, adapter, webhook, and file records require additive migrations, compatibility checks, rollback, and post-apply readback.",
+      "owner": "platform-team",
+      "integration_points": ["additive commerce schema migrations", "legacy candidate backfill", "compatibility and rollback", "post-apply readback"],
+      "requirement_refs": ["plan.md", "data-model.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/migration-lifecycle-map.md", "checklists/parity.md"],
+      "depends_on": ["data-model-domain-map", "observability-release-map"]
+    },
+    "observability-release-map": {
+      "decision": "extend",
+      "rationale": "Commerce health, inventory parity, payment and webhook latency, adapter certification, profile drift, rollout, launch gates, rollback, and post-launch SLOs require release observability.",
+      "owner": "platform-team",
+      "integration_points": ["commerce and adapter health", "profile and catalog drift", "launch readiness", "rollback and post-launch SLOs"],
+      "requirement_refs": ["commerce-enablement-and-solution-blueprints.md", "adapter-certification.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/observability-release-map.md", "checklists/parity.md"],
+      "depends_on": ["execution-log-evidence-map", "delivery-support-map"]
+    },
+    "platform-resource-graph-map": {
+      "decision": "extend",
+      "rationale": "Tenants, Workspaces, Brands, activities, channels, locations, stores, catalogs, provider connections, files, operations, and Blueprints require explicit typed ownership and relationship edges.",
+      "owner": "platform-team",
+      "integration_points": ["Brand and business activity graph", "channel and location ownership", "provider and file bindings", "Blueprint and capability relationships"],
+      "requirement_refs": ["brand-scoped-commerce-authority.md", "data-model.md"],
+      "task_refs": ["brand-commerce-tasks.md", "business-activity-inheritance-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md", "business-activity-inheritance-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/platform-resource-graph-map.md", "contracts/brand-commerce-context.schema.json"],
+      "depends_on": ["policy-authority-map", "data-model-domain-map"]
+    },
+    "platform-runtime-map": {
+      "decision": "reuse",
+      "rationale": "Profile compilation, authorization, operations, idempotency, provider dispatch, readback, reconciliation, evidence, and rollback must reuse existing platform runtime services rather than create a second execution kernel.",
+      "owner": "platform-team",
+      "integration_points": ["Context Kernel", "effective authority", "operation runtime", "provider readback and reconciliation"],
+      "requirement_refs": ["plan.md", "brand-scoped-commerce-authority.md"],
+      "task_refs": ["brand-commerce-tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md", "commerce-enablement-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/platform-runtime-map.md", "concerns.md"],
+      "depends_on": ["policy-authority-map", "workflow-task-orchestration-map"]
+    },
+    "policy-authority-map": {
+      "decision": "extend",
+      "rationale": "Business profile inheritance, Brand-mandatory commerce, one-writer-per-domain, exact connection binding, recommendation boundaries, approvals, and restrictive overrides extend governed authority policy.",
+      "owner": "platform-team",
+      "integration_points": ["Business Profile inheritance policy", "Brand commerce authority", "single-writer domain authority", "exact provider and file binding"],
+      "requirement_refs": ["business-activity-profile-and-inheritance.md", "brand-scoped-commerce-authority.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md", "brand-commerce-acceptance.md"],
+      "evidence_refs": ["docs/work-maps/policy-authority-map.md", "checklists/security.md"],
+      "depends_on": ["platform-resource-graph-map", "workflow-task-orchestration-map"]
+    },
+    "repository-automation-map": {
+      "decision": "reuse",
+      "rationale": "Existing Spec Kit, Work Map, schema classification, OpenAPI, JSON Schema, exact-head CI, Docs Agent, and generated-artifact automation are reused without a second writer.",
+      "owner": "platform-team",
+      "integration_points": ["Spec Kit validation", "Work Map integration gate", "contract validation", "exact-head evidence"],
+      "requirement_refs": ["plan.md", "manifest.json"],
+      "task_refs": ["tasks.md", "commerce-enablement-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md", "checklists/requirements.md"],
+      "evidence_refs": ["docs/work-maps/repository-automation-map.md", "docs/spec-kit-work-map-integration-governance.md"],
+      "depends_on": ["repository-development-map", "work-map-coverage-matrix"]
+    },
+    "repository-development-map": {
+      "decision": "integrate",
+      "rationale": "The multi-PR package adds specification, schemas, OpenAPI contracts, acceptance matrices, tasks, reuse decisions, and governed delivery evidence under existing repository development practices.",
+      "owner": "platform-team",
+      "integration_points": ["multi-PR reference package", "contract-first implementation", "review and exact-head CI", "closeout evidence"],
+      "requirement_refs": ["README.md", "plan.md"],
+      "task_refs": ["tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md", "checklists/requirements.md"],
+      "evidence_refs": ["docs/work-maps/repository-development-map.md", "manifest.json"],
+      "depends_on": ["repository-automation-map"]
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "The reference package uses durable Business Profile and operation state and does not introduce conversational memory or cross-session transcript authority.",
+      "owner": "platform-team",
+      "evidence_refs": ["spec.md", "data-model.md"],
+      "non_applicability_evidence": ["Effective Business Profile snapshots and commerce operations are durable governed records, not conversational memory."],
+      "depends_on": []
+    },
+    "work-map-coverage-matrix": {
+      "decision": "reuse",
+      "rationale": "The canonical generated coverage matrix and schema classification registry are reused to classify future commerce schema objects and prevent accidental unclassified additions.",
+      "owner": "platform-architecture",
+      "integration_points": ["schema domain review", "object classification", "taxonomy gap review", "future migration binding"],
+      "requirement_refs": ["data-model.md", "plan.md"],
+      "task_refs": ["tasks.md", "business-activity-inheritance-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md", "checklists/parity.md"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", ".specify/work-map-schema-classification-registry.json"],
+      "depends_on": ["data-model-domain-map"]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "extend",
+      "rationale": "Profile publication, capability enablement, store launch, reservations, orders, payments, webhooks, provider writes, unknown outcomes, reconciliation, and rollback require durable workflow orchestration.",
+      "owner": "platform-team",
+      "integration_points": ["profile publication workflow", "commerce enablement plan", "order and inventory operations", "unknown-outcome reconciliation"],
+      "requirement_refs": ["operation-paths.md", "commerce-enablement-and-solution-blueprints.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md", "acceptance-matrix.md"],
+      "evidence_refs": ["docs/work-maps/workflow-task-orchestration-map.md", "checklists/operations.md"],
+      "depends_on": ["policy-authority-map", "execution-log-evidence-map"]
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "extend",
+      "rationale": "Business profile discovery, owner confirmation, activity selection, Brand setup, and legacy candidate migration extend onboarding.",
+      "owner": "platform-team",
+      "integration_points": ["business profile onboarding", "Brand commerce setup"],
+      "requirement_refs": ["business-activity-profile-and-inheritance.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md"],
+      "evidence_refs": ["business-activity-brownfield-review.md"],
+      "depends_on": ["governance-and-authority"]
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "integrate",
+      "rationale": "Agents consume effective profiles and produce bounded recommendations without becoming an authorization or execution authority.",
+      "owner": "platform-team",
+      "integration_points": ["profile-aware discovery", "Blueprint recommendation"],
+      "requirement_refs": ["commerce-enablement-and-solution-blueprints.md"],
+      "task_refs": ["commerce-enablement-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md"],
+      "evidence_refs": ["concerns.md"],
+      "depends_on": ["governance-and-authority"]
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "extend",
+      "rationale": "Catalog media, Brand files, themes, extension profiles, and launch assets extend versioned asset and package governance.",
+      "owner": "platform-team",
+      "integration_points": ["catalog media", "Brand file packages", "site and extension assets"],
+      "requirement_refs": ["external-system-and-workspace-file-fabric.md"],
+      "task_refs": ["external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["external-integration-and-drive-acceptance.md"],
+      "evidence_refs": ["contracts/workspace-files.openapi.yaml"],
+      "depends_on": ["platform-resources-and-graph"]
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "extend",
+      "rationale": "Business Operating Profiles, activities, Brand Commerce Profiles, channels, locations, and capability packs extend the Brand and business domain.",
+      "owner": "platform-team",
+      "integration_points": ["Business Operating Profile", "Brand Commerce Profile", "activity capability packs"],
+      "requirement_refs": ["business-activity-profile-and-inheritance.md", "brand-scoped-commerce-authority.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md", "brand-commerce-tasks.md"],
+      "acceptance_refs": ["business-activity-inheritance-acceptance.md", "brand-commerce-acceptance.md"],
+      "evidence_refs": ["contracts/business-activity-profile-inheritance.schema.json"],
+      "depends_on": ["tenancy-and-identity", "governance-and-authority"]
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "extend",
+      "rationale": "Pricing, margins, taxes, payments, subscriptions, commissions, provider costs, and quotas extend commercial and usage governance.",
+      "owner": "platform-team",
+      "integration_points": ["pricing and margin policy", "payment posture", "provider cost attribution"],
+      "requirement_refs": ["commerce-enablement-and-solution-blueprints.md"],
+      "task_refs": ["commerce-enablement-tasks.md"],
+      "acceptance_refs": ["commerce-enablement-acceptance.md"],
+      "evidence_refs": ["contracts/commerce-capability-catalog.schema.json"],
+      "depends_on": ["brand-and-business"]
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "extend",
+      "rationale": "Commerce, payment, shipping, WordPress, WooCommerce, ERPNext, webhook, and Drive adapters extend provider connection governance.",
+      "owner": "platform-team",
+      "integration_points": ["Brand provider bindings", "commerce adapters", "Google Drive Brand root"],
+      "requirement_refs": ["adapter-certification.md", "external-system-and-workspace-file-fabric.md"],
+      "task_refs": ["external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["external-integration-and-drive-acceptance.md"],
+      "evidence_refs": ["contracts/commerce-provider-adapter.schema.json"],
+      "depends_on": ["governance-and-authority", "platform-resources-and-graph"]
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "extend",
+      "rationale": "Launch, takeover, commerce incidents, provider escalation, reconciliation, and rollback extend delivery and support operations.",
+      "owner": "platform-team",
+      "integration_points": ["commerce incident support", "launch handoff", "provider escalation"],
+      "requirement_refs": ["operation-paths.md"],
+      "task_refs": ["commerce-enablement-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md"],
+      "evidence_refs": ["checklists/operations.md"],
+      "depends_on": ["observability-and-release"]
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "extend",
+      "rationale": "Commerce, Workspace File, adapter, webhook, profile, and capability contracts extend the developer and API domain.",
+      "owner": "platform-team",
+      "integration_points": ["commerce API contracts", "Workspace File APIs", "adapter schemas"],
+      "requirement_refs": ["contracts/retail-commerce-operations.openapi.yaml", "contracts/workspace-files.openapi.yaml"],
+      "task_refs": ["tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md"],
+      "evidence_refs": ["contracts/commerce-events.schema.json"],
+      "depends_on": ["governance-and-authority"]
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "extend",
+      "rationale": "Profile inheritance, Brand-mandatory commerce, one writer per domain, exact connection binding, approvals, and recommendation boundaries extend authority governance.",
+      "owner": "platform-team",
+      "integration_points": ["profile inheritance authority", "Brand commerce authority", "single-writer enforcement"],
+      "requirement_refs": ["brand-scoped-commerce-authority.md", "business-activity-profile-and-inheritance.md"],
+      "task_refs": ["brand-commerce-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md"],
+      "evidence_refs": ["checklists/security.md"],
+      "depends_on": ["tenancy-and-identity", "platform-resources-and-graph"]
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "extend",
+      "rationale": "Profile, activity, capability, Blueprint, commerce, adapter, webhook, and file records require additive migrations and governed lifecycle transitions.",
+      "owner": "platform-team",
+      "integration_points": ["additive schema migrations", "legacy candidate backfill", "rollback and readback"],
+      "requirement_refs": ["plan.md", "data-model.md"],
+      "task_refs": ["business-activity-inheritance-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md"],
+      "evidence_refs": ["checklists/parity.md"],
+      "depends_on": ["brand-and-business", "workflow-and-tasks"]
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "extend",
+      "rationale": "Commerce health, parity, profile drift, adapter certification, launch gates, rollback, and post-launch SLOs extend release observability.",
+      "owner": "platform-team",
+      "integration_points": ["commerce health", "profile drift", "launch and rollback evidence"],
+      "requirement_refs": ["adapter-certification.md"],
+      "task_refs": ["commerce-enablement-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md"],
+      "evidence_refs": ["checklists/parity.md"],
+      "depends_on": ["delivery-and-support", "workflow-and-tasks"]
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "extend",
+      "rationale": "Tenant, Workspace, Brand, activity, channel, location, store, catalog, connection, file, capability, and Blueprint relationships extend the resource graph.",
+      "owner": "platform-team",
+      "integration_points": ["Brand commerce graph", "activity and capability edges", "provider and file bindings"],
+      "requirement_refs": ["data-model.md", "brand-scoped-commerce-authority.md"],
+      "task_refs": ["brand-commerce-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md"],
+      "evidence_refs": ["contracts/brand-commerce-context.schema.json"],
+      "depends_on": ["tenancy-and-identity", "governance-and-authority"]
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "integrate",
+      "rationale": "The reference package, schemas, OpenAPI, acceptance matrices, tasks, Work Map decisions, exact-head CI, and closeout evidence use existing repository development governance.",
+      "owner": "platform-team",
+      "integration_points": ["Spec Kit package", "contract validation", "exact-head delivery"],
+      "requirement_refs": ["README.md", "plan.md"],
+      "task_refs": ["tasks.md"],
+      "acceptance_refs": ["checklists/requirements.md"],
+      "evidence_refs": ["manifest.json", "work-map-integration.json"],
+      "depends_on": ["work-map-coverage-matrix"]
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "not_applicable",
+      "rationale": "The package uses durable governed profile and operation state and does not introduce conversational session-memory authority.",
+      "owner": "platform-team",
+      "evidence_refs": ["spec.md", "data-model.md"],
+      "non_applicability_evidence": ["No conversation transcript, recall store, or session-memory entity is specified."],
+      "depends_on": []
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "extend",
+      "rationale": "Tenant, Workspace, Brand, channel, location, and resource scope plus owner-confirmed profile publication extend tenant identity enforcement.",
+      "owner": "platform-team",
+      "integration_points": ["explicit Tenant and Workspace context", "mandatory Brand scope", "owner-confirmed profile publication"],
+      "requirement_refs": ["brand-scoped-commerce-authority.md"],
+      "task_refs": ["brand-commerce-tasks.md"],
+      "acceptance_refs": ["brand-commerce-acceptance.md"],
+      "evidence_refs": ["contracts/brand-commerce-context.schema.json"],
+      "depends_on": ["governance-and-authority", "platform-resources-and-graph"]
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "extend",
+      "rationale": "Profile publication, capability enablement, reservations, orders, payments, webhooks, provider writes, readback, reconciliation, and rollback extend durable workflows.",
+      "owner": "platform-team",
+      "integration_points": ["profile publication", "commerce enablement", "order and inventory operations", "reconciliation"],
+      "requirement_refs": ["operation-paths.md"],
+      "task_refs": ["commerce-enablement-tasks.md", "external-integration-and-drive-tasks.md"],
+      "acceptance_refs": ["acceptance-matrix.md"],
+      "evidence_refs": ["checklists/operations.md"],
+      "depends_on": ["governance-and-authority", "observability-and-release"]
+    }
+  },
+  "cross_map_dependencies": [
+    {"from": "policy-authority-map", "to": "platform-resource-graph-map", "reason": "Profile and commerce authority resolve against exact Tenant, Workspace, Brand, channel, location, and resource identities."},
+    {"from": "platform-resource-graph-map", "to": "connector-provider-map", "reason": "Exact Brand resources bind to one approved provider, store, catalog, or Drive connection."},
+    {"from": "workflow-task-orchestration-map", "to": "execution-log-evidence-map", "reason": "Every consequential commerce transition produces bounded evidence and readback."},
+    {"from": "data-model-domain-map", "to": "migration-lifecycle-map", "reason": "New classified profile and commerce records require governed additive migrations."},
+    {"from": "observability-release-map", "to": "delivery-support-map", "reason": "Launch, parity, drift, and provider findings feed support and incident paths."},
+    {"from": "repository-development-map", "to": "repository-automation-map", "reason": "Specification, contract, and implementation changes are validated by existing repository automation."}
+  ],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "Retail Commerce is a bounded reference package composed from existing Brand and business, Policy and Authority, Resource Graph, Connector and Provider, Workflow, Evidence, Asset, Commercial, Data Model, Migration, Runtime, Observability, Delivery, and Repository dimensions. It does not require a new platform Work Map."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-architecture",
+    "evidence_refs": [
+      "specs/014-retail-commerce-operations-growth-os/spec.md",
+      "specs/014-retail-commerce-operations-growth-os/plan.md",
+      "specs/014-retail-commerce-operations-growth-os/tasks.md",
+      "specs/014-retail-commerce-operations-growth-os/acceptance-matrix.md",
+      "docs/work-maps/README.md",
+      "docs/work-maps/work-map-coverage-matrix.md"
+    ]
+  },
+  "secrets_included": false
+}
