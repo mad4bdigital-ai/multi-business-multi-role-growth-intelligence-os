@@ -1,0 +1,68 @@
+name: Exact V3 Bridge Core ARM 5651
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-v3-bridge-arm-base-b1e411
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  core:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/governed-generated-refresh-pr-target-v3-20260802' &&
+      github.event.pull_request.head.sha == 'f27868eb8d10dae117e3628a9950d6722eda1a02'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_BASE_SHA: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
+      EXPECTED_HEAD_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+      TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+    steps:
+      - name: Checkout exact V3 candidate
+        uses: actions/checkout@v5
+        with:
+          ref: f27868eb8d10dae117e3628a9950d6722eda1a02
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_BASE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}" | sort > "${RUNNER_TEMP}/files.txt"
+          test "$(wc -l < "${RUNNER_TEMP}/files.txt")" -eq 4
+          grep -Fx '.changes/e2e/governed-generated-artifact-refresh-pr-target-v3.json' "${RUNNER_TEMP}/files.txt"
+          grep -Fx '.github/workflows/governed-generated-artifact-refresh-pr-target-v3.yml' "${RUNNER_TEMP}/files.txt"
+          grep -Fx '.github/workflows/governed-generated-artifact-refresh-request-dispatcher-v3.yml' "${RUNNER_TEMP}/files.txt"
+          grep -Fx 'http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs' "${RUNNER_TEMP}/files.txt"
+          git diff --check "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}"
+
+      - name: Check focused test syntax
+        run: node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused V3 bridge regression
+        working-directory: http-generic-api
+        run: node test-governed-generated-artifact-refresh-pr-target-v3.mjs
+
+      - name: Run complete Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: f27868eb8d10dae117e3628a9950d6722eda1a02
+        run: npm test
