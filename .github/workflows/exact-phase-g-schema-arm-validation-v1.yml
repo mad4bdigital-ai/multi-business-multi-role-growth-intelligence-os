@@ -1,0 +1,163 @@
+name: Exact Phase G Schema ARM Validation V1
+
+on:
+  pull_request:
+    branches: [gpt/validate-phase-g-schema-arm-base-14433d15-v1]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-phase-g-schema-arm-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/work-map-growth-control-phase-g-classification-14433d15-20260803' &&
+      github.event.pull_request.head.sha == '49cac439baa51312fbe3f3b61af181f6476a8d9f'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    env:
+      EXPECTED_BASE_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+      EXPECTED_HEAD_SHA: 49cac439baa51312fbe3f3b61af181f6476a8d9f
+      EXPECTED_HEAD_REF: fix/work-map-growth-control-phase-g-classification-14433d15-20260803
+      REPORT_DIR: ${{ runner.temp }}/phase-g-schema-validation
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+      - name: Verify exact immutable identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/$EXPECTED_HEAD_REF:refs/remotes/origin/$EXPECTED_HEAD_REF"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_HEAD_REF)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA^1")" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-list --count "$EXPECTED_BASE_SHA..$EXPECTED_HEAD_SHA")" -eq 1
+          test "$(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" | wc -l)" -eq 1
+          test "$(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = '.specify/work-map-schema-classification-registry.json'
+      - name: Install deterministic dependencies
+        run: |
+          npm ci
+          npm ci --prefix http-generic-api
+      - name: Validate schema registry and Work Map contracts
+        id: schema
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          (cd http-generic-api && node test-work-map-schema-classification.mjs && node test-work-map-schema-classification-contract.mjs)
+      - name: Validate Work Map generation and exact readback
+        id: workmaps
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          if node http-generic-api/scripts/platform-work-map-generator.mjs --check; then
+            printf '{"current":true,"changed_files":[],"secrets_included":false}\n' > "$REPORT_DIR/work-map-currentness.json"
+          else
+            node http-generic-api/scripts/platform-work-map-generator.mjs --write
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+            git diff --name-only > "$REPORT_DIR/generated-changed-files.txt"
+            unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+            test -z "$unexpected"
+            jq -n --rawfile files "$REPORT_DIR/generated-changed-files.txt" '{current:false,changed_files:($files|split("\n")|map(select(length>0))),secrets_included:false}' > "$REPORT_DIR/work-map-currentness.json"
+            exit 1
+          fi
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          (cd http-generic-api && node test-spec-kit-work-map-governance-gate.mjs && node test-spec-kit-completion-gate.mjs)
+      - name: Run complete Unit and Integration suite
+        id: unit
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$actual" npm test
+      - name: Verify exact test provenance
+        id: reports
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in "$RUNNER_TEMP/test-suite-reports/test-manifest.json" "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test "$(jq -r '.status' "$report")" = passed
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = null
+            test "$(jq -r '.secretsIncluded' "$report")" = false
+          done
+      - name: Run canonical governance, lifecycle, resolver, architecture and E2E
+        id: governance
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          npm run typecheck
+          npm test -- --runInBand
+          (cd http-generic-api && npm run validate)
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$REPORT_DIR/e2e-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$REPORT_DIR/e2e-evaluation-run.json" --execution-report-file "$REPORT_DIR/e2e-execution.json"
+      - name: Build summary
+        if: always()
+        env:
+          SCHEMA: ${{ steps.schema.outcome }}
+          WORKMAPS: ${{ steps.workmaps.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          REPORTS: ${{ steps.reports.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+        shell: bash
+        run: |
+          mkdir -p "$REPORT_DIR"
+          jq -n --arg head "$EXPECTED_HEAD_SHA" --arg base "$EXPECTED_BASE_SHA" --arg schema "$SCHEMA" --arg workmaps "$WORKMAPS" --arg unit "$UNIT" --arg reports "$REPORTS" --arg governance "$GOVERNANCE" '{contract:"mad4b.phase-g-schema-arm-validation.v1",base_sha:$base,head_sha:$head,stages:{schema:$schema,work_maps:$workmaps,unit_integration:$unit,report_provenance:$reports,governance:$governance},repository_only:true,production_mutated:false,sql_executed:false,migration_apply:false,database_mutated:false,secrets_included:false}' > "$REPORT_DIR/summary.json"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-phase-g-schema-arm-v1-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Enforce all stages
+        if: always()
+        env:
+          SCHEMA: ${{ steps.schema.outcome }}
+          WORKMAPS: ${{ steps.workmaps.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          REPORTS: ${{ steps.reports.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+        shell: bash
+        run: |
+          for outcome in "$SCHEMA" "$WORKMAPS" "$UNIT" "$REPORTS" "$GOVERNANCE"; do test "$outcome" = success; done
