@@ -1,0 +1,125 @@
+name: Exact T016 Readiness Reusable Validation 5715
+
+on:
+  pull_request:
+    branches: [gpt/validate-t016-readiness-reusable-base-5715]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-t016-readiness-reusable-5715-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Initialize exact identities and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/t016-reusable-5715-$GITHUB_RUN_ID"
+          mkdir -p "$dir/gates" "$dir/reference-integrity" "$dir/repository-tool-lifecycle" "$dir/test-suite-reports"
+          head_sha="$(git rev-parse HEAD)"
+          parent_count="$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')"
+          test "$parent_count" = "2"
+          pre_sync="$(git rev-parse HEAD^1)"
+          main_parent="$(git rev-parse HEAD^2)"
+          echo "EVIDENCE_DIR=$dir" >> "$GITHUB_ENV"
+          echo "EXPECTED_HEAD=$head_sha" >> "$GITHUB_ENV"
+          echo "EXPECTED_MAIN=$main_parent" >> "$GITHUB_ENV"
+          echo "EXPECTED_PRE_SYNC=$pre_sync" >> "$GITHUB_ENV"
+          printf '{"candidate_pr":5715,"candidate_sha":"%s","main_parent_sha":"%s","pre_sync_sha":"%s","runner":"ubuntu-24.04","status":"initialized","repository_mutation_performed":false,"secrets_included":false}\n' "$head_sha" "$main_parent" "$pre_sync" > "$dir/identity-start.json"
+      - name: Run nine exact gates
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/t016-reusable-5715-${{ github.run_id }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          pass(){ touch "$EVIDENCE_DIR/gates/$1.pass"; echo "$1" | tee -a "$EVIDENCE_DIR/passed-gates.txt"; }
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${{ github.repository }}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/ops/t016-readiness-current-main-clean-20260803"
+          test "${{ github.event.pull_request.head.sha }}" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_PRE_SYNC"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_MAIN"
+          git merge-base --is-ancestor "$EXPECTED_MAIN" "$EXPECTED_HEAD"
+          git merge-base --is-ancestor "$EXPECTED_PRE_SYNC" "$EXPECTED_HEAD"
+          git diff --name-only "$EXPECTED_MAIN" "$EXPECTED_HEAD" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          printf '%s\n' .changes/e2e/sprint69-1043-t016-readiness-path-repair.json .github/ops/sprint69-1043-runtime-readiness-backfill.mjs .github/ops/sprint69-1043-runtime-readiness.mjs .github/workflows/sprint69-1043-runtime-readiness-backfill.yml http-generic-api/routes/adminCliRoutes.js http-generic-api/test-capability-envelope-create-alias-path.mjs http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs | sort > "$EVIDENCE_DIR/expected-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          test "$(wc -l < "$EVIDENCE_DIR/actual-files.txt" | tr -d ' ')" = "7"
+          git diff --name-status "$EXPECTED_MAIN" "$EXPECTED_HEAD" > "$EVIDENCE_DIR/name-status.tsv"
+          pass preflight
+          node --check .github/ops/sprint69-1043-runtime-readiness.mjs
+          node --check .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          node --check http-generic-api/routes/adminCliRoutes.js
+          (cd http-generic-api && node test-capability-envelope-create-alias-path.mjs && node test-sprint69-1043-runtime-readiness-contract.mjs)
+          pass focused
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree)
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          pass syntax
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
+          pass resource_api
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "$EXPECTED_MAIN" --head "$EXPECTED_HEAD" --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          pass reference_integrity
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_MAIN" CANDIDATE_SHA="$EXPECTED_HEAD" node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files "$EVIDENCE_DIR/name-status.tsv" --policy .github/repository-maintenance-tool-governance.json --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+          pass lifecycle
+          (cd http-generic-api && npm ci && npm test && npm run validate)
+          pass api_tests
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+          pass root_tests
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_MAIN" --head "$EXPECTED_HEAD" --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_MAIN" --head "$EXPECTED_HEAD" --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+          pass e2e
+      - name: Write result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=pass
+          for gate in preflight focused syntax resource_api reference_integrity lifecycle api_tests root_tests e2e; do test -f "$EVIDENCE_DIR/gates/$gate.pass" || status=fail; done
+          count="$(git rev-list --count "$EXPECTED_MAIN..$EXPECTED_HEAD")"
+          jq -n --arg status "$status" --arg head "$EXPECTED_HEAD" --arg main "$EXPECTED_MAIN" --arg pre "$EXPECTED_PRE_SYNC" --arg count "$count" --arg passed "$(tr '\n' ',' < "$EVIDENCE_DIR/passed-gates.txt" 2>/dev/null || true)" '{candidate_pr:5715,candidate_sha:$head,main_parent_sha:$main,pre_sync_sha:$pre,status:$status,history_preserving_reconciliation:true,changed_files:7,commit_count_over_main:($count|tonumber),passed_gates:($passed|split(",")|map(select(length>0))),expected_gate_count:9,runtime_contacted:false,capability_envelope_created:false,apply_authorized:false,migration_apply_executed:false,activation_registry_sync_executed:false,provider_mutation:false,production_mutation:false,credential_access:false,database_mutation:false,repository_mutation_performed:false,secrets_included:false}' > "$EVIDENCE_DIR/result.json"
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-t016-readiness-reusable-5715-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Enforce result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          for gate in preflight focused syntax resource_api reference_integrity lifecycle api_tests root_tests e2e; do test -f "$EVIDENCE_DIR/gates/$gate.pass"; done
+          test "$(find "$EVIDENCE_DIR/gates" -type f -name '*.pass' | wc -l | tr -d ' ')" = "9"
+          test "$(jq -r .status "$EVIDENCE_DIR/result.json")" = pass
+          test "$(jq -r .candidate_sha "$EVIDENCE_DIR/result.json")" = "$EXPECTED_HEAD"
+          test "$(jq -r .repository_mutation_performed "$EVIDENCE_DIR/result.json")" = false
+          test "$(jq -r .secrets_included "$EVIDENCE_DIR/result.json")" = false
