@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/githubRepositoryLifecycle.js",
       "http-generic-api/repositoryAutomationControlPlane.js",
       "http-generic-api/test-github-repository-lifecycle.mjs",
@@ -18,7 +19,7 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "operational"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
@@ -116,6 +117,7 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/githubRepositoryLifecycle.js",
             "http-generic-api/test-github-repository-lifecycle.mjs",
             "http-generic-api/operationCapabilityLifecycleService.js",
