@@ -1,0 +1,155 @@
+name: Pin Critical Runners Commit Object Builder V6
+
+on:
+  pull_request:
+    branches:
+      - gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pin-critical-runners-commit-object-v6-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 14433d15184bd7e7658281a356a7540e3d2d6dfe
+  EXPECTED_HEAD_REF: gpt/ci/pin-critical-runners-commit-object-14433d-v6-20260803
+  PATCHER_BASE_REF: gpt/diag/pin-critical-runners-patcher-base-5ae197-v3-20260803
+  TRIGGER_PATH: .github/diagnostics/pin-critical-runners-commit-object-v6.txt
+
+jobs:
+  build:
+    name: Build validated unreferenced candidate commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Fail closed on exact PR identity
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          ACTUAL_HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          ACTUAL_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_HEAD_REPO" = "$GITHUB_REPOSITORY"
+          test "$ACTUAL_BASE_REF" = "$PATCHER_BASE_REF"
+
+      - name: Checkout exact trigger and verify latest-main parent
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_REF }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable trigger ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA"..HEAD)" = "1"
+          test -f "$TRIGGER_PATH"
+
+      - name: Create tree and commit objects without updating a ref
+        id: candidate
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+          import subprocess
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          token = os.environ["GITHUB_TOKEN"]
+          parent = os.environ["EXPECTED_MAIN_SHA"]
+          base_tree = subprocess.check_output(["git", "rev-parse", f"{parent}^{{tree}}"], text=True).strip()
+          entries = [
+              {"path": ".changes/e2e/critical-runner-label-allocation-mitigation.json", "mode": "100644", "type": "blob", "sha": "d22563df76a72d68f97959ea83bda23315be0950"},
+              {"path": ".github/workflows/automation-overlap-guard.yml", "mode": "100644", "type": "blob", "sha": "6c2321cd7ada9d1075dc15c45dbe13aa47b8c7f3"},
+              {"path": ".github/workflows/ci-pull-request-recovery.yml", "mode": "100644", "type": "blob", "sha": "63724b048e9bbfb2688fe11c9de0d0133ae17668"},
+              {"path": ".github/workflows/ci.yml", "mode": "100644", "type": "blob", "sha": "03f7754ce0d4edd7218509e2a3d5b8134d11dca1"},
+              {"path": ".github/workflows/e2e-contract-reference-integrity.yml", "mode": "100644", "type": "blob", "sha": "e50d610a72ce9e72c6e5605e987875451c1a57bd"},
+              {"path": ".github/workflows/e2e-phase-governance.yml", "mode": "100644", "type": "blob", "sha": "b1d9c6e17d6220b92a0108190257f2b1d9052587"},
+              {"path": ".github/workflows/hostinger-storage-control-plane-guard.yml", "mode": "100644", "type": "blob", "sha": "4ec3564a001f04bc1c74482a62cf964841580208"},
+              {"path": ".github/workflows/http-generic-api-fanout-relocation.yml", "mode": "100644", "type": "blob", "sha": "4ebf670e92b6d32eee9e96c6aa8690e1542f3398"},
+              {"path": ".github/workflows/repository-tool-lifecycle-governance.yml", "mode": "100644", "type": "blob", "sha": "80d16d111adf068127b106251778d71aa9bcfd4d"},
+              {"path": ".github/workflows/supervisor-runtime-assurance.yml", "mode": "100644", "type": "blob", "sha": "94e6df65e80a9fef111fbdd9184603bec070b911"},
+              {"path": "http-generic-api/scripts/test-critical-runner-label-pinning.mjs", "mode": "100644", "type": "blob", "sha": "33778f811d79b4593155dea8eebd033b8985798a"},
+          ]
+
+          def post(endpoint, payload):
+              request = urllib.request.Request(
+                  f"https://api.github.com/repos/{repo}/{endpoint}",
+                  data=json.dumps(payload).encode("utf-8"),
+                  method="POST",
+                  headers={
+                      "Accept": "application/vnd.github+json",
+                      "Authorization": f"Bearer {token}",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return json.load(response)
+
+          tree = post("git/trees", {"base_tree": base_tree, "tree": entries})
+          commit = post("git/commits", {
+              "message": "fix(ci): pin critical hosted runners to ubuntu-24.04",
+              "tree": tree["sha"],
+              "parents": [parent],
+          })
+          candidate_sha = commit["sha"]
+          returned_parent = commit.get("parents", [{}])[0].get("sha")
+          returned_tree = commit.get("tree", {}).get("sha")
+          if returned_parent != parent or returned_tree != tree["sha"]:
+              raise SystemExit("candidate object identity mismatch")
+
+          manifest = {
+              "ok": True,
+              "base_sha": parent,
+              "base_tree_sha": base_tree,
+              "candidate_tree_sha": tree["sha"],
+              "candidate_commit_sha": candidate_sha,
+              "commit_message": "fix(ci): pin critical hosted runners to ubuntu-24.04",
+              "entries": entries,
+              "entry_count": len(entries),
+              "ref_updated": False,
+              "branch_created": False,
+              "main_mutated": False,
+              "production_mutated": False,
+              "provider_mutated": False,
+              "database_mutated": False,
+              "secrets_included": False,
+          }
+          output = Path(os.environ["RUNNER_TEMP"]) / "pin-critical-runners-commit-object-v6.json"
+          output.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"candidate_sha={candidate_sha}\n")
+              handle.write(f"tree_sha={tree['sha']}\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
+      - name: Upload immutable candidate object manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pin-critical-runners-commit-object-v6-${{ github.run_id }}
+          path: ${{ runner.temp }}/pin-critical-runners-commit-object-v6.json
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Assert candidate remains unreferenced
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          test -n "$CANDIDATE_SHA"
+          test "$(git rev-parse "origin/$EXPECTED_HEAD_REF")" != "$CANDIDATE_SHA"
+          echo "Candidate commit object created; no Git ref was updated."
