@@ -1,0 +1,10 @@
+repository_write_workflow_prerequisite_builder_trigger
+main_sha=773179a2dee3523c8af25262475ac83b92e46f21
+builder_base=gpt/diag/repository-write-prerequisite-builder-773179a2-v1
+candidate_branch=gpt/ci/repository-write-workflow-prerequisite-773179a2-20260804
+protected_ref_update=false
+production_mutation=false
+provider_mutation=false
+database_mutation=false
+force_push=false
+secrets_included=false
