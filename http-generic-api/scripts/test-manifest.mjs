@@ -82,6 +82,7 @@ const staticDiscoveryCommands = [
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-repository-main-moved-trigger-coordinator.mjs",
   "node test-resource-api-callability-effect-classes.mjs",
+  // Keep the closure regression visible to static guards and executable manifests.
   "node test-surface-callability-full-closure.mjs",
   "node test-security-decision-engine.mjs",
   "node test-security-decision-trace-contract.mjs",
