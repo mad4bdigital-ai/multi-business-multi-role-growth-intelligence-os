@@ -1,4 +1,4 @@
-name: TEMP Work Map Verification Dispatch Diagnostic 5912
+name: TEMP Work Map Verification Dispatch ARM 5949
 
 on:
   pull_request:
@@ -10,58 +10,70 @@ permissions:
   contents: read
 
 jobs:
-  diagnose:
-    name: Capture focused dispatch regression failure
+  validate:
+    name: Validate exact atomic candidate
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
         with:
-          ref: afcc533fc59903aac7c1f80e3e5d7bf1f425335e
+          ref: 4d3470a3e0847748da2453216f7bb2f2e70ca87d
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify source, topology, scope, and reviewed blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5949"
+          test "$(git rev-parse HEAD)" = "4d3470a3e0847748da2453216f7bb2f2e70ca87d"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-atomic-97e4ee7e-20260804:refs/remotes/origin/candidate"
+
+          test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "4d3470a3e0847748da2453216f7bb2f2e70ca87d"
+          test "$(git rev-parse HEAD^)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
+          test "$(git rev-list --count refs/remotes/origin/main..HEAD)" = "1"
+
+          cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
+          .changes/e2e/work-map-post-write-exact-verification-dispatch.json
+          .github/workflows/ci.yml
+          .github/workflows/spec-kit-work-map-autofix.yml
+          .github/workflows/spec-kit-work-map-integration.yml
+          http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          EOF
+          git diff --name-only refs/remotes/origin/main...HEAD | sort > "$RUNNER_TEMP/actual-files.txt"
+          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/actual-files.txt"
+
+          test "$(git rev-parse HEAD:.changes/e2e/work-map-post-write-exact-verification-dispatch.json)" = "517a0b4ec5df195330eb0b044ac0a36a28bf03b9"
+          test "$(git rev-parse HEAD:.github/workflows/ci.yml)" = "a09247d50e52fe00e94b54d1a98abe822e9346e5"
+          test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-autofix.yml)" = "663b64ee84221ad27e2702ec90c826b5dbaa1c3c"
+          test "$(git rev-parse HEAD:.github/workflows/spec-kit-work-map-integration.yml)" = "ff41bb0c48df07d40baea2de91ec1303859c46b4"
+          test "$(git rev-parse HEAD:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs)" = "d5cad261ed259dc527403eca39b2d01de6fd4f55"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
 
-      - name: Verify diagnostic and candidate identity
+      - name: Run focused dispatch regression
+        working-directory: http-generic-api
+        shell: bash
+        run: node test-work-map-post-write-exact-verification-dispatch.mjs
+
+      - name: Verify E2E contract JSON and test syntax
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912-v3"
-          test "$(git rev-parse HEAD)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804:refs/remotes/origin/candidate"
-          test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
-          test "$(git rev-parse refs/remotes/origin/candidate)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
+          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json', 'utf8'))"
 
-      - name: Capture focused regression output
-        id: focused
-        continue-on-error: true
-        working-directory: http-generic-api
+      - name: Verify clean checkout after validation
         shell: bash
         run: |
-          set +e
-          node test-work-map-post-write-exact-verification-dispatch.mjs > "$RUNNER_TEMP/focused.log" 2>&1
-          status=$?
-          echo "status=${status}" >> "$GITHUB_OUTPUT"
-          cat "$RUNNER_TEMP/focused.log"
-          exit "$status"
-
-      - name: Upload focused diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: work-map-verification-dispatch-focused-diagnostic-v3-${{ github.run_id }}
-          path: ${{ runner.temp }}/focused.log
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Fail after diagnostic upload
-        if: steps.focused.outcome != 'success'
-        run: |
-          echo "Focused regression failed; diagnostic artifact uploaded."
-          exit 1
+          set -euo pipefail
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
