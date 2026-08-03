@@ -12,7 +12,8 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 const MAX_RESPONSE_BYTES = 512 * 1024;
 const MAX_LOG_CHARS = 24_000;
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
-const UUID_PATTERN = /^[0-9a-f-]{36}$/u;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const SECRET_KEY = /(authorization|token|secret|password|cookie|private[_-]?key|credential|api[_-]?key)/iu;
 
 class ForensicsError extends Error {
   constructor(code, message, status = 0) {
@@ -36,6 +37,23 @@ export function redact(value, maxLength = 4_000) {
 function scrubKnownSecret(value, secret, maxLength = 4_000) {
   const text = String(value ?? "");
   return redact(secret ? text.split(String(secret)).join("[REDACTED]") : text, maxLength);
+}
+
+export function sanitizeStructured(value, depth = 0) {
+  if (depth > 5) return "[TRUNCATED_DEPTH]";
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return redact(value, 1_000);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  if (Array.isArray(value)) return value.slice(0, 50).map((entry) => sanitizeStructured(entry, depth + 1));
+  if (typeof value === "object") {
+    const output = {};
+    for (const [key, entry] of Object.entries(value).slice(0, 100)) {
+      const safeKey = redact(key, 128);
+      output[safeKey] = SECRET_KEY.test(key) ? "[REDACTED]" : sanitizeStructured(entry, depth + 1);
+    }
+    return output;
+  }
+  return redact(value, 1_000);
 }
 
 function parseIso(value, code, label) {
@@ -166,9 +184,7 @@ async function requestJson(url, configuration, fetchImpl, authenticated = true) 
 }
 
 function arrayFromBuildResponse(body) {
-  for (const candidate of [body?.data, body?.data?.data, body?.builds, body?.items]) {
-    if (Array.isArray(candidate)) return candidate;
-  }
+  for (const candidate of [body?.data, body?.data?.data, body?.builds, body?.items]) if (Array.isArray(candidate)) return candidate;
   return [];
 }
 
@@ -177,15 +193,9 @@ function normalizeTimestamp(value) {
   return Number.isNaN(timestamp) ? null : new Date(timestamp).toISOString();
 }
 
-function findStringSignals(value, depth = 0, key = "") {
-  const signals = { shas: new Set(), branches: new Set(), releaseDirs: new Set(), text: [] };
+function collectSignals(value, depth = 0, key = "", output = null) {
+  const signals = output || { shas: new Set(), branches: new Set(), releaseDirs: new Set(), text: [] };
   if (depth > 6 || value === null || value === undefined) return signals;
-  const merge = (other) => {
-    for (const sha of other.shas) signals.shas.add(sha);
-    for (const branch of other.branches) signals.branches.add(branch);
-    for (const directory of other.releaseDirs) signals.releaseDirs.add(directory);
-    signals.text.push(...other.text);
-  };
   if (typeof value === "string") {
     const text = redact(value, MAX_LOG_CHARS);
     signals.text.push(text);
@@ -197,19 +207,19 @@ function findStringSignals(value, depth = 0, key = "") {
     return signals;
   }
   if (Array.isArray(value)) {
-    for (const entry of value.slice(0, 100)) merge(findStringSignals(entry, depth + 1, key));
+    for (const entry of value.slice(0, 100)) collectSignals(entry, depth + 1, key, signals);
     return signals;
   }
   if (typeof value === "object") {
-    for (const [childKey, entry] of Object.entries(value).slice(0, 100)) merge(findStringSignals(entry, depth + 1, childKey));
+    for (const [childKey, entry] of Object.entries(value).slice(0, 100)) collectSignals(entry, depth + 1, childKey, signals);
   }
   return signals;
 }
 
 export function analyzeBuildLogs(logText, structuredBuild = {}) {
-  const combined = `${redact(logText, MAX_LOG_CHARS)}\n${JSON.stringify(structuredBuild)}`;
-  const signals = findStringSignals(combined);
-  const lower = combined.toLowerCase();
+  const safeText = redact(logText, MAX_LOG_CHARS);
+  const signals = collectSignals({ logs: safeText, build: sanitizeStructured(structuredBuild) });
+  const combined = signals.text.join("\n");
   return {
     source_shas: [...signals.shas].sort(),
     source_branches: [...signals.branches].sort(),
@@ -218,44 +228,34 @@ export function analyzeBuildLogs(logText, structuredBuild = {}) {
     restart_hint: /(restart(?:ed|ing)?|process[^\n]{0,80}(start|reload)|pm2[^\n]{0,80}restart)/iu.test(combined),
     failure_hint: /(^|\n).{0,80}(error|fatal|failed|crash|exception).{0,160}($|\n)/iu.test(combined),
     production_branch_hint: /\bproduction\b/iu.test(combined),
-    excerpt: redact(logText, MAX_LOG_CHARS),
-    excerpt_sha256: createHash("sha256").update(redact(logText, MAX_LOG_CHARS)).digest("hex"),
-    empty: lower.trim().length === 0,
+    excerpt: safeText,
+    excerpt_sha256: createHash("sha256").update(safeText).digest("hex"),
+    empty: safeText.trim().length === 0,
   };
 }
 
 function extractRuntimeIdentity(body) {
-  const signals = findStringSignals(body);
+  const signals = collectSignals(body);
   const possibleShaKeys = [
-    body?.buildSha,
-    body?.build_sha,
-    body?.commit_sha,
-    body?.deploymentSha,
-    body?.deployment_sha,
-    body?.deployment?.deployed_commit_sha,
-    body?.deployment?.commit_sha,
-    body?.manifest?.commit_sha,
-    body?.deployment?.manifest?.commit_sha,
+    body?.buildSha, body?.build_sha, body?.commit_sha, body?.deploymentSha, body?.deployment_sha,
+    body?.deployment?.deployed_commit_sha, body?.deployment?.commit_sha,
+    body?.manifest?.commit_sha, body?.deployment?.manifest?.commit_sha,
   ];
-  const explicitSha = possibleShaKeys.map((value) => String(value ?? "").trim().toLowerCase()).find((value) => SHA_PATTERN.test(value));
+  const sha = possibleShaKeys.map((value) => String(value ?? "").trim().toLowerCase()).find((value) => SHA_PATTERN.test(value)) || [...signals.shas][0] || null;
   const possibleBranches = [body?.branch, body?.deployment?.branch, body?.manifest?.branch, body?.deployment?.manifest?.branch];
-  const explicitBranch = possibleBranches.map((value) => String(value ?? "").trim()).find(Boolean);
-  return {
-    sha: explicitSha || [...signals.shas][0] || null,
-    branch: explicitBranch || [...signals.branches][0] || null,
-    release_directories: [...signals.releaseDirs].sort(),
-  };
+  const branch = possibleBranches.map((value) => String(value ?? "").trim()).find(Boolean) || [...signals.branches][0] || null;
+  return { sha, branch, release_directories: [...signals.releaseDirs].sort() };
 }
 
-export function classifyForensics({ configuration, build, logAnalysis, runtime }) {
-  const runtimeCurrent = runtime.version.identity.sha === configuration.expectedSha
-    && String(runtime.deploymentInfo.identity.branch || "").toLowerCase() === "production";
+export function classifyForensics({ configuration, logAnalysis, runtime }) {
+  const runtimeSha = runtime.version.identity.sha || runtime.deploymentInfo.identity.sha;
+  const runtimeBranch = runtime.deploymentInfo.identity.branch || runtime.version.identity.branch;
+  const runtimeCurrent = runtimeSha === configuration.expectedSha && String(runtimeBranch || "").toLowerCase() === "production";
   if (runtimeCurrent) return { outcome: "passed", classification: "production_runtime_current", next_action: "close_incident_after_admin_tenant_readback" };
 
   const buildSourceExact = logAnalysis.source_shas.includes(configuration.expectedSha);
   const branchExact = logAnalysis.source_branches.some((branch) => branch.toLowerCase() === "production") || logAnalysis.production_branch_hint;
-  const runtimeStale = Boolean(runtime.version.identity.sha && runtime.version.identity.sha !== configuration.expectedSha);
-
+  const runtimeStale = Boolean(runtimeSha && runtimeSha !== configuration.expectedSha);
   if (buildSourceExact && branchExact && runtimeStale && logAnalysis.deploy_completed_hint) {
     return { outcome: "blocked", classification: "completed_expected_build_not_active_restart_or_slot_promotion_required", next_action: "verify_active_slot_then_restart_existing_nodejs_server_if_slot_is_current" };
   }
@@ -283,7 +283,7 @@ export async function collectForensics(options, dependencies = {}) {
     state: String(rawBuild.state || rawBuild.status || "unknown").toLowerCase(),
     created_at: normalizeTimestamp(rawBuild.created_at || rawBuild.createdAt),
     updated_at: normalizeTimestamp(rawBuild.updated_at || rawBuild.updatedAt),
-    options: JSON.parse(redact(JSON.stringify(rawBuild.options ?? rawBuild.metadata ?? {}), 12_000)),
+    options: sanitizeStructured(rawBuild.options ?? rawBuild.metadata ?? {}),
   };
   if (build.state !== "completed") throw new ForensicsError("target_build_not_completed", `Target build state is ${build.state}.`);
   if ((Date.parse(build.created_at || "") || 0) < configuration.productionMergedAtMs) throw new ForensicsError("target_build_predates_production_merge", "Target build predates the protected Production merge.");
@@ -298,7 +298,7 @@ export async function collectForensics(options, dependencies = {}) {
   const publicRoute = async (route) => {
     try {
       const response = await requestJson(new URL(route, `https://${configuration.domain}`), configuration, fetchImpl, false);
-      return { ok: true, http_status: response.status, body: response.body, identity: extractRuntimeIdentity(response.body) };
+      return { ok: true, http_status: response.status, body: sanitizeStructured(response.body), identity: extractRuntimeIdentity(response.body) };
     } catch (error) {
       return { ok: false, http_status: Number(error?.status || 0), error: { code: error?.code || "public_runtime_error", message: redact(error?.message || error, 1_000) }, body: null, identity: { sha: null, branch: null, release_directories: [] } };
     }
@@ -349,11 +349,11 @@ export async function collectForensics(options, dependencies = {}) {
 }
 
 function markdown(report) {
-  const observedSha = report.runtime.version.identity.sha || "unavailable";
-  const observedBranch = report.runtime.deploymentInfo.identity.branch || report.runtime.version.identity.branch || "unavailable";
+  if (report.ok === false) return `# Hostinger completed build forensics\n\n- outcome: \`failed\`\n- failure: \`${report.failure.code}\`\n- secrets included: \`false\`\n`;
+  const runtimeSha = report.runtime.version.identity.sha || report.runtime.deploymentInfo.identity.sha || "unavailable";
+  const runtimeBranch = report.runtime.deploymentInfo.identity.branch || report.runtime.version.identity.branch || "unavailable";
   return [
-    "# Hostinger completed build forensics",
-    "",
+    "# Hostinger completed build forensics", "",
     `- outcome: \`${report.decision.outcome}\``,
     `- classification: \`${report.decision.classification}\``,
     `- next action: \`${report.decision.next_action}\``,
@@ -363,12 +363,9 @@ function markdown(report) {
     `- log source SHAs: \`${report.log_analysis.source_shas.join(",") || "none"}\``,
     `- log source branches: \`${report.log_analysis.source_branches.join(",") || "none"}\``,
     `- release directories: \`${report.log_analysis.release_directories.join(",") || "none"}\``,
-    `- observed runtime SHA: \`${observedSha}\``,
-    `- observed runtime branch: \`${observedBranch}\``,
-    "- provider mutation: `false`",
-    "- restart: `false`",
-    "- secrets included: `false`",
-    "",
+    `- observed runtime SHA: \`${runtimeSha}\``,
+    `- observed runtime branch: \`${runtimeBranch}\``,
+    "- provider mutation: `false`", "- restart: `false`", "- secrets included: `false`", "",
   ].join("\n");
 }
 
