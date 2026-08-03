@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-production-5e5178bb-build-evidence-push",
+  "title": "Current Production Hostinger build evidence push bridge",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-production-5e5178bb-build-evidence-push.json",
+      ".github/workflows/hostinger-production-5e5178bb-build-evidence-push.yml",
+      "http-generic-api/scripts/test-hostinger-production-5e5178bb-build-evidence-push.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Run the existing canonical Hostinger Node.js build evidence reporter once for the current zero-diff Production rebuild through a queue-stable trusted-main marker without performing any provider mutation.",
+      "e2e_journeys": [
+        {
+          "id": "collect-current-production-build-history",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and GitHub Actions",
+          "entrypoint": "A trusted main push changing only the exact Production 5e5178bb build-evidence marker",
+          "terminal_outcome": "A secret-free artifact and bounded Incident 4953 comment identify whether Hostinger created a build after the 2026-08-03T06:16:38Z Production rebuild and report its UUID, state, source SHA evidence, and first failure without changing Hostinger.",
+          "steps": [
+            "Check out the immutable push event SHA and prove it remains an ancestor of current protected main.",
+            "Verify protected Production remains exactly 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb.",
+            "Verify the exact first-line token, one changed marker file, and exact GET-only marker body.",
+            "Verify the canonical reporter and reporter-test blobs before the first issue write.",
+            "Reject duplicate use of the same Production, merge timestamp, reporter blob, and marker binding.",
+            "Run the canonical reporter regression without provider credentials.",
+            "Perform authenticated GET-only Hostinger build-list inspection for auth.mad4b.com after the Production rebuild timestamp.",
+            "Scrub the exact provider token from persisted JSON and Markdown evidence when present.",
+            "Upload the structured evidence and publish a bounded classification to Incident 4953."
+          ],
+          "assertions": [
+            "The workflow is queue-stable because push execution is bound to github.sha and requires only ancestry in current main, not remote-main equality.",
+            "The target account is u338416126 and the domain is auth.mad4b.com.",
+            "The expected Production SHA and merge timestamp are fixed to the current zero-diff rebuild.",
+            "The canonical reporter contract remains mad4b.hostinger-nodejs-build-evidence.v1.",
+            "The provider method is GET only and no build creation, deployment, release activation, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref mutation, force update, or external send occurs.",
+            "The Hostinger API token is not returned in artifacts or incident comments.",
+            "Diagnostic outcomes including no build, pending, running, failed, other SHA, and source-unverified remain publishable and do not authorize restart."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-5e5178bb-build-evidence-push-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-5e5178bb-build-evidence-push.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-production-5e5178bb-build-evidence-push.yml",
+            "http-generic-api/scripts/hostinger-nodejs-build-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-production-5e5178bb-build-evidence-push.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge the inert registration, then merge exactly one marker-only trigger and use the resulting build UUID and classification to choose completed-build log inspection or stop before restart."
+    }
+  ],
+  "secrets_included": false
+}
