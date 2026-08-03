@@ -121,13 +121,14 @@ jobs:
           import re
           import subprocess
 
-          lines = subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True).splitlines()
-          changed = []
-          for line in lines:
-              path = line[3:]
-              if ' -> ' in path:
-                  path = path.split(' -> ', 1)[1]
-              changed.append(path)
+          def nul_paths(command):
+              raw = subprocess.check_output(command)
+              return [item.decode('utf-8') for item in raw.split(b'\0') if item]
+
+          changed = sorted(set(
+              nul_paths(['git', 'diff', '--name-only', '-z'])
+              + nul_paths(['git', 'ls-files', '--others', '--exclude-standard', '-z'])
+          ))
           print({'changed_files': changed})
 
           exact = {
