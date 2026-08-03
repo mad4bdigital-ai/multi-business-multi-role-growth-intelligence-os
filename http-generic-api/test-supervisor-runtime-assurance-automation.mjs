@@ -4,9 +4,10 @@ import { readFileSync } from "node:fs";
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
-const workMapRecoveryBridge = readFileSync("../.github/workflows/e2e-contract-reference-integrity.yml", "utf8");
+const workMapRecoveryBridge = readFileSync("../.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml", "utf8");
 const pipelineContract = JSON.parse(readFileSync("../.specify/pipeline-connectivity-contract.json", "utf8"));
 const assurance = readFileSync("../.github/workflows/supervisor-runtime-assurance.yml", "utf8");
+const assuranceAlert = readFileSync("../.github/workflows/supervisor-runtime-assurance-alert.yml", "utf8");
 const runbook = readFileSync("../docs/runbooks/supervisor-runtime-assurance.md", "utf8");
 const testManifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 
@@ -116,13 +117,13 @@ const recoveryBridgePolicy = writerPolicy.non_writer_pipelines.find(
 );
 assert.ok(recoveryBridgePolicy, "Work Map recovery bridge must remain a governed non-writer");
 for (const marker of [
-  "Validate immutable PR snapshot and dispatch sole writer",
+  "Resolve and validate exact same-repository target",
   "work-map-autofix:authorized",
-  "authorization_consumed=true",
+  "consumed=true",
   "spec-kit-work-map-autofix.yml/dispatches",
-  "direct_repository_content_mutation=false",
-  "protected_branch_mutation=false",
-  "force_push=false",
+  "direct_repository_mutation:false",
+  "protected_branch_mutation:false",
+  "force_push:false",
 ]) {
   assert.ok(
     recoveryBridgePolicy.required_commands.includes(marker),
@@ -144,8 +145,7 @@ for (const marker of [
 }
 
 for (const marker of [
-  "schedule:",
-  "cron: '23 4 * * *'",
+  "pull_request:",
   "supervisor-runtime-readiness.mjs",
   "supervisor-behavioral-certification.mjs",
   "check-supervisor-admin-tool-export-sync.mjs",
@@ -156,16 +156,34 @@ for (const marker of [
   "behavioral-dry-run.json",
   "actions/upload-artifact@v4",
   "supervisor-runtime-assurance",
-  "gh issue create",
-  "gh issue close",
 ]) {
-  assert.ok(assurance.includes(marker), `assurance workflow missing ${marker}`);
+  assert.ok(assurance.includes(marker), `read-only assurance workflow missing ${marker}`);
 }
+assert.match(assurance, /permissions:\s+[\s\S]*contents: read/);
+assert.doesNotMatch(assurance, /issues: write/);
+assert.doesNotMatch(assurance, /schedule:/);
+assert.doesNotMatch(assurance, /gh issue (?:create|close|comment)/);
 assert.doesNotMatch(assurance, /--live|--apply|APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION/);
 assert.doesNotMatch(assurance, /secrets\.[A-Z0-9_]+/);
 assert.match(assurance, /applies_provider_calls, false/);
 assert.match(assurance, /persistent_fixture_writes, false/);
 assert.match(assurance, /transaction_rollback_required, true/);
+
+for (const marker of [
+  "schedule:",
+  "cron: '23 4 * * *'",
+  "supervisor-runtime-readiness.mjs",
+  "supervisor-behavioral-certification.mjs",
+  "check-supervisor-admin-tool-export-sync.mjs",
+  "issues: write",
+  "gh issue create",
+  "gh issue close",
+]) {
+  assert.ok(assuranceAlert.includes(marker), `supervisor alert workflow missing ${marker}`);
+}
+assert.doesNotMatch(assuranceAlert, /\n\s*pull_request(?:_target)?:/);
+assert.doesNotMatch(assuranceAlert, /--live|--apply|APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION/);
+assert.doesNotMatch(assuranceAlert, /secrets\.[A-Z0-9_]+/);
 
 for (const marker of [
   "supervisor_runtime_readiness",
@@ -180,10 +198,10 @@ for (const marker of [
   "transaction_rolled_back=true",
   "same-cycle",
   "one remote branch writer",
+  "supervisor-runtime-assurance-alert.yml",
 ]) {
   assert.ok(runbook.includes(marker), `runbook missing ${marker}`);
 }
-assert.doesNotMatch(runbook, /work-map-autofix:authorized/);
 assert.doesNotMatch(runbook, /docs-agent-write|docs-agent-automerge/);
 assert.ok(testManifest.includes("node test-supervisor-runtime-assurance-automation.mjs"));
 

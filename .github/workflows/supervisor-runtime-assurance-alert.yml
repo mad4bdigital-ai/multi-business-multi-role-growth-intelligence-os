@@ -1,43 +1,20 @@
-name: Supervisor Runtime Assurance
+name: Supervisor Runtime Assurance Alert Lifecycle
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - '.github/workflows/docs-agent.yml'
-      - '.github/workflows/supervisor-runtime-assurance.yml'
-      - '.github/workflows/supervisor-runtime-assurance-alert.yml'
-      - 'http-generic-api/supervisorRuntimeReadiness.js'
-      - 'http-generic-api/scripts/supervisor-runtime-readiness.mjs'
-      - 'http-generic-api/scripts/supervisor-behavioral-certification.mjs'
-      - 'http-generic-api/scripts/check-supervisor-admin-tool-export-sync.mjs'
-      - 'http-generic-api/config/supervisor-admin-tool-exports.json'
-      - 'http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
-      - 'docs/runbooks/supervisor-runtime-assurance.md'
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/docs-agent.yml'
-      - '.github/workflows/supervisor-runtime-assurance.yml'
-      - '.github/workflows/supervisor-runtime-assurance-alert.yml'
-      - 'http-generic-api/supervisorRuntimeReadiness.js'
-      - 'http-generic-api/scripts/supervisor-runtime-readiness.mjs'
-      - 'http-generic-api/scripts/supervisor-behavioral-certification.mjs'
-      - 'http-generic-api/scripts/check-supervisor-admin-tool-export-sync.mjs'
-      - 'http-generic-api/config/supervisor-admin-tool-exports.json'
-      - 'http-generic-api/test-supervisor-runtime-assurance-automation.mjs'
-      - 'docs/runbooks/supervisor-runtime-assurance.md'
+  schedule:
+    - cron: '23 4 * * *'
 
 permissions:
   contents: read
 
 concurrency:
-  group: supervisor-runtime-assurance-${{ github.ref }}
-  cancel-in-progress: true
+  group: supervisor-runtime-assurance-alert-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   assurance:
-    name: Static readiness and behavioral dry-run
+    name: Scheduled static readiness and behavioral dry-run
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -89,7 +66,42 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: supervisor-runtime-assurance-${{ github.run_id }}
+          name: supervisor-runtime-assurance-alert-${{ github.run_id }}
           path: supervisor-assurance-evidence
           if-no-files-found: warn
           retention-days: 14
+
+  alert-lifecycle:
+    name: Reconcile supervisor assurance issue
+    needs: assurance
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or resolve repository assurance issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSURANCE_RESULT: ${{ needs.assurance.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          LABEL="supervisor-runtime-assurance"
+          TITLE="[Supervisor Runtime Assurance] Scheduled check failed"
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D93F0B \
+            --description "Automated supervisor readiness or behavioral dry-run failure" --force
+          ISSUE_NUMBER=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" \
+            --json number --jq '.[0].number // empty')
+          if [ "$ASSURANCE_RESULT" != "success" ]; then
+            BODY="The scheduled supervisor assurance workflow failed. Review ${RUN_URL}. No live apply, provider call, credential read, or external runtime write was attempted."
+            if [ -n "$ISSUE_NUMBER" ]; then
+              gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label "$LABEL" --body "$BODY"
+            fi
+          elif [ -n "$ISSUE_NUMBER" ]; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body "Supervisor assurance recovered successfully. Evidence: ${RUN_URL}."
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
+          fi
