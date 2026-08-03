@@ -15,7 +15,11 @@ const authorizationToken = "AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669
 const triggerPath = ".github/ops/hostinger-production-release-evidence-r6-trigger.json";
 
 assert.match(workflow, /name: Hostinger Production Release Evidence R6/);
-assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened\]/);
+assert.match(workflow, /pull_request:\n\s+branches: \[main\]\n\s+types: \[opened, reopened, synchronize\]/);
+assert.doesNotMatch(workflow, /\n\s+paths:/);
+assert.doesNotMatch(workflow, /^\s{6}EVIDENCE_DIR: \$\{\{ runner\.temp \}\}/m);
+assert.match(workflow, /echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/);
+assert.match(workflow, /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/);
 assert.doesNotMatch(workflow, /issue_comment:/);
 assert.doesNotMatch(workflow, /workflow_dispatch:/);
 assert.match(workflow, new RegExp(triggerPath.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
