@@ -95,6 +95,7 @@ const staticDiscoveryCommands = [
   "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
   "node test-system-tool-catalog-v2.mjs",
+  "node test-system-tool-catalog-v2-post-merge-contract.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-tenant-blocked-capability-export-cleanup.mjs",
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",
