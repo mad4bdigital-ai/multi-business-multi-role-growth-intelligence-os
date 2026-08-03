@@ -53,7 +53,7 @@ jobs:
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       INPUT_EXPECTED_BUILD_UUID: ${{ inputs.expected_build_uuid || '' }}
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-nodejs-production-restart
+      EVIDENCE_DIR: /tmp/hostinger-nodejs-production-restart-${{ github.run_id }}
     steps:
       - name: Resolve explicit authorization binding
         id: authorization
