@@ -51,6 +51,25 @@ assert.match(workflow, /actions\/upload-artifact@v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
 
+assert.match(workflow, /- name: Initialize runtime-safe evidence directory/);
+assert.match(
+  workflow,
+  /echo "EVIDENCE_DIR=\$\{RUNNER_TEMP\}\/hostinger-production-release-evidence-r6" >> "\$\{GITHUB_ENV\}"/,
+);
+assert.doesNotMatch(
+  workflow,
+  /^\s{6}EVIDENCE_DIR:\s*\$\{\{\s*runner\./m,
+  "R6 job-level env must not reference runner context before runner allocation",
+);
+assert.match(
+  workflow,
+  /HOSTINGER_NODEJS_BUILD_EVIDENCE_DIR: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/build/,
+);
+assert.match(
+  workflow,
+  /path: \$\{\{ runner\.temp \}\}\/hostinger-production-release-evidence-r6\/\*\*/,
+);
+
 for (const marker of [
   "repository_write_performed:false",
   "provider_mutation_performed:false",
