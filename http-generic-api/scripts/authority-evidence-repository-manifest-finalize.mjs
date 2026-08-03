@@ -111,6 +111,7 @@ function writeNewFile(repositoryRoot, relativePath, content) {
   const prepared = prepareNewFile(repositoryRoot, relativePath);
   const createdDirectories = [];
   let temporary = null;
+  let linked = false;
   try {
     ensureSafeParent(repositoryRoot, prepared.parentPath, createdDirectories);
     if (lstatOrNull(prepared.absolutePath)) {
@@ -119,13 +120,16 @@ function writeNewFile(repositoryRoot, relativePath, content) {
     temporary = `${prepared.absolutePath}.${process.pid}.tmp`;
     fs.writeFileSync(temporary, String(content), { flag: "wx" });
     fs.linkSync(temporary, prepared.absolutePath);
+    linked = true;
     fs.unlinkSync(temporary);
     temporary = null;
   } catch (error) {
     if (temporary) {
       try { fs.unlinkSync(temporary); } catch {}
     }
-    try { fs.unlinkSync(prepared.absolutePath); } catch {}
+    if (linked) {
+      try { fs.unlinkSync(prepared.absolutePath); } catch {}
+    }
     for (const directory of createdDirectories.reverse()) {
       try { fs.rmdirSync(directory); } catch {}
     }
