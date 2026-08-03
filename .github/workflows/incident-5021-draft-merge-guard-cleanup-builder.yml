@@ -1,0 +1,107 @@
+name: Incident 5021 Draft Merge Guard Cleanup Builder
+run-name: Incident 5021 draft merge guard cleanup · ${{ github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/incident-5021-draft-merge-guard-cleanup-builder.yml
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    name: Clean candidate evidence and test ordering
+    if: github.event.pull_request.head.ref == 'gpt/incident-5021/draft-merge-guard-cleanup-builder-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: gpt/incident-5021/draft-merge-guard-20260803
+      EXPECTED_TARGET_HEAD: ebc4e682de3772c6f4bfade6c15b64ddd2131dfd
+    steps:
+      - name: Checkout exact candidate branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_HEAD"
+          test -z "$(git status --porcelain)"
+
+      - name: Correct evidence path and test completion ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+
+          const evidencePath = '.changes/e2e/repository-lifecycle-draft-merge-guard.json';
+          const evidence = JSON.parse(fs.readFileSync(evidencePath, 'utf8'));
+          const journey = evidence.phases.find((phase) => phase.id === 'mvp')?.e2e_journeys?.[0];
+          assert.ok(journey);
+          const incidentUrl = 'https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5021';
+          assert.equal(journey.evidence_paths.filter((entry) => entry === incidentUrl).length, 1);
+          journey.evidence_paths = journey.evidence_paths.map((entry) =>
+            entry === incidentUrl ? evidencePath : entry,
+          );
+          assert.equal(new Set(journey.evidence_paths).size, journey.evidence_paths.length);
+          fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+
+          const testPath = 'http-generic-api/test-github-repository-lifecycle.mjs';
+          let source = fs.readFileSync(testPath, 'utf8');
+          const marker = 'console.log("github repository lifecycle tests passed");';
+          assert.equal(source.split(marker).length - 1, 1);
+          source = source.replace(`${marker}\n\n\n{`, '{');
+          assert.equal(source.includes(marker), false);
+          source = `${source.trimEnd()}\n\n${marker}\n`;
+          fs.writeFileSync(testPath, source, 'utf8');
+          NODE
+
+      - name: Run focused tests
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Enforce two-file cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git status --short | sed 's/^...//')
+          test "${#changed[@]}" -eq 2
+          printf '%s\n' "${changed[@]}" | sort > /tmp/changed.txt
+          printf '%s\n' \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/test-github-repository-lifecycle.mjs | sort > /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/changed.txt
+
+      - name: Commit and publish cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/test-github-repository-lifecycle.mjs
+          git commit -m "test(github): finalize Draft guard evidence"
+          git push origin "HEAD:$TARGET_BRANCH"
