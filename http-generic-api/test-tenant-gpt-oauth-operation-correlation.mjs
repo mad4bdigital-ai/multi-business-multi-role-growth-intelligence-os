@@ -103,7 +103,7 @@ assert.match(identity.subject_tenant_sha256, /^[0-9a-f]{64}$/);
 assert.match(code.oauth_code_jti_sha256, /^[0-9a-f]{64}$/);
 assert.match(token.access_token_jti_sha256, /^[0-9a-f]{64}$/);
 
-assert.equal(
+assert.deepEqual(
   verifyTenantGptOAuthOperationCorrelation(gateway, {
     expected_resource: RESOURCE,
     expected_stage: "gateway_verify",
@@ -114,7 +114,10 @@ assert.equal(
 const claim = tenantGptOAuthOperationCorrelationClaim(token);
 assert.notEqual(claim, token);
 assert.deepEqual(claim, { ...token });
-claim.stage = "tampered";
+assert.equal(Object.isFrozen(claim), true);
+assert.throws(() => {
+  claim.stage = "tampered";
+}, TypeError);
 assert.equal(token.stage, "oauth_token_exchange");
 
 const evidence = safeTenantGptOAuthOperationCorrelationEvidence(gateway);
@@ -159,18 +162,54 @@ assert.throws(
   error => error?.code === "oauth_correlation_stage_transition_invalid",
 );
 assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(authorize, { stage: "identity_verify", user_id: USER_ID }),
+  error => error?.code === "oauth_correlation_subject_binding_required",
+);
+assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(identity, { stage: "oauth_code_issue" }),
+  error => error?.code === "oauth_correlation_code_binding_required",
+);
+assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(code, { stage: "oauth_token_exchange" }),
+  error => error?.code === "oauth_correlation_access_binding_required",
+);
+assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(identity, {
+    stage: "oauth_code_issue",
+    oauth_code_jti: CODE_JTI,
+    user_id: USER_ID,
+  }),
+  error => error?.code === "oauth_correlation_subject_binding_stage_invalid",
+);
+assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(identity, {
+    stage: "oauth_code_issue",
+    oauth_code_jti: CODE_JTI,
+    access_token_jti: ACCESS_JTI,
+  }),
+  error => error?.code === "oauth_correlation_access_binding_stage_invalid",
+);
+assert.throws(
+  () => advanceTenantGptOAuthOperationCorrelation(identity, {
+    stage: "oauth_code_issue",
+    oauth_code_jti: CODE_JTI,
+    authorization: "Bearer secret",
+  }),
+  error => error?.code === "oauth_correlation_sensitive_field_forbidden",
+);
+assert.throws(
   () => advanceTenantGptOAuthOperationCorrelation(identity, { stage: "identity_verify" }),
   error => error?.code === "oauth_correlation_stage_transition_invalid",
 );
 assert.throws(
-  () => advanceTenantGptOAuthOperationCorrelation(identity, { stage: "oauth_code_issue" }, {
+  () => advanceTenantGptOAuthOperationCorrelation(identity, { stage: "oauth_code_issue", oauth_code_jti: CODE_JTI }, {
     nowMs: Date.parse("2026-08-03T17:59:59.000Z"),
   }),
   error => error?.code === "oauth_correlation_clock_regression",
 );
 assert.throws(
   () => verifyTenantGptOAuthOperationCorrelation({ ...gateway, operation_id: authorize.correlation_id }),
-  error => error?.code === "oauth_correlation_digest_mismatch",
+  error => error?.code === "oauth_correlation_identity_collision" || error?.code === "oauth_correlation_digest_mismatch",
 );
 assert.throws(
   () => verifyTenantGptOAuthOperationCorrelation({ ...gateway, authorization: "Bearer secret" }),
@@ -199,6 +238,31 @@ assert.throws(
     operation_id: "not-a-uuid",
   }),
   error => error?.code === "oauth_correlation_operation_id_invalid",
+);
+assert.throws(
+  () => createTenantGptOAuthOperationCorrelation({
+    protected_resource: RESOURCE,
+    client_id: CLIENT_ID,
+    stage: "identity_verify",
+  }),
+  error => error?.code === "oauth_correlation_initial_stage_invalid",
+);
+assert.throws(
+  () => createTenantGptOAuthOperationCorrelation({
+    protected_resource: RESOURCE,
+    client_id: CLIENT_ID,
+    operation_id: "33333333-3333-4333-8333-333333333333",
+    correlation_id: "33333333-3333-4333-8333-333333333333",
+  }),
+  error => error?.code === "oauth_correlation_identity_collision",
+);
+assert.throws(
+  () => createTenantGptOAuthOperationCorrelation({
+    protected_resource: RESOURCE,
+    client_id: CLIENT_ID,
+    access_token: "secret",
+  }),
+  error => error?.code === "oauth_correlation_sensitive_field_forbidden",
 );
 assert.throws(() => {
   authorize.stage = "identity_verify";
