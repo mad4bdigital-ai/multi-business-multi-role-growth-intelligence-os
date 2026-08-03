@@ -1,5 +1,5 @@
 name: Surface Callability Current Main Finalizer
-# Rerun with checksum-bound Hostinger safety verification.
+# Rerun with checksum-bound Hostinger safety verification and bounded diagnostics.
 
 on:
   pull_request:
@@ -168,9 +168,39 @@ jobs:
         if: steps.openapi-route-coverage.outcome != 'success'
         run: exit 1
 
-      - name: Hostinger full-closure safety
+      - name: Diagnose Hostinger full-closure safety
+        id: hostinger-full-closure
         working-directory: http-generic-api
-        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          diagnostics="../surface-proof/hostinger-full-closure-diagnostics"
+          mkdir -p "$diagnostics"
+          node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs \
+            > "$diagnostics/stdout.log" \
+            2> "$diagnostics/stderr.log"
+          status=$?
+          printf '%s\n' "$status" > "$diagnostics/status.txt"
+          cp migrations/20260730_hostinger_production_resync_policy.sql "$diagnostics/"
+          cp ../docs/surface-contract-safety-attestations.json "$diagnostics/"
+          cp surface-contract-classification-evidence.json "$diagnostics/"
+          cat "$diagnostics/stdout.log"
+          cat "$diagnostics/stderr.log" >&2
+          exit "$status"
+
+      - name: Upload Hostinger full-closure diagnostic
+        if: steps.hostinger-full-closure.outcome != 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-full-closure-diagnostic-${{ github.run_id }}
+          path: surface-proof/hostinger-full-closure-diagnostics
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce Hostinger full-closure safety
+        if: steps.hostinger-full-closure.outcome != 'success'
+        run: exit 1
 
       - name: OpenAPI auth parity
         working-directory: http-generic-api
