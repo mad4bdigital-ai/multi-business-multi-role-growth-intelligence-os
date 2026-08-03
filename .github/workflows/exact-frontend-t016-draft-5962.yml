@@ -1,0 +1,139 @@
+name: Exact Frontend T016 Draft 5962
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-frontend-t016-draft-base-a61cd9
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-frontend-t016-draft-5962-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  draft-validation:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci/frontend-baseline-t016-1e8ded-20260804' &&
+      github.event.pull_request.head.sha == '8b93404a4ab7df1448762156a6bd22391876ad95'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: 8b93404a4ab7df1448762156a6bd22391876ad95
+      EXPECTED_HEAD_REF: gpt/ci/frontend-baseline-t016-1e8ded-20260804
+      GENERATED_PATH: http-generic-api/frontend-surface-dispatch.generated.json
+      EXPECTED_BLOB: 1e8ded76f4bf163992cec94ebd362edfdb4a6dfd
+      EXPECTED_SHA256: 31690e555cc536a185c7f8aa220628daec2ed8bbbed70f3810ef930717526ce9
+    steps:
+      - name: Checkout exact Frontend candidate
+        uses: actions/checkout@v5
+        with:
+          ref: 8b93404a4ab7df1448762156a6bd22391876ad95
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_BASE_SHA}"
+          test "$(git merge-base "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_BASE_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${GENERATED_PATH}"
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:${GENERATED_PATH}")" = "${EXPECTED_BLOB}"
+          test "$(sha256sum "${GENERATED_PATH}" | awk '{print $1}')" = "${EXPECTED_SHA256}"
+          git diff --check "${EXPECTED_BASE_SHA}"..."${EXPECTED_HEAD_SHA}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Prove deterministic Frontend regeneration is clean
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          CANONICAL_BASELINE_REF=main TARGET_REF=main npm run frontend:dispatch:generate -- --baseline-ref=main
+          test -z "$(git status --porcelain)"
+          test "$(git hash-object frontend-surface-dispatch.generated.json)" = "${EXPECTED_BLOB}"
+          test "$(sha256sum frontend-surface-dispatch.generated.json | awk '{print $1}')" = "${EXPECTED_SHA256}"
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+          test -z "$(git status --porcelain)"
+
+      - name: Run full Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          GITHUB_SHA: 8b93404a4ab7df1448762156a6bd22391876ad95
+        run: npm test
+
+      - name: Run E2E reference integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/reference-integrity"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_BASE_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${RUNNER_TEMP}/reference-integrity/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/reference-integrity/e2e-contract-reference-integrity.json"
+
+      - name: Run repository-tool lifecycle governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${EXPECTED_BASE_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          CANDIDATE_SHA="${EXPECTED_HEAD_SHA}" BASE_SHA="${EXPECTED_BASE_SHA}" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+      - name: Write bounded validation summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg base_sha "${EXPECTED_BASE_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg generated_blob "${EXPECTED_BLOB}" \
+            --arg generated_sha256 "${EXPECTED_SHA256}" \
+            '{base_sha:$base_sha,head_sha:$head_sha,generated_blob:$generated_blob,generated_sha256:$generated_sha256,changed_paths:["http-generic-api/frontend-surface-dispatch.generated.json"],protected_ref_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/frontend-t016-draft-summary.json"
+
+      - name: Upload bounded Draft evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-frontend-t016-draft-5962-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/frontend-t016-draft-summary.json
+            ${{ runner.temp }}/test-suite-reports/
+            ${{ runner.temp }}/reference-integrity/
+            ${{ runner.temp }}/repository-tool-lifecycle/
+          if-no-files-found: error
+          retention-days: 14
