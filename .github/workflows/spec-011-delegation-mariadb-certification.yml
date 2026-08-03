@@ -10,20 +10,30 @@ on:
       - "http-generic-api/delegationGrantLifecycleShadowService.js"
       - "http-generic-api/delegationGrantRepositoryMutationService.js"
       - "http-generic-api/delegationGrantMariaDbValidationService.js"
+      - "http-generic-api/spec011Phase5ValidationCi.js"
+      - "http-generic-api/spec011Phase5MigrationPreflight.js"
       - "http-generic-api/migrations/20260725_agent_delegation_grant_persistence_contract.sql"
       - "http-generic-api/scripts/delegation-mariadb-disposable-certification.mjs"
       - "http-generic-api/scripts/delegation-mariadb-production-cycle.mjs"
+      - "http-generic-api/scripts/spec011-phase5-migration-preflight.mjs"
+      - "http-generic-api/scripts/spec011-phase5-validation-lab.mjs"
       - "http-generic-api/test-delegation-grant-mariadb-*.mjs"
+      - "http-generic-api/test-spec011-phase5-migration-preflight.mjs"
+      - "http-generic-api/test-spec011-phase5-validation-ci.mjs"
       - ".github/workflows/spec-011-delegation-mariadb-certification.yml"
       - "specs/011-durable-governed-execution-and-agent-delegation/**"
 
 permissions:
   contents: read
 
+concurrency:
+  group: spec011-delegation-mariadb-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   disposable-mariadb-certification:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     services:
       mariadb:
         image: mariadb:11.4
@@ -63,6 +73,75 @@ jobs:
           node test-delegation-grant-mariadb-adapter-contract.mjs
           node test-delegation-grant-mariadb-readiness-collector.mjs
           node test-delegation-grant-mariadb-runtime-binding.mjs
+          node test-spec011-phase5-migration-preflight.mjs
+          node test-spec011-phase5-validation-ci.mjs
+
+      - name: Validate disposable engine before migration apply
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: spec011_delegation_cert_ci
+          DB_USER: spec011
+          DB_PASSWORD: spec011
+          DB_CONNECT_TIMEOUT_MS: 10000
+          DELEGATION_MARIADB_CERTIFICATION_MODE: disposable
+        run: node scripts/spec011-phase5-migration-preflight.mjs
+
+      - name: Require pre-apply authorization evidence
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'artifacts/spec011-phase5-migration-preflight.json';
+          if (!fs.existsSync(path)) {
+            fs.mkdirSync('artifacts', { recursive: true });
+            fs.writeFileSync(path, JSON.stringify({
+              ok: false,
+              report_type: 'spec011_phase5_migration_preflight_report',
+              schema_version: 'spec011-structured-ci-diagnosis-v1',
+              status: 'failed',
+              diagnosis: {
+                schema_version: 'spec011-structured-ci-diagnosis-v1',
+                gate_id: 'migration_engine_preflight',
+                status: 'fail',
+                code: 'MIGRATION_PREFLIGHT_ARTIFACT_MISSING',
+                summary: 'The engine preflight stopped before its authorization artifact was produced.',
+                blockers: ['MIGRATION_PREFLIGHT_ARTIFACT_MISSING'],
+                evidence_refs: ['workflow://spec-011-delegation-mariadb-certification'],
+                remediation: ['Inspect bootstrap and engine preflight logs before any migration apply.'],
+                metadata: { failure_stage: 'pre_apply_engine_validation' },
+                observed_at: new Date().toISOString(),
+                secrets_included: false
+              },
+              production_authorized: false,
+              secrets_included: false
+            }, null, 2) + '\n');
+          }
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const diagnosis = report.diagnosis;
+          const valid = diagnosis
+            && diagnosis.schema_version === 'spec011-structured-ci-diagnosis-v1'
+            && diagnosis.gate_id === 'migration_engine_preflight'
+            && ['pass', 'fail', 'blocked'].includes(diagnosis.status)
+            && Array.isArray(diagnosis.blockers)
+            && Array.isArray(diagnosis.remediation)
+            && diagnosis.secrets_included === false
+            && (diagnosis.status === 'pass' || (diagnosis.blockers.length > 0 && diagnosis.remediation.length > 0));
+          if (!valid || report.secrets_included !== false) {
+            console.error('Migration preflight structured diagnosis is invalid.');
+            process.exit(1);
+          }
+          if (report.ok !== true
+              || report.status !== 'pass'
+              || report.preflight?.status !== 'pass'
+              || report.preflight?.apply_prerequisites_satisfied !== true
+              || report.migration_apply_authorization?.decision !== 'authorized'
+              || report.migration_apply_authorization?.apply_authorized !== true) {
+            console.error('Migration apply remains blocked by engine preflight.');
+            process.exit(1);
+          }
+          NODE
 
       - name: Certify governed migration and lifecycle on disposable MariaDB
         env:
@@ -79,10 +158,103 @@ jobs:
         run: |
           node -e 'const fs=require("fs"); const p="artifacts/delegation-mariadb-certification.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ok||v.production_authorized!==false||!v.lifecycle?.create_verified||!v.lifecycle?.revoke_verified||!v.lifecycle?.expire_verified||v.lifecycle?.runtime_policy_ready_zero!==true) process.exit(1);'
 
+      - name: Run Phase 5 structured validation lab
+        if: always()
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: spec011_delegation_cert_ci
+          DB_USER: spec011
+          DB_PASSWORD: spec011
+          DB_CONNECT_TIMEOUT_MS: 10000
+          DELEGATION_MARIADB_CERTIFICATION_MODE: disposable
+        run: node scripts/spec011-phase5-validation-lab.mjs
+
+      - name: Require structured diagnosis artifact
+        if: always()
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'artifacts/spec011-phase5-validation-ci.json';
+          if (!fs.existsSync(path)) {
+            fs.mkdirSync('artifacts', { recursive: true });
+            fs.writeFileSync(path, JSON.stringify({
+              ok: false,
+              report_type: 'spec011_phase5_structured_ci_report',
+              schema_version: 'spec011-structured-ci-diagnosis-v1',
+              status: 'failed',
+              gates: [{
+                schema_version: 'spec011-structured-ci-diagnosis-v1',
+                gate_id: 'pipeline_bootstrap',
+                status: 'fail',
+                code: 'STRUCTURED_DIAGNOSIS_ARTIFACT_MISSING',
+                summary: 'The Phase 5 pipeline stopped before its structured diagnosis artifact was produced.',
+                blockers: ['STRUCTURED_DIAGNOSIS_ARTIFACT_MISSING'],
+                evidence_refs: ['workflow://spec-011-delegation-mariadb-certification'],
+                remediation: ['Inspect bootstrap and dependency steps, then rerun the exact-head workflow.'],
+                metadata: { failure_stage: 'pipeline_bootstrap' },
+                observed_at: new Date().toISOString(),
+                secrets_included: false
+              }],
+              failed_gate_ids: ['pipeline_bootstrap'],
+              production_authorized: false,
+              secrets_included: false
+            }, null, 2) + '\n');
+          }
+          const report = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const gates = Array.isArray(report.gates) ? report.gates : [];
+          const validGate = (gate) => gate
+            && gate.schema_version === 'spec011-structured-ci-diagnosis-v1'
+            && typeof gate.gate_id === 'string' && gate.gate_id.length > 0
+            && ['pass', 'fail', 'blocked'].includes(gate.status)
+            && typeof gate.code === 'string' && gate.code.length > 0
+            && typeof gate.summary === 'string' && gate.summary.length > 0
+            && Array.isArray(gate.blockers)
+            && Array.isArray(gate.remediation)
+            && gate.secrets_included === false
+            && (gate.status === 'pass' || (gate.blockers.length > 0 && gate.remediation.length > 0));
+          if (report.schema_version !== 'spec011-structured-ci-diagnosis-v1'
+              || gates.length === 0
+              || !gates.every(validGate)
+              || report.secrets_included !== false) {
+            console.error('Structured diagnosis artifact is invalid.');
+            process.exit(1);
+          }
+          if (report.status !== 'pass' || report.ok !== true) {
+            console.error(`Phase 5 structured gates failed: ${JSON.stringify(report.failed_gate_ids || [])}`);
+            process.exit(1);
+          }
+          if (report.migration_apply_authorization?.apply_authorized !== true
+              || report.migration_apply_authorization?.decision !== 'authorized') {
+            console.error('Migration apply authorization is not backed by verified engine evidence.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Upload migration preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-phase5-migration-preflight
+          path: http-generic-api/artifacts/spec011-phase5-migration-preflight.json
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload bounded certification evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: spec011-delegation-mariadb-certification
           path: http-generic-api/artifacts/delegation-mariadb-certification.json
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload Phase 5 structured diagnosis evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-phase5-validation-ci
+          path: http-generic-api/artifacts/spec011-phase5-validation-ci.json
           if-no-files-found: error
           retention-days: 30
