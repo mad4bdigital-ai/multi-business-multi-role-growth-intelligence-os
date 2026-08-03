@@ -40,9 +40,12 @@
             "Convert reviewed repository definitions into current-observation canonical source snapshots.",
             "Reject incomplete or conflicting authority path contracts.",
             "Create a thirty-minute read-only authorization after variable, typed-confirmation, and Environment gates.",
+            "Expose BACKEND_API_KEY only to the bounded live catalog observer step.",
             "Run the existing bounded SELECT-only live catalog observer and same-cycle readback.",
             "Adapt the catalog observation and compose the canonical governed evidence packet.",
-            "Upload all no-secret JSON evidence before enforcing the packet decision."
+            "Scan every available JSON evidence file for regular-file identity, root containment, bounded size, valid JSON, and sensitive values.",
+            "Upload evidence only when the independent artifact safety step publishes safe=true.",
+            "Enforce the read-only packet decision after the guarded upload step."
           ],
           "assertions": [
             "Pull requests run only contract tests and cannot execute the live job.",
@@ -51,9 +54,11 @@
             "A source change after the reviewed ref fails the current content binding.",
             "Missing control fields, blob drift, content drift, path escape, symlinks, unsafe file types, oversized files, duplicate families, and sensitive values fail closed.",
             "Temporary evidence is rooted in RUNNER_TEMP and propagated through GITHUB_ENV.",
+            "BACKEND_API_KEY appears in exactly one step-level environment binding.",
+            "No artifact is uploaded when no evidence exists or any evidence file is malformed, sensitive, escaped, unsafe, or oversized.",
             "The live observer remains SELECT/WITH/SHOW-only and performs same-cycle readback.",
             "The packet keeps T001 and T002 incomplete and migration_apply_authorized false.",
-            "No SQL mutation, provider call, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
+            "No SQL mutation, provider call outside the explicitly approved observer, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
           ],
           "tests": [
             {
