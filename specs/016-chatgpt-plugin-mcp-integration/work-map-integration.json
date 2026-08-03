@@ -1,0 +1,219 @@
+{
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-plugin-mcp-integration",
+  "review_state": "draft",
+  "registry": {
+    "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+    "fingerprint": "f282e53d6620e906ca48ff703e2e0b65c5fde6b10d20194b596c2bd2e687f235",
+    "index_source_hash": "752bc2ef9ed7417689f1644ab9b492009fa4611a2c91e4bf0d2ddf0326d25073",
+    "coverage_source_hash": "0cdfc494f247174aa8badfb019a7ce3aec1df42173f69b0f870ea9d55012159f",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "integrate",
+      "rationale": "Developer, workspace, and public plugin rollout require existing activation, eligibility, access, revoke, and disable authorities.",
+      "owner": "platform-team",
+      "integration_points": ["client eligibility", "workspace rollout", "tool enablement", "revocation"],
+      "requirement_refs": ["FR-021", "FR-026", "FR-032"],
+      "task_refs": ["T015", "T018", "T028", "T041"],
+      "evidence_refs": ["spec.md", "operation-paths.md#op-010--revoke-or-disable-the-integration"]
+    },
+    "activation-onboarding-map": {
+      "decision": "integrate",
+      "rationale": "Account linking, consent, workspace policy, initial connection testing, and support guidance extend the current onboarding lifecycle.",
+      "owner": "platform-team",
+      "integration_points": ["account link", "scope consent", "connection readiness", "relink guidance"],
+      "requirement_refs": ["FR-005", "FR-006", "FR-031"],
+      "task_refs": ["T013", "T015", "T038", "T041"],
+      "evidence_refs": ["quickstart.md", "operation-paths.md#op-003--link-a-platform-account-through-oauth"]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "extend",
+      "rationale": "The feature introduces a reviewed ChatGPT and Codex plugin package, focused MCP tools, metadata snapshots, and optional future skills.",
+      "owner": "platform-team",
+      "integration_points": ["plugin package", "tool catalog", "selection metadata", "optional skills"],
+      "requirement_refs": ["FR-012", "FR-013", "FR-027", "FR-028"],
+      "task_refs": ["T025", "T026", "T039", "T040"],
+      "evidence_refs": ["research.md", "contracts/plugin-package.schema.json"]
+    },
+    "asset-package-map": {
+      "decision": "integrate",
+      "rationale": "Plugin manifests, icons, legal links, screenshots when applicable, and versioned packages use existing asset and package governance.",
+      "owner": "platform-team",
+      "integration_points": ["plugin manifest", "package version", "assets", "review snapshot"],
+      "requirement_refs": ["FR-027", "FR-029", "FR-030"],
+      "task_refs": ["T039", "T040"],
+      "evidence_refs": ["data-model.md#7-plugin-package-version", "contracts/plugin-package.schema.json"]
+    },
+    "commercial-usage-map": {
+      "decision": "integrate",
+      "rationale": "Rate limits, quotas, provider costs, public distribution posture, and workspace availability require existing commercial and usage policy.",
+      "owner": "platform-team",
+      "integration_points": ["rate limits", "quota", "cost attribution", "distribution policy"],
+      "requirement_refs": ["FR-021", "FR-022", "NFR-005"],
+      "task_refs": ["T015", "T029", "T042"],
+      "evidence_refs": ["concerns.md#c-013--oversized-or-unbounded-responses", "testing-strategy.md#boundedness-and-performance"]
+    },
+    "connector-provider-map": {
+      "decision": "integrate",
+      "rationale": "External actions remain behind connector and provider authority, while MCP receives only bounded results and no credentials or raw provider secrets.",
+      "owner": "platform-team",
+      "integration_points": ["provider dispatch", "connection ownership", "provider readback", "credential isolation"],
+      "requirement_refs": ["FR-009", "FR-020", "FR-024"],
+      "task_refs": ["T009", "T027", "T032"],
+      "evidence_refs": ["concerns.md#c-020--governance-bypass-through-adapter-code", "data-model.md"]
+    },
+    "data-model-domain-map": {
+      "decision": "integrate",
+      "rationale": "Client registration, grants, tool catalogs, invocation evidence, confirmations, packages, and review snapshots require reuse-first field classification.",
+      "owner": "platform-team",
+      "integration_points": ["logical entities", "reuse matrix", "classification", "retention"],
+      "requirement_refs": ["FR-007", "FR-025", "FR-027"],
+      "task_refs": ["T008", "T009", "T013"],
+      "evidence_refs": ["data-model.md", ".specify/work-map-schema-classification-registry.json"]
+    },
+    "delivery-support-map": {
+      "decision": "integrate",
+      "rationale": "Connection failures, relinking, revocation, unknown outcomes, review findings, and plugin maintenance require existing support and handoff paths.",
+      "owner": "platform-team",
+      "integration_points": ["support IDs", "relink", "unknown outcome", "review remediation"],
+      "requirement_refs": ["FR-024", "FR-026", "FR-032"],
+      "task_refs": ["T016", "T018", "T038"],
+      "evidence_refs": ["operation-paths.md", "checklists/release-readiness.md"]
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "Initialization, discovery, authorization, denial, invocation, operation, revocation, and review need distinct no-secret lifecycle evidence.",
+      "owner": "platform-team",
+      "integration_points": ["invocation evidence", "authorization decision", "operation ID", "redaction status"],
+      "requirement_refs": ["FR-018", "FR-025", "NFR-007"],
+      "task_refs": ["T023", "T024", "T032"],
+      "evidence_refs": ["data-model.md#5-mcp-invocation-evidence", "testing-strategy.md#evidence-format"]
+    },
+    "migration-lifecycle-map": {
+      "decision": "integrate",
+      "rationale": "Any justified client, grant, catalog, confirmation, package, or review persistence must use additive governed migration and rollback lifecycles.",
+      "owner": "platform-team",
+      "integration_points": ["reuse decision", "additive migration", "backfill", "rollback"],
+      "requirement_refs": ["NFR-008", "NFR-011"],
+      "task_refs": ["T007", "T008", "T013"],
+      "evidence_refs": ["plan.md#migration-posture", "data-model.md#migration-decision-gate"]
+    },
+    "observability-release-map": {
+      "decision": "integrate",
+      "rationale": "Endpoint health, metadata parity, OAuth failures, isolation denials, latency, rollout, review, publication, revoke, and rollback require release observability.",
+      "owner": "platform-team",
+      "integration_points": ["health", "metadata fingerprint", "alerts", "release parity", "rollback"],
+      "requirement_refs": ["FR-025", "FR-026", "FR-032", "NFR-011"],
+      "task_refs": ["T023", "T024", "T041", "T042"],
+      "evidence_refs": ["testing-strategy.md", "checklists/release-readiness.md"]
+    },
+    "platform-resource-graph-map": {
+      "decision": "integrate",
+      "rationale": "OAuth clients, users, tenants, workspaces, Brands, resources, connections, tools, operations, packages, and review snapshots require typed relationships.",
+      "owner": "platform-team",
+      "integration_points": ["resource binding", "Brand selectors", "operation ownership", "package identity"],
+      "requirement_refs": ["FR-007", "FR-009", "FR-010", "FR-018"],
+      "task_refs": ["T013", "T027", "T031"],
+      "evidence_refs": ["data-model.md#ownership-hierarchy", "operation-paths.md#op-004--read-accessible-workspace-and-brand-context"]
+    },
+    "platform-runtime-map": {
+      "decision": "reuse",
+      "rationale": "The MCP adapter reuses existing context, authorization, execution, idempotency, readback, reconciliation, evidence, and rollback runtime services.",
+      "owner": "platform-team",
+      "integration_points": ["Context Kernel", "capability resolution", "operation runtime", "readback"],
+      "requirement_refs": ["FR-003", "FR-017", "FR-023", "FR-024"],
+      "task_refs": ["T009", "T020", "T027"],
+      "evidence_refs": ["plan.md#architecture-summary", "concerns.md#c-020--governance-bypass-through-adapter-code"]
+    },
+    "policy-authority-map": {
+      "decision": "integrate",
+      "rationale": "Scopes, client eligibility, tool visibility, confirmation, external effects, destructive actions, privacy, and tenant rollout require policy authority.",
+      "owner": "platform-team",
+      "integration_points": ["OAuth scopes", "tool policy", "confirmation", "tenant rollout", "privacy"],
+      "requirement_refs": ["FR-007", "FR-015", "FR-016", "FR-021"],
+      "task_refs": ["T014", "T015", "T027", "T028"],
+      "evidence_refs": ["spec.md#actors-and-authority", "checklists/security.md"]
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "Contract validation, annotation parity, metadata fingerprinting, exact-head evidence, package validation, and no-secret scans require repository automation.",
+      "owner": "platform-team",
+      "integration_points": ["schema validation", "metadata drift", "package validation", "secret scan"],
+      "requirement_refs": ["FR-013", "FR-027", "NFR-010", "NFR-011"],
+      "task_refs": ["T003", "T005", "T030", "T039"],
+      "evidence_refs": ["testing-strategy.md#static-contract-validation", "traceability.md"]
+    },
+    "repository-development-map": {
+      "decision": "integrate",
+      "rationale": "Multi-PR delivery, SDK adoption, compatibility changes, generated contracts, CI, review, and release evidence use existing development governance.",
+      "owner": "platform-team",
+      "integration_points": ["multi-PR plan", "dependency pinning", "CI", "review"],
+      "requirement_refs": ["FR-003", "FR-004", "NFR-010"],
+      "task_refs": ["T006", "T019", "T020"],
+      "evidence_refs": ["plan.md#delivery-strategy", "tasks.md"]
+    },
+    "session-memory-map": {
+      "decision": "integrate",
+      "rationale": "Follow-up prompts may reuse stable identifiers, but the integration must not require or persist broad conversation transcripts or cross-session secrets.",
+      "owner": "platform-team",
+      "integration_points": ["stable follow-up IDs", "task context", "privacy minimization", "session boundaries"],
+      "requirement_refs": ["FR-018", "FR-020", "NFR-003"],
+      "task_refs": ["T026", "T029", "T032"],
+      "evidence_refs": ["research.md#security-and-privacy-findings", "concerns.md#c-007--overcollection-of-conversation-context"]
+    },
+    "work-map-coverage-matrix": {
+      "decision": "integrate",
+      "rationale": "The feature must classify every reused or proposed schema object and preserve zero accidental unclassified objects across all current domains.",
+      "owner": "platform-architecture",
+      "integration_points": ["domain review", "object classification", "taxonomy gap review"],
+      "requirement_refs": ["NFR-010"],
+      "task_refs": ["T003", "T005"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "data-model.md#migration-decision-gate"]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "integrate",
+      "rationale": "Durable writes, long-running operations, retries, unknown outcomes, status follow-up, compensation, and support escalation reuse workflow orchestration.",
+      "owner": "platform-team",
+      "integration_points": ["operation creation", "idempotency", "status", "reconciliation", "compensation"],
+      "requirement_refs": ["FR-023", "FR-024", "FR-025"],
+      "task_refs": ["T009", "T027"],
+      "evidence_refs": ["operation-paths.md#op-006--request-a-governed-write-operation", "testing-strategy.md#write-tool-tests-for-future-phase"]
+    }
+  },
+  "schema_domain_decisions": {
+    "Activation & onboarding": {"decision": "integrate", "rationale": "Account linking, consent, rollout, and connection readiness use existing activation and onboarding schema authority."},
+    "Agents & intelligence": {"decision": "integrate", "rationale": "Tool selection metadata and optional skills integrate with existing agent, skill, and plugin governance."},
+    "Assets & packages": {"decision": "integrate", "rationale": "Plugin packages and presentation assets use existing versioned asset and package lifecycle concepts."},
+    "Brand & business": {"decision": "integrate", "rationale": "Brand operating context is exposed only through authorized existing Brand and business projections."},
+    "Commercial & usage": {"decision": "integrate", "rationale": "Rate limits, quotas, costs, and distribution policy reuse existing commercial and usage governance."},
+    "Connectors & providers": {"decision": "integrate", "rationale": "External provider actions remain behind existing connection ownership, dispatch, and credential boundaries."},
+    "Delivery & support": {"decision": "integrate", "rationale": "Relinking, unknown outcomes, review remediation, and support handoff reuse existing support lifecycles."},
+    "Developer & API": {"decision": "extend", "rationale": "A standards-compliant MCP transport and OAuth discovery surface extend the current developer and API domain."},
+    "Governance & authority": {"decision": "integrate", "rationale": "Client, scope, tool, confirmation, resource, and rollout decisions remain governed authority records."},
+    "Migration & lifecycle": {"decision": "integrate", "rationale": "New persistence is conditional and must follow additive migration, rollback, and closeout authority."},
+    "Observability & release": {"decision": "integrate", "rationale": "Metadata parity, endpoint health, invocation evidence, review, publication, and rollback require release evidence."},
+    "Platform resources & graph": {"decision": "integrate", "rationale": "Clients, users, tenants, workspaces, Brands, tools, operations, packages, and reviews require typed relationships."},
+    "Repository & development": {"decision": "integrate", "rationale": "SDK adoption, contracts, CI, exact-head evidence, and multi-PR delivery use repository governance."},
+    "Sessions & memory": {"decision": "integrate", "rationale": "Stable follow-up identifiers are supported while broad conversation collection remains prohibited by design."},
+    "Tenancy & identity": {"decision": "extend", "rationale": "OAuth resource-server and client contracts extend identity while retaining tenant and membership authority."},
+    "Workflow & tasks": {"decision": "integrate", "rationale": "Governed mutations, status, retry, reconciliation, compensation, and support remain workflow responsibilities."}
+  },
+  "taxonomy_gaps": [],
+  "implementation_readiness": {
+    "status": "blocked",
+    "blocking_reasons": [
+      "canonical_scaffold_not_run_for_spec_016",
+      "oauth_identity_conformance_not_verified",
+      "legacy_mcp_consumer_inventory_missing",
+      "phase_1_tool_catalog_not_approved",
+      "field_level_schema_reuse_matrix_missing"
+    ],
+    "next_action": "Run the canonical Work Map scaffold and complete specification review before any implementation change."
+  },
+  "secrets_included": false
+}

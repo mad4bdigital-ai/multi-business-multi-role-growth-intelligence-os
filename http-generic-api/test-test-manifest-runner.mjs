@@ -10,6 +10,18 @@ const suiteSource = fs.readFileSync(
   new URL("./scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs", import.meta.url),
   "utf8",
 );
+const generatedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/pr-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
+const governedGeneratedRefreshWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/governed-generated-artifact-refresh.yml", import.meta.url),
+  "utf8",
+);
+const ciAutostartWorkflow = fs.readFileSync(
+  new URL("../.github/workflows/ci-autostart-recovery.yml", import.meta.url),
+  "utf8",
+);
 
 assert.equal(
   packageJson.scripts.test,
@@ -46,7 +58,13 @@ for (const requiredCommand of [
 }
 
 assert.match(runnerSource, /spawnSync/);
-assert.match(runnerSource, /stdio:\s*"inherit"/);
+assert.doesNotMatch(runnerSource, /stdio:\s*"inherit"/, "manifest runner must retain bounded failure output for durable diagnostics");
+assert.match(runnerSource, /encoding:\s*"utf8"/);
+assert.match(runnerSource, /maxBuffer:\s*MAX_CAPTURE_BUFFER_BYTES/);
+assert.match(runnerSource, /process\.stdout\.write\(result\.stdout\)/, "captured stdout must remain visible in the live CI log");
+assert.match(runnerSource, /process\.stderr\.write\(result\.stderr\)/, "captured stderr must remain visible in the live CI log");
+assert.match(runnerSource, /buildDiagnosticStream/);
+assert.match(runnerSource, /redactDiagnosticOutput/);
 assert.match(runnerSource, /shell:\s*false/);
 
 assert.match(suiteSource, /spawnSync/);
@@ -54,5 +72,71 @@ assert.match(suiteSource, /scripts\/run-test-manifest\.mjs/);
 assert.match(suiteSource, /scripts\/run-adaptive-authorization-verification-manifest\.mjs/);
 assert.match(suiteSource, /stdio:\s*"inherit"/);
 assert.match(suiteSource, /shell:\s*false/);
+
+for (const workflowSource of [generatedRefreshWorkflow, ciAutostartWorkflow]) {
+  assert.ok(
+    workflowSource.includes("github.event.pull_request.head.repo.full_name == github.repository"),
+    "certification automation must stay restricted to same-repository pull requests",
+  );
+  assert.ok(
+    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'gpt/')"),
+    "existing governed gpt branch support must remain enabled",
+  );
+  assert.ok(
+    workflowSource.includes("startsWith(github.event.pull_request.head.ref, 'cert/')"),
+    "non-protected certification branch support must remain enabled",
+  );
+}
+
+assert.ok(
+  generatedRefreshWorkflow.includes("github.actor != 'github-actions[bot]'"),
+  "generated refresh must prevent bot recursion",
+);
+assert.ok(
+  generatedRefreshWorkflow.includes("contents: read"),
+  "PR generated-artifact evaluation must remain read-only",
+);
+assert.ok(
+  !generatedRefreshWorkflow.includes("contents: write"),
+  "PR generated-artifact evaluation must not receive repository write permission",
+);
+assert.ok(
+  generatedRefreshWorkflow.includes("persist-credentials: false"),
+  "PR generated-artifact evaluation must not persist checkout credentials",
+);
+assert.ok(
+  !generatedRefreshWorkflow.includes("git push"),
+  "PR generated-artifact evaluation must not push repository changes",
+);
+
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("workflow_dispatch:"),
+  "generated-artifact mutation must stay behind explicit workflow dispatch",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("contents: write"),
+  "governed generated-artifact apply requires bounded branch write permission",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("actions: write"),
+  "governed generated-artifact apply requires exact-head verification dispatch permission",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("expected_head_sha:"),
+  "governed generated-artifact apply must require an exact expected head SHA",
+);
+assert.ok(
+  governedGeneratedRefreshWorkflow.includes("APPLY_GENERATED_ARTIFACT_REFRESH"),
+  "governed generated-artifact apply must require typed confirmation",
+);
+
+assert.ok(
+  ciAutostartWorkflow.includes("actions: write"),
+  "CI recovery requires workflow dispatch permission",
+);
+assert.ok(
+  ciAutostartWorkflow.includes("!github.event.pull_request.draft"),
+  "CI recovery must not dispatch for draft pull requests",
+);
 
 console.log("test-manifest-runner checks passed");

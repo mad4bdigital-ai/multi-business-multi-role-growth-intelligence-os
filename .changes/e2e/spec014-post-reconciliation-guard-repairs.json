@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-post-reconciliation-guard-repairs",
+  "title": "Repair Spec 014 lease identity and durable run uniqueness guards",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-post-reconciliation-guard-repairs.json",
+      ".github/contracts/spec014/**",
+      "http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql",
+      "http-generic-api/config/governed-migration-dependencies.json",
+      "http-generic-api/hostingerStorageSqlParentWriter.js",
+      "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
+      "http-generic-api/hostingerStorageSchemaVerification.js",
+      "http-generic-api/test-hostinger-storage*.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore exact lease DDL/runtime identity parity and reject ambiguous durable run reads without granting migration or runtime authority.",
+      "e2e_journeys": [
+        {
+          "id": "lease-identity-and-run-uniqueness-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer and Spec 014 guard suite",
+          "entrypoint": "The reviewed Wave 2 DDL, promoted runtime migration, SQL parent writer, and checksum-bound contracts",
+          "terminal_outcome": "Contract-local and runtime migrations expose id as the lease primary key, target_id remains the unique CAS record key, all checksum evidence is refreshed, and duplicate run rows fail closed.",
+          "steps": [
+            "Patch both reviewed and promoted Wave 2 lease tables with id as the primary key.",
+            "Refresh every exact old Wave 2 checksum reference after recomputing the promoted migration digest.",
+            "Validate draft/runtime/adapter parity and governed promotion invariants.",
+            "Reject more than one durable run row before selecting a normalized candidate.",
+            "Exercise the ambiguity regression and changed-line Context Kernel scanner."
+          ],
+          "assertions": [
+            "No migration authorization, dry-run, apply, live database, provider, credential, deployment, main, or Production action occurs.",
+            "The lease required columns include id, target_id, and lease_id; id is the primary key and target_id remains bound by the active-slot unique key.",
+            "The old promoted Wave 2 checksum is absent from the candidate tree.",
+            "Ambiguous run identity returns STORAGE_SQL_PARENT_RUN_AMBIGUOUS with bounded secret-free details.",
+            "Context Kernel changed-line scanning reports zero runtime blockers."
+          ],
+          "tests": [
+            {
+              "id": "migration-drafts-parity",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-migration-promotion",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-runtime-migration-promotion.mjs",
+              "args": []
+            },
+            {
+              "id": "sql-parent-writer-ambiguity",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/migrations/wave-2-control-plane.sql",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
+            "http-generic-api/migrations/20260802_02_spec014_hostinger_storage_control_plane.sql",
+            "http-generic-api/hostingerStorageSchemaVerification.js",
+            "http-generic-api/hostingerStorageSqlParentWriter.js",
+            "http-generic-api/test-hostinger-storage-sql-parent-writer.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Observe the repaired guards on the Integration rollup without applying migrations.",
+      "blockers": [
+        "The repair must merge into Integration and produce fresh exact-head guard evidence."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Retain fail-closed behavior under checksum drift, duplicate rows, stale heads, and cancelled evidence publication."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Record green Migration Drafts and Context Kernel evidence on the Rollup exact head."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only repair grants no migration, runtime, provider, deployment, or Production authority."
+    }
+  ]
+}

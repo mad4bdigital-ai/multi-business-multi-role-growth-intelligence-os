@@ -1,0 +1,273 @@
+name: CI Evidence PR Publisher
+
+on:
+  workflow_run:
+    workflows:
+      - E2E Phase Governance
+      - Branch Test Diagnostic Shards
+      - Context Kernel Hardcoding Report
+      - PR Generated Artifact Refresh
+      - Protected Promotion Generated Artifact Refresh
+      - Governed Generated Artifact Refresh
+      - Governed Generated Artifact Refresh Dispatch
+      - Hostinger Storage Tenant Canary Guard
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: ci-evidence-pr-publisher-${{ github.event.workflow_run.head_sha || github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.head_sha != null &&
+      (github.event.workflow_run.event == 'pull_request' ||
+       (github.event.workflow_run.event == 'workflow_dispatch' &&
+        (github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
+         github.event.workflow_run.name == 'Governed Generated Artifact Refresh' ||
+         github.event.workflow_run.name == 'Governed Generated Artifact Refresh Dispatch')) ||
+       ((github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'issue_comment') &&
+        github.event.workflow_run.name == 'Governed Generated Artifact Refresh Dispatch'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Download E2E canonical report
+        if: github.event.workflow_run.name == 'E2E Phase Governance'
+        uses: actions/download-artifact@v4
+        with:
+          name: e2e-phase-summary-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download branch diagnostic canonical report
+        if: github.event.workflow_run.name == 'Branch Test Diagnostic Shards'
+        uses: actions/download-artifact@v4
+        with:
+          name: branch-test-diagnostic-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Context Kernel canonical report
+        if: github.event.workflow_run.name == 'Context Kernel Hardcoding Report'
+        uses: actions/download-artifact@v4
+        with:
+          name: context-kernel-hardcoding-summary-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download generated-artifact read-only canonical report
+        if: >-
+          github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
+          github.event.workflow_run.name == 'Protected Promotion Generated Artifact Refresh'
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-generated-artifact-refresh-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download governed generated-artifact apply report
+        if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh'
+        uses: actions/download-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download governed generated-artifact dispatcher report
+        if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh Dispatch'
+        uses: actions/download-artifact@v4
+        with:
+          name: governed-generated-artifact-refresh-dispatch-${{ github.event.workflow_run.id }}
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Download Hostinger Tenant Canary canonical report
+        if: github.event.workflow_run.name == 'Hostinger Storage Tenant Canary Guard'
+        uses: actions/download-artifact@v4
+        with:
+          name: hostinger-storage-tenant-canary-${{ github.event.workflow_run.id }}-summary
+          path: ${{ runner.temp }}/canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+
+      - name: Select canonical report file
+        id: report
+        shell: bash
+        env:
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          set -euo pipefail
+          case "$WORKFLOW_NAME" in
+            "E2E Phase Governance") report="${RUNNER_TEMP}/canonical/e2e-phase-summary.json" ;;
+            "Branch Test Diagnostic Shards") report="${RUNNER_TEMP}/canonical/diagnostic-summary.json" ;;
+            "Context Kernel Hardcoding Report") report="${RUNNER_TEMP}/canonical/context-kernel-hardcoding-summary.json" ;;
+            "PR Generated Artifact Refresh"|"Protected Promotion Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/pr-generated-artifact-refresh-summary.json" ;;
+            "Governed Generated Artifact Refresh") report="${RUNNER_TEMP}/canonical/generated-artifact-refresh-report.json" ;;
+            "Governed Generated Artifact Refresh Dispatch") report="${RUNNER_TEMP}/canonical/dispatch.json" ;;
+            "Hostinger Storage Tenant Canary Guard") report="${RUNNER_TEMP}/canonical/hostinger-storage-tenant-canary-summary.json" ;;
+            *) echo "Unsupported workflow: $WORKFLOW_NAME" >&2; exit 2 ;;
+          esac
+          test -f "$report"
+          echo "path=$report" >> "$GITHUB_OUTPUT"
+
+      - name: Upsert authoritative PR evidence comment
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPORT_PATH: ${{ steps.report.outputs.path }}
+        run: |
+          set -euo pipefail
+          common_args=(
+            --repository "${GITHUB_REPOSITORY}"
+            --workflow-conclusion "${WORKFLOW_CONCLUSION}"
+            --report "${REPORT_PATH}"
+            --workflow-run-id "${WORKFLOW_RUN_ID}"
+            --source-head-sha "${SOURCE_HEAD_SHA}"
+          )
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            common_args+=(--pr-number "${PR_NUMBER}")
+          fi
+          if [[ -n "${HEAD_BRANCH:-}" ]]; then
+            common_args+=(--head-branch "${HEAD_BRANCH}")
+          fi
+          if [[ "$WORKFLOW_NAME" == "Governed Generated Artifact Refresh Dispatch" ]]; then
+            node http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs "${common_args[@]}"
+          elif [[ "$WORKFLOW_NAME" == "PR Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Protected Promotion Generated Artifact Refresh" || "$WORKFLOW_NAME" == "Governed Generated Artifact Refresh" ]]; then
+            node http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs "${common_args[@]}"
+          elif [[ "$WORKFLOW_NAME" == "Hostinger Storage Tenant Canary Guard" ]]; then
+            node http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs "${common_args[@]}"
+          else
+            node http-generic-api/scripts/ci-evidence-pr-comment.mjs --workflow "${WORKFLOW_NAME}" "${common_args[@]}"
+          fi
+
+      - name: Discover exact-head Hostinger Tenant Canary run
+        if: github.event.workflow_run.name == 'E2E Phase Governance'
+        id: hostinger_discovery
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const repository = process.env.GITHUB_REPOSITORY;
+          const headSha = process.env.SOURCE_HEAD_SHA;
+          const headBranch = process.env.HEAD_BRANCH || '';
+          const token = process.env.GITHUB_TOKEN;
+          const workflow = 'hostinger-storage-tenant-canary-canonical-guard.yml';
+          const url = new URL(`https://api.github.com/repos/${repository}/actions/workflows/${workflow}/runs`);
+          url.searchParams.set('event', 'pull_request');
+          url.searchParams.set('status', 'completed');
+          url.searchParams.set('head_sha', headSha);
+          url.searchParams.set('per_page', '20');
+          (async () => {
+            const response = await fetch(url, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                Authorization: `Bearer ${token}`,
+                'X-GitHub-Api-Version': '2022-11-28'
+              }
+            });
+            if (!response.ok) throw new Error(`Tenant Canary discovery failed: HTTP ${response.status}`);
+            const payload = await response.json();
+            const runs = Array.isArray(payload.workflow_runs) ? payload.workflow_runs : [];
+            const run = runs
+              .filter((item) => item?.name === 'Hostinger Storage Tenant Canary Guard')
+              .filter((item) => item?.event === 'pull_request')
+              .filter((item) => item?.status === 'completed' && item?.conclusion === 'success')
+              .filter((item) => item?.head_sha === headSha)
+              .filter((item) => !headBranch || item?.head_branch === headBranch)
+              .sort((left, right) => Number(right.id || 0) - Number(left.id || 0))[0];
+            const lines = run
+              ? [`found=true`, `run_id=${run.id}`, `conclusion=${run.conclusion}`, `head_sha=${run.head_sha}`]
+              : ['found=false'];
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `${lines.join('\n')}\n`);
+            console.log(JSON.stringify({
+              found: Boolean(run),
+              run_id: run?.id || null,
+              head_sha: run?.head_sha || headSha,
+              head_branch: run?.head_branch || headBranch,
+              job_logs_consulted: false,
+              secrets_included: false
+            }));
+          })().catch((error) => {
+            console.error(error.stack || error.message);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Download exact-head Hostinger Tenant Canary fallback report
+        if: steps.hostinger_discovery.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: hostinger-storage-tenant-canary-${{ steps.hostinger_discovery.outputs.run_id }}-summary
+          path: ${{ runner.temp }}/hostinger-canonical
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.hostinger_discovery.outputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Publish exact-head Hostinger Tenant Canary fallback evidence
+        if: steps.hostinger_discovery.outputs.found == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_CONCLUSION: ${{ steps.hostinger_discovery.outputs.conclusion }}
+          WORKFLOW_RUN_ID: ${{ steps.hostinger_discovery.outputs.run_id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPORT_PATH: ${{ runner.temp }}/hostinger-canonical/hostinger-storage-tenant-canary-summary.json
+        run: |
+          set -euo pipefail
+          args=(
+            --repository "${GITHUB_REPOSITORY}"
+            --workflow-conclusion "${WORKFLOW_CONCLUSION}"
+            --report "${REPORT_PATH}"
+            --workflow-run-id "${WORKFLOW_RUN_ID}"
+            --source-head-sha "${SOURCE_HEAD_SHA}"
+          )
+          if [[ -n "${PR_NUMBER:-}" ]]; then
+            args+=(--pr-number "${PR_NUMBER}")
+          fi
+          if [[ -n "${HEAD_BRANCH:-}" ]]; then
+            args+=(--head-branch "${HEAD_BRANCH}")
+          fi
+          node http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs "${args[@]}"

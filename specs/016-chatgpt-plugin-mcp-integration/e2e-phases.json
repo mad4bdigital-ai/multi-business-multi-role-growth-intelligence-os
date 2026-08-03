@@ -1,0 +1,220 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "016-chatgpt-plugin-mcp-integration",
+  "title": "Multi-client AI connector and standards-compliant MCP integration specification",
+  "delivery_mode": "multi_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      "specs/016-chatgpt-plugin-mcp-integration/README.md",
+      "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+      "specs/016-chatgpt-plugin-mcp-integration/spec.md",
+      "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md",
+      "specs/016-chatgpt-plugin-mcp-integration/research.md",
+      "specs/016-chatgpt-plugin-mcp-integration/concerns.md",
+      "specs/016-chatgpt-plugin-mcp-integration/operation-paths.md",
+      "specs/016-chatgpt-plugin-mcp-integration/plan.md",
+      "specs/016-chatgpt-plugin-mcp-integration/data-model.md",
+      "specs/016-chatgpt-plugin-mcp-integration/quickstart.md",
+      "specs/016-chatgpt-plugin-mcp-integration/tasks.md",
+      "specs/016-chatgpt-plugin-mcp-integration/traceability.md",
+      "specs/016-chatgpt-plugin-mcp-integration/testing-strategy.md",
+      "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md",
+      "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+      "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+      "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/requirements.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/security.md",
+      "specs/016-chatgpt-plugin-mcp-integration/checklists/release-readiness.md",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/mcp-tool.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/oauth-protected-resource.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/contracts/plugin-package.schema.json",
+      "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs",
+      ".changes/e2e/016-remote-mcp-multi-client-connector.json",
+      "http-generic-api/remoteMcpConnectorRuntime.js",
+      "http-generic-api/remoteMcpOAuthProfile.js",
+      "http-generic-api/remoteMcpOAuthStore.js",
+      "http-generic-api/remoteMcpOAuthTokens.js",
+      "http-generic-api/remoteMcpAccessTokenVerifier.js",
+      "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+      "http-generic-api/routes/mcpRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
+      "http-generic-api/openapi/remote-mcp-oauth21.yaml",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
+      "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+      "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+      "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/docs/remote-mcp-oauth21-runbook.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the shared remote MCP specification, client profiles, contracts, Work Map posture, delivery boundaries, and no-secret guarantees are internally consistent without granting runtime, migration, deployment, submission, directory, or publication authority.",
+      "e2e_journeys": [
+        {
+          "id": "multi-client-specification-contract-to-truthful-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform specification reviewer",
+          "entrypoint": "Spec 016 manifest, multi-client extension, and executable validation tool",
+          "terminal_outcome": "The reviewer receives a deterministic pass only when all recorded artifacts exist, JSON contracts parse, the shared MCP and OAuth surfaces are present, completion remains truthful, implementation stays blocked by owned gates, and no secret-like value is detected.",
+          "steps": [
+            "Load the canonical Spec 016 manifest and verify its complete unique file inventory.",
+            "Parse every JSON contract and confirm the required MCP and protected-resource paths are declared.",
+            "Verify the multi-client extension covers OpenAI, Anthropic, and generic approved MCP clients without creating alternate authority paths.",
+            "Verify completion counts, in-progress state, no Production deployment, no publication, and no-secret boundaries.",
+            "Verify the Work Map has zero accidental unclassified objects while implementation readiness remains blocked pending canonical review.",
+            "Scan every specification artifact for bounded secret-like patterns and emit a no-secret validation result."
+          ],
+          "assertions": [
+            "Every manifest entry exists inside the Spec 016 root and no path escapes that root.",
+            "The manifest and completion file counts are equal and include the executable validator and multi-client extension.",
+            "The OpenAPI draft includes the MCP endpoint and OAuth protected-resource metadata endpoint.",
+            "ChatGPT, Claude, and generic client profiles share one MCP resource and one platform authority path.",
+            "The specification records implementation as in progress while deployment, connector creation, publication, and migration remain false.",
+            "The validator cannot authorize implementation, merge, deployment, OAuth registration, external mutation, submission, directory listing, or publication."
+          ],
+          "tests": [
+            {
+              "id": "spec-016-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/016-chatgpt-plugin-mcp-integration",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/016-chatgpt-plugin-mcp-integration/tools/validate-spec.mjs",
+            "specs/016-chatgpt-plugin-mcp-integration/manifest.json",
+            "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+            "specs/016-chatgpt-plugin-mcp-integration/multi-client-connector-extension.md",
+            "specs/016-chatgpt-plugin-mcp-integration/work-map-integration.json",
+            "specs/016-chatgpt-plugin-mcp-integration/contracts/chatgpt-plugin-mcp.openapi.yaml",
+            "specs/016-chatgpt-plugin-mcp-integration/implementation-handoff.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Complete the disabled-by-default OAuth 2.1 boundary with path-scoped discovery, allowlisted DCR, a short-lived signed consent request, PKCE S256, a dedicated OAuth signing key, exact redirect and resource validation, durable token-to-grant identity, live user and tenant-membership revalidation, refresh rotation, revocation, and synthetic cross-client evidence.",
+      "e2e_journeys": [
+        {
+          "id": "multi-client-oauth21-operational-contract-to-revocation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Approved remote MCP client and active platform user",
+          "entrypoint": "OAuth metadata, allowlisted dynamic registration, signed authorization request and consent, authorization code plus PKCE, token exchange, MCP tools/call, refresh, and revocation",
+          "terminal_outcome": "The same bounded MCP resource works for approved OpenAI, Anthropic, and generic clients only through server-owned identity, active tenant membership, signed consent, scope, grant, and revocation checks, while all feature flags remain disabled by default.",
+          "steps": [
+            "Discover the exact issuer-derived OAuth endpoints and supported read scopes, advertising DCR only when a usable redirect policy exists.",
+            "Register an exact HTTPS redirect only while DCR is enabled and its Origin is present in the server-controlled allowlist.",
+            "Bind client, redirect, state, resource, scopes, and PKCE challenge into a five-minute server-signed authorization request.",
+            "Authenticate an active platform user, validate any requested tenant membership exactly, require explicit consent, and reject missing or tampered signed requests.",
+            "Issue and exchange a short-lived single-use PKCE S256 authorization code only while the user and tenant membership remain active.",
+            "Persist an active grant and issue a short-lived resource-bound access JWT with the dedicated OAuth key plus a rotating opaque refresh token.",
+            "Require exact issuer, audience, resource, purpose, azp, client, subject, user, tenant, scope, JTI, expiry, active grant, and live subject authorization before protected MCP tool dispatch.",
+            "Revalidate the user and tenant membership before refresh, rotate refresh state transactionally, and reject replay.",
+            "Revoke an access or refresh grant and deny subsequent protected use."
+          ],
+          "assertions": [
+            "The existing Tenant GPT and Activation OAuth metadata remains independent and unchanged.",
+            "All Remote MCP OAuth and DCR routes fail closed while disabled.",
+            "DCR is not advertised or usable without an approved redirect-Origin policy and rejects unapproved or lookalike Origins.",
+            "Client classification is operational metadata only and never grants tenant, workspace, Brand, resource, connection, capability, or operation authority.",
+            "A requested tenant context is accepted only through exact active membership evidence; no first-membership fallback is used.",
+            "Missing consent and missing, expired, or tampered signed authorization requests cannot issue an authorization code.",
+            "The OAuth signing key is separate from the platform user JWT key.",
+            "Wrong token resources are rejected rather than ignored.",
+            "Failed PKCE does not consume the authorization code, successful exchange does, refresh rotates once, and revocation invalidates the durable grant.",
+            "A token or refresh grant becomes unusable when its user or tenant membership is no longer active.",
+            "Only workspaces.read and brands.read can reach the phase-one tool catalog.",
+            "No migration, deployment, DNS change, real client registration, external connection, submission, or publication is inferred from synthetic evidence."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-oauth21-profile",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-access-token-verifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-access-token-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth21-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth21-metadata",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-metadata-routing.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-016-contract-validator-operational",
+              "runner": "node",
+              "working_directory": "specs/016-chatgpt-plugin-mcp-integration",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/016-remote-mcp-multi-client-connector.json",
+            "specs/016-chatgpt-plugin-mcp-integration/e2e-phases.json",
+            "specs/016-chatgpt-plugin-mcp-integration/completion.json",
+            "http-generic-api/remoteMcpOAuthProfile.js",
+            "http-generic-api/remoteMcpOAuthStore.js",
+            "http-generic-api/remoteMcpOAuthTokens.js",
+            "http-generic-api/remoteMcpAccessTokenVerifier.js",
+            "http-generic-api/routes/remoteMcpOAuthRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
+            "http-generic-api/openapi/remote-mcp-oauth21.yaml",
+            "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
+            "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
+            "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
+            "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+            "http-generic-api/docs/remote-mcp-oauth21-runbook.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove isolation, revocation, dependency faults, concurrent refresh races, unknown outcomes, signed-request replay and expiry, metadata drift detection, client disable controls, signing-key rotation, and recovery without secret or cross-tenant leakage."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Apply the governed migration, provision the dedicated signing key and redirect allowlist, and validate the exact implementation candidate through MCP Inspector, ChatGPT Developer mode, Claude Custom Connector, and one neutral programmatic MCP client against an authorized non-production endpoint."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, public DNS/TLS/routing, OAuth linkage, client registrations, metadata parity, monitoring, revocation, signing-key rotation, backup, rollback, and post-merge evidence under separate release authorization."
+    }
+  ]
+}

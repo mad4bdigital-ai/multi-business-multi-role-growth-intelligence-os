@@ -1,0 +1,117 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-mount-authorization-registry",
+  "title": "Spec 014 Durable Mount Authorization Registry",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-mount-authorization-registry.json",
+      ".github/contracts/spec014/hostinger-storage-durable-mount-authorization-registry.json",
+      ".github/contracts/spec014/sql/hostinger-storage-durable-mount-authorization-registry.sql",
+      ".github/workflows/hostinger-storage-durable-mount-authorization-registry-guard.yml",
+      "http-generic-api/hostingerStorageDurableMountAuthorizationRegistry.js",
+      "http-generic-api/test-hostinger-storage-durable-mount-authorization-registry.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist and consume one verified Separate Mount Authorization exactly once with generation and row-version CAS plus an immutable receipt.",
+      "e2e_journeys": [
+        {
+          "id": "register-and-consume-mount-authorization",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 mount authorization registry",
+          "entrypoint": "Hostinger Storage Durable Mount Authorization Registry Guard",
+          "terminal_outcome": "One verified authorization is durably registered, consumed exactly once by a bound executor and mount attempt, and read back with an immutable receipt before any mount may begin.",
+          "steps": [
+            "Verify the canonical Separate Mount Authorization and its active evidence window.",
+            "Register the exact authorization bindings under a shared advisory lock and row transaction.",
+            "Reject divergent replay, expired evidence, binding drift, and stale generation.",
+            "Consume generation N to N+1 with executor and mount-attempt bindings.",
+            "Insert and read back one immutable consumption receipt in the same transaction."
+          ],
+          "assertions": [
+            "Factory creation performs no database connection.",
+            "Only the canonical authorization digest, operation, plan, runtime, and generation can consume the record.",
+            "A second consumption and automatic retry are rejected.",
+            "No mount, dependency injection, route mutation, worker call, provider call, migration, or Production mutation occurs.",
+            "The raw SQL pool and credential material are not exposed."
+          ],
+          "tests": [
+            {
+              "id": "durable-mount-authorization-registry-lifecycle",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-mount-authorization-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableMountAuthorizationRegistry.js",
+            "http-generic-api/test-hostinger-storage-durable-mount-authorization-registry.mjs",
+            ".github/contracts/spec014/hostinger-storage-durable-mount-authorization-registry.json",
+            ".github/contracts/spec014/sql/hostinger-storage-durable-mount-authorization-registry.sql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Promote and apply the contract-local schema, then compose the registry into a separately authorized mount executor.",
+      "blockers": [
+        "The two registry tables remain contract-local DDL and are not promoted or applied.",
+        "No live signed schema verification exists for the registry tables.",
+        "The Authorized Mount Executor is not yet composed or mounted."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on expiry, stale generation, concurrent CAS changes, duplicate or orphan receipts, and any binding or readback mismatch.",
+      "e2e_journeys": [
+        {
+          "id": "reject-replay-and-concurrent-consumption",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 mount authorization registry",
+          "entrypoint": "Hostinger Storage Durable Mount Authorization Registry Guard",
+          "terminal_outcome": "Concurrent or repeated consumption rolls back without a receipt, while the first exact consumption remains immutable and non-retryable.",
+          "steps": [
+            "Lock the authorization row and any existing receipt.",
+            "Compare authorization, operation, plan, runtime, generation, consumed state, and row version.",
+            "Reject a CAS miss or an existing receipt and roll back.",
+            "Preserve the original row or the single successful receipt exactly."
+          ],
+          "assertions": [
+            "Generation increases by exactly one on the only successful consumption.",
+            "The receipt is append-only and uniquely bound to authorization and mount attempt.",
+            "A failed CAS leaves both current row and receipt state unchanged.",
+            "No automatic retry or mount side effect is available."
+          ],
+          "tests": [
+            {
+              "id": "durable-mount-authorization-registry-regressions",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-mount-authorization-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableMountAuthorizationRegistry.js",
+            ".github/contracts/spec014/hostinger-storage-durable-mount-authorization-registry.json"
+          ]
+        }
+      ]
+    }
+  ]
+}

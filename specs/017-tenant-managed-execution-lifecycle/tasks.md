@@ -1,0 +1,23 @@
+# Tasks
+
+- [x] T001 Inventory existing workflow, approval, ticket integrity, capability, and resource-grant authority.
+- [x] T002 Add managed execution envelope and effect policy validation.
+- [x] T003 Resolve capability authority from the effective capability view.
+- [x] T004 Resolve active exact/workspace resource grants with effect-derived permission floors.
+- [x] T005 Persist immutable fingerprinted authority snapshot on the workflow run and binding.
+- [x] T006 Create/reuse linked managed task ticket atomically with the run.
+- [x] T007 Derive approval holds from effect and access policy.
+- [x] T008 Authorize and synchronize approval decisions, expiry, escalation, run, task, and evidence state.
+- [x] T009 Bind non-admin tenant/requester scope to the authenticated principal.
+- [x] T010 Revalidate live grants and capability authority before each managed step.
+- [x] T011 Add idempotent managed step request claims.
+- [x] T012 Harden generic step/status/approval routes against bypass.
+- [x] T013 Preserve legacy workflow-route discovery under composite routing.
+- [x] T014 Add additive Migration 1043 and readiness view without Apply.
+- [x] T015 Add focused regression and synthetic E2E contract.
+- [ ] T016 Obtain checksum-bound Migration 1043 readiness authorization.
+- [ ] T017 Apply Migration 1043 exactly once and verify ledger/readiness.
+- [x] T018 Add bounded retry, reassignment, escalation, cancellation, and rollback execution operations.
+- [x] T019 Add complete tenant/admin read projections and reconciliation actions.
+- [ ] T020 Promote the exact implementation through Production and prove runtime parity.
+- [ ] T021 Complete post-merge audit and close Issue #4449.

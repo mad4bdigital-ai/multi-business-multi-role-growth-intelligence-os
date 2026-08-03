@@ -1,0 +1,201 @@
+# Canonical split contract; root composition and generated evidence remain CI-owned.
+schemas:
+  SupportTicketResolutionSummary:
+    type: object
+    additionalProperties: true
+    description: Sanitized governed resolution-case summary. It never authorizes or applies a repair.
+    properties:
+      available: { type: boolean }
+      solution_availability: { type: string }
+      problem_type: { type: string }
+      root_family: { type: string }
+      playbook_key: { type: string }
+      required_role: { type: string }
+      case_id: { type: [string, 'null'] }
+      case_status: { type: [string, 'null'] }
+      current_step_key: { type: [string, 'null'] }
+      readback_status: { type: string }
+      risk_level: { type: [string, 'null'] }
+      approval_required: { type: boolean }
+      readback_required: { type: boolean }
+      solution:
+        type: [object, 'null']
+        additionalProperties: true
+      secrets_included: { type: boolean, const: false }
+
+  SupportTicketMutationRequest:
+    type: object
+    additionalProperties: true
+    properties:
+      ticket_type: { type: string, maxLength: 128 }
+      issue_type: { type: string, maxLength: 128 }
+      source_event: { type: string, maxLength: 191 }
+      title: { type: string, maxLength: 500 }
+      customer_message: { type: string }
+      message: { type: string }
+      internal_summary: { type: string }
+      category: { type: string, maxLength: 128 }
+      priority: { type: string, enum: [low, normal, high, urgent] }
+      severity: { type: string, enum: [sev1, sev2, sev3, sev4] }
+      service_mode: { type: string, maxLength: 64 }
+      resource: { type: object, additionalProperties: true }
+      authority: { type: object, additionalProperties: true }
+      metadata_json: { type: object, additionalProperties: true }
+      dedupe_key: { type: string, maxLength: 191 }
+
+  SupportTicketMutationResponse:
+    type: object
+    additionalProperties: true
+    required: [ok, created, deduped, ticket, resolution, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      created: { type: boolean }
+      deduped: { type: boolean }
+      ticket: { type: object, additionalProperties: true }
+      resolution: { $ref: '#/schemas/SupportTicketResolutionSummary' }
+      notification: { type: object, additionalProperties: true }
+      secrets_included: { type: boolean, const: false }
+
+  SupportTicketListResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, tenant_id, tickets, count, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      tenant_id: { type: string }
+      tickets:
+        type: array
+        items: { type: object, additionalProperties: true }
+      count: { type: integer, minimum: 0 }
+      secrets_included: { type: boolean, const: false }
+
+  SupportTicketDetailResponse:
+    type: object
+    additionalProperties: false
+    required: [ok, ticket, events, secrets_included]
+    properties:
+      ok: { type: boolean, const: true }
+      ticket: { type: object, additionalProperties: true }
+      events:
+        type: array
+        items: { type: object, additionalProperties: true }
+      resolution:
+        oneOf:
+          - $ref: '#/schemas/SupportTicketResolutionSummary'
+          - type: 'null'
+        description: Included only for a tenant admin or owner; lower roles receive no internal solution details.
+      secrets_included: { type: boolean, const: false }
+
+mySupportTickets:
+  post:
+    operationId: createMySupportTicket
+    summary: Create or append a tenant support ticket
+    description: Creates a ticket for the signed-in tenant member or appends after an exact dedupe match. Resolution output is advisory evidence only; no repair or external send occurs.
+    tags: [support-tickets]
+    security:
+      - userJwtAuth: []
+    x-openai-isConsequential: true
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/schemas/SupportTicketMutationRequest' }
+    responses:
+      '200':
+        description: Existing ticket updated after a dedupe match.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SupportTicketMutationResponse' }
+      '201':
+        description: New support ticket created and linked to a governed resolution case.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SupportTicketMutationResponse' }
+      '400': { description: Invalid request body. }
+      '401': { description: User authentication required. }
+      '403': { description: Active tenant membership required. }
+      '422': { description: No active tenant-visible resolution playbook is available. }
+  get:
+    operationId: listMySupportTickets
+    summary: List customer-visible support tickets for the signed-in tenant member
+    tags: [support-tickets]
+    security:
+      - userJwtAuth: []
+    x-openai-isConsequential: false
+    parameters:
+      - name: status
+        in: query
+        required: false
+        schema: { type: string, maxLength: 64 }
+      - name: limit
+        in: query
+        required: false
+        schema: { type: integer, minimum: 1, maximum: 100, default: 100 }
+    responses:
+      '200':
+        description: Tenant support ticket list.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SupportTicketListResponse' }
+      '401': { description: User authentication required. }
+      '403': { description: Active tenant membership required. }
+
+mySupportTicketById:
+  get:
+    operationId: getMySupportTicket
+    summary: Get one customer-visible support ticket and its events
+    description: Role-gated resolution details are returned only to a tenant admin or owner.
+    tags: [support-tickets]
+    security:
+      - userJwtAuth: []
+    x-openai-isConsequential: false
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    responses:
+      '200':
+        description: Support ticket detail.
+        content:
+          application/json:
+            schema: { $ref: '#/schemas/SupportTicketDetailResponse' }
+      '401': { description: User authentication required. }
+      '403': { description: Active tenant membership required. }
+      '404': { description: Support ticket not found. }
+
+mySupportTicketEvents:
+  post:
+    operationId: appendMySupportTicketEvent
+    summary: Append a customer-visible event to a support ticket
+    tags: [support-tickets]
+    security:
+      - userJwtAuth: []
+    x-openai-isConsequential: true
+    parameters:
+      - name: ticket_id
+        in: path
+        required: true
+        schema: { type: string, minLength: 1 }
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: true
+            properties:
+              event_type: { type: string, maxLength: 128, default: customer_reply_added }
+              summary: { type: string }
+              message: { type: string }
+              payload_json: { type: object, additionalProperties: true }
+    responses:
+      '201':
+        description: Customer-visible support ticket event created.
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      '400': { description: Invalid request body. }
+      '401': { description: User authentication required. }
+      '403': { description: Active tenant membership required. }
+      '404': { description: Support ticket not found. }

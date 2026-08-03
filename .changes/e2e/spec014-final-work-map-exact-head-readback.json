@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-final-work-map-exact-head-readback",
+  "title": "Spec 014 Final Work Map and Schema Classification Exact-head Readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-final-work-map-exact-head-readback.json",
+      ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml",
+      "http-generic-api/scripts/spec014-final-work-map-readback.mjs",
+      "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/evidence/final-work-map-exact-head-readback-20260802.md",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-governed-hostinger-storage-orchestration/tasks.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recompute the effective Work Map and schema-classification registry on the exact candidate head, refresh only the bounded Spec 014 binding through a deterministic producer, reject stale state fail-closed, and emit secret-free structured evidence before T006 can close.",
+      "e2e_journeys": [
+        {
+          "id": "recompute-and-verify-final-work-map-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec Kit Work Map governance automation",
+          "entrypoint": "Spec 014 work-map-integration.json on an exact pull-request head",
+          "terminal_outcome": "The current 19-map and 16-domain effective registry, schema classification coverage, manifest fingerprint, decision sets, and readiness state agree exactly or the guard fails with a structured drift report.",
+          "steps": [
+            "Load the canonical Work Map index, coverage matrix, integration policy, and schema-classification registry.",
+            "Recompute the effective registry fingerprint including the current classification-registry hash.",
+            "Require 19 Work Maps, 16 schema domains, zero unresolved objects, zero taxonomy-gap clusters, and 100 percent classification coverage.",
+            "Use the deterministic producer to refresh only registry binding fields and the T006 task state when exact drift is proven.",
+            "Compare the complete Work Map and domain decision sets with the effective registry.",
+            "Compare the manifest fingerprint, source hashes, counts, implementation readiness, and unresolved-dimension state with the current registry.",
+            "Write a bounded JSON and Markdown report even when drift is detected.",
+            "Publish the initial diagnostic and exact refreshed values inside the Spec evidence package.",
+            "Upload the structured report before enforcing the fail-closed result."
+          ],
+          "assertions": [
+            "Registry fingerprint and source hashes are exact-head derived rather than copied from an old checkpoint.",
+            "All current Work Maps and schema domains have explicit Spec 014 decisions.",
+            "Schema classification is fail-closed with zero unresolved objects and no expired or ambiguous exception.",
+            "Implementation readiness has no blocking dimensions after all repository decisions are resolved.",
+            "The producer changes only work-map-integration.json and the T006 task line.",
+            "The permanent evidence records the structured diagnostic artifact and exact before/after registry values.",
+            "No repository mutation occurs during readback execution.",
+            "No Hostinger, SSH, credential, live database, migration Apply, Provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "spec014-final-work-map-exact-head-readback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/spec014-final-work-map-readback.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml",
+            "http-generic-api/scripts/spec014-final-work-map-readback.mjs",
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/evidence/final-work-map-exact-head-readback-20260802.md",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            ".specify/work-map-schema-classification-registry.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This repository readback does not operate a live provider or database."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Any future Work Map, domain, source-hash, or schema-classification drift remains fail-closed through the exact-head guard."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live canary is appropriate for a repository-governance readback."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This readback grants no deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

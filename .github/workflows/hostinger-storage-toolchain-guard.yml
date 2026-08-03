@@ -1,0 +1,93 @@
+name: Hostinger Storage Toolchain Guard
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/hostinger-storage-toolchain-guard.yml"
+      - "http-generic-api/config/hostinger-storage-open-source-toolchain.json"
+      - "http-generic-api/hostingerStorageToolchain.js"
+      - "http-generic-api/test-hostinger-storage-toolchain.mjs"
+      - "specs/014-governed-hostinger-storage-orchestration/**"
+  pull_request:
+    paths:
+      - ".github/workflows/hostinger-storage-toolchain-guard.yml"
+      - "http-generic-api/config/hostinger-storage-open-source-toolchain.json"
+      - "http-generic-api/hostingerStorageToolchain.js"
+      - "http-generic-api/test-hostinger-storage-toolchain.mjs"
+      - "specs/014-governed-hostinger-storage-orchestration/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-storage-toolchain-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate governed open-source toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate JSON and JavaScript syntax
+        run: |
+          node -e "JSON.parse(require('node:fs').readFileSync('http-generic-api/config/hostinger-storage-open-source-toolchain.json', 'utf8'))"
+          node --check http-generic-api/hostingerStorageToolchain.js
+          node --check http-generic-api/test-hostinger-storage-toolchain.mjs
+
+      - name: Enforce fail-closed source invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          MODULE=http-generic-api/hostingerStorageToolchain.js
+          POLICY=http-generic-api/config/hostinger-storage-open-source-toolchain.json
+
+          if grep -nE "from ['\"]node:child_process|require\(['\"]child_process|exec\(|execSync\(|spawn\(|spawnSync\(" "$MODULE"; then
+            echo "Toolchain core must build descriptors only and must not execute processes."
+            exit 1
+          fi
+
+          if grep -nE "shell:[[:space:]]*true|user_supplied_argv:[[:space:]]*true" "$MODULE" "$POLICY"; then
+            echo "Free-form shell or user-supplied argv is forbidden."
+            exit 1
+          fi
+
+          node <<'NODE'
+          const fs = require('node:fs');
+          const policy = JSON.parse(fs.readFileSync('http-generic-api/config/hostinger-storage-open-source-toolchain.json', 'utf8'));
+          const requiredDenied = {
+            fclones: ['remove', 'move', 'link', 'dedupe'],
+            restic: ['forget', 'prune', 'rewrite', 'repair', 'unlock'],
+            rclone: ['sync', 'move', 'delete', 'deletefile', 'purge', 'cleanup', 'dedupe'],
+          };
+          for (const [tool, actions] of Object.entries(requiredDenied)) {
+            const denied = new Set(policy.tools?.[tool]?.denied_actions || []);
+            for (const action of actions) {
+              if (!denied.has(action)) throw new Error(`${tool} must deny ${action}`);
+            }
+          }
+          if (policy.authority?.provider_dispatch_default_off !== true) throw new Error('provider dispatch must remain default-off');
+          if (policy.critical_inode_mode?.generic_toolchain_reserve_release_forbidden !== true) throw new Error('generic reserve release must remain forbidden');
+          if (policy.critical_inode_mode?.automatic_retry_forbidden !== true) throw new Error('critical-inode automatic retry must remain forbidden');
+          NODE
+
+      - name: Run capability, fallback, descriptor, and attestation regressions
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-toolchain.mjs
+
+      - name: Confirm non-runtime boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'provider_dispatch_default_off' http-generic-api/config/hostinger-storage-open-source-toolchain.json
+          grep -q 'dispatch_allowed: false' http-generic-api/hostingerStorageToolchain.js
+          grep -q 'authority_granted: false' http-generic-api/hostingerStorageToolchain.js
+          grep -q 'dispatch_authority_created: false' http-generic-api/hostingerStorageToolchain.js

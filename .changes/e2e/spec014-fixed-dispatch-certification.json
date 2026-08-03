@@ -1,0 +1,65 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-fixed-dispatch-certification",
+  "title": "Spec 014 Fixed Dispatch Certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-fixed-dispatch-certification.json",
+      ".github/contracts/spec014/hostinger-storage-fixed-dispatch-certification.json",
+      ".github/workflows/hostinger-storage-fixed-dispatch-certification-guard.yml",
+      "http-generic-api/hostingerStorageFixedDispatchCertification.js",
+      "http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind one verified dedicated worker certificate to one default-off internal dispatcher and one exact Hostinger apply invocation without creating, enqueuing, mounting, or executing dispatch.",
+      "e2e_journeys": [
+        {
+          "id": "certify-exact-default-off-dispatch-envelope",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 fixed dispatch certification evaluator",
+          "entrypoint": "Hostinger Storage Fixed Dispatch Certification Guard",
+          "terminal_outcome": "A valid worker certificate plus exact dispatcher, authorization, plan, lease, arguments, credential-reference, program, and host-key bindings produce a tamper-evident packet ready only for separate mount authorization.",
+          "steps": [
+            "Independently verify the canonical dedicated worker certification packet and digest.",
+            "Bind dispatcher identity, release, artifact provenance, internal-only queue, and default-off policy.",
+            "Bind the fixed adapter, apply operation, reviewed script, plan, lease, authorization bundle, and structured-arguments schema.",
+            "Bind only digests for root, confirmation, credentials, and host-key evidence.",
+            "Reject public HTTP/runtime dispatch, free-form shell/root/wildcards, unbounded output, drift, and any execution side effect.",
+            "Recompute the blocker set and certification digest during independent verification."
+          ],
+          "assertions": [
+            "A tampered or not-ready worker certificate cannot authorize fixed dispatch.",
+            "The dispatcher remains internal, single-operation, and default-off.",
+            "No raw root, credential value, command, provider payload, or secret is included.",
+            "The evaluator creates no dispatcher, enqueues no job, invokes no worker, resolves no credential, and performs no provider call.",
+            "The successful terminal is ready_for_separate_mount_authorization, never dispatch_allowed.",
+            "Runtime/route mounting and Production readiness remain false."
+          ],
+          "tests": [
+            { "id": "hostinger-storage-dedicated-worker-certification-regression", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs", "args": [] },
+            { "id": "hostinger-storage-fixed-dispatch-certification", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs", "args": [] },
+            { "id": "hostinger-storage-durable-tenant-runtime-bridge-readiness-regression", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageFixedDispatchCertification.js",
+            "http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs",
+            ".github/contracts/spec014/hostinger-storage-fixed-dispatch-certification.json"
+          ]
+        }
+      ]
+    },
+    { "id": "operational", "status": "blocked", "objective": "Create the fixed dispatcher and queue only through separate mount authorization.", "blockers": ["No dispatcher, queue job, worker invocation, credential resolution, or Hostinger connection exists.", "Runtime composition and Tenant route remain unmounted."] },
+    { "id": "resilient", "status": "blocked", "objective": "Prove queue delivery, worker interruption, revocation, timeout, and durable reconciliation after mounting is authorized.", "blockers": ["The dispatcher and worker remain intentionally unmounted.", "Crash-safe reconciliation exists but is not connected to a dispatch lifecycle."] },
+    { "id": "canary", "status": "not_applicable", "objective": "This repository-only slice performs no live worker, provider, SSH, or Hostinger canary." },
+    { "id": "production", "status": "not_applicable", "objective": "Mounting, credentials, provider dispatch, deployment, and Production remain separately governed." }
+  ]
+}

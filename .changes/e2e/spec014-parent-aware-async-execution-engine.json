@@ -1,0 +1,114 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-parent-aware-async-execution-engine",
+  "title": "Spec 014 Parent-Aware Async Execution Engine",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-parent-aware-async-execution-engine.json",
+      ".github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json",
+      ".github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json",
+      ".github/workflows/hostinger-storage-parent-aware-async-execution-engine-guard.yml",
+      "http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js",
+      "http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js",
+      "http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement an unmounted async execution engine that consumes the canonical synthetic protocol through the durable Tenant facade, preserves parent/child ordering, and finalizes Run and Operation state without Provider dispatch.",
+      "e2e_journeys": [
+        {
+          "id": "parent-aware-async-synthetic-execution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable execution integrator",
+          "entrypoint": "Hostinger Storage Parent-Aware Async Execution Engine Guard",
+          "terminal_outcome": "A verified protocol is prepared through the durable facade, every item produces contiguous prepared/result/readback evidence, Run and Operation advance through readback_pending and reconciling, one reconciliation is appended, and both reach an outcome-bound terminal state while Provider dispatch remains disabled.",
+          "steps": [
+            "Require the canonical durable Tenant facade and canonical non-provider synthetic adapter.",
+            "Verify the synthetic execution protocol digest and safety identity.",
+            "Validate exact protocol, preparation, run, lease, plan-item, hash, path, size, and file-type bindings before durable preparation.",
+            "Prepare the durable plan-item and run parents through the facade.",
+            "Append a deterministic prepared event for each item.",
+            "Execute the exact synthetic non-provider mutation and append its result receipt.",
+            "Read the synthetic item state and append deterministic readback evidence.",
+            "Advance Run and Operation to readback_pending through checkpoint CAS and canonical transition policy.",
+            "Advance Run and Operation to reconciling.",
+            "Append one reconciliation bound to protocol, preparation, journal, readback, and item accounting digests.",
+            "Finalize Run and Operation to completed, failed/blocked, or unknown_outcome according to the reconciliation result.",
+            "Return a secret-free Tenant-safe internal result while remaining unmounted."
+          ],
+          "assertions": [
+            "Engine construction performs no database, mutation, route, worker, or Provider call.",
+            "Protocol or plan-item binding drift fails before prepareExecution.",
+            "The public facade never exposes the raw repository transition method.",
+            "Every item has exactly three globally contiguous child events in prepared, result, readback order.",
+            "Run transitions use exact checkpoint digests and Operation transitions use exact versions and current states.",
+            "Reconciliation is appended only after both Run and Operation are reconciling.",
+            "Canonical applied and safely skipped outcomes are covered with the real synthetic adapter.",
+            "No route, server, migration, live database, Hostinger, Provider, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-durable-facade-state-transition",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-parent-aware-async-execution-engine",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-parent-aware-async-execution-engine.json",
+            ".github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json",
+            "http-generic-api/hostingerStorageParentAwareAsyncExecutionEngine.js",
+            "http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js",
+            "http-generic-api/test-hostinger-storage-parent-aware-async-execution-engine.mjs",
+            "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade-state-transition.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Add durable authority and enablement stores, dedicated worker/fixed dispatch certification, crash-safe restart reconciliation, and a separately authorized mount path.",
+      "blockers": [
+        "Durable authority and one-shot enablement stores are not implemented.",
+        "Dedicated worker and fixed dispatch certification are not complete.",
+        "Interrupted execution restart reconciliation is not implemented.",
+        "No route or worker mount authorization exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Resume partial prepared/result/readback sequences after a fresh durable read without duplicate writes or blind retry."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This engine uses only the canonical synthetic memory adapter and performs no live Tenant or Provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production database access, Provider dispatch, runtime mounting, and Production promotion remain separately authorized and blocked."
+    }
+  ]
+}

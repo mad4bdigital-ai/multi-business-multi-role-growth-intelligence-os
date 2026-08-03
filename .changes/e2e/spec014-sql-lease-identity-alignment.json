@@ -1,0 +1,92 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-sql-lease-identity-alignment",
+  "title": "Spec 014 SQL Lease Identity Alignment",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-sql-lease-identity-alignment.json",
+      ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
+      ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+      "http-generic-api/hostingerStorageSqlPersistenceAdapter.js",
+      "http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Align the durable SQL lease identity with the canonical classified schema while preserving target-bound CAS and restart-safe aggregate readback.",
+      "e2e_journeys": [
+        {
+          "id": "sql-lease-canonical-id-to-restart-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "certified_storage_control_plane",
+          "entrypoint": "createMySqlHostingerStoragePersistenceAdapter",
+          "terminal_outcome": "The canonical lease ID is persisted and reconstructed after restart while target_id remains the unique CAS lookup key and stale lease generations fail closed.",
+          "steps": [
+            "Create the canonical SQL persistence adapter over an isolated synthetic database.",
+            "Persist an operation, plan, approval, and execution lease with id equal to lease_id.",
+            "Write append-only journal and reconciliation evidence.",
+            "Recreate the repository over the same rows and verify exact aggregate equality.",
+            "Renew the lease with advancing generation and reject stale generation and row-version CAS conflicts."
+          ],
+          "assertions": [
+            "storage_execution_leases retains canonical id primary-key identity.",
+            "target_id remains the durable record key used for single-target lease CAS.",
+            "The adapter inserts and reads id without DDL or schema auto-creation.",
+            "Restart readback preserves the persisted lease identity and aggregate digest.",
+            "Migration apply, provider dispatch, credentials, filesystem access, and Production mounting remain unauthorized."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-runtime-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-sql-persistence-adapter",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-storage-sql-persistence-adapter.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
+            ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+            "http-generic-api/test-hostinger-storage-sql-persistence-adapter.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "No scheduler, queue, migration runner, or runtime mounting is introduced."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "Restart-safe reconstruction and CAS rollback are proven in the MVP journey."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live database or Hostinger target is modified."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Migration apply, provider dispatch, deployment, and Production readiness remain outside this correction."
+    }
+  ]
+}

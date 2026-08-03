@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-crash-safe-restart-reconciliation.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unmounted",
+  "implementation": "http-generic-api/hostingerStorageCrashSafeRestartReconciler.js",
+  "test": "http-generic-api/test-hostinger-storage-crash-safe-restart-reconciler.mjs",
+  "reconciler_key": "hostinger_storage_crash_safe_restart_reconciler_v1",
+  "recovery_source": {
+    "verified_sql_composition_required": true,
+    "durable_operation_aggregate_required": true,
+    "durable_run_parent_required": true,
+    "durable_plan_item_parents_required": true,
+    "durable_parent_bound_journals_required": true,
+    "single_database_fingerprint_required": true,
+    "external_execution_request_reuse_allowed": false,
+    "worker_memory_required": false
+  },
+  "evidence_analysis": {
+    "journal_sequence_must_be_contiguous": true,
+    "plan_item_parent_binding_required": true,
+    "item_hash_binding_required": true,
+    "required_phases": [
+      "prepared",
+      "result",
+      "readback"
+    ],
+    "phase_order_required": true,
+    "complete_item_accounting_required_for_terminalization": true,
+    "deleted_bytes_reconstructed_from_plan_item_parents": true,
+    "incomplete_or_ambiguous_evidence_outcome": "still_unknown"
+  },
+  "state_convergence": {
+    "run_cas_checkpoint_required": true,
+    "operation_version_cas_required": true,
+    "canonical_operation_transition_policy_required": true,
+    "complete_non_conflict_terminal": {
+      "run": "completed",
+      "operation": "completed"
+    },
+    "complete_conflict_terminal": {
+      "run": "failed",
+      "operation": "blocked"
+    },
+    "incomplete_evidence_terminal": {
+      "run": "unknown_outcome",
+      "operation": "unknown_outcome",
+      "retry_permission": false,
+      "read_before_retry_required": true
+    },
+    "terminal_replay_requires_existing_reconciliation": true
+  },
+  "prohibited_behaviour": {
+    "mutation_replay_allowed": false,
+    "adapter_call_allowed": false,
+    "provider_call_allowed": false,
+    "automatic_retry_allowed": false,
+    "free_form_shell_allowed": false,
+    "raw_pool_exposed": false,
+    "raw_composition_exposed": false
+  },
+  "operational_boundary": {
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false,
+    "migration_apply_authorized": false,
+    "foreign_keys_enabled": false,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

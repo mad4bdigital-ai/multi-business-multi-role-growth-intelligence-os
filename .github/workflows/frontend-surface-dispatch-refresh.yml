@@ -1,0 +1,111 @@
+name: Frontend surface dispatch refresh
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: Existing non-protected work branch to refresh
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact 40-character branch head required before mutation
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-generated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: http-generic-api
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+    steps:
+      - name: Validate governed mutation target
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          if [[ -z "${TARGET_BRANCH}" ]]; then
+            echo "::error::target_branch is required"
+            exit 1
+          fi
+          if [[ "${TARGET_BRANCH}" == "main" || "${TARGET_BRANCH}" == "Production" ]]; then
+            echo "::error::protected branch mutation is forbidden"
+            exit 1
+          fi
+          if [[ ! "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::expected_head_sha must be an exact lowercase 40-character SHA"
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_branch }}
+          fetch-depth: 0
+
+      - name: Verify exact branch head before generation
+        shell: bash
+        working-directory: .
+        run: |
+          set -euo pipefail
+          CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+          REMOTE_HEAD_SHA="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          if [[ "${CURRENT_HEAD_SHA}" != "${EXPECTED_HEAD_SHA}" || "${REMOTE_HEAD_SHA}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "::error::expected_head_sha no longer matches the checked-out and remote branch head"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - run: npm ci
+
+      - name: Validate exact-operation OpenAPI auth repair
+        run: node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs
+
+      - name: Generate bounded canonical and dispatch evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          git branch -f main origin/main
+          BASE_REF="main"
+          node scripts/openapi-runtime-auth-sync.mjs --write
+          npm run frontend:dispatch:generate -- --baseline-ref="${BASE_REF}"
+          UNEXPECTED="$(git status --porcelain | awk '{print $2}' | grep -Ev '^(http-generic-api/)?(openapi\.yaml|openapi/support-tickets\.yaml|frontend-operation-governance\.generated\.json|frontend-surface-dispatch\.generated\.json|openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${UNEXPECTED}" ]]; then
+            echo "::error::generator changed files outside the bounded evidence set"
+            printf '%s\n' "${UNEXPECTED}"
+            exit 1
+          fi
+          node test-frontend-auth-openapi-parity.mjs
+          npm run openapi:auth:check
+
+      - name: Commit and push exact-head refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- openapi.yaml openapi/support-tickets.yaml frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml; then
+            echo "Generated evidence is already current."
+            exit 0
+          fi
+          REMOTE_HEAD_SHA="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+          if [[ "${CURRENT_HEAD_SHA}" != "${EXPECTED_HEAD_SHA}" || "${REMOTE_HEAD_SHA}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            echo "::error::branch head changed after generation; refusing mutation"
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add openapi.yaml openapi/support-tickets.yaml frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+          git commit -m "chore(ci): refresh frontend and canonical auth evidence"
+          git push origin "HEAD:${TARGET_BRANCH}"

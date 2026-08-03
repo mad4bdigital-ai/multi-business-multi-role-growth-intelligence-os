@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/deployment-evidence-exposure-policy-v1.json",
+  "title": "Deployment Evidence Exposure Policy",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "policy_type": { "const": "deployment_evidence_exposure_policy" },
+    "principal_class": { "enum": ["public", "tenant_user", "tenant_admin", "platform_admin", "service"] },
+    "immutable_principal_ceiling": { "enum": ["diagnostic", "admin_full"] },
+    "maximum_exposure_level": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+    "default_exposure_level": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+    "state_exposure": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "current": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+        "deploying": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+        "stale": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+        "diverged": { "enum": ["none", "opaque", "diagnostic", "admin_full"] },
+        "unknown": { "enum": ["none", "opaque", "diagnostic", "admin_full"] }
+      },
+      "required": ["current", "deploying", "stale", "diverged", "unknown"]
+    },
+    "include_parameter_allowed": { "type": "boolean" },
+    "freshness_window_seconds": { "type": "integer", "minimum": 1, "maximum": 86400 },
+    "classification_policy_key": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,191}$" },
+    "public_release_id_source_key": { "type": "string", "pattern": "^[a-z][a-z0-9_.-]{2,191}$" },
+    "header_enabled": { "type": "boolean" },
+    "attention_policy_key": {
+      "type": ["string", "null"],
+      "pattern": "^[a-z][a-z0-9_.-]{2,191}$"
+    },
+    "applicable_operation_ids": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9._:-]{2,190}$" }
+    },
+    "questionnaire_provenance": { "type": "object" },
+    "missing_invalid_or_stale_evidence_state": { "const": "unknown" },
+    "deployment_mismatch_reconnect_required": { "const": false },
+    "full_git_sha_tenant_visible": { "const": false },
+    "policy_payload_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "secrets_included": { "const": false }
+  },
+  "required": [
+    "policy_type", "principal_class", "immutable_principal_ceiling",
+    "maximum_exposure_level", "default_exposure_level", "state_exposure",
+    "include_parameter_allowed", "freshness_window_seconds",
+    "classification_policy_key", "public_release_id_source_key", "header_enabled",
+    "applicable_operation_ids", "questionnaire_provenance",
+    "missing_invalid_or_stale_evidence_state",
+    "deployment_mismatch_reconnect_required", "full_git_sha_tenant_visible",
+    "policy_payload_sha256", "secrets_included"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "principal_class": { "enum": ["public", "tenant_user", "tenant_admin"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "immutable_principal_ceiling": { "const": "diagnostic" },
+          "maximum_exposure_level": { "enum": ["none", "opaque", "diagnostic"] },
+          "default_exposure_level": { "enum": ["none", "opaque", "diagnostic"] }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "principal_class": { "enum": ["platform_admin", "service"] }
+        }
+      },
+      "then": {
+        "properties": {
+          "immutable_principal_ceiling": { "const": "admin_full" }
+        }
+      }
+    }
+  ]
+}

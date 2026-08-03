@@ -1,0 +1,97 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-canonical-evidence-publisher",
+  "title": "Canonical structured evidence for Hostinger guards",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-canonical-evidence-publisher.json",
+      ".github/ci-evidence-routing.json",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      "http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs",
+      "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Route Hostinger Storage Tenant Canary Guard through the registered trusted CI Evidence PR Publisher, with an exact-head E2E fallback when the direct Tenant workflow_run subscription is not delivered, without granting repository/runtime mutation authority or creating a competing comment surface.",
+      "e2e_journeys": [
+        {
+          "id": "hostinger-tenant-canary-canonical-evidence-publication",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer and trusted workflow_run publisher",
+          "entrypoint": "A completed Hostinger Storage Tenant Canary Guard run and the matching completed E2E Phase Governance run for the same exact head",
+          "terminal_outcome": "The trusted main-based CI Evidence PR Publisher discovers or directly receives the exact-head Tenant Canary run, validates its run-bound canonical artifact, and updates the shared authoritative PR comment.",
+          "steps": [
+            "Accept a direct completed Hostinger Storage Tenant Canary Guard workflow_run when GitHub delivers it.",
+            "When E2E Phase Governance completes, query the Hostinger workflow runs API for one successful pull_request run with the same full head SHA and head branch.",
+            "Skip fallback publication when no exact-head Tenant Canary run exists.",
+            "Download only the run-bound hostinger-storage-tenant-canary summary artifact for the discovered run ID.",
+            "Validate workflow and guard identity, contract, candidate kind, exact candidate SHA, check counts, result count, first failure, secrets declaration, and job_logs_consulted=false.",
+            "Resolve exactly one open or merged PR from event PR number or exact repository, branch, and head SHA.",
+            "Reject stale, substituted, ambiguous, or closed-unmerged PR identities.",
+            "Add or replace only the Hostinger Tenant Canary section inside the existing mad4b canonical evidence comment."
+          ],
+          "assertions": [
+            "The source and report workflow is Hostinger Storage Tenant Canary Guard and guard_key is hostinger-storage-tenant-canary.",
+            "The sole publisher workflow is CI Evidence PR Publisher.",
+            "Fallback discovery filters event=pull_request, status=completed, exact head_sha, exact workflow name, success conclusion, and matching head branch.",
+            "The canonical contract is mad4b.hostinger-guard-summary.v1.",
+            "The candidate kind is head and candidate SHA equals the E2E workflow_run head SHA.",
+            "Passed evidence requires all selected checks to pass, zero integrity findings, and first_failure=null.",
+            "The report declares secrets_included=false and job_logs_consulted=false.",
+            "The publisher runs from trusted main with actions:read, issues:write, pull-requests:write, contents:read, and persist-credentials:false.",
+            "No specialized Hostinger publisher remains registered and the PR-head Tenant Canary Guard receives no comment-write authority.",
+            "No deployment, provider call, credential access, migration, SQL, external send, Production mutation, protected-branch mutation, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-canonical-evidence-publisher-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-ci-evidence-pr-comment.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            "http-generic-api/scripts/hostinger-ci-evidence-pr-comment.mjs",
+            "http-generic-api/scripts/test-hostinger-ci-evidence-pr-comment.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run 30729520216 proved the post-convergence Tenant Canary Artifact on head 5a523d4c124507de05b5077e4aec71c2a22f1d4e with 8/8 passing checks, but the direct Tenant workflow_run subscription did not update the comment while the E2E publisher did. Complete the operational phase by proving the exact-head E2E fallback publishes the same run-bound Hostinger evidence.",
+      "blockers": [
+        "The exact-head E2E fallback has not reached main and published a real Hostinger section yet."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise missing Tenant runs, artifact absence, malformed JSON, stale SHA, branch mismatch, workflow identity mismatch, conflicting counts, ambiguous PR resolution, cancelled runs, and publisher retries while keeping Job logs diagnostic-only."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Extend the same bounded exact-head fallback contract to Shared Canary and Production Preflight only after Tenant Canary publication is proven end to end."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository evidence publisher grants no runtime, Hostinger, deployment, migration, or Production authority."
+    }
+  ]
+}

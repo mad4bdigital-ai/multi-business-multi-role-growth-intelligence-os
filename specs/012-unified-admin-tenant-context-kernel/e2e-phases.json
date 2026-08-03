@@ -1,0 +1,204 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "012-unified-admin-tenant-context-kernel",
+  "title": "Execution Capsule and provider-consent Context Kernel governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      "http-generic-api/contextKernel/application/index.js",
+      "http-generic-api/contextKernel/application/providerConsentAdapterEvidenceCertifiedService.js",
+      "http-generic-api/contextKernel/application/providerConsentAdapterEvidenceService.js",
+      "http-generic-api/contextKernel/application/providerConsentUnknownOutcomeReconciliationService.js",
+      "http-generic-api/contextKernel/infrastructure/sql/index.js",
+      "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionCredentialEnvelope.js",
+      "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionHandoffStore.js",
+      "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionProviderExchange.js",
+      "http-generic-api/contextKernel/integration/executionCapsuleMutationDispatchGate.js",
+      "http-generic-api/contextKernel/integration/executionCapsuleRuntimeRollout.js",
+      "http-generic-api/contextKernel/integration/index.js",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+      "http-generic-api/test-context-kernel-provider-consent-adapter-evidence-certification-guards.mjs",
+      "http-generic-api/test-context-kernel-provider-consent-adapter-evidence-nonprod-readiness.mjs",
+      "http-generic-api/test-context-kernel-provider-consent-unknown-outcome-reconciliation.mjs",
+      "http-generic-api/test-context-kernel-registry-adapters.mjs",
+      "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+      "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+      "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md",
+      "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json",
+      "specs/012-unified-admin-tenant-context-kernel/provider-consent-adapter-evidence-nonproduction-readiness.md",
+      "specs/012-unified-admin-tenant-context-kernel/e2e-phases.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the complete default-off synthetic mutation-dispatch-to-rollout-readback journey without granting runtime or Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "execution-capsule-mutation-dispatch-to-rollout-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_operator",
+          "entrypoint": "Execution Capsule mutation dispatch integration boundary",
+          "terminal_outcome": "A reversible mutation dispatch is accepted only with complete current evidence, and rollout or legacy retirement remains gated by exact approval, executor readback, and rollback evidence.",
+          "steps": [
+            "Build an immutable Execution Capsule and reversible mutation operation contract",
+            "Refresh and bind approval, capability, authority, resource, provider, connection, and expected-SHA evidence",
+            "Project a secret-safe dispatch envelope and execute the bounded synthetic mutation adapter",
+            "Evaluate rollout and legacy-retirement readiness with exact executor readback and rollback controls"
+          ],
+          "assertions": [
+            "Incomplete, stale, mismatched, substituted, or secret-like evidence fails closed",
+            "Dispatch input remains bound to the exact tenant, workspace, brand, resource, connection, and expected SHA",
+            "Readiness evaluation cannot retire a legacy resolver or grant runtime authority automatically",
+            "The synthetic journey returns bounded readback and rollback evidence",
+            "Post-merge main readback records the exact merge and complete slice manifests while runtime authority and Production activation remain false"
+          ],
+          "tests": [
+            {
+              "id": "execution-capsule-ec4-ec5-synthetic-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-execution-capsule-mutation-and-rollout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-execution-capsule-mutation-and-rollout.mjs",
+            "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.md",
+            "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.md",
+            "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+            "specs/012-unified-admin-tenant-context-kernel/ec4-execution-capsule-mutation-dispatch-gate.manifest.json",
+            "specs/012-unified-admin-tenant-context-kernel/ec5-execution-capsule-rollout-and-retirement.manifest.json",
+            "specs/012-unified-admin-tenant-context-kernel/execution-capsule-runtime-extension.manifest.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Resolve and certify provider-consent adapter evidence through the application and SQL adapter boundaries without exposing credentials or granting provider-write authority.",
+      "e2e_journeys": [
+        {
+          "id": "provider-consent-certified-adapter-evidence-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Context Kernel provider-consent operator",
+          "entrypoint": "Provider-consent adapter evidence application service",
+          "terminal_outcome": "Registry adapters, certified evidence, non-production credential envelopes, handoff storage, and provider exchange projections resolve to one secret-safe readiness decision while unsupported or uncertified adapters fail closed.",
+          "steps": [
+            "Load the Context Kernel application and SQL adapter registries",
+            "Resolve provider-consent adapter evidence and certification guards",
+            "Bind a non-production credential envelope without returning secret material",
+            "Persist and reread the non-production handoff contract",
+            "Evaluate provider-exchange readiness and return bounded evidence"
+          ],
+          "assertions": [
+            "Only registered and certified adapters can satisfy readiness",
+            "Credential envelopes expose references and policy evidence but never credential values",
+            "Non-production handoff and provider exchange remain explicitly environment-bound",
+            "Missing, stale, mismatched, or uncertified evidence fails closed",
+            "Application and SQL registry barrels export the same governed adapter contract"
+          ],
+          "tests": [
+            {
+              "id": "context-kernel-registry-adapters",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-registry-adapters.mjs",
+              "args": []
+            },
+            {
+              "id": "provider-consent-certification-guards",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-provider-consent-adapter-evidence-certification-guards.mjs",
+              "args": []
+            },
+            {
+              "id": "provider-consent-nonproduction-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-provider-consent-adapter-evidence-nonprod-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/contextKernel/application/providerConsentAdapterEvidenceCertifiedService.js",
+            "http-generic-api/contextKernel/application/providerConsentAdapterEvidenceService.js",
+            "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionCredentialEnvelope.js",
+            "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionHandoffStore.js",
+            "http-generic-api/contextKernel/infrastructure/sql/providerConsentNonProductionProviderExchange.js",
+            "http-generic-api/test-context-kernel-registry-adapters.mjs",
+            "http-generic-api/test-context-kernel-provider-consent-adapter-evidence-certification-guards.mjs",
+            "http-generic-api/test-context-kernel-provider-consent-adapter-evidence-nonprod-readiness.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Reconcile provider-consent unknown outcomes with durable evidence, idempotent recovery, and fail-closed isolation from Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "provider-consent-unknown-outcome-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Context Kernel recovery operator",
+          "entrypoint": "Provider-consent unknown-outcome reconciliation service",
+          "terminal_outcome": "An ambiguous provider exchange is reconciled from bounded handoff and adapter evidence, returns one deterministic recovery decision, and never repeats an unsafe external mutation or promotes non-production authority.",
+          "steps": [
+            "Load the ambiguous provider exchange and durable handoff evidence",
+            "Validate adapter certification, environment, identity, and evidence freshness",
+            "Classify the outcome as confirmed, retryable, blocked, or unresolved",
+            "Return idempotent recovery guidance and bounded readback evidence",
+            "Keep Production activation and provider-write authority disabled"
+          ],
+          "assertions": [
+            "Unknown outcomes are never treated as success without provider or durable readback evidence",
+            "Reconciliation cannot reuse credentials or evidence from another tenant, resource, connection, or environment",
+            "Repeated reconciliation returns a stable decision and does not repeat a provider mutation",
+            "Incomplete or conflicting evidence remains blocked with an explicit reason",
+            "No recovery path grants Production authority or includes secrets"
+          ],
+          "tests": [
+            {
+              "id": "provider-consent-unknown-outcome-reconciliation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-provider-consent-unknown-outcome-reconciliation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/contextKernel/application/providerConsentUnknownOutcomeReconciliationService.js",
+            "http-generic-api/contextKernel/application/index.js",
+            "http-generic-api/contextKernel/infrastructure/sql/index.js",
+            "http-generic-api/test-context-kernel-provider-consent-unknown-outcome-reconciliation.mjs",
+            "specs/012-unified-admin-tenant-context-kernel/provider-consent-adapter-evidence-nonproduction-readiness.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the governed provider-consent and Execution Capsule journeys against an authorized live non-production target."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, certified adapter readiness, and runtime readback under separate release authorization."
+    }
+  ]
+}

@@ -1,0 +1,248 @@
+{
+  "schema_version": "mad4b.hostinger-storage-orchestration.v1",
+  "provider": "hostinger",
+  "orchestrator": {
+    "single_application_service": true,
+    "separate_admin_and_tenant_surfaces": true,
+    "freeform_shell_allowed": false,
+    "automatic_apply_allowed": false,
+    "public_web_runtime_execution_allowed": false,
+    "dedicated_worker_or_connector_required": true,
+    "host_key_fingerprint_required": true,
+    "context_kernel_resolution_required": true,
+    "effective_authority_resolution_required": true,
+    "capability_envelope_required_for_mutation": true,
+    "resource_authority_required_for_mutation": true,
+    "execution_lease_required_for_mutation": true,
+    "same_operation_readback_required": true,
+    "unknown_outcome_retry_allowed": false
+  },
+  "resource_hierarchy": [
+    "hosting_account",
+    "hosting_plan",
+    "website",
+    "deployment_slot",
+    "storage_root",
+    "cleanup_plan",
+    "cleanup_plan_item"
+  ],
+  "ownership_scopes": {
+    "platform": {
+      "description": "Platform infrastructure such as auth.mad4b.com.",
+      "tenant_mutation_allowed": false,
+      "admin_mutation_requires": ["platform_admin", "capability_envelope", "execution_lease"]
+    },
+    "tenant": {
+      "description": "A target and storage root exclusively owned by one tenant workspace.",
+      "tenant_mutation_allowed": true,
+      "tenant_mutation_requires": ["workspace_owner", "resource_authority", "capability_envelope", "execution_lease"],
+      "admin_mutation_requires": ["explicit_tenant_delegation_or_break_glass", "support_case", "capability_envelope", "execution_lease"]
+    },
+    "shared": {
+      "description": "A provider account or plan hosting platform and/or multiple tenant resources.",
+      "tenant_mutation_allowed": false,
+      "tenant_request_allowed": true,
+      "admin_mutation_requires": ["platform_admin", "impact_set_resolution", "required_workspace_consents", "capability_envelope", "execution_lease"]
+    }
+  },
+  "principal_profiles": {
+    "platform_admin": {
+      "contexts": ["admin"],
+      "may_manage_policy": true,
+      "may_manage_reserve": true,
+      "may_apply_platform_plan": true,
+      "may_apply_shared_plan": true,
+      "may_apply_tenant_plan_without_delegation": false
+    },
+    "tenant_workspace_owner": {
+      "contexts": ["tenant"],
+      "may_manage_policy": false,
+      "may_manage_reserve": false,
+      "may_apply_tenant_plan": true,
+      "may_apply_shared_plan": false,
+      "may_apply_platform_plan": false
+    },
+    "tenant_operator": {
+      "contexts": ["tenant"],
+      "may_scan": true,
+      "may_plan": true,
+      "may_inspect": true,
+      "may_request_approval": true,
+      "may_approve": false,
+      "may_apply": false
+    },
+    "service_principal": {
+      "contexts": ["admin", "tenant"],
+      "may_scan": true,
+      "may_plan": false,
+      "may_apply": false,
+      "scheduled_operations": ["hostinger_storage_scan", "hostinger_storage_readback"]
+    }
+  },
+  "operations": {
+    "hostinger_storage_scan": {
+      "risk": "read_only",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "read",
+      "approval": "none",
+      "tenant_projection": "owned_resource_aggregate_and_relative_paths"
+    },
+    "hostinger_storage_plan": {
+      "risk": "read_only_plan_creation",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "plan",
+      "approval": "none",
+      "tenant_projection": "owned_resource_candidates_only"
+    },
+    "hostinger_storage_inspect_plan": {
+      "risk": "read_only",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "read",
+      "approval": "none",
+      "tenant_projection": "relative_paths_no_cross_tenant_metadata"
+    },
+    "hostinger_storage_request_apply": {
+      "risk": "high",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "request_apply",
+      "approval": "creates_hold_only",
+      "dispatch_allowed": false
+    },
+    "hostinger_storage_approve_plan": {
+      "risk": "high",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "approve",
+      "approval": "role_and_scope_specific",
+      "dispatch_allowed": false
+    },
+    "hostinger_storage_apply_plan": {
+      "risk": "critical",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "apply",
+      "approval": "all_required_approvals",
+      "dispatch_allowed": false,
+      "requires_exact_plan_hash": true,
+      "requires_ownership_revision": true,
+      "requires_policy_revision": true,
+      "requires_typed_confirmation": true,
+      "requires_execution_lease": true,
+      "requires_reconciliation_on_unknown_outcome": true
+    },
+    "hostinger_storage_readback": {
+      "risk": "read_only",
+      "contexts": ["admin", "tenant"],
+      "capability_action": "read",
+      "approval": "none"
+    },
+    "hostinger_storage_reserve_status": {
+      "risk": "read_only",
+      "contexts": ["admin"],
+      "capability_action": "read",
+      "approval": "none"
+    },
+    "hostinger_storage_reserve_create": {
+      "risk": "high",
+      "contexts": ["admin"],
+      "capability_action": "apply",
+      "approval": "platform_admin"
+    },
+    "hostinger_storage_reserve_release": {
+      "risk": "critical",
+      "contexts": ["admin"],
+      "capability_action": "apply",
+      "approval": "platform_admin_and_emergency_incident"
+    },
+    "hostinger_storage_policy_manage": {
+      "risk": "critical",
+      "contexts": ["admin"],
+      "capability_action": "administer",
+      "approval": "platform_admin_change_control"
+    }
+  },
+  "approval_rules": {
+    "tenant_owned_low_risk_plan": ["workspace_owner"],
+    "tenant_owned_admin_support_apply": ["platform_admin", "workspace_owner_or_active_delegation"],
+    "platform_owned_plan": ["platform_admin"],
+    "shared_plan_without_tenant_impact": ["platform_admin"],
+    "shared_plan_with_tenant_impact": ["platform_admin", "all_impacted_workspace_owners_or_policy_defined_quorum"],
+    "deployment_history_cleanup": ["platform_admin", "release_authority"],
+    "reserve_release": ["platform_admin", "active_storage_incident"]
+  },
+  "context_isolation": {
+    "admin_context_may_borrow_tenant_authority": false,
+    "tenant_context_may_invoke_platform_only_operation": false,
+    "dual_role_user_must_select_context_explicitly": true,
+    "context_change_invalidates_pending_authorization": true,
+    "tenant_absolute_path_visibility": false,
+    "tenant_cross_resource_aggregate_visibility": false,
+    "admin_secret_visibility": false
+  },
+  "plan_binding": {
+    "required_fields": [
+      "target_id",
+      "hosting_account_id",
+      "resource_id",
+      "ownership_scope",
+      "tenant_id",
+      "workspace_id",
+      "authority_context_hash",
+      "ownership_revision",
+      "policy_revision",
+      "candidate_set_hash",
+      "plan_hash",
+      "expires_at"
+    ],
+    "approval_invalidated_by": [
+      "target_change",
+      "resource_change",
+      "tenant_change",
+      "workspace_change",
+      "authority_context_change",
+      "ownership_revision_change",
+      "policy_revision_change",
+      "candidate_set_change",
+      "expiry"
+    ]
+  },
+  "state_machine": [
+    "observed",
+    "classified",
+    "planned",
+    "inspected",
+    "approval_requested",
+    "partially_approved",
+    "approved",
+    "lease_acquired",
+    "executing",
+    "readback_pending",
+    "reconciling",
+    "completed",
+    "blocked",
+    "expired",
+    "cancelled",
+    "unknown_outcome",
+    "failed"
+  ],
+  "tenant_visibility": {
+    "paths": "relative_to_owned_storage_root",
+    "shared_account_totals": "tenant_allocation_only",
+    "other_tenant_identifiers": "forbidden",
+    "credentials": "forbidden",
+    "raw_provider_payload": "forbidden",
+    "audit_projection": "own_operations_only"
+  },
+  "admin_visibility": {
+    "paths": "bounded_and_secret_redacted",
+    "cross_tenant_impact_set": "allowed_for_governance",
+    "credentials": "forbidden",
+    "raw_secret_values": "forbidden",
+    "audit_projection": "platform_scope"
+  },
+  "dispatch_certification": {
+    "scan": "eligible_after_host_key_pin_and_live_read_only_smoke",
+    "plan": "eligible_after_scan_certification_and_real_layout_review",
+    "inspect": "eligible_with_plan",
+    "apply": "disabled_until_admin_tenant_authority_approval_lease_and_reconciliation_are_wired",
+    "reserve": "disabled_until_inode_exhaustion_safe_release_is_certified"
+  }
+}

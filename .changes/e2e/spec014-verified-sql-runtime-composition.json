@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-verified-sql-runtime-composition",
+  "title": "Spec 014 Verified SQL Runtime Composition",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-verified-sql-runtime-composition.json",
+      ".github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json",
+      ".github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml",
+      "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
+      "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+      "http-generic-api/hostingerStorageSqlRunReader.js",
+      "http-generic-api/test-hostinger-storage-sql-run-reader.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Compose the canonical durable control-plane repository, SQL execution-parent writer, parent-aware child-evidence writer, and read-only SQL execution-parent reader behind one verified unmounted factory while exposing exactly one child-evidence write path and bounded run plus plan-item read paths.",
+      "e2e_journeys": [
+        {
+          "id": "signed-schema-verification-to-canonical-unmounted-sql-composition",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 runtime composition factory",
+          "entrypoint": "Hostinger Storage Verified SQL Runtime Composition Guard",
+          "terminal_outcome": "One immutable composition exposes bounded control-plane, execution-parent, read-only run and plan-item, and child-evidence facets bound to the same signed schema provenance, while raw components, legacy child writers, database access during creation, runtime mounting, migrations, provider dispatch, and Production readiness remain unavailable.",
+          "steps": [
+            "Require current successful signed schema verification with exact deployed-runtime parity and zero blockers.",
+            "Create the canonical MySQL persistence adapter and control-plane repository internally with caller schema claims ignored.",
+            "Create the canonical parent writer, child writer, and read-only execution-parent reader from the same pool and signed schema-verification result.",
+            "Verify the same evidence digest, database fingerprint, source commit, deployed runtime SHA, and readback cycle across the composed readers and writers.",
+            "Expose a bounded control-plane facet that omits legacy appendJournalEvent and recordReconciliation methods.",
+            "Expose plan-item and run parent writes plus bounded readRun and readPlanItems methods through the execution-parent facet.",
+            "Expose journal and reconciliation writes only through the parent-aware child-evidence facet.",
+            "Reject raw component overrides and prove construction performs no database connection, route mount, worker mount, migration action, or provider call."
+          ],
+          "assertions": [
+            "Raw pool, adapter, repository, parent writer, child writer, execution-parent reader, and full schema-verification objects are not exposed.",
+            "The legacy repository child-write methods are absent from the public control-plane facet.",
+            "The parent-aware child-evidence facet is the only public journal and reconciliation write path.",
+            "The execution-parent facet is the only public durable run and plan-item read path.",
+            "Plan-item reads reject duplicate identities, ordinal gaps, protected parents, and non-pending immutable parent state.",
+            "All components are canonical and share one signed schema-verification provenance.",
+            "Factory construction performs zero database connections.",
+            "runtime_mounted, route_mounted, worker_mounted, foreign_keys_enabled, migration_apply_authorized, provider_dispatch_allowed, and production_ready remain false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-run-reader",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-verified-sql-runtime-composition",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageVerifiedSqlRuntimeComposition.js",
+            "http-generic-api/test-hostinger-storage-verified-sql-runtime-composition.mjs",
+            "http-generic-api/hostingerStorageSqlRunReader.js",
+            "http-generic-api/test-hostinger-storage-sql-run-reader.mjs",
+            ".github/contracts/spec014/hostinger-storage-verified-sql-runtime-composition.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Mount the composition only after governed migration apply, live signed schema verification, dependency injection, and route/worker certification.",
+      "blockers": [
+        "No live migration apply or signed live schema verification exists.",
+        "The canonical runtime dependency-injection path has not mounted this composition.",
+        "The dedicated worker and provider dispatch path are not certified."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove stale verification expiry handling and composition replacement without duplicate readers or writers; crash-safe execution reconciliation is governed by its dedicated Spec 014 slice."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This code-only composition performs no live database or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production mounting, provider dispatch, foreign-key enablement, and deployment remain separately governed."
+    }
+  ]
+}

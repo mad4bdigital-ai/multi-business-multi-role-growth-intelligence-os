@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "policy_key": "spec_kit_work_map_integration_gate_v1",
+  "enforcement_mode": "new_spec_kits_and_opted_in_changed_scope_fail_closed",
+  "spec_root": "specs",
+  "work_map_root": "docs/work-maps",
+  "work_map_index": "README.md",
+  "coverage_matrix": "work-map-coverage-matrix.md",
+  "schema_classification_registry": ".specify/work-map-schema-classification-registry.json",
+  "manifest_filename": "work-map-integration.json",
+  "template_filename": "work-map-integration-template.json",
+  "review_states": [
+    "draft",
+    "ready_for_implementation"
+  ],
+  "decision_states": [
+    "needs_analysis",
+    "integrate",
+    "reuse",
+    "extend",
+    "not_applicable",
+    "deferred_with_risk",
+    "blocked"
+  ],
+  "taxonomy_gap_dispositions": [
+    "needs_analysis",
+    "covered_by_existing_map",
+    "extend_existing_map_or_taxonomy",
+    "new_work_map_candidate",
+    "taxonomy_backlog",
+    "not_relevant_to_feature"
+  ],
+  "schema_classification_policy": {
+    "default": "blocked",
+    "generator_and_registry_are_canonical": true,
+    "allow_intentional_unclassified": true,
+    "intentional_exception_requires_owner": true,
+    "intentional_exception_requires_existing_map_assessment": true,
+    "intentional_exception_requires_reuse_review": true,
+    "intentional_exception_requires_approval": true,
+    "intentional_exception_requires_expiry": true,
+    "permanent_exceptions_forbidden": true,
+    "stale_exception_behavior": "fail_closed",
+    "unknown_object_behavior": "fail_closed"
+  },
+  "map_reuse_strategy": {
+    "priority_order": [
+      "reuse_existing_map",
+      "extend_existing_map",
+      "compose_existing_maps",
+      "extend_existing_generator_or_taxonomy",
+      "propose_new_map"
+    ],
+    "minimum_existing_map_assessments_for_new_candidate": 3,
+    "new_map_candidate_status": "proposal_only",
+    "new_map_candidate_implementation_blocked": true,
+    "separate_approval_required": true,
+    "contract": "A new Work Map may only be proposed after documented rejection of reuse, extension, cross-map composition, and generator/taxonomy extension against the closest existing maps. The proposal cannot authorize implementation in the same Spec Kit."
+  },
+  "minimum_rationale_length": 24,
+  "implementation_exempt_prefixes": [
+    "specs",
+    "docs"
+  ],
+  "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from all repository Work Maps and the effective generated schema coverage.",
+  "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready.",
+  "classification_contract": "No schema object may remain unclassified by accident. The generator and classification registry must classify every object into an existing domain and map, or the exact object must be recorded as an intentional, approved, owned, expiring exception in the same registry.",
+  "legacy_behavior": "Existing Spec Kits without a work-map-integration.json remain grandfathered until they opt in. New Spec Kits are never grandfathered.",
+  "secrets_included": false
+}

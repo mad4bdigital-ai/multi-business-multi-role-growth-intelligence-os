@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-schema-ddl",
+  "title": "Contract-local DDL parity for canonical Durable Authorized Injection State",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-schema-ddl.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json",
+      ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add one explicit contract-local MySQL DDL surface for the canonical Durable Authorized Injection State tables and prove exact parity with the existing registry schema contract and SQL access paths without changing runtime ownership.",
+      "e2e_journeys": [
+        {
+          "id": "verify-canonical-durable-injection-schema-ddl-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable authorized injection DDL guard",
+          "entrypoint": "Canonical registry schema contract, registry SQL source, and contract-local DDL file",
+          "terminal_outcome": "The DDL declares exactly the canonical state and rollback tables, required columns, digests, uniqueness, foreign key, CAS fields, and no-secrets constraints while remaining outside every promoted migration path.",
+          "steps": [
+            "Read the canonical exported schema contract and exact table names.",
+            "Read the registry SQL markers for state load, rollback load, state insert, rollback CAS update, and immutable rollback insert.",
+            "Parse the contract-local DDL and require exactly one CREATE TABLE statement for each canonical table.",
+            "Verify state identity, Receipt/Readback/bundle digests, active generation, row version, JSON record, and no-secrets columns.",
+            "Verify one immutable rollback per injection, unique rollback digest, and foreign-key binding to the state row.",
+            "Reject destructive DDL, migration-ledger mutation, Route/Server changes, and any promotion or Apply authority."
+          ],
+          "assertions": [
+            "The canonical registry implementation is not modified.",
+            "DDL table and column names match the SQL used by the canonical registry.",
+            "Rollback remains append-only and state rollback remains row-version CAS guarded.",
+            "The DDL is contract-local and not a migration candidate or promoted runtime migration.",
+            "No live database, provider, deployment, main, or Production authority is granted."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-schema-ddl-parity",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json",
+            ".github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql",
+            ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Create, authorize, dry-run, and apply a separately reviewed migration candidate for these tables only after live absence and compatibility readback.",
+      "blockers": [
+        "The DDL remains contract-local and is not included in the governed runtime migration sequence.",
+        "No live table-absence, collation, engine, parent compatibility, or privilege readback exists.",
+        "No checksum-bound migration authorization, typed confirmation, dry-run, Apply, or migration-ledger evidence exists.",
+        "No signed same-cycle schema verification exists for these two tables."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "After a separately governed Apply, prove restart reconstruction and rollback CAS against live same-cycle signed schema readback without introducing a second persistence path."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production canary only after the canonical schema is applied and mounted through fixed runtime composition."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only DDL contract grants no migration Apply, provider, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

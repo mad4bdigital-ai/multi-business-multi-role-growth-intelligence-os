@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-migration-drafts-t024-t027",
+  "title": "Spec 014 Governed Migration Drafts T024-T027",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-migration-drafts-t024-t027.json",
+      ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+      ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+      ".github/contracts/spec014/hostinger-storage-sql-runtime-contract.json",
+      ".github/contracts/spec014/migrations/**",
+      ".github/workflows/hostinger-storage-migration-drafts-guard.yml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Draft all three additive Spec 014 migration waves and read-only preflight/readback/rollback contracts, while proving synthetically that the six durable SQL adapter tables accept the merged adapter INSERT shape and remain outside every runnable or full-Spec phase directory.",
+      "e2e_journeys": [
+        {
+          "id": "migration-draft-to-runtime-contract-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed migration reviewer",
+          "entrypoint": "Hostinger Storage Migration Drafts Guard",
+          "terminal_outcome": "Contract-local SQL contains exactly 15 classified tables, three additive views, and three disabled tool seeds; every adapter-required column and key is present, adapter-omitted NOT NULL columns are safe, and no migration or provider action is executable.",
+          "steps": [
+            "Load the canonical schema classification, merged SQL runtime contract, migration manifest, adapter source, and all contract-local draft SQL.",
+            "Validate the exact table allocation across waves 1, 2, and 3.",
+            "Parse the adapter INSERT columns and require exact parity with each runtime table contract.",
+            "Parse each runtime table DDL and require all columns, primary and unique keys, record JSON and digest, and row-version CAS fields.",
+            "Reject any adapter-omitted NOT NULL column without a default, generated expression, or auto-increment.",
+            "Validate read-only preflight, same-cycle readback, and pre-live rollback planning.",
+            "Prove the SQL is absent from the governed runtime migration directory and the full Spec phase directory."
+          ],
+          "assertions": [
+            "Exactly 15 classified tables, three views, and three disabled tool seeds are declared.",
+            "The six SQL adapter tables match the merged runtime contract and adapter INSERT order.",
+            "Journal and reconciliation rows remain append-only and runtime-parent FKs are explicitly deferred until their parent writer exists.",
+            "Preflight reads parent types, runtime columns and indexes, tool registry columns, and existing tool-key conflicts.",
+            "Readback proves object counts, runtime column and index compatibility, constraints, and default-off tools but does not sign schema verification.",
+            "Rollback returns separately governed statements as data and executes no destructive SQL.",
+            "No draft file is discoverable by the governed migration runner or owned by the blocked full-Spec MVP phase contract.",
+            "The temporary builder PR is closed and this single PR is the only active delivery path for this feature key.",
+            "No migration apply, live database access, credential read, Hostinger access, provider dispatch, deployment, main merge, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-sql-runtime-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-sql-runtime-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-storage-migration-drafts",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-migration-drafts.json",
+            ".github/contracts/spec014/validate-hostinger-storage-migration-drafts.mjs",
+            ".github/contracts/spec014/migrations/preflight.sql",
+            ".github/contracts/spec014/migrations/readback.sql",
+            ".github/contracts/spec014/migrations/rollback-prelive.sql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "The drafts are intentionally outside the runnable migration directory and do not contact a database."
+    },
+    {
+      "id": "resilient",
+      "status": "not_applicable",
+      "objective": "CAS and restart behavior belong to the merged SQL adapter journey; this slice proves migration compatibility synthetically."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No schema or provider canary is executed."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Apply, signed schema verification, runtime mounting, deployment, and Production readiness remain separately governed."
+    }
+  ]
+}

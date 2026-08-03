@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec014-hostinger-storage-schema-verification-attestation-v2.schema.json",
+  "title": "Spec 014 Hostinger Storage Schema Verification Attestation v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "attestation_version",
+    "subject_digest",
+    "key_id",
+    "signer_identity",
+    "issuer",
+    "signed_at",
+    "expires_at",
+    "signature_b64url",
+    "secrets_included"
+  ],
+  "properties": {
+    "attestation_version": {
+      "const": "spec014-hostinger-storage-schema-verification-v2"
+    },
+    "subject_digest": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "key_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]*$"
+    },
+    "signer_identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]*$"
+    },
+    "issuer": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:@/-]*$"
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "signature_b64url": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4096,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "secrets_included": {
+      "const": false
+    }
+  }
+}

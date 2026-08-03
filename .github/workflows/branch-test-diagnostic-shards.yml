@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - main
+      - Production
     paths:
       - "http-generic-api/**"
       - ".github/workflows/**"

@@ -1,0 +1,332 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-maintenance-tool-governance",
+  "title": "Repository automation and canonical CI evidence governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".github/ci-evidence-routing.json",
+      ".github/pull_request_template.md",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/ci-evidence-pr-publisher.yml",
+      ".github/workflows/e2e-phase-governance.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      ".specify/e2e-phase-governance.json",
+      ".specify/schemas/e2e-phases.schema.json",
+      ".specify/templates/e2e-phases-template.json",
+      "docs/ci-evidence-routing.md",
+      "docs/e2e-phase-governance.md",
+      "docs/repository-maintenance-tool-governance.md",
+      "http-generic-api/scripts/bounded-diagnostic-evidence.mjs",
+      "http-generic-api/scripts/ci-evidence-pr-comment.mjs",
+      "http-generic-api/scripts/ci-evidence-router.mjs",
+      "http-generic-api/scripts/ci-evidence-source-stamp.mjs",
+      "http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-plan-init.mjs",
+      "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/scripts/e2e-parallel-test-runner.mjs",
+      "http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-init-self-test.mjs",
+      "http-generic-api/scripts/e2e-phase-init.mjs",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-ci-evidence-pr-comment.mjs",
+      "http-generic-api/scripts/test-ci-evidence-router.mjs",
+      "http-generic-api/scripts/test-ci-evidence-source-stamp.mjs",
+      "http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify repository automation and reject branch-specific or unregistered temporary tooling before merge.",
+      "e2e_journeys": [
+        {
+          "id": "classify-and-reject-temporary-repository-automation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "pull request author or repository automation agent",
+          "entrypoint": "Repository Tool Lifecycle Governance pull-request workflow",
+          "terminal_outcome": "A bounded canonical report accepts registered reusable tooling and rejects one-off triggers, branch literals, pull-request writes, force pushes, and self-deleting workflows.",
+          "steps": [
+            "Checkout the exact pull-request head SHA and inventory changed files against the exact base SHA.",
+            "Load the machine-readable repository maintenance tool policy.",
+            "Classify changed workflows and scripts as registered reusable tools, temporary artifacts, or product runtime.",
+            "Write machine-readable and human-readable lifecycle reports before enforcement.",
+            "Fail the required check when any governed rule is violated."
+          ],
+          "assertions": [
+            "A branch-specific write workflow is rejected.",
+            "A pull-request-triggered workflow with contents write is rejected.",
+            "Trigger files and versioned one-off patch runners are rejected.",
+            "Unregistered scripts under the governed tool root are rejected.",
+            "A registered read-only lifecycle guard and compliant manually dispatched workflow are accepted.",
+            "The report identifies the exact candidate and base SHA and declares secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-guard-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
+            "docs/repository-maintenance-tool-governance.md",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Make lifecycle and E2E phase rules automatic pull-request gates and preserve exact-candidate canonical evidence without manual Job-log reconstruction.",
+      "e2e_journeys": [
+        {
+          "id": "publish-and-enforce-canonical-tool-lifecycle-report",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository reviewer",
+          "entrypoint": "A pull request changing repository automation",
+          "terminal_outcome": "The reviewer reads one exact-head lifecycle artifact and the check blocks merge until temporary artifacts are removed or promoted.",
+          "steps": [
+            "Run the guard regression before evaluating the candidate.",
+            "Generate repository-tool-lifecycle-report.json and repository-tool-lifecycle-report.md.",
+            "Upload the report even when enforcement fails.",
+            "Expose the bounded report in the GitHub Step Summary.",
+            "Enforce the report result without treating Job logs as status authority."
+          ],
+          "assertions": [
+            "The canonical artifact is uploaded on both pass and fail paths.",
+            "The PR template requires automation classification and cleanup confirmation.",
+            "The documentation defines promotion and deletion rules for future tools.",
+            "The guard itself is registered as a permanent read-only repository tool."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/pull_request_template.md"
+          ]
+        },
+        {
+          "id": "route-and-publish-canonical-ci-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted workflow-run evidence publisher",
+          "entrypoint": "Structured CI source reports and ci-evidence routing policy",
+          "terminal_outcome": "One exact-candidate canonical PR comment is selected, stamped, bounded, and updated from trusted structured reports while Job logs remain diagnostic-only.",
+          "steps": [
+            "Load the CI evidence routing policy and verify authority order.",
+            "Stamp structured source reports with candidate kind and exact SHA.",
+            "Route only supported workflow contracts into bounded canonical sections.",
+            "Build or update the PR comment without duplicating workflow sections.",
+            "Reject malformed, stale, mismatched, secret-bearing, or unsupported reports."
+          ],
+          "assertions": [
+            "Canonical summary precedes structured reports, workflow status, and Job logs in authority order.",
+            "Head and merge-candidate evidence cannot be substituted for one another.",
+            "A newer supported workflow run replaces only its own section.",
+            "Unsupported or malformed evidence cannot publish a passing section.",
+            "Bounded diagnostics exclude secrets and Job logs remain diagnostic-only."
+          ],
+          "tests": [
+            {
+              "id": "ci-evidence-router-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-ci-evidence-router.mjs",
+              "args": []
+            },
+            {
+              "id": "ci-evidence-source-stamp-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-ci-evidence-source-stamp.mjs",
+              "args": []
+            },
+            {
+              "id": "ci-evidence-pr-comment-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-ci-evidence-pr-comment.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ci-evidence-routing.json",
+            ".github/workflows/ci-evidence-pr-publisher.yml",
+            "docs/ci-evidence-routing.md",
+            "http-generic-api/scripts/bounded-diagnostic-evidence.mjs",
+            "http-generic-api/scripts/ci-evidence-pr-comment.mjs",
+            "http-generic-api/scripts/ci-evidence-router.mjs",
+            "http-generic-api/scripts/ci-evidence-source-stamp.mjs",
+            "http-generic-api/scripts/test-ci-evidence-pr-comment.mjs",
+            "http-generic-api/scripts/test-ci-evidence-router.mjs",
+            "http-generic-api/scripts/test-ci-evidence-source-stamp.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed on unsafe repository automation and on ambiguous, parallel, stale, mismatched, or incomplete E2E evidence while retaining deterministic recovery diagnostics.",
+      "e2e_journeys": [
+        {
+          "id": "repository-tool-mutation-safety-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "automation attempting an unsafe repository mutation",
+          "entrypoint": "Changed workflow, candidate policy, or registered maintenance script",
+          "terminal_outcome": "Unsafe automation or policy weakening is blocked with a bounded finding code and remediation before it reaches main.",
+          "steps": [
+            "Reject candidate policy changes that disable mandatory rules, remove protected branches, alter the governed root, or invalidate the canonical guard registration.",
+            "Retain baseline forbidden one-shot and trigger patterns even when the candidate policy omits them.",
+            "Read every registered maintenance tool entrypoint and compare declared mode with detected repository mutation behavior.",
+            "Detect pull-request write-all authority and repository pushes independently of the declared GitHub token permission block.",
+            "Require mutating tools and workflows to verify expected head identity and reject main and Production.",
+            "Detect work-branch literals, force push, and workflow self-deletion."
+          ],
+          "assertions": [
+            "No candidate can disable a mandatory safety rule in the same pull request that introduces unsafe automation.",
+            "No registered read-only tool can contain git push or API mutation behavior.",
+            "No mutating registered tool can omit a changed-path allowlist, expected-head verification, or protected-branch rejection.",
+            "No pull-request workflow can gain write authority through permissions write-all.",
+            "No external credential or read-scoped workflow can bypass mutation guards when its body performs a repository write.",
+            "No temporary automation can pass by hiding inside a versioned or once-suffixed workflow name.",
+            "Deleting a prohibited temporary artifact is accepted as remediation rather than reported as surviving automation.",
+            "Findings contain no repository secret or changed-file content."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/repository-maintenance-tool-governance.json",
+            "docs/repository-maintenance-tool-governance.md",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+          ]
+        },
+        {
+          "id": "parallel-e2e-planning-execution-and-diagnostics",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "E2E phase governance runner",
+          "entrypoint": "Changed-file inventory and E2E phase contracts for a pull request",
+          "terminal_outcome": "Parallel work classification, phase validation, test planning, test execution, and bounded diagnostics produce one exact-candidate decision without cross-workstream evidence substitution.",
+          "steps": [
+            "Initialize a bounded parallel plan from the exact changed-file inventory.",
+            "Classify standard, feature, and declared parallel-work PR modes.",
+            "Validate every changed runtime file against one E2E contract scope.",
+            "Build a deterministic de-duplicated test plan for the current implemented phases.",
+            "Execute declared tests and emit bounded per-workstream and canonical diagnostics.",
+            "Fail closed on missing contracts, invalid workstream identity, stale candidate evidence, malformed diagnostics, or test failure."
+          ],
+          "assertions": [
+            "Every changed runtime file is covered by an exact contract scope.",
+            "Parallel workstreams cannot borrow tests or evidence from one another.",
+            "Duplicate test declarations execute once while retaining all owning feature identities.",
+            "Diagnostics name the bounded failing test or contract without exposing secrets or full Job logs.",
+            "Candidate kind and exact SHA are stamped across evaluation, execution, and canonical reports.",
+            "The same deterministic runner supports standard and parallel PR modes."
+          ],
+          "tests": [
+            {
+              "id": "e2e-phase-governance-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-phase-governance-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-phase-init-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-phase-init-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-parallel-plan-init-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-parallel-plan-init-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-parallel-pr-flow-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-parallel-pr-flow-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-parallel-work-governance-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-parallel-work-governance-self-test.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-parallel-runner-diagnostics",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-e2e-parallel-test-runner-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/e2e-phase-governance.yml",
+            ".specify/e2e-phase-governance.json",
+            ".specify/schemas/e2e-phases.schema.json",
+            ".specify/templates/e2e-phases-template.json",
+            "docs/e2e-phase-governance.md",
+            "http-generic-api/scripts/e2e-parallel-plan-init.mjs",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+            "http-generic-api/scripts/e2e-parallel-test-runner.mjs",
+            "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance.mjs",
+            "http-generic-api/scripts/e2e-phase-init.mjs",
+            "http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe lifecycle and CI evidence governance across unrelated pull requests and tune only documented false positives without weakening exact-SHA or fail-closed rules."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require repository lifecycle and canonical CI evidence governance on protected branches after successful canary observation."
+    }
+  ]
+}

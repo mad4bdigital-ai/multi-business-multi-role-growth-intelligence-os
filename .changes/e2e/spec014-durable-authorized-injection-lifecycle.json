@@ -1,0 +1,135 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-lifecycle",
+  "title": "Coordinate exact authorized dependency injection, durable state, restart reconstruction, and rollback",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-lifecycle.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-lifecycle-guard.yml",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Activate one canonical authorized mount bundle through a factory-owned injection coordinator, require exact readback, register the data-only evidence durably, and expose route dependencies only after exact durable registration readback.",
+      "e2e_journeys": [
+        {
+          "id": "activate-and-register-before-route-resolution",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Durable authorized injection lifecycle controller",
+          "entrypoint": "A canonical Authorized Mount Bundle plus a canonical durable injection-state registry",
+          "terminal_outcome": "The exact runtime dependency becomes resolvable only after injection Receipt, exact mount Readback, and durable state registration all bind to one identity.",
+          "steps": [
+            "Construct the lifecycle without accessing SQL.",
+            "Create the canonical dependency-injection coordinator internally.",
+            "Inject the canonical bundle and produce exact mount Readback.",
+            "Register Receipt and Readback through the canonical durable registry.",
+            "Verify durable registration readback before activating route resolution.",
+            "Resolve the frozen runtime dependency only for the exact mount-readback digest."
+          ],
+          "assertions": [
+            "No route dependency is available before durable registration succeeds.",
+            "A wrong or invalid readback digest returns an empty frozen dependency snapshot.",
+            "Registration failure rolls the in-memory dependency back before reporting failure.",
+            "Runtime material is never persisted.",
+            "No Route, Server, migration, provider, deployment, main, or Production surface is modified."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-lifecycle-activation",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-lifecycle.json",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Bootstrap the lifecycle through live server composition only after the contract-local durable-state schema is promoted, authorized, applied, verified, and bound to a current runtime bundle.",
+      "blockers": [
+        "The durable injection-state tables remain contract-local and unapplied.",
+        "No live schema-verification packet exists for the lifecycle registry.",
+        "No live server bootstrap supplies this lifecycle controller.",
+        "No Provider or worker authority is granted."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Reconstruct the exact injection after restart and make rollback close route resolution before durable commit, with explicit reconciliation for a durable unknown outcome.",
+      "e2e_journeys": [
+        {
+          "id": "restart-rollback-and-reconcile-durable-lifecycle",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Restart and rollback lifecycle controller",
+          "entrypoint": "An active durable injection state and a separately reconstructed canonical Authorized Mount Bundle",
+          "terminal_outcome": "Restart preserves exact route identity; rollback removes route availability immediately, records durable rollback, rejects reactivation, and requires explicit reconciliation after a simulated durable deadlock.",
+          "steps": [
+            "Read the active durable injection state through a new registry instance.",
+            "Resume the factory-owned coordinator with the canonical reconstructed bundle.",
+            "Verify the original mount-readback digest and runtime object identity.",
+            "Rollback the coordinator before attempting the durable rollback write.",
+            "Return an empty route dependency snapshot immediately.",
+            "Record the durable rollback or mark explicit reconciliation required on unknown outcome.",
+            "Reconcile the pending rollback without automatic retry.",
+            "Reject reactivation of the rolled-back injection identity."
+          ],
+          "assertions": [
+            "Restart reconstruction does not consume mount authorization again.",
+            "The route is fail-closed before durable rollback commit.",
+            "A durable rollback failure leaves no active route dependency.",
+            "Automatic retry remains disabled.",
+            "Explicit reconciliation clears the pending durable rollback state.",
+            "Rolled-back injection reactivation is rejected."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-lifecycle-resilience",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-storage-durable-authorized-injection-lifecycle-guard.yml",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionLifecycle.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-lifecycle.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production lifecycle bootstrap only after durable schema and runtime composition authority exist."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only lifecycle controller grants no live bootstrap, migration, Provider, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

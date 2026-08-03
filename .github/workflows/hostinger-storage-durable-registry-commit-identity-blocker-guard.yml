@@ -1,0 +1,90 @@
+name: Hostinger Storage Durable Registry Commit Identity Repair Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-durable-registry-commit-identity-blocker.json'
+      - '.github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json'
+      - '.github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json'
+      - '.github/workflows/hostinger-storage-durable-registry-commit-identity-blocker-guard.yml'
+      - 'http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js'
+      - 'http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  commit-identity-repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check repair test and runtime syntax
+        run: |
+          node --check http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
+          node --check http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+
+      - name: Validate exact commit identity repair
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p .artifacts
+          node http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs 2>&1 \
+            | tee .artifacts/hostinger-storage-durable-registry-commit-identity-repair.log
+
+      - name: Enforce exact validator separation and safety boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file='http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js'
+          grep -Fq 'const COMMIT_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u;' "$source_file"
+          grep -Fq 'function commit(value, field)' "$source_file"
+          grep -Fq "source_commit: commit(evidence.source_commit, 'schema_verification.source_commit')" "$source_file"
+          grep -Fq "deployed_runtime_sha: commit(evidence.deployed_runtime_sha, 'schema_verification.deployed_runtime_sha')" "$source_file"
+          grep -Fq "evidence_digest: hash(value.evidence_digest, 'schema_verification.evidence_digest')" "$source_file"
+          grep -Fq "database_fingerprint: hash(evidence.database_fingerprint, 'schema_verification.database_fingerprint')" "$source_file"
+          grep -Fq "normalized !== normalized.toLowerCase()" "$source_file"
+          grep -Fq "String(value ?? '').trim()" "$source_file"
+          grep -q '"durable_registry_runtime_acceptance_ready": true' \
+            .github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json \
+            .github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json
+          grep -q '"runtime_repair_performed": true' \
+            .github/contracts/spec014/hostinger-storage-durable-registry-commit-identity-blocker.json
+          ! grep -q 'DURABLE_REGISTRY_COMMIT_IDENTITY_ALIGNMENT_REQUIRED' \
+            .github/contracts/spec014/hostinger-storage-schema-verification-v2-registry-binding.json
+          grep -q 'forty_character_git_commit_accepted: true' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          grep -q 'sixty_four_character_git_commit_accepted: true' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          grep -q 'uppercase_commit_rejected: true' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          grep -q 'live_database_access_performed: false' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          grep -q 'migration_apply_performed: false' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          grep -q 'provider_dispatch_performed: false' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+          ! git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}" \
+            | grep -E '(^|/)(server\.js|db\.js)$|temporary-spec014-durable-registry'
+          ! grep -E '\b(getPool|governed_migration_execute|bootstrapGovernedMigrationAuthorization)\b' \
+            http-generic-api/test-hostinger-storage-durable-registry-commit-identity-blocker.mjs
+
+      - name: Upload repair diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-storage-durable-registry-commit-identity-repair-${{ github.run_id }}
+          path: .artifacts/hostinger-storage-durable-registry-commit-identity-repair.log
+          if-no-files-found: error
+          retention-days: 30

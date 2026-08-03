@@ -1,4 +1,5 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
+import { testCommands as spec012Commands } from "./manifests/test-manifest-spec012.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
@@ -30,6 +31,12 @@ const staticDiscoveryCommands = [
   "node test-canonical-execution-intent-isolation.mjs",
   "node test-capability-assurance-graph.mjs",
   "node test-capability-envelope-template-resolver.mjs",
+  "node test-chatgpt-mcp-metadata-routing.mjs",
+  "node test-chatgpt-mcp-readonly-runtime.mjs",
+  "node test-remote-mcp-multi-client-profiles.mjs",
+  "node test-remote-mcp-oauth21-profile.mjs",
+  "node test-remote-mcp-access-token-verifier.mjs",
+  "node test-remote-mcp-oauth21-routes.mjs",
   "node test-database-lifecycle-incident-bridge.mjs",
   "node test-database-lifecycle-operational-status.mjs",
   "node test-database-lifecycle-scheduler-admin-aliases.mjs",
@@ -42,8 +49,15 @@ const staticDiscoveryCommands = [
   "node test-execution-capsule-mutation-validation-pilot.mjs",
   "node test-execution-intent-binding-migration-contract.mjs",
   "node test-f5-f6-positive-smoke-certification.mjs",
+  "node scripts/test-e2e-phase-governance-bounded-diagnostics.mjs",
   "node test-frontend-operation-governance-generator.mjs",
   "node test-frontend-surface-dispatch.mjs",
+  "node scripts/test-frontend-dispatch-verification-evidence.mjs",
+  "node scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs",
+  "node scripts/test-runtime-startup-deployment-evidence.mjs",
+  "node test-remote-mcp-disabled-startup-boundary.mjs",
+  "node scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+  "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
   "node test-github-pr-create-rest-fallback.mjs",
@@ -58,9 +72,11 @@ const staticDiscoveryCommands = [
   "node test-phase10-status-observability-readiness-audit.mjs",
   "node test-phase12-verification-release-readiness.mjs",
   "node test-platform-engine-orchestration.mjs",
+  "node test-platform-endpoint-tool-facade.mjs",
   "node test-platform-plugin-contract-docs.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-resource-recipe-capability.mjs",
+  "node test-production-promotion-convergence-workflows.mjs",
   "node test-registry-data-management-service.mjs",
   "node test-remaining-resource-capability-completion-gates.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
@@ -72,8 +88,13 @@ const staticDiscoveryCommands = [
   "node test-sprint69-1006-governed-rollout-control.mjs",
   "node test-status-component-readiness-freshness.mjs",
   "node test-status-database-lifecycle-component.mjs",
+  "node test-support-ticket-lifecycle-sla-dedupe.mjs",
+  "node test-support-ticket-sla-milestone-trigger.mjs",
+  "node test-support-ticket-pre-migration-read-activity.mjs",
+  "node test-support-ticket-resolution-service.mjs",
   "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
+  "node test-system-tool-catalog-v2.mjs",
   "node test-task-route-authority-resolver.mjs",
   "node test-tenant-blocked-capability-export-cleanup.mjs",
   "node test-tenant-blocked-tool-export-registry-cleanup.mjs",
@@ -88,6 +109,7 @@ const staticDiscoveryCommands = [
 export const testCommands = Object.freeze([
   ...new Set([
     ...spec011Commands,
+    ...spec012Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,

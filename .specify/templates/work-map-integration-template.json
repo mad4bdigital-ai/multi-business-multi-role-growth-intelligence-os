@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "feature_key": "[NNN-feature-name]",
+  "review_state": "draft",
+  "registry": {
+    "fingerprint": "GENERATE_WITH_spec-kit-work-map-governance-gate",
+    "index_source_hash": "GENERATED",
+    "coverage_source_hash": "GENERATED",
+    "map_count": 0,
+    "domain_count": 0,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {},
+  "domain_decisions": {},
+  "cross_map_dependencies": [],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "Run the scaffold command and complete the generated analysis before implementation."
+  },
+  "implementation_readiness": {
+    "status": "blocked",
+    "blocking_dimensions": ["scaffold_not_generated"],
+    "reviewed_by": "unassigned",
+    "evidence_refs": []
+  },
+  "generation_command": "node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --scaffold [NNN-feature-name] --owner [owner]",
+  "secrets_included": false
+}

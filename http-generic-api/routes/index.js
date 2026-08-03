@@ -73,6 +73,7 @@ import { buildPlatformPluginRoutes } from "./platformPluginRoutes.js";
 import { buildTenantPlatformPluginRoutes } from "./tenantPlatformPluginRoutes.js";
 import { buildTenantDocsRoutes } from "./tenantDocsRoutes.js";
 import { buildTenantLifecycleRoutes } from "./tenantLifecycleRoutes.js";
+import { buildHostingerStorageTenantRoutes } from "./hostingerStorageTenantRoutes.js";
 import { buildWorkspaceResourceRoutes } from "./workspaceResourceRoutes.js";
 import { buildBrandSkillRoutes } from "./brandSkillRoutes.js";
 import { buildResourceApiRoutes } from "./resourceApiRoutes.js";
@@ -87,6 +88,7 @@ import { buildPlatformEvolutionRoutes } from "./platformEvolutionRoutes.js";
 import { buildPlatformEngineRoutes } from "./platformEngineRoutes.js";
 import { buildConnectedExecutionRoutes } from "./connectedExecutionRoutes.js";
 import { buildPlatformPrivateCapabilityVaultRoutes } from "./platformPrivateCapabilityVaultRoutes.js";
+import { buildSupportTicketLifecycleIntegrityRoutes } from "./supportTicketLifecycleIntegrityRoutes.js";
 import { buildSupportTicketRoutes } from "./supportTicketRoutes.js";
 import { buildAuthEmailTargetedDeliveryRoutes } from "./authEmailTargetedDeliveryRoutes.js";
 import { buildSessionInsightPromotionReviewRoutes } from "./sessionInsightPromotionReviewRoutes.js";
@@ -134,10 +136,6 @@ import { buildRepositoryAutomationRoutes } from "./repositoryAutomationRoutes.js
 import { buildRepoConflictIntelligenceRoutes } from "./repoConflictIntelligenceRoutes.js";
 import { buildPlatformFrontendRoutes } from "./platformFrontendRoutes.js";
 import { buildOperationOrchestratorRoutes } from "./operationOrchestratorRoutes.js";
-import {
-  createOperationRuntimeErrorHandler,
-  createOperationRuntimeGuard,
-} from "../operationRuntimeGuard.js";
 
 function sqlEndpointRegistryRoutesEnabled(env = process.env) {
   return String(env.ENABLE_SQL_ENDPOINT_REGISTRY_ROUTES || "").trim().toLowerCase() === "true";
@@ -162,7 +160,6 @@ function registerOptionalSqlEndpointRegistryRoutes(app, deps) {
 }
 
 export function registerRoutes(app, deps) {
-  app.use(createOperationRuntimeGuard());
   app.use(buildTenantGptOAuthMetadataRoutes());
   app.use(buildActivationHostGatewayRoutes());
   app.use(buildDeploymentInfoRoutes());
@@ -210,12 +207,16 @@ export function registerRoutes(app, deps) {
   app.use(buildHealthRoutes(deps));
   app.use(buildMcpRoutes(deps));
   app.use(buildGovernanceRoutes(deps));
+  // Mixed admin/tenant registry data routes own their respective guards and must
+  // mount before root-level backend-key routers so user JWT tenant paths remain reachable.
+  app.use(buildRegistryDataManagementRoutes({ ...deps, requireAdminPrincipal }));
   // Tenant-safe routes must mount before root-level admin/protected routers
   // that call router.use(requireBackendApiKey), otherwise user JWT requests
   // such as /me/connections/... are intercepted before reaching tenant guards.
   app.use(buildTenantPlatformPluginRoutes());
   app.use(buildTenantDocsRoutes());
   app.use(buildTenantLifecycleRoutes());
+  app.use(buildHostingerStorageTenantRoutes(deps));
   app.use(buildDynamicContainerTeamRoutes());
   app.use(buildDynamicContainerAuthorityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildDynamicContainerOverrideGovernanceSmokeRoutes({ ...deps, requireAdminPrincipal }));
@@ -231,6 +232,7 @@ export function registerRoutes(app, deps) {
   app.use(buildBrandSkillRoutes(deps));
   app.use(buildResourceApiRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildResourceAuthorityGrantRoutes({ ...deps, requireAdminPrincipal }));
+  app.use(buildSupportTicketLifecycleIntegrityRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildSupportTicketRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAuthEmailTargetedDeliveryRoutes({ ...deps, requireAdminPrincipal }));
   app.use(buildAdminWorkspaceAuthorityRoutes({ ...deps, requireAdminPrincipal }));
@@ -309,10 +311,8 @@ export function registerRoutes(app, deps) {
   app.use(buildLocalGatewayToolsRoutes(deps));
   app.use(buildLocalConnectorDeviceRouteRoutes(deps));
   app.use(buildConnectorTaxonomyRoutes({ ...deps, requireAdminPrincipal }));
-  app.use(buildBackupArtifactRoutes(deps));
   registerOptionalSqlEndpointRegistryRoutes(app, deps);
   app.post("/admin/control", deps.requireBackendApiKey, requireAdminPrincipal, buildAdminControlHandler());
   app.post("/admin/session-continuity/link-user", deps.requireBackendApiKey, requireAdminPrincipal, buildSessionContinuityHandler());
   app.use("/admin/cli", buildAdminCliRoutes(deps));
-  app.use(createOperationRuntimeErrorHandler());
 }

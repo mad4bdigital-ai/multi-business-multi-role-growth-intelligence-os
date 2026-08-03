@@ -1,0 +1,100 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-nodejs-build-evidence-dispatch-bridge",
+  "title": "Governed dispatch bridge for authenticated Hostinger build evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-build-evidence-dispatch-bridge.json",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml",
+      ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge-contract.yml",
+      ".github/workflows/hostinger-nodejs-build-evidence.yml",
+      "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one owner-authorized, checksum-bound, explicit-head issue-comment or workflow-dispatch bridge that invokes the existing trusted-main authenticated GET-only Hostinger build-history workflow and validates its structured artifact without reading the Hostinger secret or mutating Hostinger, Production, or repository contents.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-dispatch-and-validate-hostinger-build-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner and trusted default-branch GitHub Actions bridge",
+          "entrypoint": "Exact owner-authored Incident #4953 trigger containing the current 40-character expected_head_sha, or owner workflow_dispatch with the same explicit expected head",
+          "terminal_outcome": "The bridge validates the open incident, authorization author and text, explicit expected main head, target workflow blob, active workflow state, exact protected Production SHA, and one-time binding; dispatches the unchanged workflow on main; resolves the exact new run; validates its redacted structured artifact; and records a bounded completed or fail-closed marker while leaving the incident open.",
+          "steps": [
+            "Receive either the exact governed issue-comment prefix on open top-level Incident #4953 from the authorized owner or an owner workflow_dispatch event.",
+            "Parse and validate a full 40-character expected_head_sha before any repository metadata write or Actions dispatch.",
+            "Reject main or Production as a repository branch mutation target; the bridge may write issue metadata and dispatch Actions only.",
+            "Read authorization comment #5161758022 and require its exact token, workflow blob, Hostinger account, domain, Production SHA, merge timestamp, GET-only boundary, and provider-mutation false statement.",
+            "Verify current main equals expected_head_sha, the registered target workflow is active, and its blob remains 09578a2c9adcd0d1254b345248c33d2ba214d41f.",
+            "Verify protected Production remains exactly f5c1ae8840b4d4452f2908bb0f23051880bb6896 and reject any changed deployment target.",
+            "Reject duplicate dispatch when a dispatched or completed marker already exists for the same authorization binding.",
+            "Record a one-time claiming marker and dispatch hostinger-nodejs-build-evidence.yml on main with account username, expected Production SHA, and Production merge timestamp.",
+            "Resolve only a newer workflow_dispatch run whose head SHA matches the explicitly authorized main head.",
+            "Wait for completion, download only the exact run-bound hostinger-nodejs-build-evidence artifact, and validate its identity, GET method, token-returned false field, secret-free declaration, and false mutation side effects.",
+            "Record the target conclusion, evidence classification, build UUID and state, first failure, credential-access indicator, and artifact ID in a bounded issue marker while leaving #4953 open."
+          ],
+          "assertions": [
+            "The mutating bridge has workflow_dispatch and issue_comment entrypoints but no pull_request or pull_request_target trigger.",
+            "A separate pull_request contract workflow is read-only and cannot dispatch Actions or write issue metadata.",
+            "The bridge grants actions:write and issues:write only to the trusted dispatch job and never grants contents:write or write-all.",
+            "The bridge contains no HOSTINGER_API_TOKEN reference, secret expression, Hostinger provider URL, Node.js builds endpoint, or direct provider request.",
+            "Only the unchanged target workflow accesses HOSTINGER_API_TOKEN and performs authenticated GET requests.",
+            "The trigger or workflow-dispatch input must carry an explicit expected_head_sha that exactly equals current main before the first write.",
+            "The bridge explicitly rejects main and Production as repository branch mutation targets.",
+            "The authorization comment ID, authorization user ID, target workflow blob, account, domain, Production SHA, and merge timestamp are immutable bindings.",
+            "One-time claiming, dispatched, completed, and failed markers are bound to the exact Production SHA, target workflow blob, and authorization comment.",
+            "Structured evidence validation requires branch Production, exact expected SHA, fixed auth.mad4b.com domain, GET method, token_returned=false, secrets_included=false, and every mutation side effect false.",
+            "The incident remains open regardless of target workflow conclusion because build evidence alone does not prove active runtime parity.",
+            "No build creation, deployment, restart, provider mutation, repository contents mutation, SQL execution, migration Apply, database mutation, external send, protected-ref update, or force push occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-nodejs-build-evidence-dispatch-bridge-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml",
+            ".github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge-contract.yml",
+            ".github/workflows/hostinger-nodejs-build-evidence.yml",
+            "http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-bridge.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one explicit-head authorized dispatch produce an authenticated Hostinger artifact and publish a run-bound classification on Incident #4953."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise wrong author, malformed or stale expected head, closed issue, changed authorization, changed target blob, changed Production SHA, inactive target workflow, duplicate marker, unresolved run, missing artifact, malformed evidence, and unavailable repository secret while remaining fail-closed and mutation-free."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The bridge dispatches a read-only evidence workflow and performs no provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The bridge does not deploy or mutate Production; exact runtime parity remains a separate completion requirement under Incident #4953."
+    }
+  ],
+  "secrets_included": false
+}

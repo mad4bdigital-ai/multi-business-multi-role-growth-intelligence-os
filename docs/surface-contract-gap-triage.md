@@ -4,20 +4,22 @@
 
 ## Summary
 
-- Triaged items: 22
-- Gate candidates: 4
-- New-gap gate: fail
-- Blocking new items: 5
+- Triaged items: 26
+- Gate candidates: 5
+- New-gap gate: pass
+- Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 4
+- new_surface_immediate_review: 5
 - legacy_baseline_backlog: 17
+- safety_marker_review: 3
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
 - `1020_sprint69_multi_surface_tenant_agent_runtime.sql` — critical_review, score 1421; next: confirm registry binding/readback evidence before promotion
 - `1030_sprint69_generic_platform_resource_context.sql` — critical_review, score 826; next: confirm registry binding/readback evidence before promotion
+- `20260802_03_spec014_hostinger_storage_execution_evidence.sql` — critical_review, score 803; next: add targeted patch-index, parity, and governance documentation
 - `1029_sprint69_minimal_dynamic_brand_resolution.sql` — critical_review, score 771; next: confirm registry binding/readback evidence before promotion
-- `20260730_hostinger_production_resync_policy.sql` — high_review, score 546; next: add targeted patch-index, parity, and governance documentation
+- `20260730_hostinger_production_resync_policy.sql` — high_review, score 547; next: add targeted patch-index, parity, and governance documentation

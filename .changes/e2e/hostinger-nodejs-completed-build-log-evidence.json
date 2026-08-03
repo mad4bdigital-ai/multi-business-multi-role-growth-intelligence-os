@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "hostinger-nodejs-completed-build-log-evidence",
+  "title": "Hostinger completed Node.js build log evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/hostinger-nodejs-completed-build-log-evidence.json",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+      "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
+      "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Read one completed Hostinger Node.js build log through the official authenticated GET endpoint and extract bounded source SHA, Production branch, and release-directory evidence without provider mutation.",
+      "e2e_journeys": [
+        {
+          "id": "inspect-completed-hostinger-build-logs",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted release operator and GitHub Actions",
+          "entrypoint": "Hostinger Node.js Completed Build Log Evidence workflow contract test or trusted workflow dispatch from main",
+          "terminal_outcome": "A secret-free JSON and Markdown artifact identifies whether the completed build log exposes the expected Production SHA, another SHA, only a Production branch hint, or no source provenance.",
+          "steps": [
+            "Validate account, fixed auth.mad4b.com domain, exact build UUID, and exact expected Production SHA.",
+            "Build the official Hostinger completed-build logs URL with encoded path parameters.",
+            "Perform exactly one authenticated GET request using HOSTINGER_API_TOKEN.",
+            "Bound the provider response before parsing.",
+            "Extract SHA, Production branch, and release-path hints without persisting the bearer token.",
+            "Persist a redacted log excerpt no longer than 12000 characters.",
+            "Upload structured evidence before enforcing the decision."
+          ],
+          "assertions": [
+            "Only GET is used.",
+            "The exact token is absent from JSON, Markdown, errors, and console summaries.",
+            "Expected SHA in logs passes; another SHA fails; branch-only and source-unverified results remain partial.",
+            "No build creation, deployment, release activation, restart, provider mutation, repository mutation, SQL, migration Apply, database mutation, or external send occurs.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-completed-build-log-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs",
+            "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Dispatch the merged workflow against build UUID 019fc51c-3947-7255-aa4d-f55cb8df7658 and Production f5c1ae8840b4d4452f2908bb0f23051880bb6896."
+    }
+  ],
+  "secrets_included": false
+}

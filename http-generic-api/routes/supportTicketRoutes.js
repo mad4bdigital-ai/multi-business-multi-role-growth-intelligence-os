@@ -112,6 +112,11 @@ import {
   skipAuthEmailOutboxIneligible,
 } from "../authEmailOutboxWorker.js";
 import { canViewSupportTicketResolution } from "../supportTicketResolutionService.js";
+import {
+  getTenantRequestInboxItem,
+  listTenantRequestInbox,
+} from "../tenantRequestInboxService.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -276,6 +281,66 @@ export function buildSupportTicketRoutes(deps = {}) {
   const { requireBackendApiKey, requireAdminPrincipal } = deps;
   const router = Router();
   const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const requireTenantUserJwt = deps.requireTenantRequestUserJwt
+    || createUserJwtMiddleware({ env: deps.env || process.env });
+
+  router.get("/admin/tenant-requests", ...adminGuards, async (req, res) => {
+    try {
+      const result = await listTenantRequestInbox({
+        tenant_id: req.query?.tenant_id || null,
+        status: req.query?.status || null,
+        case_status: req.query?.case_status || null,
+        priority: req.query?.priority || null,
+        search: req.query?.search || null,
+        cursor: req.query?.cursor || null,
+        limit: req.query?.limit || null,
+      }, { auth: { ...(req.auth || {}), is_admin: true } });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_list_failed");
+    }
+  });
+
+  router.get("/admin/tenant-requests/:ticketId", ...adminGuards, async (req, res) => {
+    try {
+      const result = await getTenantRequestInboxItem({
+        ticket_id: req.params.ticketId,
+        tenant_id: req.query?.tenant_id || null,
+      }, { auth: { ...(req.auth || {}), is_admin: true } });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_get_failed");
+    }
+  });
+
+  router.get("/tenants/:tenantId/requests", requireTenantUserJwt, async (req, res) => {
+    try {
+      const result = await listTenantRequestInbox({
+        tenant_id: req.params.tenantId,
+        status: req.query?.status || null,
+        case_status: req.query?.case_status || null,
+        priority: req.query?.priority || null,
+        search: req.query?.search || null,
+        cursor: req.query?.cursor || null,
+        limit: req.query?.limit || null,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_list_failed");
+    }
+  });
+
+  router.get("/tenants/:tenantId/requests/:ticketId", requireTenantUserJwt, async (req, res) => {
+    try {
+      const result = await getTenantRequestInboxItem({
+        ticket_id: req.params.ticketId,
+        tenant_id: req.params.tenantId,
+      }, { auth: req.auth });
+      return res.status(200).json(result);
+    } catch (err) {
+      return sendError(res, err, "tenant_request_inbox_get_failed");
+    }
+  });
 
   router.get("/admin/support/tickets/auth-email-outbox/status", ...adminGuards, async (req, res) => {
     try {
