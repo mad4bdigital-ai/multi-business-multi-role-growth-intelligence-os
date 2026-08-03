@@ -10,8 +10,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: exact-phase-g-schema-arm-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
 
 jobs:
   repair:
@@ -50,7 +50,7 @@ jobs:
           printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${DIAGNOSTIC_ROOT}"
           test "$(git rev-parse HEAD)" = "${TARGET_HEAD_SHA}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_PREVIOUS_HEAD}"
+          test "$(git merge-base "${EXPECTED_PREVIOUS_HEAD}" "${TARGET_HEAD_SHA}")" = "${EXPECTED_PREVIOUS_HEAD}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_PREVIOUS_HEAD}")" = "${EXPECTED_MAIN_SHA}"
           git diff --name-only "${EXPECTED_PREVIOUS_HEAD}" "${TARGET_HEAD_SHA}" | LC_ALL=C sort > /tmp/trigger-files.txt
           printf '%s\n' "${TRIGGER_MARKER}" > /tmp/expected-trigger-files.txt
