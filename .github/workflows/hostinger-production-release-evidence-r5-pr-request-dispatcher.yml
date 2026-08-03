@@ -1,0 +1,247 @@
+name: Hostinger Production R5 PR Request Dispatcher
+run-name: Hostinger Production R5 PR Request Dispatcher · source ${{ github.event.workflow_run.id || inputs.source_run_id }}
+
+on:
+  workflow_run:
+    workflows: [Hostinger Production R5 PR Target Request]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful R5 read-only request workflow run ID
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: hostinger-production-r5-pr-request-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      AUTHORIZATION_COMMENT_ID: '5165194648'
+      AUTHORIZATION_USER_ID: '271942579'
+      AUTHORIZATION_TOKEN: AUTHORIZE_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R5
+      REQUEST_WORKFLOW: hostinger-production-release-evidence-r5-pr-target-request.yml
+      REQUEST_WORKFLOW_NAME: Hostinger Production R5 PR Target Request
+      TARGET_WORKFLOW: hostinger-production-release-evidence-r5.yml
+      TARGET_WORKFLOW_PATH: .github/workflows/hostinger-production-release-evidence-r5.yml
+      TARGET_WORKFLOW_BLOB_SHA: 9652a18835135648db6c795f60687620b3153ae6
+      EXPECTED_TITLE: 'ops: request Hostinger Production R5 evidence'
+      EXPECTED_HEAD_REF: gpt/trigger-hostinger-production-release-evidence-r5-20260803
+      MARKER_PATH: .github/hostinger-runtime-recovery/triggers/production-release-evidence-r5-2669991a.txt
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      R5_BINDING_ID: 2669991a882c7f7939510fbbace17f462a42517c:6134c0f8a454a5f8f1533f3f2a29ed6af77aa020:5165194648:R5
+      BRIDGE_BINDING_ID: 2669991a882c7f7939510fbbace17f462a42517c:9652a18835135648db6c795f60687620b3153ae6:5165194648:R5_PR_BRIDGE_V1
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.source_run_id || github.event.workflow_run.id }}
+      REQUEST_DIR: ${{ runner.temp }}/hostinger-production-r5-pr-request
+    steps:
+      - name: Resolve and revalidate exact-head R5 request before dispatch
+        id: request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          mkdir -p "${REQUEST_DIR}"
+
+          source_run="$(gh api "/repos/${REPOSITORY}/actions/runs/${SOURCE_RUN_ID}")"
+          source_name="$(jq -r '.name' <<<"${source_run}")"
+          source_event="$(jq -r '.event' <<<"${source_run}")"
+          source_conclusion="$(jq -r '.conclusion' <<<"${source_run}")"
+          test "${source_name}" = "${REQUEST_WORKFLOW_NAME}"
+          test "${source_conclusion}" = "success"
+          [[ "${source_event}" == "pull_request_target" || "${source_event}" == "workflow_dispatch" ]]
+
+          gh run download "${SOURCE_RUN_ID}" --repo "${REPOSITORY}" \
+            --name "hostinger-production-release-evidence-r5-pr-request-${SOURCE_RUN_ID}" \
+            --dir "${REQUEST_DIR}"
+          report_path="${REQUEST_DIR}/request.json"
+          test -f "${report_path}"
+
+          contract="$(jq -r '.contract' "${report_path}")"
+          outcome="$(jq -r '.outcome' "${report_path}")"
+          report_source_run_id="$(jq -r '.source_run_id' "${report_path}")"
+          pr_number="$(jq -r '.pr_number' "${report_path}")"
+          expected_head_sha="$(jq -r '.expected_head_sha' "${report_path}")"
+          expected_main_sha="$(jq -r '.expected_main_sha' "${report_path}")"
+          expected_production_sha="$(jq -r '.expected_production_sha' "${report_path}")"
+          marker_path="$(jq -r '.marker_path' "${report_path}")"
+          marker_blob_sha="$(jq -r '.marker_blob_sha' "${report_path}")"
+          target_workflow="$(jq -r '.target_workflow' "${report_path}")"
+          target_workflow_blob="$(jq -r '.target_workflow_blob_sha' "${report_path}")"
+          report_binding="$(jq -r '.binding' "${report_path}")"
+
+          test "${contract}" = "mad4b.hostinger-production-release-evidence-r5-pr-request.v1"
+          test "${outcome}" = "eligible"
+          test "${report_source_run_id}" = "${SOURCE_RUN_ID}"
+          [[ "${pr_number}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${expected_main_sha}" =~ ^[0-9a-f]{40}$ ]]
+          test "${expected_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+          test "${marker_path}" = "${MARKER_PATH}"
+          test "${target_workflow}" = "${TARGET_WORKFLOW}"
+          test "${target_workflow_blob}" = "${TARGET_WORKFLOW_BLOB_SHA}"
+          test "${report_binding}" = "${BRIDGE_BINDING_ID}"
+          test "$(jq -r '.candidate_code_checkout' "${report_path}")" = "false"
+          test "$(jq -r '.repository_mutation_performed' "${report_path}")" = "false"
+          test "$(jq -r '.provider_access_performed' "${report_path}")" = "false"
+          test "$(jq -r '.credential_access_performed' "${report_path}")" = "false"
+          test "$(jq -r '.secrets_included' "${report_path}")" = "false"
+
+          pr="$(gh api "/repos/${REPOSITORY}/pulls/${pr_number}")"
+          test "$(jq -r '.state' <<<"${pr}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr}")" = "false"
+          test "$(jq -r '.user.id' <<<"${pr}")" = "${AUTHORIZATION_USER_ID}"
+          test "$(jq -r '.title' <<<"${pr}")" = "${EXPECTED_TITLE}"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${expected_head_sha}"
+          test "$(jq -r '.base.ref' <<<"${pr}")" = "main"
+          if [[ "${EXPECTED_HEAD_REF}" == "main" || "${EXPECTED_HEAD_REF}" == "Production" ]]; then
+            echo "protected_branch_mutation_forbidden" >&2
+            exit 1
+          fi
+
+          files="$(gh api --paginate "/repos/${REPOSITORY}/pulls/${pr_number}/files?per_page=100" --jq '[.[].filename]')"
+          test "$(jq 'length' <<<"${files}")" = "1"
+          test "$(jq -r '.[0]' <<<"${files}")" = "${MARKER_PATH}"
+          test "$(gh api "/repos/${REPOSITORY}/contents/${MARKER_PATH}?ref=${expected_head_sha}" --jq '.sha')" = "${marker_blob_sha}"
+
+          current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          current_production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          workflow_blob="$(gh api "/repos/${REPOSITORY}/contents/${TARGET_WORKFLOW_PATH}?ref=main" --jq '.sha')"
+          workflow_state="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}" --jq '.state')"
+          issue_state="$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')"
+          auth_body="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')"
+          auth_user_id="$(gh api "/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.user.id')"
+
+          test "${current_main_sha}" = "${expected_main_sha}"
+          test "${current_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+          test "${workflow_blob}" = "${TARGET_WORKFLOW_BLOB_SHA}"
+          test "${workflow_state}" = "active"
+          test "${issue_state}" = "open"
+          test "${auth_user_id}" = "${AUTHORIZATION_USER_ID}"
+          grep -Fq "${AUTHORIZATION_TOKEN}" <<<"${auth_body}"
+          grep -Fq "${EXPECTED_PRODUCTION_SHA}" <<<"${auth_body}"
+          grep -Fq 'provider method: `GET` only' <<<"${auth_body}"
+          grep -Fq 'provider mutation: `false`' <<<"${auth_body}"
+
+          existing_bridge="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE status=dispatched binding=${BRIDGE_BINDING_ID}\") or contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE status=completed binding=${BRIDGE_BINDING_ID}\")) | .id")"
+          existing_r5="$(gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" \
+            --jq ".[] | select(.body | contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=claiming binding=${R5_BINDING_ID}\") or contains(\"HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=completed binding=${R5_BINDING_ID}\")) | .id")"
+          test -z "${existing_bridge}"
+          test -z "${existing_r5}"
+
+          before_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=main&per_page=30" \
+            --jq '[.workflow_runs[].id] | max // 0')"
+          echo "expected_main_sha=${expected_main_sha}" >> "${GITHUB_OUTPUT}"
+          echo "pr_number=${pr_number}" >> "${GITHUB_OUTPUT}"
+          echo "before_run_id=${before_run_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Record one-time PR bridge claim
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MAIN_SHA: ${{ steps.request.outputs.expected_main_sha }}
+          PR_NUMBER: ${{ steps.request.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          body="HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE status=claiming binding=${BRIDGE_BINDING_ID} bridge_run_id=${GITHUB_RUN_ID} source_request_run_id=${SOURCE_RUN_ID} marker_pr=${PR_NUMBER} expected_main_sha=${EXPECTED_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} target_workflow_blob=${TARGET_WORKFLOW_BLOB_SHA} actions_dispatch_only=true provider_access=false credential_access=false provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false protected_ref_mutation=false external_send=false secrets_included=false"
+          gh api --method POST -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}"
+
+      - name: Dispatch exact trusted R5 workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MAIN_SHA: ${{ steps.request.outputs.expected_main_sha }}
+        run: |
+          set -euo pipefail
+          jq -n --arg ref main --arg expected_head_sha "${EXPECTED_MAIN_SHA}" \
+            '{ref:$ref,inputs:{expected_head_sha:$expected_head_sha}}' \
+            | gh api --method POST -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/dispatches" --input -
+
+      - name: Resolve dispatched R5 run
+        id: target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE_RUN_ID: ${{ steps.request.outputs.before_run_id }}
+          EXPECTED_MAIN_SHA: ${{ steps.request.outputs.expected_main_sha }}
+        run: |
+          set -euo pipefail
+          target_run_id=""
+          for attempt in $(seq 1 60); do
+            target_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=workflow_dispatch&branch=main&per_page=30" \
+              --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID} and .head_sha == \"${EXPECTED_MAIN_SHA}\")) | sort_by(.id) | .[0].id // empty")"
+            if [[ -n "${target_run_id}" ]]; then break; fi
+            sleep 5
+          done
+          test -n "${target_run_id}"
+          echo "target_run_id=${target_run_id}" >> "${GITHUB_OUTPUT}"
+          body="HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE status=dispatched binding=${BRIDGE_BINDING_ID} target_run_id=${target_run_id} bridge_run_id=${GITHUB_RUN_ID} expected_main_sha=${EXPECTED_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} actions_dispatch_only=true provider_access=false credential_access=false provider_mutation=false deployment=false restart=false secrets_included=false"
+          gh api --method POST -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}"
+
+      - name: Wait for R5 completion
+        id: completion
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_RUN_ID: ${{ steps.target.outputs.target_run_id }}
+        run: |
+          set -euo pipefail
+          conclusion=""
+          for attempt in $(seq 1 240); do
+            status="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}" --jq '.status')"
+            if [[ "${status}" == "completed" ]]; then
+              conclusion="$(gh api "/repos/${REPOSITORY}/actions/runs/${TARGET_RUN_ID}" --jq '.conclusion')"
+              break
+            fi
+            sleep 5
+          done
+          test -n "${conclusion}"
+          echo "conclusion=${conclusion}" >> "${GITHUB_OUTPUT}"
+
+      - name: Record PR bridge completion
+        if: always() && steps.target.outputs.target_run_id != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_RUN_ID: ${{ steps.target.outputs.target_run_id }}
+          TARGET_CONCLUSION: ${{ steps.completion.outputs.conclusion }}
+          EXPECTED_MAIN_SHA: ${{ steps.request.outputs.expected_main_sha }}
+        run: |
+          set -euo pipefail
+          body="HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5_PR_BRIDGE status=completed binding=${BRIDGE_BINDING_ID} target_run_id=${TARGET_RUN_ID} target_conclusion=${TARGET_CONCLUSION:-unknown} bridge_run_id=${GITHUB_RUN_ID} expected_main_sha=${EXPECTED_MAIN_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} provider_access=false credential_access=false provider_mutation=false build_creation=false deployment=false release_activation=false restart=false sql=false migration_apply=false database_mutation=false protected_ref_mutation=false external_send=false secrets_included=false"
+          gh api --method POST -H 'Accept: application/vnd.github+json' -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" -f body="${body}"
+
+      - name: Enforce delegated R5 completion
+        shell: bash
+        env:
+          TARGET_CONCLUSION: ${{ steps.completion.outputs.conclusion }}
+        run: |
+          set -euo pipefail
+          test -n "${TARGET_CONCLUSION}"
+          if [[ "${TARGET_CONCLUSION}" != "success" && "${TARGET_CONCLUSION}" != "failure" ]]; then
+            echo "unexpected delegated R5 conclusion: ${TARGET_CONCLUSION}" >&2
+            exit 1
+          fi
