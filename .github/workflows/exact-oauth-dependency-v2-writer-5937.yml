@@ -1,0 +1,165 @@
+name: Exact OAuth Dependency V2 Writer 5937
+
+on:
+  pull_request_target:
+    branches:
+      - gpt/patch-oauth-deps-v2-base-a61cd9e8
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-oauth-dependency-v2-writer-5937
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Patch exact OAuth dependency and v2 diagnostic expectations
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-v2-a61cd9e8-20260804' &&
+      github.event.pull_request.head.sha == '402733bc0b94dbe5068970429667047f81aeca83'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_TARGET_SHA: 402733bc0b94dbe5068970429667047f81aeca83
+      TARGET_BRANCH: gpt/spec012-oauth-deps-v2-a61cd9e8-20260804
+      TRIGGER_FILE: .github/oauth-patch/trigger-5937-a61cd9e8.txt
+    steps:
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable trigger state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t initial_files < <(git diff --name-only HEAD^ HEAD)
+          test "${#initial_files[@]}" -eq 1
+          test "${initial_files[0]}" = "$TRIGGER_FILE"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
+          case "$TARGET_BRANCH" in main|Production) exit 1 ;; esac
+
+      - name: Apply bounded OAuth DI and v2 assertion repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('http-generic-api/routes/index.js'): [
+                  (
+                      '  app.use(buildTenantGptOAuthMetadataRoutes());',
+                      '  app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+                  ),
+              ],
+              Path('http-generic-api/test-auth-oauth-routes.mjs'): [
+                  (
+                      'app.use(buildTenantGptOAuthMetadataRoutes());',
+                      'app.use(buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool }));',
+                  ),
+                  (
+                      '  assert("invalid client diagnostic uses OAuth action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange", JSON.stringify(invalidClientDiagnostic));',
+                      '  assert("invalid client diagnostic uses OAuth v2 action key", invalidClientDiagnostic?.action_key === "tenant_gpt_oauth_token_exchange_v2", JSON.stringify(invalidClientDiagnostic));',
+                  ),
+                  (
+                      '  assert("invalid client diagnostic captures code timing", invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.ttl_seconds === 300, JSON.stringify(invalidClientDiagnostic));',
+                      '  assert("invalid client diagnostic captures bounded code expiry", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.expires_in_seconds) && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds > 0 && invalidClientDiagnostic.runtime_evidence_json.code.expires_in_seconds <= 300, JSON.stringify(invalidClientDiagnostic));',
+                  ),
+                  (
+                      '  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code_timing?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+                      '  assert("invalid client diagnostic captures code age", Number.isFinite(invalidClientDiagnostic?.runtime_evidence_json?.code?.age_seconds), JSON.stringify(invalidClientDiagnostic));',
+                  ),
+                  (
+                      '  assert("success diagnostic captures lowercase token type", successDiagnostic?.runtime_evidence_json?.access_token?.token_type === "bearer", JSON.stringify(successDiagnostic));',
+                      '  assert("success diagnostic records committed response phase", successDiagnostic?.runtime_evidence_json?.classification === "token_response_committed" && successDiagnostic?.runtime_evidence_json?.phase === "response_committed", JSON.stringify(successDiagnostic));',
+                  ),
+                  (
+                      '  assert("success diagnostic captures token length only", successDiagnostic?.runtime_evidence_json?.access_token?.length === exchange.body.access_token.length, JSON.stringify(successDiagnostic));',
+                      '  assert("success diagnostic records token preparation without token material", successDiagnostic?.runtime_evidence_json?.access_token_prepared === true && !Object.prototype.hasOwnProperty.call(successDiagnostic?.runtime_evidence_json || {}, "access_token"), JSON.stringify(successDiagnostic));',
+                  ),
+                  (
+                      '  assert("success diagnostic captures requested scope count only", successDiagnostic?.runtime_evidence_json?.requested_scope?.count === TENANT_SCOPE_LINKS.length, JSON.stringify(successDiagnostic));',
+                      '  assert("success diagnostic records consumed authorization code", successDiagnostic?.runtime_evidence_json?.code_consumption?.consumed === true, JSON.stringify(successDiagnostic));',
+                  ),
+              ],
+              Path('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'): [
+                  (
+                      'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");',
+                      'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");',
+                  ),
+              ],
+          }
+
+          for path, edits in replacements.items():
+              source = path.read_text(encoding='utf-8')
+              for old, new in edits:
+                  count = source.count(old)
+                  if count != 1:
+                      raise SystemExit(f'{path}: expected one exact replacement target, found {count}: {old}')
+                  source = source.replace(old, new)
+              path.write_text(source, encoding='utf-8')
+
+          trigger = Path('.github/oauth-patch/trigger-5937-a61cd9e8.txt')
+          if not trigger.is_file():
+              raise SystemExit('governed trigger file missing')
+          trigger.unlink()
+          PY
+          git diff --check
+          mapfile -t worktree_files < <(git diff --name-only)
+          test "${#worktree_files[@]}" -eq 4
+          printf '%s\n' "${worktree_files[@]}" | grep -Fx "$TRIGGER_FILE"
+          printf '%s\n' "${worktree_files[@]}" | grep -Fx 'http-generic-api/routes/index.js'
+          printf '%s\n' "${worktree_files[@]}" | grep -Fx 'http-generic-api/test-auth-oauth-routes.mjs'
+          printf '%s\n' "${worktree_files[@]}" | grep -Fx 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+
+      - name: Commit exact bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            "$TRIGGER_FILE" \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-auth-oauth-routes.mjs \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          git commit -m 'fix(spec-012): share OAuth dependencies and align v2 evidence tests'
+          mapfile -t final_files < <(git diff --name-only "$EXPECTED_MAIN_SHA" HEAD)
+          test "${#final_files[@]}" -eq 3
+          test "${final_files[0]}" = 'http-generic-api/routes/index.js'
+          test "${final_files[1]}" = 'http-generic-api/test-auth-oauth-routes.mjs'
+          test "${final_files[2]}" = 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+
+      - name: Push without force after final compare-and-swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$EXPECTED_TARGET_SHA"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "$(git rev-parse HEAD)"
