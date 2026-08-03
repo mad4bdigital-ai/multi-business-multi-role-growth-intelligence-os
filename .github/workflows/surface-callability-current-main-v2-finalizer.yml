@@ -62,8 +62,33 @@ jobs:
         run: node scripts/surface-contract-discovery.mjs --write
 
       - name: Generate closure contracts
+        id: closure-generator
         working-directory: http-generic-api
-        run: node scripts/surface-callability-closure/generate_closure_contracts.mjs
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          diagnostic="../surface-closure-generator.log"
+          NO_COLOR=1 node scripts/surface-callability-closure/generate_closure_contracts.mjs > "$diagnostic" 2>&1
+          status=$?
+          printf '%s\n' "$status" > ../surface-closure-generator-status.txt
+          cat "$diagnostic"
+          exit "$status"
+
+      - name: Upload closure generator diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surface-closure-generator-diagnostic-${{ github.run_id }}
+          path: |
+            surface-closure-generator.log
+            surface-closure-generator-status.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Enforce closure generator
+        if: steps.closure-generator.outcome != 'success'
+        run: exit 1
 
       - name: Discovery after closure
         working-directory: http-generic-api
