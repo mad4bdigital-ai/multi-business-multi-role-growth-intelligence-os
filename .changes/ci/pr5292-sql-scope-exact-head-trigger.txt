@@ -1,2 +1,0 @@
-PR #5292 exact-head CI trigger after successful V5 bounded product commit.
-No product, deployment, migration, database, provider, credential, external-send, or Production mutation.
