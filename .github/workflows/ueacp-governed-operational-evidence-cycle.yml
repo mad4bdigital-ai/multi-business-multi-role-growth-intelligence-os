@@ -74,7 +74,7 @@ jobs:
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
           grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
-          test "$(grep -c 'BACKEND_API_KEY:' "$workflow")" -eq 1
+          test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 1
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
