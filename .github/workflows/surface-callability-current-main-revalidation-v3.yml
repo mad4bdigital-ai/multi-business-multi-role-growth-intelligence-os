@@ -42,14 +42,23 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          git fetch origin main --no-tags
-          test "$(git rev-parse origin/main)" = "${BASE_SHA}"
-          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          event_ref='${{ github.event.pull_request.head.ref }}'
+          event_sha='${{ github.event.pull_request.head.sha }}'
+          actual_head="$(git rev-parse HEAD)"
+          printf 'event_ref=%s\nevent_sha=%s\nactual_head=%s\nexpected_branch=%s\nexpected_base=%s\n' \
+            "$event_ref" "$event_sha" "$actual_head" "$TARGET_BRANCH" "$BASE_SHA"
+          test "$event_ref" = "$TARGET_BRANCH" || { echo 'bounded_trigger_head_ref_mismatch'; exit 1; }
+          test "$actual_head" = "$event_sha" || { echo 'bounded_trigger_event_sha_mismatch'; exit 1; }
+          git fetch origin 'refs/heads/main:refs/remotes/origin/main' --no-tags
+          origin_main="$(git rev-parse refs/remotes/origin/main)"
+          printf 'origin_main=%s\n' "$origin_main"
+          test "$origin_main" = "$BASE_SHA" || { echo 'bounded_trigger_base_sha_mismatch'; exit 1; }
+          git merge-base --is-ancestor "$BASE_SHA" HEAD || { echo 'bounded_trigger_base_not_ancestor'; exit 1; }
           mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = "${WORKFLOW_PATH}"
+          printf 'latest_commit_changed_count=%s\n' "${#changed[@]}"
+          printf 'latest_commit_changed_path=%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 1 || { echo 'bounded_trigger_changed_count_mismatch'; exit 1; }
+          test "${changed[0]}" = "$WORKFLOW_PATH" || { echo 'bounded_trigger_changed_path_mismatch'; exit 1; }
 
       - name: Set up Node
         uses: actions/setup-node@v4
