@@ -7,6 +7,7 @@
   "current_phase": "resilient",
   "scope": {
     "include": [
+      ".specify/work-map-schema-classification-registry.json",
       "http-generic-api/activation-surfaces/exclusions/growth_control_activity_kpi_bindings.json",
       "http-generic-api/activation-surfaces/exclusions/growth_control_decision_evidence.json",
       "http-generic-api/activation-surfaces/exclusions/growth_control_kpi_definitions.json",
@@ -26,6 +27,7 @@
       "http-generic-api/test-growth-control-analytics-observability-routes.mjs",
       "http-generic-api/test-growth-control-analytics-portfolio-phase.mjs",
       "http-generic-api/test-growth-control-observability-operations-phase.mjs",
+      "http-generic-api/test-work-map-schema-classification.mjs",
       "specs/011-dynamic-multi-tenant-growth-control-plane/e2e-phases.json",
       "specs/011-dynamic-multi-tenant-growth-control-plane/tasks.md"
     ]

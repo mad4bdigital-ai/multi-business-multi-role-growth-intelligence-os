@@ -8,6 +8,7 @@ on:
       - '.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json'
       - '.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql'
       - '.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml'
+      - 'http-generic-api/scripts/e2e-parallel-pr-gate.mjs'
       - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs'
       - 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs'
 
@@ -27,6 +28,7 @@ jobs:
       DDL_FILE: .github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state.sql
       CONTRACT_FILE: .github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json
       PHASE_CONTRACT: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+      PARALLEL_PR_GATE: http-generic-api/scripts/e2e-parallel-pr-gate.mjs
       MODULE_FILE: http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js
       TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs
       WORKFLOW_TEST_FILE: http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
@@ -48,6 +50,7 @@ jobs:
         continue-on-error: true
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_REF: ${{ github.event.pull_request.head.ref }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
@@ -57,6 +60,7 @@ jobs:
           import { execFileSync } from 'node:child_process';
           import { appendFileSync, readFileSync } from 'node:fs';
           import { createHash } from 'node:crypto';
+          import { join } from 'node:path';
 
           const raw = readFileSync(process.env.PHASE_CONTRACT, 'utf8');
           const contract = JSON.parse(raw);
@@ -66,45 +70,69 @@ jobs:
             && contract.parallel_work?.merge_policy === 'workstream_commits_then_e2e_rollup'
             && contract.parallel_work?.no_partial_feature_merge === true;
           const isGovernedRollup = process.env.BASE_REF === 'main' && governedContract;
-          const directMainRelease = process.env.HEAD_REF === 'main';
-          const immutableReleaseMatch = /^release\/production-candidate-\d{8}-([0-9a-f]{8})-v[1-9][0-9]*$/u.exec(
-            process.env.HEAD_REF || '',
-          );
-          let immutableReleaseSourceInMain = false;
-          if (immutableReleaseMatch && process.env.HEAD_SHA?.startsWith(immutableReleaseMatch[1])) {
-            for (const mainRef of ['refs/remotes/origin/main', 'refs/heads/main']) {
+          const sameRepository = process.env.HEAD_REPOSITORY === process.env.REPOSITORY;
+          const productionTarget = process.env.BASE_REF === 'Production';
+          const acceptedReleaseIdentities = new Set([
+            'protected_main',
+            'immutable_main_snapshot',
+            'history_preserving_main_reconciliation',
+          ]);
+
+          let promotionReport = {};
+          let promotionGateOutcome = 'not_applicable';
+          if (productionTarget && sameRepository && governedContract) {
+            const promotionReportPath = join(process.env.RUNNER_TEMP, 'canonical-production-promotion.json');
+            try {
+              execFileSync(
+                process.execPath,
+                [
+                  process.env.PARALLEL_PR_GATE,
+                  'check',
+                  '--base', process.env.BASE_SHA,
+                  '--head', process.env.HEAD_SHA,
+                  '--head-ref', process.env.HEAD_REF,
+                  '--base-ref', process.env.BASE_REF,
+                  '--report-file', promotionReportPath,
+                ],
+                { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+              );
+              promotionReport = JSON.parse(readFileSync(promotionReportPath, 'utf8'));
+              promotionGateOutcome = 'success';
+            } catch (error) {
+              promotionGateOutcome = 'failure';
               try {
-                execFileSync('git', ['rev-parse', '--verify', mainRef], { stdio: 'ignore' });
-                execFileSync(
-                  'git',
-                  ['merge-base', '--is-ancestor', process.env.HEAD_SHA, mainRef],
-                  { stdio: 'ignore' },
-                );
-                immutableReleaseSourceInMain = true;
-                break;
+                promotionReport = JSON.parse(readFileSync(promotionReportPath, 'utf8'));
               } catch {
-                // Fail closed and try the next canonical local ref.
+                promotionReport = {};
               }
+              const diagnostic = error?.stderr?.toString?.() || error?.message || 'canonical promotion gate failed';
+              throw new Error(`canonical Production promotion classification failed: ${diagnostic}`);
             }
           }
-          const immutableMainSnapshot = Boolean(immutableReleaseMatch && immutableReleaseSourceInMain);
-          const isGovernedRelease = process.env.BASE_REF === 'Production'
-            && process.env.HEAD_REPOSITORY === process.env.REPOSITORY
+
+          const releaseIdentity = String(promotionReport.production_promotion_identity || 'none');
+          const canonicalPromotionValidated = promotionGateOutcome === 'success'
+            && promotionReport.ok === true
+            && promotionReport.production_promotion === true
+            && acceptedReleaseIdentities.has(releaseIdentity);
+          const isGovernedRelease = productionTarget
+            && sameRepository
             && governedContract
-            && (directMainRelease || immutableMainSnapshot);
+            && canonicalPromotionValidated;
           const mode = isGovernedRollup ? 'integration' : isGovernedRelease ? 'release' : 'feature';
-          const releaseIdentity = isGovernedRelease
-            ? directMainRelease
-              ? 'protected_main'
-              : 'immutable_main_snapshot'
-            : 'none';
-          const modeSource = isGovernedRelease && immutableMainSnapshot
-            ? 'governed_phase_contract_and_git_ancestry'
+          const modeSource = isGovernedRelease
+            ? 'canonical_e2e_parallel_pr_gate'
             : 'governed_phase_contract';
+          const phaseEvaluationBase = String(promotionReport.phase_evaluation_base || '');
+          const immutableReleaseSourceInMain = releaseIdentity === 'immutable_main_snapshot';
           const digest = createHash('sha256').update(raw).digest('hex');
+
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode=${mode}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `candidate_mode_source=${modeSource}\n`);
-          appendFileSync(process.env.GITHUB_OUTPUT, `release_identity=${releaseIdentity}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `release_identity=${isGovernedRelease ? releaseIdentity : 'none'}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `canonical_promotion_validated=${canonicalPromotionValidated}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `promotion_gate_outcome=${promotionGateOutcome}\n`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `promotion_phase_evaluation_base=${phaseEvaluationBase}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `immutable_release_source_in_main=${immutableReleaseSourceInMain}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `phase_contract_digest=${digest}\n`);
           appendFileSync(process.env.GITHUB_OUTPUT, `feature_key=${String(contract.feature_key || '')}\n`);
@@ -116,6 +144,7 @@ jobs:
         id: syntax
         continue-on-error: true
         run: |
+          node --check "${PARALLEL_PR_GATE}"
           node --check "${TEST_FILE}"
           node --check "${WORKFLOW_TEST_FILE}"
 
@@ -150,7 +179,7 @@ jobs:
         run: |
           set -euo pipefail
           changed_files="$(git diff --name-only "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")"
-          allowed='^(\.changes/e2e/spec014-durable-authorized-injection-schema-ddl(-rollup-boundary)?\.json|\.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state\.json|\.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state\.sql|\.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard\.yml|http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl(-workflow)?\.mjs)$'
+          allowed='^(\.changes/e2e/spec014-durable-authorized-injection-schema-ddl(-rollup-boundary)?\.json|\.github/contracts/spec014/hostinger-storage-durable-authorized-injection-state\.json|\.github/contracts/spec014/sql/hostinger-storage-durable-authorized-injection-state\.sql|\.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard\.yml|http-generic-api/scripts/e2e-parallel-pr-gate\.mjs|http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl(-workflow)?\.mjs)$'
           candidate_mode="${CANDIDATE_MODE:-feature}"
           [[ "${candidate_mode}" == "feature" || "${candidate_mode}" == "integration" || "${candidate_mode}" == "release" ]]
           if [[ "${candidate_mode}" == "feature" ]]; then
@@ -176,6 +205,9 @@ jobs:
           CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode }}
           CANDIDATE_MODE_SOURCE: ${{ steps.candidate_mode.outputs.candidate_mode_source }}
           RELEASE_IDENTITY: ${{ steps.candidate_mode.outputs.release_identity }}
+          CANONICAL_PROMOTION_VALIDATED: ${{ steps.candidate_mode.outputs.canonical_promotion_validated }}
+          PROMOTION_GATE_OUTCOME: ${{ steps.candidate_mode.outputs.promotion_gate_outcome }}
+          PROMOTION_PHASE_EVALUATION_BASE: ${{ steps.candidate_mode.outputs.promotion_phase_evaluation_base }}
           IMMUTABLE_RELEASE_SOURCE_IN_MAIN: ${{ steps.candidate_mode.outputs.immutable_release_source_in_main }}
           PHASE_CONTRACT_DIGEST: ${{ steps.candidate_mode.outputs.phase_contract_digest }}
           CONTRACT_FEATURE_KEY: ${{ steps.candidate_mode.outputs.feature_key }}
@@ -229,6 +261,9 @@ jobs:
             'candidate_mode': candidate_mode,
             'candidate_mode_source': os.environ.get('CANDIDATE_MODE_SOURCE') or 'unknown',
             'release_identity': os.environ.get('RELEASE_IDENTITY') or 'none',
+            'canonical_promotion_validated': os.environ.get('CANONICAL_PROMOTION_VALIDATED') == 'true',
+            'promotion_gate_outcome': os.environ.get('PROMOTION_GATE_OUTCOME') or 'unknown',
+            'promotion_phase_evaluation_base': os.environ.get('PROMOTION_PHASE_EVALUATION_BASE') or None,
             'immutable_release_source_in_main': os.environ.get('IMMUTABLE_RELEASE_SOURCE_IN_MAIN') == 'true',
             'governed_phase_contract': os.environ['PHASE_CONTRACT'],
             'governed_phase_contract_digest': os.environ.get('PHASE_CONTRACT_DIGEST') or None,
