@@ -1,0 +1,46 @@
+name: Temporary Spec 012 T031 Exact-Head Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tmp-spec012-t031-exact-head-validation.yml'
+      - 'http-generic-api/routes/tenantGptOAuthMetadataRoutes.js'
+      - 'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js'
+      - 'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js'
+      - 'http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.js'
+      - 'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs'
+      - 'http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2m-t031-oauth-token-route-wiring.json'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2m-t031-oauth-token-route-wiring.md'
+
+permissions:
+  contents: read
+
+jobs:
+  exact-head-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check T031 syntax
+        run: |
+          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          node --check http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+      - name: Validate T031 token route and bindings
+        working-directory: http-generic-api
+        run: |
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-binding-hardening.mjs
