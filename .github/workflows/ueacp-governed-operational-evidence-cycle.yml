@@ -1,0 +1,257 @@
+name: UEACP Governed Operational Evidence Cycle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/ueacp-governed-operational-evidence-cycle.yml"
+      - "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js"
+      - "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs"
+      - "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs"
+      - "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs"
+      - "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
+      - "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+  workflow_dispatch:
+    inputs:
+      source_manifest_file:
+        description: Reviewed repository-relative manifest binding exactly eight authority source files
+        required: true
+        type: string
+      target_schema:
+        description: Exact Production schema authorized for the read-only catalog census
+        required: true
+        type: string
+      confirm:
+        description: Type I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ueacp-live-authority-evidence-one-shot-push
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Governed Operational Evidence Contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Check syntax
+        run: |
+          node --check http-generic-api/authorityEvidenceRepositorySnapshotCollector.js
+          node --check http-generic-api/scripts/authority-evidence-repository-snapshots.mjs
+          node --check http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs
+          node --check http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs
+      - name: Run repository snapshot collector regression
+        working-directory: http-generic-api
+        run: node test-authority-evidence-repository-snapshot-collector.mjs
+      - name: Enforce no implicit operational trigger
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow=.github/workflows/ueacp-governed-operational-evidence-cycle.yml
+          grep -q '^  workflow_dispatch:' "$workflow"
+          ! grep -Eq '^  (push|schedule|issue_comment|workflow_run):' "$workflow"
+          grep -q "vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true'" "$workflow"
+          grep -q 'environment: ueacp-live-evidence' "$workflow"
+          grep -q 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE' "$workflow"
+          grep -Eq 'ref:.*github\.sha' "$workflow"
+          grep -q 'git merge-base --is-ancestor' "$workflow"
+          grep -q 'git ls-files --error-unmatch' "$workflow"
+          grep -Eq '^[[:space:]]+- "specs/011-unified-effective-authority-control-plane/e2e-phases\.json"$' "$workflow"
+          grep -q 'source manifest must be a regular repository file' "$workflow"
+          grep -q 'source manifest escaped repository root' "$workflow"
+          grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
+          test "$(grep -Ec '^[[:space:]]+BACKEND_API_KEY:' "$workflow")" -eq 1
+          grep -Fq "steps.artifact_safety.outputs.safe == 'true'" "$workflow"
+
+  live-read-only-cycle:
+    name: Live Read-Only Evidence Cycle
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      vars.UEACP_LIVE_EVIDENCE_ENABLED == 'true' &&
+      inputs.confirm == 'I_AUTHORIZE_READ_ONLY_UEACP_EVIDENCE'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: ueacp-live-evidence
+    env:
+      REPOSITORY: ${{ github.repository }}
+      SOURCE_MANIFEST_FILE: ${{ inputs.source_manifest_file }}
+      TARGET_SCHEMA: ${{ inputs.target_schema }}
+    steps:
+      - name: Checkout exact trusted dispatch SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Enforce trusted immutable inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_DIR="${RUNNER_TEMP}/ueacp-governed-operational-evidence"
+          test "${GITHUB_REF_NAME}" = "main"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
+          [[ "${SOURCE_MANIFEST_FILE}" != /* ]]
+          [[ "${SOURCE_MANIFEST_FILE}" != *..* ]]
+          git ls-files --error-unmatch -- "${SOURCE_MANIFEST_FILE}" >/dev/null
+          test -f "${SOURCE_MANIFEST_FILE}"
+          MANIFEST_REF="$(node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = fs.realpathSync('.');
+          const declared = String(process.env.SOURCE_MANIFEST_FILE || '').replaceAll('\\', '/');
+          const manifestPath = path.resolve(root, declared);
+          const stat = fs.lstatSync(manifestPath);
+          if (!stat.isFile() || stat.isSymbolicLink()) throw new Error('source manifest must be a regular repository file');
+          if (stat.size > 1024 * 1024) throw new Error('source manifest exceeds bounded maximum size');
+          const realManifestPath = fs.realpathSync(manifestPath);
+          const repositoryRelative = path.relative(root, realManifestPath).replaceAll('\\', '/');
+          if (repositoryRelative !== declared) throw new Error('source manifest escaped repository root');
+          const manifest = JSON.parse(fs.readFileSync(realManifestPath, 'utf8'));
+          if (manifest.contract !== 'mad4b.ueacp.authority-evidence-repository-manifest.v1') throw new Error('invalid source manifest contract');
+          if (manifest.repository !== process.env.REPOSITORY) throw new Error('source manifest repository mismatch');
+          process.stdout.write(String(manifest.observed_ref || ''));
+          NODE
+          )"
+          [[ "${MANIFEST_REF}" =~ ^[a-f0-9]{40}$ ]]
+          git cat-file -e "${MANIFEST_REF}^{commit}"
+          git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
+          mkdir -p "${EVIDENCE_DIR}"
+          printf 'EVIDENCE_DIR=%s\n' "${EVIDENCE_DIR}" >> "${GITHUB_ENV}"
+      - name: Create short-lived read-only authorization
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const issued = new Date();
+          const expires = new Date(issued.getTime() + 30 * 60 * 1000);
+          const authorization = {
+            contract: 'mad4b.ueacp.authority-live-evidence-authorization.v1',
+            operation_mode: 'read_only_live_authority_evidence',
+            operation_ref: `github.run.${process.env.GITHUB_RUN_ID}.${process.env.GITHUB_SHA}`,
+            environment: 'production_runtime',
+            target_schema: process.env.TARGET_SCHEMA,
+            issued_at: issued.toISOString(),
+            expires_at: expires.toISOString(),
+            approved: true,
+            read_only: true,
+            applies_sql: false,
+            provider_calls: false,
+            credential_payload_read: false,
+            external_writes: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/authorization.json`, `${JSON.stringify(authorization, null, 2)}\n`);
+          NODE
+      - name: Collect SHA-bound repository authority snapshots
+        working-directory: http-generic-api
+        run: |
+          node scripts/authority-evidence-repository-snapshots.mjs \
+            --repository-root .. \
+            --manifest-file "../${SOURCE_MANIFEST_FILE}" \
+            --sources-output "${EVIDENCE_DIR}/sources.json" \
+            --attestation-output "${EVIDENCE_DIR}/repository-attestation.json"
+      - name: Observe live SQL catalog with same-cycle readback
+        env:
+          RUNTIME_BASE_URL: https://auth.mad4b.com
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+        run: |
+          EVIDENCE_PATH="${EVIDENCE_DIR}/catalog-observation.json" \
+          OBSERVED_REF="${GITHUB_SHA}" \
+          node .github/scripts/authority-live-census-observation.mjs
+      - name: Compose immutable governed evidence packet
+        working-directory: http-generic-api
+        run: |
+          node scripts/authority-governed-operational-evidence-cycle.mjs \
+            --authorization-file "${EVIDENCE_DIR}/authorization.json" \
+            --sources-file "${EVIDENCE_DIR}/sources.json" \
+            --observation-file "${EVIDENCE_DIR}/catalog-observation.json" \
+            --packet-output "${EVIDENCE_DIR}/live-evidence-packet.json"
+      - name: Validate artifact bundle is no-secret
+        id: artifact_safety
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'safe=false\n' >> "${GITHUB_OUTPUT}"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const directory = process.env.EVIDENCE_DIR;
+          if (!directory) throw new Error('evidence directory was not initialized');
+          const root = fs.realpathSync(directory);
+          const names = fs.readdirSync(root).filter((name) => name.endsWith('.json')).sort();
+          if (names.length === 0) throw new Error('no JSON evidence exists for safe upload');
+          const sensitive = /(secret|password|private[_-]?key|access[_-]?token|refresh[_-]?token|credential[_-]?payload|authorization[_-]?header)/i;
+          const scan = (value, location = 'root', seen = new WeakSet()) => {
+            if (!value || typeof value !== 'object' || seen.has(value)) return;
+            seen.add(value);
+            for (const [key, nested] of Object.entries(value)) {
+              if (sensitive.test(key) && nested !== false && nested !== null && nested !== undefined) {
+                throw new Error(`sensitive evidence value at ${location}.${key}`);
+              }
+              scan(nested, `${location}.${key}`, seen);
+            }
+          };
+          for (const name of names) {
+            const declared = path.join(root, name);
+            const stat = fs.lstatSync(declared);
+            if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`unsafe evidence file type: ${name}`);
+            if (stat.size > 128 * 1024 * 1024) throw new Error(`oversized evidence file: ${name}`);
+            const real = fs.realpathSync(declared);
+            if (path.dirname(real) !== root) throw new Error(`evidence file escaped bundle root: ${name}`);
+            scan(JSON.parse(fs.readFileSync(real, 'utf8')), name);
+          }
+          NODE
+          printf 'safe=true\n' >> "${GITHUB_OUTPUT}"
+      - name: Upload validated no-secret evidence
+        if: always() && steps.artifact_safety.outputs.safe == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ueacp-governed-operational-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/ueacp-governed-operational-evidence/*.json
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce read-only packet boundary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          packet="${EVIDENCE_DIR}/live-evidence-packet.json"
+          test -f "$packet"
+          node --input-type=module - <<'NODE'
+          import fs from 'node:fs';
+          const packet = JSON.parse(fs.readFileSync(`${process.env.EVIDENCE_DIR}/live-evidence-packet.json`, 'utf8'));
+          const safe = packet.status === 'ready_for_human_ownership_review'
+            && packet.read_only === true
+            && packet.applies_sql === false
+            && packet.runtime_authority_changed === false
+            && packet.provider_calls === false
+            && packet.credential_payload_read === false
+            && packet.external_writes === false
+            && packet.secrets_included === false
+            && packet.closure_state?.t001_complete === false
+            && packet.closure_state?.t002_complete === false
+            && packet.closure_state?.migration_apply_authorized === false;
+          if (!safe) throw new Error('UEACP live evidence packet did not satisfy the governed read-only boundary');
+          console.log(JSON.stringify({ status: packet.status, packet_sha256: packet.packet_sha256, secrets_included: false }));
+          NODE
