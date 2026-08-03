@@ -22400,3 +22400,5 @@ paths:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/listTenantRequests
   /tenants/{tenantId}/requests/{ticketId}:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/getTenantRequest
+  /tenant/storage-operations/apply-plan:
+    $ref: ./openapi/hostinger-storage-tenant-runtime.yaml#/hostingerStorageTenantApplyPlanPath

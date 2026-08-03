@@ -2,8 +2,8 @@
   "ok": true,
   "schema_version": "surface-contract-gap-baseline-v1",
   "baseline_scope": "legacy_backlog_and_current_new_gap_baseline",
-  "baseline_policy": "future gates fail only for critical/high queue items absent from this baseline",
-  "baseline_item_count": 105,
+  "baseline_policy": "future gates fail for any unbaselined new-gap candidate; low, medium, high, and critical new queue items must be remediated before promotion",
+  "baseline_item_count": 125,
   "baseline_files": [
     "047_sprint47b_gpt_tool_registry.sql",
     "049_sprint47d_tool_registry_recovery.sql",
@@ -18,6 +18,15 @@
     "091_sprint62b_local_gateway_credential_policy.sql",
     "092_sprint62c_register_local_gateway_dispatcher_tools.sql",
     "100_sprint63_onboarding_recovery_control_plane.sql",
+    "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+    "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+    "1030_sprint69_default_blocker_recovery_governance_seed.sql",
+    "1030_sprint69_generic_platform_resource_context.sql",
+    "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
+    "1037_sprint69_temporary_hostinger_ssh_executor_gate.sql",
+    "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+    "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+    "1043_sprint69_tenant_managed_execution_lifecycle.sql",
     "105_sprint64_dedicated_integration_flow.sql",
     "106_sprint62q_platform_graph_admin_tools.sql",
     "108_hostinger_ssh_governed_connectors.sql",
@@ -37,15 +46,31 @@
     "183_sprint66_database_lifecycle_snapshot_schedule_readiness.sql",
     "187_sprint66_connected_execution_continuity_api_tools.sql",
     "189_sprint66_platform_private_capability_vault.sql",
+    "189_sprint66_tenant_gpt_operating_guide_tools.sql",
     "190_sprint66_workspace_lifecycle_foundation.sql",
+    "191_sprint66_tenant_credential_intake_connection_status.sql",
     "193_sprint67_workspace_resource_authority_foundation.sql",
     "194_sprint66_tenant_infrastructure_readiness_tools.sql",
     "194_sprint67_workspace_resource_grant_assignment_tools.sql",
     "195_sprint66_tenant_infrastructure_specific_paths.sql",
+    "196_sprint66_tenant_database_schema_read_tool.sql",
+    "197_sprint66_tenant_database_query_readonly_tool.sql",
+    "198_sprint66_tenant_ssh_probe_tool.sql",
+    "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
     "199_sprint68_workspace_ownership_member_control_tools.sql",
+    "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
     "200_sprint68_workspace_invitation_control_tools.sql",
+    "201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
     "201_sprint68_workspace_access_request_control_tools.sql",
+    "20260702_session_archive_capability_family_authorization.sql",
+    "20260706_session_archive_stale_closure_autosweep.sql",
+    "20260728_governed_response_chunk_ownership.sql",
+    "20260730_hostinger_production_resync_policy.sql",
+    "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+    "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
     "202_sprint68_admin_workspace_authority_tools.sql",
+    "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
+    "205_sprint66_tenant_ssh_password_and_intake_wait.sql",
     "205_sprint67_openclaude_provider_bridge_routes.sql",
     "218_sprint67_activate_openclaude_openrouter_provider.sql",
     "220_sprint67_codex_dual_mode_policy.sql",
@@ -103,18 +128,15 @@
     "282_sprint68_session_insight_capability_envelope_adapter_execution_gate.sql",
     "283_sprint68_session_insight_capability_envelope_remaining_scope_completion.sql",
     "284_sprint68_session_insight_backlog_target_write_executor.sql",
-    "1030_sprint69_default_blocker_recovery_governance_seed.sql",
-    "1031_sprint69_github_actions_diagnostics_endpoints_seed.sql",
-    "1037_sprint69_temporary_hostinger_ssh_executor_gate.sql",
-    "20260702_session_archive_capability_family_authorization.sql",
-    "20260706_session_archive_stale_closure_autosweep.sql",
     "906_sprint68_ticket_external_delivery_completion_certification.sql",
     "955_sprint68_external_delivery_admin_control_surface.sql"
   ],
   "baseline_class_counts": {
-    "safety_marker_review": 35,
+    "safety_marker_review": 38,
     "openapi_contract_review": 60,
-    "new_surface_immediate_review": 10
+    "new_surface_immediate_review": 15,
+    "legacy_baseline_backlog": 11,
+    "standard_backlog_review": 1
   },
   "safety": {
     "executes_provider_calls": false,
@@ -124,5 +146,127 @@
     "external_sends": false,
     "deploys": false,
     "secrets_included": false
+  },
+  "future_only_lock": true,
+  "parent_reconciliation": {
+    "schema_version": "surface-contract-parent-baseline-reconciliation-v1",
+    "integration_parent_sha": "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+    "main_parent_sha": "79cbbc634e690bf30ab2827144cb49c88b14f9a5",
+    "rule": "Only migration files already present in at least one immutable parent may enter the reconciled future-only baseline; merge-only files remain blocking.",
+    "reviewed_initial_artifact_run_id": "30763750510",
+    "added_item_count": 20,
+    "added_files": [
+      "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+      "1029_sprint69_minimal_dynamic_brand_resolution.sql",
+      "1030_sprint69_generic_platform_resource_context.sql",
+      "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+      "1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "189_sprint66_tenant_gpt_operating_guide_tools.sql",
+      "191_sprint66_tenant_credential_intake_connection_status.sql",
+      "196_sprint66_tenant_database_schema_read_tool.sql",
+      "197_sprint66_tenant_database_query_readonly_tool.sql",
+      "198_sprint66_tenant_ssh_probe_tool.sql",
+      "199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
+      "200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
+      "201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
+      "20260728_governed_response_chunk_ownership.sql",
+      "20260730_hostinger_production_resync_policy.sql",
+      "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
+      "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
+      "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
+      "205_sprint66_tenant_ssh_password_and_intake_wait.sql"
+    ],
+    "parent_presence": {
+      "1020_sprint69_multi_surface_tenant_agent_runtime.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "1029_sprint69_minimal_dynamic_brand_resolution.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "1030_sprint69_generic_platform_resource_context.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "1043_sprint69_tenant_managed_execution_lifecycle.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "189_sprint66_tenant_gpt_operating_guide_tools.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "191_sprint66_tenant_credential_intake_connection_status.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "196_sprint66_tenant_database_schema_read_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "197_sprint66_tenant_database_query_readonly_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "198_sprint66_tenant_ssh_probe_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "199_sprint66_tenant_ssh_cli_dry_run_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "200_sprint66_tenant_ssh_cli_approval_request_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "201_sprint66_tenant_ssh_cli_approval_decision_tools.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "20260728_governed_response_chunk_ownership.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "20260730_hostinger_production_resync_policy.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "20260802_03_spec014_hostinger_storage_execution_evidence.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf"
+      ],
+      "202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ],
+      "205_sprint66_tenant_ssh_password_and_intake_wait.sql": [
+        "06daaf7aeb270af435910a5ea07a2385cdbb4fbf",
+        "79cbbc634e690bf30ab2827144cb49c88b14f9a5"
+      ]
+    },
+    "blocking_merge_only_item_count": 0,
+    "safety": {
+      "executes_provider_calls": false,
+      "reads_credentials": false,
+      "mutates_runtime": false,
+      "writes_database": false,
+      "external_sends": false,
+      "deploys": false,
+      "secrets_included": false
+    }
   }
 }

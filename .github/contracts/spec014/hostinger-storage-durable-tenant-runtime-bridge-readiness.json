@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-durable-tenant-runtime-bridge-readiness.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "repository_only_readiness",
+  "evaluator": "http-generic-api/hostingerStorageDurableTenantRuntimeBridgeReadiness.js",
+  "test": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs",
+  "route_seam": {
+    "path": "/tenant/storage-operations/apply-plan",
+    "dependency_key": "tenantStorageRuntime",
+    "fail_closed_status": 503,
+    "default_unmounted": true,
+    "tenant_user_jwt_required": true
+  },
+  "bound_components": [
+    "spec014-hostinger-storage-verified-sql-runtime-composition-v1",
+    "spec014-hostinger-storage-tenant-runtime-v1",
+    "spec014-hostinger-storage-tenant-canary-v1",
+    "spec014-hostinger-storage-synthetic-executor-v1"
+  ],
+  "required_capabilities": [
+    "canonical_repository_facade_ready",
+    "plan_item_parent_registration_ready",
+    "run_parent_creation_ready",
+    "journal_translation_ready",
+    "reconciliation_translation_ready",
+    "durable_authority_store_ready",
+    "durable_enablement_registry_ready",
+    "tenant_safe_projection_ready",
+    "worker_certification_ready",
+    "fixed_dispatch_ready",
+    "crash_safe_restart_reconciliation_ready"
+  ],
+  "current_contract_gaps": {
+    "canary_repository": "factory-owned memory repository only",
+    "executor_child_contract": "legacy appendJournalEvent and recordReconciliation methods",
+    "parent_orchestration": "plan-item and run parents are not created by the current Tenant canary executor",
+    "authority_store": "memory only",
+    "enablement_registry": "memory only",
+    "runtime_default": "unmounted HTTP 503"
+  },
+  "provenance": {
+    "same_source_and_deployed_runtime_sha_required": true,
+    "same_database_fingerprint_required": true,
+    "same_signed_schema_verification_digest_required": true,
+    "same_readback_cycle_required": true,
+    "fresh_evidence_required": true
+  },
+  "decision": {
+    "passing_result": "ready_for_separate_mount_authorization",
+    "bridge_created": false,
+    "authorization_created": false,
+    "dependency_injected": false,
+    "runtime_mounted": false,
+    "route_mounted": false,
+    "worker_mounted": false
+  },
+  "safety_boundary": {
+    "read_only": true,
+    "database_writes_performed_by_evaluator": 0,
+    "provider_calls": 0,
+    "route_mutations": 0,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

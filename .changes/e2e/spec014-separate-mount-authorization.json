@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-separate-mount-authorization",
+  "title": "Spec 014 Separate Mount Authorization",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-separate-mount-authorization.json",
+      ".github/contracts/spec014/hostinger-storage-separate-mount-authorization.json",
+      ".github/workflows/hostinger-storage-separate-mount-authorization-guard.yml",
+      "http-generic-api/hostingerStorageSeparateMountAuthorization.js",
+      "http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Create a short-lived, one-shot, tamper-evident authorization packet that binds durable bridge readiness and fixed dispatch certification without persisting or executing the mount.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-but-do-not-execute-runtime-mount",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 mount authorization evaluator",
+          "entrypoint": "Hostinger Storage Separate Mount Authorization Guard",
+          "terminal_outcome": "Verified bridge readiness plus verified fixed dispatch certification and exact runtime, database, route, plan, lease, approval, capability, policy, and rollback bindings produce a short-lived single-use authorization packet ready only for a later mount executor.",
+          "steps": [
+            "Independently verify the durable bridge readiness packet and digest.",
+            "Independently verify the fixed dispatch certificate and nested worker certificate.",
+            "Require exact source/deployed SHA parity, database fingerprint, schema verification, and readback cycle.",
+            "Bind the Tenant route seam, dependency key, target, operation, plan, and execution lease.",
+            "Bind the exact dispatch authorization-bundle hash plus approval set, capability envelope, mount policy, rollback plan, issuer, revision, and generation.",
+            "Require approved, single-use, unconsumed, default-off authorization with at most one-hour lifetime that cannot outlive Bridge, Dispatch, or Worker evidence.",
+            "Recompute nested blockers and the authorization digest during independent verification."
+          ],
+          "assertions": [
+            "A tampered, expired, or not-ready bridge, dispatch, or worker certificate cannot authorize mounting.",
+            "The Tenant route remains fail-closed and unmounted.",
+            "The authorization is created only as a packet; it is not persisted or consumed.",
+            "No dependency is injected, no worker is mounted, no job is enqueued, and no credential or provider is accessed.",
+            "The successful terminal is ready_for_authorized_mount_execution, not mount_performed.",
+            "Provider dispatch and Production readiness remain false."
+          ],
+          "tests": [
+            { "id": "hostinger-storage-dedicated-worker-certification-regression", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs", "args": [] },
+            { "id": "hostinger-storage-fixed-dispatch-certification-regression", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-fixed-dispatch-certification.mjs", "args": [] },
+            { "id": "hostinger-storage-durable-bridge-readiness-regression", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-durable-tenant-runtime-bridge-readiness.mjs", "args": [] },
+            { "id": "hostinger-storage-separate-mount-authorization", "runner": "node", "working_directory": ".", "path": "http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageSeparateMountAuthorization.js",
+            "http-generic-api/test-hostinger-storage-separate-mount-authorization.mjs",
+            ".github/contracts/spec014/hostinger-storage-separate-mount-authorization.json"
+          ]
+        }
+      ]
+    },
+    { "id": "operational", "status": "blocked", "objective": "Persist and consume the authorization only inside a separately reviewed mount executor.", "blockers": ["No authorization registry write or one-shot consumption occurs in this slice.", "No canonical runtime factory or route dependency injection occurs."] },
+    { "id": "resilient", "status": "blocked", "objective": "Prove mount rollback, restart reconciliation, authorization expiry, and one-shot replay rejection after a mount executor exists.", "blockers": ["The mount is intentionally unexecuted.", "Runtime/provider parity has not been established."] },
+    { "id": "canary", "status": "not_applicable", "objective": "This repository-only authorization slice performs no live route, worker, provider, SSH, database, or Hostinger canary." },
+    { "id": "production", "status": "not_applicable", "objective": "Authorization persistence, mount execution, dispatch, deployment, and Production remain separately governed." }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "surface_key": "storage_target_bindings",
+  "source_table": "storage_target_bindings",
+  "reason": "Excluded because this table is an internal revisioned authority-binding and evidence ledger for governed storage targets. Raw binding rows do not define activation choices and are not exposed through activation responses; access remains mediated by the canonical storage control plane.",
+  "owner": "platform-governance",
+  "review_after": "2026-12-31"
+}

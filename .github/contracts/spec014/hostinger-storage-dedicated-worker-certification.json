@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "contract": "spec014.hostinger-storage-dedicated-worker-certification.v1",
+  "feature_key": "014-governed-hostinger-storage-orchestration",
+  "status": "code_ready_unmounted",
+  "implementation": "http-generic-api/hostingerStorageDedicatedWorkerCertification.js",
+  "test": "http-generic-api/test-hostinger-storage-dedicated-worker-certification.mjs",
+  "certification_key": "hostinger_storage_dedicated_worker_certification_v1",
+  "worker_identity": {
+    "worker_kind": "dedicated_provider_worker",
+    "execution_domain": "hostinger_storage",
+    "exact_worker_id_required": true,
+    "exact_worker_principal_required": true,
+    "exact_release_id_required": true,
+    "image_digest_required": true,
+    "artifact_provenance_digest_required": true,
+    "public_runtime_worker_forbidden": true,
+    "ephemeral_execution_required": true
+  },
+  "fixed_adapter_boundary": {
+    "adapter_key": "hostinger_ssh_storage_v1",
+    "operation_key": "apply_exact_plan",
+    "reviewed_program_key": "hostinger-storage-cleanup.sh",
+    "reviewed_program_digest_required": true,
+    "structured_arguments_only": true,
+    "free_form_command_allowed": false,
+    "free_form_root_allowed": false,
+    "wildcard_allowed": false
+  },
+  "toolchain_binding": {
+    "resolution_fingerprint_required": true,
+    "policy_fingerprint_required": true,
+    "selected_tools_digest_required": true,
+    "binary_verification_required": true,
+    "unapproved_binary_allowed": false
+  },
+  "host_key_binding": {
+    "target_binding_required": true,
+    "revision_required": true,
+    "algorithm_required": true,
+    "fingerprint_digest_required": true,
+    "pinned_required": true,
+    "verification_required": true,
+    "mismatch_fails_closed": true
+  },
+  "isolation": {
+    "public_runtime_dispatch_allowed": false,
+    "direct_http_dispatch_allowed": false,
+    "authority_resolution_allowed": false,
+    "approval_resolution_allowed": false,
+    "plan_mutation_allowed": false,
+    "credential_reference_resolution": "worker_only",
+    "credential_values_in_evidence": false,
+    "provider_egress_scope": "hostinger_target_only",
+    "inbound_network_listener": false,
+    "shell_input_allowed": false,
+    "filesystem_input_from_request_allowed": false
+  },
+  "certification_result": {
+    "successful_terminal": "ready_for_fixed_dispatch_certification",
+    "certificate_digest_required": true,
+    "tamper_reverification_required": true,
+    "maximum_evidence_lifetime_hours": 24,
+    "blocked_packets_may_be_verified_as_not_ready": true
+  },
+  "operational_boundary": {
+    "repository_only": true,
+    "worker_created": false,
+    "worker_process_started": false,
+    "worker_mounted": false,
+    "route_mounted": false,
+    "dependency_injected": false,
+    "credential_values_resolved": 0,
+    "provider_calls": 0,
+    "provider_dispatch_allowed": false,
+    "production_ready": false,
+    "secrets_included": false
+  }
+}

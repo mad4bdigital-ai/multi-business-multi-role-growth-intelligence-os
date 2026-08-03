@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-tool-lifecycle-path-filter-boundary",
+  "title": "Repository Tool Lifecycle path-filter and branch-literal boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-tool-lifecycle-path-filter-boundary.json",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep permanent workflow branch-literal enforcement fail-closed while preventing repository path filters from being misclassified as work-branch names.",
+      "e2e_journeys": [
+        {
+          "id": "validate-repository-path-filter-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository Tool Lifecycle governance",
+          "entrypoint": "Repository lifecycle guard regression suite",
+          "terminal_outcome": "The lifecycle guard ignores only nested paths and paths-ignore values, continues to reject actual branch and git-push literals, and emits no false finding for valid repository path filters.",
+          "steps": [
+            "Load the repository maintenance policy and canonical lifecycle guard.",
+            "Evaluate a workflow that declares a real gpt work branch and prove BRANCH_SPECIFIC_WORKFLOW remains reported.",
+            "Evaluate a workflow containing a git push to a work branch and prove repository-mutation safeguards remain active.",
+            "Evaluate read-only pull-request paths containing docs/work-maps and feat/example repository paths.",
+            "Prove nested paths and paths-ignore values are excluded from branch-literal classification without excluding sibling workflow keys.",
+            "Run the full repository lifecycle regression suite and require every governance assertion to pass."
+          ],
+          "assertions": [
+            "Actual branch declarations and script-level work-branch literals remain detectable.",
+            "Only nested values under paths and paths-ignore are excluded from branch-literal scanning.",
+            "Repository path filters do not produce BRANCH_SPECIFIC_WORKFLOW findings.",
+            "No repository mutation, workflow dispatch, credential access, provider call, migration, deployment, main write, or Production write occurs."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-path-filter-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+            ".github/repository-maintenance-tool-governance.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "This repository-governance correction performs no runtime, migration, database, provider, deployment, main, or Production operation."
+    }
+  ],
+  "secrets_included": false
+}

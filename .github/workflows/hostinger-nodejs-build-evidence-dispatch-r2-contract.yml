@@ -1,0 +1,34 @@
+name: Hostinger Node.js Build Evidence Dispatch R2 Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.changes/e2e/hostinger-nodejs-build-evidence-r2-dispatch.json'
+      - '.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml'
+      - '.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml'
+      - 'http-generic-api/scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-r2-dispatch-contract:
+    name: Validate Hostinger evidence R2 dispatch contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate bounded R2 dispatch bridge
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-build-evidence-dispatch-r2.mjs

@@ -1,0 +1,112 @@
+name: Hostinger Storage Final Work Map Readback Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - ".github/workflows/hostinger-storage-final-work-map-readback-guard.yml"
+      - ".specify/spec-kit-work-map-integration-policy.json"
+      - ".specify/work-map-schema-classification-registry.json"
+      - "docs/work-maps/**"
+      - "http-generic-api/scripts/spec014-final-work-map-readback.mjs"
+      - "http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs"
+      - "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs"
+      - "http-generic-api/scripts/work-map-schema-classification.mjs"
+      - "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+      - "specs/014-governed-hostinger-storage-orchestration/tasks.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  final-work-map-readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact candidate checkout
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Check readback syntax
+        run: node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+      - name: Build structured exact-head readback
+        id: readback
+        shell: bash
+        run: |
+          set -u
+          report_dir="${RUNNER_TEMP}/spec014-final-work-map-readback"
+          mkdir -p "$report_dir"
+          set +e
+          REPORT_PATH="${report_dir}/summary.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${report_dir}/stdout.json"
+          status=$?
+          set -e
+          cp "${report_dir}/summary.json" "${report_dir}/spec014-final-work-map-readback.json"
+          node - "$report_dir" <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const dir = process.argv[2];
+          const report = JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8'));
+          const rows = [
+            '# Spec 014 Final Work Map Readback',
+            '',
+            `- Outcome: **${report.ok ? 'passed' : 'failed'}**`,
+            `- Candidate SHA: \`${report.candidate_sha}\``,
+            `- Current registry fingerprint: \`${report.current_registry.fingerprint}\``,
+            `- Manifest fingerprint: \`${report.manifest_registry?.fingerprint || 'missing'}\``,
+            `- Work Maps: \`${report.current_registry.map_count}\``,
+            `- Schema domains: \`${report.current_registry.domain_count}\``,
+            `- Classification coverage: \`${report.classification.coverage_percent}%\``,
+            `- Findings: \`${report.findings.length}\``,
+            `- Secrets included: \`${report.secrets_included}\``,
+            '',
+            '## Findings',
+            '',
+            ...(report.findings.length
+              ? report.findings.map((finding) => `- \`${finding.code}\`: \`${JSON.stringify(finding)}\``)
+              : ['- None.']),
+            '',
+          ];
+          fs.writeFileSync(path.join(dir, 'summary.md'), `${rows.join('\n')}\n`);
+          NODE
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - name: Upload structured readback evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-final-work-map-readback
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish workflow summary
+        if: always()
+        shell: bash
+        run: cat "${RUNNER_TEMP}/spec014-final-work-map-readback/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce structured readback decision
+        shell: bash
+        run: |
+          node - "${RUNNER_TEMP}/spec014-final-work-map-readback/summary.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok) process.exit(1);
+          NODE

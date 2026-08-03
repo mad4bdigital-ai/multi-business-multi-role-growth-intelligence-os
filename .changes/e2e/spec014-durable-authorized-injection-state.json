@@ -1,0 +1,132 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-authorized-injection-state",
+  "title": "Durable authorized injection Receipt, exact mount Readback, restart reconstruction, and rollback state",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-authorized-injection-state.json",
+      ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json",
+      ".github/workflows/hostinger-storage-durable-authorized-injection-state-guard.yml",
+      "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+      "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist an exact data-only authorized injection Receipt and verified mount Readback through a contract-local SQL registry with same-transaction readback, without storing runtime material or granting migration/provider/Production authority.",
+      "e2e_journeys": [
+        {
+          "id": "register-and-read-exact-authorized-injection-state",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable authorized injection-state registry",
+          "entrypoint": "Canonical serialized injection Receipt and exact mount Readback produced by the authorized dependency-injection coordinator",
+          "terminal_outcome": "One exact durable state is inserted and read back with immutable digests while runtime material remains absent and exact replay is idempotent.",
+          "steps": [
+            "Verify the contract-local schema-verification packet and exact schema digest.",
+            "Recompute the injection Receipt and mount Readback digests.",
+            "Prove Receipt/Readback parity across injection, bundle, snapshot, runtime, source, database, schema, and readback-cycle identities.",
+            "Acquire the advisory lock and row lock within one transaction.",
+            "Insert the data-only durable state and perform exact same-transaction readback.",
+            "Replay the identical registration without creating a second state."
+          ],
+          "assertions": [
+            "Registry factory construction performs zero SQL connections.",
+            "Runtime object material is never persisted.",
+            "Conflicting or rehashed drifted evidence fails before mutation.",
+            "Exact replay is idempotent.",
+            "No route, server, migration, provider, deployment, main, or Production path is modified."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-registration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-authorized-injection-state.json",
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Promote and apply the durable injection-state schema only after separately governed live schema readiness, migration authorization, dry-run, Apply, and ledger/readback evidence.",
+      "blockers": [
+        "The two injection-state tables remain contract-local and are not part of the governed runtime migration sequence.",
+        "No live schema verification for these tables exists.",
+        "No migration authorization, dry-run, Apply, ledger entry, or live readback exists.",
+        "No live server bootstrap consumes the durable registry."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Read the persisted Receipt/Readback after restart, reconstruct the canonical coordinator state without a second authorization consumption, and record rollback through row-version CAS plus immutable same-transaction readback.",
+      "e2e_journeys": [
+        {
+          "id": "restart-and-rollback-durable-authorized-injection-state",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Restart reconciliation and rollback controller using the durable registry",
+          "entrypoint": "A second registry instance over the same synthetic SQL state",
+          "terminal_outcome": "Restart reconstruction preserves the exact mount Readback digest; rollback atomically marks the durable state inactive, writes one immutable receipt, restores fail-closed state, and rejects replay/reactivation.",
+          "steps": [
+            "Read the exact persisted Receipt and mount Readback through a new registry instance.",
+            "Resume the canonical injection coordinator without consuming mount authorization again.",
+            "Require the rollback receipt to reference the exact active mount Readback.",
+            "Update the active state through row-version compare-and-swap.",
+            "Insert one immutable rollback receipt in the same transaction.",
+            "Read back both records before commit and reject second rollback or reactivation."
+          ],
+          "assertions": [
+            "Restart reconstruction preserves the original mount Readback digest.",
+            "No runtime material is reconstructed from SQL without the canonical bundle.",
+            "Rollback uses exact active readback binding and row-version CAS.",
+            "Rolled-back state cannot be registered as active again.",
+            "Rollback replay is rejected and automatic retry remains disabled."
+          ],
+          "tests": [
+            {
+              "id": "durable-authorized-injection-restart-and-rollback",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/hostingerStorageDurableAuthorizedInjectionState.js",
+            "http-generic-api/test-hostinger-storage-durable-authorized-injection-state.mjs",
+            ".github/workflows/hostinger-storage-durable-authorized-injection-state-guard.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe one separately authorized non-production canary only after the schema is governed and the durable registry is bootstrapped through a fixed runtime composition."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository-only durable-state contract grants no migration Apply, provider, deployment, main, or Production authority."
+    }
+  ],
+  "secrets_included": false
+}

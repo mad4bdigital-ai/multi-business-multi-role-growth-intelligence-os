@@ -1,0 +1,127 @@
+name: Hostinger Node.js Completed Build Log Evidence
+
+on:
+  pull_request:
+    paths:
+      - ".changes/e2e/hostinger-nodejs-completed-build-log-evidence.json"
+      - ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml"
+      - "http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs"
+      - "http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs"
+  workflow_dispatch:
+    inputs:
+      account_username:
+        description: Hostinger account username
+        required: true
+        type: string
+      build_uuid:
+        description: Exact completed Hostinger Node.js build UUID
+        required: true
+        type: string
+      expected_sha:
+        description: Exact protected Production SHA expected in build logs
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Completed Build Log Evidence Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Validate completed-build log reporter
+        working-directory: http-generic-api
+        run: node scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs
+
+  live:
+    name: Live Completed Build Log Evidence
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPORT_DIR: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence
+      HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
+      HOSTINGER_ACCOUNT_USERNAME: ${{ inputs.account_username }}
+      HOSTINGER_NODEJS_BUILD_UUID: ${{ inputs.build_uuid }}
+      EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_sha }}
+    steps:
+      - name: Checkout trusted main tooling
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Enforce trusted main and immutable Production identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "main"
+          [[ "${EXPECTED_PRODUCTION_SHA}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${HOSTINGER_NODEJS_BUILD_UUID}" =~ ^[a-f0-9-]{36}$ ]]
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Generate authenticated GET-only completed-build log evidence
+        id: evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: |
+          node scripts/hostinger-nodejs-completed-build-log-evidence.mjs \
+            --account-username "${HOSTINGER_ACCOUNT_USERNAME}" \
+            --domain auth.mad4b.com \
+            --build-uuid "${HOSTINGER_NODEJS_BUILD_UUID}" \
+            --expected-sha "${EXPECTED_PRODUCTION_SHA}" \
+            --output-dir "${REPORT_DIR}"
+      - name: Upload structured completed-build log evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-nodejs-completed-build-log-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Enforce structured evidence decision
+        if: always()
+        env:
+          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence/hostinger-nodejs-completed-build-log-evidence.json
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            const effects = report.side_effects || {};
+            const safe =
+              report.contract === "mad4b.hostinger-nodejs-completed-build-log-evidence.v1" &&
+              report.identity?.expected_sha === process.env.EXPECTED_PRODUCTION_SHA &&
+              report.identity?.build_uuid === process.env.HOSTINGER_NODEJS_BUILD_UUID &&
+              report.request?.method === "GET" &&
+              report.request?.token_returned === false &&
+              report.secrets_included === false &&
+              effects.repository_mutation_performed === false &&
+              effects.provider_dispatch_performed === false &&
+              effects.provider_mutation_performed === false &&
+              effects.sql_execution_performed === false &&
+              effects.migration_apply_performed === false &&
+              effects.database_mutation_performed === false &&
+              effects.restart_performed === false &&
+              effects.external_send_performed === false;
+            if (!safe) throw new Error("invalid completed-build log evidence contract");
+            console.log(JSON.stringify({
+              outcome: report.outcome,
+              classification: report.classification,
+              expected_sha_found: report.log_evidence?.expected_sha_found ?? false,
+              production_branch_hint_found: report.log_evidence?.production_branch_hint_found ?? false,
+              secrets_included: false
+            }));
+            if (report.outcome !== "passed") process.exit(1);
+          '

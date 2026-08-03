@@ -1,0 +1,98 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-durable-tenant-repository-facade",
+  "title": "Spec 014 Durable Tenant Repository Facade",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-durable-tenant-repository-facade.json",
+      ".github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json",
+      ".github/workflows/hostinger-storage-durable-tenant-repository-facade-guard.yml",
+      "http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js",
+      "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Implement one canonical async-only facade over the verified SQL runtime composition that prepares durable plan-item and run parents before routing Journal and Reconciliation evidence exclusively through the parent-aware child writer.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-durable-tenant-execution-preparation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 014 durable runtime integrator",
+          "entrypoint": "Hostinger Storage Durable Tenant Repository Facade Guard",
+          "terminal_outcome": "An unmounted canonical facade validates the current operation and immutable plan, registers plan-item parents, transitions lease_acquired to executing when required, consumes the exact plan by the exact run, creates the run parent, and proves the resulting state through async readback before any child evidence append.",
+          "steps": [
+            "Require an unmounted canonical verified SQL runtime composition.",
+            "Read the current durable aggregate asynchronously and validate exact operation, version, state, target, plan, hash, status, and run bindings.",
+            "Reject any binding or version mismatch before the first mutation.",
+            "Register every canonical plan-item parent with contiguous ordinals.",
+            "Transition lease_acquired to executing through the internal Control Plane facet when required.",
+            "Consume the exact immutable plan by the exact run.",
+            "Create or exactly replay the run parent only after plan-item completeness and plan consumption.",
+            "Read back executing operation state and exact plan consumption.",
+            "Route Journal and Reconciliation appends exclusively through the child-evidence facet.",
+            "Keep the route, worker, provider, migration, and Production boundaries disabled."
+          ],
+          "assertions": [
+            "Factory construction performs no database-backed call.",
+            "The facade is async-only and is not compatible with the legacy synchronous Synthetic Executor contract.",
+            "Raw composition, transitionOperation, consumePlan, and legacy recordReconciliation methods are not publicly exposed.",
+            "Preparation ordering is read, plan-item registration, optional transition, plan consumption, run-parent creation, and final readback.",
+            "Executing same-run replay is supported after a fresh read without repeating the state transition.",
+            "Journal and Reconciliation writes have one parent-aware public path.",
+            "No route, server, worker, migration, live database, Hostinger, provider, main, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-storage-durable-tenant-repository-facade",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/contracts/spec014/hostinger-storage-durable-tenant-repository-facade.json",
+            "http-generic-api/hostingerStorageDurableTenantRepositoryFacade.js",
+            "http-generic-api/test-hostinger-storage-durable-tenant-repository-facade.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Connect the facade to a separately governed parent-aware async execution engine, durable authority and enablement stores, and Tenant-safe projection after mount authorization.",
+      "blockers": [
+        "The current Synthetic Executor is synchronous and memory-adapter-owned and cannot consume this async facade.",
+        "Durable authority and one-shot enablement stores are not implemented.",
+        "Dedicated worker, fixed dispatch, restart reconciliation, and Tenant-safe projection are not complete.",
+        "No route or worker mount authorization exists."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove partial preparation recovery, stale version read-before-retry, run replay, child replay, and restart-safe reconciliation through the future async execution engine."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This unmounted facade does not dispatch a Provider or run a live Tenant canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production database access, runtime mounting, Provider dispatch, and Production promotion remain separately authorized and blocked."
+    }
+  ]
+}
