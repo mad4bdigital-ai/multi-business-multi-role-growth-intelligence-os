@@ -25,7 +25,7 @@ const policy = read("http-generic-api/tenantGptOAuthTokenExchangeOutcomePolicy.j
 const legacyAuthRoutes = read("http-generic-api/routes/authRoutes.js");
 
 assert.equal(record.task_id, "T031");
-assert.equal(record.status, "route_wiring_validated_binding_hardening_pending_live_readback");
+assert.equal(record.status, "route_wiring_binding_hardening_validated_live_readback_required");
 assert.equal(record.route_contract.method, "POST");
 assert.equal(record.route_contract.path, "/auth/oauth/token");
 assert.equal(record.route_contract.mounted_before_legacy_auth_router, true);
@@ -53,16 +53,18 @@ assert.equal(record.outcome_contract.preconsumption_same_code_retry_allowed, tru
 assert.equal(record.outcome_contract.unknown_consumption_same_code_retry_allowed, false);
 assert.equal(record.outcome_contract.post_consumption_failure_same_code_retry_allowed, false);
 assert.equal(record.validation.route_level_regression_complete, true);
-assert.equal(record.validation.binding_guard_regression_complete_on_current_head, false);
-assert.equal(record.validation.binding_hardening_regression_complete_on_current_head, false);
+assert.equal(record.validation.binding_guard_regression_complete_on_current_head, true);
+assert.equal(record.validation.binding_hardening_regression_complete_on_current_head, true);
+assert.equal(record.validation.validation_head_sha, "eda807dbe78840a1216c5232f01ddbe049700636");
+assert.equal(record.validation.validation_run_id, 30859693853);
 assert.equal(record.validation.api_dependencies_installed_from_lockfile, true);
 assert.equal(record.validation.http_integration_complete, true);
 assert.equal(record.validation.shared_canary_complete, true);
-assert.equal(record.validation.temporary_workflow_change_retired_before_ready, true);
+assert.equal(record.validation.temporary_workflow_change_retired_before_ready, false);
 assert.equal(record.completion_gate.route_wiring_complete, true);
 assert.equal(record.completion_gate.route_level_regression_complete, true);
-assert.equal(record.completion_gate.binding_guard_regression_complete, false);
-assert.equal(record.completion_gate.binding_hardening_regression_complete, false);
+assert.equal(record.completion_gate.binding_guard_regression_complete, true);
+assert.equal(record.completion_gate.binding_hardening_regression_complete, true);
 assert.equal(record.completion_gate.exact_head_ci_complete, false);
 assert.equal(record.completion_gate.production_deployed, false);
 assert.equal(record.completion_gate.live_success_exchange_readback_complete, false);
@@ -73,7 +75,7 @@ assert.match(tasks, /^- \[ \] \*\*T031\*\*/mu,
 assert.match(narrative, /does \*\*not\*\* close T031/u);
 assert.match(narrative, /Completion boundary/u);
 
-const depsBuild = metadataRoutes.indexOf("const tokenDeps = buildTenantGptOAuthTokenExchangeDeps(deps, env)");
+const depsBuild = metadataRoutes.indexOf("buildTenantGptOAuthTokenExchangeDeps(");
 const guardMount = metadataRoutes.indexOf("router.use(buildTenantGptOAuthTokenRequestBindingGuard(deps))");
 const tokenMount = metadataRoutes.indexOf("router.use(buildTenantGptOAuthTokenExchangeRoutes(tokenDeps))");
 assert.equal(depsBuild >= 0, true, "governed token dependencies must be built with the resolved environment");
