@@ -1,0 +1,8 @@
+Hostinger rebuild trigger for the current protected Production tree.
+
+expected_production_sha=f5c1ae8840b4d4452f2908bb0f23051880bb6896
+file_lifecycle=created_then_deleted_before_pr
+runtime_code_changed=false
+migration_apply=false
+provider_command=false
+credential_rotation=false
