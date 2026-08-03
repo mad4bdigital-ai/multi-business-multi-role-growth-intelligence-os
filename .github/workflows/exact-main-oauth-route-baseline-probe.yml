@@ -1,0 +1,79 @@
+name: Exact Main OAuth Route Baseline Probe
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-main-oauth-route-probe-base-97e4ee7e
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-main-oauth-route-baseline-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  baseline:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/probe-main-oauth-route-97e4ee7e-20260804' &&
+      github.event.pull_request.head.sha == '7ce3dc51218d67d81cc388714e7a133a899ba2c1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_HEAD_SHA: 7ce3dc51218d67d81cc388714e7a133a899ba2c1
+    steps:
+      - name: Checkout exact baseline probe
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact main-derived tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = '.changes/probes/oauth-route-baseline-97e4ee7e.txt'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run exact OAuth route baseline test
+        working-directory: http-generic-api
+        run: node test-auth-oauth-routes.mjs
+
+      - name: Publish no-secret probe summary
+        if: always()
+        shell: bash
+        run: |
+          jq -n \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --arg probe_sha "$EXPECTED_HEAD_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{contract:"mad4b.exact-main-oauth-route-baseline-probe.v1",main_sha:$main_sha,probe_sha:$probe_sha,run_id:$run_id,main_tree_modified_only_by_probe_marker:true,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/exact-main-oauth-route-baseline-probe.json"
+
+      - name: Upload probe evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-main-oauth-route-baseline-probe-${{ github.run_id }}
+          path: ${{ runner.temp }}/exact-main-oauth-route-baseline-probe.json
+          retention-days: 14
