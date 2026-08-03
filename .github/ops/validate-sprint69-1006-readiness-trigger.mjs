@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const EXPECTED_ISSUE = 4122;
 const EXPECTED_CONFIRMATION = 'AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE';
 const EXPECTED_CHECKSUM = '995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374';
+const EXPECTED_DISPATCH_CONFIRMATION_COMMENT_ID = 5170518874;
 const ALLOWED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const triggerPath = process.env.READINESS_TRIGGER_PATH || '.github/ops/triggers/sprint69-1006-readiness-trigger.json';
 const repository = process.env.GITHUB_REPOSITORY;
@@ -23,6 +24,11 @@ if (eventName === 'workflow_dispatch') {
   assert.match(rawCommentId, /^[1-9][0-9]*$/, 'invalid dispatch confirmation comment id');
   const confirmationCommentId = Number(rawCommentId);
   assert.ok(Number.isSafeInteger(confirmationCommentId), 'dispatch confirmation comment id is not a safe integer');
+  assert.equal(
+    confirmationCommentId,
+    EXPECTED_DISPATCH_CONFIRMATION_COMMENT_ID,
+    'unexpected dispatch confirmation comment id',
+  );
   assert.match(expectedMainSha, /^[0-9a-f]{40}$/, 'invalid expected main SHA');
   assert.match(currentSha, /^[0-9a-f]{40}$/, 'invalid workflow SHA');
   assert.equal(currentSha, expectedMainSha, 'workflow_dispatch main SHA mismatch');
