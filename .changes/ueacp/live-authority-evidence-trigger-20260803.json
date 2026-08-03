@@ -1,7 +1,7 @@
 {
   "contract": "mad4b.ueacp.live-authority-evidence-trigger.v1",
   "purpose": "trigger trusted-base read-only live authority evidence collection",
-  "base_sha": "c4cb65a127cfca01c2aa7dd08baec838578d56ef",
+  "base_sha": "d5e380fd23ae788890ff2f727278a66756a0e094",
   "merge_authorized": false,
   "live_database_read_authorized": true,
   "sql_mutation_authorized": false,
