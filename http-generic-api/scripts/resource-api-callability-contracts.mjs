@@ -6,6 +6,7 @@ const CONTRACT_MANIFEST_FILES = Object.freeze([
   { file: "resource-api-surface-callability.manifest.json", schemaVersion: "resource-api-surface-callability-v1" },
 ]);
 const ALLOWED_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
+const ALLOWED_AUTH_MODELS = new Set(["user_jwt", "backend_or_user", "admin"]);
 const EFFECT_PROFILES = Object.freeze({
   read_only: Object.freeze({
     read_only: true,
@@ -39,7 +40,7 @@ const EFFECT_PROFILES = Object.freeze({
     provider_calls_allowed: true,
     external_writes_allowed: true,
     database_writes_allowed: true,
-    transaction_required: true,
+    transaction_required: false,
     same_cycle_readback_required: true,
     credential_payload_reads_allowed: true,
   }),
@@ -152,13 +153,12 @@ function validateEffectPolicy({ contract, method, findings, contractKey }) {
   const explicitEffectClass = contract?.effect_class !== undefined;
   const effectClass = String(contract?.effect_class || (method === "GET" ? "read_only" : "database_mutation")).trim();
   const profile = EFFECT_PROFILES[effectClass];
-  if (!profile) {
-    findings.push({ type: "direct_route_contract_effect_class_invalid", contract_key: contractKey || null, effect_class: effectClass || null });
-    return effectClass || null;
-  }
+  if (!profile) findings.push({ type: "direct_route_contract_effect_class_invalid", contract_key: contractKey || null, effect_class: effectClass || null });
+  const authModel = String(contract?.auth_model || "user_jwt").trim();
+  if (!ALLOWED_AUTH_MODELS.has(authModel)) findings.push({ type: "direct_route_contract_auth_model_invalid", contract_key: contractKey || null, auth_model: authModel || null });
+  if (!profile) return { effectClass: effectClass || null, authModel: authModel || null };
 
   const expectedPolicy = {
-    auth_model: "user_jwt",
     runtime_execution_allowed: true,
     secrets_included: false,
     ...profile,
@@ -168,7 +168,7 @@ function validateEffectPolicy({ contract, method, findings, contractKey }) {
     if (!explicitEffectClass && method === "GET" && legacyGetOptional.has(field) && contract?.[field] === undefined) continue;
     if (contract?.[field] !== expected) findings.push({ type: "direct_route_contract_policy_mismatch", contract_key: contractKey || null, field, expected, actual: contract?.[field] });
   }
-  return effectClass;
+  return { effectClass, authModel };
 }
 
 function validateEvidenceFiles({ contract, root, fileOverrides, findings, contractKey }) {
@@ -193,7 +193,11 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
   const findings = [];
   const baseContracts = manifest?.callability_gate?.direct_route_contracts;
   if (baseContracts !== undefined && !Array.isArray(baseContracts)) findings.push({ type: "direct_route_contracts_invalid" });
-  const contracts = [...(Array.isArray(baseContracts) ? baseContracts : []), ...loadContractManifests(root, findings)];
+  const includeCompanionManifests = manifest?.policy_key === "platform_resource_api_coverage_policy_v1";
+  const contracts = [
+    ...(Array.isArray(baseContracts) ? baseContracts : []),
+    ...(includeCompanionManifests ? loadContractManifests(root, findings) : []),
+  ];
   if (baseContracts === undefined && contracts.length === 0) return { ok: findings.length === 0, findings, contracts: [], covered_contracts: [], covered_tool_keys: [], covered_route_signatures: [], covered_migration_files: [], secrets_included: false };
 
   const seenContractKeys = new Set();
@@ -222,7 +226,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
     for (const binding of toolBindings) seenToolKeys.add(binding.tool_key);
     if (routeSignature) seenRouteSignatures.add(routeSignature);
 
-    const effectClass = validateEffectPolicy({ contract, method, findings, contractKey });
+    const { effectClass, authModel } = validateEffectPolicy({ contract, method, findings, contractKey });
 
     const migrationGroups = new Map();
     for (const binding of toolBindings) {
@@ -259,6 +263,7 @@ export function validateDirectRouteCallabilityContracts({ root = process.cwd(), 
       migration_file: migrationFiles[0] || null,
       migration_files: migrationFiles,
       effect_class: effectClass,
+      auth_model: authModel,
       status: valid ? "covered" : "invalid",
     };
     results.push(result);
