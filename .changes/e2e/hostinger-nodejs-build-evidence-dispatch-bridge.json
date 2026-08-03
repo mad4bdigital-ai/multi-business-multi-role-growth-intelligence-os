@@ -28,16 +28,16 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions bridge",
-          "entrypoint": "Exact owner-authored Incident #4953 trigger containing the current 40-character expected_head_sha, or owner workflow_dispatch with the same explicit expected head",
+          "entrypoint": "Exact owner-authored Incident #4953 R2 trigger containing the current 40-character expected_head_sha, or owner workflow_dispatch with the same explicit expected head",
           "terminal_outcome": "The bridge validates the open incident, authorization author and text, explicit expected main head, target workflow blob, active workflow state, exact protected Production SHA, and one-time binding; dispatches the unchanged workflow on main; resolves the exact new run; validates its redacted structured artifact; and records a bounded completed or fail-closed marker while leaving the incident open.",
           "steps": [
-            "Receive either the exact governed issue-comment prefix on open top-level Incident #4953 from the authorized owner or an owner workflow_dispatch event.",
+            "Receive either the exact governed R2 issue-comment prefix on open top-level Incident #4953 from the authorized owner or an owner workflow_dispatch event.",
             "Parse and validate a full 40-character expected_head_sha before any repository metadata write or Actions dispatch.",
             "Reject main or Production as a repository branch mutation target; the bridge may write issue metadata and dispatch Actions only.",
-            "Read authorization comment #5161758022 and require its exact token, workflow blob, Hostinger account, domain, Production SHA, merge timestamp, GET-only boundary, and provider-mutation false statement.",
+            "Read authorization comment #5162098383 and require its R2 token, workflow blob, Hostinger account, domain, Production SHA, merge timestamp, GET-only boundary, and provider-mutation false statement.",
             "Verify current main equals expected_head_sha, the registered target workflow is active, and its blob remains 09578a2c9adcd0d1254b345248c33d2ba214d41f.",
             "Verify protected Production remains exactly f5c1ae8840b4d4452f2908bb0f23051880bb6896 and reject any changed deployment target.",
-            "Reject duplicate dispatch when a dispatched or completed marker already exists for the same authorization binding.",
+            "Reject duplicate dispatch when a dispatched or completed marker already exists for the same R2 authorization binding.",
             "Record a one-time claiming marker and dispatch hostinger-nodejs-build-evidence.yml on main with account username, expected Production SHA, and Production merge timestamp.",
             "Resolve only a newer workflow_dispatch run whose head SHA matches the explicitly authorized main head.",
             "Wait for completion, download only the exact run-bound hostinger-nodejs-build-evidence artifact, and validate its identity, GET method, token-returned false field, secret-free declaration, and false mutation side effects.",
@@ -51,7 +51,8 @@
             "Only the unchanged target workflow accesses HOSTINGER_API_TOKEN and performs authenticated GET requests.",
             "The trigger or workflow-dispatch input must carry an explicit expected_head_sha that exactly equals current main before the first write.",
             "The bridge explicitly rejects main and Production as repository branch mutation targets.",
-            "The authorization comment ID, authorization user ID, target workflow blob, account, domain, Production SHA, and merge timestamp are immutable bindings.",
+            "The R2 authorization comment ID, authorization user ID, target workflow blob, account, domain, Production SHA, and merge timestamp are immutable bindings.",
+            "The contract test derives the current authorization comment, trigger token, authorization token, target workflow blob, Production SHA, and binding ID from the workflow and validates their one-generation consistency instead of accepting a consumed binding.",
             "One-time claiming, dispatched, completed, and failed markers are bound to the exact Production SHA, target workflow blob, and authorization comment.",
             "Structured evidence validation requires branch Production, exact expected SHA, fixed auth.mad4b.com domain, GET method, token_returned=false, secrets_included=false, and every mutation side effect false.",
             "The incident remains open regardless of target workflow conclusion because build evidence alone does not prove active runtime parity.",
@@ -78,7 +79,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe one explicit-head authorized dispatch produce an authenticated Hostinger artifact and publish a run-bound classification on Incident #4953."
+      "objective": "Observe the explicit-head R2 authorized dispatch produce an authenticated Hostinger artifact and publish a run-bound classification on Incident #4953."
     },
     {
       "id": "resilient",
