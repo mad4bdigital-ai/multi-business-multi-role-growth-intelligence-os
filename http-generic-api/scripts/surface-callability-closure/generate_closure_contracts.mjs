@@ -214,7 +214,55 @@ function queueToolTargets(item) {
     .filter((action) => action.action_key === "verify_tool_registry_binding")
     .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
 }
-const sourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
+function certifiedSourceItemsFromManifest() {
+  if (!fs.existsSync(MANIFEST_PATH)) throw new Error("surface_certified_manifest_missing");
+  const manifest = readJson(MANIFEST_PATH);
+  if (manifest.schema_version !== "resource-api-surface-callability-v1") throw new Error("surface_certified_manifest_schema_mismatch");
+  if (manifest.source_queue_item_count !== 20) throw new Error(`surface_certified_manifest_item_count_mismatch:${manifest.source_queue_item_count}`);
+  if (!Array.isArray(manifest.source_queue_tool_keys) || !Array.isArray(manifest.contracts)) throw new Error("surface_certified_manifest_shape_invalid");
+  const expectedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].sort();
+  const manifestToolKeys = unique(manifest.source_queue_tool_keys);
+  if (manifestToolKeys.length !== manifest.source_queue_tool_keys.length) throw new Error("surface_certified_manifest_duplicate_tool_keys");
+  if (JSON.stringify(manifestToolKeys) !== JSON.stringify(expectedToolKeys)) throw new Error("surface_certified_manifest_tool_scope_mismatch");
+
+  const itemsByMigration = new Map();
+  const seenToolKeys = new Set();
+  for (const contract of manifest.contracts) {
+    if (!Array.isArray(contract.tool_bindings)) throw new Error("surface_certified_manifest_bindings_invalid");
+    for (const binding of contract.tool_bindings) {
+      const toolKey = binding?.tool_key;
+      const migrationPath = binding?.migration_file;
+      if (!SURFACE_CLOSURE_TOOL_KEYS.has(toolKey)) throw new Error(`surface_certified_manifest_unexpected_tool:${toolKey}`);
+      if (seenToolKeys.has(toolKey)) throw new Error(`surface_certified_manifest_duplicate_binding:${toolKey}`);
+      seenToolKeys.add(toolKey);
+      if (typeof migrationPath !== "string" || !migrationPath.startsWith("migrations/")) throw new Error(`surface_certified_manifest_migration_path_invalid:${toolKey}`);
+      const migrationFile = migrationPath.slice("migrations/".length);
+      if (!migrationFile || migrationFile.includes("/") || migrationFile.includes("\\")) throw new Error(`surface_certified_manifest_migration_file_invalid:${toolKey}`);
+      const keys = itemsByMigration.get(migrationFile) || [];
+      keys.push(toolKey);
+      itemsByMigration.set(migrationFile, keys);
+    }
+  }
+  const recoveredToolKeys = unique([...seenToolKeys]);
+  if (JSON.stringify(recoveredToolKeys) !== JSON.stringify(expectedToolKeys)) throw new Error("surface_certified_manifest_binding_scope_mismatch");
+  if (itemsByMigration.size !== 20) throw new Error(`surface_certified_manifest_migration_count_mismatch:${itemsByMigration.size}`);
+  return [...itemsByMigration.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([migration_file, targets]) => ({
+      migration_file,
+      remediation: [{ action_key: "verify_tool_registry_binding", targets: unique(targets) }],
+    }));
+}
+
+const liveSourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
+let sourceItems = liveSourceItems;
+let sourceEvidenceMode = "live_queue";
+let sourceQueueTotalItemCount = queue.total_items;
+if (sourceItems.length === 0) {
+  sourceItems = certifiedSourceItemsFromManifest();
+  sourceEvidenceMode = "certified_manifest_revalidation";
+  sourceQueueTotalItemCount = queue.total_items + sourceItems.length;
+}
 const scopedToolKeys = unique(sourceItems.flatMap((item) => queueToolTargets(item).filter((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key))));
 const missingScopedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].filter((key) => !scopedToolKeys.includes(key)).sort();
 const unexpectedScopedToolKeys = scopedToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
@@ -295,8 +343,9 @@ writeJson(MANIFEST_PATH, {
   schema_version: "resource-api-surface-callability-v1",
   source_queue_schema: queue.schema_version,
   source_queue_item_count: sourceItems.length,
-  source_queue_total_item_count: queue.total_items,
-  source_queue_excluded_item_count: queue.total_items - sourceItems.length,
+  source_queue_total_item_count: sourceQueueTotalItemCount,
+  source_queue_excluded_item_count: sourceQueueTotalItemCount - sourceItems.length,
+  source_queue_evidence_mode: sourceEvidenceMode,
   source_queue_tool_keys: sourceToolKeys,
   contracts,
   generated_by: "scripts/surface-callability-closure/generate_closure_contracts.mjs",
@@ -358,4 +407,4 @@ attestations.items.sort((a, b) => a.migration_file.localeCompare(b.migration_fil
 attestations.item_count = attestations.items.length;
 writeJson(ATTESTATION_PATH, attestations);
 
-console.log(JSON.stringify({ ok: true, source_queue_items: sourceItems.length, repository_queue_items: queue.total_items, excluded_repository_queue_items: queue.total_items - sourceItems.length, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));
+console.log(JSON.stringify({ ok: true, source_queue_items: sourceItems.length, source_evidence_mode: sourceEvidenceMode, source_queue_total_items: sourceQueueTotalItemCount, repository_queue_items: queue.total_items, excluded_repository_queue_items: sourceQueueTotalItemCount - sourceItems.length, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));

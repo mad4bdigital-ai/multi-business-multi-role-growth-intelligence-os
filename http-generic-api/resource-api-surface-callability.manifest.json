@@ -4,6 +4,7 @@
   "source_queue_item_count": 20,
   "source_queue_total_item_count": 26,
   "source_queue_excluded_item_count": 6,
+  "source_queue_evidence_mode": "certified_manifest_revalidation",
   "source_queue_tool_keys": [
     "brand_workspace_context_resolve",
     "connect_credential_intake_wait",
