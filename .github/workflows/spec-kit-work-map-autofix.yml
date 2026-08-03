@@ -33,6 +33,8 @@ jobs:
     env:
       TARGET_BRANCH: ${{ inputs.branch }}
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      WORK_MAP_ROOT: docs
+      WORK_MAP_NAME: work-maps
     steps:
       - name: Initialize diagnostics and validate inputs
         id: initialize
@@ -116,17 +118,18 @@ jobs:
         id: generate
         run: |
           set -euo pipefail
+          work_map_dir="${WORK_MAP_ROOT}/${WORK_MAP_NAME}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          unexpected_files="$(git diff --name-only | grep -v "^${work_map_dir}/" || true)"
           if [[ -n "${unexpected_files}" ]]; then
-            echo "Generator modified files outside docs/work-maps:"
+            echo "Generator modified files outside ${work_map_dir}:"
             printf '%s\n' "${unexpected_files}"
             exit 1
           fi
 
-          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          first_diff_hash="$(git diff --binary -- "${work_map_dir}" | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          second_diff_hash="$(git diff --binary -- "${work_map_dir}" | sha256sum | awk '{print $1}')"
           test "${first_diff_hash}" = "${second_diff_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
@@ -136,13 +139,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          work_map_dir="${WORK_MAP_ROOT}/${WORK_MAP_NAME}"
           changed=false
           result_head_sha="${EXPECTED_HEAD_SHA}"
 
-          if ! git diff --quiet -- docs/work-maps; then
+          if ! git diff --quiet -- "${work_map_dir}"; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/work-maps
+            git add "${work_map_dir}"
             git commit -m "docs(work-maps): regenerate governed platform maps"
 
             remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
