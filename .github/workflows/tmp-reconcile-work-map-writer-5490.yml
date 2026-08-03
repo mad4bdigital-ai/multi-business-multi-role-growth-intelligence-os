@@ -1,0 +1,108 @@
+name: Temporary Work Map Writer Reconciliation 5490
+
+on:
+  push:
+    branches:
+      - gpt/work-map-writer-diagnostics-v3-20260803
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-work-map-writer-reconciliation-5490
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Reconcile diagnostics branch with main
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_PARENT_SHA: 3f15080c4f6374c877a0a7f6ee748c863b04e175
+      EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
+      RECONCILER_SHA: 5d3c27406a1847badb10b81357044a16da278751
+      TARGET_BRANCH: gpt/work-map-writer-diagnostics-v3-20260803
+      TARGET_WORKFLOW: .github/workflows/spec-kit-work-map-autofix.yml
+      TEMP_WORKFLOW: .github/workflows/tmp-reconcile-work-map-writer-5490.yml
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify authorized trigger ancestry and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF}" = "refs/heads/${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
+          git diff --name-only "${EXPECTED_PARENT_SHA}" HEAD | LC_ALL=C sort > /tmp/trigger-files.txt
+          printf '%s\n' "${TEMP_WORKFLOW}" > /tmp/expected-trigger-files.txt
+          diff -u /tmp/expected-trigger-files.txt /tmp/trigger-files.txt
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}" "${RECONCILER_SHA}"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          git cat-file -e "${RECONCILER_SHA}^{commit}"
+          git show "${RECONCILER_SHA}:.github/scripts/reconcile-work-map-writer.py" > /tmp/reconcile-work-map-writer.py
+          python -m py_compile /tmp/reconcile-work-map-writer.py
+
+      - name: Merge main and prove single conflict
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          trigger_head="$(git rev-parse HEAD)"
+          echo "TRIGGER_HEAD=${trigger_head}" >> "$GITHUB_ENV"
+          set +e
+          git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
+          merge_status=$?
+          set -e
+          test "${merge_status}" = "1"
+          git diff --name-only --diff-filter=U | LC_ALL=C sort > /tmp/conflicts.txt
+          printf '%s\n' "${TARGET_WORKFLOW}" > /tmp/expected-conflicts.txt
+          diff -u /tmp/expected-conflicts.txt /tmp/conflicts.txt
+          test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git checkout --theirs -- "${TARGET_WORKFLOW}"
+
+      - name: Apply diagnostics and remove temporary surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/reconcile-work-map-writer.py
+          git add "${TARGET_WORKFLOW}"
+          git rm "${TEMP_WORKFLOW}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > /tmp/final-vs-main.txt
+          printf '%s\n' "${TARGET_WORKFLOW}" > /tmp/expected-final-vs-main.txt
+          diff -u /tmp/expected-final-vs-main.txt /tmp/final-vs-main.txt
+
+      - name: Validate final workflow structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --cached --check
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' "${TARGET_WORKFLOW}"
+          grep -q '^  workflow_dispatch:' "${TARGET_WORKFLOW}"
+          for id in validate_generator_syntax validate_schema_intelligence_syntax validate_schema_classification_syntax validate_schema_contract_syntax validate_connectivity_syntax validate_connectivity_graph test_connectivity_contract validate_schema_contract validate_schema_classification test_schema_classification test_schema_classification_contract validate; do
+            grep -q "        id: ${id}$" "${TARGET_WORKFLOW}"
+          done
+          grep -q 'validation-summary.md' "${TARGET_WORKFLOW}"
+          grep -q 'failed-validation-contract.txt' "${TARGET_WORKFLOW}"
+          grep -q 'failed-validation-exit-code.txt' "${TARGET_WORKFLOW}"
+          grep -Fq 'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}' "${TARGET_WORKFLOW}"
+          grep -Fq 'if-no-files-found: error' "${TARGET_WORKFLOW}"
+
+      - name: Commit merge and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${TRIGGER_HEAD}"
+          git commit -m "chore(sync): reconcile Work Map writer diagnostics with main"
+          new_head="$(git rev-parse HEAD)"
+          test "$(git rev-list --parents -n 1 "${new_head}" | wc -w)" = "3"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
