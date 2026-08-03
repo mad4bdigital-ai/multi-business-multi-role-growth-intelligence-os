@@ -1,0 +1,97 @@
+name: Bootstrap Generated Refresh Runner Pinning PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, reopened, synchronize]
+    paths:
+      - .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
+      - .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-generated-refresh-runner-pinning-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci/generated-refresh-runner-pinning-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      EXPECTED_BASE_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      TARGET_BRANCH: gpt/ci/generated-refresh-runner-pinning-20260804
+      SOURCE_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
+      PR_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact bootstrap-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git merge-base "${EXPECTED_BASE_SHA}" HEAD)" = "${EXPECTED_BASE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}"...HEAD | sort > "${RUNNER_TEMP}/bootstrap-files.txt"
+          cat > "${RUNNER_TEMP}/expected-bootstrap-files.txt" <<'EOF'
+          .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
+          .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
+          EOF
+          diff -u "${RUNNER_TEMP}/expected-bootstrap-files.txt" "${RUNNER_TEMP}/bootstrap-files.txt"
+
+      - name: Execute bounded embedded patch and remove bootstraps
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/bootstrap-generated-refresh-runner-pinning.yml')
+          lines = source.read_text(encoding='utf-8').splitlines()
+          start = next(i for i, line in enumerate(lines) if line.strip() == "python <<'PY'")
+          end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == 'PY')
+          code = textwrap.dedent('\n'.join(lines[start + 1:end]))
+          exec(compile(code, str(source), 'exec'), {'__name__': '__main__'})
+          Path('.github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml').unlink()
+          PY
+
+      - name: Verify bounded patch and focused regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs)
+          git diff --check "${EXPECTED_BASE_SHA}"
+          git diff --name-only "${EXPECTED_BASE_SHA}" | sort > "${RUNNER_TEMP}/actual-files.txt"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
+          .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml
+          .github/workflows/governed-generated-artifact-refresh.yml
+          .github/workflows/pr-generated-artifact-refresh.yml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          EOF
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+
+      - name: Commit and push bounded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(ci): pin generated refresh chain runners"
+          git push origin "HEAD:${TARGET_BRANCH}"
