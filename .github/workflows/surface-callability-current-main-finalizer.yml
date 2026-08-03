@@ -1,9 +1,9 @@
 name: Surface Callability Current Main Finalizer
 
 on:
-  push:
-    branches:
-      - gpt/pr5210-surface-source-clean-20260803
+  pull_request:
+    branches: [main]
+    types: [synchronize]
     paths:
       - .github/workflows/surface-callability-current-main-finalizer.yml
 
@@ -11,12 +11,16 @@ permissions:
   contents: write
 
 concurrency:
-  group: surface-callability-current-main-finalizer
+  group: surface-callability-current-main-finalizer-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   finalize:
-    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -35,13 +39,12 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           git merge-base --is-ancestor "${BASE_SHA}" HEAD
           mapfile -t BOOTSTRAP_FILES < <(git diff --name-only HEAD^ HEAD)
           test "${#BOOTSTRAP_FILES[@]}" -eq 1
           test "${BOOTSTRAP_FILES[0]}" = "${WORKFLOW_PATH}"
-          git fetch --no-tags origin "${BASE_SHA}"
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -138,24 +141,15 @@ jobs:
           docs/surface-contract-gap-queue.json
           docs/surface-contract-gap-queue.md
           docs/surface-contract-safety-attestations.json
-          http-generic-api/agentSurfaceRuntimeService.js
           http-generic-api/frontend-operation-governance.generated.json
           http-generic-api/frontend-surface-dispatch.generated.json
           http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           http-generic-api/resource-api-surface-callability.manifest.json
-          http-generic-api/routes/agentSurfaceRoutes.js
-          http-generic-api/routes/tenantInfrastructureRoutes.js
           http-generic-api/routes/tenantLifecycleRoutes.js
-          http-generic-api/routes/workspaceResourceRoutes.js
-          http-generic-api/scripts/resource-api-callability-contracts.mjs
-          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
-          http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs
           http-generic-api/scripts/test-manifest.mjs
           http-generic-api/surface-contract-classification-evidence.json
           http-generic-api/test-frontend-surface-dispatch.mjs
-          http-generic-api/test-resource-api-callability-effect-classes.mjs
           http-generic-api/test-surface-callability-full-closure.mjs
-          http-generic-api/test-surface-contract-sql-registry-extractor.mjs
           EOF
           sort -u /tmp/allowed-paths.txt -o /tmp/allowed-paths.txt
           git status --porcelain --untracked-files=all | sed -E 's/^...//' | sed -E 's/.* -> //' | sort -u > /tmp/changed-paths.txt
