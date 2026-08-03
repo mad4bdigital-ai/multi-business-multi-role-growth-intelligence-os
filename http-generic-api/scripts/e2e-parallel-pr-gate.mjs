@@ -97,6 +97,20 @@ function isAncestor(root, ancestor, descendant) {
   }
 }
 
+function resolveFirstParent(root, headSha) {
+  if (!/^[0-9a-f]{40}$/.test(headSha)) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", `${headSha}^1`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function classifyProductionPromotion({ root, headRef, baseRef, headSha }) {
   if (headRef === "main" && baseRef === "Production") {
     return { allowed: true, identity: "protected_main" };
@@ -164,6 +178,14 @@ function main() {
     headSha: options.head
   });
   const productionPromotion = promotion.allowed;
+  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+  if (productionPromotion && !phaseEvaluationBase) {
+    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+      head_sha: options.head,
+      promotion_identity: promotion.identity
+    });
+  }
+
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
@@ -192,6 +214,7 @@ function main() {
   report.base_ref = options.baseRef || null;
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
+  report.phase_evaluation_base = phaseEvaluationBase;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
@@ -199,7 +222,8 @@ function main() {
     contract_path: contractPath,
     workstream_id: workstreamId,
     production_promotion: productionPromotion,
-    production_promotion_identity: promotion.identity || ""
+    production_promotion_identity: promotion.identity || "",
+    phase_evaluation_base: phaseEvaluationBase || ""
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);
