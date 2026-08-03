@@ -46,7 +46,6 @@ jobs:
     name: Work Map Integration Gate
     runs-on: ubuntu-latest
     env:
-      WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
       TARGET_BRANCH: ${{ github.event_name == 'workflow_dispatch' && inputs.branch || github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref_name }}
       EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
@@ -54,6 +53,12 @@ jobs:
         with:
           fetch-depth: 0
           ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
+
+      - name: Initialize Work Map repair path
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "WORK_MAP_REPAIR_ROOT=${RUNNER_TEMP}/work-map-repair-candidate" >> "$GITHUB_ENV"
 
       - name: Verify exact Work Map checkout
         shell: bash
@@ -160,7 +165,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || inputs.branch || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
-          path: ${{ runner.temp }}/work-map-repair-candidate
+          path: ${{ env.WORK_MAP_REPAIR_ROOT }}
           if-no-files-found: error
           retention-days: 14
 
