@@ -1,0 +1,210 @@
+name: Spec 014 Parent MVP Convergence Repair Builder
+
+on:
+  push:
+    branches:
+      - gpt/014-hostinger/parent-mvp-convergence-repair-20260803
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-parent-mvp-convergence-repair-builder
+  cancel-in-progress: false
+
+jobs:
+  build-final-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/014-hostinger/parent-mvp-convergence-repair-20260803
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Repair canonical parent MVP convergence contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          if (contract.feature_key !== '014-governed-hostinger-storage-orchestration') {
+            throw new Error(`unexpected feature_key: ${contract.feature_key}`);
+          }
+          if (contract.current_phase !== 'mvp') {
+            throw new Error(`unexpected current_phase: ${contract.current_phase}`);
+          }
+          const mvp = contract.phases?.find((phase) => phase?.id === 'mvp');
+          if (!mvp || mvp.status !== 'implemented') {
+            throw new Error('parent MVP must already be implemented before convergence repair');
+          }
+          const journey = mvp.e2e_journeys?.find(
+            (candidate) => candidate?.id === 'tenant-storage-request-to-reconciled-readback',
+          );
+          if (!journey) throw new Error('implemented parent MVP journey is missing');
+
+          const requiredFiles = [
+            '.changes/e2e/spec014-mvp-convergence-journey.json',
+            'http-generic-api/test-hostinger-storage-e2e.mjs',
+            'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
+            'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs',
+            'http-generic-api/test-hostinger-storage-control-plane-repository.mjs',
+            'http-generic-api/test-hostinger-storage-unknown-outcome.mjs',
+            'http-generic-api/hostingerStorageTenantRuntime.js',
+            'http-generic-api/hostingerStorageControlPlaneRepository.js',
+            'http-generic-api/hostingerStorageSyntheticExecutor.js',
+          ];
+          for (const file of requiredFiles) {
+            if (!fs.existsSync(file) || !fs.statSync(file).isFile()) {
+              throw new Error(`required parent MVP evidence is missing: ${file}`);
+            }
+          }
+
+          mvp.objective = 'Execute one mounted Tenant storage operation through Context Kernel authority, one canonical repository instance, immutable-plan consumption, prepared/result/readback journaling, reconciliation, and Tenant-safe readback, while separately proving synthetic unknown-outcome classification and reconcile-before-retry safety with all live and Production capabilities disabled.';
+          delete mvp.blockers;
+          delete mvp.planned_e2e_journey;
+          mvp.safety = {
+            synthetic_only: true,
+            live_provider_mutated: false,
+            provider_dispatch_allowed: false,
+            migration_apply_authorized: false,
+            schema_verified: false,
+            production_ready: false,
+            secrets_included: false,
+          };
+
+          journey.terminal_outcome = 'The same canonical repository records the exact successful operation completion, consumed immutable plan, append-only approvals, prepared/result/readback journal phases, one reconciliation result, and Tenant-safe response bindings; a separately attributable synthetic unknown-outcome child contract proves failure classification, receipt-based recovery, replay-safe reconciliation, blind-retry denial, and conflict blocking.';
+          journey.steps = [
+            'Resolve Context Kernel identity and effective resource authority for the exact Tenant, workspace, user, resource, and request.',
+            'Reject request-side authority injection, cross-Tenant access, and expected-SHA drift before mutation.',
+            'Execute through the mounted Tenant route using one canonical repository instance, an expected-SHA-bound immutable plan, append-only approval evidence, one-shot enablement, and the fixed synthetic executor.',
+            'Re-read the exact successful operation from the same repository and prove completed state, unchanged immutable plan bindings, unchanged approval digests, prepared/result/readback journal phases, and one reconciliation result.',
+            'Bind the Tenant-safe response to the same operation, run, plan, outcome, and result digest.',
+            'Execute the canonical synthetic unknown-outcome child fixture and require crash-before-mutation reconciliation to not_applied, crash-after-mutation recovery from receipt, replay-safe reconciliation commit, automatic retry denial before readback, and conflict blocking.',
+            'Keep provider dispatch, live mutation, migration Apply, schema verification, deployment, Production readiness, and secrets disabled.',
+          ];
+          journey.assertions = [
+            'The mounted successful request and post-request readback use the same repository object and operation ID.',
+            'The immutable plan bindings remain unchanged while its single-use consumed state advances.',
+            'Approval record digests remain append-only and unchanged.',
+            'Prepared, result, and readback journal records persist for the same successful operation, run, and plan.',
+            'Exactly one reconciliation result matches the Tenant-safe response outcome and result digest.',
+            'The separately attributable unknown-outcome child contract proves read-before-retry and forbids blind automatic retry.',
+            'Crash before mutation reconciles to not_applied and crash after mutation recovers applied state from the matching receipt.',
+            'Reconciliation commit replay is safe and item-identity conflict blocks the operation.',
+            'Cross-Tenant requests, request-side authority injection, and expected-SHA drift fail before mutation.',
+            'Provider dispatch, live mutation, migration Apply, schema verification, deployment, Production readiness, and secrets remain false.',
+          ];
+          journey.tests = [
+            {
+              id: 'hostinger-storage-parent-mvp-convergence',
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: 'test-hostinger-storage-e2e.mjs',
+              args: [],
+            },
+          ];
+          journey.evidence_paths = [
+            '.changes/e2e/spec014-mvp-convergence-journey.json',
+            'http-generic-api/test-hostinger-storage-e2e.mjs',
+            'http-generic-api/test-hostinger-storage-mvp-shared-operation-state.mjs',
+            'http-generic-api/test-hostinger-storage-tenant-runtime-route.mjs',
+            'http-generic-api/test-hostinger-storage-control-plane-repository.mjs',
+            'http-generic-api/test-hostinger-storage-unknown-outcome.mjs',
+            'http-generic-api/hostingerStorageTenantRuntime.js',
+            'http-generic-api/hostingerStorageControlPlaneRepository.js',
+            'http-generic-api/hostingerStorageSyntheticExecutor.js',
+            contractPath,
+          ];
+
+          if (!contract.parallel_work?.integration) {
+            throw new Error('parallel_work.integration is missing');
+          }
+          contract.parallel_work.integration.e2e_journey_ids = [
+            'tenant-storage-request-to-reconciled-readback',
+          ];
+          contract.parallel_work.integration.convergence_tests = [
+            {
+              id: 'hostinger-storage-parent-mvp-convergence',
+              runner: 'node',
+              working_directory: 'http-generic-api',
+              path: 'test-hostinger-storage-e2e.mjs',
+              args: [],
+            },
+          ];
+
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract)}\n`);
+          NODE
+
+      - name: Validate repaired contract and aggregate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const contractPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const mvp = contract.phases.find((phase) => phase.id === 'mvp');
+          const convergence = contract.parallel_work.integration.convergence_tests;
+          if (mvp.status !== 'implemented') throw new Error('MVP not implemented');
+          if (!Array.isArray(mvp.e2e_journeys) || mvp.e2e_journeys.length !== 1) {
+            throw new Error('unexpected parent MVP journey count');
+          }
+          if (!Array.isArray(convergence) || convergence.length !== 1) {
+            throw new Error('exactly one convergence test is required');
+          }
+          if (convergence[0].path !== 'test-hostinger-storage-e2e.mjs') {
+            throw new Error('unexpected convergence runner path');
+          }
+          const safety = mvp.safety || {};
+          for (const key of [
+            'live_provider_mutated',
+            'provider_dispatch_allowed',
+            'migration_apply_authorized',
+            'schema_verified',
+            'production_ready',
+            'secrets_included',
+          ]) {
+            if (safety[key] !== false) throw new Error(`${key} must remain false`);
+          }
+          NODE
+          (
+            cd http-generic-api
+            node test-hostinger-storage-e2e.mjs
+          )
+          git diff --check
+
+      - name: Publish final one-file candidate
+        shell: bash
+        env:
+          TARGET_BRANCH: gpt/014-hostinger/parent-mvp-convergence-repair-20260803
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/spec014-parent-mvp-convergence-repair-builder.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          mapfile -t changed < <(git diff --cached --name-only)
+          if [[ ${#changed[@]} -ne 2 ]]; then
+            printf 'expected staged contract modification plus builder deletion, got:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+          if [[ " ${changed[*]} " != *" specs/014-governed-hostinger-storage-orchestration/e2e-phases.json "* ]]; then
+            echo 'canonical parent contract is not staged' >&2
+            exit 1
+          fi
+          if [[ " ${changed[*]} " != *" .github/workflows/spec014-parent-mvp-convergence-repair-builder.yml "* ]]; then
+            echo 'builder deletion is not staged' >&2
+            exit 1
+          fi
+          git commit -m 'fix(spec-014): register parent MVP convergence execution'
+          git push origin "HEAD:${TARGET_BRANCH}"
