@@ -1,0 +1,70 @@
+name: Diagnose CI PR Stale Cancellation Worktree 5987
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ci-pr-stale-cancellation-arm-base-5987-a61cd9e8
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-worktree:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/ci-pr-stale-cancellation-main-a61cd9e8-20260804' && github.event.pull_request.head.sha == '98a5ad092344316e62945a622f783fb42fcc20a2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Identify exact worktree mutator
+        shell: bash
+        run: |
+          set -euo pipefail
+          target='http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          expected='9a0e8e9d500ffd5f671ccec14288782e836efcbf'
+          verify() {
+            label="$1"
+            actual="$(git hash-object "$target")"
+            printf '%s expected=%s actual=%s lines=%s\n' "$label" "$expected" "$actual" "$(wc -l < "$target")"
+            if [ "$actual" != "$expected" ]; then
+              git status --short
+              git diff -- "$target"
+              exit 42
+            fi
+          }
+          run_checked() {
+            label="$1"
+            shift
+            "$@"
+            verify "$label"
+          }
+          verify checkout
+          run_checked schema-docs node http-generic-api/scripts/schema-docs-change-guard.mjs
+          run_checked migration-placement node http-generic-api/scripts/migration-placement-guard.mjs
+          run_checked user-jwt node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          run_checked interruption-readiness node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          run_checked validate-canonical node validate-canonical-sources.mjs
+          run_checked build-canonicals node build-canonicals.mjs --check
+          run_checked pipeline-check node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_checked pipeline-test node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_checked work-map-contract node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_checked work-map-classification node http-generic-api/scripts/work-map-schema-classification.mjs
+          run_checked work-map-test node http-generic-api/test-work-map-schema-classification.mjs
+          run_checked work-map-contract-test node http-generic-api/test-work-map-schema-classification-contract.mjs
+          run_checked work-map-generator node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          run_checked spec-kit node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          run_checked memory-schema node validate-memory-schema.mjs
+          npm --prefix http-generic-api ci
+          verify npm-ci
+          node "$target"
