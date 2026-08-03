@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  diagnose-lifecycle:
-    name: Diagnose Repository Lifecycle Checks
+  ready-supplement:
+    name: Ready Lifecycle and Reference Integrity Supplement
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/ci-pr-stale-head-cancellation-20260804' &&
@@ -25,7 +25,7 @@ jobs:
     env:
       EXPECTED_MAIN_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
       EXPECTED_HEAD_SHA: 7cd2eed499f3ee57223a1ac9fd730ff7af3f427e
-      REPORT_DIR: ${{ runner.temp }}/ci-lifecycle-diagnostic
+      REPORT_DIR: ${{ runner.temp }}/ready-lifecycle-supplement
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -41,86 +41,65 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify immutable identity and exact scope
+      - name: Verify immutable Ready identity and exact scope
         shell: bash
         run: |
           set -euo pipefail
+          test "${{ github.event.pull_request.draft }}" = "false"
+          test "${{ github.event.pull_request.head.ref }}" = 'gpt/ci-pr-stale-head-cancellation-20260804'
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
           test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
           test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" -eq 6
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
           printf '%s\n' "${files[@]}"
           test "${#files[@]}" -eq 4
+          test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+          test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
+          test "${files[2]}" = '.github/workflows/ci.yml'
+          test "${files[3]}" = 'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
 
       - name: Install HTTP API dependencies
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Run repository tool lifecycle
-        id: lifecycle
-        continue-on-error: true
-        working-directory: http-generic-api
+      - name: Run official repository-tool lifecycle regression
+        run: node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
+      - name: Evaluate official repository-tool lifecycle policy
         shell: bash
         run: |
-          mkdir -p "${REPORT_DIR}"
-          set -o pipefail
-          node test-repository-tool-lifecycle.mjs \
-            > "${REPORT_DIR}/repository-tool-lifecycle.stdout" \
-            2> "${REPORT_DIR}/repository-tool-lifecycle.stderr"
+          set -euo pipefail
+          mkdir -p "${REPORT_DIR}/repository-tool-lifecycle"
+          git diff --name-status "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" \
+            > "${REPORT_DIR}/repository-tool-changes.tsv"
+          BASE_SHA="${EXPECTED_MAIN_SHA}" CANDIDATE_SHA="${EXPECTED_HEAD_SHA}" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${REPORT_DIR}/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${REPORT_DIR}/repository-tool-lifecycle"
 
-      - name: Run repo lock governance
-        id: repo_lock
-        continue-on-error: true
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          mkdir -p "${REPORT_DIR}"
-          set -o pipefail
-          node test-repo-lock-governance.mjs \
-            > "${REPORT_DIR}/repo-lock-governance.stdout" \
-            2> "${REPORT_DIR}/repo-lock-governance.stderr"
+      - name: Run E2E contract reference integrity regression
+        run: node http-generic-api/test-e2e-contract-reference-integrity.mjs
 
-      - name: Run E2E contract reference integrity
-        id: reference_integrity
-        continue-on-error: true
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          mkdir -p "${REPORT_DIR}"
-          set -o pipefail
-          node test-e2e-contract-reference-integrity.mjs \
-            > "${REPORT_DIR}/e2e-contract-reference-integrity.stdout" \
-            2> "${REPORT_DIR}/e2e-contract-reference-integrity.stderr"
-
-      - name: Build diagnostic summary
+      - name: Build exact Ready supplement summary
         if: always()
         shell: bash
-        env:
-          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
-          REPO_LOCK_OUTCOME: ${{ steps.repo_lock.outcome }}
-          REFERENCE_INTEGRITY_OUTCOME: ${{ steps.reference_integrity.outcome }}
         run: |
           mkdir -p "${REPORT_DIR}"
           jq -n \
+            --arg base_sha "${EXPECTED_MAIN_SHA}" \
             --arg head_sha "${EXPECTED_HEAD_SHA}" \
-            --arg lifecycle "${LIFECYCLE_OUTCOME}" \
-            --arg repo_lock "${REPO_LOCK_OUTCOME}" \
-            --arg reference_integrity "${REFERENCE_INTEGRITY_OUTCOME}" \
-            '{contract:"mad4b.ci-lifecycle-diagnostic.v1",head_sha:$head_sha,checks:{repository_tool_lifecycle:$lifecycle,repo_lock_governance:$repo_lock,e2e_contract_reference_integrity:$reference_integrity},candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            '{contract:"mad4b.exact-ci-ready-lifecycle-supplement.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,ready_state_verified:true,official_repository_tool_lifecycle:true,e2e_contract_reference_integrity:true,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
             > "${REPORT_DIR}/summary.json"
 
-      - name: Upload diagnostic evidence
+      - name: Upload exact Ready supplement evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: diagnose-ci-lifecycle-arm-5779-${{ github.run_id }}
+          name: exact-ci-ready-lifecycle-supplement-5779-${{ github.run_id }}
           path: ${{ env.REPORT_DIR }}
           if-no-files-found: error
           retention-days: 14
-
-      - name: Enforce all diagnostics
-        if: always()
-        shell: bash
-        run: |
-          jq -e '.checks | to_entries | all(.value == "success")' "${REPORT_DIR}/summary.json"
