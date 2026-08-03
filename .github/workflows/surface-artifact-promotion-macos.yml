@@ -83,15 +83,15 @@ jobs:
           import fs from 'node:fs';
           const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
           const manifest = JSON.parse(fs.readFileSync('http-generic-api/resource-api-surface-callability.manifest.json', 'utf8'));
-          const toolKeys = new Set((manifest.items || []).flatMap((item) => item.tool_keys || item.declared_tool_targets || []));
+          const toolKeys = new Set(manifest.source_queue_tool_keys || []);
           if (artifact.schema_version !== 'frontend-surface-dispatch-v1') throw new Error('artifact_schema_mismatch');
           if (artifact?.baseline?.ref !== 'main') throw new Error('artifact_baseline_ref_mismatch');
           if (!Array.isArray(artifact?.baseline?.authority) || artifact.baseline.authority.length === 0) throw new Error('artifact_authority_missing');
-          if (manifest.item_count !== 20) throw new Error(`surface_item_count_mismatch:${manifest.item_count}`);
+          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_item_count_mismatch:${manifest.source_queue_item_count}`);
           if (toolKeys.size !== 41) throw new Error(`surface_tool_key_count_mismatch:${toolKeys.size}`);
           console.log(JSON.stringify({
             ok: true,
-            surface_items: manifest.item_count,
+            surface_items: manifest.source_queue_item_count,
             surface_tool_keys: toolKeys.size,
             authority_files: artifact.baseline.authority.length,
             source_digest: artifact.baseline.source_digest,
