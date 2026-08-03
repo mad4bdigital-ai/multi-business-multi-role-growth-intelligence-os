@@ -1,0 +1,109 @@
+name: Temporary Exact Baseline Validation
+
+on:
+  push:
+    branches:
+      - gpt/read-main-tree-sha-v8-97e4ee7
+    paths:
+      - ".github/workflows/read-main-tree-sha-v8.yml"
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: temporary-exact-baseline-validation-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: 5acc062bc931271b42bfab9f640d7b181273fa85
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable candidate identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "5acc062bc931271b42bfab9f640d7b181273fa85"
+          test "$(git diff --name-only a61cd9e83070618001676bbc679bc937f0551875...HEAD)" = "http-generic-api/test-auth-oauth-routes.mjs"
+          test "$(git rev-list --count a61cd9e83070618001676bbc679bc937f0551875..HEAD)" = "1"
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Check all JavaScript modules
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+            node --check "$f"
+          done
+
+      - name: Run complete HTTP Generic API test suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test | tee "${RUNNER_TEMP}/exact-baseline-npm-test.log"
+
+      - name: Run explicit changed test
+        working-directory: http-generic-api
+        shell: bash
+        run: node test-auth-oauth-routes.mjs | tee "${RUNNER_TEMP}/exact-baseline-oauth.log"
+
+      - name: Verify clean immutable checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          test -z "$(git status --porcelain)"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-baseline-validation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/test-suite-reports/*.json
+            ${{ runner.temp }}/exact-baseline-npm-test.log
+            ${{ runner.temp }}/exact-baseline-oauth.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Publish readable terminal status
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="failure"
+          description="exact OAuth baseline validation failed"
+          if [ "${JOB_STATUS}" = "success" ]; then
+            state="success"
+            description="syntax + complete npm test + focused OAuth passed"
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state="${state}" \
+            -f context="exact-oauth-baseline-validation" \
+            -f description="${description}" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
