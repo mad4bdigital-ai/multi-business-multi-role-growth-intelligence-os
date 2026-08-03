@@ -1,0 +1,117 @@
+name: Temporary OAuth Dependency Writer a61cd9e8
+
+on:
+  pull_request:
+    branches:
+      - gpt/patch-oauth-deps-base-a61cd9e8
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-oauth-deps-writer-a61cd9e8
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804' &&
+      github.event.pull_request.head.sha == '1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout immutable target head
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prove exact repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
+          test "$(git rev-parse origin/main)" = "a61cd9e83070618001676bbc679bc937f0551875"
+          test -z "$(git status --porcelain)"
+
+      - name: Apply three exact dependency-wiring replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          replacements = [
+              (
+                  Path("http-generic-api/routes/index.js"),
+                  "  app.use(buildTenantGptOAuthMetadataRoutes());\n",
+                  "  app.use(buildTenantGptOAuthMetadataRoutes(deps));\n",
+              ),
+              (
+                  Path("http-generic-api/test-auth-oauth-routes.mjs"),
+                  "app.use(buildTenantGptOAuthMetadataRoutes());\n",
+                  "app.use(buildTenantGptOAuthMetadataRoutes({\n  getPool: () => oauthClientPool,\n}));\n",
+              ),
+              (
+                  Path("http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"),
+                  "const metadataMount = routeIndex.indexOf(\"app.use(buildTenantGptOAuthMetadataRoutes())\");\n",
+                  "const metadataMount = routeIndex.indexOf(\"app.use(buildTenantGptOAuthMetadataRoutes(deps))\");\n",
+              ),
+          ]
+
+          for path, old, new in replacements:
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"exact replacement count for {path}: expected 1, got {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          trigger = Path(".changes/tmp/oauth-deps-writer-trigger-a61cd9e8.json")
+          if not trigger.is_file():
+              raise SystemExit("temporary trigger file is missing")
+          trigger.unlink()
+
+          expected = {
+              ".changes/tmp/oauth-deps-writer-trigger-a61cd9e8.json",
+              "http-generic-api/routes/index.js",
+              "http-generic-api/test-auth-oauth-routes.mjs",
+              "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
+          }
+          actual = set(subprocess.check_output(
+              ["git", "diff", "--name-only"], text=True,
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f"unexpected patch scope: {sorted(actual)}")
+          PY
+          git diff --check
+          git diff --stat
+
+      - name: Install locked API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth dependency regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+
+      - name: Commit and push tested patch without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "1178aedc7ae6a9d4bf862bf01997b8aab4c40fd9"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git diff --cached --check
+          git commit -m "fix(spec-012): preserve OAuth route dependency injection"
+          git push origin HEAD:refs/heads/gpt/spec012-oauth-deps-baseline-a61cd9e8-20260804
