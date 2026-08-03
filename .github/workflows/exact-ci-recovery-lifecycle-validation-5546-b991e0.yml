@@ -1,0 +1,124 @@
+name: Exact CI Recovery Lifecycle Validation 5546
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-ci-recovery-lifecycle-5546-b991e0
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ci-recovery-lifecycle-5546-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Exact Lifecycle Readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci-recovery-provenance-atomic-b991e0ae' &&
+      github.event.pull_request.head.sha == '7162a8512b461781b7403a8de4c7ca01ad981cac'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: b991e0ae9ee9beb43582444d7f7f5a1a0c5768fe
+      EXPECTED_HEAD_SHA: 7162a8512b461781b7403a8de4c7ca01ad981cac
+      EXPECTED_HEAD_REF: gpt/ci-recovery-provenance-atomic-b991e0ae
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable candidate identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${EXPECTED_HEAD_REF}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^1)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}".."${EXPECTED_HEAD_SHA}")" -eq 1
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}"..."${EXPECTED_HEAD_SHA}")
+          printf '%s\n' "${files[@]}"
+          test "${#files[@]}" -eq 3
+          test "${files[0]}" = '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+          test "${files[1]}" = '.github/workflows/ci-pull-request-recovery.yml'
+          test "${files[2]}" = 'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json")" = 'c946e3e7878bae8f6cac5960912ef90b64ccecb8'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:.github/workflows/ci-pull-request-recovery.yml")" = 'e21882316db92fcccd2b67d4ff60b7f5b3e6cdb7'
+          test "$(git rev-parse "${EXPECTED_HEAD_SHA}:http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs")" = 'b1de449e9c762e11782841516a10356d724ef902'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused Recovery provenance regression
+        working-directory: http-generic-api
+        run: node test-ci-pull-request-recovery-exact-checkout-provenance.mjs
+
+      - name: Run lifecycle governance with exact identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" > "${RUNNER_TEMP}/repository-tool-changes.tsv"
+          CANDIDATE_SHA="${EXPECTED_HEAD_SHA}" BASE_SHA="${EXPECTED_MAIN_SHA}" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "${RUNNER_TEMP}/repository-tool-changes.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "${RUNNER_TEMP}/repository-tool-lifecycle"
+
+      - name: Verify canonical lifecycle report
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="${RUNNER_TEMP}/repository-tool-lifecycle/repository-tool-lifecycle-report.json"
+          test -f "${REPORT}"
+          REPORT="${REPORT}" EXPECTED_MAIN_SHA="${EXPECTED_MAIN_SHA}" EXPECTED_HEAD_SHA="${EXPECTED_HEAD_SHA}" node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync(process.env.REPORT, 'utf8'));
+          assert.equal(report.contract, 'mad4b.repository-tool-lifecycle-report.v1');
+          assert.equal(report.ok, true);
+          assert.equal(report.candidate_sha, process.env.EXPECTED_HEAD_SHA);
+          assert.equal(report.base_sha, process.env.EXPECTED_MAIN_SHA);
+          assert.equal(report.changed_file_count, 3);
+          assert.deepEqual(report.findings, []);
+          assert.equal(report.canonical, true);
+          assert.equal(report.log_access_required, false);
+          assert.equal(report.secrets_included, false);
+          NODE
+
+      - name: Publish no-effect summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/exact-lifecycle-summary"
+          jq -n \
+            --arg base_sha "${EXPECTED_MAIN_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            '{contract:"mad4b.exact-ci-recovery-lifecycle-validation.v1",base_sha:$base_sha,head_sha:$head_sha,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/exact-lifecycle-summary/summary.json"
+
+      - name: Upload exact lifecycle evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ci-recovery-lifecycle-5546-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/repository-tool-lifecycle/
+            ${{ runner.temp }}/exact-lifecycle-summary/summary.json
+          if-no-files-found: error
+          retention-days: 14
