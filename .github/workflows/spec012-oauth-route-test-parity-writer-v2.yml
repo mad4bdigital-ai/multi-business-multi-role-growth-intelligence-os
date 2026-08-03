@@ -18,18 +18,17 @@ jobs:
     name: Diagnose Spec 012 OAuth parity validations
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
-      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       SCRIPT_COMMIT_SHA: 9bc786994e58d5e7e46f5b137eebbe3c93fe018b
+      MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
     steps:
-      - name: Checkout exact clean branch
+      - name: Checkout exact bounded diagnostic head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
@@ -43,65 +42,59 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify baseline and install dependencies
+      - name: Verify bounded synchronize identity and install dependencies
         shell: bash
         run: |
           set -euo pipefail
           DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-diagnostic-${GITHUB_RUN_ID}"
           printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${DIAGNOSTIC_ROOT}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          test -z "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")"
-          test -z "$(git status --porcelain)"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test -f "${MARKER_PATH}"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD | wc -l | tr -d ' ')" = "1"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD)" = "${MARKER_PATH}"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
           git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
           git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
           python -m py_compile /tmp/apply-spec012-oauth-route-test-parity.py
 
-      - name: Apply bounded transformation and generated parity
+      - name: Apply bounded transformation and safe failure instrumentation
         shell: bash
         run: |
           set -euo pipefail
+          rm -- "${MARKER_PATH}"
           python /tmp/apply-spec012-oauth-route-test-parity.py
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
-          python - "${E2E_PATH}" "${DIAGNOSTIC_ROOT}/generated-files.txt" <<'PY'
-          import json, sys
+          python - <<'PY'
           from pathlib import Path
-          e2e = Path(sys.argv[1])
-          generated = [line.strip() for line in Path(sys.argv[2]).read_text().splitlines() if line.strip()]
-          payload = json.loads(e2e.read_text())
-          for values in (payload['scope']['include'], payload['phases'][0]['e2e_journeys'][0]['evidence_paths']):
-              for value in generated:
-                  if value not in values:
-                      values.append(value)
-          e2e.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+          path = Path('http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js')
+          source = path.read_text(encoding='utf-8')
+          old = '''    } catch (error) {
+      if (res.headersSent) {'''
+          new = '''    } catch (error) {
+      console.error("oauth_token_exchange_safe_failure_diagnostic", {
+        name: String(error?.name || "").slice(0, 64),
+        code: String(error?.code || "").slice(0, 128),
+        message: String(error?.message || "").slice(0, 240),
+        phase,
+        code_consumed: codeConsumed,
+        secrets_included: false,
+      });
+      if (res.headersSent) {'''
+          if source.count(old) != 1:
+              raise SystemExit('expected one catch insertion point')
+          path.write_text(source.replace(old, new), encoding='utf-8')
           PY
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          test "${first_hash}" = "${second_hash}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          printf '%s\n' "${first_hash}" > "${DIAGNOSTIC_ROOT}/generated-diff-sha256.txt"
-          {
-            git diff --name-only "${EXPECTED_MAIN_SHA}"
-            git ls-files --others --exclude-standard
-          } | LC_ALL=C sort -u > "${DIAGNOSTIC_ROOT}/actual-files.txt"
-          git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
-          git diff --check "${EXPECTED_MAIN_SHA}"
+          git diff --check
 
-      - name: Run every OAuth and governance validation independently
+      - name: Run transformed OAuth validations independently
         shell: bash
         run: |
           set -uo pipefail
           results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
           : > "${results}"
-
           run_check() {
-            local name="$1"
-            shift
+            local name="$1"; shift
             local log="${DIAGNOSTIC_ROOT}/${name}.log"
             set +e
             "$@" >"${log}" 2>&1
@@ -110,35 +103,25 @@ jobs:
             printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
             cat "${log}"
           }
-
-          run_check route-syntax node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          run_check binding-syntax node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
-          run_check binding-guard node http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
-          run_check binding-hardening node http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
           run_check token-route node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           run_check auth-oauth-integration node http-generic-api/test-auth-oauth-routes.mjs
           run_check route-wiring node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          run_check jwt-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref=${EXPECTED_MAIN_SHA}"
-          run_check no-jwt-import bash -lc "! grep -Fq 'from \"jsonwebtoken\"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
-          run_check no-fallback-secret bash -lc "! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
-          run_check required-crypto-deps grep -Fq 'oauth_token_exchange_crypto_dependencies_required' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
-          run_check injected-test-pool grep -Fq 'getPool: () => oauthClientPool' http-generic-api/test-auth-oauth-routes.mjs
-          run_check e2e-json node -e "JSON.parse(require('fs').readFileSync(process.env.E2E_PATH,'utf8'))"
-
+          grep -n 'oauth_token_exchange_safe_failure_diagnostic' "${DIAGNOSTIC_ROOT}"/*.log > "${DIAGNOSTIC_ROOT}/safe-failures.txt" || true
           {
             printf 'check\texit_code\tlog\n'
             cat "${results}"
           } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
           cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/safe-failures.txt" || true
 
       - name: Upload OAuth diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-diagnostic-${{ github.run_id }}
+          name: spec012-oauth-safe-failure-${{ github.run_id }}
           path: ${{ runner.temp }}/spec012-oauth-diagnostic-${{ github.run_id }}
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
       - name: Enforce diagnostic success
         shell: bash
