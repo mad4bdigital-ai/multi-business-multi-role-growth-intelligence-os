@@ -1,0 +1,101 @@
+name: TEMP Work Map ARM Bridge 5908 V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/bridge-work-map-arm-base-5908-97e4ee7e
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: temp-work-map-arm-bridge-5908-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  dispatch:
+    name: Validate refreshed canonical PR and dispatch sole writer
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      CANONICAL_PR: '5908'
+      EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      EXPECTED_HEAD_SHA: 56156d2322badad8bfceed0b19e0ce386634bfcd
+      EXPECTED_HEAD_REF: gpt/hostinger-production-runtime-readback-r7-20260804
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    steps:
+      - name: Validate identity, consume marker, and dispatch official writer
+        id: bridge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+
+          body="$(jq -r '.body // ""' <<<"${pr}")"
+          grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
+
+          for workflow in spec-kit-work-map-autofix.yml spec-kit-work-map-integration.yml; do
+            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
+            if [[ "${state}" != 'active' ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            fi
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = 'active'
+          done
+
+          current_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.head.sha' <<<"${current_pr}")" = "${EXPECTED_HEAD_SHA}"
+          current_body="$(jq -r '.body // ""' <<<"${current_pr}")"
+          grep -Fq "${AUTHORIZATION_MARKER}" <<<"${current_body}"
+          next_body="${current_body//${AUTHORIZATION_MARKER}/}"
+          payload_file="${RUNNER_TEMP}/consume-marker.json"
+          jq -n --arg body "${next_body}" '{body:$body}' > "${payload_file}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --input "${payload_file}" >/dev/null
+          if gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.body // ""' | grep -Fq "${AUTHORIZATION_MARKER}"; then
+            echo 'Authorization marker removal readback failed.' >&2
+            exit 1
+          fi
+
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn --arg ref main --arg branch "${EXPECTED_HEAD_REF}" --arg expected_head_sha "${EXPECTED_HEAD_SHA}" '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}')"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/dispatches" --input - <<<"${payload}"
+
+          delegated_run_id=''
+          for _ in $(seq 1 30); do
+            delegated_run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&branch=main&per_page=30" --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\")] | sort_by(.created_at) | last | .id // empty")"
+            if [[ -n "${delegated_run_id}" ]]; then break; fi
+            sleep 2
+          done
+          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
+          echo "delegated_run_id=${delegated_run_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish canonical PR evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DELEGATED_RUN_ID: ${{ steps.bridge.outputs.delegated_run_id }}
+        run: |
+          set -Eeuo pipefail
+          outcome='passed'
+          if [[ "${{ steps.bridge.outcome }}" != 'success' ]]; then outcome='blocked'; fi
+          body="WORK_MAP_ARM_BRIDGE_V2 outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} target_ref=${EXPECTED_HEAD_REF} authorization_consumed=$([[ '${{ steps.bridge.outcome }}' == 'success' ]] && echo true || echo false) delegated_run_id=${DELEGATED_RUN_ID:-none} official_writer=spec-kit-work-map-autofix.yml direct_generated_edit=false candidate_content_mutation=false protected_branch_mutation=false force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}" >/dev/null
