@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
+      EXPECTED_HEAD_REF: gpt/spec012-oauth-injection-validation-a61cd9e8-v1
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
       MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
