@@ -1,0 +1,193 @@
+name: R5 Trigger Metadata Diagnostic
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .changes/e2e/r5-trigger-metadata-diagnostic.json
+      - .github/workflows/r5-trigger-metadata-diagnostic.yml
+      - http-generic-api/scripts/test-r5-trigger-metadata-diagnostic.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose-r5-trigger:
+    name: Diagnose R5 issue-comment trigger metadata
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'gpt/r5-trigger-metadata-diagnostic-20260803'
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4953'
+      TARGET_WORKFLOW: hostinger-production-release-evidence-r5.yml
+      EXPECTED_MAIN_SHA: a2185136adac7dfb769e786405739468dd90e390
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_2669991A_6134C0F8_R5
+      CLAIM_MARKER: HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=claiming
+      COMPLETED_MARKER: HOSTINGER_PRODUCTION_RELEASE_EVIDENCE_R5 status=completed
+      REPORT_DIR: ${{ runner.temp }}/r5-trigger-metadata-diagnostic
+
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify exact diagnostic checkout
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Validate metadata-only diagnostic contract
+        working-directory: http-generic-api
+        run: node scripts/test-r5-trigger-metadata-diagnostic.mjs
+
+      - name: Collect bounded GitHub Actions metadata
+        id: diagnostic
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+
+          CURRENT_MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          CURRENT_PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+
+          WORKFLOW_LOOKUP_OK=false
+          WORKFLOW_ID=0
+          WORKFLOW_STATE=unresolved
+          WORKFLOW_PATH=.github/workflows/hostinger-production-release-evidence-r5.yml
+          if gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}" > "${REPORT_DIR}/workflow.json" 2> "${REPORT_DIR}/workflow-error.txt"; then
+            WORKFLOW_LOOKUP_OK=true
+            WORKFLOW_ID="$(jq -r '.id // 0' "${REPORT_DIR}/workflow.json")"
+            WORKFLOW_STATE="$(jq -r '.state // "unresolved"' "${REPORT_DIR}/workflow.json")"
+            WORKFLOW_PATH="$(jq -r '.path // ".github/workflows/hostinger-production-release-evidence-r5.yml"' "${REPORT_DIR}/workflow.json")"
+          fi
+
+          ISSUE_COMMENT_RUN_COUNT=0
+          LATEST_RUN_ID=0
+          LATEST_RUN_STATUS=none
+          LATEST_RUN_CONCLUSION=none
+          LATEST_RUN_HEAD_SHA=none
+          LATEST_RUN_CREATED_AT=none
+          JOB_TOTAL=0
+          JOB_QUEUED=0
+          JOB_IN_PROGRESS=0
+          JOB_SKIPPED=0
+          JOB_FAILURE=0
+          JOB_SUCCESS=0
+
+          if [[ "${WORKFLOW_LOOKUP_OK}" == true ]]; then
+            gh api "/repos/${REPOSITORY}/actions/workflows/${TARGET_WORKFLOW}/runs?event=issue_comment&per_page=30" > "${REPORT_DIR}/runs.json"
+            ISSUE_COMMENT_RUN_COUNT="$(jq '.total_count // 0' "${REPORT_DIR}/runs.json")"
+            LATEST_RUN_ID="$(jq -r '[.workflow_runs[]] | sort_by(.id) | last | .id // 0' "${REPORT_DIR}/runs.json")"
+            LATEST_RUN_STATUS="$(jq -r '[.workflow_runs[]] | sort_by(.id) | last | .status // "none"' "${REPORT_DIR}/runs.json")"
+            LATEST_RUN_CONCLUSION="$(jq -r '[.workflow_runs[]] | sort_by(.id) | last | .conclusion // "none"' "${REPORT_DIR}/runs.json")"
+            LATEST_RUN_HEAD_SHA="$(jq -r '[.workflow_runs[]] | sort_by(.id) | last | .head_sha // "none"' "${REPORT_DIR}/runs.json")"
+            LATEST_RUN_CREATED_AT="$(jq -r '[.workflow_runs[]] | sort_by(.id) | last | .created_at // "none"' "${REPORT_DIR}/runs.json")"
+
+            if [[ "${LATEST_RUN_ID}" != 0 ]]; then
+              gh api "/repos/${REPOSITORY}/actions/runs/${LATEST_RUN_ID}/jobs?filter=all&per_page=100" > "${REPORT_DIR}/jobs.json"
+              JOB_TOTAL="$(jq '.total_count // 0' "${REPORT_DIR}/jobs.json")"
+              JOB_QUEUED="$(jq '[.jobs[] | select(.status == "queued")] | length' "${REPORT_DIR}/jobs.json")"
+              JOB_IN_PROGRESS="$(jq '[.jobs[] | select(.status == "in_progress")] | length' "${REPORT_DIR}/jobs.json")"
+              JOB_SKIPPED="$(jq '[.jobs[] | select(.conclusion == "skipped")] | length' "${REPORT_DIR}/jobs.json")"
+              JOB_FAILURE="$(jq '[.jobs[] | select(.conclusion == "failure")] | length' "${REPORT_DIR}/jobs.json")"
+              JOB_SUCCESS="$(jq '[.jobs[] | select(.conclusion == "success")] | length' "${REPORT_DIR}/jobs.json")"
+            fi
+          fi
+
+          gh api --paginate "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments?per_page=100" > "${REPORT_DIR}/comments.json"
+          EXACT_TRIGGER="${TRIGGER_TOKEN} expected_head_sha=${EXPECTED_MAIN_SHA}"
+          TRIGGER_COUNT="$(jq --arg exact "${EXACT_TRIGGER}" '[.[] | select(.body == $exact)] | length' "${REPORT_DIR}/comments.json")"
+          LATEST_TRIGGER_ID="$(jq -r --arg exact "${EXACT_TRIGGER}" '[.[] | select(.body == $exact)] | sort_by(.id) | last | .id // 0' "${REPORT_DIR}/comments.json")"
+          CLAIM_COUNT="$(jq --arg marker "${CLAIM_MARKER}" '[.[] | select(.body | contains($marker))] | length' "${REPORT_DIR}/comments.json")"
+          COMPLETED_COUNT="$(jq --arg marker "${COMPLETED_MARKER}" '[.[] | select(.body | contains($marker))] | length' "${REPORT_DIR}/comments.json")"
+
+          CLASSIFICATION=metadata_observed
+          if [[ "${WORKFLOW_LOOKUP_OK}" != true ]]; then
+            CLASSIFICATION=workflow_lookup_failed
+          elif [[ "${WORKFLOW_STATE}" != active ]]; then
+            CLASSIFICATION=workflow_not_active
+          elif [[ "${ISSUE_COMMENT_RUN_COUNT}" == 0 && "${TRIGGER_COUNT}" -gt 0 ]]; then
+            CLASSIFICATION=issue_comment_event_not_registered
+          elif [[ "${LATEST_RUN_ID}" != 0 && "${JOB_TOTAL}" == 0 ]]; then
+            CLASSIFICATION=issue_comment_run_without_jobs
+          elif [[ "${JOB_SKIPPED}" -gt 0 && "${CLAIM_COUNT}" == 0 ]]; then
+            CLASSIFICATION=job_condition_skipped_before_claim
+          elif [[ "${JOB_FAILURE}" -gt 0 && "${CLAIM_COUNT}" == 0 ]]; then
+            CLASSIFICATION=pre_claim_binding_failure
+          elif [[ "${LATEST_RUN_STATUS}" != completed ]]; then
+            CLASSIFICATION=issue_comment_run_pending
+          elif [[ "${LATEST_RUN_CONCLUSION}" != success ]]; then
+            CLASSIFICATION=issue_comment_run_terminal_non_success
+          elif [[ "${COMPLETED_COUNT}" -gt 0 ]]; then
+            CLASSIFICATION=r5_completed_marker_present
+          elif [[ "${CLAIM_COUNT}" -gt 0 ]]; then
+            CLASSIFICATION=r5_claim_marker_present
+          fi
+
+          jq -n \
+            --arg contract mad4b.r5-trigger-metadata-diagnostic.v1 \
+            --arg generated_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg classification "${CLASSIFICATION}" \
+            --argjson workflow_lookup_ok "${WORKFLOW_LOOKUP_OK}" \
+            --arg workflow_state "${WORKFLOW_STATE}" \
+            --arg workflow_path "${WORKFLOW_PATH}" \
+            --arg current_main_sha "${CURRENT_MAIN_SHA}" \
+            --arg expected_main_sha "${EXPECTED_MAIN_SHA}" \
+            --arg current_production_sha "${CURRENT_PRODUCTION_SHA}" \
+            --arg expected_production_sha "${EXPECTED_PRODUCTION_SHA}" \
+            --argjson issue_comment_run_count "${ISSUE_COMMENT_RUN_COUNT}" \
+            --argjson latest_run_id "${LATEST_RUN_ID}" \
+            --arg latest_run_status "${LATEST_RUN_STATUS}" \
+            --arg latest_run_conclusion "${LATEST_RUN_CONCLUSION}" \
+            --arg latest_run_head_sha "${LATEST_RUN_HEAD_SHA}" \
+            --arg latest_run_created_at "${LATEST_RUN_CREATED_AT}" \
+            --argjson job_total "${JOB_TOTAL}" \
+            --argjson job_queued "${JOB_QUEUED}" \
+            --argjson job_in_progress "${JOB_IN_PROGRESS}" \
+            --argjson job_skipped "${JOB_SKIPPED}" \
+            --argjson job_failure "${JOB_FAILURE}" \
+            --argjson job_success "${JOB_SUCCESS}" \
+            --argjson trigger_count "${TRIGGER_COUNT}" \
+            --argjson latest_trigger_id "${LATEST_TRIGGER_ID}" \
+            --argjson claim_count "${CLAIM_COUNT}" \
+            --argjson completed_count "${COMPLETED_COUNT}" \
+            '{contract:$contract,generated_at:$generated_at,classification:$classification,workflow:{lookup_ok:$workflow_lookup_ok,state:$workflow_state,path:$workflow_path},refs:{current_main_sha:$current_main_sha,expected_main_sha:$expected_main_sha,current_production_sha:$current_production_sha,expected_production_sha:$expected_production_sha},runs:{issue_comment_count:$issue_comment_run_count,latest_run_id:$latest_run_id,latest_status:$latest_run_status,latest_conclusion:$latest_run_conclusion,latest_head_sha:$latest_run_head_sha,latest_created_at:$latest_run_created_at},jobs:{total:$job_total,queued:$job_queued,in_progress:$job_in_progress,skipped:$job_skipped,failure:$job_failure,success:$job_success},markers:{trigger_count:$trigger_count,latest_trigger_id:$latest_trigger_id,claim_count:$claim_count,completed_count:$completed_count},github_metadata_read_only:true,provider_request_performed:false,provider_mutation_performed:false,restart_performed:false,deployment_performed:false,credential_access_performed:false,secrets_included:false}' \
+            > "${REPORT_DIR}/r5-trigger-metadata-diagnostic.json"
+
+          BODY="R5_TRIGGER_METADATA_DIAGNOSTIC status=completed source_run_id=${GITHUB_RUN_ID} classification=${CLASSIFICATION} workflow_lookup_ok=${WORKFLOW_LOOKUP_OK} workflow_state=${WORKFLOW_STATE} issue_comment_runs=${ISSUE_COMMENT_RUN_COUNT} latest_run_id=${LATEST_RUN_ID} latest_status=${LATEST_RUN_STATUS} latest_conclusion=${LATEST_RUN_CONCLUSION} jobs_total=${JOB_TOTAL} jobs_queued=${JOB_QUEUED} jobs_in_progress=${JOB_IN_PROGRESS} jobs_skipped=${JOB_SKIPPED} jobs_failure=${JOB_FAILURE} trigger_count=${TRIGGER_COUNT} latest_trigger_id=${LATEST_TRIGGER_ID} claim_count=${CLAIM_COUNT} completed_count=${COMPLETED_COUNT} current_main_sha=${CURRENT_MAIN_SHA} expected_main_sha=${EXPECTED_MAIN_SHA} current_production_sha=${CURRENT_PRODUCTION_SHA} expected_production_sha=${EXPECTED_PRODUCTION_SHA} github_metadata_read_only=true provider_request=false provider_mutation=false deployment=false restart=false credential_access=false secrets_included=false"
+          gh api --method POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
+            -f body="${BODY}"
+
+          echo "classification=${CLASSIFICATION}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload bounded diagnostic artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r5-trigger-metadata-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/r5-trigger-metadata-diagnostic/*
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Preserve fail-closed diagnostic status
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -n "${{ steps.diagnostic.outputs.classification }}"
