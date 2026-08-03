@@ -10,30 +10,35 @@ permissions:
   contents: read
 
 concurrency:
-  group: spec012-oauth-injection-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  group: spec012-oauth-replay-readback-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: false
 
 jobs:
   validate:
-    name: Exact Spec 012 OAuth Request Injection Validation
+    name: Exact Spec 012 OAuth Replay Readback Validation
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_HEAD_REF: gpt/spec012-oauth-injection-validation-a61cd9e8-v1
+      EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: 7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c
       MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
-      SCRIPT_COMMIT_SHA: b3eed7a469070fb1abf3a156a59bb774458a1227
+      BASE_TRANSFORM_SHA: 24b41f1ee9deff4bc62bdfe511af21324bbbb296
+      REPLAY_PATCH_SHA: b1e04f2e0143b66ef30b0550edf5ffdd63ed1fab
+      E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
     steps:
-      - name: Verify event identity before checkout
+      - name: Verify event identity
         shell: bash
         env:
           EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
           test "${EVENT_HEAD_REPOSITORY}" = "${GITHUB_REPOSITORY}"
           test "${EVENT_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
+          test "${EVENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"
 
       - name: Checkout exact marker head
         uses: actions/checkout@v5
@@ -49,55 +54,66 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Verify marker-only identity and load immutable repair
+      - name: Verify marker scope and load immutable patches
         shell: bash
         run: |
           set -euo pipefail
-          EVIDENCE_ROOT="${RUNNER_TEMP}/spec012-oauth-injection-${GITHUB_RUN_ID}"
-          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
-          mkdir -p "${EVIDENCE_ROOT}"
-          ACTUAL_HEAD_SHA="$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
-          test -f "${MARKER_PATH}"
-          printf '%s\n' "${MARKER_PATH}" > /tmp/expected-marker.txt
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${ACTUAL_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-marker.txt
-          diff -u /tmp/expected-marker.txt /tmp/actual-marker.txt
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-replay-readback-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${DIAGNOSTIC_ROOT}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          printf '%s\n' "${MARKER_PATH}" > /tmp/expected-files.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
           test -z "$(git status --porcelain)"
-          printf 'validated_head_sha=%s\n' "${ACTUAL_HEAD_SHA}" > "${EVIDENCE_ROOT}/identity.txt"
-          printf 'validated_parent_sha=%s\n' "${EXPECTED_MAIN_SHA}" >> "${EVIDENCE_ROOT}/identity.txt"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
-          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
-          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-request-injection-repair.py" > /tmp/apply-spec012-oauth-request-injection-repair.py
-          python -m py_compile /tmp/apply-spec012-oauth-request-injection-repair.py
+          for sha in "${BASE_TRANSFORM_SHA}" "${REPLAY_PATCH_SHA}"; do
+            git merge-base --is-ancestor "${sha}" "refs/remotes/origin/${SCRIPT_BRANCH}"
+          done
+          git show "${BASE_TRANSFORM_SHA}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-base.py
+          git show "${REPLAY_PATCH_SHA}:.github/scripts/apply-spec012-oauth-replay-readback-fix.py" > /tmp/apply-replay.py
+          python -m py_compile /tmp/apply-base.py /tmp/apply-replay.py
 
-      - name: Remove marker and apply exact three-file repair
+      - name: Apply corrected patches and converge generated maps
         shell: bash
         run: |
           set -euo pipefail
-          rm -- "${MARKER_PATH}"
-          python /tmp/apply-spec012-oauth-request-injection-repair.py
-          cat > /tmp/expected-files.txt <<'EOF'
-          http-generic-api/routes/index.js
-          http-generic-api/test-auth-oauth-routes.mjs
-          http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          EOF
-          LC_ALL=C sort -o /tmp/expected-files.txt /tmp/expected-files.txt
-          git diff --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
-          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
-          git diff --check "${EXPECTED_MAIN_SHA}"
-          git diff --stat "${EXPECTED_MAIN_SHA}" > "${EVIDENCE_ROOT}/diff-stat.txt"
-          cp /tmp/actual-files.txt "${EVIDENCE_ROOT}/changed-files.txt"
+          rm "${MARKER_PATH}"
+          python /tmp/apply-base.py
+          python /tmp/apply-replay.py
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
+          python - "${E2E_PATH}" "${DIAGNOSTIC_ROOT}/generated-files.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          e2e = Path(sys.argv[1])
+          generated = [line.strip() for line in Path(sys.argv[2]).read_text().splitlines() if line.strip()]
+          payload = json.loads(e2e.read_text())
+          for values in (payload['scope']['include'], payload['phases'][0]['e2e_journeys'][0]['evidence_paths']):
+              for value in generated:
+                  if value not in values:
+                      values.append(value)
+          e2e.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+          PY
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
 
-      - name: Run exact OAuth request-injection validations
+      - name: Run OAuth replay and wiring validations independently
         shell: bash
         run: |
           set -uo pipefail
-          results="${EVIDENCE_ROOT}/validation-results.tsv"
+          results="${DIAGNOSTIC_ROOT}/validation-results.tsv"
           : > "${results}"
           run_check() {
             local name="$1"; shift
-            local log="${EVIDENCE_ROOT}/${name}.log"
+            local log="${DIAGNOSTIC_ROOT}/${name}.log"
             set +e
             "$@" >"${log}" 2>&1
             local status=$?
@@ -105,30 +121,30 @@ jobs:
             printf '%s\t%s\t%s\n' "${name}" "${status}" "${log##*/}" >> "${results}"
             cat "${log}"
           }
-          run_check route-index-syntax node --check http-generic-api/routes/index.js
           run_check token-route node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           run_check auth-oauth-integration node http-generic-api/test-auth-oauth-routes.mjs
           run_check route-wiring node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
-          run_check dependency-mount grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes(deps));' http-generic-api/routes/index.js
-          run_check injected-test-pool grep -Fq 'buildTenantGptOAuthMetadataRoutes({ getPool: () => oauthClientPool })' http-generic-api/test-auth-oauth-routes.mjs
+          run_check outcome-policy node http-generic-api/test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs
+          run_check jwt-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref=${EXPECTED_MAIN_SHA}"
+          run_check no-jwt-import bash -lc "! grep -Fq 'from \"jsonwebtoken\"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
+          run_check no-fallback-secret bash -lc "! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
           {
             printf 'check\texit_code\tlog\n'
             cat "${results}"
-          } > "${EVIDENCE_ROOT}/validation-summary.tsv"
-          cat "${EVIDENCE_ROOT}/validation-summary.tsv"
+          } > "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
+          cat "${DIAGNOSTIC_ROOT}/validation-summary.tsv"
 
-      - name: Upload bounded OAuth injection evidence
+      - name: Upload replay validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-injection-${{ github.run_id }}
-          path: ${{ runner.temp }}/spec012-oauth-injection-${{ github.run_id }}
+          name: spec012-oauth-replay-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec012-oauth-replay-readback-${{ github.run_id }}
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce exact validation success
+      - name: Enforce validation success
         shell: bash
         run: |
           set -euo pipefail
-          test -s "${EVIDENCE_ROOT}/validation-results.tsv"
-          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${EVIDENCE_ROOT}/validation-results.tsv"
+          awk -F '\t' '$2 != "0" { print; failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
