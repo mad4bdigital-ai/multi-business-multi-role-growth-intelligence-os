@@ -15,6 +15,7 @@
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
+      "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
       "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
@@ -93,22 +94,24 @@
           "steps": [
             "Validate one complete no-secret snapshot for each of the eight registered source families.",
             "Reject incomplete pagination, count mismatch, conflicting path contracts, missing path controls, unsafe effects, or sensitive values.",
-            "Materialize deterministic canonical source JSON bytes and a content-bound review report.",
+            "Materialize deterministic canonical source JSON bytes including the bounded pagination identity and a content-bound review report.",
             "Refuse path escapes and refuse overwriting any existing source or report file.",
             "Review and commit the eight source documents separately.",
             "Verify the source commit is a full ancestor of current HEAD.",
             "Verify current source bytes match both the materialization report and the exact bytes committed at the reviewed ref.",
             "Recompute the canonical materialization-report digest after structural validation.",
-            "Reconstruct the eight reviewed documents through the canonical source-adapter contract and reproduce the declared source-bundle and inventory hashes.",
+            "Reconstruct the eight reviewed documents with their original pagination through the canonical source-adapter contract and reproduce the declared source-bundle and inventory hashes.",
+            "Run the public canonical materializer again and require byte-identical documents plus a structurally identical report.",
             "Resolve exact Git blob SHAs and emit the canonical repository source manifest.",
             "Refuse automatic Git add, commit, push, live workflow dispatch, SQL, provider, credential, deployment, or task mutation."
           ],
           "assertions": [
             "Exactly eight source documents are emitted in stable source-family order.",
             "Repeated materialization of identical snapshots produces identical bytes and hashes.",
+            "Pagination is part of every reviewed source document and a multi-page source reproduces the exact original source-bundle hash.",
             "Missing families and secret-bearing records fail closed.",
-            "The manifest finalizer rejects incomplete reports, noncanonical family paths, report-digest tampering, source-bundle mismatch, inventory mismatch, current content drift, reviewed-ref content drift, symlinks, path escapes, and invalid commit identity.",
-            "The public wrapper preserves the more specific current/reviewed content-drift error before reporting a stale report digest.",
+            "The manifest finalizer rejects incomplete reports, noncanonical family paths, report-digest tampering, source-bundle mismatch, inventory mismatch, noncanonical JSON bytes, current content drift, reviewed-ref content drift, symlinks, path escapes, and invalid commit identity.",
+            "The public boundary preserves the more specific current/reviewed content-drift error while the strict compatibility replay remains internal only.",
             "The final manifest binds exact reviewed Git blob SHA and exact source content SHA-256 for every family.",
             "No repository mutation is performed by either CLI; files are local review outputs only.",
             "T001, T002, and T021-T024 remain open."
@@ -120,6 +123,13 @@
               "working_directory": "http-generic-api",
               "path": "test-authority-evidence-repository-source-materializer.mjs",
               "args": []
+            },
+            {
+              "id": "authority-evidence-repository-pagination-roundtrip",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-pagination-roundtrip.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -128,6 +138,7 @@
             "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs",
             "http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs",
             "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
+            "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs",
             "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md"
           ]
         }
