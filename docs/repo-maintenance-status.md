@@ -84,6 +84,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge-contract.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-bridge.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml`
+- `.github/workflows/hostinger-nodejs-build-evidence.yml`
 - `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
@@ -143,7 +148,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
-- `.github/workflows/spec014-main-79cbbc63-reconciliation-launcher.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`
