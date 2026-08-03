@@ -1,0 +1,88 @@
+name: Spec 011 Managed Delivery Lifecycle
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "http-generic-api/spec011ManagedDeliveryLifecycle.js"
+      - "http-generic-api/test-spec011-managed-delivery-lifecycle.mjs"
+      - ".github/workflows/spec-011-managed-delivery-lifecycle.yml"
+      - "specs/011-durable-governed-execution-and-agent-delegation/phase6-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec011-managed-delivery-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  managed-delivery-certification:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: http-generic-api
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check managed delivery syntax
+        run: |
+          node --check spec011ManagedDeliveryLifecycle.js
+          node --check test-spec011-managed-delivery-lifecycle.mjs
+
+      - name: Certify managed delivery lifecycle
+        run: node test-spec011-managed-delivery-lifecycle.mjs
+
+      - name: Write bounded certification evidence
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          node <<'NODE'
+          const fs = require('fs');
+          const ok = process.env.JOB_STATUS === 'success';
+          fs.writeFileSync('artifacts/spec011-managed-delivery-lifecycle.json', JSON.stringify({
+            schema_version: 1,
+            report_type: 'spec011_managed_delivery_lifecycle_certification',
+            version: 'spec011-managed-delivery-lifecycle-v1',
+            source_sha: process.env.GITHUB_SHA,
+            status: ok ? 'pass' : 'failed',
+            tasks: ['T200', 'T201', 'T202', 'T203', 'T204', 'T205', 'T206'],
+            durable_operation: 'repo.change.execute',
+            durable_automation_key: 'pr_delivery',
+            semantic_stable_anchors: true,
+            stale_run_cancellation: true,
+            bounded_delegated_repair: true,
+            final_head_base_approval_binding: true,
+            merge_branch_delete_deploy_readback_receipts: true,
+            force_push_allowed: false,
+            protected_branch_bypass_allowed: false,
+            production_mutation: false,
+            provider_write: false,
+            deployment_executed_by_certification: false,
+            secrets_included: false
+          }, null, 2) + '\n');
+          NODE
+        env:
+          JOB_STATUS: ${{ job.status }}
+
+      - name: Upload certification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec011-managed-delivery-lifecycle
+          path: http-generic-api/artifacts/spec011-managed-delivery-lifecycle.json
+          if-no-files-found: error
+          retention-days: 30

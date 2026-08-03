@@ -75,13 +75,13 @@
 
 ## Phase 6 — Managed PR and Release Lifecycle
 
-- [ ] T200 Add managed delivery operation on top of the durable kernel.
-- [ ] T201 Add semantic patch intent and stable anchors.
-- [ ] T202 Add automatic base synchronization and stale-run cancellation.
-- [ ] T203 Add bounded delegated repair for allowlisted low-risk CI failures.
-- [ ] T204 Bind merge approval to final head and base SHA.
-- [ ] T205 Add merge, branch-delete, deployment receipt, and production readback.
-- [ ] T206 Prove no force push and protected-branch bypass.
+- [x] T200 Add managed delivery operation on top of the durable kernel.
+- [x] T201 Add semantic patch intent and stable anchors.
+- [x] T202 Add automatic base synchronization and stale-run cancellation.
+- [x] T203 Add bounded delegated repair for allowlisted low-risk CI failures.
+- [x] T204 Bind merge approval to final head and base SHA.
+- [x] T205 Add merge, branch-delete, deployment receipt, and production readback.
+- [x] T206 Prove no force push and protected-branch bypass.
 
 ## Phase 7 — Evidence Auto-Closeout
 
