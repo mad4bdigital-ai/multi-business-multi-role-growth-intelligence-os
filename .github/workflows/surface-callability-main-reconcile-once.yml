@@ -50,7 +50,6 @@ jobs:
           docs/surface-contract-gap-queue.json
           docs/surface-contract-gap-queue.md
           http-generic-api/frontend-surface-dispatch.generated.json
-          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
           EOF
               sort -o /tmp/expected.txt /tmp/expected.txt
               diff -u /tmp/expected.txt /tmp/conflicts.txt
