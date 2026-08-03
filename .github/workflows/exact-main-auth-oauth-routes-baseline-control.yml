@@ -1,0 +1,102 @@
+name: Exact Main Auth OAuth Routes Baseline Control
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-main-auth-oauth-routes-baseline-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+  EXPECTED_HEAD_REF: gpt/baseline-control-auth-oauth-routes-97e4ee7e-v1
+
+jobs:
+  baseline:
+    name: Reproduce OAuth route test on exact protected main
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify temporary PR and protected-main identities
+        shell: bash
+        env:
+          ACTUAL_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$EVENT_BASE_SHA" = "$EXPECTED_MAIN_SHA"
+          mapfile -t files < <(git diff --name-only "$EVENT_BASE_SHA"..."$EVENT_HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = '.github/workflows/exact-main-auth-oauth-routes-baseline-control.yml'
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+
+      - name: Checkout exact protected main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_MAIN_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Execute exact OAuth route test and capture output
+        id: test
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$RUNNER_TEMP/auth-oauth-routes-baseline"
+          GITHUB_SHA="$EXPECTED_MAIN_SHA" node test-auth-oauth-routes.mjs \
+            > "$RUNNER_TEMP/auth-oauth-routes-baseline/test.log" 2>&1
+          rc=$?
+          cat "$RUNNER_TEMP/auth-oauth-routes-baseline/test.log"
+          echo "exit_code=$rc" >> "$GITHUB_OUTPUT"
+          jq -n \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --argjson exit_code "$rc" \
+            '{main_sha:$main_sha,command:"node test-auth-oauth-routes.mjs",exit_code:$exit_code,repository_mutation:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/auth-oauth-routes-baseline/summary.json"
+          exit 0
+
+      - name: Upload baseline evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-main-auth-oauth-routes-baseline-${{ github.run_id }}
+          path: ${{ runner.temp }}/auth-oauth-routes-baseline/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Report baseline result
+        if: always()
+        shell: bash
+        env:
+          TEST_EXIT_CODE: ${{ steps.test.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          test -n "$TEST_EXIT_CODE"
+          test "$TEST_EXIT_CODE" = '0'
