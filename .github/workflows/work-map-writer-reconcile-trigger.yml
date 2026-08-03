@@ -1,0 +1,105 @@
+name: Work Map Writer Reconciliation Trigger
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-writer-reconcile-trigger-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    name: Reconcile PR 5490 writer with main
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/arm-trigger-work-map-writer-reconcile-20260804' &&
+      github.event.pull_request.head.sha == '3f15080c4f6374c877a0a7f6ee748c863b04e175'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_OLD_HEAD: 3f15080c4f6374c877a0a7f6ee748c863b04e175
+      EXPECTED_MAIN_SHA: ec8fa387014b9481dd3e7ab0cc4fd2708cafb865
+      RECONCILER_SHA: 5d3c27406a1847badb10b81357044a16da278751
+      TARGET_BRANCH: gpt/work-map-writer-diagnostics-v3-20260803
+      WORKFLOW_PATH: .github/workflows/spec-kit-work-map-autofix.yml
+    steps:
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_OLD_HEAD }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify target and fetch immutable inputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_OLD_HEAD}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_OLD_HEAD}"
+          test -z "$(git status --porcelain)"
+          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}" "${RECONCILER_SHA}"
+          git cat-file -e "${EXPECTED_MAIN_SHA}^{commit}"
+          git cat-file -e "${RECONCILER_SHA}^{commit}"
+          git show "${RECONCILER_SHA}:.github/scripts/reconcile-work-map-writer.py" > /tmp/reconcile-work-map-writer.py
+          python -m py_compile /tmp/reconcile-work-map-writer.py
+
+      - name: Merge main and prove conflict boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set +e
+          git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
+          merge_status=$?
+          set -e
+          test "${merge_status}" = "1"
+          git diff --name-only --diff-filter=U | LC_ALL=C sort > /tmp/conflicts.txt
+          printf '%s\n' "${WORKFLOW_PATH}" > /tmp/expected-conflicts.txt
+          diff -u /tmp/expected-conflicts.txt /tmp/conflicts.txt
+          test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git checkout --theirs -- "${WORKFLOW_PATH}"
+
+      - name: Apply current-main compatible diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/reconcile-work-map-writer.py
+          git add "${WORKFLOW_PATH}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --name-only "${EXPECTED_MAIN_SHA}" | LC_ALL=C sort > /tmp/resolved-vs-main.txt
+          printf '%s\n' "${WORKFLOW_PATH}" > /tmp/expected-vs-main.txt
+          diff -u /tmp/expected-vs-main.txt /tmp/resolved-vs-main.txt
+
+      - name: Validate resolved workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --cached --check
+          ruby -e 'require "yaml"; YAML.load_file(ARGV[0], aliases: true)' "${WORKFLOW_PATH}"
+          grep -q '^  workflow_dispatch:' "${WORKFLOW_PATH}"
+          for id in validate_generator_syntax validate_schema_intelligence_syntax validate_schema_classification_syntax validate_schema_contract_syntax validate_connectivity_syntax validate_connectivity_graph test_connectivity_contract validate_schema_contract validate_schema_classification test_schema_classification test_schema_classification_contract validate; do
+            grep -q "        id: ${id}$" "${WORKFLOW_PATH}"
+          done
+          grep -q 'validation-summary.md' "${WORKFLOW_PATH}"
+          grep -q 'failed-validation-contract.txt' "${WORKFLOW_PATH}"
+          grep -q 'failed-validation-exit-code.txt' "${WORKFLOW_PATH}"
+          grep -Fq 'path: ${{ runner.temp }}/work-map-autofix-diagnostics-${{ github.run_id }}' "${WORKFLOW_PATH}"
+          grep -Fq 'if-no-files-found: error' "${WORKFLOW_PATH}"
+
+      - name: Commit two-parent merge and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_OLD_HEAD}"
+          git commit -m "chore(sync): reconcile Work Map writer diagnostics with main"
+          new_head="$(git rev-parse HEAD)"
+          test "$(git rev-list --parents -n 1 "${new_head}" | wc -w)" = "3"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${new_head}"
