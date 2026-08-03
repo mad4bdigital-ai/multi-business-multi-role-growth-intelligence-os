@@ -1,0 +1,226 @@
+name: Incident 5021 Draft Merge Guard Builder
+run-name: Incident 5021 draft merge guard builder · ${{ github.sha }}
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/incident-5021-draft-merge-guard-builder.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-5021-draft-merge-guard-builder
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Publish clean lifecycle guard candidate
+    if: github.event.pull_request.head.ref == 'gpt/incident-5021/draft-merge-guard-builder-20260803'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: gpt/incident-5021/draft-merge-guard-20260803
+      IMMUTABLE_MAIN_HEAD: 6540253f2010f52c5eadf1c7b19ccb3def87ffa9
+    steps:
+      - name: Checkout clean target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Verify immutable target base
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$IMMUTABLE_MAIN_HEAD"
+          test -z "$(git status --porcelain)"
+
+      - name: Apply fail-closed lifecycle patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+
+          function replaceExactly(source, before, after, expectedCount, label) {
+            const count = source.split(before).length - 1;
+            assert.equal(count, expectedCount, `${label}: expected ${expectedCount} matches, found ${count}`);
+            return source.split(before).join(after);
+          }
+
+          const lifecyclePath = 'http-generic-api/githubRepositoryLifecycle.js';
+          let lifecycle = fs.readFileSync(lifecyclePath, 'utf8');
+          lifecycle = replaceExactly(
+            lifecycle,
+            '  const mergeable = pr?.mergeable !== false && String(pr?.mergeable_state || "").toLowerCase() !== "dirty";\n  const gateStatus = baseFresh && mergeable && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";',
+            '  const mergeable = pr?.mergeable !== false && String(pr?.mergeable_state || "").toLowerCase() !== "dirty";\n  const isDraft = pr?.draft === true;\n  const gateStatus = baseFresh && mergeable && !isDraft && !missingChecks.length && !pendingChecks.length && !failedChecks.length ? "pass" : "blocked";',
+            1,
+            'CI gate draft boundary',
+          );
+          lifecycle = replaceExactly(
+            lifecycle,
+            '    gate_status: gateStatus,\n    head_sha: headSha,',
+            '    gate_status: gateStatus,\n    is_draft: isDraft,\n    ready_for_merge: !isDraft,\n    head_sha: headSha,',
+            1,
+            'CI gate structured draft evidence',
+          );
+          lifecycle = replaceExactly(
+            lifecycle,
+            '  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;\n  const merge = await githubLifecycleRequest({',
+            '  const pr = (await githubLifecycleRequest({ owner, repo, apiPath: `/pulls/${pullNumber}`, token, fetchImpl: options.fetchImpl })).payload;\n  if (pr?.draft === true) {\n    throw lifecycleError(409, "github_pr_finalize_draft_blocked", "Draft pull requests cannot be finalized or merged.", {\n      pull_number: pullNumber,\n      expected_head_sha: expectedHeadSha,\n      expected_base_sha: expectedBaseSha,\n      is_draft: true,\n      secrets_included: false,\n    });\n  }\n  const merge = await githubLifecycleRequest({',
+            1,
+            'pre-merge draft recheck',
+          );
+          fs.writeFileSync(lifecyclePath, lifecycle, 'utf8');
+
+          const controlPlanePath = 'http-generic-api/repositoryAutomationControlPlane.js';
+          let controlPlane = fs.readFileSync(controlPlanePath, 'utf8');
+          controlPlane = replaceExactly(
+            controlPlane,
+            '    "ci_auto_recovery",\n    "mark_ready",\n    "pr_finalize",',
+            '    "ci_auto_recovery",\n    "pr_finalize",',
+            2,
+            'automatic ready-to-finalize sequence',
+          );
+          fs.writeFileSync(controlPlanePath, controlPlane, 'utf8');
+
+          const lifecycleTestPath = 'http-generic-api/test-github-repository-lifecycle.mjs';
+          let lifecycleTest = fs.readFileSync(lifecycleTestPath, 'utf8');
+          assert.equal(lifecycleTest.includes('github_pr_finalize_draft_blocked'), false, 'draft regression already present');
+          lifecycleTest += `\n\n{\n  const checks = [\n    "Syntax Check",\n    "Architecture Drift Detection",\n    "Execution Resolver Gate",\n    "Unit & Integration Tests",\n  ].map((name, index) => ({\n    name,\n    status: "completed",\n    conclusion: "success",\n    completed_at: \`2026-08-03T04:0\${index}:00Z\`,\n  }));\n  const result = await getGithubPullRequestCiGate({\n    owner: OWNER,\n    repo: REPO,\n    token: "test-token",\n    pull_number: 4386,\n    fetchImpl: queuedFetch([\n      { status: 200, payload: { number: 4386, draft: true, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: \`\${OWNER}/\${REPO}\` } } } },\n      { status: 200, payload: { status: "ahead", ahead_by: 901, behind_by: 0 } },\n      { status: 200, payload: { total_count: 4, check_runs: checks } },\n    ]),\n  });\n  assert.equal(result.gate_status, "blocked");\n  assert.equal(result.is_draft, true);\n  assert.equal(result.ready_for_merge, false);\n}\n\n{\n  const calls = [];\n  const checks = [\n    "Syntax Check",\n    "Architecture Drift Detection",\n    "Execution Resolver Gate",\n    "Unit & Integration Tests",\n  ].map((name, index) => ({\n    name,\n    status: "completed",\n    conclusion: "success",\n    completed_at: \`2026-08-03T04:1\${index}:00Z\`,\n  }));\n  await assert.rejects(\n    () => finalizeGithubPullRequest({\n      owner: OWNER,\n      repo: REPO,\n      token: "test-token",\n      pull_number: 4386,\n      expected_head_sha: HEAD_SHA,\n      expected_base_sha: BASE_SHA,\n      confirm: githubPullRequestFinalizeConfirmation(4386, HEAD_SHA),\n      fetchImpl: queuedFetch([\n        { status: 200, payload: { number: 4386, draft: false, mergeable: true, mergeable_state: "clean", base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: \`\${OWNER}/\${REPO}\` } } } },\n        { status: 200, payload: { status: "ahead", ahead_by: 901, behind_by: 0 } },\n        { status: 200, payload: { total_count: 4, check_runs: checks } },\n        { status: 200, payload: { number: 4386, draft: true, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/integration-rollup", sha: HEAD_SHA, repo: { full_name: \`\${OWNER}/\${REPO}\` } } } },\n      ], calls),\n    }),\n    (error) => error.code === "github_pr_finalize_draft_blocked" && error.details?.is_draft === true,\n  );\n  assert.equal(calls.some((call) => call.method === "PUT" && /\\/merge$/.test(call.url)), false, "draft race must not reach merge endpoint");\n}\n`;
+          fs.writeFileSync(lifecycleTestPath, lifecycleTest, 'utf8');
+
+          const controlTestPath = 'http-generic-api/test-repository-automation-control-plane.mjs';
+          let controlTest = fs.readFileSync(controlTestPath, 'utf8');
+          controlTest = replaceExactly(
+            controlTest,
+            'assert(fullPlan.steps.some((step) => step.step_key === "pr_finalize"));\nassert(fullPlan.steps.some((step) => step.step_key === "migration_apply"));',
+            'assert(fullPlan.steps.some((step) => step.step_key === "pr_finalize"));\nassert.equal(fullPlan.steps.some((step) => step.step_key === "mark_ready"), false, "full_workstream must not auto-mark a PR ready before finalization");\nconst prDeliveryPlan = buildRepositoryAutomationPlan({ automation_key: "pr_delivery", owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os", pull_number: 4386, branch: "gpt/integration-rollup" });\nassert(prDeliveryPlan.steps.some((step) => step.step_key === "pr_finalize"));\nassert.equal(prDeliveryPlan.steps.some((step) => step.step_key === "mark_ready"), false, "pr_delivery must require readiness as an external, separately authorized state");\nassert(fullPlan.steps.some((step) => step.step_key === "migration_apply"));',
+            1,
+            'control-plane readiness regression',
+          );
+          fs.writeFileSync(controlTestPath, controlTest, 'utf8');
+
+          const evidencePath = '.changes/e2e/repository-lifecycle-draft-merge-guard.json';
+          assert.equal(fs.existsSync(evidencePath), false, 'evidence file already exists');
+          const evidence = {
+            $schema: '../../.specify/schemas/e2e-phases.schema.json',
+            schema_version: 1,
+            feature_key: 'repository-lifecycle-draft-merge-guard',
+            title: 'Repository lifecycle Draft merge guard',
+            delivery_mode: 'single_pr',
+            current_phase: 'mvp',
+            scope: {
+              include: [
+                '.changes/e2e/repository-lifecycle-draft-merge-guard.json',
+                'http-generic-api/githubRepositoryLifecycle.js',
+                'http-generic-api/repositoryAutomationControlPlane.js',
+                'http-generic-api/test-github-repository-lifecycle.mjs',
+                'http-generic-api/test-repository-automation-control-plane.mjs',
+              ],
+            },
+            merge_contract: { minimum_phase: 'mvp' },
+            phases: [
+              {
+                id: 'mvp',
+                status: 'implemented',
+                objective: 'Prevent repository automation from converting a Draft PR to Ready and immediately finalizing it, and reject Draft state both in the CI gate and immediately before the merge request.',
+                e2e_journeys: [
+                  {
+                    id: 'draft-pr-fails-before-merge-endpoint',
+                    end_to_end: true,
+                    level: 'synthetic_runtime',
+                    actor: 'repository_automation_operator',
+                    entrypoint: 'finalizeGithubPullRequest',
+                    terminal_outcome: 'A Draft PR is blocked before any PUT /pulls/{number}/merge request, including a Ready-to-Draft race after the initial CI gate.',
+                    steps: [
+                      'Build a passing required-check set for an exact protected-main pull request candidate.',
+                      'Prove the CI gate returns blocked when the candidate is Draft.',
+                      'Prove a candidate that becomes Draft after the gate is rejected by the final pre-merge readback.',
+                      'Prove automatic pr_delivery and full_workstream plans no longer include mark_ready immediately before pr_finalize.',
+                    ],
+                    assertions: [
+                      'Draft state is included in structured CI-gate evidence.',
+                      'Draft candidates cannot produce gate_status=pass.',
+                      'A final Draft readback throws github_pr_finalize_draft_blocked.',
+                      'No merge endpoint request is issued after the Draft race.',
+                      'Mark-ready remains available only as a separately invoked capability and is absent from automatic finalize templates.',
+                    ],
+                    tests: [
+                      { id: 'github-repository-lifecycle-draft-guard', runner: 'node', working_directory: 'http-generic-api', path: 'test-github-repository-lifecycle.mjs', args: [] },
+                      { id: 'repository-automation-control-plane-readiness-separation', runner: 'node', working_directory: 'http-generic-api', path: 'test-repository-automation-control-plane.mjs', args: [] },
+                    ],
+                    evidence_paths: [
+                      'http-generic-api/githubRepositoryLifecycle.js',
+                      'http-generic-api/repositoryAutomationControlPlane.js',
+                      'http-generic-api/test-github-repository-lifecycle.mjs',
+                      'http-generic-api/test-repository-automation-control-plane.mjs',
+                      'https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5021',
+                    ],
+                  },
+                ],
+              },
+              { id: 'operational', status: 'planned', objective: 'Add audit-log actor binding and immutable approval evidence before protected-main finalization.' },
+              { id: 'resilient', status: 'planned', objective: 'Prove concurrency-safe Draft/Ready transitions across workflow retries and merge queues.' },
+              { id: 'canary', status: 'not_applicable', objective: 'Repository lifecycle guard has no provider canary authority.' },
+              { id: 'production', status: 'not_applicable', objective: 'This patch grants no Production, deployment, or provider authority.' },
+            ],
+            secrets_included: false,
+          };
+          fs.writeFileSync(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, 'utf8');
+          NODE
+
+      - name: Run focused lifecycle tests
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-lifecycle.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Enforce bounded final write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git status --short | sed 's/^...//')
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 5
+          printf '%s\n' "${changed[@]}" | sort > /tmp/changed.txt
+          cat > /tmp/expected.txt <<'EOF'
+          .changes/e2e/repository-lifecycle-draft-merge-guard.json
+          http-generic-api/githubRepositoryLifecycle.js
+          http-generic-api/repositoryAutomationControlPlane.js
+          http-generic-api/test-github-repository-lifecycle.mjs
+          http-generic-api/test-repository-automation-control-plane.mjs
+          EOF
+          sort -o /tmp/expected.txt /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/changed.txt
+
+      - name: Commit and publish clean candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            http-generic-api/githubRepositoryLifecycle.js \
+            http-generic-api/repositoryAutomationControlPlane.js \
+            http-generic-api/test-github-repository-lifecycle.mjs \
+            http-generic-api/test-repository-automation-control-plane.mjs
+          git commit -m "fix(github): block Draft PR finalization"
+          git push origin "HEAD:$TARGET_BRANCH"
