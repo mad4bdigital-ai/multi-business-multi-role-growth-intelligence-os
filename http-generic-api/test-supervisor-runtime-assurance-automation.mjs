@@ -51,30 +51,38 @@ assert.doesNotMatch(followupJob, /docs\/work-maps/);
 assert.doesNotMatch(followupJob, /gh pr merge/);
 
 for (const marker of [
-  "work-map-autofix:authorized",
-  "Bootstrap Work Map diagnostic envelope",
-  "work-map-autofix-diagnostics.mjs",
-  "regenerate-and-verify-idempotency",
-  "commit-push-and-dispatch",
-  "work-map-autofix-diagnostic-report",
-  "GITHUB_STEP_SUMMARY",
+  "workflow_dispatch:",
+  "Existing same-repository pull-request branch to update",
+  "Exact branch head SHA authorized for regeneration",
+  "Initialize diagnostics and validate inputs",
+  "Checkout exact authorized head",
+  "Pin branch and pull request identity",
+  "Validate generator and governance contracts",
+  "Regenerate and prove idempotency",
+  "Commit and push governed Work Maps",
+  "Dispatch exact-head verification",
+  "Finalize diagnostic evidence",
+  "work-map-autofix-diagnostics-",
   "expected_head_sha",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
-  "Direct autofix writes to main are forbidden",
-  "Refusing stale autofix",
-  "Autofix push readback mismatch",
   "gh workflow run ci.yml",
   "gh workflow run spec-kit-work-map-integration.yml",
 ]) {
   assert.ok(workMapAutofix.includes(marker), `Work Map Autofix missing ${marker}`);
 }
-assert.match(workMapAutofix, /types: \[reopened\]/);
-assert.match(workMapAutofix, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
-assert.match(workMapAutofix, /github\.actor != 'github-actions\[bot\]'/);
+assert.match(workMapAutofix, /TARGET_BRANCH: \$\{\{ inputs\.branch \}\}/);
+assert.match(workMapAutofix, /EXPECTED_HEAD_SHA: \$\{\{ inputs\.expected_head_sha \}\}/);
+assert.match(workMapAutofix, /\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production"/);
+assert.match(workMapAutofix, /\$\{EXPECTED_HEAD_SHA\}" =~ \^\[0-9a-f\]\{40\}\$/);
+assert.match(workMapAutofix, /-f base=main/);
+assert.match(workMapAutofix, /test "\$\(jq -r '\.\[0\]\.head\.repo\.full_name'/);
+assert.match(workMapAutofix, /test "\$\(jq -r '\.\[0\]\.head\.sha'/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
 assert.match(workMapAutofix, /git diff --name-only \| grep -v '\^docs\/work-maps\/'/);
+assert.doesNotMatch(workMapAutofix, /types:\s*\[reopened\]/);
+assert.doesNotMatch(workMapAutofix, /work-map-autofix:authorized/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
 
 for (const marker of [
@@ -129,7 +137,7 @@ for (const marker of [
   "APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
   "skip-docs-agent",
   "Spec Kit Work Map Autofix",
-  "work-map-autofix:authorized",
+  "workflow_dispatch",
   "expected_head_sha",
   "provider_calls=0",
   "transaction_rolled_back=true",
@@ -138,6 +146,8 @@ for (const marker of [
 ]) {
   assert.ok(runbook.includes(marker), `runbook missing ${marker}`);
 }
+assert.doesNotMatch(runbook, /work-map-autofix:authorized/);
+assert.doesNotMatch(runbook, /one-time reopened pull request/);
 assert.doesNotMatch(runbook, /docs-agent-write|docs-agent-automerge/);
 assert.ok(testManifest.includes("node test-supervisor-runtime-assurance-automation.mjs"));
 
