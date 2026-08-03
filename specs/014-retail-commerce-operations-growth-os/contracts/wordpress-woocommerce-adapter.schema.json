@@ -1,0 +1,377 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-014/wordpress-woocommerce-adapter-v2.schema.json",
+  "title": "Business-Profile-Bound Brand WordPress and WooCommerce Adapter Manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "adapter_key",
+    "adapter_version",
+    "provider_mode",
+    "business_profile_contract",
+    "brand_context_contract",
+    "site_contract",
+    "authentication_contract",
+    "capabilities",
+    "webhook_contract",
+    "readback_contract",
+    "compatibility_contract",
+    "certification",
+    "status",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": "wordpress-woocommerce-adapter-v2" },
+    "adapter_key": { "$ref": "#/$defs/reference" },
+    "adapter_version": { "$ref": "#/$defs/version" },
+    "provider_mode": {
+      "type": "string",
+      "enum": [
+        "wordpress_content",
+        "woocommerce_discovery",
+        "woocommerce_standard_rest",
+        "woocommerce_governed_bridge",
+        "woocommerce_projection"
+      ]
+    },
+    "business_profile_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "effective_business_profile_required",
+        "effective_profile_context_hash_required",
+        "effective_profile_version_vector_required",
+        "activity_pack_compatibility_required",
+        "stale_profile_rejected",
+        "unsupported_profile_behavior",
+        "supported_activity_type_keys",
+        "supported_activity_pack_refs"
+      ],
+      "properties": {
+        "effective_business_profile_required": { "const": true },
+        "effective_profile_context_hash_required": { "const": true },
+        "effective_profile_version_vector_required": { "const": true },
+        "activity_pack_compatibility_required": { "const": true },
+        "stale_profile_rejected": { "const": true },
+        "unsupported_profile_behavior": { "type": "string", "enum": ["block", "read_only_discovery", "content_only_degraded"] },
+        "supported_activity_type_keys": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "excluded_activity_type_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "supported_activity_pack_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_profile_dimension_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "applicability_contract_version": { "$ref": "#/$defs/version" }
+      }
+    },
+    "brand_context_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "brand_required",
+        "brand_profile_revision_required",
+        "site_profile_revision_required",
+        "connection_binding_revision_required",
+        "effective_business_profile_context_required",
+        "workspace_fallback_forbidden",
+        "personal_fallback_forbidden",
+        "cross_brand_denied"
+      ],
+      "properties": {
+        "brand_required": { "const": true },
+        "brand_profile_revision_required": { "const": true },
+        "site_profile_revision_required": { "const": true },
+        "connection_binding_revision_required": { "const": true },
+        "effective_business_profile_context_required": { "const": true },
+        "workspace_fallback_forbidden": { "const": true },
+        "personal_fallback_forbidden": { "const": true },
+        "cross_brand_denied": { "const": true }
+      }
+    },
+    "site_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site_role",
+        "canonical_hostname_required",
+        "https_required",
+        "wordpress_api_version",
+        "woocommerce_api_version"
+      ],
+      "properties": {
+        "site_role": {
+          "type": "string",
+          "enum": [
+            "primary_storefront",
+            "content_site",
+            "landing_site",
+            "campaign_microsite",
+            "b2b_portal",
+            "support_portal",
+            "staging",
+            "development",
+            "archive"
+          ]
+        },
+        "canonical_hostname_required": { "const": true },
+        "https_required": { "const": true },
+        "wordpress_api_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "woocommerce_api_version": { "type": ["string", "null"], "maxLength": 64 },
+        "bridge_api_version": { "type": ["string", "null"], "maxLength": 64 }
+      }
+    },
+    "authentication_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "credential_source",
+        "wordpress_auth_modes",
+        "woocommerce_auth_modes",
+        "webhook_secret_separate",
+        "least_privilege_required",
+        "raw_secret_storage_forbidden"
+      ],
+      "properties": {
+        "credential_source": { "const": "governed_connection_binding" },
+        "wordpress_auth_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["application_password", "certified_oauth", "bridge_signature"] }
+        },
+        "woocommerce_auth_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["rest_consumer_key_secret", "bridge_signature"] }
+        },
+        "webhook_secret_separate": { "const": true },
+        "least_privilege_required": { "const": true },
+        "raw_secret_storage_forbidden": { "const": true }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/capabilityClaim" }
+    },
+    "webhook_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "provider_webhook_inbox_required",
+        "signature_required",
+        "timestamp_or_replay_window_required",
+        "provider_event_deduplication_required",
+        "effective_business_profile_context_preserved",
+        "async_processing_required"
+      ],
+      "properties": {
+        "provider_webhook_inbox_required": { "const": true },
+        "signature_required": { "const": true },
+        "timestamp_or_replay_window_required": { "const": true },
+        "provider_event_deduplication_required": { "const": true },
+        "effective_business_profile_context_preserved": { "const": true },
+        "async_processing_required": { "const": true },
+        "supported_topics": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    },
+    "readback_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "same_brand_context_required",
+        "same_effective_business_profile_context_required",
+        "same_operation_identity_required",
+        "unknown_outcome_blocks_blind_replay",
+        "resource_readback_supported"
+      ],
+      "properties": {
+        "same_brand_context_required": { "const": true },
+        "same_effective_business_profile_context_required": { "const": true },
+        "same_operation_identity_required": { "const": true },
+        "unknown_outcome_blocks_blind_replay": { "const": true },
+        "resource_readback_supported": { "type": "boolean" },
+        "operation_inspection_supported": { "type": "boolean" },
+        "maximum_staleness_seconds": { "type": "integer", "minimum": 0, "maximum": 86400 }
+      }
+    },
+    "compatibility_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wordpress_versions",
+        "woocommerce_versions",
+        "php_versions",
+        "hpos_support",
+        "plugin_compatibility_mode",
+        "activity_profile_compatibility_mode"
+      ],
+      "properties": {
+        "wordpress_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "woocommerce_versions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "php_versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "maxLength": 64 }
+        },
+        "hpos_support": {
+          "type": "string",
+          "enum": ["required", "supported", "unsupported", "not_applicable"]
+        },
+        "plugin_compatibility_mode": {
+          "type": "string",
+          "enum": ["allowlist", "profiled", "discovery_only"]
+        },
+        "activity_profile_compatibility_mode": {
+          "type": "string",
+          "enum": ["explicit_profile_matrix", "activity_pack_predicates", "discovery_only"]
+        },
+        "certified_extension_profiles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    },
+    "certification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "environment",
+        "suite_version",
+        "status",
+        "cross_brand_isolation_passed",
+        "exact_connection_passed",
+        "secret_boundary_passed",
+        "business_profile_context_passed",
+        "activity_pack_compatibility_passed",
+        "stale_profile_rejection_passed",
+        "evidence_refs"
+      ],
+      "properties": {
+        "environment": { "type": "string", "enum": ["unit", "fixture", "sandbox", "staging", "production_readonly"] },
+        "suite_version": { "$ref": "#/$defs/version" },
+        "status": { "type": "string", "enum": ["certified", "certified_with_constraints", "degraded", "rejected"] },
+        "cross_brand_isolation_passed": { "type": "boolean" },
+        "exact_connection_passed": { "type": "boolean" },
+        "secret_boundary_passed": { "type": "boolean" },
+        "business_profile_context_passed": { "type": "boolean" },
+        "activity_pack_compatibility_passed": { "type": "boolean" },
+        "stale_profile_rejection_passed": { "type": "boolean" },
+        "atomic_unique_item_reservation_passed": { "type": ["boolean", "null"] },
+        "unknown_outcome_readback_passed": { "type": ["boolean", "null"] },
+        "evidence_refs": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/reference" }
+        }
+      }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "certification_required", "certified", "certified_with_constraints", "degraded", "disabled", "retired"]
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "capabilityClaim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capability_key",
+        "support",
+        "maturity",
+        "readback_mode",
+        "idempotency_mode",
+        "activity_applicability"
+      ],
+      "properties": {
+        "capability_key": { "$ref": "#/$defs/reference" },
+        "support": { "type": "string", "enum": ["supported", "supported_with_constraints", "unsupported"] },
+        "maturity": {
+          "type": "string",
+          "enum": ["inventory_only", "dry_run_ready", "apply_supported", "sandbox_certified", "production_certified"]
+        },
+        "readback_mode": { "type": "string", "enum": ["same_cycle", "async_required", "not_available"] },
+        "idempotency_mode": { "type": "string", "enum": ["provider_native", "platform_ledger", "bridge_ledger", "composite", "not_supported"] },
+        "activity_applicability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required_activity_pack_refs", "forbidden_activity_pack_refs", "required_profile_dimension_keys", "unknown_profile_policy"],
+          "properties": {
+            "required_activity_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+            "forbidden_activity_pack_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+            "required_profile_dimension_keys": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+            "unknown_profile_policy": { "type": "string", "enum": ["block", "not_relevant", "discovery_only"] }
+          }
+        },
+        "required_permission_profile": { "$ref": "#/$defs/reference" },
+        "constraints": { "type": "object", "additionalProperties": true }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "provider_mode": { "const": "woocommerce_governed_bridge" } }, "required": ["provider_mode"] },
+      "then": {
+        "properties": {
+          "readback_contract": { "properties": { "operation_inspection_supported": { "const": true } } }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "status": { "const": "certified" } }, "required": ["status"] },
+      "then": {
+        "properties": {
+          "certification": {
+            "properties": {
+              "status": { "enum": ["certified", "certified_with_constraints"] },
+              "cross_brand_isolation_passed": { "const": true },
+              "exact_connection_passed": { "const": true },
+              "secret_boundary_passed": { "const": true },
+              "business_profile_context_passed": { "const": true },
+              "activity_pack_compatibility_passed": { "const": true },
+              "stale_profile_rejection_passed": { "const": true }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "012-tenant-activation-lifecycle",
+  "title": "Governed policy phase closeout and T026 migration readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/spec012-governed-policy-migration-readiness.mjs",
+      "http-generic-api/test-spec012-policy-closeout-and-t026-readiness.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec012.mjs",
+      "specs/012-tenant-activation-lifecycle/e2e-phases.json",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.json",
+      "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.md",
+      "docs/runbooks/spec012-governed-policy-migration-readiness.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the PR #4181 post-merge closeout and the read-only T026 migration-design readiness path without granting migration or runtime authority.",
+      "e2e_journeys": [
+        {
+          "id": "policy-closeout-to-t026-readiness-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 012 migration reviewer",
+          "entrypoint": "PR #4181 closeout evidence and the two governed-policy SQL design files",
+          "terminal_outcome": "The reviewer receives deterministic checksums, statement counts, additive schema validation, and explicit no-authorization evidence while unsafe SQL or incomplete closeout evidence fails closed.",
+          "steps": [
+            "Load and validate the exact PR #4181 post-merge closeout evidence and completed task set.",
+            "Read both governed-policy SQL design files and run the canonical static migration preflight.",
+            "Verify expected additive tables, activation ordering, and the absence of destructive SQL, active seed DML, or embedded authorization.",
+            "Return ready-for-governed-preflight evidence while keeping Apply, ledger writes, runtime wiring, and Production mutation disabled."
+          ],
+          "assertions": [
+            "The closeout binds PR #4181 to its validated head and merge SHA with zero unresolved review threads.",
+            "Both migration designs produce bounded SHA-256 checksums and positive statement counts.",
+            "Missing tables, unsafe ordering, destructive SQL, active governed-policy seed DML, or embedded authorization blocks readiness.",
+            "Ready for governed preflight never implies migration authorization or SQL Apply.",
+            "The journey performs no database write, migration-ledger write, runtime wiring, deployment, provider call, credential read, external send, or Production mutation."
+          ],
+          "tests": [
+            {
+              "id": "spec012-policy-closeout-t026-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-policy-closeout-and-t026-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/012-tenant-activation-lifecycle/e2e-phases.json",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.json",
+            "specs/012-tenant-activation-lifecycle/implementation/pr-2h-policy-post-merge-and-t026-readiness.md",
+            "http-generic-api/scripts/spec012-governed-policy-migration-readiness.mjs",
+            "http-generic-api/test-spec012-policy-closeout-and-t026-readiness.mjs",
+            "docs/runbooks/spec012-governed-policy-migration-readiness.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Authorize and apply the two T026 migrations through the governed runner, then prove migration-ledger and schema readback before any runtime wiring.",
+      "blockers": [
+        "Exact deployed-candidate environment preflight has not been completed.",
+        "Fresh checksum-bound migration authorization and exact typed confirmation do not exist.",
+        "Same-cycle dry-run, governed single Apply, migration-ledger readback, and schema readback remain incomplete."
+      ],
+      "planned_e2e_journey": {
+        "id": "t026-governed-apply-to-schema-readback",
+        "required_level": "synthetic_runtime",
+        "actor": "Authorized platform migration operator",
+        "entrypoint": "Exact deployed candidate plus fresh checksum-bound migration authorization",
+        "terminal_outcome": "Both additive migrations are applied once through the governed runner and verified through exact ledger and schema readback before runtime wiring is considered.",
+        "steps": [
+          "Run environment and schema-collision preflight against the exact deployed candidate.",
+          "Create fresh checksum-bound authorization and require exact typed confirmation.",
+          "Run the same-cycle dry-run and one governed Apply.",
+          "Read back the migration ledger and every expected table, index, constraint, and ordering boundary."
+        ]
+      }
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove idempotent retry, partial-failure classification, rollback boundaries, and recovery from unknown migration outcomes without duplicate Apply."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the applied governed-policy schema and disabled-by-default runtime integration against an authorized live non-production target."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA, migration ledger, schema parity, runtime readback, monitoring, and rollback under separate release authorization."
+    }
+  ]
+}
