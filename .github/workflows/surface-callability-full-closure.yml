@@ -40,16 +40,20 @@ jobs:
 
       - name: Materialize integrated Surface contracts
         working-directory: http-generic-api
+        shell: bash
         run: |
-          python3 scripts/surface-callability-closure/patch_validator_auth.py
-          python3 scripts/surface-callability-closure/patch_generator_policy.py
-          python3 scripts/surface-callability-closure/patch_openapi_authority_v3.py
-          python3 scripts/surface-callability-closure/patch_workspace.py
-          python3 scripts/surface-callability-closure/patch_agent_surfaces.py
-          python3 scripts/surface-callability-closure/patch_infrastructure.py
-          npm run frontend:dispatch:generate
-          node scripts/surface-callability-closure/generate_closure_contracts.mjs
-          node scripts/surface-contract-discovery.mjs --write
+          set -o pipefail
+          {
+            python3 scripts/surface-callability-closure/patch_validator_auth.py
+            python3 scripts/surface-callability-closure/patch_generator_policy.py
+            python3 scripts/surface-callability-closure/patch_openapi_authority_v3.py
+            python3 scripts/surface-callability-closure/patch_workspace.py
+            python3 scripts/surface-callability-closure/patch_agent_surfaces.py
+            python3 scripts/surface-callability-closure/patch_infrastructure.py
+            npm run frontend:dispatch:generate
+            node scripts/surface-callability-closure/generate_closure_contracts.mjs
+            node scripts/surface-contract-discovery.mjs --write
+          } 2>&1 | tee ../surface-materialization.log
 
       - name: Capture resource API coverage result
         id: resource_api_coverage
@@ -66,6 +70,7 @@ jobs:
         with:
           name: resource-api-coverage-generated-evidence
           path: |
+            surface-materialization.log
             resource-api-coverage.log
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
             http-generic-api/frontend-operation-governance.generated.json
