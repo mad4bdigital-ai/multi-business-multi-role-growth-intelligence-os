@@ -95,22 +95,44 @@ jobs:
             fi
           done
 
-      - name: Run focused closure regressions
+      - name: Syntax contracts
         working-directory: http-generic-api
-        shell: bash
         run: |
-          set -Eeuo pipefail
           node --check routes/tenantLifecycleRoutes.js
           node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
           node --check scripts/resource-api-callability-contracts.mjs
-          node test-workspace-invitation-controls.mjs
-          node test-surface-contract-sql-registry-extractor.mjs
-          node test-resource-api-callability-effect-classes.mjs
-          node test-resource-api-coverage.mjs
-          node test-surface-callability-full-closure.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-frontend-auth-openapi-parity.mjs
-          npm run openapi:auth:check
+
+      - name: Workspace invitation controls
+        working-directory: http-generic-api
+        run: node test-workspace-invitation-controls.mjs
+
+      - name: SQL registry extractor
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Resource effect classes
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Resource API coverage
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Surface full closure
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
+
+      - name: Frontend Surface dispatch
+        working-directory: http-generic-api
+        run: node test-frontend-surface-dispatch.mjs
+
+      - name: Frontend auth OpenAPI parity
+        working-directory: http-generic-api
+        run: node test-frontend-auth-openapi-parity.mjs
+
+      - name: OpenAPI auth parity
+        working-directory: http-generic-api
+        run: npm run openapi:auth:check
 
       - name: Enforce scoped queue closure
         working-directory: http-generic-api
