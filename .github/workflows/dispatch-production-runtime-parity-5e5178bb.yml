@@ -1,5 +1,5 @@
-# synchronize-trigger: production-topology-5e5178bb-v2
-name: Read Back Production Topology 5E5178BB
+# synchronize-trigger: production-topology-2669991a-v3
+name: Read Back Production Topology 2669991A
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: readback-production-topology-5e5178bb
+  group: readback-production-topology-2669991a
   cancel-in-progress: false
 
 jobs:
@@ -26,8 +26,8 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4953'
-      EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
-      REPORT_DIR: ${{ runner.temp }}/production-topology-5e5178bb
+      EXPECTED_PRODUCTION_SHA: 2669991a882c7f7939510fbbace17f462a42517c
+      REPORT_DIR: ${{ runner.temp }}/production-topology-2669991a
     steps:
       - name: Verify current protected authority
         env:
@@ -96,8 +96,8 @@ jobs:
       - name: Upload public topology evidence
         uses: actions/upload-artifact@v4
         with:
-          name: production-topology-5e5178bb-${{ github.run_id }}
-          path: ${{ runner.temp }}/production-topology-5e5178bb/*
+          name: production-topology-2669991a-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-topology-2669991a/*
           if-no-files-found: error
           retention-days: 30
 
@@ -107,7 +107,7 @@ jobs:
           set -euo pipefail
           jq -e '
             .contract == "mad4b.production-topology-public-readback.v1" and
-            .expected_production_sha == "5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb" and
+            .expected_production_sha == "2669991a882c7f7939510fbbace17f462a42517c" and
             .public_get_only == true and
             .credential_access_performed == false and
             .provider_mutation_performed == false and
