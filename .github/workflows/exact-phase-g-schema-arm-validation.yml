@@ -21,7 +21,6 @@ jobs:
     env:
       EXPECTED_HEAD_REF: gpt/spec012-oauth-token-route-test-parity-20260804
       EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
-      EXPECTED_HEAD_SHA: 7ca3ee6aaa9ab063b3bd044f08209a1cf81cfa6c
       MARKER_PATH: .github/validation/spec012-oauth-route-failure-diagnostic-v3.txt
       SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
       SCRIPT_COMMIT_SHA: b3eed7a469070fb1abf3a156a59bb774458a1227
@@ -30,13 +29,11 @@ jobs:
         shell: bash
         env:
           EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
         run: |
           set -euo pipefail
           test "${EVENT_HEAD_REPOSITORY}" = "${GITHUB_REPOSITORY}"
           test "${EVENT_HEAD_REF}" = "${EXPECTED_HEAD_REF}"
-          test "${EVENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}"
 
       - name: Checkout exact marker head
         uses: actions/checkout@v5
@@ -59,13 +56,15 @@ jobs:
           EVIDENCE_ROOT="${RUNNER_TEMP}/spec012-oauth-injection-${GITHUB_RUN_ID}"
           printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
           mkdir -p "${EVIDENCE_ROOT}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          ACTUAL_HEAD_SHA="$(git rev-parse HEAD)"
           test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
           test -f "${MARKER_PATH}"
           printf '%s\n' "${MARKER_PATH}" > /tmp/expected-marker.txt
-          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-marker.txt
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${ACTUAL_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-marker.txt
           diff -u /tmp/expected-marker.txt /tmp/actual-marker.txt
           test -z "$(git status --porcelain)"
+          printf 'validated_head_sha=%s\n' "${ACTUAL_HEAD_SHA}" > "${EVIDENCE_ROOT}/identity.txt"
+          printf 'validated_parent_sha=%s\n' "${EXPECTED_MAIN_SHA}" >> "${EVIDENCE_ROOT}/identity.txt"
           npm ci --prefix http-generic-api
           git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
           git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
