@@ -285,7 +285,11 @@ async function runtimeToolCall({ runtimeBaseUrl, backendApiKey, body, fetchFn, t
   let payload;
   try { payload = text ? JSON.parse(text) : null; }
   catch { payload = { non_json_response: true }; }
-  if (!response.ok || payload?.ok === false) {
+  const authoritativeReadback = findObject(
+    payload,
+    (entry) => typeof entry?.readback_status === "string" && typeof entry?.migration === "string",
+  );
+  if ((!response.ok || payload?.ok === false) && !authoritativeReadback) {
     const error = new Error(`Governed runtime schema readback failed with HTTP ${response.status}.`);
     error.code = findObject(payload, (entry) => typeof entry?.code === "string")?.code || "runtime_schema_readback_failed";
     throw error;
