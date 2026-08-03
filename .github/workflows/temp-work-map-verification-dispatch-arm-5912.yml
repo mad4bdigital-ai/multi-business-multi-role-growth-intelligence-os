@@ -1,4 +1,4 @@
-name: TEMP Work Map Verification Dispatch ARM 5912
+name: TEMP Work Map Verification Dispatch Diagnostic 5912
 
 on:
   pull_request:
@@ -10,10 +10,10 @@ permissions:
   contents: read
 
 jobs:
-  validate:
-    name: Exact dispatch contract validation
+  diagnose:
+    name: Capture focused dispatch regression failure
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    timeout-minutes: 20
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -27,42 +27,41 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Verify immutable identity, scope, and blobs
+      - name: Verify diagnostic and candidate identity
         shell: bash
         run: |
           set -euo pipefail
           test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
-          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912-v2"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/trigger-work-map-verification-dispatch-arm-5912-v3"
           test "$(git rev-parse HEAD)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
           git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/gpt/ci-work-map-exact-verification-dispatch-97e4ee7e-20260804:refs/remotes/origin/candidate"
           test "$(git rev-parse refs/remotes/origin/main)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
           test "$(git rev-parse refs/remotes/origin/candidate)" = "afcc533fc59903aac7c1f80e3e5d7bf1f425335e"
-          test "$(git merge-base 97e4ee7ec790844ad20ee2349125579353c693d5 afcc533fc59903aac7c1f80e3e5d7bf1f425335e)" = "97e4ee7ec790844ad20ee2349125579353c693d5"
-          test "$(git rev-list --count 97e4ee7ec790844ad20ee2349125579353c693d5..afcc533fc59903aac7c1f80e3e5d7bf1f425335e)" -eq 1
-          mapfile -t files < <(git diff --name-only 97e4ee7ec790844ad20ee2349125579353c693d5...afcc533fc59903aac7c1f80e3e5d7bf1f425335e)
-          test "${#files[@]}" -eq 4
-          test "${files[0]}" = '.changes/e2e/work-map-post-write-exact-verification-dispatch.json'
-          test "${files[1]}" = '.github/workflows/ci.yml'
-          test "${files[2]}" = '.github/workflows/spec-kit-work-map-integration.yml'
-          test "${files[3]}" = 'http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs'
-          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.github/workflows/ci.yml)" = 'a09247d50e52fe00e94b54d1a98abe822e9346e5'
-          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.github/workflows/spec-kit-work-map-integration.yml)" = 'ff41bb0c48df07d40baea2de91ec1303859c46b4'
-          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs)" = 'd5cad261ed259dc527403eca39b2d01de6fd4f55'
-          test "$(git rev-parse afcc533fc59903aac7c1f80e3e5d7bf1f425335e:.changes/e2e/work-map-post-write-exact-verification-dispatch.json)" = '7652a4bb0ddc45f997388bc006d5144f9647248b'
 
-      - name: Run focused dispatch regression
+      - name: Capture focused regression output
+        id: focused
+        continue-on-error: true
         working-directory: http-generic-api
-        run: node test-work-map-post-write-exact-verification-dispatch.mjs
-
-      - name: Run syntax and bounded governance checks
         shell: bash
         run: |
-          set -euo pipefail
-          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
-          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          git diff --check
+          set +e
+          node test-work-map-post-write-exact-verification-dispatch.mjs > "$RUNNER_TEMP/focused.log" 2>&1
+          status=$?
+          echo "status=${status}" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/focused.log"
+          exit "$status"
+
+      - name: Upload focused diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-verification-dispatch-focused-diagnostic-v3-${{ github.run_id }}
+          path: ${{ runner.temp }}/focused.log
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail after diagnostic upload
+        if: steps.focused.outcome != 'success'
+        run: |
+          echo "Focused regression failed; diagnostic artifact uploaded."
+          exit 1
