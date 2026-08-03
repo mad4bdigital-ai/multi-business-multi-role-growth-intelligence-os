@@ -111,6 +111,7 @@ function main() {
   if (integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
   if (active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
+  const productionPromotion = options.headRef === "main" && options.baseRef === "Production";
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
@@ -124,7 +125,7 @@ function main() {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.headRef && !options.headRef.startsWith("gh-readonly-queue/")) {
+  } else if (report.contracts.length && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
     const runtimeChanged = report.changed_files.some((file) => {
       const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
       return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
@@ -137,12 +138,14 @@ function main() {
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
   report.base_ref = options.baseRef || null;
+  report.production_promotion = productionPromotion;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
     feature_key: featureKey,
     contract_path: contractPath,
-    workstream_id: workstreamId
+    workstream_id: workstreamId,
+    production_promotion: productionPromotion
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);

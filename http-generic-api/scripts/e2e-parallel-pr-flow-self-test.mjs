@@ -96,11 +96,23 @@ const gatePass = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base
 assert.equal(gatePass.ok, true, JSON.stringify(gatePass.findings));
 assert.equal(gatePass.pr_mode, "workstream");
 assert.equal(gatePass.workstream_id, "runtime");
+assert.equal(gatePass.production_promotion, false);
 
 const directMain = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/001-example/runtime-a", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
 assert.notEqual(directMain.status, 0);
 const directReport = JSON.parse(directMain.stdout);
 assert(directReport.findings.some((row) => row.code === "parallel_work_workstream_must_target_integration_branch"));
+
+const productionPromotion = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "main", "--base-ref", "Production"], root));
+assert.equal(productionPromotion.ok, true, JSON.stringify(productionPromotion.findings));
+assert.equal(productionPromotion.pr_mode, "standard");
+assert.equal(productionPromotion.production_promotion, true);
+
+const spoofedPromotion = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "release/main", "--base-ref", "Production"], { cwd: root, encoding: "utf8" });
+assert.notEqual(spoofedPromotion.status, 0);
+const spoofedPromotionReport = JSON.parse(spoofedPromotion.stdout);
+assert.equal(spoofedPromotionReport.production_promotion, false);
+assert(spoofedPromotionReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
 
 const workstreamRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root, "--contract", contractPath, "--mode", "workstream", "--workstream-id", "runtime"], root));
 assert.equal(workstreamRun.ok, true);
@@ -110,4 +122,4 @@ const integrationRun = JSON.parse(run(process.execPath, [RUNNER, "--root", root,
 assert.equal(integrationRun.ok, true);
 assert.equal(integrationRun.test_count, 1);
 
-console.log(JSON.stringify({ ok: true, tests: 9, flow: "parallel_workstream_to_integration", secrets_included: false }));
+console.log(JSON.stringify({ ok: true, tests: 17, flow: "parallel_workstream_to_integration_and_protected_production_promotion", secrets_included: false }));
