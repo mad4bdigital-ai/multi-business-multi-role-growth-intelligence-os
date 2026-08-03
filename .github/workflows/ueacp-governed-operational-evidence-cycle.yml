@@ -72,6 +72,7 @@ jobs:
           grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
+          grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
 
   live-read-only-cycle:
     name: Live Read-Only Evidence Cycle
@@ -89,7 +90,6 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       SOURCE_MANIFEST_FILE: ${{ inputs.source_manifest_file }}
       TARGET_SCHEMA: ${{ inputs.target_schema }}
-      EVIDENCE_DIR: ${{ runner.temp }}/ueacp-governed-operational-evidence
     steps:
       - name: Checkout exact trusted dispatch SHA
         uses: actions/checkout@v5
@@ -105,6 +105,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          EVIDENCE_DIR="${RUNNER_TEMP}/ueacp-governed-operational-evidence"
           test "${GITHUB_REF_NAME}" = "main"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           [[ "${TARGET_SCHEMA}" =~ ^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$ ]]
@@ -133,6 +134,7 @@ jobs:
           git cat-file -e "${MANIFEST_REF}^{commit}"
           git merge-base --is-ancestor "${MANIFEST_REF}" "${GITHUB_SHA}"
           mkdir -p "${EVIDENCE_DIR}"
+          printf 'EVIDENCE_DIR=%s\n' "${EVIDENCE_DIR}" >> "${GITHUB_ENV}"
       - name: Create short-lived read-only authorization
         shell: bash
         run: |
@@ -168,10 +170,10 @@ jobs:
             --sources-output "${EVIDENCE_DIR}/sources.json" \
             --attestation-output "${EVIDENCE_DIR}/repository-attestation.json"
       - name: Observe live SQL catalog with same-cycle readback
-        env:
-          EVIDENCE_PATH: ${{ runner.temp }}/ueacp-governed-operational-evidence/catalog-observation.json
-          OBSERVED_REF: ${{ github.sha }}
-        run: node .github/scripts/authority-live-census-observation.mjs
+        run: |
+          EVIDENCE_PATH="${EVIDENCE_DIR}/catalog-observation.json" \
+          OBSERVED_REF="${GITHUB_SHA}" \
+          node .github/scripts/authority-live-census-observation.mjs
       - name: Compose immutable governed evidence packet
         working-directory: http-generic-api
         run: |
