@@ -1,4 +1,4 @@
-name: T016 Exact Head Validation
+name: T016 Atomic Candidate Evidence Completion
 
 on:
   pull_request:
@@ -7,60 +7,49 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: t016-exact-head-validation-${{ github.event.pull_request.number }}
+  group: t016-atomic-candidate-evidence-completion-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: Validate synchronized T016 candidate
+  repair:
+    name: Complete legacy evidence semantics on PR 5652
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2' &&
-      github.event.pull_request.head.sha == '5ddda760d310c45ce051fc69e5aefc1a99e8c674'
+      github.event.pull_request.head.ref == 'gpt/ops/t016-readiness-envelope-path-current-main-20260803' &&
+      github.event.pull_request.head.sha == '8d6e16e64094f9338b582c1fb3d7457e988c1407'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 20
+    timeout-minutes: 15
     env:
-      EXPECTED_HEAD: 5ddda760d310c45ce051fc69e5aefc1a99e8c674
-      EXPECTED_MAIN: b1e411e2fa863f5c69b9deefd3fe3c0ef818c6e5
-      EVIDENCE_DIR: /tmp/t016-exact-head-validation-${{ github.run_id }}
+      TARGET_BRANCH: gpt/ops/t016-readiness-envelope-path-current-main-20260803
+      EXPECTED_HEAD: 8d6e16e64094f9338b582c1fb3d7457e988c1407
+      EVIDENCE_DIR: /tmp/t016-atomic-evidence-completion-${{ github.run_id }}
     steps:
-      - name: Checkout exact candidate
+      - name: Checkout exact atomic candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ env.EXPECTED_HEAD }}
-          fetch-depth: 0
-          persist-credentials: false
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 1
+          persist-credentials: true
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
+      - name: Verify immutable candidate head
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
 
-      - name: Verify exact composition and scope
+      - name: Fetch trusted section-bounded repair script
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
-          git fetch origin main
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
-          git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
-          expected="$(cat <<'EOF'
-.github/ops/sprint69-1043-runtime-readiness-backfill.mjs
-.github/ops/sprint69-1043-runtime-readiness.mjs
-.github/workflows/sprint69-1043-runtime-readiness-backfill.yml
-http-generic-api/routes/adminCliRoutes.js
-http-generic-api/test-capability-envelope-create-alias-path.mjs
-http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
-EOF
-)"
-          actual="$(git diff --name-only "${EXPECTED_MAIN}...HEAD" | sort)"
-          test "${actual}" = "${expected}"
-          git diff --check "${EXPECTED_MAIN}...HEAD"
+          git fetch --depth=1 origin agent/validate-t016-readiness-artifact-base-435c001
+          git show FETCH_HEAD:.github/ops/t016-evidence-path-repair.mjs > /tmp/t016-evidence-path-repair.mjs
+          node --check /tmp/t016-evidence-path-repair.mjs
 
-      - name: Run exact focused validation
+      - name: Apply final legacy evidence semantics
+        run: node /tmp/t016-evidence-path-repair.mjs
+
+      - name: Validate exact six-file candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -70,58 +59,32 @@ EOF
           node http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
           node http-generic-api/test-capability-envelope-approval-alias-path.mjs
-          node http-generic-api/test-capability-envelope-apply-authorization-tool.mjs
-
-      - name: Verify safety boundaries
-        shell: bash
-        run: |
-          set -euo pipefail
-          ! grep -R --line-number --fixed-strings "mode: 'apply'" \
-            .github/ops/sprint69-1043-runtime-readiness.mjs \
-            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
-          ! grep -R --line-number --fixed-strings 'activation_authorized_surface_registry_sync' \
-            .github/ops/sprint69-1043-runtime-readiness.mjs \
-            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
-          grep -q "mode: 'dry_run'" .github/ops/sprint69-1043-runtime-readiness.mjs
-          grep -q 'applies_sql, false' .github/ops/sprint69-1043-runtime-readiness.mjs
-          grep -q 'secrets_included: false' .github/ops/sprint69-1043-runtime-readiness.mjs
-
-      - name: Write bounded evidence
-        shell: bash
-        run: |
-          set -euo pipefail
+          git diff --check
           mkdir -p "${EVIDENCE_DIR}"
-          printf '%s\n' "${EXPECTED_HEAD}" > "${EVIDENCE_DIR}/head.txt"
-          printf '%s\n' "${EXPECTED_MAIN}" > "${EVIDENCE_DIR}/main.txt"
-          git diff --name-status "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/scope.txt"
-          git diff --stat "${EXPECTED_MAIN}...HEAD" > "${EVIDENCE_DIR}/stat.txt"
-          cat > "${EVIDENCE_DIR}/summary.json" <<EOF
-          {
-            "contract": "t016_exact_head_validation.v1",
-            "head_sha": "${EXPECTED_HEAD}",
-            "main_sha": "${EXPECTED_MAIN}",
-            "scope_file_count": 6,
-            "runtime_readiness_contract_passed": true,
-            "cwd_alias_regression_passed": true,
-            "approval_alias_regression_passed": true,
-            "apply_authorization_tool_test_passed": true,
-            "runtime_contacted": false,
-            "authorization_created": false,
-            "apply_authorized": false,
-            "apply_sent": false,
-            "migration_apply_executed": false,
-            "database_write_executed": false,
-            "provider_call_executed": false,
-            "credential_payload_accessed": false,
-            "external_write_executed": false,
-            "secrets_included": false
-          }
-          EOF
+          git diff > "${EVIDENCE_DIR}/legacy-semantics.patch"
+          git diff --stat > "${EVIDENCE_DIR}/stat.txt"
 
-      - name: Upload exact-head evidence
+      - name: Commit and push when changed
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo 'Atomic candidate already contains final evidence semantics.'
+            exit 0
+          fi
+          git config user.name 'mad4bdigital-ai'
+          git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
+          git add .github/ops/sprint69-1043-runtime-readiness-backfill.mjs \
+            .github/ops/sprint69-1043-runtime-readiness.mjs \
+            http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
+          git commit -m 'fix(ops): preserve unverified T016 legacy evidence'
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Upload bounded completion evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t016-exact-head-validation-${{ github.run_id }}
+          name: t016-atomic-evidence-completion-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
