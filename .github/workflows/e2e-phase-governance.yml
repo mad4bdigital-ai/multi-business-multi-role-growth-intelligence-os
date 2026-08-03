@@ -29,6 +29,7 @@ jobs:
       feature_key: ${{ steps.parallel.outputs.feature_key }}
       contract_path: ${{ steps.parallel.outputs.contract_path }}
       workstream_id: ${{ steps.parallel.outputs.workstream_id }}
+      phase_evaluation_base: ${{ steps.parallel.outputs.phase_evaluation_base }}
     steps:
       - name: Checkout exact candidate tree
         uses: actions/checkout@v5
@@ -65,9 +66,12 @@ jobs:
           assert.equal(workflow.includes(`name: e2e-phase-evaluation-${runIdExpression}`), true, 'Evaluation evidence must retain the governed artifact name.');
           assert.equal(workflow.includes(`name: e2e-phase-execution-${runIdExpression}`), true, 'Execution evidence must retain the governed artifact name.');
           assert.equal(workflow.includes(`name: e2e-phase-summary-${runIdExpression}`), true, 'Canonical summaries must remain a separate output artifact.');
+          assert.equal(workflow.includes('phase_evaluation_base: $' + '{{ steps.parallel.outputs.phase_evaluation_base }}'), true, 'The evaluate job must expose the governed promotion source baseline.');
+          assert.equal((workflow.match(/^\s+PROMOTION_PHASE_BASE:\s+\$\{\{\s*(?:steps\.parallel|needs\.evaluate)\.outputs\.phase_evaluation_base\s*\}\}\s*$/gm) || []).length, 2, 'Evaluation and execution must both consume the governed promotion source baseline.');
+          assert.equal((workflow.match(/^\s*EVALUATION_BASE_SHA="\$\{PROMOTION_PHASE_BASE:-\$\{PR_BASE_SHA:-\}\}"\s*$/gm) || []).length, 2, 'Both phase operations must fail closed onto the promotion baseline before the PR base.');
           assert.equal(workflow.includes("steps.parallel.outputs.mode != 'default_branch_sync'"), true, 'Default-branch synchronization must not evaluate unrelated feature contracts.');
           assert.equal(workflow.includes("needs.evaluate.outputs.mode == 'default_branch_sync'"), true, 'Default-branch synchronization must execute its bounded classifier regression.');
-          console.log(JSON.stringify({ ok: true, test: 'e2e_phase_artifact_routing_and_default_branch_sync', rerun_summary_self_contamination_blocked: true, default_branch_sync_bounded: true, secrets_included: false }));
+          console.log(JSON.stringify({ ok: true, test: 'e2e_phase_artifact_routing_default_branch_sync_and_promotion_baseline', rerun_summary_self_contamination_blocked: true, default_branch_sync_bounded: true, promotion_history_reinterpretation_blocked: true, secrets_included: false }));
           NODE
 
       - name: Classify and validate parallel PR mode
@@ -93,12 +97,14 @@ jobs:
         if: steps.parallel.outputs.mode != 'workstream' && steps.parallel.outputs.mode != 'default_branch_sync'
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          PROMOTION_PHASE_BASE: ${{ steps.parallel.outputs.phase_evaluation_base }}
           HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
+          EVALUATION_BASE_SHA="${PROMOTION_PHASE_BASE:-${PR_BASE_SHA:-}}"
           args=(check --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" --head "$HEAD_SHA")
-          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
+          if [[ -n "${EVALUATION_BASE_SHA:-}" ]]; then args+=(--base "$EVALUATION_BASE_SHA"); fi
           node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
 
       - name: Stamp evaluation reports with exact candidate identity
@@ -172,15 +178,17 @@ jobs:
         if: needs.evaluate.outputs.mode != 'workstream' && needs.evaluate.outputs.mode != 'default_branch_sync'
         shell: bash
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || '' }}
+          PROMOTION_PHASE_BASE: ${{ needs.evaluate.outputs.phase_evaluation_base }}
           HEAD_SHA: ${{ env.CI_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
+          EVALUATION_BASE_SHA="${PROMOTION_PHASE_BASE:-${PR_BASE_SHA:-}}"
           args=(run
             --head "$HEAD_SHA"
             --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
             --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json")
-          if [[ -n "${BASE_SHA:-}" ]]; then args+=(--base "$BASE_SHA"); fi
+          if [[ -n "${EVALUATION_BASE_SHA:-}" ]]; then args+=(--base "$EVALUATION_BASE_SHA"); fi
           node http-generic-api/scripts/e2e-phase-governance.mjs "${args[@]}"
 
       - name: Stamp execution reports with exact candidate identity
