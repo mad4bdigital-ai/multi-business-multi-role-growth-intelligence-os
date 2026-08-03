@@ -1,5 +1,5 @@
 name: Surface Callability Current Main Finalizer
-# Rerun after restoring canonical OpenAPI authority file selection.
+# Rerun with checksum-bound Hostinger safety verification.
 
 on:
   pull_request:
@@ -75,6 +75,22 @@ jobs:
           path.write_text(source.replace(old, new), encoding='utf-8')
           PY
 
+      - name: Correct Hostinger attestation policy target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs')
+          source = path.read_text(encoding='utf-8')
+          old = 'runtime_reviews: [{ action_key: "verify_policy_seed_readiness", targets: ["hostinger_production_resync_policy_v1"] }]'
+          new = 'runtime_reviews: [{ action_key: "verify_policy_seed_readiness", targets: ["repository_main_moved_trigger_policy_v1"] }]'
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'hostinger_attestation_policy_target_marker_mismatch:{count}')
+          path.write_text(source.replace(old, new), encoding='utf-8')
+          PY
+
       - name: Generate and persist closure evidence
         working-directory: http-generic-api
         run: |
@@ -97,6 +113,7 @@ jobs:
           node --check routes/tenantLifecycleRoutes.js
           node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
           node --check scripts/resource-api-callability-contracts.mjs
+          node --check scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
       - name: Workspace invitation controls
         working-directory: http-generic-api
@@ -196,6 +213,7 @@ jobs:
           http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           http-generic-api/resource-api-surface-callability.manifest.json
           http-generic-api/routes/tenantLifecycleRoutes.js
+          http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
           http-generic-api/scripts/test-manifest.mjs
           http-generic-api/surface-contract-classification-evidence.json
           http-generic-api/test-frontend-auth-openapi-parity.mjs
@@ -212,6 +230,7 @@ jobs:
             http-generic-api/frontend-surface-dispatch.generated.json \
             http-generic-api/resource-api-surface-callability.manifest.json \
             http-generic-api/routes/tenantLifecycleRoutes.js \
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs \
             http-generic-api/scripts/test-manifest.mjs \
             http-generic-api/surface-contract-classification-evidence.json \
             http-generic-api/test-surface-callability-full-closure.mjs; do
