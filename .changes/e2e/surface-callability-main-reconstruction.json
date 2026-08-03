@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/surface-callability-main-reconstruction.json",
+      ".github/repository-maintenance-tool-governance.json",
       "docs/surface-contract-discovery-status.json",
       "docs/surface-contract-discovery-status.md",
       "docs/surface-contract-gap-queue.json",
@@ -21,7 +22,7 @@
       "http-generic-api/routes/tenantInfrastructureRoutes.js",
       "http-generic-api/routes/tenantLifecycleRoutes.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
-      "http-generic-api/scripts/openapi-route-coverage.mjs",
+      "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
       "http-generic-api/scripts/resource-api-callability-contracts.mjs",
       "http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs",
       "http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs",
@@ -39,25 +40,27 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that the historical Surface callability closure can be reconstructed on current main with bounded source transfer, canonical evidence regeneration, complete scoped runtime coverage, and no Production or external mutation authority.",
+      "objective": "Prove that the historical Surface callability closure can be reconstructed on current main with bounded source transfer, canonical evidence regeneration, complete scoped runtime coverage, registered read-only repository verification tooling, and no Production or external mutation authority.",
       "e2e_journeys": [
         {
           "id": "reconstruct-discover-and-certify-scoped-surface-callability",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Governed platform Surface operator",
-          "entrypoint": "The reconstructed Surface runtime, routes, SQL registry extractor, callability contract generator, and current-main test manifest",
+          "entrypoint": "The reconstructed Surface runtime, routes, SQL registry extractor, callability contract generator, registered Hostinger safety verifier, and current-main test manifest",
           "terminal_outcome": "All 20 scoped migration surfaces and 41 governed tool keys resolve through canonical runtime and API evidence with zero Surface-scoped residual queue, while unrelated repository queue items remain visible and no Production, deployment, provider, credential, database, or external-send mutation occurs.",
           "steps": [
             "Load the reconstructed Surface runtime service and tenant, workspace, infrastructure, lifecycle, and agent-surface routes on the synchronized current-main tree.",
             "Extract governed SQL registry bindings and regenerate the bounded resource API callability manifest and classification evidence.",
             "Regenerate frontend operation governance, frontend dispatch, discovery status, gap queue, and safety attestations from canonical repository sources.",
+            "Run the registered read-only Hostinger full-closure verifier against checksum-bound migration, classification, and safety-attestation evidence.",
             "Exercise effect-class, multi-surface runtime, resource API coverage, SQL extraction, full-closure, startup, current test-manifest, and canonical OpenAPI route-coverage regressions.",
             "Verify exactly 20 scoped migration items and 41 scoped tool keys, then prove that no queue item remains whose registry targets intersect the certified Surface tool-key set.",
             "Preserve newer unrelated queue items, current-main test registrations, protected-branch authority, and all explicit no-deploy/no-database/no-provider/no-secret boundaries."
           ],
           "assertions": [
-            "Every changed http-generic-api runtime, route, generator, guard, manifest, evidence, and regression file is covered by this exact phase contract.",
+            "Every changed http-generic-api runtime, route, generator, guard, manifest, evidence, regression, and repository-tool registration file is covered by this exact phase contract.",
+            "The Hostinger full-closure safety verifier is registered as read-only and contains no repository mutation behavior.",
             "The resource API callability manifest represents exactly 20 historical scoped migration items and 41 governed Surface tool keys.",
             "The remaining discovery queue contains no item whose verify_tool_registry_binding targets intersect the certified Surface tool-key set.",
             "Repository-wide queue items outside the Surface scope remain visible and are not rewritten as completed.",
@@ -103,6 +106,13 @@
               "args": []
             },
             {
+              "id": "surface-hostinger-full-closure-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
+              "args": []
+            },
+            {
               "id": "surface-openapi-route-coverage",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -126,12 +136,14 @@
           ],
           "evidence_paths": [
             ".changes/e2e/surface-callability-main-reconstruction.json",
+            ".github/repository-maintenance-tool-governance.json",
             "docs/surface-contract-discovery-status.json",
             "docs/surface-contract-gap-queue.json",
             "docs/surface-contract-safety-attestations.json",
             "http-generic-api/resource-api-surface-callability.manifest.json",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs",
             "http-generic-api/surface-contract-classification-evidence.json",
             "http-generic-api/test-surface-callability-full-closure.mjs"
           ]
