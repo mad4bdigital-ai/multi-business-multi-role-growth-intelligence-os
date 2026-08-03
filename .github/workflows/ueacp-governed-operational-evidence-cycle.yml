@@ -4,13 +4,12 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - ".changes/e2e/ueacp-governed-operational-evidence-cycle.json"
       - ".github/workflows/ueacp-governed-operational-evidence-cycle.yml"
       - "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js"
       - "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs"
       - "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs"
-      - "http-generic-api/scripts/test-manifest.mjs"
       - "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs"
+      - "specs/011-unified-effective-authority-control-plane/e2e-phases.json"
       - "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
   workflow_dispatch:
     inputs:
@@ -70,7 +69,7 @@ jobs:
           grep -Eq 'ref:.*github\.sha' "$workflow"
           grep -q 'git merge-base --is-ancestor' "$workflow"
           grep -q 'git ls-files --error-unmatch' "$workflow"
-          grep -q 'http-generic-api/scripts/test-manifest.mjs' "$workflow"
+          test "$(grep -Fc 'specs/011-unified-effective-authority-control-plane/e2e-phases.json' "$workflow")" -eq 1
           grep -q 'source manifest must be a regular repository file' "$workflow"
           grep -q 'source manifest escaped repository root' "$workflow"
           grep -q 'RUNNER_TEMP.*ueacp-governed-operational-evidence' "$workflow"
