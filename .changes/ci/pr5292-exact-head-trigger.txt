@@ -1,2 +1,0 @@
-PR #5292 exact-head CI trigger after GitHub action_required authorization gate.
-No product, deployment, migration, database, provider, or Production mutation.
