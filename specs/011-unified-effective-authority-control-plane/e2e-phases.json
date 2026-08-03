@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "011-unified-effective-authority-control-plane",
+  "title": "Unified effective authority control plane governed evidence lifecycle",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/ueacp-governed-operational-evidence-cycle.json",
+      ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
+      "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
+      "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
+      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind exactly eight reviewed authority-source documents to one reviewed ancestor ref, validate canonical path completeness, compose them with the bounded live catalog observer, and produce a no-secret packet ready only for later human ownership review.",
+      "e2e_journeys": [
+        {
+          "id": "collect-governed-ueacp-live-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "approved UEACP evidence operator and GitHub Actions",
+          "entrypoint": "UEACP Governed Operational Evidence Cycle contract job or explicitly approved workflow dispatch from main",
+          "terminal_outcome": "A SHA-bound no-secret packet reaches ready_for_human_ownership_review without migration, authority, provider, credential, deployment, Production, or task mutation.",
+          "steps": [
+            "Validate the source manifest contract, exact dispatch SHA, reviewed ancestor identity, and exact eight source-family bindings.",
+            "Reject symbolic links, non-regular files, repository escapes, a manifest larger than 1 MiB, or a source larger than 8 MiB.",
+            "Verify every source Git blob SHA and current file content SHA-256.",
+            "Convert reviewed repository definitions into current-observation canonical source snapshots.",
+            "Reject incomplete or conflicting authority path contracts.",
+            "Create a thirty-minute read-only authorization after variable, typed-confirmation, and Environment gates.",
+            "Expose BACKEND_API_KEY only to the bounded live catalog observer step.",
+            "Run the existing bounded SELECT-only live catalog observer and same-cycle readback.",
+            "Adapt the catalog observation and compose the canonical governed evidence packet.",
+            "Scan every available JSON evidence file for regular-file identity, root containment, bounded size, valid JSON, and sensitive values.",
+            "Upload evidence only when the independent artifact safety step publishes safe=true.",
+            "Enforce the read-only packet decision after the guarded upload step.",
+            "Regenerate frontend governance and dispatch artifacts through the governed generated-artifact refresh workflow when test-manifest identity changes."
+          ],
+          "assertions": [
+            "Pull requests run only contract tests and cannot execute the live job.",
+            "No push, schedule, issue-comment, or workflow-run event can execute the live job.",
+            "The source manifest must pin an ancestor of the exact dispatch SHA and exactly eight canonical source families.",
+            "A source change after the reviewed ref fails the current content binding.",
+            "Missing control fields, blob drift, content drift, path escape, symlinks, unsafe file types, oversized files, duplicate families, and sensitive values fail closed.",
+            "Temporary evidence is rooted in RUNNER_TEMP and propagated through GITHUB_ENV.",
+            "BACKEND_API_KEY appears in exactly one step-level environment binding.",
+            "No artifact is uploaded when no evidence exists or any evidence file is malformed, sensitive, escaped, unsafe, or oversized.",
+            "The live observer remains SELECT/WITH/SHOW-only and performs same-cycle readback.",
+            "The packet keeps T001 and T002 incomplete and migration_apply_authorized false.",
+            "Generated frontend artifacts are refreshed only by the governed expected-head workflow and OpenAPI remains unchanged when its blob already matches.",
+            "No SQL mutation, provider call outside the explicitly approved observer, credential payload read, external write, deployment, Production promotion, runtime cutover, legacy removal, or automatic task closure occurs."
+          ],
+          "tests": [
+            {
+              "id": "authority-evidence-repository-snapshot-collector",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-snapshot-collector.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
+            "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
+            "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Merge and review exact eight source documents, then merge a manifest binding their reviewed ancestor ref and source hashes, configure the protected Environment, and explicitly authorize one bounded Production read-only evidence cycle."
+    }
+  ],
+  "secrets_included": false
+}
