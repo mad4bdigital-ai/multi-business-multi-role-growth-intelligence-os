@@ -16,6 +16,7 @@
       ".github/workflows/supervisor-runtime-assurance-alert.yml",
       ".specify/pipeline-connectivity-contract.json",
       "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/scripts/pipeline-connectivity-check.mjs",
       "http-generic-api/test-fanout-relocation-ci.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
@@ -180,6 +181,7 @@
           "evidence_paths": [
             ".changes/e2e/repository-write-workflow-prerequisites.json",
             ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
+            "http-generic-api/scripts/pipeline-connectivity-check.mjs",
             "docs/runbooks/supervisor-runtime-assurance.md"
           ]
         }
