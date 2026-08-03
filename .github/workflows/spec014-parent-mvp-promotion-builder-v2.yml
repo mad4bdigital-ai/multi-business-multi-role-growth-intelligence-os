@@ -138,7 +138,8 @@ jobs:
           NODE
 
       - name: Run exact shared-state journey
-        run: node http-generic-api/test-hostinger-storage-e2e.mjs
+        working-directory: http-generic-api
+        run: node test-hostinger-storage-e2e.mjs
 
       - name: Enforce one-file final write set
         shell: bash
