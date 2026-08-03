@@ -75,20 +75,56 @@ jobs:
       - name: Verify Hostinger closure safety
         run: node http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
 
-      - name: Verify generated artifact authority
-        shell: bash
+      - name: Verify artifact schema
         run: |
-          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
+          if (artifact.schema_version !== 'frontend-surface-dispatch-v1') {
+            throw new Error(`artifact_schema_mismatch:${String(artifact.schema_version)}`);
+          }
+          NODE
+
+      - name: Verify artifact baseline ref
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
+          if (artifact?.baseline?.ref !== 'main') {
+            throw new Error(`artifact_baseline_ref_mismatch:${String(artifact?.baseline?.ref)}`);
+          }
+          NODE
+
+      - name: Verify artifact authority files
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
+          if (!Array.isArray(artifact?.baseline?.authority) || artifact.baseline.authority.length === 0) {
+            throw new Error(`artifact_authority_missing:${JSON.stringify(artifact?.baseline?.authority ?? null)}`);
+          }
+          NODE
+
+      - name: Verify Surface item count
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('http-generic-api/resource-api-surface-callability.manifest.json', 'utf8'));
+          if (manifest.source_queue_item_count !== 20) {
+            throw new Error(`surface_item_count_mismatch:${String(manifest.source_queue_item_count)}`);
+          }
+          NODE
+
+      - name: Verify Surface tool key count
+        run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const artifact = JSON.parse(fs.readFileSync('http-generic-api/frontend-surface-dispatch.generated.json', 'utf8'));
           const manifest = JSON.parse(fs.readFileSync('http-generic-api/resource-api-surface-callability.manifest.json', 'utf8'));
           const toolKeys = new Set(manifest.source_queue_tool_keys || []);
-          if (artifact.schema_version !== 'frontend-surface-dispatch-v1') throw new Error('artifact_schema_mismatch');
-          if (artifact?.baseline?.ref !== 'main') throw new Error('artifact_baseline_ref_mismatch');
-          if (!Array.isArray(artifact?.baseline?.authority) || artifact.baseline.authority.length === 0) throw new Error('artifact_authority_missing');
-          if (manifest.source_queue_item_count !== 20) throw new Error(`surface_item_count_mismatch:${manifest.source_queue_item_count}`);
-          if (toolKeys.size !== 41) throw new Error(`surface_tool_key_count_mismatch:${toolKeys.size}`);
+          if (toolKeys.size !== 41) {
+            throw new Error(`surface_tool_key_count_mismatch:${toolKeys.size}`);
+          }
           console.log(JSON.stringify({
             ok: true,
             surface_items: manifest.source_queue_item_count,
