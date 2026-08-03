@@ -1,4 +1,5 @@
 name: Surface Callability Current Main Finalizer
+# Rerun after restoring canonical OpenAPI authority file selection.
 
 on:
   pull_request:
