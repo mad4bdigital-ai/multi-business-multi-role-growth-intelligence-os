@@ -1,0 +1,13 @@
+expected_production_sha=42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+expected_branch=Production
+provider_method=public_https_get
+provider_mutation=false
+build_creation=false
+deployment=false
+release_activation=false
+restart=false
+sql=false
+migration_apply=false
+database_mutation=false
+external_send=false
+secrets_included=false
