@@ -33,7 +33,7 @@ jobs:
       WORKFLOW_NAME: Sprint 69 Migration 1043 Runtime Readiness
       REPORT_DIR: /tmp/t016-runtime-readiness-run-enumerator-${{ github.run_id }}
     steps:
-      - name: Enumerate candidate runs
+      - name: Enumerate paginated candidate runs
         shell: bash
         run: |
           set -euo pipefail
@@ -97,11 +97,27 @@ jobs:
           assert.equal(comment?.user?.login, 'mad4bdigital-ai');
           assert.ok(allowedAssociations.has(String(comment?.author_association || '').toUpperCase()));
 
-          const list = await githubJson(
-            `/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?event=issue_comment&per_page=100`,
-          );
           const commentMs = isoMs(comment.created_at);
-          const candidates = (list?.workflow_runs || [])
+          const allRuns = [];
+          let pagesFetched = 0;
+          let reachedCommentBoundary = false;
+          for (let page = 1; page <= 20; page += 1) {
+            const list = await githubJson(
+              `/repos/${repository}/actions/workflows/${encodeURIComponent(workflowFile)}/runs?event=issue_comment&per_page=100&page=${page}`,
+            );
+            const pageRuns = list?.workflow_runs || [];
+            pagesFetched = page;
+            allRuns.push(...pageRuns);
+            if (!pageRuns.length) break;
+            const oldestMs = Math.min(...pageRuns.map((run) => isoMs(run.created_at)));
+            if (oldestMs <= commentMs) {
+              reachedCommentBoundary = true;
+              break;
+            }
+          }
+          assert.ok(reachedCommentBoundary, 'Pagination did not reach the authorization comment boundary');
+
+          const candidates = allRuns
             .filter((run) => run?.name === workflowName)
             .filter((run) => run?.event === 'issue_comment')
             .filter((run) => run?.head_branch === 'main')
@@ -112,10 +128,13 @@ jobs:
           const completedNonSkipped = nonSkipped.filter((run) => run.status === 'completed');
 
           const report = {
-            contract: 't016_runtime_readiness_run_enumerator.v1',
+            contract: 't016_runtime_readiness_run_enumerator.v2',
             authorization_comment_id: commentId,
             authorization_verified: true,
             authorization_created_at: comment.created_at,
+            pages_fetched: pagesFetched,
+            reached_comment_boundary: reachedCommentBoundary,
+            total_runs_scanned: allRuns.length,
             total_candidate_count: candidates.length,
             non_skipped_candidate_count: nonSkipped.length,
             completed_non_skipped_candidate_count: completedNonSkipped.length,
