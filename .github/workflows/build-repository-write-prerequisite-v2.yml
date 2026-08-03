@@ -18,7 +18,7 @@ env:
   EXPECTED_CANDIDATE_SHA: d1303696bd2afa52183bc758211647424af0b102
   EXPECTED_CANDIDATE_REF: gpt/ci/repository-write-workflow-prerequisite-4a049185-20260804
   EXPECTED_BASE_REF: gpt/diag/repository-write-prerequisite-builder-94f9d786-v2
-  EXPECTED_TRIGGER_REF: gpt/diag/trigger-validate-repository-write-prerequisite-4a049185-v5
+  EXPECTED_TRIGGER_REF: gpt/diag/trigger-validate-repository-write-prerequisite-4a049185-v6
 
 jobs:
   validate:
