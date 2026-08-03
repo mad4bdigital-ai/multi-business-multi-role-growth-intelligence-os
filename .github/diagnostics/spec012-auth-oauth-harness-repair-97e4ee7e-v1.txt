@@ -1,0 +1,4 @@
+trigger=spec012-auth-oauth-harness-repair
+base_sha=97e4ee7ec790844ad20ee2349125579353c693d5
+target_branch=gpt/spec012-auth-oauth-harness-repair-97e4ee7e-20260804
+secrets_included=false
