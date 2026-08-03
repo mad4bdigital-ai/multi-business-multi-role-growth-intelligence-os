@@ -1,0 +1,63 @@
+name: Temporary Production Deployment Info Runner V5
+
+on:
+  pull_request:
+    branches:
+      - gpt/prod-deployment-info-runner-base-v5-20260803
+    paths:
+      - http-generic-api/scripts/temporary-production-deployment-info-evidence-v5.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_PRODUCTION_SHA: 5e5178bb7d5b86fe42a5eb97e647a5d65edaaceb
+      REPORT_DIR: ${{ runner.temp }}/production-deployment-info-evidence-v5
+    steps:
+      - name: Verify protected Production authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api '/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/git/ref/heads/Production' --jq '.object.sha')" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(gh api '/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4953' --jq '.state')" = "open"
+
+      - name: Checkout diagnostic candidate
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Collect public GET-only deployment evidence
+        run: node http-generic-api/scripts/temporary-production-deployment-info-evidence-v5.mjs
+
+      - name: Upload structured evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment-info-evidence-v5-${{ github.run_id }}
+          path: ${{ runner.temp }}/production-deployment-info-evidence-v5/production-deployment-info-evidence.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce no-mutation contract
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT="${REPORT_DIR}/production-deployment-info-evidence.json"
+          test "$(jq -r '.contract' "${REPORT}")" = "mad4b.production-deployment-info-evidence.v1"
+          test "$(jq -r '.identity.expected_production_sha' "${REPORT}")" = "${EXPECTED_PRODUCTION_SHA}"
+          test "$(jq -r '.identity.expected_branch' "${REPORT}")" = "Production"
+          test "$(jq -r '.secrets_included' "${REPORT}")" = "false"
+          jq -e '.side_effects | all(.[]; . == false)' "${REPORT}" >/dev/null
+          jq '{outcome, first_failure, identity: .coherent_direct_top_level_identity, checks, secrets_included}' "${REPORT}"
