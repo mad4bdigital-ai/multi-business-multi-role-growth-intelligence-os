@@ -1,0 +1,201 @@
+name: Exact Spec014 Contract ARM Push V2
+
+on:
+  push:
+    branches:
+      - gpt/validate-spec014-contract-arm-base-773179a2-v1
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-contract-arm-push-v2
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Exact Spec014 Contract Full ARM Validation
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    env:
+      EXPECTED_BASE_SHA: 773179a2dee3523c8af25262475ac83b92e46f21
+      EXPECTED_HEAD_SHA: c09051e8ff4628acf8029119ed1b16e3b0210335
+      EXPECTED_HEAD_REF: gpt/fix-spec014-schema-contract-rule-scope-20260804
+      EXPECTED_PATH: .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+      REPORT_DIR: ${{ runner.temp }}/exact-spec014-contract
+
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable identity and exact one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$EXPECTED_HEAD_REF:refs/remotes/origin/$EXPECTED_HEAD_REF"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$EXPECTED_HEAD_REF)" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA^1")" = "$EXPECTED_BASE_SHA"
+          test "$(git rev-list --count "$EXPECTED_BASE_SHA..$EXPECTED_HEAD_SHA")" -eq 1
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$EXPECTED_PATH"
+
+      - name: Install deterministic dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm ci --prefix http-generic-api
+
+      - name: Validate exact Spec014 classification contract
+        id: spec014
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node .github/contracts/spec014/validate-hostinger-storage-schema-classification.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          grep -q '"migration_apply_authorized":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
+          grep -q '"secrets_included":false' .github/contracts/spec014/hostinger-storage-schema-classification.json
+
+      - name: Run canonical governance checks
+        id: canonical
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+
+      - name: Run complete Unit and Integration suite
+        id: unit
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          GITHUB_SHA="$EXPECTED_HEAD_SHA" npm test
+
+      - name: Verify exact test provenance
+        id: reports
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in "$RUNNER_TEMP/test-suite-reports/test-manifest.json" "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = passed
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_HEAD_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = null
+            test "$(jq -r '.secretsIncluded' "$report")" = false
+          done
+
+      - name: Run runtime and Hostinger parity
+        id: runtime
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-server-startup-smoke.mjs
+          node test-hostinger-root-entrypoint.mjs
+          node test-root-cause-activation-runtime-repair.mjs
+          node test-hostinger-storage-execution-authorization.mjs
+          node test-hostinger-storage-control-plane-repository.mjs
+          node test-hostinger-storage-control-plane-repository-brand.mjs
+          node test-hostinger-storage-shared-canary-core-import-boundary.mjs
+          node test-hostinger-storage-shared-canary.mjs
+
+      - name: Run lifecycle, resolver and architecture
+        id: governance
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          npm run typecheck
+          npm test -- --runInBand
+          (cd http-generic-api && npm run validate)
+
+      - name: Run exact E2E evaluation and execution
+        id: e2e
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$REPORT_DIR/e2e-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$REPORT_DIR/e2e-evaluation-run.json" --execution-report-file "$REPORT_DIR/e2e-execution.json"
+
+      - name: Build summary
+        if: always()
+        env:
+          SPEC014: ${{ steps.spec014.outcome }}
+          CANONICAL: ${{ steps.canonical.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          REPORTS: ${{ steps.reports.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$REPORT_DIR"
+          jq -n --arg base "$EXPECTED_BASE_SHA" --arg head "$EXPECTED_HEAD_SHA" --arg spec014 "$SPEC014" --arg canonical "$CANONICAL" --arg unit "$UNIT" --arg reports "$REPORTS" --arg runtime "$RUNTIME" --arg governance "$GOVERNANCE" --arg e2e "$E2E" '{contract:"mad4b.exact-spec014-contract-arm-validation.v2",base_sha:$base,head_sha:$head,stages:{spec014_contract:$spec014,canonical_governance:$canonical,unit_integration:$unit,report_provenance:$reports,runtime_and_hostinger:$runtime,lifecycle_resolver_architecture:$governance,e2e:$e2e},repository_only:true,production_mutated:false,deployment_executed:false,provider_call_executed:false,credential_payload_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' > "$REPORT_DIR/summary.json"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-contract-arm-v2-${{ github.run_id }}
+          path: |
+            ${{ env.REPORT_DIR }}
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce all stages
+        if: always()
+        env:
+          SPEC014: ${{ steps.spec014.outcome }}
+          CANONICAL: ${{ steps.canonical.outcome }}
+          UNIT: ${{ steps.unit.outcome }}
+          REPORTS: ${{ steps.reports.outcome }}
+          RUNTIME: ${{ steps.runtime.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for outcome in "$SPEC014" "$CANONICAL" "$UNIT" "$REPORTS" "$RUNTIME" "$GOVERNANCE" "$E2E"; do test "$outcome" = success; done
