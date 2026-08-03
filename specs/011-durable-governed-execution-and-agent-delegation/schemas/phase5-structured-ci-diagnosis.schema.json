@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/spec011/phase5-structured-ci-diagnosis.schema.json",
+  "title": "Spec 011 Phase 5 Structured CI Diagnosis",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "gate_id",
+    "status",
+    "code",
+    "summary",
+    "blockers",
+    "evidence_refs",
+    "remediation",
+    "metadata",
+    "observed_at",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "spec011-structured-ci-diagnosis-v1"
+    },
+    "gate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "status": {
+      "enum": ["pass", "fail", "blocked"]
+    },
+    "code": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Z0-9_:-]+$"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1000
+    },
+    "blockers": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "remediation": {
+      "type": "array",
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "maxProperties": 64
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "secrets_included": {
+      "const": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": ["fail", "blocked"]
+          }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "blockers": {
+            "minItems": 1
+          },
+          "remediation": {
+            "minItems": 1
+          }
+        }
+      }
+    }
+  ]
+}

@@ -52,6 +52,9 @@ assert.equal(sharedState.same_repository_prepared_result_readback_journal, true)
 assert.equal(sharedState.same_repository_reconciliation_recorded, true);
 assert.equal(sharedState.same_repository_tenant_readback_bound, true);
 assert.equal(sharedState.one_shot_enablement_consumed, true);
+assert.equal(sharedState.direct_mounted_route_execution, true);
+assert.equal(sharedState.source_text_rewriting_used, false);
+assert.equal(sharedState.temporary_test_file_created, false);
 assert.equal(sharedState.provider_dispatch_allowed, false);
 assert.equal(sharedState.production_ready, false);
 
@@ -100,6 +103,9 @@ console.log(JSON.stringify({
   },
   assertions: {
     mounted_route_contract_passed: true,
+    direct_mounted_route_shared_state_proof: true,
+    source_text_rewriting_used: false,
+    temporary_test_file_created: false,
     durable_repository_contract_passed: true,
     context_and_effective_authority_resolved: true,
     same_repository_identity_preserved: true,
