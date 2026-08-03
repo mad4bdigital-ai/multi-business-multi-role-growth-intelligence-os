@@ -52,13 +52,13 @@
 
 ## Phase 4 — Reconciliation and Readback
 
-- [ ] T160 Add outcome classifier.
-- [ ] T161 Add read-before-retry enforcement after unknown outcomes.
-- [ ] T162 Add repository and PR reconcilers.
-- [ ] T163 Add migration schema and ledger reconciler.
-- [ ] T164 Add deployment and production-parity reconciler.
-- [ ] T165 Add provider adapter reconciliation contract.
-- [ ] T166 Add duplicate-mutation fault-injection suite.
+- [x] T160 Add outcome classifier.
+- [x] T161 Add read-before-retry enforcement after unknown outcomes.
+- [x] T162 Add repository and PR reconcilers.
+- [x] T163 Add migration schema and ledger reconciler.
+- [x] T164 Add deployment and production-parity reconciler.
+- [x] T165 Add provider adapter reconciliation contract.
+- [x] T166 Add duplicate-mutation fault-injection suite.
 
 ## Phase 5 — Validation Lab and Structured CI
 
