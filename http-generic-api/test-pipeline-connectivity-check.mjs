@@ -262,7 +262,8 @@ jobs:
 {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".specify/pipeline-connectivity-contract.json"), "utf8"));
-  const bridgeWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/e2e-contract-reference-integrity.yml"), "utf8");
+  const bridgeWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"), "utf8");
+  const integrityWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/e2e-contract-reference-integrity.yml"), "utf8");
   const writerWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml"), "utf8");
   const integrationWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-integration.yml"), "utf8");
   const docsWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/docs-agent.yml"), "utf8");
@@ -281,18 +282,29 @@ jobs:
   const writerContract = contract.pipelines.find((row) => row.key === "spec-kit-work-map-autofix");
   assert.ok(bridgeContract, "Work Map recovery bridge must remain registered");
   assert.ok(writerContract, "Work Map writer must remain registered");
-  assert.deepEqual(bridgeContract.required_triggers.sort(), ["pull_request", "workflow_dispatch"].sort());
+  assert.equal(bridgeContract.workflow, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml");
+  assert.deepEqual(
+    bridgeContract.required_triggers.sort(),
+    ["issue_comment", "pull_request_target", "workflow_dispatch"].sort(),
+  );
   assert.deepEqual(writerContract.required_triggers, ["workflow_dispatch"]);
   assert.ok(writerContract.forbidden_triggers.includes("pull_request"));
 
-  assert.ok(bridgeWorkflow.includes("Validate immutable PR snapshot and dispatch sole writer"));
+  assert.match(integrityWorkflow, /permissions:\s+[\s\S]*contents: read/);
+  assert.ok(!integrityWorkflow.includes("actions: write"));
+  assert.ok(!integrityWorkflow.includes("issues: write"));
+  assert.ok(!integrityWorkflow.includes("pull-requests: write"));
+  assert.ok(!integrityWorkflow.includes("gh api --method PATCH"));
+  assert.ok(!integrityWorkflow.includes("spec-kit-work-map-autofix.yml/dispatches"));
+
+  assert.ok(bridgeWorkflow.includes("Resolve and validate exact same-repository target"));
   assert.ok(bridgeWorkflow.includes("work-map-autofix:authorized"));
-  assert.ok(bridgeWorkflow.includes("authorization_consumed=true"));
+  assert.ok(bridgeWorkflow.includes("consumed=true"));
   assert.ok(bridgeWorkflow.includes("spec-kit-work-map-autofix.yml/dispatches"));
-  assert.ok(bridgeWorkflow.includes("delegated_run_id"));
-  assert.ok(bridgeWorkflow.includes("direct_repository_content_mutation=false"));
-  assert.ok(bridgeWorkflow.includes("protected_branch_mutation=false"));
-  assert.ok(bridgeWorkflow.includes("force_push=false"));
+  assert.ok(bridgeWorkflow.includes("run_id"));
+  assert.ok(bridgeWorkflow.includes("direct_repository_mutation:false"));
+  assert.ok(bridgeWorkflow.includes("protected_branch_mutation:false"));
+  assert.ok(bridgeWorkflow.includes("force_push:false"));
   assert.ok(bridgeWorkflow.includes("gh api --method PATCH"));
   assert.ok(!bridgeWorkflow.includes("platform-work-map-generator.mjs --write"));
   assert.ok(!bridgeWorkflow.includes("git add docs/work-maps"));
