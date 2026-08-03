@@ -57,6 +57,9 @@ assert.doesNotMatch(dispatcherWorkflow, /contents:\s*write/u, "dispatcher delega
 assert.match(dispatcherWorkflow, /Resolve and revalidate exact-head request before checkout or dispatch/u);
 assert.match(dispatcherWorkflow, /gh run download/u, "workflow-run path must consume the exact run-bound request artifact");
 assert.match(dispatcherWorkflow, /request_source_run_mismatch/u, "artifact source run substitution must fail closed");
+assert.match(dispatcherWorkflow, /request_outcome.*==.*skipped/su, "a read-only skipped request must remain a first-class dispatcher decision");
+assert.match(dispatcherWorkflow, /request_skipped="true"/u, "the dispatcher must preserve skipped request state explicitly");
+assert.match(dispatcherWorkflow, /outcome:"skipped".*reason:\$reason.*dispatch_requested:false.*delegated_run_observed:false/su, "skipped evidence must preserve the reason and prove no writer dispatch");
 assert.match(dispatcherWorkflow, /target_branch="\$\{target_ref\}"/u);
 assert.match(dispatcherWorkflow, /target_branch.*main.*Production/su, "protected branches must be rejected before API mutation");
 assert.match(dispatcherWorkflow, /current_head_sha/u);
@@ -90,14 +93,21 @@ assert.match(dispatcherWorkflow, /secrets_included:\s*false/u);
 assert.match(dispatcherWorkflow, /cancel-in-progress:\s*false/u);
 
 const validationIndex = dispatcherWorkflow.indexOf("Resolve and revalidate exact-head request before checkout or dispatch");
+const skippedDecisionIndex = dispatcherWorkflow.indexOf('if [[ "${request_skipped}" == "true" ]]');
+const prRevalidationIndex = dispatcherWorkflow.indexOf('pr="$(gh api');
 const dispatchIndex = dispatcherWorkflow.indexOf("Dispatch and observe exact-head governed writer");
 const checkoutIndex = dispatcherWorkflow.indexOf("Checkout trusted default branch publisher");
 assert.ok(validationIndex >= 0 && validationIndex < dispatchIndex, "exact-head validation must precede writer dispatch");
 assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head and protected-branch validation must precede checkout");
+assert.ok(skippedDecisionIndex >= 0 && skippedDecisionIndex < prRevalidationIndex, "skipped requests must terminate before PR revalidation");
+assert.ok(skippedDecisionIndex < dispatchIndex, "skipped requests must terminate before writer dispatch");
+
+const skippedDecisionBlock = dispatcherWorkflow.slice(skippedDecisionIndex, dispatcherWorkflow.indexOf('target_branch="${target_ref}"'));
+assert.doesNotMatch(skippedDecisionBlock, /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)|\/dispatches/u, "skipped requests must perform no GitHub mutation or workflow dispatch");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 81,
+  tests: 88,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
@@ -105,6 +115,8 @@ console.log(JSON.stringify({
   retired_request_workflow_absent: true,
   pull_request_stage_read_only: true,
   trusted_workflow_run_dispatcher: true,
+  skipped_request_preserved: true,
+  skipped_request_dispatch_requested: false,
   candidate_checkout: false,
   same_repository_only: true,
   exact_head_bound: true,
