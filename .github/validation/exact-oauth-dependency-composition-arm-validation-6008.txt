@@ -1,0 +1,4 @@
+Exact read-only ARM validation trigger for canonical PR #6008.
+Protected main: a61cd9e83070618001676bbc679bc937f0551875
+Candidate: 2bf73f099505fa2568eb0e7dbb815f483a92fb56
+No mutation authority.
