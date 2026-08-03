@@ -1,0 +1,79 @@
+name: Exact Repository Write Prerequisite ARM Validation 5927
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-repository-write-prerequisite-arm-base-97e4ee7e-v2
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: exact-repository-write-prerequisite-arm-validation-5927-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  registration:
+    name: Registered ARM bootstrap
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-repository-write-prerequisite-arm-validation-5927-v3'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout validator base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact bootstrap identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MAIN_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+          EXPECTED_CANDIDATE_SHA: 85f9a9935beceeaf2e9bb3978d866a246421c405
+          EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-97e4ee7e-20260804-v3
+          EXPECTED_BASE_REF: gpt/validate-repository-write-prerequisite-arm-base-97e4ee7e-v2
+          EXPECTED_TRIGGER_REF: gpt/trigger-repository-write-prerequisite-arm-validation-5927-v3
+          CANONICAL_PR_NUMBER: '5927'
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.ref }}" = "$EXPECTED_BASE_REF"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_TRIGGER_REF"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.base.sha }}"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$EXPECTED_TRIGGER_REF:refs/remotes/origin/trigger" \
+            "+refs/heads/$EXPECTED_CANDIDATE_REF:refs/remotes/origin/candidate"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/trigger)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git merge-base "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}")" = "${{ github.event.pull_request.base.sha }}"
+          test "$(git rev-list --count "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}")" -eq 1
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+          mkdir -p artifacts/exact-repository-write-prerequisite-arm-validation-5927
+          jq -n \
+            --arg main_sha "$EXPECTED_MAIN_SHA" \
+            --arg candidate_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg base_sha "${{ github.event.pull_request.base.sha }}" \
+            --arg trigger_sha "${{ github.event.pull_request.head.sha }}" \
+            '{contract:"mad4b.exact-repository-write-prerequisite-arm-bootstrap.v1",ok:true,main_sha:$main_sha,candidate_sha:$candidate_sha,validator_base_sha:$base_sha,trigger_sha:$trigger_sha,mutation:false,secrets_included:false}' \
+            > artifacts/exact-repository-write-prerequisite-arm-validation-5927/bootstrap.json
+
+      - name: Upload bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-repository-write-prerequisite-arm-bootstrap-5927-${{ github.run_id }}
+          path: artifacts/exact-repository-write-prerequisite-arm-validation-5927
+          if-no-files-found: error
+          retention-days: 14
