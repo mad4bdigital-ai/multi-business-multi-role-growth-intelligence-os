@@ -22,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide one owner-authorized exact-main-head and exact-Production-SHA Hostinger Node.js restart with trusted bot-only claim history, immediate pre-provider repository revalidation, a durable local attempt journal written before network dispatch, fail-closed missing-report semantics, and coherent top-level Production runtime identity proof.",
+      "objective": "Provide one owner-authorized exact-main-head and exact-Production-SHA Hostinger Node.js restart with trusted bot-only claim history, an outer workflow revalidation, an in-process authority gate inside the exact provider-call path, a durable local attempt journal written only after that gate passes and before network dispatch, fail-closed missing-report semantics, and coherent top-level Production runtime identity proof.",
       "e2e_journeys": [
         {
           "id": "restart-completed-production-build-and-prove-runtime-parity",
@@ -30,7 +30,7 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions runner",
           "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
-          "terminal_outcome": "The workflow fails closed if authorization, repository state, Production, incident state, completed build, trusted marker authority, claim ownership, provider-attempt durability, secret availability, or coherent runtime identity differs. Failures proven to occur before provider dispatch can release the same run claim. A durable attempt journal, ambiguous provider response, missing report after dispatch, or confirmed restart consumes or leaves unresolved the exact binding and cannot be retried automatically. Success requires deployment-info itself to report the exact Production branch and SHA through direct top-level fields.",
+          "terminal_outcome": "The workflow fails closed if authorization, repository state, Production, incident state, completed build, trusted marker authority, claim ownership, in-process pre-mutation authority, provider-attempt durability, secret availability, or coherent runtime identity differs. The exact Issue, main SHA, Production SHA, binding, run ID, and latest trusted claim are re-read inside the provider-call path after Hostinger prechecks and immediately before attempt journaling and POST dispatch. Failures proven to occur before provider dispatch can release the same run claim. A durable attempt journal, ambiguous provider response, missing report after dispatch, or confirmed restart consumes or leaves unresolved the exact binding and cannot be retried automatically. Success requires deployment-info itself to report the exact Production branch and SHA through direct top-level fields.",
           "steps": [
             "Receive explicit owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
             "Resolve and validate the full expected_head_sha and exact expected_build_uuid before any write.",
@@ -40,15 +40,17 @@
             "Reject completed, provider-attempted, provider-performed, or unresolved trusted claims for the exact Production-SHA and build-UUID binding.",
             "Create a trusted status=claiming marker bound to the current run and expose claimed=true only after GitHub accepts it.",
             "Checkout the explicitly authorized main SHA and execute the restart implementation regression contract.",
-            "Immediately before provider mutation, re-read main, Production, Issue state, and trusted marker history and require the current run to own the latest unresolved claim.",
+            "Run a workflow-level defense-in-depth revalidation of main, Production, Issue state, expected_head_sha, and trusted claim ownership before starting provider prechecks.",
             "Fetch Hostinger build history and require the exact completed post-merge build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
             "Read health, version, and deployment-info before mutation and skip restart only when deployment-info itself contains the exact Production branch and SHA pair in direct top-level fields.",
-            "Write hostinger-nodejs-production-restart-attempt.json with restart_attempted=true and provider_mutation_attempted=true before calling the authorized POST endpoint.",
+            "Inside the exact Hostinger POST fetch path, re-read Issue #4953, main, Production, and all paginated trusted binding markers; require the current run claim to match expected_head_sha, be the latest claim, and have no later marker.",
+            "If the in-process authority gate fails, record restart_attempted=false, send no provider POST, create no attempt journal, and publish a same-run retryable non-mutating final marker.",
+            "After the in-process authority gate passes, write hostinger-nodejs-production-restart-attempt.json with restart_attempted=true, provider_mutation_attempted=true, and pre_mutation_authority=passed.",
             "Call only POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
             "If the provider response is lost or the final report is missing after the attempt journal exists, consume or leave unresolved the binding and prohibit automatic retry.",
             "If execution stops before the attempt journal exists, publish a same-run trusted retryable release proving restart_attempted=false and provider_mutation_attempted=false.",
             "Poll bounded public runtime endpoints and require exact coherent Production identity from deployment-info without cross-endpoint, nested-object, or MIME-header bypass.",
-            "Upload structured secret-free evidence and publish a bounded trusted marker while keeping Incident #4953 open."
+            "Upload structured secret-free evidence including runtime identity and pre-mutation authority reports, then publish a bounded trusted marker while keeping Incident #4953 open."
           ],
           "assertions": [
             "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target production trigger.",
@@ -56,9 +58,12 @@
             "The workflow grants contents:read and issues:write only and cannot mutate repository contents or protected refs.",
             "Only github-actions[bot] markers participate in consumed, unresolved, or retryable exact-once calculations.",
             "An untrusted public Issue comment cannot consume, release, or supersede a restart claim.",
-            "Main, Production, and Incident state are verified once before the claim and again immediately before provider mutation.",
-            "The current run must own the latest trusted unresolved claim at the pre-provider revalidation point.",
-            "A durable attempt journal is written synchronously before the Hostinger POST is dispatched.",
+            "Main, Production, and Incident state are verified before the claim, at the workflow-level pre-provider checkpoint, and again inside the exact provider-call path.",
+            "The in-process authority report uses contract mad4b.hostinger-pre-mutation-authority.v1 and proves Issue open, exact main and Production SHAs, exact binding and run ID, latest claim ownership, and zero later markers.",
+            "The current run must own the latest trusted unresolved claim at both pre-provider revalidation points.",
+            "The in-process authority callback completes before persistAttemptJournal(configuration), mutationState.attempted=true, and the Hostinger fetch call.",
+            "A failed in-process authority check sends zero provider POSTs, leaves restart_attempted=false, and creates no attempt journal.",
+            "A durable attempt journal is written synchronously after passed in-process authority and before the Hostinger POST is dispatched.",
             "A missing or invalid report with an attempt journal cannot produce restart_attempted=false or retryable_without_provider_mutation=true.",
             "A pre-provider failure without an attempt journal may release only the same run claim as restart_attempted=false and provider_mutation_attempted=false.",
             "status=completed, restart_attempted=true, or restart_performed=true consumes the exact binding.",
@@ -68,7 +73,7 @@
             "Version observations cannot supply a missing SHA or branch to deployment-info.",
             "Nested historical objects cannot supply a missing SHA or branch.",
             "JSON identity suppression is applied after successful JSON parsing regardless of application/json, application/*+json, text/plain, or missing MIME metadata.",
-            "Success requires deployment-info to expose Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through accepted direct top-level identity fields in the same response.",
+            "Success after a provider attempt requires both a passed in-process authority report and deployment-info exposing Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through accepted direct top-level fields in the same response.",
             "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, mutates a database, or outputs secrets."
           ],
           "tests": [
@@ -93,12 +98,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge the exact-head governed implementation, authorize one current-main-bound restart, and attach its journal, report, artifact digest, and trusted marker to Incident #4953."
+      "objective": "Merge the exact-head governed implementation, authorize one current-main-bound restart, and attach its attempt journal, in-process authority report, runtime report, artifact digest, and trusted marker to Incident #4953."
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, untrusted marker spoofing, unresolved claim, claim ownership loss, missing secret, provider rejection, ambiguous POST transport, missing report before and after journal creation, split endpoint identity, cross-object identity, non-standard JSON MIME, and post-restart stale runtime while remaining fail-closed."
+      "objective": "Exercise stale head before claim and during Hostinger prechecks, changed Production, closed Incident, newer build, duplicate trigger, untrusted marker spoofing, missing or superseded current-run claim, a later trusted marker, missing secret, provider rejection, ambiguous POST transport, missing report before and after journal creation, split endpoint identity, cross-object identity, non-standard JSON MIME, and post-restart stale runtime while remaining fail-closed."
     },
     {
       "id": "canary",
@@ -108,7 +113,7 @@
     {
       "id": "production",
       "status": "planned",
-      "objective": "Record exact coherent top-level Production runtime parity after the one-time restart and retain fail-closed evidence when the runtime remains stale."
+      "objective": "Record exact in-process GitHub authority and coherent top-level Production runtime parity after the one-time restart, retaining fail-closed evidence when authority or runtime parity fails."
     }
   ],
   "secrets_included": false
