@@ -526,7 +526,7 @@ export function buildTenantLifecycleRoutes() {
       return res.json({ ok: true, tenant_id: req.params.tenant_id, expired_count: result.affectedRows || 0, stale_pending_count: Number(readback.stale_pending_count), secrets_included: false });
     } catch (err) {
       await connection.rollback();
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitations_expire_stale_failed", message: err.message }, secrets_included: false });
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_invitations_expire_failed", message: err.message }, secrets_included: false });
     } finally {
       connection.release();
     }

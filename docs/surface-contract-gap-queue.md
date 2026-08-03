@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 26
-- Critical review: 21
+- Total queue items: 6
+- Critical review: 1
 - High review: 1
 - Medium review: 4
 - Low review: 0
@@ -13,140 +13,7 @@
 
 ## Top Queue Items
 
-### 1. `1020_sprint69_multi_surface_tenant_agent_runtime.sql`
-
-- Queue class: critical_review
-- Score: 1421
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=5, views=2, policies=0, routes=5
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/agent-surfaces`, `/me/agent-surfaces/catalog`, `/me/agent-surfaces/readiness`, `/me/agent-surfaces/{surface_key}/deployment`, `/me/agent-surfaces/{surface_key}/preferences`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_agent_surface_deployment_upsert`, `tenant_agent_surface_preferences_update`, `tenant_agent_surfaces_catalog`, `tenant_agent_surfaces_get`, `tenant_agent_surfaces_readiness`
-- `verify_readback_view` → db-readback-review; targets: `v_agent_runtime_registry`, `v_agent_v1`
-
-### 2. `193_sprint67_workspace_resource_authority_foundation.sql`
-
-- Queue class: critical_review
-- Score: 1084
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=3, views=1, policies=0, routes=3
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/assets`, `/me/workspaces/{tenant_id}/resource-grants`, `/me/workspaces/{tenant_id}/vaults`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_assets_list`, `workspace_resource_grants_list`, `workspace_vaults_list`
-- `verify_readback_view` → db-readback-review; targets: `v_workspace_resource_grant_effective`
-
-### 3. `200_sprint68_workspace_invitation_control_tools.sql`
-
-- Queue class: critical_review
-- Score: 1077
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=3, views=0, policies=0, routes=3
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/invitations/expire-stale`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend`, `/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_invitation_resend`, `workspace_invitation_revoke`, `workspace_invitations_expire_stale`
-
-### 4. `199_sprint68_workspace_ownership_member_control_tools.sql`
-
-- Queue class: critical_review
-- Score: 1076
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=3, views=0, policies=0, routes=3
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/members/{user_id}`, `/me/workspaces/{tenant_id}/members/{user_id}/remove`, `/me/workspaces/{tenant_id}/ownership/transfer`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_member_remove`, `workspace_member_update`, `workspace_ownership_transfer`
-
-### 5. `194_sprint66_tenant_infrastructure_readiness_tools.sql`
-
-- Queue class: critical_review
-- Score: 932
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=4, views=0, policies=0, routes=2
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/connections/{connection_id}/preflight`, `/me/infrastructure/connections/{connection_id}/status`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_connection_status`, `tenant_database_preflight`, `tenant_ssh_connection_status`, `tenant_ssh_preflight`
-
-### 6. `189_sprint66_tenant_gpt_operating_guide_tools.sql`
-
-- Queue class: critical_review
-- Score: 913
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=3, views=0, policies=0, routes=2
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/tenant/docs`, `/tenant/docs/read`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_capability_registry_read`, `tenant_docs_catalog`, `tenant_gpt_operating_guide_read`
-
-### 7. `201_sprint66_tenant_ssh_cli_approval_decision_tools.sql`
-
-- Queue class: critical_review
-- Score: 899
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=2
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/cli/approval-requests/{request_id}`, `/me/infrastructure/ssh/cli/approval-requests/{request_id}/decision`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_approval_request_decide`, `tenant_ssh_cli_approval_request_status`
-
-### 8. `201_sprint68_workspace_access_request_control_tools.sql`
-
-- Queue class: critical_review
-- Score: 899
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=2
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/access-requests`, `/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_access_request_cancel`, `workspace_my_access_requests_list`
-
-### 9. `194_sprint67_workspace_resource_grant_assignment_tools.sql`
-
-- Queue class: critical_review
-- Score: 896
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=2, views=0, policies=0, routes=2
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/workspaces/{tenant_id}/resource-grants`, `/me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `workspace_resource_grant_create`, `workspace_resource_grant_revoke`
-
-### 10. `1030_sprint69_generic_platform_resource_context.sql`
-
-- Queue class: critical_review
-- Score: 826
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=4, views=0, policies=2, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/system/tools/call`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `platform_resource_context_catalog`, `platform_resource_context_diagnostic_handoff`, `platform_resource_context_related`, `platform_resource_context_resolve`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `platform_resource_context_dynamic_policy_v1`, `resource_reference_interpretation_policy_v1`
-
-### 11. `20260802_03_spec014_hostinger_storage_execution_evidence.sql`
+### 1. `20260802_03_spec014_hostinger_storage_execution_evidence.sql`
 
 - Queue class: critical_review
 - Score: 803
@@ -161,153 +28,20 @@
 - `verify_readback_view` → db-readback-review; targets: `v_storage_admin_target_readiness`, `v_storage_cleanup_operation_readback`, `v_storage_tenant_target_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 12. `1029_sprint69_minimal_dynamic_brand_resolution.sql`
-
-- Queue class: critical_review
-- Score: 771
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=2, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/system/tools/call`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `brand_workspace_context_resolve`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `brand_reference_interpretation_policy_v1`, `brand_workspace_context_minimal_policy_v1`
-
-### 13. `204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql`
-
-- Queue class: critical_review
-- Score: 738
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_execute_job_result`
-
-### 14. `205_sprint66_tenant_ssh_password_and_intake_wait.sql`
-
-- Queue class: critical_review
-- Score: 738
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/connect/api/credential-intake/sessions/{session_id}/wait`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `connect_credential_intake_wait`
-
-### 15. `202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql`
-
-- Queue class: critical_review
-- Score: 737
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/execute`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_execute`
-
-### 16. `200_sprint66_tenant_ssh_cli_approval_request_tool.sql`
-
-- Queue class: critical_review
-- Score: 730
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=1, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/approval-request`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_approval_request_create`
-- `verify_readback_view` → db-readback-review; targets: `v_json`
-
-### 17. `199_sprint66_tenant_ssh_cli_dry_run_tool.sql`
-
-- Queue class: critical_review
-- Score: 720
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_cli_allowlisted_dry_run`
-
-### 18. `196_sprint66_tenant_database_schema_read_tool.sql`
-
-- Queue class: critical_review
-- Score: 719
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/schema`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_schema_read`
-
-### 19. `197_sprint66_tenant_database_query_readonly_tool.sql`
-
-- Queue class: critical_review
-- Score: 719
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/database/connections/{connection_id}/query-readonly`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_database_query_readonly`
-
-### 20. `198_sprint66_tenant_ssh_probe_tool.sql`
-
-- Queue class: critical_review
-- Score: 719
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/infrastructure/ssh/connections/{connection_id}/probe`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `tenant_ssh_probe`
-
-### 21. `191_sprint66_tenant_credential_intake_connection_status.sql`
-
-- Queue class: critical_review
-- Score: 717
-- Gap severity: high
-- Missing docs: none
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=1, views=0, policies=0, routes=1
-- Remediation actions:
-- `verify_callable_handler_or_admin_preview` → runtime-registry-review; targets: `/me/connections/{connection_id}/credential-intake-status`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `credential_intake_connection_status`
-
-### 22. `20260730_hostinger_production_resync_policy.sql`
+### 2. `20260730_hostinger_production_resync_policy.sql`
 
 - Queue class: high_review
-- Score: 547
+- Score: 479
 - Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing docs: `Updating Registry Patch Index.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
+- Safety marker gaps: none
 - Surface counts: plugins=0, tools=0, views=0, policies=1, routes=0
 - Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `repository_main_moved_trigger_policy_v1`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`
 
-### 23. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 3. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -321,7 +55,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 24. `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 4. `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 334
@@ -335,7 +69,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 25. `1043_sprint69_tenant_managed_execution_lifecycle.sql`
+### 5. `1043_sprint69_tenant_managed_execution_lifecycle.sql`
 
 - Queue class: medium_review
 - Score: 324
@@ -349,7 +83,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_managed_execution_lifecycle_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 26. `20260728_governed_response_chunk_ownership.sql`
+### 6. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318

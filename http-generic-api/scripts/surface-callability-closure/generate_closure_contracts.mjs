@@ -350,7 +350,7 @@ attestations.items.push({
   preflight_risk_count: 0,
   statement_count: statementCount(hostingerCanonical.toString("utf8")),
   surface_counts: { plugins: 0, tools: 0, views: 0, policies: 1, routes: 0 },
-  runtime_reviews: [{ action_key: "verify_policy_seed_readiness", targets: ["hostinger_production_resync_policy_v1"] }],
+  runtime_reviews: [{ action_key: "verify_policy_seed_readiness", targets: ["repository_main_moved_trigger_policy_v1"] }],
   safety_markers: { no_provider_call: true, no_credential_payload_read: true, no_raw_secrets: true, no_external_send: true, no_external_write: true, secrets_included_false: true },
   safety: { executes_provider_calls: false, reads_credentials: false, mutates_runtime: false, writes_database: false, external_sends: false, deploys: false, secrets_included: false },
 });
