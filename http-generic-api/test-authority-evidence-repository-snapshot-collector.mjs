@@ -115,7 +115,10 @@ function collect(fixture, manifest = fixture.manifest) {
 }
 
 function expectCode(fn, code) {
-  assert.throws(fn, (error) => error instanceof AuthorityEvidenceRepositorySnapshotError && error.code === code);
+  assert.throws(fn, (error) => (
+    error instanceof AuthorityEvidenceRepositorySnapshotError
+    && error.code === code
+  ));
 }
 
 {
@@ -179,3 +182,88 @@ function expectCode(fn, code) {
     fs.rmSync(fixture.root, { recursive: true, force: true });
   }
 }
+
+{
+  const fixture = createFixture();
+  try {
+    const manifest = structuredClone(fixture.manifest);
+    manifest.sources[0].source_file = "../escaped.json";
+    expectCode(() => collect(fixture, manifest), "authority_evidence_repository_unsafe_source_path");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-evidence-external-"));
+  try {
+    const sourceFile = fixture.manifest.sources[0].source_file;
+    const sourcePath = path.join(fixture.root, sourceFile);
+    const externalPath = path.join(externalRoot, "outside.json");
+    fs.writeFileSync(externalPath, "{}\n");
+    fs.unlinkSync(sourcePath);
+    fs.symlinkSync(externalPath, sourcePath, "file");
+    expectCode(() => collect(fixture), "authority_evidence_repository_unsafe_source_file_type");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
+  const externalRoot = fs.mkdtempSync(path.join(os.tmpdir(), "ueacp-repository-evidence-linked-directory-"));
+  try {
+    const originalBinding = fixture.manifest.sources[0];
+    const originalPath = path.join(fixture.root, originalBinding.source_file);
+    const sourceText = fs.readFileSync(originalPath, "utf8");
+    const linkedSourceFile = "linked/source.json";
+    fs.writeFileSync(path.join(externalRoot, "source.json"), sourceText);
+    fs.symlinkSync(externalRoot, path.join(fixture.root, "linked"), "dir");
+    const manifest = structuredClone(fixture.manifest);
+    manifest.sources[0].source_file = linkedSourceFile;
+    manifest.sources[0].content_sha256 = sha256Text(sourceText);
+    fixture.blobByFile.set(linkedSourceFile, originalBinding.blob_sha);
+    expectCode(() => collect(fixture, manifest), "authority_evidence_repository_source_path_escape");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
+  try {
+    const sourcePath = path.join(fixture.root, fixture.manifest.sources[0].source_file);
+    fs.writeFileSync(sourcePath, Buffer.alloc((8 * 1024 * 1024) + 1, 0x20));
+    expectCode(() => collect(fixture), "authority_evidence_repository_source_file_too_large");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture((document, family) => {
+    if (family === "provider_binding_catalog") document.records[0].access_token = "forbidden";
+    return document;
+  });
+  try {
+    expectCode(() => collect(fixture), "authority_evidence_repository_sensitive_value_forbidden");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+{
+  const fixture = createFixture();
+  try {
+    const manifest = structuredClone(fixture.manifest);
+    manifest.sources.pop();
+    expectCode(() => collect(fixture, manifest), "authority_evidence_repository_incomplete_family_manifest");
+  } finally {
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  }
+}
+
+console.log("authority evidence repository snapshot collector tests passed");
