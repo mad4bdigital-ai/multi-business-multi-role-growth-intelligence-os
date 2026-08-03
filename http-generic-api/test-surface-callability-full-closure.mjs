@@ -5,6 +5,10 @@ import { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-
 
 // SURFACE_CALLABILITY_FULL_CLOSURE
 const manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));
+assert.equal(manifest.source_scope_source, "sql_registry_and_committed_manifest_v1");
+assert.equal(manifest.source_queue_item_count, 20);
+assert.equal(manifest.source_queue_tool_keys.length, 41);
+assert.equal(manifest.remaining_scoped_queue_item_count, 0);
 const coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));
 const validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });
 assert.equal(validation.ok, true, JSON.stringify(validation.findings));

@@ -214,14 +214,72 @@ function queueToolTargets(item) {
     .filter((action) => action.action_key === "verify_tool_registry_binding")
     .flatMap((action) => Array.isArray(action.targets) ? action.targets : []));
 }
-const sourceItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
-const scopedToolKeys = unique(sourceItems.flatMap((item) => queueToolTargets(item).filter((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key))));
+const remainingScopedQueueItems = queue.top_items.filter((item) => queueToolTargets(item).some((key) => SURFACE_CLOSURE_TOOL_KEYS.has(key)));
+if (remainingScopedQueueItems.length) {
+  throw new Error(`surface_queue_scoped_items_reopened:${remainingScopedQueueItems.map((item) => item.migration_file).join(",")}`);
+}
+
+if (!fs.existsSync(MANIFEST_PATH)) throw new Error("surface_certified_manifest_missing");
+const priorManifest = readJson(MANIFEST_PATH);
+if (priorManifest.schema_version !== "resource-api-surface-callability-v1" || !Array.isArray(priorManifest.contracts)) {
+  throw new Error("surface_certified_manifest_invalid");
+}
+const manifestBindings = priorManifest.contracts.flatMap((contract) => Array.isArray(contract.tool_bindings) ? contract.tool_bindings : []);
+const manifestBindingsByToolKey = new Map();
+for (const binding of manifestBindings) {
+  if (!SURFACE_CLOSURE_TOOL_KEYS.has(binding.tool_key)) throw new Error(`surface_manifest_scope_expanded:${binding.tool_key}`);
+  if (manifestBindingsByToolKey.has(binding.tool_key)) throw new Error(`surface_manifest_tool_duplicate:${binding.tool_key}`);
+  if (typeof binding.migration_file !== "string" || !binding.migration_file.startsWith("migrations/") || binding.migration_file.includes("..")) {
+    throw new Error(`surface_manifest_migration_invalid:${binding.tool_key}`);
+  }
+  manifestBindingsByToolKey.set(binding.tool_key, binding.migration_file);
+}
+const manifestToolKeys = unique([...manifestBindingsByToolKey.keys()]);
+const missingManifestToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].filter((key) => !manifestBindingsByToolKey.has(key)).sort();
+const unexpectedManifestToolKeys = manifestToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
+if (missingManifestToolKeys.length || unexpectedManifestToolKeys.length) {
+  throw new Error(`surface_manifest_scope_mismatch:missing=${missingManifestToolKeys.join(",")}:unexpected=${unexpectedManifestToolKeys.join(",")}`);
+}
+if (manifestBindings.length !== 41) throw new Error(`surface_manifest_expected_41_bindings_actual_${manifestBindings.length}`);
+
+const sqlMatchesByToolKey = new Map([...SURFACE_CLOSURE_TOOL_KEYS].map((key) => [key, []]));
+const migrationsRoot = path.join(ROOT, "migrations");
+const migrationFiles = fs.readdirSync(migrationsRoot).filter((file) => file.endsWith(".sql")).sort();
+for (const migrationFile of migrationFiles) {
+  const relativeMigration = `migrations/${migrationFile}`;
+  const extracted = extractRegistryToolRegistrations(fs.readFileSync(path.join(migrationsRoot, migrationFile), "utf8"));
+  for (const registration of extracted) {
+    if (!SURFACE_CLOSURE_TOOL_KEYS.has(registration.tool_key)) continue;
+    sqlMatchesByToolKey.get(registration.tool_key).push({ ...registration, migration_file: relativeMigration });
+  }
+}
+
+const sourceItemToolKeys = new Map();
+for (const toolKey of [...SURFACE_CLOSURE_TOOL_KEYS].sort()) {
+  const matches = sqlMatchesByToolKey.get(toolKey) || [];
+  if (matches.length !== 1) throw new Error(`surface_sql_registration_expected_once:${toolKey}:${matches.length}`);
+  const registration = matches[0];
+  const expectedMigration = manifestBindingsByToolKey.get(toolKey);
+  if (registration.migration_file !== expectedMigration) {
+    throw new Error(`surface_sql_manifest_migration_mismatch:${toolKey}:${expectedMigration}:${registration.migration_file}`);
+  }
+  const migrationFile = registration.migration_file.replace(/^migrations\//, "");
+  const tools = sourceItemToolKeys.get(migrationFile) || [];
+  tools.push(toolKey);
+  sourceItemToolKeys.set(migrationFile, tools);
+}
+
+const sourceItems = [...sourceItemToolKeys.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([migration_file, toolKeys]) => ({
+  migration_file,
+  remediation: [{ action_key: "verify_tool_registry_binding", targets: unique(toolKeys) }],
+}));
+const scopedToolKeys = unique(sourceItems.flatMap((item) => queueToolTargets(item)));
 const missingScopedToolKeys = [...SURFACE_CLOSURE_TOOL_KEYS].filter((key) => !scopedToolKeys.includes(key)).sort();
 const unexpectedScopedToolKeys = scopedToolKeys.filter((key) => !SURFACE_CLOSURE_TOOL_KEYS.has(key));
 if (missingScopedToolKeys.length || unexpectedScopedToolKeys.length) {
-  throw new Error(`surface_queue_scope_mismatch:missing=${missingScopedToolKeys.join(",")}:unexpected=${unexpectedScopedToolKeys.join(",")}`);
+  throw new Error(`surface_sql_scope_mismatch:missing=${missingScopedToolKeys.join(",")}:unexpected=${unexpectedScopedToolKeys.join(",")}`);
 }
-if (sourceItems.length !== 20) throw new Error(`surface_queue_expected_20_scoped_callable_items_actual_${sourceItems.length}`);
+if (sourceItems.length !== 20) throw new Error(`surface_sql_expected_20_scoped_callable_items_actual_${sourceItems.length}`);
 
 const registrations = [];
 for (const item of sourceItems) {
@@ -295,15 +353,17 @@ writeJson(MANIFEST_PATH, {
   schema_version: "resource-api-surface-callability-v1",
   source_queue_schema: queue.schema_version,
   source_queue_item_count: sourceItems.length,
-  source_queue_total_item_count: queue.total_items,
-  source_queue_excluded_item_count: queue.total_items - sourceItems.length,
+  source_scope_source: "sql_registry_and_committed_manifest_v1",
+  source_queue_total_item_count: queue.total_items + sourceItems.length,
+  source_queue_excluded_item_count: queue.total_items,
+  remaining_scoped_queue_item_count: remainingScopedQueueItems.length,
   source_queue_tool_keys: sourceToolKeys,
   contracts,
   generated_by: "scripts/surface-callability-closure/generate_closure_contracts.mjs",
   secrets_included: false,
 });
 
-const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nconst remainingScopedItems = queue.top_items.filter((item) => (item.remediation || []).some((action) => action.action_key === "verify_tool_registry_binding" && (action.targets || []).some((key) => manifest.source_queue_tool_keys.includes(key))));\nassert.deepEqual(remainingScopedItems, [], JSON.stringify(remainingScopedItems));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
+const testSource = `import assert from "node:assert/strict";\nimport fs from "node:fs";\nimport YAML from "yaml";\nimport { validateDirectRouteCallabilityContracts } from "./scripts/resource-api-callability-contracts.mjs";\n\n// SURFACE_CALLABILITY_FULL_CLOSURE\nconst manifest = JSON.parse(fs.readFileSync("resource-api-surface-callability.manifest.json", "utf8"));\nassert.equal(manifest.source_scope_source, "sql_registry_and_committed_manifest_v1");\nassert.equal(manifest.source_queue_item_count, 20);\nassert.equal(manifest.source_queue_tool_keys.length, 41);\nassert.equal(manifest.remaining_scoped_queue_item_count, 0);\nconst coverageManifest = JSON.parse(fs.readFileSync("resource-api-coverage.manifest.json", "utf8"));\nconst validation = validateDirectRouteCallabilityContracts({ root: process.cwd(), manifest: coverageManifest });\nassert.equal(validation.ok, true, JSON.stringify(validation.findings));\nassert.deepEqual(validation.covered_tool_keys.filter((key) => manifest.source_queue_tool_keys.includes(key)).sort(), [...manifest.source_queue_tool_keys].sort());\nconst queue = JSON.parse(fs.readFileSync("../docs/surface-contract-gap-queue.json", "utf8"));\nconst remainingScopedItems = queue.top_items.filter((item) => (item.remediation || []).some((action) => action.action_key === "verify_tool_registry_binding" && (action.targets || []).some((key) => manifest.source_queue_tool_keys.includes(key))));\nassert.deepEqual(remainingScopedItems, [], JSON.stringify(remainingScopedItems));\nconst lifecycle = fs.readFileSync("routes/tenantLifecycleRoutes.js", "utf8");\nconst resources = fs.readFileSync("routes/workspaceResourceRoutes.js", "utf8");\nconst infrastructure = fs.readFileSync("routes/tenantInfrastructureRoutes.js", "utf8");\nconst agentService = fs.readFileSync("agentSurfaceRuntimeService.js", "utf8");\nassert.equal((infrastructure.match(/router\\.get\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\"/g) || []).length, 1);\nassert.equal((infrastructure.match(/router\\.post\\(\\"\\/me\\/infrastructure\\/ssh\\/cli\\/approval-requests\\/:request_id\\/decision\\"/g) || []).length, 1);\nassert(!/workspace_invitation_resend[\\s\\S]{0,5000}token:\\s*result/.test(lifecycle));\nfor (const key of ${JSON.stringify([...DATABASE_MUTATIONS].sort())}) {\n  const evidence = lifecycle.includes(\`MUTATION_TRANSACTION: \${key}\`) || resources.includes(\`MUTATION_TRANSACTION: \${key}\`) || infrastructure.includes(\`MUTATION_TRANSACTION: \${key}\`) || agentService.includes(\`MUTATION_TRANSACTION: \${key}\`);\n  const readback = lifecycle.includes(\`MUTATION_READBACK: \${key}\`) || resources.includes(\`MUTATION_READBACK: \${key}\`) || infrastructure.includes(\`MUTATION_READBACK: \${key}\`) || agentService.includes(\`MUTATION_READBACK: \${key}\`);\n  assert(evidence, \`missing transaction marker for \${key}\`);\n  assert(readback, \`missing readback marker for \${key}\`);\n}\nconst runtimeOpenApi = YAML.parse(fs.readFileSync("openapi/frontend-runtime-routes.generated.yaml", "utf8"));\nconst canonicalOpenApi = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));\nfor (const contract of manifest.contracts) {\n  const [method, route] = contract.route_signature.split(/\\s+/, 2);\n  const document = contract.openapi_file === "openapi.yaml" ? canonicalOpenApi : contract.openapi_file === "openapi/frontend-runtime-routes.generated.yaml" ? runtimeOpenApi : null;\n  assert(document.paths?.[route]?.[method.toLowerCase()], \`OpenAPI operation missing: \${contract.route_signature}\`);\n}\nconst classification = JSON.parse(fs.readFileSync("surface-contract-classification-evidence.json", "utf8"));\nassert(classification.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.classification_status === "verified_evidence_only"));\nconst attestations = JSON.parse(fs.readFileSync("../docs/surface-contract-safety-attestations.json", "utf8"));\nassert(attestations.items.some((item) => item.migration_file === "${HOSTINGER_MIGRATION}" && item.attestation_status === "verified_static_no_external_side_effects"));\n${sourceToolKeys.map((key) => `// FULL_CLOSURE_TOOL: ${key}`).join("\n")}\n${contracts.map((contract) => `// FULL_CLOSURE_ROUTE: ${contract.route_signature}`).join("\n")}\nconsole.log("surface callability full closure tests passed");\n`;
 fs.writeFileSync(TEST_PATH, testSource, "utf8");
 
 let testManifest = fs.readFileSync(TEST_MANIFEST_PATH, "utf8");
@@ -358,4 +418,4 @@ attestations.items.sort((a, b) => a.migration_file.localeCompare(b.migration_fil
 attestations.item_count = attestations.items.length;
 writeJson(ATTESTATION_PATH, attestations);
 
-console.log(JSON.stringify({ ok: true, source_queue_items: sourceItems.length, repository_queue_items: queue.total_items, excluded_repository_queue_items: queue.total_items - sourceItems.length, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));
+console.log(JSON.stringify({ ok: true, source_queue_items: sourceItems.length, repository_queue_items: queue.total_items, excluded_repository_queue_items: queue.total_items, callable_migrations: sourceItems.length, tool_count: sourceToolKeys.length, contract_count: contracts.length, hostinger_blob_sha: hostingerBlob, hostinger_sha256: hostingerSha256, secrets_included: false }, null, 2));
