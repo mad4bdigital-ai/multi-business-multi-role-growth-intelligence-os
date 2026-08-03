@@ -2,6 +2,11 @@ name: Hostinger Completed Build Forensics
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA authorized for this read-only execution
+        required: true
+        type: string
   push:
     branches:
       - main
@@ -31,6 +36,7 @@ jobs:
       PRODUCTION_MERGED_AT: "2026-08-03T00:53:07Z"
       TRIGGER_TOKEN: RUN_HOSTINGER_COMPLETED_BUILD_FORENSICS_F5C1AE88_V1
       MARKER_PATH: .github/hostinger-runtime-recovery/triggers/completed-build-forensics-f5c1ae88.txt
+      INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
       REPORT_DIR: ${{ runner.temp }}/hostinger-completed-build-forensics
     steps:
       - name: Checkout trusted main
@@ -61,6 +67,8 @@ jobs:
 
           if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
             test "${ACTOR}" = "${REPOSITORY_OWNER}"
+            [[ "${INPUT_EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            test "${INPUT_EXPECTED_HEAD_SHA}" = "${CURRENT_MAIN_SHA}"
           elif [[ "${EVENT_NAME}" == "push" ]]; then
             test "${EVENT_REF}" = "refs/heads/main"
             test "${EVENT_SHA}" = "${CURRENT_MAIN_SHA}"
@@ -94,6 +102,7 @@ jobs:
 
       - name: Collect bounded completed-build forensics
         id: collect
+        continue-on-error: true
         working-directory: http-generic-api
         env:
           HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
@@ -105,7 +114,17 @@ jobs:
           HOSTINGER_COMPLETED_BUILD_FORENSICS_DIR: ${{ env.REPORT_DIR }}
         run: node scripts/hostinger-completed-build-forensics.mjs
 
+      - name: Upload completed-build forensics evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-completed-build-forensics-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Validate secret-free evidence contract
+        if: always()
         id: evidence
         shell: bash
         run: |
@@ -117,37 +136,36 @@ jobs:
           const [reportPath, expectedSha, buildUuid] = process.argv.slice(2);
           const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
           if (report.contract !== "mad4b.hostinger-completed-build-forensics.v1") throw new Error("unexpected contract");
-          if (report.identity?.expected_sha !== expectedSha) throw new Error("expected SHA mismatch");
-          if (report.identity?.expected_branch !== "Production") throw new Error("expected branch mismatch");
-          if (report.identity?.build_uuid !== buildUuid) throw new Error("build UUID mismatch");
-          if (report.requests?.methods?.length !== 1 || report.requests.methods[0] !== "GET") throw new Error("non-GET method detected");
-          if (report.requests?.token_returned !== false || report.secrets_included !== false) throw new Error("secret boundary failed");
+          if (report.secrets_included !== false) throw new Error("secret boundary failed");
           const effects = report.side_effects || {};
           for (const [key, value] of Object.entries(effects)) {
             if (value !== false) throw new Error(`side effect ${key} was not false`);
           }
-          if (!report.decision?.classification || !report.decision?.next_action) throw new Error("decision missing");
+          if (report.ok === false) {
+            if (!report.failure?.code) throw new Error("failure contract missing code");
+          } else {
+            if (report.identity?.expected_sha !== expectedSha) throw new Error("expected SHA mismatch");
+            if (report.identity?.expected_branch !== "Production") throw new Error("expected branch mismatch");
+            if (report.identity?.build_uuid !== buildUuid) throw new Error("build UUID mismatch");
+            if (report.requests?.methods?.length !== 1 || report.requests.methods[0] !== "GET") throw new Error("non-GET method detected");
+            if (report.requests?.token_returned !== false) throw new Error("token return boundary failed");
+            if (!report.decision?.classification || !report.decision?.next_action) throw new Error("decision missing");
+          }
           NODE
 
-          echo "outcome=$(jq -r '.decision.outcome' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "classification=$(jq -r '.decision.classification' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "next_action=$(jq -r '.decision.next_action' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "outcome=$(jq -r 'if .ok == false then "failed" else .decision.outcome end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "classification=$(jq -r 'if .ok == false then .failure.code else .decision.classification end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "next_action=$(jq -r 'if .ok == false then "resolve_forensics_execution_failure" else .decision.next_action end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
           echo "observed_sha=$(jq -r '.runtime.version.identity.sha // .runtime.deploymentInfo.identity.sha // "unavailable"' "${REPORT}")" >> "${GITHUB_OUTPUT}"
           echo "observed_branch=$(jq -r '.runtime.deploymentInfo.identity.branch // .runtime.version.identity.branch // "unavailable"' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "source_shas=$(jq -r '.log_analysis.source_shas | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "source_branches=$(jq -r '.log_analysis.source_branches | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "release_dirs=$(jq -r '.log_analysis.release_directories | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-          echo "log_digest=$(jq -r '.log_analysis.excerpt_sha256' "${REPORT}")" >> "${GITHUB_OUTPUT}"
-
-      - name: Upload completed-build forensics evidence
-        uses: actions/upload-artifact@v4
-        with:
-          name: hostinger-completed-build-forensics-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}
-          if-no-files-found: error
-          retention-days: 30
+          echo "source_shas=$(jq -r '(.log_analysis.source_shas // []) | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "source_branches=$(jq -r '(.log_analysis.source_branches // []) | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "release_dirs=$(jq -r '(.log_analysis.release_directories // []) | join(",") | if length == 0 then "none" else . end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "log_digest=$(jq -r '.log_analysis.excerpt_sha256 // "none"' "${REPORT}")" >> "${GITHUB_OUTPUT}"
+          echo "report_failed=$(jq -r 'if .ok == false then "true" else "false" end' "${REPORT}")" >> "${GITHUB_OUTPUT}"
 
       - name: Publish bounded incident decision
+        if: always() && steps.evidence.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           OUTCOME: ${{ steps.evidence.outputs.outcome }}
@@ -168,3 +186,16 @@ jobs:
             -H "X-GitHub-Api-Version: 2022-11-28" \
             "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}/comments" \
             -f body="${BODY}"
+
+      - name: Enforce successful forensics collection
+        if: always()
+        env:
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+          REPORT_FAILED: ${{ steps.evidence.outputs.report_failed }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${EVIDENCE_OUTCOME}" = "success"
+          test "${COLLECT_OUTCOME}" = "success"
+          test "${REPORT_FAILED}" = "false"
