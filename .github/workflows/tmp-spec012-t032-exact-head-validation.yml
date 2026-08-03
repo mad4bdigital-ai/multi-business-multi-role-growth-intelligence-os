@@ -1,0 +1,39 @@
+name: Temporary Spec 012 T032 Exact-Head Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/tmp-spec012-t032-exact-head-validation.yml'
+      - 'http-generic-api/tenantGptAccessTokenVerifier.js'
+      - 'http-generic-api/tenantGptAudienceCompatibilityPolicy.js'
+      - 'http-generic-api/test-spec012-t032-legacy-audience-compatibility.mjs'
+      - 'http-generic-api/test-tenant-gpt-access-token-verifier.mjs'
+      - 'http-generic-api/test-tenant-gpt-audience-compatibility-policy.mjs'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2n-t032-legacy-audience-compatibility.json'
+      - 'specs/012-tenant-activation-lifecycle/implementation/pr-2n-t032-legacy-audience-compatibility.md'
+
+permissions:
+  contents: read
+
+jobs:
+  exact-head-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Check T032 syntax
+        run: |
+          node --check http-generic-api/tenantGptAudienceCompatibilityPolicy.js
+          node --check http-generic-api/tenantGptAccessTokenVerifier.js
+          node --check http-generic-api/test-tenant-gpt-audience-compatibility-policy.mjs
+          node --check http-generic-api/test-tenant-gpt-access-token-verifier.mjs
+          node --check http-generic-api/test-spec012-t032-legacy-audience-compatibility.mjs
+      - name: Validate T032 compatibility policy and verifier
+        working-directory: http-generic-api
+        run: node test-spec012-t032-legacy-audience-compatibility.mjs
