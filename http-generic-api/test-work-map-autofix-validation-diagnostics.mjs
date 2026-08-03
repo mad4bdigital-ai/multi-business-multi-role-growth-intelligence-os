@@ -51,9 +51,20 @@ assert.match(
 assert.match(workflow, /if-no-files-found: error/);
 
 assert.match(validationBlock, /run_contract\(\) \{/);
+assert.match(validationBlock, /validation-\$\{contract_name\}\.log/);
+assert.match(validationBlock, /"\$@" >"\$\{log_file\}" 2>&1/);
+assert.match(validationBlock, /cat "\$\{log_file\}"/);
 assert.match(validationBlock, /failed-validation-contract\.txt/);
 assert.match(validationBlock, /failed-validation-exit-code\.txt/);
+assert.match(validationBlock, /failed-validation-contracts\.tsv/);
 assert.match(validationBlock, /validation-results\.tsv/);
+assert.match(validationBlock, /validation-summary\.md/);
+assert.match(validationBlock, /if \[\[ ! -s "\$\{failed_contract_file\}" \]\]; then/);
+assert.match(validationBlock, /return 0/);
+assert.doesNotMatch(validationBlock, /return "\$\{exit_code\}"/);
+assert.match(validationBlock, /failed_count=.*awk/);
+assert.match(validationBlock, /All validation contracts were evaluated before this fail-closed gate stopped generation/);
+assert.match(validationBlock, /exit 1/);
 
 for (const contractName of contractNames) {
   const escaped = contractName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -69,16 +80,18 @@ assert.equal(invocations.length, contractNames.length, "unexpected number of nam
 
 assert.match(workflow, /\| Failed validation contract \| \\`\$\{failed_validation_contract\}\\` \|/);
 assert.match(workflow, /\| Failed validation exit code \| \\`\$\{failed_validation_exit_code\}\\` \|/);
-assert.match(workflow, /--arg failed_validation_contract "\$\{failed_validation_contract\}"/);
-assert.match(workflow, /--arg failed_validation_exit_code "\$\{failed_validation_exit_code\}"/);
-assert.match(workflow, /failed_validation_contract:\$failed_validation_contract/);
-assert.match(workflow, /failed_validation_exit_code:\$failed_validation_exit_code/);
-assert.match(workflow, /failed_validation_contract=\$\{failed_validation_contract\}/);
-assert.match(workflow, /failed_validation_exit_code=\$\{failed_validation_exit_code\}/);
+assert.match(workflow, /\| Failed validation contracts count \| \\`\$\{failed_validation_contracts_count\}\\` \|/);
+assert.match(workflow, /\| Failed validation contracts \| \\`\$\{failed_validation_contracts\}\\` \|/);
+assert.match(workflow, /--arg failed_validation_contracts_count "\$\{failed_validation_contracts_count\}"/);
+assert.match(workflow, /--arg failed_validation_contracts "\$\{failed_validation_contracts\}"/);
+assert.match(workflow, /failed_validation_contracts_count:\(\$failed_validation_contracts_count\|tonumber\)/);
+assert.match(workflow, /failed_validation_contracts:\$failed_validation_contracts/);
+assert.match(workflow, /failed_validation_contracts_count=\$\{failed_validation_contracts_count\}/);
+assert.match(workflow, /failed_validation_contracts=\$\{failed_validation_contracts\}/);
 assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
 
 assert.doesNotMatch(validationBlock, /git push/);
 assert.doesNotMatch(validationBlock, /--force/);
 assert.doesNotMatch(validationBlock, /platform-work-map-generator\.mjs --write/);
 
-console.log("Work Map Autofix validation diagnostics regression passed.");
+console.log("Work Map Autofix complete failure-set diagnostics regression passed.");
