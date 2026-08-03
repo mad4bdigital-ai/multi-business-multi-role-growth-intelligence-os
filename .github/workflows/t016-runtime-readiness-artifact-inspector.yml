@@ -1,4 +1,4 @@
-name: T016 CWD Alias Patch Apply
+name: T016 Evidence Path Repair
 
 on:
   pull_request:
@@ -10,12 +10,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: t016-cwd-alias-patch-apply-${{ github.event.pull_request.number }}
+  group: t016-evidence-path-repair-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  apply:
-    name: Apply validated T016 alias patch to exact candidate
+  repair:
+    name: Repair T016 Artifact pagination and safe evidence fields
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2'
@@ -24,7 +24,7 @@ jobs:
     env:
       TARGET_BRANCH: agent/sprint69-1043-readiness-backfill-rebind-5169156192-v2
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      PATCH_DIR: /tmp/t016-cwd-alias-patch-${{ github.run_id }}
+      EVIDENCE_DIR: /tmp/t016-evidence-path-repair-${{ github.run_id }}
     steps:
       - name: Checkout exact candidate branch
         uses: actions/checkout@v5
@@ -37,66 +37,206 @@ jobs:
         shell: bash
         run: test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
 
-      - name: Apply bounded CWD-independent alias patch
+      - name: Apply bounded evidence-path repairs
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
 
-          const routesPath = 'http-generic-api/routes/adminCliRoutes.js';
-          let source = fs.readFileSync(routesPath, 'utf8');
-          const approvalConstant = 'export const CAPABILITY_RESOLUTION_ENVELOPE_APPROVE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-approve.mjs", import.meta.url));';
-          const dryRunConstant = 'export const CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-dry-run.mjs", import.meta.url));';
-          const createConstant = 'export const CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT = fileURLToPath(new URL("../scripts/capability-resolution-envelope-create.mjs", import.meta.url));';
-          if (!source.includes(approvalConstant)) throw new Error('approval constant anchor missing');
-          if (!source.includes(dryRunConstant)) {
-            source = source.replace(approvalConstant, [dryRunConstant, createConstant, approvalConstant].join('\n'));
+          const runtimePath = '.github/ops/sprint69-1043-runtime-readiness.mjs';
+          const backfillPath = '.github/ops/sprint69-1043-runtime-readiness-backfill.mjs';
+          const testPath = 'http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs';
+
+          const safeKeysDeclaration = `const SAFE_EVIDENCE_KEYS = new Set([
+            'activation_registry_sync_executed',
+            'apply_authorized',
+            'apply_sent',
+            'authorization_bootstrap',
+            'authorization_comment_id',
+            'authorization_created',
+            'authorization_required',
+            'business_data_mutation_executed',
+            'credential_payload_accessed',
+            'external_business_write_executed',
+            'external_write_executed',
+            'managed_control_plane_write_executed',
+            'migration_apply_executed',
+            'provider_call_executed',
+            'repository_mutation_performed',
+            'secrets_included',
+          ]);`;
+
+          function patchSanitizer(source, label) {
+            const sensitive = `const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;`;
+            if (!source.includes('SAFE_EVIDENCE_KEYS')) {
+              if (!source.includes(sensitive)) throw new Error(`${label} sensitive-key anchor missing`);
+              source = source.replace(sensitive, `${sensitive}\n${safeKeysDeclaration}`);
+            }
+            const broad = `sensitiveKey.test(key) ? '[redacted]' : sanitize(child)`;
+            const bounded = `sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)`;
+            if (source.includes(broad)) source = source.replace(broad, bounded);
+            if (!source.includes(bounded)) {
+              const multiline = `sensitiveKey.test(key) && key !== 'authorization_created' && key !== 'authorization_bootstrap'\n      ? '[redacted]'\n      : sanitize(child)`;
+              const replacement = `sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key)\n      ? '[redacted]'\n      : sanitize(child)`;
+              if (!source.includes(multiline)) throw new Error(`${label} sanitizer anchor missing`);
+              source = source.replace(multiline, replacement);
+            }
+            return source;
           }
 
-          const staleDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-dry-run.mjs"], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
-          const fixedDryRun = 'capability_resolution_dry_run: { command: process.execPath, args: [CAPABILITY_RESOLUTION_DRY_RUN_SCRIPT], display_name: "Dynamic capability resolution dry-run", allow_extra_args: true, max_extra_args: 28, timeout_ms: 120000, built_in: true }';
-          const staleCreate = 'capability_resolution_envelope_create: { command: process.execPath, args: ["http-generic-api/scripts/capability-resolution-envelope-create.mjs"], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true }';
-          const fixedCreate = 'capability_resolution_envelope_create: { command: process.execPath, args: [CAPABILITY_RESOLUTION_ENVELOPE_CREATE_SCRIPT], display_name: "Create capability resolution envelope ledger record", allow_extra_args: true, max_extra_args: 32, timeout_ms: 120000, built_in: true }';
-          if (source.includes(staleDryRun)) source = source.replace(staleDryRun, fixedDryRun);
-          if (source.includes(staleCreate)) source = source.replace(staleCreate, fixedCreate);
-          if (!source.includes(fixedDryRun) || !source.includes(fixedCreate)) throw new Error('fixed aliases missing');
-          fs.writeFileSync(routesPath, source);
+          let runtime = fs.readFileSync(runtimePath, 'utf8');
+          runtime = patchSanitizer(runtime, 'runtime');
+          fs.writeFileSync(runtimePath, runtime);
 
-          const testPath = 'http-generic-api/test-capability-envelope-create-alias-path.mjs';
-          if (!fs.existsSync(testPath)) throw new Error('regression test missing on candidate head');
+          let backfill = fs.readFileSync(backfillPath, 'utf8');
+          backfill = patchSanitizer(backfill, 'backfill');
+
+          const oldDiscovery = `  const commentMs = isoMs(comment.created_at);
+          const list = await githubJson(
+            \`/repos/\${REPOSITORY}/actions/workflows/\${encodeURIComponent(WORKFLOW_FILE)}/runs?event=issue_comment&per_page=50\`,
+          );
+          const candidates = (list?.workflow_runs || [])
+            .filter((run) => run?.name === WORKFLOW_NAME)
+            .filter((run) => run?.event === 'issue_comment')
+            .filter((run) => run?.head_branch === 'main')
+            .filter((run) => run?.actor?.login === comment.user.login)
+            .filter((run) => isoMs(run.created_at) >= commentMs)
+            .sort((left, right) => isoMs(left.created_at) - isoMs(right.created_at));
+
+          let run = candidates[0] || null;`;
+          const newDiscovery = `  const commentMs = isoMs(comment.created_at);
+          const allRuns = [];
+          let pagesFetched = 0;
+          let reachedCommentBoundary = false;
+          for (let page = 1; page <= 20; page += 1) {
+            const list = await githubJson(
+              \`/repos/\${REPOSITORY}/actions/workflows/\${encodeURIComponent(WORKFLOW_FILE)}/runs?event=issue_comment&per_page=100&page=\${page}\`,
+            );
+            const pageRuns = list?.workflow_runs || [];
+            pagesFetched = page;
+            allRuns.push(...pageRuns);
+            if (!pageRuns.length) break;
+            const oldestMs = Math.min(...pageRuns.map((candidate) => isoMs(candidate.created_at)));
+            if (oldestMs <= commentMs) {
+              reachedCommentBoundary = true;
+              break;
+            }
+          }
+          assert.ok(reachedCommentBoundary, 'Runtime Readiness run pagination did not reach the authorization boundary');
+          const candidates = allRuns
+            .filter((run) => run?.name === WORKFLOW_NAME)
+            .filter((run) => run?.event === 'issue_comment')
+            .filter((run) => run?.head_branch === 'main')
+            .filter((run) => run?.actor?.login === comment.user.login)
+            .filter((run) => isoMs(run.created_at) >= commentMs)
+            .sort((left, right) => isoMs(left.created_at) - isoMs(right.created_at));
+          const nonSkippedCandidates = candidates.filter((run) => run?.conclusion !== 'skipped');
+
+          let run = nonSkippedCandidates[0] || null;`;
+          if (backfill.includes(oldDiscovery)) backfill = backfill.replace(oldDiscovery, newDiscovery);
+          if (!backfill.includes('nonSkippedCandidates')) throw new Error('backfill pagination patch missing');
+
+          const reportAnchor = `    candidate_count: candidates.length,
+            run_id: run?.id || null,`;
+          const reportReplacement = `    pages_fetched: pagesFetched,
+            reached_comment_boundary: reachedCommentBoundary,
+            scanned_run_count: allRuns.length,
+            candidate_count: candidates.length,
+            non_skipped_candidate_count: nonSkippedCandidates.length,
+            run_id: run?.id || null,`;
+          if (backfill.includes(reportAnchor)) backfill = backfill.replace(reportAnchor, reportReplacement);
+
+          if (!backfill.includes('function safeBoolean')) {
+            const boundedAnchor = `function boundedRuntimeResult(summary, failure, discovery) {`;
+            const helper = `function safeBoolean(value) {
+            return value === true || value === false ? value : null;
+          }
+
+          ${boundedAnchor}`;
+            if (!backfill.includes(boundedAnchor)) throw new Error('bounded result anchor missing');
+            backfill = backfill.replace(boundedAnchor, helper);
+          }
+          backfill = backfill.replace(
+            `    assert.equal(summary.secrets_included, false);`,
+            `    assert.equal(safeBoolean(summary.secrets_included), false);`,
+          );
+          backfill = backfill.replace(
+            `    assert.equal(failure.secrets_included, false);`,
+            `    const failureSecretsIncluded = safeBoolean(failure.secrets_included);`,
+          );
+          for (const key of [
+            'authorization_created', 'apply_authorized', 'apply_sent',
+            'migration_apply_executed', 'activation_registry_sync_executed',
+          ]) {
+            const legacy = `      ${key}: failure.${key} ?? false,`;
+            const fixed = `      ${key}: safeBoolean(failure.${key}),`;
+            if (backfill.includes(legacy)) backfill = backfill.replace(legacy, fixed);
+          }
+          backfill = backfill.replace(
+            `      secrets_included: false,\n    };\n  }\n  return {`,
+            `      secrets_included: failureSecretsIncluded,\n    };\n  }\n  return {`,
+          );
+          backfill = backfill.replace(
+            `    \`- Secrets included: \${runtime.secrets_included}\`,`,
+            `    \`- Secrets included: \${runtime.secrets_included ?? 'unverified'}\`,`,
+          );
+          fs.writeFileSync(backfillPath, backfill);
+
+          let test = fs.readFileSync(testPath, 'utf8');
+          test = test.replace(`const AUTH_COMMENT_ID = '5160291051';`, `const AUTH_COMMENT_ID = '5169156192';`);
+          const testAnchor = `assert.match(backfillRunner, /actions\\/workflows\\/\\$\\{encodeURIComponent\\(WORKFLOW_FILE\\)\\}\\/runs\\?event=issue_comment/);`;
+          const testAddition = `${testAnchor}
+          assert.match(backfillRunner, /per_page=100&page=\\$\\{page\\}/);
+          assert.match(backfillRunner, /reachedCommentBoundary/);
+          assert.match(backfillRunner, /nonSkippedCandidates/);
+          assert.match(backfillRunner, /function safeBoolean/);
+          assert.doesNotMatch(backfillRunner, /per_page=50/);
+          assert.match(runner, /SAFE_EVIDENCE_KEYS/);
+          assert.match(backfillRunner, /SAFE_EVIDENCE_KEYS/);
+          assert.match(runner, /'secrets_included'/);
+          assert.match(backfillRunner, /unverified/);`;
+          if (!test.includes('nonSkippedCandidates')) {
+            if (!test.includes(testAnchor)) throw new Error('contract test anchor missing');
+            test = test.replace(testAnchor, testAddition);
+          }
+          fs.writeFileSync(testPath, test);
           NODE
 
-      - name: Validate bounded patch
+      - name: Validate evidence-path repairs
         shell: bash
         run: |
           set -euo pipefail
-          node --check http-generic-api/routes/adminCliRoutes.js
+          node --check .github/ops/sprint69-1043-runtime-readiness.mjs
+          node --check .github/ops/sprint69-1043-runtime-readiness-backfill.mjs
+          node http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
           node http-generic-api/test-capability-envelope-create-alias-path.mjs
           git diff --check
-          mkdir -p "${PATCH_DIR}"
-          git diff > "${PATCH_DIR}/t016-cwd-alias.patch"
-          git diff --stat > "${PATCH_DIR}/stat.txt"
+          mkdir -p "${EVIDENCE_DIR}"
+          git diff > "${EVIDENCE_DIR}/t016-evidence-path-repair.patch"
+          git diff --stat > "${EVIDENCE_DIR}/stat.txt"
 
       - name: Commit and push when changed
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- http-generic-api/routes/adminCliRoutes.js; then
-            echo 'T016 alias patch is already applied on the candidate head.'
+          if git diff --quiet; then
+            echo 'T016 evidence-path repairs are already applied.'
             exit 0
           fi
           git config user.name 'mad4bdigital-ai'
           git config user.email '271942579+mad4bdigital-ai@users.noreply.github.com'
-          git add http-generic-api/routes/adminCliRoutes.js
-          git commit -m 'fix(admin-cli): resolve T016 envelope aliases independently of cwd'
+          git add .github/ops/sprint69-1043-runtime-readiness.mjs \
+            .github/ops/sprint69-1043-runtime-readiness-backfill.mjs \
+            http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs
+          git commit -m 'fix(ops): harden T016 readiness evidence discovery'
           git push origin "HEAD:${TARGET_BRANCH}"
 
-      - name: Upload bounded patch evidence
+      - name: Upload bounded repair evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: t016-cwd-alias-patch-apply-${{ github.run_id }}
-          path: ${{ env.PATCH_DIR }}
+          name: t016-evidence-path-repair-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
