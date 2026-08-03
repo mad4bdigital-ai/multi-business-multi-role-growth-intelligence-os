@@ -1,11 +1,11 @@
 # Dependency-Ordered Tasks
 
-No task is complete in this specification PR. `[P]` marks work that can be parallel only after its prerequisites are complete.
+Completed tasks are checked below. `[P]` marks work that can be parallel only after its prerequisites are complete.
 
 ## Phase 0 — Specification and baseline
 
-- [ ] T001 Validate all Spec 014 JSON/YAML/Markdown artifacts in CI.
-- [ ] T002 Add a contract-baseline test proving Spec 014 contracts remain specification-only.
+- [x] T001 Validate all Spec 014 JSON/YAML/Markdown artifacts in CI.
+- [x] T002 Add a contract-baseline test proving Spec 014 contracts remain specification-only.
 - [ ] T003 Re-scan current `main` before implementation and update Brownfield inventory.
 - [ ] T004 Record authoritative production schema and migration baseline separately from repository presence.
 - [ ] T005 Resolve open product decisions: backend pilot mode, object storage, payment provider, shipping provider, and ERPNext version.
