@@ -1,0 +1,733 @@
+openapi: 3.1.0
+info:
+  title: Retail Commerce Operations API
+  version: 0.1.0-draft
+  description: |
+    Specification-only contract for governed multi-tenant retail commerce.
+    Presence in this directory does not make any operation runtime-callable.
+servers:
+  - url: https://api.example.invalid
+security:
+  - bearerAuth: []
+tags:
+  - name: Catalog
+  - name: Inventory
+  - name: Orders
+  - name: POS
+  - name: Payments
+  - name: Returns
+  - name: Media
+  - name: Publications
+  - name: Measurement
+  - name: Operations
+paths:
+  /commerce/catalog/products:
+    get:
+      operationId: commerceCatalogProductsList
+      tags: [Catalog]
+      summary: List the tenant-scoped commerce catalog projection
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceKey'
+        - name: search
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - name: category
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: size
+          in: query
+          schema: { type: string, maxLength: 64 }
+        - name: location_id
+          in: query
+          schema: { type: string, maxLength: 128 }
+        - name: available_only
+          in: query
+          schema: { type: boolean, default: false }
+        - name: cursor
+          in: query
+          schema: { type: string, maxLength: 1024 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 24 }
+      responses:
+        '200':
+          description: Catalog projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogListResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/catalog/products/{product_id}:
+    get:
+      operationId: commerceProductGet
+      tags: [Catalog]
+      summary: Read one product projection
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+        - $ref: '#/components/parameters/WorkspaceKey'
+      responses:
+        '200':
+          description: Product projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/reservations:
+    post:
+      operationId: commerceReservationCreate
+      tags: [Inventory]
+      summary: Atomically reserve stock or an exact Stock Unit
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationCreateRequest'
+      responses:
+        '201':
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '200':
+          description: Idempotent replay of an existing reservation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /commerce/reservations/{reservation_id}:
+    get:
+      operationId: commerceReservationGet
+      tags: [Inventory]
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+      responses:
+        '200':
+          description: Reservation readback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      operationId: commerceReservationRelease
+      tags: [Inventory]
+      summary: Release an active reservation when policy permits
+      parameters:
+        - $ref: '#/components/parameters/ReservationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      responses:
+        '200':
+          description: Released or already terminal
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/orders:
+    post:
+      operationId: commerceOrderCreate
+      tags: [Orders]
+      summary: Create an order from authoritative reservations and a price snapshot
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCreateRequest'
+      responses:
+        '201':
+          description: Order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '200':
+          description: Idempotent replay
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '503': { $ref: '#/components/responses/Unavailable' }
+  /commerce/orders/{order_id}:
+    get:
+      operationId: commerceOrderGet
+      tags: [Orders]
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          description: Authoritative order projection and operation states
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /commerce/pos/sales:
+    post:
+      operationId: commercePosSaleSubmit
+      tags: [POS]
+      summary: Submit a governed POS sale
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PosSaleRequest'
+      responses:
+        '201':
+          description: POS sale completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '202':
+          description: Sale awaiting approval or provider reconciliation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/payments/reconcile:
+    post:
+      operationId: commercePaymentReconcile
+      tags: [Payments]
+      summary: Inspect and reconcile an unknown or pending payment outcome
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [payment_operation_id]
+              properties:
+                payment_operation_id: { type: string, minLength: 1, maxLength: 128 }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200':
+          description: Reconciliation completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '202':
+          description: Still unknown; another bounded readback is scheduled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/returns:
+    post:
+      operationId: commerceReturnCreate
+      tags: [Returns]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReturnCreateRequest'
+      responses:
+        '201':
+          description: Return case created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/product-intakes:
+    post:
+      operationId: commerceProductIntakeCreate
+      tags: [Media]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductIntakeRequest'
+      responses:
+        '201':
+          description: Intake and Shot List created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/shoot-sessions/{shoot_session_id}/assets:
+    post:
+      operationId: commerceMediaAssetRegister
+      tags: [Media]
+      summary: Register an uploaded media asset after scoped upload completion
+      parameters:
+        - name: shoot_session_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MediaAssetRegisterRequest'
+      responses:
+        '201':
+          description: Asset registered and pipeline status returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /commerce/publications:
+    post:
+      operationId: commercePublicationCreate
+      tags: [Publications]
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicationRequest'
+      responses:
+        '202':
+          description: Publication queued after policy and approval checks
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422':
+          description: Quality or publication gate blocked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /commerce/measurement-events:
+    post:
+      operationId: commerceMeasurementEventAccept
+      tags: [Measurement]
+      security: []
+      summary: Accept a consent-governed commerce measurement event
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: './commerce-events.schema.json'
+      responses:
+        '202':
+          description: Event accepted and routed asynchronously
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '200':
+          description: Event deduplicated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '422':
+          description: Event rejected by consent, PII, or identity policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /commerce/operations/{operation_id}:
+    get:
+      operationId: commerceOperationGet
+      tags: [Operations]
+      parameters:
+        - name: operation_id
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '200':
+          description: Safe operation, delivery, readback, and recovery projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '404': { $ref: '#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    WorkspaceKey:
+      name: workspace_key
+      in: query
+      required: false
+      description: Optional constraint; never overrides authenticated context.
+      schema: { type: string, maxLength: 128 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 200
+    IfMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: Expected aggregate version or ETag for conflict-sensitive mutations.
+      schema: { type: string, maxLength: 128 }
+    ProductId:
+      name: product_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    ReservationId:
+      name: reservation_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 128 }
+  schemas:
+    Money:
+      type: object
+      additionalProperties: false
+      required: [amount, currency]
+      properties:
+        amount: { type: number, minimum: 0 }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+    ProductSummary:
+      type: object
+      additionalProperties: false
+      required: [product_id, title, version, availability]
+      properties:
+        product_id: { type: string }
+        variant_id: { type: [string, 'null'] }
+        stock_unit_id: { type: [string, 'null'] }
+        title: { type: string }
+        category: { type: [string, 'null'] }
+        size: { type: [string, 'null'] }
+        condition: { type: [string, 'null'] }
+        location_id: { type: [string, 'null'] }
+        price: { $ref: '#/components/schemas/Money' }
+        availability:
+          type: string
+          enum: [available, limited, reserved, sold, quarantine, unavailable]
+        version: { type: integer, minimum: 1 }
+    CatalogListResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, items, secrets_included]
+      properties:
+        ok: { const: true }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/ProductSummary' }
+        next_cursor: { type: [string, 'null'] }
+        context_revision: { type: [string, 'null'] }
+        secrets_included: { const: false }
+    ProductResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, product, secrets_included]
+      properties:
+        ok: { const: true }
+        product: { $ref: '#/components/schemas/ProductSummary' }
+        secrets_included: { const: false }
+    ReservationCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_ref, channel_key, location_id, expires_in_seconds]
+      anyOf:
+        - required: [stock_unit_id]
+        - required: [variant_id, quantity]
+      properties:
+        workspace_ref: { type: string, minLength: 1, maxLength: 128 }
+        brand_ref: { type: [string, 'null'], maxLength: 128 }
+        stock_unit_id: { type: string, maxLength: 128 }
+        variant_id: { type: string, maxLength: 128 }
+        quantity: { type: integer, minimum: 1, maximum: 999 }
+        channel_key: { type: string, enum: [web, pos, live, admin, api] }
+        location_id: { type: string, minLength: 1, maxLength: 128 }
+        session_ref: { type: [string, 'null'], maxLength: 128 }
+        customer_ref: { type: [string, 'null'], maxLength: 128 }
+        expires_in_seconds: { type: integer, minimum: 30, maximum: 86400 }
+        expected_version: { type: [integer, 'null'], minimum: 1 }
+    ReservationResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, reservation, readback, secrets_included]
+      properties:
+        ok: { const: true }
+        reservation:
+          type: object
+          additionalProperties: false
+          required: [reservation_id, status, expires_at, version]
+          properties:
+            reservation_id: { type: string }
+            stock_unit_id: { type: [string, 'null'] }
+            variant_id: { type: [string, 'null'] }
+            quantity: { type: integer, minimum: 1 }
+            status: { type: string, enum: [active, committed, released, expired, cancelled] }
+            expires_at: { type: string, format: date-time }
+            version: { type: integer, minimum: 1 }
+        operation_id: { type: [string, 'null'] }
+        deduplicated: { type: boolean, default: false }
+        readback: { type: object, additionalProperties: true }
+        secrets_included: { const: false }
+    OrderCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_ref, reservation_ids, fulfillment, currency]
+      properties:
+        workspace_ref: { type: string }
+        reservation_ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items: { type: string }
+        price_snapshot_id: { type: [string, 'null'] }
+        customer_ref: { type: [string, 'null'] }
+        fulfillment:
+          type: object
+          additionalProperties: true
+          required: [mode]
+          properties:
+            mode: { type: string, enum: [shipping, pickup] }
+        payment_method_key: { type: [string, 'null'] }
+        currency: { type: string, pattern: '^[A-Z]{3}$' }
+        attribution_snapshot: { type: object, additionalProperties: true }
+    OrderResponse:
+      type: object
+      additionalProperties: true
+      required: [ok, order, operation, secrets_included]
+      properties:
+        ok: { const: true }
+        order:
+          type: object
+          additionalProperties: true
+          required: [order_id, status, version]
+          properties:
+            order_id: { type: string }
+            status:
+              type: string
+              enum: [draft, awaiting_payment, confirmed, allocated, partially_fulfilled, fulfilled, completed, cancelled, return_open]
+            version: { type: integer, minimum: 1 }
+        operation: { $ref: '#/components/schemas/OperationProjection' }
+        secrets_included: { const: false }
+    PosSaleRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_ref, location_id, terminal_id, shift_id, lines, payments]
+      properties:
+        workspace_ref: { type: string }
+        location_id: { type: string }
+        terminal_id: { type: string }
+        shift_id: { type: string }
+        offline_lease_id: { type: [string, 'null'] }
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [quantity]
+            anyOf:
+              - required: [stock_unit_id]
+              - required: [variant_id]
+            properties:
+              stock_unit_id: { type: string }
+              variant_id: { type: string }
+              quantity: { type: integer, minimum: 1 }
+              expected_version: { type: [integer, 'null'], minimum: 1 }
+        payments:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [method_key, amount]
+            properties:
+              method_key: { type: string }
+              amount: { $ref: '#/components/schemas/Money' }
+        discount:
+          type: object
+          additionalProperties: false
+          properties:
+            amount: { type: number, minimum: 0 }
+            reason: { type: string, maxLength: 500 }
+    ReturnCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [order_id, lines, reason_code]
+      properties:
+        order_id: { type: string }
+        reason_code: { type: string, maxLength: 128 }
+        notes: { type: string, maxLength: 2000 }
+        lines:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [order_line_id, quantity]
+            properties:
+              order_line_id: { type: string }
+              stock_unit_id: { type: [string, 'null'] }
+              quantity: { type: integer, minimum: 1 }
+    ProductIntakeRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_ref, category_key, location_id]
+      properties:
+        workspace_ref: { type: string }
+        category_key: { type: string }
+        location_id: { type: string }
+        supplier_lot_id: { type: [string, 'null'] }
+        product_id: { type: [string, 'null'] }
+        variant_id: { type: [string, 'null'] }
+        stock_unit_id: { type: [string, 'null'] }
+        language: { type: string, default: ar }
+    MediaAssetRegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [upload_session_id, storage_ref, checksum_sha256, mime_type, size_bytes, shot_key]
+      properties:
+        upload_session_id: { type: string }
+        storage_ref: { type: string }
+        checksum_sha256: { type: string, pattern: '^[a-f0-9]{64}$' }
+        mime_type: { type: string, maxLength: 128 }
+        size_bytes: { type: integer, minimum: 1 }
+        width: { type: [integer, 'null'], minimum: 1 }
+        height: { type: [integer, 'null'], minimum: 1 }
+        shot_key: { type: string, maxLength: 128 }
+    PublicationRequest:
+      type: object
+      additionalProperties: false
+      required: [product_id, channel_key, content_revision_id, media_revision_id, price_revision, stock_revision]
+      properties:
+        product_id: { type: string }
+        variant_id: { type: [string, 'null'] }
+        channel_key: { type: string }
+        connection_id: { type: [string, 'null'] }
+        content_revision_id: { type: string }
+        media_revision_id: { type: string }
+        price_revision: { type: string }
+        stock_revision: { type: string }
+        approval_ref: { type: [string, 'null'] }
+    OperationProjection:
+      type: object
+      additionalProperties: false
+      required: [operation_id, operation_type, execution_state, delivery_state, readback_state]
+      properties:
+        operation_id: { type: string }
+        operation_type: { type: string }
+        execution_state: { type: string, enum: [prepared, queued, running, awaiting_approval, completed, failed, blocked, cancelled] }
+        delivery_state: { type: string, enum: [not_required, pending, partially_delivered, delivered, failed, unknown] }
+        readback_state: { type: string, enum: [not_required, pending, confirmed, conflict, unknown] }
+        compensation_state: { type: string, enum: [not_required, pending, completed, failed] }
+        request_id: { type: [string, 'null'] }
+        correlation_id: { type: [string, 'null'] }
+        safe_error: { type: [object, 'null'], additionalProperties: true }
+        updated_at: { type: string, format: date-time }
+    OperationResponse:
+      type: object
+      additionalProperties: false
+      required: [ok, operation, secrets_included]
+      properties:
+        ok: { type: boolean }
+        operation: { $ref: '#/components/schemas/OperationProjection' }
+        result: { type: [object, 'null'], additionalProperties: true }
+        deduplicated: { type: boolean, default: false }
+        secrets_included: { const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [ok, error, request_id, secrets_included]
+      properties:
+        ok: { const: false }
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, retryable]
+          properties:
+            code: { type: string, pattern: '^[A-Z0-9_]+$' }
+            message: { type: string }
+            retryable: { type: boolean }
+            details: { type: [object, 'null'], additionalProperties: true }
+        request_id: { type: string }
+        correlation_id: { type: [string, 'null'] }
+        operation_id: { type: [string, 'null'] }
+        secrets_included: { const: false }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Forbidden:
+      description: Authenticated principal lacks exact authority
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    NotFound:
+      description: Resource not found in authorized scope
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Conflict:
+      description: State, version, idempotency, context, or stock conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
+    Unavailable:
+      description: Authoritative backend or required provider unavailable
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorEnvelope' }
