@@ -1,0 +1,80 @@
+name: Incident 5021 generated artifact refresh dispatcher
+
+on:
+  pull_request:
+    branches:
+      - gpt/incident-5021/exact-head-approval-guard-20260803
+    paths:
+      - .github/workflows/incident-5021-generated-refresh-dispatcher.yml
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: incident-5021-generated-refresh-dispatcher
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    name: Dispatch exact-head governed generated refresh
+    runs-on: ubuntu-latest
+    env:
+      TARGET_REF: gpt/incident-5021/exact-head-approval-guard-20260803
+      EXPECTED_HEAD_SHA: 677fa9e8a38257f8a27bd7ce9e302fae6fd1e8d8
+      EXPECTED_HEAD_REF: gpt/incident-5021/generated-refresh-dispatcher-20260803
+      EXPECTED_BASE_REF: gpt/incident-5021/exact-head-approval-guard-20260803
+      OUTPUT_DIR: .ci-evidence/incident-5021-generated-refresh-dispatch
+    steps:
+      - name: Validate dispatcher and target identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTUAL_HEAD_REF: ${{ github.head_ref }}
+          ACTUAL_BASE_REF: ${{ github.base_ref }}
+        run: |
+          set -euo pipefail
+          test "$ACTUAL_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$ACTUAL_BASE_REF" = "$EXPECTED_BASE_REF"
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          encoded_ref="$(python - <<'PY'
+          import os, urllib.parse
+          print(urllib.parse.quote(os.environ['TARGET_REF'], safe=''))
+          PY
+          )"
+          remote_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${encoded_ref}" --jq '.object.sha')"
+          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
+
+      - name: Dispatch governed refresh workflow
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -cn \
+            --arg ref "main" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
+            --arg confirmation "APPLY_GENERATED_ARTIFACT_REFRESH" \
+            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,confirmation:$confirmation}}')"
+          gh api \
+            --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
+            --input - <<<"$payload"
+          mkdir -p "$OUTPUT_DIR"
+          jq -cn \
+            --arg contract "mad4b.incident-5021-generated-refresh-dispatch.v1" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
+            --arg workflow "Governed Generated Artifact Refresh" \
+            '{contract:$contract,target_ref:$target_ref,expected_head_sha:$expected_head_sha,workflow:$workflow,requested:true,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
+            > "$OUTPUT_DIR/dispatch.json"
+
+      - name: Upload dispatch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: incident-5021-generated-refresh-dispatch-${{ github.run_id }}
+          path: ${{ env.OUTPUT_DIR }}/dispatch.json
+          if-no-files-found: error
+          retention-days: 7
