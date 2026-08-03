@@ -7,3 +7,5 @@ Expected bounded generated change:
 - `http-generic-api/frontend-surface-dispatch.generated.json`
 
 This temporary document will be removed after the governed writer commits the generated baseline. No Production, provider, database, migration, credential, deployment, restart, protected-ref, force-push, or external-send operation is authorized.
+
+Trigger wave: 2
