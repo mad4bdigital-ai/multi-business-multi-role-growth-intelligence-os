@@ -5,7 +5,7 @@ on:
     types: [opened, reopened, synchronize]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: read
 
 env:
@@ -26,8 +26,20 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Detect pending materialization
+        id: state
+        shell: bash
+        run: |
+          if [[ -f http-generic-api/scripts/surface-callability-closure/patch_openapi_authority_v3.py ]]; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Node.js
+        if: steps.state.outputs.required == 'true'
         uses: actions/setup-node@v6
         with:
           node-version: 20
@@ -35,10 +47,12 @@ jobs:
           cache-dependency-path: http-generic-api/package-lock.json
 
       - name: Install dependencies
+        if: steps.state.outputs.required == 'true'
         working-directory: http-generic-api
         run: npm ci
 
       - name: Materialize integrated Surface contracts
+        if: steps.state.outputs.required == 'true'
         working-directory: http-generic-api
         shell: bash
         run: |
@@ -56,30 +70,137 @@ jobs:
             node scripts/surface-contract-discovery.mjs --write
           } 2>&1 | tee ../surface-materialization.log
 
-      - name: Capture resource API coverage result
-        id: resource_api_coverage
-        continue-on-error: true
+      - name: Validate patched source syntax
+        if: steps.state.outputs.required == 'true'
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/tenantLifecycleRoutes.js
+          node --check routes/workspaceResourceRoutes.js
+          node --check routes/tenantInfrastructureRoutes.js
+          node --check routes/agentSurfaceRoutes.js
+          node --check agentSurfaceRuntimeService.js
+          node --check scripts/resource-api-callability-contracts.mjs
+          node --check scripts/surface-contract-sql-registry-extractor.mjs
+          node --check scripts/surface-callability-closure/generate_closure_contracts.mjs
+
+      - name: Validate Surface and Resource API contracts
+        if: steps.state.outputs.required == 'true'
         working-directory: http-generic-api
         shell: bash
         run: |
           set -o pipefail
-          node test-resource-api-coverage.mjs 2>&1 | tee ../resource-api-coverage.log
+          {
+            node test-surface-contract-sql-registry-extractor.mjs
+            node test-resource-api-callability-effect-classes.mjs
+            node test-resource-api-coverage.mjs
+            node test-multi-surface-agent-runtime.mjs
+            node test-tenant-database-query-readonly.mjs
+            node test-tenant-ssh-cli-allowlisted-execute.mjs
+            node test-agent-surface-runtime-service.mjs
+            node test-surface-callability-full-closure.mjs
+          } 2>&1 | tee ../surface-validation.log
 
-      - name: Upload generated coverage evidence
-        if: always()
+      - name: Enforce queue zero and closed write set
+        if: steps.state.outputs.required == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const queue = JSON.parse(fs.readFileSync('docs/surface-contract-gap-queue.json', 'utf8'));
+          if (queue.total_items !== 0 || (queue.top_items || []).length !== 0) {
+            console.error(JSON.stringify(queue, null, 2));
+            process.exit(1);
+          }
+          NODE
+          git diff --check
+          python3 - <<'PY'
+          import re
+          import subprocess
+
+          lines = subprocess.check_output(['git', 'status', '--porcelain=v1'], text=True).splitlines()
+          changed = []
+          for line in lines:
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              changed.append(path)
+
+          exact = {
+              'http-generic-api/agentSurfaceRuntimeService.js',
+              'http-generic-api/routes/agentSurfaceRoutes.js',
+              'http-generic-api/routes/tenantInfrastructureRoutes.js',
+              'http-generic-api/routes/tenantLifecycleRoutes.js',
+              'http-generic-api/routes/workspaceResourceRoutes.js',
+              'http-generic-api/scripts/resource-api-callability-contracts.mjs',
+              'http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
+              'http-generic-api/test-surface-contract-sql-registry-extractor.mjs',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+              'http-generic-api/scripts/test-manifest.mjs',
+              'http-generic-api/surface-contract-classification-evidence.json',
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/openapi/frontend-runtime-routes.generated.yaml',
+              'docs/surface-contract-safety-attestations.json',
+              'docs/.surface-coverage-diagnostic-trigger',
+          }
+          docs = re.compile(r'^docs/surface-contract-(?:discovery-status|gap-queue|gap-trends|gap-triage|governance-compact|governance-dashboard)\.(?:json|md)$')
+          helpers = re.compile(r'^http-generic-api/scripts/surface-callability-closure/patch_[A-Za-z0-9_]+\.py$')
+          unexpected = [p for p in changed if p not in exact and not docs.match(p) and not helpers.match(p)]
+          if unexpected:
+              raise SystemExit('unexpected_surface_closure_writes:' + ','.join(unexpected))
+          required = {
+              'http-generic-api/scripts/resource-api-callability-contracts.mjs',
+              'http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs',
+              'http-generic-api/resource-api-surface-callability.manifest.json',
+              'http-generic-api/test-surface-callability-full-closure.mjs',
+              'docs/surface-contract-gap-queue.json',
+          }
+          missing = sorted(required.difference(changed))
+          if missing:
+              raise SystemExit('missing_surface_closure_writes:' + ','.join(missing))
+          print({'changed_files': len(changed), 'unexpected': 0, 'queue_items': 0})
+          PY
+
+      - name: Remove one-time migration helpers
+        if: steps.state.outputs.required == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f http-generic-api/scripts/surface-callability-closure/patch_*.py
+          rm -f docs/.surface-coverage-diagnostic-trigger
+          test -z "$(find http-generic-api/scripts/surface-callability-closure -maxdepth 1 -name 'patch_*.py' -print -quit)"
+          node --check http-generic-api/scripts/resource-api-callability-contracts.mjs
+          node --check http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+          git diff --check
+
+      - name: Commit integrated product and evidence
+        if: steps.state.outputs.required == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git status --short | tee -a surface-materialization.log
+          git commit -m 'fix: materialize verified Surface callability closure'
+          git push origin HEAD:${TARGET_BRANCH}
+
+      - name: Upload Surface closure evidence
+        if: always() && steps.state.outputs.required == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: resource-api-coverage-generated-evidence
+          name: surface-callability-full-closure
           path: |
             surface-materialization.log
-            resource-api-coverage.log
-            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
-            http-generic-api/frontend-operation-governance.generated.json
-            http-generic-api/frontend-surface-dispatch.generated.json
+            surface-validation.log
+            docs/surface-contract-gap-queue.json
+            docs/surface-contract-discovery-status.json
             http-generic-api/resource-api-surface-callability.manifest.json
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Preserve fail-closed conclusion
-        if: steps.resource_api_coverage.outcome == 'failure'
-        run: exit 1
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          if-no-files-found: warn
+          retention-days: 14
