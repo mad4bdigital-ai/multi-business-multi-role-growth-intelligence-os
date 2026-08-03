@@ -61,6 +61,8 @@ function requestIds() {
 function createHarness(overrides = {}, { metadataMount = false } = {}) {
   const order = [];
   const diagnostics = [];
+  const issuance = [];
+  const activationContexts = [];
   let legacyReached = false;
   const pool = {
     async query(sql, params = []) {
@@ -104,6 +106,7 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
       assert.equal(payload.user_id, "user-1");
       assert.equal(payload.tenant_id, "tenant-1");
       assert.equal(options.resource, RESOURCE);
+      issuance.push({ payload, options });
       return "access-token-safe-test";
     },
     consumeCode: async () => {
@@ -116,8 +119,9 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
         secrets_included: false,
       };
     },
-    recordActivationContext: async () => {
+    recordActivationContext: async (input) => {
       order.push("context");
+      activationContexts.push(input);
       return { ok: true, stored: true, source: "test", secrets_included: false };
     },
     ...overrides,
@@ -138,6 +142,8 @@ function createHarness(overrides = {}, { metadataMount = false } = {}) {
     deps,
     order,
     diagnostics,
+    issuance,
+    activationContexts,
     legacyReached: () => legacyReached,
   };
 }
@@ -163,7 +169,7 @@ assert.equal(success.status, 200);
 assert.deepEqual(success.body, {
   access_token: "access-token-safe-test",
   token_type: "bearer",
-  expires_in: 604800,
+  expires_in: 3600,
   scope: CODE_PAYLOAD.scope,
 });
 assert.equal(success.headers.get("cache-control"), "no-store");
@@ -173,14 +179,32 @@ assert.equal(successHarness.legacyReached(), false);
 assert.equal(successHarness.order.indexOf("subject") < successHarness.order.indexOf("issue"), true);
 assert.equal(successHarness.order.indexOf("issue") < successHarness.order.indexOf("consume"), true);
 assert.equal(successHarness.order.indexOf("consume") < successHarness.order.indexOf("context"), true);
+assert.equal(successHarness.issuance.length, 1);
+assert.equal(successHarness.issuance[0].options.expiresIn, 3600);
+assert.equal(successHarness.activationContexts.length, 1);
+assert.equal(
+  new Date(successHarness.activationContexts[0].expires_at).toISOString(),
+  "2026-08-04T01:30:00.000Z",
+);
 const successEvidence = diagnosticEvidence(successHarness)
-  .filter((evidence) => evidence.classification === "token_response_committed");
+  .filter((entry) => entry.classification === "token_response_committed");
 assert.equal(successEvidence.length, 1, "success must create exactly one terminal evidence record");
 assert.equal(successEvidence[0].phase, "response_committed");
 assert.equal(successEvidence[0].status, "success");
+assert.deepEqual(successEvidence[0].bearer_profile, {
+  ttl_seconds: 3600,
+  issuer_claim_required: true,
+  audience_claim_required: true,
+  subject_claim_required: true,
+  expiry_claim_required: true,
+  user_claim_required: true,
+  tenant_claim_required: true,
+  short_lived: true,
+  secrets_included: false,
+});
 assert.equal(
-  diagnosticEvidence(successHarness).some((evidence) =>
-    evidence.classification === "token_response_committed" && evidence.phase !== "response_committed"),
+  diagnosticEvidence(successHarness).some((entry) =>
+    entry.classification === "token_response_committed" && entry.phase !== "response_committed"),
   false,
   "success evidence must not precede response commitment",
 );
@@ -287,6 +311,34 @@ assert.equal(preConsumption.body.retry_same_code, true);
 assert.equal(preConsumption.body.outcome_unknown, false);
 assert.equal(preConsumption.body.operator_reconciliation_required, false);
 
+let missingVerifierConsumeCalled = false;
+const missingVerifierHarness = createHarness({
+  verifyCode: undefined,
+  consumeCode: async () => {
+    missingVerifierConsumeCalled = true;
+    return { consumed: true, outcome: "consumed" };
+  },
+});
+const missingVerifier = await runScenario(missingVerifierHarness);
+assert.equal(missingVerifier.status, 503);
+assert.equal(missingVerifier.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
+assert.equal(missingVerifier.body.retry_same_code, true);
+assert.equal(missingVerifierConsumeCalled, false);
+
+let missingIssuerConsumeCalled = false;
+const missingIssuerHarness = createHarness({
+  issueAccessToken: undefined,
+  consumeCode: async () => {
+    missingIssuerConsumeCalled = true;
+    return { consumed: true, outcome: "consumed" };
+  },
+});
+const missingIssuer = await runScenario(missingIssuerHarness);
+assert.equal(missingIssuer.status, 503);
+assert.equal(missingIssuer.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
+assert.equal(missingIssuer.body.retry_same_code, true);
+assert.equal(missingIssuerConsumeCalled, false);
+
 const postConsumptionHarness = createHarness({
   recordActivationContext: async () => {
     const error = new Error("post-consumption context failure");
@@ -330,6 +382,12 @@ const invalidHost = await runScenario(invalidHostHarness, BASE_BODY, {
 assert.equal(invalidHost.status, 400);
 assert.equal(invalidHost.body.error, "invalid_target");
 
+assert.throws(
+  () => buildTenantGptOAuthTokenExchangeRoutes({ accessTokenTtlSeconds: 3601 }),
+  (error) => error?.code === "tenant_gpt_access_token_ttl_invalid",
+  "route construction must reject an access-token TTL above the governed maximum",
+);
+
 for (const harness of [
   successHarness,
   replayHarness,
@@ -338,6 +396,8 @@ for (const harness of [
   inactiveHarness,
   membershipHarness,
   preConsumptionHarness,
+  missingVerifierHarness,
+  missingIssuerHarness,
   postConsumptionHarness,
   raceHarness,
   invalidHostHarness,
@@ -347,7 +407,18 @@ for (const harness of [
   assert.equal(diagnosticText.includes(CLIENT_SECRET), false, "diagnostics must not contain the client secret");
   assert.equal(diagnosticText.includes("access-token-safe-test"), false, "diagnostics must not contain the access token");
 }
-for (const response of [replay, unknown, issued, inactive, membership, preConsumption, postConsumption, invalidHost]) {
+for (const response of [
+  replay,
+  unknown,
+  issued,
+  inactive,
+  membership,
+  preConsumption,
+  missingVerifier,
+  missingIssuer,
+  postConsumption,
+  invalidHost,
+]) {
   const serialized = JSON.stringify(response.body);
   assert.equal(serialized.includes(RAW_CODE), false);
   assert.equal(serialized.includes(CLIENT_SECRET), false);
