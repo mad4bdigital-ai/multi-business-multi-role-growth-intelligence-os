@@ -35,6 +35,10 @@ const durable = runStructuredTest(
   'test-hostinger-storage-control-plane-repository.mjs',
   'hostinger_storage_control_plane_repository',
 );
+const unknownOutcome = runStructuredTest(
+  'test-hostinger-storage-unknown-outcome.mjs',
+  'hostinger_storage_unknown_outcome',
+);
 
 assert.equal(sharedState.journey_id, JOURNEY_ID);
 assert.equal(sharedState.mounted_route, 'POST /tenant/storage-operations/apply-plan');
@@ -72,6 +76,13 @@ assert.equal(durable.single_use_plan, true);
 assert.equal(durable.unknown_outcome_retry_guard, true);
 assert.equal(durable.production_ready, false);
 
+assert.equal(unknownOutcome.crash_before_mutation_reconciled_not_applied, true);
+assert.equal(unknownOutcome.crash_after_mutation_recovered_from_receipt, true);
+assert.equal(unknownOutcome.reconciliation_record_replay_safe, true);
+assert.equal(unknownOutcome.automatic_retry_forbidden, true);
+assert.equal(unknownOutcome.conflict_blocks_operation, true);
+assert.equal(unknownOutcome.dispatch_allowed, false);
+
 console.log(JSON.stringify({
   ok: true,
   gate: 'hostinger_storage_mvp_shared_operation_state_convergence',
@@ -85,6 +96,7 @@ console.log(JSON.stringify({
     shared_operation_state_gate: sharedState.gate,
     mounted_route_gate: route.gate,
     durable_repository_gate: durable.gate,
+    unknown_outcome_gate: unknownOutcome.gate,
   },
   assertions: {
     mounted_route_contract_passed: true,
@@ -100,9 +112,16 @@ console.log(JSON.stringify({
     reconciliation_recorded_for_same_operation: true,
     tenant_safe_projection_bound_to_same_run_plan_and_result: true,
     unknown_outcome_retry_guard: true,
+    crash_before_mutation_reconciled_not_applied: true,
+    crash_after_mutation_recovered_from_receipt: true,
+    reconciliation_record_replay_safe: true,
+    automatic_retry_forbidden: true,
+    conflict_blocks_operation: true,
     cross_tenant_leakage_rejected: true,
     expected_sha_bound: true,
   },
+  failure_retry_evidence_scope: 'supplemental_synthetic_executor_contract',
+  failure_retry_evidence_same_mounted_request: false,
   contract_convergence_only: false,
   shared_operation_state: true,
   parent_feature_key: PARENT_FEATURE_KEY,
@@ -111,6 +130,8 @@ console.log(JSON.stringify({
   synthetic_only: true,
   live_provider_mutated: false,
   provider_dispatch_allowed: false,
+  migration_apply_authorized: false,
+  schema_verified: false,
   production_ready: false,
   secrets_included: false,
 }));
