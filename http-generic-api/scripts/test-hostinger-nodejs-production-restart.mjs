@@ -175,6 +175,10 @@ function testWorkflowContract() {
   assert.doesNotMatch(workflow, /builds\/from-archive/u);
   assert.doesNotMatch(workflow, /git\/refs/u);
   assert.match(workflow, /hostinger-nodejs-production-restart-/u);
+  assert.match(workflow, /select\(\(\.body \| contains\(\\"status=completed\\"\)\) or \(\.body \| contains\(\\"restart_performed=true\\"\)\)\)/u);
+  assert.match(workflow, /retryableWithoutProviderMutation = report\.outcome !== 'passed' && report\.restart\?\.performed !== true/u);
+  assert.match(workflow, /expected_head_sha=\$\{process\.env\.EXPECTED_HEAD_SHA/u);
+  assert.match(workflow, /retryable_without_provider_mutation=/u);
 }
 
 await testAlreadyCurrentSkipsRestart();
