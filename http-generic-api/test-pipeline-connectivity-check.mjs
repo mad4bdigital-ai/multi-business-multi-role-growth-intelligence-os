@@ -19,7 +19,8 @@ function fixtureContract() {
     artifact_groups: [{
       key: "maps",
       root: "docs/work-maps",
-      producer_signatures: ["generator.mjs --write"],
+      producer_signatures: ["generator.mjs --write", "maintenance.mjs --write"],
+      producer_exclusion_signatures: ["maintenance.mjs --write --skip-work-maps"],
       consumer_signatures: ["generator.mjs --check"],
       approved_producers: ["writer", "preview"],
       required_consumers: ["gate"],
@@ -152,6 +153,16 @@ jobs:
 
 {
   const root = setup();
+  const file = path.join(root, ".github/workflows/gate.yml");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("contents: read", "contents: write").replace("generator.mjs --check", "generator.mjs --write"));
+  const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
+  assert.ok(codes.has("PIPELINE_PERMISSION_MISMATCH"));
+  assert.ok(codes.has("FORBIDDEN_COMMAND_CONNECTED"));
+  assert.ok(codes.has("ARTIFACT_PRODUCER_SET_MISMATCH"));
+}
+
+{
+  const root = setup();
   const file = path.join(root, ".github/workflows/writer.yml");
   fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("  workflow_dispatch:", "  pull_request:"));
   const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
@@ -179,6 +190,24 @@ jobs:
 
 {
   const root = setup();
+  write(root, ".github/workflows/path-only-reference.yml", `name: Path only
+on:
+  pull_request:
+    paths:
+      - "generator.mjs --write"
+permissions:
+  contents: read
+jobs:
+  noop:
+    steps:
+      - run: echo no artifact generation
+`);
+  const result = validatePipelineConnectivity({ repoRoot: root });
+  assert.equal(result.ok, true, JSON.stringify(result.findings, null, 2));
+}
+
+{
+  const root = setup();
   write(root, ".github/workflows/hidden-writer.yml", `name: Hidden
 on:
   workflow_dispatch:
@@ -197,6 +226,40 @@ jobs:
 }
 
 {
+  const root = setup();
+  write(root, ".github/workflows/excluded-maintenance.yml", `name: Excluded maintenance
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  sync:
+    steps:
+      - run: node maintenance.mjs --write --skip-work-maps
+`);
+  const result = validatePipelineConnectivity({ repoRoot: root });
+  assert.equal(result.ok, true, JSON.stringify(result.findings, null, 2));
+}
+
+{
+  const root = setup();
+  const file = path.join(root, ".github/workflows/preview.yml");
+  fs.appendFileSync(file, "      - run: git push origin HEAD:refs/heads/docs\n");
+  const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
+  assert.ok(codes.has("FORBIDDEN_COMMAND_CONNECTED"));
+  assert.ok(codes.has("NON_WRITER_REMOTE_MUTATION_CONNECTED"));
+}
+
+{
+  const root = setup();
+  const file = path.join(root, ".github/workflows/gate.yml");
+  fs.writeFileSync(file, fs.readFileSync(file, "utf8").replace("node generator.mjs --check", "echo disconnected"));
+  const codes = new Set(validatePipelineConnectivity({ repoRoot: root }).findings.map((row) => row.code));
+  assert.ok(codes.has("REQUIRED_COMMAND_DISCONNECTED"));
+  assert.ok(codes.has("ARTIFACT_CONSUMER_DISCONNECTED"));
+}
+
+{
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".specify/pipeline-connectivity-contract.json"), "utf8"));
   const bridgeWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/e2e-contract-reference-integrity.yml"), "utf8");
@@ -204,6 +267,8 @@ jobs:
   const integrationWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/spec-kit-work-map-integration.yml"), "utf8");
   const docsWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/docs-agent.yml"), "utf8");
   const openapiWorkflow = fs.readFileSync(path.join(repoRoot, ".github/workflows/openapi-auto-sync.yml"), "utf8");
+  const maintenanceSource = fs.readFileSync(path.join(repoRoot, "http-generic-api/scripts/repo-maintenance-sync.mjs"), "utf8");
+  const manifest = fs.readFileSync(path.join(repoRoot, "http-generic-api/scripts/run-test-manifest.mjs"), "utf8");
 
   const writerPolicy = contract.artifact_writer_policies.find((row) => row.artifact_group === "platform_work_maps");
   assert.equal(writerPolicy.writer_pipeline, "spec-kit-work-map-autofix");
@@ -214,6 +279,8 @@ jobs:
 
   const bridgeContract = contract.pipelines.find((row) => row.key === "work-map-recovery-bridge");
   const writerContract = contract.pipelines.find((row) => row.key === "spec-kit-work-map-autofix");
+  assert.ok(bridgeContract, "Work Map recovery bridge must remain registered");
+  assert.ok(writerContract, "Work Map writer must remain registered");
   assert.deepEqual(bridgeContract.required_triggers.sort(), ["pull_request", "workflow_dispatch"].sort());
   assert.deepEqual(writerContract.required_triggers, ["workflow_dispatch"]);
   assert.ok(writerContract.forbidden_triggers.includes("pull_request"));
@@ -228,7 +295,38 @@ jobs:
   assert.ok(bridgeWorkflow.includes("force_push=false"));
   assert.ok(bridgeWorkflow.includes("gh api --method PATCH"));
   assert.ok(!bridgeWorkflow.includes("platform-work-map-generator.mjs --write"));
+  assert.ok(!bridgeWorkflow.includes("git add docs/work-maps"));
   assert.ok(!bridgeWorkflow.includes("git push origin"));
+  assert.ok(!bridgeWorkflow.includes("git commit"));
+
+  assert.ok(docsWorkflow.includes("Generate dynamic text Work Map preview"));
+  assert.ok(docsWorkflow.includes("Report preview-only PR mode"));
+  assert.ok(docsWorkflow.includes("Review is required"));
+  assert.ok(!docsWorkflow.includes("docs-agent-write"));
+  assert.ok(!docsWorkflow.includes("git add docs/work-maps"));
+  assert.ok(!docsWorkflow.includes("git push origin"));
+
+  assert.ok(openapiWorkflow.includes("repo-maintenance-sync.mjs --write --skip-work-maps"));
+  assert.ok(openapiWorkflow.includes("Refuse Work Map mutation outside the governed writer"));
+  assert.ok(!openapiWorkflow.includes("platform-work-map-generator.mjs --write"));
+  assert.ok(maintenanceSource.includes('const skipWorkMaps = process.argv.includes("--skip-work-maps")'));
+  assert.ok(maintenanceSource.includes("platform-work-map-generator-skipped-explicit-scope"));
+
+  assert.ok(integrationWorkflow.includes("Generate exact-head Work Map repair candidate"));
+  assert.ok(integrationWorkflow.includes("EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(integrationWorkflow.includes('tested_head_sha="$(git rev-parse HEAD)"'));
+  assert.ok(integrationWorkflow.includes("Repair candidate checkout mismatch"));
+  assert.ok(integrationWorkflow.includes("event_sha: process.env.GITHUB_SHA"));
+  assert.ok(integrationWorkflow.includes("expected_head_sha: process.env.EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(integrationWorkflow.includes("tested_head_sha: process.env.WORK_MAP_TESTED_HEAD_SHA"));
+  assert.ok(integrationWorkflow.includes("process.env.WORK_MAP_TESTED_HEAD_SHA === process.env.EXPECTED_CHECKED_OUT_SHA"));
+  assert.ok(!integrationWorkflow.includes("tested_head_sha: process.env.GITHUB_SHA"));
+  assert.ok(integrationWorkflow.includes("generated_from_exact_checked_out_head"));
+  assert.ok(integrationWorkflow.includes("remote_write_executed: false"));
+  assert.ok(integrationWorkflow.includes("actions/upload-artifact@v4"));
+  assert.ok(integrationWorkflow.includes("Fail closed on stale generated Work Maps"));
+  assert.ok(!integrationWorkflow.includes("git push origin"));
+  assert.ok(!integrationWorkflow.includes("git commit"));
 
   const triggerBlock = writerWorkflow.slice(writerWorkflow.indexOf("on:"), writerWorkflow.indexOf("permissions:"));
   const permissionsBlock = writerWorkflow.slice(writerWorkflow.indexOf("permissions:"), writerWorkflow.indexOf("concurrency:"));
@@ -260,6 +358,7 @@ jobs:
   assert.ok(!writerWorkflow.includes("gh api --method PATCH"));
   assert.ok(!writerWorkflow.includes("--force"));
   assert.ok(!writerWorkflow.includes("--force-with-lease"));
+  assert.ok(manifest.includes("node test-work-map-autofix-diagnostics.mjs"));
 
   const order = [
     "Initialize diagnostics and validate inputs",
@@ -274,19 +373,6 @@ jobs:
   ].map((name) => writerWorkflow.indexOf(name));
   assert.ok(order.every((index) => index >= 0));
   assert.deepEqual(order, [...order].sort((left, right) => left - right));
-
-  assert.ok(integrationWorkflow.includes("Generate exact-head Work Map repair candidate"));
-  assert.ok(integrationWorkflow.includes("EXPECTED_CHECKED_OUT_SHA"));
-  assert.ok(integrationWorkflow.includes("generated_from_exact_checked_out_head"));
-  assert.ok(integrationWorkflow.includes("remote_write_executed: false"));
-  assert.ok(integrationWorkflow.includes("Fail closed on stale generated Work Maps"));
-  assert.ok(!integrationWorkflow.includes("git push origin"));
-  assert.ok(!integrationWorkflow.includes("git commit"));
-
-  assert.ok(docsWorkflow.includes("Report preview-only PR mode"));
-  assert.ok(!docsWorkflow.includes("git push origin"));
-  assert.ok(openapiWorkflow.includes("repo-maintenance-sync.mjs --write --skip-work-maps"));
-  assert.ok(!openapiWorkflow.includes("platform-work-map-generator.mjs --write"));
 
   const realResult = validatePipelineConnectivity({ repoRoot });
   assert.equal(realResult.ok, true, JSON.stringify(realResult.findings, null, 2));
