@@ -22,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, preserves retryability before any provider mutation, and requires a coherent Production branch and SHA pair from deployment-info afterward.",
+      "objective": "Provide a one-time owner-authorized, explicitly dispatched, exact-main-head and exact-Production-SHA Hostinger Node.js restart that verifies the completed build UUID, performs only the official server restart operation, preserves retryability before any provider mutation, and requires a coherent top-level Production branch and SHA pair from deployment-info afterward.",
       "e2e_journeys": [
         {
           "id": "restart-completed-production-build-and-prove-runtime-parity",
@@ -30,7 +30,7 @@
           "level": "synthetic_runtime",
           "actor": "repository owner and trusted default-branch GitHub Actions runner",
           "entrypoint": "Owner workflow_dispatch carrying the exact current main SHA and completed Hostinger build UUID, or the equivalent exact owner-authored Issue #4953 trigger",
-          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, duplicate-execution, or coherent runtime identity bindings differ; a failure before provider mutation remains retryable, while a completed or restart-performed binding is consumed; otherwise it restarts only the existing Hostinger Node.js server, uploads secret-free evidence, and passes only when deployment-info reports Production at f5c1ae8840b4d4452f2908bb0f23051880bb6896 in the same response.",
+          "terminal_outcome": "The workflow fails closed if repository, Production, incident, build, secret, duplicate-execution, or coherent runtime identity bindings differ; a failure before provider mutation remains retryable, while a completed or restart-performed binding is consumed; otherwise it restarts only the existing Hostinger Node.js server, uploads secret-free evidence, and passes only when deployment-info reports Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through direct top-level identity fields in the same response.",
           "steps": [
             "Receive owner workflow_dispatch inputs or the equivalent exact owner trigger on open Issue #4953.",
             "Resolve and validate the explicitly supplied full expected_head_sha and expected_build_uuid before any write.",
@@ -39,10 +39,10 @@
             "Reject duplicate execution only when the exact Production SHA and Hostinger build UUID binding already completed or previously performed the provider restart.",
             "Keep failed precondition, stale-head, missing-secret, and provider-preflight attempts retryable when restart_performed remains false.",
             "Fetch Hostinger build history and require the latest build after the Production merge to be completed build 019fc51c-3947-7255-aa4d-f55cb8df7658 with Git source.",
-            "Read health, version, and deployment-info before mutation and skip restart only if deployment-info itself contains the exact Production branch and SHA pair.",
+            "Read health, version, and deployment-info before mutation and skip restart only if deployment-info itself contains the exact Production branch and SHA pair in its direct top-level identity fields.",
             "Call only POST /api/hosting/v1/accounts/{username}/websites/{domain}/nodejs/server/restart.",
-            "Poll bounded public runtime endpoints and require the exact Production SHA and branch pair from deployment-info without composing identity across endpoints.",
-            "Upload structured secret-free evidence and publish a bounded issue marker containing the authorized main head and retryability state while keeping the incident open."
+            "Poll bounded public runtime endpoints and require the exact Production SHA and branch pair from deployment-info without composing identity across endpoints or nested objects.",
+            "Upload structured secret-free evidence and publish a bounded issue marker containing the authorized main head, identity scope, composition restrictions, and retryability state while keeping the incident open."
           ],
           "assertions": [
             "The production workflow has workflow_dispatch and issue_comment entrypoints but no push, pull_request, or pull_request_target trigger.",
@@ -51,11 +51,13 @@
             "The workflow grants contents:read and issues:write only; it cannot mutate repository contents or protected refs.",
             "The workflow explicitly rejects main and Production as repository branch mutation targets.",
             "A failed attempt with restart_performed=false does not consume the exact-once binding; status=completed or restart_performed=true does consume it.",
-            "Every marker records expected_head_sha and retryable_without_provider_mutation for auditability.",
+            "Every marker records expected_head_sha, retryable_without_provider_mutation, identity_scope, cross_endpoint_composition, and cross_object_composition for auditability.",
             "The implementation rejects any newer or different Hostinger build and any non-completed authorized build before POST.",
             "The only Hostinger provider mutation is the official Node.js server restart endpoint.",
             "Version observations may not supply a missing SHA or branch to deployment-info; cross-endpoint identity composition is forbidden.",
-            "Success requires deployment-info to contain Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 together in the same response.",
+            "Nested deployment manifests, historical objects, or unrelated response objects may not supply a missing SHA or branch; cross-object identity composition is forbidden.",
+            "Success requires deployment-info to expose Production and f5c1ae8840b4d4452f2908bb0f23051880bb6896 through accepted direct top-level identity fields in the same response.",
+            "The enforcement step requires schema_scope=top_level_direct_identity_fields and both composition flags false.",
             "The operation never creates a build, uploads an archive, redeploys, changes branch binding, runs SQL, applies migrations, or mutates a database.",
             "The Hostinger token is never returned and all artifacts declare secrets_included=false."
           ],
@@ -86,7 +88,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider failure, retry after a non-mutating failure, split endpoint identity, and post-restart stale runtime cases while remaining fail-closed."
+      "objective": "Exercise stale head, changed Production, newer build, duplicate trigger, missing secret, provider failure, retry after a non-mutating failure, split endpoint identity, cross-object deployment identity, and post-restart stale runtime cases while remaining fail-closed."
     },
     {
       "id": "canary",
@@ -96,7 +98,7 @@
     {
       "id": "production",
       "status": "planned",
-      "objective": "Record exact coherent runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
+      "objective": "Record exact coherent top-level runtime parity after the one-time restart and retain rollback evidence if the process remains on the old release."
     }
   ],
   "secrets_included": false
