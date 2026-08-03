@@ -7,5 +7,6 @@ export const testCommands = Object.freeze([
   "node test-governed-policy-application-lifecycle.mjs",
   "node test-governed-policy-repository-contract.mjs",
   "node test-governed-policy-migration-and-contracts.mjs",
+  "node test-spec012-policy-closeout-and-t026-readiness.mjs",
   "node test-execution-capsule-mutation-and-rollout.mjs",
 ]);
