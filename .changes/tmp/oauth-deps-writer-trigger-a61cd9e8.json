@@ -1,6 +1,0 @@
-{
-  "purpose": "temporary exact-head trigger for governed OAuth dependency baseline writer",
-  "base_sha": "a61cd9e83070618001676bbc679bc937f0551875",
-  "diagnostic_nonce": 3,
-  "secrets_included": false
-}
