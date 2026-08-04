@@ -38,8 +38,6 @@ jobs:
           mkdir -p "$evidence"
           expected_head='30c68e8e48ce94e238c5caecc7c001d3fca2a1b8'
           expected_main='4033d886187e87b29a855b9b9a942788dafd88ca'
-          report="$evidence/result.json"
-          trap 'rc=$?; jq -n --argjson ok "$([[ $rc -eq 0 ]] && echo true || echo false)" --arg head "$(git rev-parse HEAD 2>/dev/null || true)" --arg expected_head "$expected_head" --arg expected_main "$expected_main" --argjson exit_code "$rc" '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v1",ok:$ok,head_sha:$head,expected_head_sha:$expected_head,expected_main_sha:$expected_main,exit_code:$exit_code,exact_five_file_scope:true,control_plane_guard_restored:true,r7_retained:true,wave1_runtime_readiness_retained:true,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' > "$report"' EXIT
 
           test "$(git rev-parse HEAD)" = "$expected_head"
           git fetch --no-tags origin "$expected_main"
@@ -81,6 +79,31 @@ jobs:
             node test-hostinger-storage-control-plane-repository-brand.mjs
           )
 
+          jq -n \
+            --arg head "$(git rev-parse HEAD)" \
+            --arg expected_head "$expected_head" \
+            --arg expected_main "$expected_main" \
+            '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v2",ok:true,head_sha:$head,expected_head_sha:$expected_head,expected_main_sha:$expected_main,exit_code:0,exact_five_file_scope:true,control_plane_guard_restored:true,r7_retained:true,wave1_runtime_readiness_retained:true,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
+            > "$evidence/cleanup-result.json"
+
+      - name: Write fail-closed result when validation fails
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation"
+          mkdir -p "$evidence"
+          if [[ ! -f "$evidence/cleanup-result.json" ]]; then
+            jq -n \
+              --arg outcome "$VALIDATION_OUTCOME" \
+              --arg head "$(git rev-parse HEAD 2>/dev/null || true)" \
+              '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v2",ok:false,validation_outcome:$outcome,head_sha:$head,exact_five_file_scope:false,control_plane_guard_restored:false,r7_retained:false,wave1_runtime_readiness_retained:false,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
+              > "$evidence/cleanup-result.json"
+          fi
+          cat "$evidence/cleanup-result.json"
+
       - name: Upload exact cleanup validation evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -93,4 +116,9 @@ jobs:
       - name: Enforce cleanup validation
         if: always()
         shell: bash
-        run: jq -e '.ok == true and .exact_five_file_scope == true and .control_plane_guard_restored == true and .r7_retained == true and .wave1_runtime_readiness_retained == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/result.json" >/dev/null
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          test "$VALIDATION_OUTCOME" = success
+          jq -e '.ok == true and .exact_five_file_scope == true and .control_plane_guard_restored == true and .r7_retained == true and .wave1_runtime_readiness_retained == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/cleanup-result.json" >/dev/null
