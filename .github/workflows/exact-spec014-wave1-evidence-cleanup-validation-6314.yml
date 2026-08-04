@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Validate exact cleanup scope and retained contracts
+      - name: Validate current exact cleanup scope and retained contracts
         id: validation
         continue-on-error: true
         shell: bash
@@ -36,8 +36,8 @@ jobs:
           set -Eeuo pipefail
           evidence="$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation"
           mkdir -p "$evidence"
-          expected_head='8810e10fe5eb9b25689dc0431df35760942b86b1'
-          expected_main='0c0cd4f5a9b4a05ff94582cf6b60abc4aa4b0802'
+          expected_head='758a0ebd7ed79eaac87ec1c4caf76977501a3f3f'
+          expected_main='562a352ad3e71c8fa43a71e37d9a662329d16f30'
 
           test "$(git rev-parse HEAD)" = "$expected_head"
           git fetch --no-tags origin "$expected_main"
@@ -56,6 +56,8 @@ jobs:
           test "$(git hash-object .github/workflows/hostinger-storage-control-plane-guard.yml)" = '17954e24425d6a792043a04b87946d65ec6f1a5c'
           test "$(git hash-object .github/workflows/hostinger-production-runtime-readback-r7.yml)" = '2d31a445f7ced416502958cf3fac15aed8a52723'
           test "$(git hash-object http-generic-api/test-hostinger-production-runtime-readback-r7.mjs)" = '86092081e82e6af8b8a419884e411654a8b0019e'
+          test "$(git hash-object .github/workflows/spec-kit-work-map-recovery-bootstrap.yml)" = 'd09303f04da379ac850fbb5459c19917329ef3b2'
+          test "$(git hash-object http-generic-api/test-work-map-autofix-diagnostics.mjs)" = 'd4d413a22026a9cd8a3eb97f112eceb9481b4e10'
           test -f .github/workflows/spec014-wave1-runtime-readiness.yml
           test -f .github/ops/spec014-wave1-runtime-readiness.mjs
 
@@ -72,39 +74,139 @@ jobs:
           node --check http-generic-api/test-hostinger-storage-execution-authorization.mjs
           node --check http-generic-api/test-hostinger-storage-control-plane-repository.mjs
           node --check http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs
+          node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
           (
             cd http-generic-api
             node test-hostinger-storage-execution-authorization.mjs
             node test-hostinger-storage-control-plane-repository.mjs
             node test-hostinger-storage-control-plane-repository-brand.mjs
+            node test-work-map-autofix-diagnostics.mjs
           )
 
           jq -n \
             --arg head "$(git rev-parse HEAD)" \
             --arg expected_head "$expected_head" \
             --arg expected_main "$expected_main" \
-            '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v3",ok:true,head_sha:$head,expected_head_sha:$expected_head,expected_main_sha:$expected_main,exit_code:0,exact_five_file_scope:true,control_plane_guard_restored:true,r7_retained:true,wave1_runtime_readiness_retained:true,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
+            '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v4",ok:true,head_sha:$head,expected_head_sha:$expected_head,expected_main_sha:$expected_main,exit_code:0,exact_five_file_scope:true,control_plane_guard_restored:true,r7_retained:true,wave1_runtime_readiness_retained:true,work_map_bootstrap_fix_retained:true,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
             > "$evidence/cleanup-result.json"
 
-      - name: Write fail-closed result when validation fails
+      - name: Diagnose corrected Bootstrap workflow state and trigger registration
+        id: bootstrap
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation"
+          node --input-type=module - "$evidence/bootstrap-diagnostic.json" <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const outputPath = process.argv[2];
+          const repository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
+          const commentId = '5181268277';
+          const expectedBody = '/activate-work-map-recovery 758a0ebd7ed79eaac87ec1c4caf76977501a3f3f';
+          const workflowFile = 'spec-kit-work-map-recovery-bootstrap.yml';
+          const expectedWorkflowName = 'Spec Kit Work Map Recovery Bootstrap';
+          const maxDeltaMs = 10 * 60 * 1000;
+
+          async function apiJson(url) {
+            const response = await fetch(url, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'work-map-bootstrap-diagnostic',
+              },
+              signal: AbortSignal.timeout(30_000),
+            });
+            const text = await response.text();
+            assert.ok(response.ok, `GitHub public API ${response.status}: ${text.slice(0, 500)}`);
+            return JSON.parse(text);
+          }
+
+          const comment = await apiJson(`https://api.github.com/repos/${repository}/issues/comments/${commentId}`);
+          assert.equal(String(comment.id), commentId);
+          assert.equal(comment.body, expectedBody);
+          const createdAtMs = Date.parse(comment.created_at);
+          assert.ok(Number.isFinite(createdAtMs));
+
+          const workflow = await apiJson(`https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}`);
+          const runs = await apiJson(`https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?per_page=100`);
+          const nearbyRuns = (runs.workflow_runs || [])
+            .map((run) => ({
+              id: run.id,
+              name: run.name,
+              display_title: run.display_title,
+              event: run.event,
+              status: run.status,
+              conclusion: run.conclusion,
+              created_at: run.created_at,
+              updated_at: run.updated_at,
+              head_sha: run.head_sha,
+              head_branch: run.head_branch,
+              actor: run.actor?.login || null,
+              delta_ms: Math.abs(Date.parse(run.created_at) - createdAtMs),
+            }))
+            .filter((entry) => Number.isFinite(entry.delta_ms) && entry.delta_ms <= maxDeltaMs)
+            .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
+          const candidates = nearbyRuns
+            .filter((run) => run.event === 'issue_comment')
+            .filter((run) => run.name === expectedWorkflowName)
+            .filter((run) => run.actor === comment.user?.login);
+
+          const result = {
+            contract: 'work_map_recovery_bootstrap_registration_diagnostic.v2',
+            trigger_comment_id: commentId,
+            trigger_created_at: comment.created_at,
+            workflow: {
+              id: workflow.id,
+              name: workflow.name,
+              path: workflow.path,
+              state: workflow.state,
+              created_at: workflow.created_at,
+              updated_at: workflow.updated_at,
+            },
+            total_run_count: Number(runs.total_count || 0),
+            nearby_run_count: nearbyRuns.length,
+            nearby_runs: nearbyRuns,
+            candidate_count: candidates.length,
+            target: candidates[0] || null,
+            public_metadata_only: true,
+            direct_repository_mutation:false,
+            authorization_consumed:false,
+            protected_branch_mutation:false,
+            force_push:false,
+            runtime_contact:false,
+            database_access:false,
+            provider_action:false,
+            deployment_performed:false,
+            migration_apply_performed:false,
+            secrets_included:false,
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
+          process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+          assert.equal(result.workflow.path, '.github/workflows/spec-kit-work-map-recovery-bootstrap.yml');
+          NODE
+
+      - name: Write fail-closed results
         if: always()
         shell: bash
         env:
           VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
         run: |
           set -Eeuo pipefail
           evidence="$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation"
           mkdir -p "$evidence"
           if [[ ! -f "$evidence/cleanup-result.json" ]]; then
-            jq -n \
-              --arg outcome "$VALIDATION_OUTCOME" \
-              --arg head "$(git rev-parse HEAD 2>/dev/null || true)" \
-              '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v3",ok:false,validation_outcome:$outcome,head_sha:$head,exact_five_file_scope:false,control_plane_guard_restored:false,r7_retained:false,wave1_runtime_readiness_retained:false,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
-              > "$evidence/cleanup-result.json"
+            jq -n --arg outcome "$VALIDATION_OUTCOME" '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v4",ok:false,validation_outcome:$outcome,exact_five_file_scope:false,control_plane_guard_restored:false,r7_retained:false,wave1_runtime_readiness_retained:false,work_map_bootstrap_fix_retained:false,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' > "$evidence/cleanup-result.json"
+          fi
+          if [[ ! -f "$evidence/bootstrap-diagnostic.json" ]]; then
+            jq -n --arg outcome "$BOOTSTRAP_OUTCOME" '{contract:"work_map_recovery_bootstrap_registration_diagnostic.v2",workflow:null,total_run_count:0,nearby_run_count:0,nearby_runs:[],candidate_count:0,target:null,diagnostic_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/bootstrap-diagnostic.json"
           fi
           cat "$evidence/cleanup-result.json"
+          cat "$evidence/bootstrap-diagnostic.json"
 
-      - name: Upload exact cleanup validation evidence
+      - name: Upload exact cleanup and Bootstrap diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -113,12 +215,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce cleanup validation
+      - name: Enforce cleanup validation and diagnostic transport
         if: always()
         shell: bash
         env:
           VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+          BOOTSTRAP_OUTCOME: ${{ steps.bootstrap.outcome }}
         run: |
           set -Eeuo pipefail
           test "$VALIDATION_OUTCOME" = success
-          jq -e '.ok == true and .exact_five_file_scope == true and .control_plane_guard_restored == true and .r7_retained == true and .wave1_runtime_readiness_retained == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/cleanup-result.json" >/dev/null
+          test "$BOOTSTRAP_OUTCOME" = success
+          jq -e '.ok == true and .exact_five_file_scope == true and .control_plane_guard_restored == true and .r7_retained == true and .wave1_runtime_readiness_retained == true and .work_map_bootstrap_fix_retained == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/cleanup-result.json" >/dev/null
+          jq -e '.workflow.id != null and .workflow.path == ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml" and .public_metadata_only == true and .direct_repository_mutation == false and .protected_branch_mutation == false and .force_push == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/bootstrap-diagnostic.json" >/dev/null
