@@ -88,7 +88,7 @@ jobs:
           node test-auth-oauth-routes.mjs
           node test-tenant-gpt-oauth-token-exchange-routes.mjs
           node test-spec012-t032-legacy-audience-compatibility.mjs
-          node test-chatgpt-mcp-metadata-routes.mjs
+          node test-chatgpt-mcp-metadata-routing.mjs
 
       - name: Run complete HTTP API Unit and Integration manifest
         working-directory: http-generic-api
