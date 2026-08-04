@@ -1,0 +1,169 @@
+name: Exact Load-Bearing Runner ARM c2a9a4fe
+
+on:
+  pull_request:
+    branches:
+      - gpt/load-bearing-arm-base-33c8dc3b-c2a9a4fe-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-load-bearing-runner-arm-c2a9a4fe-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Exact load-bearing runner full validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/load-bearing-runner-pinning-main-33c8dc3b-20260804' &&
+      github.event.pull_request.head.sha == 'c2a9a4fe631fe596715c7d511a222ea127d9ef78'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 240
+    env:
+      MAIN_SHA: 33c8dc3b3f8a8c8950e13b674423466e6b08f9e6
+      CANDIDATE_SHA: c2a9a4fe631fe596715c7d511a222ea127d9ef78
+      CANDIDATE_REF: gpt/load-bearing-runner-pinning-main-33c8dc3b-20260804
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Initialize bounded evidence and verify identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_ROOT="${RUNNER_TEMP}/load-bearing-arm-${GITHUB_RUN_ID}"
+          mkdir -p "${EVIDENCE_ROOT}"
+          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${CANDIDATE_REF}:refs/remotes/origin/${CANDIDATE_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_REF})" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse "${CANDIDATE_SHA}^")" = "9b1c3fea47901724f2d665bbde775882a5479424"
+          git merge-base --is-ancestor "${MAIN_SHA}" "${CANDIDATE_SHA}"
+          git diff --name-only "${MAIN_SHA}" "${CANDIDATE_SHA}" | LC_ALL=C sort > "${EVIDENCE_ROOT}/changed-files.txt"
+          test "$(wc -l < "${EVIDENCE_ROOT}/changed-files.txt" | tr -d ' ')" = "15"
+          git diff --check "${MAIN_SHA}" "${CANDIDATE_SHA}"
+          {
+            printf 'main_sha=%s\n' "${MAIN_SHA}"
+            printf 'candidate_sha=%s\n' "${CANDIDATE_SHA}"
+            printf 'candidate_ref=%s\n' "${CANDIDATE_REF}"
+            printf 'candidate_file_count=15\n'
+            printf 'behind_main=0\n'
+          } | tee "${EVIDENCE_ROOT}/identity.txt"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run canonical source, syntax, and runner allowlist checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node validate-canonical-sources.mjs 2>&1 | tee "${EVIDENCE_ROOT}/canonical-sources.log"
+          node build-canonicals.mjs --check 2>&1 | tee "${EVIDENCE_ROOT}/canonical-output.log"
+          node validate-memory-schema.mjs 2>&1 | tee "${EVIDENCE_ROOT}/memory-schema.log"
+          node http-generic-api/scripts/test-critical-runner-label-pinning.mjs 2>&1 | tee "${EVIDENCE_ROOT}/runner-label-regression.log"
+          (
+            cd http-generic-api
+            set -e
+            shopt -s nullglob
+            for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+              node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
+            done
+          ) 2>&1 | tee "${EVIDENCE_ROOT}/javascript-syntax.log"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run complete Unit and Integration manifest
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          GITHUB_SHA: c2a9a4fe631fe596715c7d511a222ea127d9ef78
+        run: npm test 2>&1 | tee "${EVIDENCE_ROOT}/unit-integration.log"
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/load-bearing-runner-pinning-main-33c8dc3b-20260804
+          DEPLOYMENT_COMMIT_SHA: c2a9a4fe631fe596715c7d511a222ea127d9ef78
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs 2>&1 | tee "${EVIDENCE_ROOT}/deployment-manifest-test.log"
+          npm run manifest:deployment 2>&1 | tee "${EVIDENCE_ROOT}/deployment-manifest-generate.log"
+          node test-server-startup-smoke.mjs 2>&1 | tee "${EVIDENCE_ROOT}/server-startup.log"
+
+      - name: Run canonical architecture and Work Map validation
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm run validate 2>&1 | tee "${EVIDENCE_ROOT}/architecture.log"
+          node scripts/platform-work-map-generator.mjs --check 2>&1 | tee "${EVIDENCE_ROOT}/work-map-check.log"
+          node scripts/pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity.log"
+          node test-pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity-regression.log"
+
+      - name: Install root dependencies and run Execution Resolver Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee "${EVIDENCE_ROOT}/root-install.log"
+          npm run typecheck 2>&1 | tee "${EVIDENCE_ROOT}/execution-resolver-typecheck.log"
+          npm test -- --runInBand 2>&1 | tee "${EVIDENCE_ROOT}/execution-resolver-tests.log"
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+
+      - name: Final freshness readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${CANDIDATE_REF}:refs/remotes/origin/${CANDIDATE_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_REF})" = "${CANDIDATE_SHA}"
+          cat > "${EVIDENCE_ROOT}/summary.json" <<EOF
+          {
+            "contract": "exact_load_bearing_runner_arm.v1",
+            "ok": true,
+            "main_sha": "${MAIN_SHA}",
+            "candidate_sha": "${CANDIDATE_SHA}",
+            "file_count": 15,
+            "runner_allowlist": true,
+            "unit_integration": true,
+            "runtime_startup": true,
+            "architecture": true,
+            "execution_resolver": true,
+            "work_maps_current": true,
+            "freshness_preserved": true,
+            "repository_write": false,
+            "protected_ref_mutation": false,
+            "deployment": false,
+            "provider_call": false,
+            "credential_access": false,
+            "sql": false,
+            "migration_apply": false,
+            "database_mutation": false,
+            "external_send": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload exact ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-load-bearing-runner-arm-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_ROOT }}
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
