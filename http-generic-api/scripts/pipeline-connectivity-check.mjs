@@ -85,8 +85,15 @@ function executableCommands(text) {
 
 function detectTriggers(text) {
   const block = topLevelBlock(text, "on");
-  return ["workflow_dispatch", "pull_request", "push", "schedule", "workflow_run"]
-    .filter((trigger) => new RegExp(`^\\s{2}${trigger}:`, "m").test(block));
+  return [
+    "workflow_dispatch",
+    "pull_request",
+    "pull_request_target",
+    "issue_comment",
+    "push",
+    "schedule",
+    "workflow_run",
+  ].filter((trigger) => new RegExp(`^\\s{2}${trigger}:`, "m").test(block));
 }
 
 function detectPermission(text, permission) {

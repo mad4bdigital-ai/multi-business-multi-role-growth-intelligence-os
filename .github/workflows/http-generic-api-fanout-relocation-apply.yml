@@ -1,0 +1,143 @@
+name: HTTP Generic API Fanout Relocation Apply
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Existing same-repository pull-request branch to update."
+        required: true
+        type: string
+      expected_head_sha:
+        description: "Exact 40-character target branch head authorized for this apply."
+        required: true
+        type: string
+      confirmation:
+        description: "Type APPLY_HTTP_GENERIC_API_FANOUT_RELOCATION."
+        required: true
+        type: string
+      scope:
+        description: "Relocation scope. scripts is the only write-enabled scope."
+        required: true
+        default: "scripts"
+        type: choice
+        options:
+          - scripts
+      max_files:
+        description: "Maximum safe files to relocate in one apply run."
+        required: true
+        default: "20"
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: http-generic-api-fanout-relocation-apply-${{ inputs.target_branch }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Apply exact-head safe fanout relocations
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: ${{ inputs.target_branch }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      CONFIRMATION: ${{ inputs.confirmation }}
+      FANOUT_RELOCATION_SCOPE: ${{ inputs.scope }}
+      FANOUT_RELOCATION_MAX_FILES: ${{ inputs.max_files }}
+    steps:
+      - name: Validate authorization and protected-branch boundary
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ "${CONFIRMATION}" != "APPLY_HTTP_GENERIC_API_FANOUT_RELOCATION" ]]; then
+            echo "Typed confirmation mismatch."
+            exit 1
+          fi
+          git check-ref-format --branch "${TARGET_BRANCH}"
+          if [[ "${TARGET_BRANCH}" == "main" || "${TARGET_BRANCH}" == "Production" ]]; then
+            echo "Refusing to apply relocation on protected branch ${TARGET_BRANCH}."
+            exit 1
+          fi
+          [[ "${TARGET_BRANCH}" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+
+          remote_head_sha="$(git ls-remote --exit-code "https://github.com/${GITHUB_REPOSITORY}.git" "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
+
+          pr_count="$(gh api "repos/${GITHUB_REPOSITORY}/pulls" \
+            -f state=open \
+            -f base=main \
+            -f head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}" \
+            -f per_page=2 \
+            --jq 'length')"
+          test "${pr_count}" = "1"
+
+      - name: Checkout exact authorized head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.expected_head_sha }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Verify exact checked-out and remote head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate relocation tooling
+        working-directory: http-generic-api
+        run: node test-fanout-relocation-ci.mjs
+
+      - name: Apply safe fanout relocations
+        working-directory: http-generic-api
+        env:
+          FANOUT_RELOCATION_MODE: apply
+          FANOUT_RELOCATION_JSON: "true"
+        run: >-
+          node scripts/fanout-relocation-ci.mjs
+          --mode=apply
+          --scope="${FANOUT_RELOCATION_SCOPE}"
+          --max-files="${FANOUT_RELOCATION_MAX_FILES}"
+          --json
+
+      - name: Commit and push exact-head relocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No relocation changes to commit."
+            exit 0
+          fi
+
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add http-generic-api/scripts
+          git commit -m "Apply HTTP generic API script taxonomy relocation"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+          result_head_sha="$(git rev-parse HEAD)"
+          remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head_sha}" = "${result_head_sha}"
