@@ -1,0 +1,115 @@
+name: Exact Work Map Impact 6130 V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/work-map-impact-base-33c8dc3b-9a58bb84-v2
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-work-map-impact-6130-v2-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    name: Evaluate reconciled deterministic Work Map impact
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/critical-runner-pinning-main-81a254bf-20260804' &&
+      github.event.pull_request.head.sha == '9a58bb848355f84f8dcf6caa1e681638e5e4c80d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: 33c8dc3b3f8a8c8950e13b674423466e6b08f9e6
+      EXPECTED_HEAD_SHA: 9a58bb848355f84f8dcf6caa1e681638e5e4c80d
+      TARGET_BRANCH: gpt/critical-runner-pinning-main-81a254bf-20260804
+    steps:
+      - name: Checkout exact reconciled head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify identity, ancestry, and initialize evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_ROOT="${RUNNER_TEMP}/work-map-impact-v2-${GITHUB_RUN_ID}"
+          mkdir -p "${EVIDENCE_ROOT}"
+          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > "${EVIDENCE_ROOT}/candidate-files.txt"
+          test "$(wc -l < "${EVIDENCE_ROOT}/candidate-files.txt" | tr -d ' ')" = "13"
+          test -z "$(git status --porcelain)"
+
+      - name: Validate official generator contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity.log"
+          node http-generic-api/test-pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity-regression.log"
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification-contract.log"
+          node http-generic-api/scripts/work-map-schema-classification.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification.log"
+
+      - name: Generate twice and prove reconciled impact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee "${EVIDENCE_ROOT}/generator-first.log"
+          unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          test -z "${unexpected}"
+          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${EVIDENCE_ROOT}/generated-files.txt"
+          git diff --stat -- docs/work-maps > "${EVIDENCE_ROOT}/generated-stat.txt"
+          git diff --binary -- docs/work-maps > "${EVIDENCE_ROOT}/generated.patch"
+          first_hash="$(sha256sum "${EVIDENCE_ROOT}/generated.patch" | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee "${EVIDENCE_ROOT}/generator-second.log"
+          git diff --binary -- docs/work-maps > "${EVIDENCE_ROOT}/generated-second.patch"
+          second_hash="$(sha256sum "${EVIDENCE_ROOT}/generated-second.patch" | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check 2>&1 | tee "${EVIDENCE_ROOT}/generator-check.log"
+          changed_count="$(wc -l < "${EVIDENCE_ROOT}/generated-files.txt" | tr -d ' ')"
+          cat > "${EVIDENCE_ROOT}/summary.json" <<EOF
+          {
+            "contract": "exact_work_map_impact_6130.v2",
+            "candidate_sha": "${EXPECTED_HEAD_SHA}",
+            "main_sha": "${EXPECTED_MAIN_SHA}",
+            "generated_changes": $([ "${changed_count}" -gt 0 ] && echo true || echo false),
+            "generated_file_count": ${changed_count},
+            "first_diff_sha256": "${first_hash}",
+            "second_diff_sha256": "${second_hash}",
+            "idempotent": true,
+            "files_outside_docs_work_maps": false,
+            "repository_write": false,
+            "protected_ref_mutation": false,
+            "force_push": false,
+            "secrets_included": false
+          }
+          EOF
+          cat "${EVIDENCE_ROOT}/summary.json"
+          cat "${EVIDENCE_ROOT}/generated-files.txt"
+
+      - name: Upload bounded reconciled impact evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-impact-6130-v2-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_ROOT }}
+          if-no-files-found: error
+          retention-days: 14
