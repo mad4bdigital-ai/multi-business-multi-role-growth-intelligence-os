@@ -1,0 +1,238 @@
+name: Exact Skipped Refresh Full Validation 5435 V4
+
+on:
+  pull_request:
+    branches: [gpt/validate-skipped-refresh-5435-full-base-33c8dc3b]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  EXPECTED_MAIN_SHA: 33c8dc3b3f8a8c8950e13b674423466e6b08f9e6
+  EXPECTED_CANDIDATE_SHA: fa900c82dc5d297db3e494bc49739d2a62ff307d
+  EXPECTED_CANDIDATE_REF: fix/generated-artifact-refresh-skipped-outcome-current-main-20260803
+  EXPECTED_VALIDATOR_BASE_REF: gpt/validate-skipped-refresh-5435-full-base-33c8dc3b
+  CANONICAL_PR_NUMBER: '5435'
+  EVIDENCE_DIR: /tmp/exact-skipped-refresh-full-validation-5435-v4
+
+jobs:
+  full-validation:
+    name: Exact current-main skipped-refresh full validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/generated-artifact-refresh-skipped-outcome-current-main-20260803'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 150
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify trusted base and canonical PR identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATOR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          test "$VALIDATOR_BASE_REF" = "$EXPECTED_VALIDATOR_BASE_REF"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/${EXPECTED_VALIDATOR_BASE_REF}:refs/remotes/origin/${EXPECTED_VALIDATOR_BASE_REF}" \
+            "+refs/heads/${EXPECTED_CANDIDATE_REF}:refs/remotes/origin/${EXPECTED_CANDIDATE_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_VALIDATOR_BASE_REF})" = "$VALIDATOR_BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/${EXPECTED_CANDIDATE_REF})" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" "$VALIDATOR_BASE_SHA")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$VALIDATOR_BASE_SHA")" -eq 1
+          mapfile -t validator_files < <(git diff --name-only "$EXPECTED_MAIN_SHA...$VALIDATOR_BASE_SHA")
+          test "${#validator_files[@]}" -eq 1
+          test "${validator_files[0]}" = '.github/workflows/exact-skipped-refresh-full-validation-5435-v4.yml'
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.ref' <<<"$pr")" = 'main'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Verify zero-behind topology and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_CANDIDATE_SHA..$EXPECTED_MAIN_SHA")" -eq 0
+          mkdir -p "$EVIDENCE_DIR"
+          printf '%s\n' \
+            '.changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json' \
+            '.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml' \
+            'http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs' \
+            | sort > "$EVIDENCE_DIR/expected-files.txt"
+          git diff --name-only "$EXPECTED_MAIN_SHA...$EXPECTED_CANDIDATE_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          git diff --check "$EXPECTED_MAIN_SHA...$EXPECTED_CANDIDATE_SHA"
+          python -m json.tool .changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json >/dev/null
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+
+      - name: Run changed-scope governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused skipped outcome and canonical Frontend parity
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          npm run frontend:dispatch:check -- --baseline-ref=main
+
+      - name: Run complete Unit and Integration suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "$EXPECTED_CANDIDATE_SHA"
+          GITHUB_SHA="$actual_sha" npm test
+
+      - name: Verify exact test report provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          for report in \
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: ${{ env.EXPECTED_CANDIDATE_REF }}
+          DEPLOYMENT_COMMIT_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run root Execution Resolver Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Run Architecture Drift Detection
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run Repository Tool Lifecycle and E2E integrity
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          BASE_SHA: ${{ env.EXPECTED_MAIN_SHA }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR/repository-tool-lifecycle"
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" > "$EVIDENCE_DIR/repository-tool-changes.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$EVIDENCE_DIR/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+          report="$EVIDENCE_DIR/repository-tool-lifecycle/repository-tool-lifecycle-report.json"
+          test "$(jq -r '.ok' "$report")" = 'true'
+          test "$(jq -r '.candidate_sha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(jq -r '.base_sha' "$report")" = "$EXPECTED_MAIN_SHA"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+      - name: Final protected-main and canonical PR readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          test "$(git ls-remote origin "refs/heads/${EXPECTED_VALIDATOR_BASE_REF}" | awk '{print $1}')" = "$VALIDATOR_BASE_SHA"
+          test "$(git ls-remote origin "refs/heads/${EXPECTED_CANDIDATE_REF}" | awk '{print $1}')" = "$EXPECTED_CANDIDATE_SHA"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Publish bounded evidence summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg candidate_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg job_status "${{ job.status }}" \
+            '{contract:"mad4b.exact-skipped-refresh-full-validation.v4",base_sha:$base_sha,candidate_sha:$candidate_sha,canonical_baseline_ref:"main",run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/summary.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-skipped-refresh-full-validation-5435-v4-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_DIR }}/
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
