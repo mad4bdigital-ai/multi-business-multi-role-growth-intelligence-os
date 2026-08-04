@@ -1,0 +1,94 @@
+name: Generated Refresh ARM Bridge 6264
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - gpt/governed/generated-refresh-arm-bridge-6264-base-20260804
+    paths:
+      - docs/governance/generated-refresh-arm-bridge-6264.trigger.md
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: generated-refresh-arm-bridge-6264
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/governed/generated-refresh-arm-bridge-6264-trigger-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_PR: '6264'
+      TARGET_BRANCH: gpt/ci/frontend-generated-baseline-main-7b8754c4-20260804
+      EXPECTED_HEAD_SHA: b2d9d11da1690bea8a616edc00b678da0f490554
+      AUTHORIZATION_COMMENT_ID: '5180131493'
+      AUTHORIZATION_USER_ID: '271942579'
+      AUTHORIZATION_COMMAND: /refresh-generated-artifacts b2d9d11da1690bea8a616edc00b678da0f490554
+      TRIGGER_PATH: docs/governance/generated-refresh-arm-bridge-6264.trigger.md
+    steps:
+      - name: Validate immutable bridge, PR, label, and authorization comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.changed_files }}" = "1"
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')"
+          test "${files}" = "${TRIGGER_PATH}"
+
+          target="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = "open"
+          test "$(jq -r '.draft' <<<"${target}")" = "false"
+          test "$(jq -r '.base.ref' <<<"${target}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${target}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${EXPECTED_HEAD_SHA}"
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/labels" --jq '.[].name' | grep -Fx 'generated-artifact-refresh'
+
+          authorization="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}")"
+          test "$(jq -r '.user.id' <<<"${authorization}")" = "${AUTHORIZATION_USER_ID}"
+          test "$(jq -r '.body' <<<"${authorization}")" = "${AUTHORIZATION_COMMAND}"
+
+      - name: Consume exact authorization comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" --jq '.head.sha')" = "${EXPECTED_HEAD_SHA}"
+          consumed="/refresh-generated-artifacts:consumed head=${EXPECTED_HEAD_SHA} bridge_run=${GITHUB_RUN_ID}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" -f body="${consumed}" >/dev/null
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}" --jq '.body')" = "${consumed}"
+
+      - name: Dispatch registered generated-artifact writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" --jq '.head.sha')" = "${EXPECTED_HEAD_SHA}"
+          gh workflow run governed-generated-artifact-refresh.yml \
+            --ref main \
+            -f target_ref="${TARGET_BRANCH}" \
+            -f expected_head_sha="${EXPECTED_HEAD_SHA}" \
+            -f confirmation=APPLY_GENERATED_ARTIFACT_REFRESH
+          {
+            echo "# Generated Refresh ARM Bridge 6264"
+            echo
+            echo "- Target PR: #${TARGET_PR}"
+            echo "- Authorized head: \`${EXPECTED_HEAD_SHA}\`"
+            echo "- Registered writer: \`governed-generated-artifact-refresh.yml\`"
+            echo "- Direct generated edit: \`false\`"
+            echo "- Protected-ref mutation: \`false\`"
+            echo "- Force push: \`false\`"
+            echo "- Provider / deployment / SQL / migration: \`false\`"
+            echo "- Secrets included: \`false\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
