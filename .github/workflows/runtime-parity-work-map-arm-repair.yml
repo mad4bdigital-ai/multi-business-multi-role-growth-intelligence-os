@@ -23,11 +23,11 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/add-runtime-parity-comment-bridge-v2-20260804' &&
       github.event.pull_request.base.ref == 'main' &&
       github.actor == 'mad4bdigital-ai'
-    runs-on: [self-hosted, linux, arm64]
+    runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 9576ae18bb2d22bdc92d14c1bf49a8db5dc805ce
+      EXPECTED_PARENT_SHA: 6ab69c52f6e87b080b14c1f8dd46884b98f549e2
       REPAIR_PATH: .github/workflows/runtime-parity-work-map-arm-repair.yml
 
     steps:
