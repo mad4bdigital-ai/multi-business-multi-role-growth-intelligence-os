@@ -6,6 +6,11 @@ const authorizationBody =
   'AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION';
 const workflowFile = 'spec014-wave1-runtime-readiness.yml';
 const workflowName = 'Spec 014 Wave 1 Runtime Readiness';
+const r7CommentId = '5180582293';
+const r7TriggerBody =
+  'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=42177d360e9c6d76b4f09eaf06bd98ac26d09abe';
+const r7WorkflowFile = 'hostinger-production-runtime-readback-r7.yml';
+const r7WorkflowName = 'Hostinger Production Runtime Readback R7';
 const runtimeBase = 'https://auth.mad4b.com';
 const maxDeltaMs = 5 * 60 * 1000;
 
@@ -81,37 +86,39 @@ async function publicRuntimeGet(pathname) {
   }
 }
 
+function selectRuns(runs, comment, expectedName) {
+  const createdAtMs = Date.parse(comment.created_at);
+  assert.ok(Number.isFinite(createdAtMs), 'Trigger comment timestamp must be valid');
+  return (runs.workflow_runs || [])
+    .filter((run) => run.event === 'issue_comment')
+    .filter((run) => run.name === expectedName)
+    .filter((run) => run.actor?.login === comment.user?.login)
+    .map((run) => ({
+      id: run.id,
+      status: run.status,
+      conclusion: run.conclusion,
+      created_at: run.created_at,
+      updated_at: run.updated_at,
+      head_sha: run.head_sha,
+      head_branch: run.head_branch,
+      actor: run.actor?.login || null,
+      delta_ms: Math.abs(Date.parse(run.created_at) - createdAtMs),
+    }))
+    .filter((entry) => Number.isFinite(entry.delta_ms))
+    .filter((entry) => entry.delta_ms <= maxDeltaMs)
+    .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
+}
+
 const comment = await apiJson(
   `https://api.github.com/repos/${repository}/issues/comments/${authorizationCommentId}`,
 );
 assert.equal(String(comment.id), authorizationCommentId);
 assert.equal(comment.body, authorizationBody);
 assert.equal(comment.issue_url, `https://api.github.com/repos/${repository}/issues/6215`);
-const commentCreatedAtMs = Date.parse(comment.created_at);
-assert.ok(Number.isFinite(commentCreatedAtMs), 'Authorization comment timestamp must be valid');
-
 const runs = await apiJson(
   `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?event=issue_comment&per_page=100`,
 );
-const candidates = (runs.workflow_runs || [])
-  .filter((run) => run.event === 'issue_comment')
-  .filter((run) => run.name === workflowName)
-  .filter((run) => run.actor?.login === comment.user?.login)
-  .map((run) => ({
-    id: run.id,
-    status: run.status,
-    conclusion: run.conclusion,
-    created_at: run.created_at,
-    updated_at: run.updated_at,
-    head_sha: run.head_sha,
-    head_branch: run.head_branch,
-    actor: run.actor?.login || null,
-    delta_ms: Math.abs(Date.parse(run.created_at) - commentCreatedAtMs),
-  }))
-  .filter((entry) => Number.isFinite(entry.delta_ms))
-  .filter((entry) => entry.delta_ms <= maxDeltaMs)
-  .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
-
+const candidates = selectRuns(runs, comment, workflowName);
 const discovery = Object.freeze({
   contract: 'spec014_wave1_runtime_public_run_discovery.v1',
   authorization_comment_id: authorizationCommentId,
@@ -131,6 +138,34 @@ const discovery = Object.freeze({
 });
 process.stdout.write(`SPEC014_WAVE1_RUNTIME_RUN_DISCOVERY=${JSON.stringify(discovery)}\n`);
 assert.ok(discovery.target?.id, 'Exact Wave 1 runtime issue-comment run was not discovered');
+
+const r7Comment = await apiJson(
+  `https://api.github.com/repos/${repository}/issues/comments/${r7CommentId}`,
+);
+assert.equal(String(r7Comment.id), r7CommentId);
+assert.equal(r7Comment.body, r7TriggerBody);
+assert.ok(String(r7Comment.issue_url || '').endsWith('/issues/6275'));
+const r7Runs = await apiJson(
+  `https://api.github.com/repos/${repository}/actions/workflows/${r7WorkflowFile}/runs?event=issue_comment&per_page=100`,
+);
+const r7Candidates = selectRuns(r7Runs, r7Comment, r7WorkflowName);
+const r7Discovery = Object.freeze({
+  contract: 'hostinger_production_runtime_readback_r7_public_run_discovery.v1',
+  trigger_comment_id: r7CommentId,
+  trigger_created_at: r7Comment.created_at,
+  trigger_actor: r7Comment.user?.login || null,
+  candidate_count: r7Candidates.length,
+  target: r7Candidates[0] || null,
+  candidates: r7Candidates,
+  public_metadata_only: true,
+  deployment_performed: false,
+  restart_performed: false,
+  migration_apply_executed: false,
+  provider_call_executed: false,
+  secrets_included: false,
+});
+process.stdout.write(`HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7_RUN_DISCOVERY=${JSON.stringify(r7Discovery)}\n`);
+assert.ok(r7Discovery.target?.id, 'Exact Hostinger R7 issue-comment run was not discovered');
 
 const [mainRef, productionRef, health, version, deploymentInfo] = await Promise.all([
   apiJson(`https://api.github.com/repos/${repository}/git/ref/heads/main`),
