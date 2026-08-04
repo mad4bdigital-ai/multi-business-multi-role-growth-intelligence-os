@@ -1,0 +1,167 @@
+name: Validation-only Job Log Evidence Collector 92089113048
+
+run-name: Collect immutable evidence for job 92089113048
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/collect-job-log-evidence-92089113048.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: collect-job-log-evidence-92089113048
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    name: Collect exact failed-job evidence
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      TARGET_JOB_ID: "92089113048"
+      TARGET_RUN_ID: "30938055248"
+      TARGET_HEAD_SHA: "058904a026aa39e22a8ff58ee5937c35383c92f5"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Collect metadata and complete log
+        id: collect
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p evidence
+          status=0
+
+          if ! gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/actions/jobs/${TARGET_JOB_ID}" \
+            > evidence/job-metadata.json 2> evidence/metadata-fetch.stderr.txt; then
+            status=1
+          fi
+
+          if [[ -s evidence/job-metadata.json ]]; then
+            if ! jq -e \
+              --arg job "${TARGET_JOB_ID}" \
+              --arg run "${TARGET_RUN_ID}" \
+              --arg sha "${TARGET_HEAD_SHA}" \
+              '.id == ($job | tonumber) and .run_id == ($run | tonumber) and .head_sha == $sha' \
+              evidence/job-metadata.json \
+              > evidence/identity-check.json 2> evidence/identity-check.stderr.txt; then
+              status=1
+            fi
+          else
+            printf '%s\n' 'job metadata was not retrieved' > evidence/identity-check.stderr.txt
+            status=1
+          fi
+
+          if ! curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${TARGET_JOB_ID}/logs" \
+            --output evidence/job.log \
+            2> evidence/log-fetch.stderr.txt; then
+            status=1
+          fi
+
+          if [[ ! -s evidence/job.log ]]; then
+            printf '%s\n' 'job log was not retrieved or was empty' >> evidence/log-fetch.stderr.txt
+            status=1
+          fi
+
+          printf '%s\n' "${status}" > evidence/collector-status.txt
+          exit "${status}"
+
+      - name: Extract focused failure evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path("evidence/job.log")
+          target = Path("evidence/focused-log-excerpt.txt")
+          if not source.exists():
+              target.write_text("job.log is unavailable\n", encoding="utf-8")
+              raise SystemExit(0)
+
+          lines = source.read_text(encoding="utf-8", errors="replace").splitlines()
+          needles = (
+              "AssertionError",
+              "ERR_ASSERTION",
+              "test-work-map-autofix-diagnostics",
+              "Run focused repository write-boundary regressions",
+              "expected",
+              "actual",
+              "does not match",
+              "not match",
+              "failed",
+          )
+          hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
+          selected = set()
+          for i in hits:
+              selected.update(range(max(0, i - 25), min(len(lines), i + 40)))
+          if not selected:
+              selected.update(range(max(0, len(lines) - 500), len(lines)))
+          rendered = []
+          previous = None
+          for i in sorted(selected):
+              if previous is not None and i != previous + 1:
+                  rendered.append("--- omitted ---")
+              rendered.append(f"{i + 1:06d}: {lines[i]}")
+              previous = i
+          target.write_text("\n".join(rendered) + "\n", encoding="utf-8")
+          PY
+
+          {
+            printf '# Immutable GitHub Job Evidence\n\n'
+            printf -- '- Repository: `%s`\n' "${GITHUB_REPOSITORY}"
+            printf -- '- Target job: `%s`\n' "${TARGET_JOB_ID}"
+            printf -- '- Target run: `%s`\n' "${TARGET_RUN_ID}"
+            printf -- '- Target head: `%s`\n' "${TARGET_HEAD_SHA}"
+            printf -- '- Collector run: `%s`\n' "${GITHUB_RUN_ID}"
+            printf -- '- Collector ref: `%s`\n' "${GITHUB_REF}"
+            printf -- '- Collection outcome: `%s`\n' "${{ steps.collect.outcome }}"
+            if [[ -s evidence/job-metadata.json ]]; then
+              printf -- '- Observed job name: `%s`\n' "$(jq -r '.name // "unknown"' evidence/job-metadata.json)"
+              printf -- '- Observed workflow: `%s`\n' "$(jq -r '.workflow_name // "unknown"' evidence/job-metadata.json)"
+              printf -- '- Observed conclusion: `%s`\n' "$(jq -r '.conclusion // "unknown"' evidence/job-metadata.json)"
+              printf -- '- Observed runner: `%s`\n' "$(jq -r '.runner_name // "unknown"' evidence/job-metadata.json)"
+            fi
+          } > evidence/summary.md
+
+          find evidence -maxdepth 1 -type f ! -name sha256sums.txt -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            > evidence/sha256sums.txt
+
+      - name: Upload immutable evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-log-evidence-92089113048
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce successful evidence collection
+        if: always()
+        env:
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${COLLECT_OUTCOME}" = "success"
+          test "$(cat evidence/collector-status.txt)" = "0"
+          test -s evidence/job-metadata.json
+          test -s evidence/job.log
+          test -s evidence/focused-log-excerpt.txt
