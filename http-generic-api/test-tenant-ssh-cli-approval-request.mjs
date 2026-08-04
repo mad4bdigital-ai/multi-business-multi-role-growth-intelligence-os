@@ -20,8 +20,8 @@ assert(routes.includes('resolved_parent_reference'), "approval hold context must
 assert(routes.includes('supervisor_approval'), "approval request must require supervisor/workspace approval");
 assert(routes.includes('workspace_owner'), "approval request must require workspace owner role");
 assert(routes.includes('execution_enabled: false'), "approval request must not enable execution");
-assert(routes.includes('approval_decision_and_execute_tool_not_enabled_yet'), "approval request must identify gated future execution");
-assert(routes.includes('approval_decision_and_execute_tool_not_enabled_yet'), "approval request must still hand off to approval decision before execute");
+assert(routes.includes('next_step: "approval_decision_required_before_execute"'), "approval request must identify gated future execution");
+assert(routes.includes('/me/infrastructure/ssh/cli/approval-requests/:request_id/decision'), "approval request must still hand off to approval decision before execute");
 assert(!migration.includes('tenant_ssh_cli_allowlisted_execute'), "approval request migration must not register an execute tool");
 assert(routes.includes('secrets_included: false'), "approval request must never return secrets");
 
