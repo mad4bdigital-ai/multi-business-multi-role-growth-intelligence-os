@@ -115,6 +115,21 @@ assert.match(
   /permissions:\s*\n\s*actions: write\s*\n\s*contents: read\s*\n\s*issues: write\s*\n\s*pull-requests: read/u,
 );
 assert.doesNotMatch(bootstrapWorkflow, /contents: write/u);
+assert.doesNotMatch(
+  bootstrapWorkflow,
+  /^\s{6}REPORT_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/mu,
+  "runner.temp must not be evaluated in job-level env before runner allocation",
+);
+assert.match(bootstrapWorkflow, /Initialize bounded report directory after runner allocation/u);
+assert.match(
+  bootstrapWorkflow,
+  /report_dir="\$\{RUNNER_TEMP\}\/spec-kit-work-map-recovery-bootstrap"/u,
+);
+assert.match(bootstrapWorkflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
+assert.match(
+  bootstrapWorkflow,
+  /path: \$\{\{ env\.REPORT_DIR \}\}\//u,
+);
 assert.match(bootstrapWorkflow, /ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY/u);
 assert.match(bootstrapWorkflow, /\/activate-work-map-recovery\[\[:space:\]\]\+\(\[0-9a-f\]\{40\}\)/u);
 assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
