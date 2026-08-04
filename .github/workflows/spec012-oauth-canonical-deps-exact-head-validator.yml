@@ -1,4 +1,4 @@
-name: Spec 012 OAuth Canonical Dependency Exact-Head Validator
+name: SSH Approval Guard Exact-Head Validator
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: spec012-oauth-canonical-deps-${{ github.event.pull_request.number }}
+  group: ssh-approval-guard-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -20,9 +20,10 @@ jobs:
     timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
-      EXPECTED_PRODUCT_SHA: 38af9e943deef4968fb692dc2e421dd981851cae
-      PRODUCT_BRANCH: gpt/spec012-oauth-canonical-deps-20260804
+      EXPECTED_PRODUCT_SHA: 9f742d015b6668945126f07019e4e08b6a305210
+      PRODUCT_BRANCH: fix/tenant-ssh-cli-approval-request-test-parity-67cb77cf-20260804
       VALIDATOR_PATH: .github/workflows/spec012-oauth-canonical-deps-exact-head-validator.yml
+      PRODUCT_PATH: http-generic-api/test-tenant-ssh-cli-approval-request.mjs
     steps:
       - name: Checkout validator trigger
         uses: actions/checkout@v4
@@ -56,15 +57,11 @@ jobs:
           git checkout --detach "${EXPECTED_PRODUCT_SHA}"
           test "$(git rev-parse HEAD)" = "${EXPECTED_PRODUCT_SHA}"
           mapfile -t product_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}")
-          test "${#product_files[@]}" -eq 2
-          test "${product_files[0]}" = "http-generic-api/routes/index.js"
-          test "${product_files[1]}" = "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          test "${#product_files[@]}" -eq 1
+          test "${product_files[0]}" = "${PRODUCT_PATH}"
           git diff --check "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}"
           git diff --stat "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}" | tee evidence/product-scope.txt
-          git diff "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}" -- \
-            http-generic-api/routes/index.js \
-            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
-            > evidence/product.patch
+          git diff "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}" -- "${PRODUCT_PATH}" > evidence/product.patch
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
@@ -80,15 +77,14 @@ jobs:
           set -euo pipefail
           npm ci 2>&1 | tee ../evidence/npm-ci.log
 
-      - name: Verify syntax and focused governed OAuth contracts
+      - name: Verify syntax and focused governed SSH approval contracts
         working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          node --check routes/index.js 2>&1 | tee ../evidence/routes-index-syntax.log
-          node --check test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee ../evidence/t031-wiring-syntax.log
-          node test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee ../evidence/t031-wiring.log
-          node test-auth-oauth-routes.mjs 2>&1 | tee ../evidence/auth-oauth-routes.log
+          node --check test-tenant-ssh-cli-approval-request.mjs 2>&1 | tee ../evidence/approval-request-syntax.log
+          node test-tenant-ssh-cli-approval-request.mjs 2>&1 | tee ../evidence/approval-request.log
+          node test-tenant-ssh-cli-approval-decision.mjs 2>&1 | tee ../evidence/approval-decision.log
 
       - name: Run complete HTTP Generic API manifest
         working-directory: http-generic-api
@@ -119,7 +115,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-canonical-deps-${{ github.run_id }}
+          name: ssh-approval-guard-${{ github.run_id }}
           path: evidence/
           if-no-files-found: error
           retention-days: 14
