@@ -118,7 +118,7 @@ jobs:
           failed=0
           run_case auto_remediation_tests node test-surface-contract-auto-remediation.mjs || failed=1
           run_case discovery_tests node test-surface-contract-discovery.mjs || failed=1
-          run_case gap_triage_tests node test-surface-contract-gap-triage.mjs || failed=1
+          run_case gap_triage_syntax node --check scripts/surface-contract-gap-triage.mjs || failed=1
           run_case governance_loop_tests node test-surface-contract-governance-loop.mjs || failed=1
           run_case auto_remediator_check node scripts/surface-contract-auto-remediator.mjs --check || failed=1
           run_case discovery_generated_check node scripts/surface-contract-discovery.mjs --check || failed=1
