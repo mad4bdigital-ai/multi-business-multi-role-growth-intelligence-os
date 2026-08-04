@@ -1,6 +1,6 @@
-name: Validation-only Job Log Evidence Collector 92089113048
+name: Validation-only Job Log Evidence Collector 92110258315
 
-run-name: Collect immutable evidence for job 92089113048
+run-name: Collect immutable evidence for job 92110258315
 
 on:
   pull_request:
@@ -15,7 +15,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: collect-job-log-evidence-92089113048
+  group: collect-job-log-evidence-92110258315
   cancel-in-progress: false
 
 jobs:
@@ -24,9 +24,9 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     env:
-      TARGET_JOB_ID: "92089113048"
-      TARGET_RUN_ID: "30938055248"
-      TARGET_HEAD_SHA: "058904a026aa39e22a8ff58ee5937c35383c92f5"
+      TARGET_JOB_ID: "92110258315"
+      TARGET_RUN_ID: "30944290007"
+      TARGET_HEAD_SHA: "77bed42b4249c3e9a4651900338447ba4aa7426a"
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Collect metadata and complete log
@@ -99,6 +99,7 @@ jobs:
               "AssertionError",
               "ERR_ASSERTION",
               "test-work-map-autofix-diagnostics",
+              "test-pipeline-connectivity-check",
               "Run focused repository write-boundary regressions",
               "expected",
               "actual",
@@ -148,7 +149,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: job-log-evidence-92089113048
+          name: job-log-evidence-92110258315
           path: evidence/
           if-no-files-found: error
           retention-days: 14
