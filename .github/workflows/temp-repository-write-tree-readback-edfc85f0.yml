@@ -1,0 +1,56 @@
+name: TEMP Current Main Tree Readback edfc85f0
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+    paths:
+      - '.github/workflows/temp-repository-write-tree-readback-edfc85f0.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  read-current-main-tree:
+    name: Read exact current-main tree
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR base snapshot
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+
+      - name: Verify immutable main identity and emit tree
+        shell: bash
+        env:
+          EXPECTED_BASE_SHA: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "${EVENT_BASE_SHA}" = "${EXPECTED_BASE_SHA}"
+          actual_sha="$(git rev-parse HEAD)"
+          test "${actual_sha}" = "${EXPECTED_BASE_SHA}"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "${remote_main}" = "${EXPECTED_BASE_SHA}"
+          tree_sha="$(git rev-parse 'HEAD^{tree}')"
+          test -n "${tree_sha}"
+          printf 'commit_sha=%s\ntree_sha=%s\n' "${actual_sha}" "${tree_sha}" | tee tree-readback.txt
+          {
+            echo '### Exact current-main tree readback'
+            echo
+            echo "- commit: \`${actual_sha}\`"
+            echo "- tree: \`${tree_sha}\`"
+            echo '- repository write: false'
+            echo '- secrets included: false'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload bounded readback
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-write-tree-readback-${{ github.run_id }}
+          path: tree-readback.txt
+          if-no-files-found: error
+          retention-days: 3
