@@ -1,0 +1,133 @@
+name: Exact Runtime Parity Final Head Validation c58ee81
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/exact-runtime-parity-final-head-validation-c58ee81.yml
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: exact-runtime-parity-final-head-validation-c58ee81
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate/runtime-parity-final-head-c58ee81-20260804' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.actor == 'mad4bdigital-ai'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      TARGET_PR: '5985'
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      TARGET_SHA: c58ee81cc0bf817cf8e6cd396cde3574800b928c
+      EVIDENCE_DIR: ${{ runner.temp }}/runtime-parity-final-head-validation-c58ee81
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout immutable target head
+        uses: actions/checkout@v4
+        with:
+          ref: c58ee81cc0bf817cf8e6cd396cde3574800b928c
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify target identity, topology, and exact scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = main
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${TARGET_SHA}"
+
+          compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${TARGET_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = 0
+          status="$(jq -r '.status' <<<"${compare_json}")"
+          [[ "${status}" = ahead || "${status}" = identical ]]
+
+          actual_scope="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}/files" --jq '.[].filename' | sort)"
+          expected_scope="$(printf '%s\n' \
+            '.changes/e2e/production-runtime-parity-comment-bridge.json' \
+            '.github/workflows/production-runtime-parity-comment-bridge.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' \
+            'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs' | sort)"
+          test "${actual_scope}" = "${expected_scope}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Validate bridge and generated Work Maps
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+
+          node --check http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs \
+            | tee "${EVIDENCE_DIR}/bridge-test.json"
+
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check \
+            | tee "${EVIDENCE_DIR}/work-map-check.log"
+
+          REPORT_PATH="${EVIDENCE_DIR}/work-map-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            | tee "${EVIDENCE_DIR}/work-map-readback-stdout.json"
+
+          node - "${EVIDENCE_DIR}/work-map-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Write bounded validation evidence
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          jq -n \
+            --arg contract 'mad4b.runtime-parity-final-head-validation.v1' \
+            --arg target_pr "${TARGET_PR}" \
+            --arg target_branch "${TARGET_BRANCH}" \
+            --arg target_sha "${TARGET_SHA}" \
+            --arg outcome "${{ job.status }}" \
+            '{contract:$contract,target_pr:($target_pr|tonumber),target_branch:$target_branch,target_sha:$target_sha,outcome:$outcome,exact_head_checkout:true,scope_bounded:true,work_map_generation_check:true,structured_readback:true,production_mutation:false,protected_ref_mutation:false,provider_calls:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,force_push:false,secrets_included:false,external_send:false}' \
+            > "${EVIDENCE_DIR}/validation-summary.json"
+          {
+            echo '## Exact Runtime Parity Final Head Validation'
+            echo
+            echo "- Target PR: #${TARGET_PR}"
+            echo "- Target SHA: \`${TARGET_SHA}\`"
+            echo "- Outcome: \`${{ job.status }}\`"
+            echo '- Protected/Production mutation: `false`'
+            echo '- Force push: `false`'
+            echo '- Secrets included: `false`'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload bounded validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-parity-final-head-validation-c58ee81-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
