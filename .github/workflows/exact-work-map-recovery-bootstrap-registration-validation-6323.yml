@@ -1,0 +1,105 @@
+name: Exact Work Map Recovery Bootstrap Registration Validation 6323
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/work-map-recovery-bootstrap-registration-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact registration candidate
+        id: validation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-registration-validation"
+          mkdir -p "$evidence"
+          expected_head='f98f5af6aa71d60e5f84a5a2b4f65770a762b6ea'
+          expected_main='0c0cd4f5a9b4a05ff94582cf6b60abc4aa4b0802'
+
+          test "$(git rev-parse HEAD)" = "$expected_head"
+          git fetch --no-tags origin "$expected_main"
+          git diff --name-status "$expected_main...$expected_head" | sort > "$evidence/actual-scope.txt"
+          cat > "$evidence/expected-scope.txt" <<'EOF'
+          M	.github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          M	http-generic-api/test-work-map-autofix-diagnostics.mjs
+          EOF
+          sort -o "$evidence/expected-scope.txt" "$evidence/expected-scope.txt"
+          diff -u "$evidence/expected-scope.txt" "$evidence/actual-scope.txt"
+
+          test "$(git hash-object .github/workflows/spec-kit-work-map-recovery-bootstrap.yml)" = 'd09303f04da379ac850fbb5459c19917329ef3b2'
+          test "$(git hash-object http-generic-api/test-work-map-autofix-diagnostics.mjs)" = 'd4d413a22026a9cd8a3eb97f112eceb9481b4e10'
+
+          node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
+
+          ! grep -Eq '^      REPORT_DIR: \$\{\{[[:space:]]*runner\.temp[[:space:]]*\}\}' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'Initialize bounded report directory after runner allocation' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'report_dir="${RUNNER_TEMP}/spec-kit-work-map-recovery-bootstrap"' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'actions: write' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'contents: read' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          grep -Fq 'issues: write' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          ! grep -Fq 'contents: write' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          ! grep -Eq 'git (add|commit|push)|--force|force-with-lease' .github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+
+          jq -n \
+            --arg head "$(git rev-parse HEAD)" \
+            --arg expected_main "$expected_main" \
+            '{contract:"work_map_recovery_bootstrap_registration_validation.v1",ok:true,head_sha:$head,expected_main_sha:$expected_main,exact_two_file_scope:true,focused_regression_passed:true,report_directory_initialized_after_runner_allocation:true,actions_write_preserved:true,contents_write:false,direct_writer_dispatch:false,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' \
+            > "$evidence/result.json"
+
+      - name: Write fail-closed result
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-registration-validation"
+          mkdir -p "$evidence"
+          if [[ ! -f "$evidence/result.json" ]]; then
+            jq -n --arg outcome "$VALIDATION_OUTCOME" '{contract:"work_map_recovery_bootstrap_registration_validation.v1",ok:false,validation_outcome:$outcome,exact_two_file_scope:false,focused_regression_passed:false,report_directory_initialized_after_runner_allocation:false,contents_write:false,direct_writer_dispatch:false,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
+          fi
+          cat "$evidence/result.json"
+
+      - name: Upload registration validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-recovery-bootstrap-registration-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-recovery-bootstrap-registration-validation/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce registration validation
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          test "$VALIDATION_OUTCOME" = success
+          jq -e '.ok == true and .exact_two_file_scope == true and .focused_regression_passed == true and .report_directory_initialized_after_runner_allocation == true and .contents_write == false and .direct_repository_mutation == false and .protected_branch_mutation == false and .force_push == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-bootstrap-registration-validation/result.json" >/dev/null
