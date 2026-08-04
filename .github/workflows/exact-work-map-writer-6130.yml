@@ -1,0 +1,148 @@
+name: Exact Work Map Writer 6130
+
+on:
+  pull_request:
+    branches:
+      - gpt/work-map-writer-base-81a254bf-7332282-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-work-map-writer-6130
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish deterministic Work Maps for runner pinning
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/critical-runner-pinning-main-81a254bf-20260804' &&
+      github.event.pull_request.head.sha == '7332282dec226b92a3ef388469372c1ad3d6e316'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: 81a254bfae492e33526f92ec2241f2d927790de2
+      EXPECTED_HEAD_SHA: 7332282dec226b92a3ef388469372c1ad3d6e316
+      TARGET_BRANCH: gpt/critical-runner-pinning-main-81a254bf-20260804
+      EXPECTED_DIFF_HASH: ee7bc1f463a5660cc2f0a985698856bfc94afe65245ba2f4bd734f6e45b87120
+    steps:
+      - name: Checkout exact authorized head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable baseline and initialize evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_ROOT="${RUNNER_TEMP}/work-map-writer-${GITHUB_RUN_ID}"
+          mkdir -p "${EVIDENCE_ROOT}"
+          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git diff --name-only "${EXPECTED_MAIN_SHA}" "${EXPECTED_HEAD_SHA}" | LC_ALL=C sort > "${EVIDENCE_ROOT}/source-files.txt"
+          test "$(wc -l < "${EVIDENCE_ROOT}/source-files.txt" | tr -d ' ')" = "11"
+          test -z "$(git status --porcelain)"
+
+      - name: Validate generator and governance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity.log"
+          node http-generic-api/test-pipeline-connectivity-check.mjs 2>&1 | tee "${EVIDENCE_ROOT}/pipeline-connectivity-regression.log"
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification-contract.log"
+          node http-generic-api/scripts/work-map-schema-classification.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification.log"
+          node http-generic-api/test-work-map-schema-classification.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification-regression.log"
+          node http-generic-api/test-work-map-schema-classification-contract.mjs 2>&1 | tee "${EVIDENCE_ROOT}/classification-contract-regression.log"
+
+      - name: Generate exact idempotent Work Map changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee "${EVIDENCE_ROOT}/generator-first.log"
+          unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
+          test -z "${unexpected}"
+          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${EVIDENCE_ROOT}/generated-files.txt"
+          cat > /tmp/expected-generated-files.txt <<'EOF'
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          EOF
+          diff -u /tmp/expected-generated-files.txt "${EVIDENCE_ROOT}/generated-files.txt"
+          git diff --binary -- docs/work-maps > "${EVIDENCE_ROOT}/generated.patch"
+          first_hash="$(sha256sum "${EVIDENCE_ROOT}/generated.patch" | awk '{print $1}')"
+          test "${first_hash}" = "${EXPECTED_DIFF_HASH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write 2>&1 | tee "${EVIDENCE_ROOT}/generator-second.log"
+          git diff --binary -- docs/work-maps > "${EVIDENCE_ROOT}/generated-second.patch"
+          second_hash="$(sha256sum "${EVIDENCE_ROOT}/generated-second.patch" | awk '{print $1}')"
+          test "${second_hash}" = "${EXPECTED_DIFF_HASH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check 2>&1 | tee "${EVIDENCE_ROOT}/generator-check.log"
+          git diff --check
+          git diff --stat -- docs/work-maps | tee "${EVIDENCE_ROOT}/generated-stat.txt"
+
+      - name: Commit exact generated files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" = "2"
+          git commit -m 'docs(work-maps): regenerate runner allocation maps'
+          printf 'RESULT_HEAD_SHA=%s\n' "$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Push without force after final compare-and-swap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          test "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" = "${RESULT_HEAD_SHA}"
+          cat > "${EVIDENCE_ROOT}/summary.json" <<EOF
+          {
+            "contract": "exact_work_map_writer_6130.v1",
+            "source_head_sha": "${EXPECTED_HEAD_SHA}",
+            "result_head_sha": "${RESULT_HEAD_SHA}",
+            "main_sha": "${EXPECTED_MAIN_SHA}",
+            "generated_file_count": 2,
+            "generated_diff_sha256": "${EXPECTED_DIFF_HASH}",
+            "idempotent": true,
+            "push_without_force": true,
+            "protected_ref_mutation": false,
+            "deployment": false,
+            "provider_call": false,
+            "credential_access": false,
+            "sql": false,
+            "migration_apply": false,
+            "database_mutation": false,
+            "external_send": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload bounded writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-writer-6130-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_ROOT }}
+          if-no-files-found: warn
+          retention-days: 14
