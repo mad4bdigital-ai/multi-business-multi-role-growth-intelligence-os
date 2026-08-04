@@ -1,0 +1,1984 @@
+{
+  "schema_version": "resource-api-surface-callability-v1",
+  "source_queue_schema": "surface-contract-gap-queue-v1",
+  "source_queue_item_count": 20,
+  "source_scope_source": "sql_registry_and_committed_manifest_v1",
+  "source_queue_total_item_count": 26,
+  "source_queue_excluded_item_count": 6,
+  "remaining_scoped_queue_item_count": 0,
+  "source_queue_tool_keys": [
+    "brand_workspace_context_resolve",
+    "connect_credential_intake_wait",
+    "credential_intake_connection_status",
+    "platform_resource_context_catalog",
+    "platform_resource_context_diagnostic_handoff",
+    "platform_resource_context_related",
+    "platform_resource_context_resolve",
+    "tenant_agent_surface_deployment_upsert",
+    "tenant_agent_surface_preferences_update",
+    "tenant_agent_surfaces_catalog",
+    "tenant_agent_surfaces_get",
+    "tenant_agent_surfaces_readiness",
+    "tenant_capability_registry_read",
+    "tenant_database_connection_status",
+    "tenant_database_preflight",
+    "tenant_database_query_readonly",
+    "tenant_database_schema_read",
+    "tenant_docs_catalog",
+    "tenant_gpt_operating_guide_read",
+    "tenant_ssh_cli_allowlisted_dry_run",
+    "tenant_ssh_cli_allowlisted_execute",
+    "tenant_ssh_cli_approval_request_create",
+    "tenant_ssh_cli_approval_request_decide",
+    "tenant_ssh_cli_approval_request_status",
+    "tenant_ssh_cli_execute_job_result",
+    "tenant_ssh_connection_status",
+    "tenant_ssh_preflight",
+    "tenant_ssh_probe",
+    "workspace_access_request_cancel",
+    "workspace_assets_list",
+    "workspace_invitation_resend",
+    "workspace_invitation_revoke",
+    "workspace_invitations_expire_stale",
+    "workspace_member_remove",
+    "workspace_member_update",
+    "workspace_my_access_requests_list",
+    "workspace_ownership_transfer",
+    "workspace_resource_grant_create",
+    "workspace_resource_grant_revoke",
+    "workspace_resource_grants_list",
+    "workspace_vaults_list"
+  ],
+  "contracts": [
+    {
+      "contract_key": "surface_route_family_01",
+      "tool_bindings": [
+        {
+          "tool_key": "connect_credential_intake_wait",
+          "migration_file": "migrations/205_sprint66_tenant_ssh_password_and_intake_wait.sql",
+          "migration_markers": [
+            "'connect_credential_intake_wait'",
+            "'GET'",
+            "'/connect/api/credential-intake/sessions/{session_id}/wait'"
+          ]
+        }
+      ],
+      "route_signature": "GET /connect/api/credential-intake/sessions/{session_id}/wait",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/connectApiRoutes.js",
+      "route_markers": [
+        "router.get(\"/connect/api/credential-intake/sessions/:session_id/wait\"",
+        "router.use(\"/connect/api\", requireUserJwt",
+        "/connect/api/credential-intake/sessions/:session_id/wait"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildConnectApiRoutes }",
+        "app.use(buildConnectApiRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: connect_credential_intake_wait",
+        "FULL_CLOSURE_ROUTE: GET /connect/api/credential-intake/sessions/{session_id}/wait"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /connect/api/credential-intake/sessions/{session_id}/wait:",
+        "    get:",
+        "operationId: waitConnectCredentialIntakeSession"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_02",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_my_access_requests_list",
+          "migration_file": "migrations/201_sprint68_workspace_access_request_control_tools.sql",
+          "migration_markers": [
+            "'workspace_my_access_requests_list'",
+            "'GET'",
+            "'/me/access-requests'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/access-requests",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/access-requests\"",
+        "/me/access-requests",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_my_access_requests_list",
+        "FULL_CLOSURE_ROUTE: GET /me/access-requests"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/access-requests:",
+        "    get:",
+        "operationId: getMeAccessRequests9a2a3346",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_03",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_agent_surfaces_get",
+          "migration_file": "migrations/1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+          "migration_markers": [
+            "'tenant_agent_surfaces_get'",
+            "'GET'",
+            "'/me/agent-surfaces'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/agent-surfaces",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/agentSurfaceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/agent-surfaces\"",
+        "/me/agent-surfaces",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildAgentSurfaceRoutes }",
+        "app.use(buildAgentSurfaceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_agent_surfaces_get",
+        "FULL_CLOSURE_ROUTE: GET /me/agent-surfaces"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/agent-surfaces:",
+        "    get:",
+        "operationId: getTenantAgentSurfaces"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_04",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_agent_surfaces_catalog",
+          "migration_file": "migrations/1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+          "migration_markers": [
+            "'tenant_agent_surfaces_catalog'",
+            "'GET'",
+            "'/me/agent-surfaces/catalog'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/agent-surfaces/catalog",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/agentSurfaceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/agent-surfaces/catalog\"",
+        "/me/agent-surfaces/catalog",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildAgentSurfaceRoutes }",
+        "app.use(buildAgentSurfaceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_agent_surfaces_catalog",
+        "FULL_CLOSURE_ROUTE: GET /me/agent-surfaces/catalog"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/agent-surfaces/catalog:",
+        "    get:",
+        "operationId: listAgentSurfaceCatalog"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_05",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_agent_surfaces_readiness",
+          "migration_file": "migrations/1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+          "migration_markers": [
+            "'tenant_agent_surfaces_readiness'",
+            "'GET'",
+            "'/me/agent-surfaces/readiness'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/agent-surfaces/readiness",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/agentSurfaceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/agent-surfaces/readiness\"",
+        "/me/agent-surfaces/readiness",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildAgentSurfaceRoutes }",
+        "app.use(buildAgentSurfaceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_agent_surfaces_readiness",
+        "FULL_CLOSURE_ROUTE: GET /me/agent-surfaces/readiness"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/agent-surfaces/readiness:",
+        "    get:",
+        "operationId: getTenantAgentSurfaceReadiness"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_06",
+      "tool_bindings": [
+        {
+          "tool_key": "credential_intake_connection_status",
+          "migration_file": "migrations/191_sprint66_tenant_credential_intake_connection_status.sql",
+          "migration_markers": [
+            "'credential_intake_connection_status'",
+            "'GET'",
+            "'/me/connections/{connection_id}/credential-intake-status'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/connections/{connection_id}/credential-intake-status",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/connections/:connection_id/credential-intake-status\"",
+        "/me/connections/:connection_id/credential-intake-status",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: credential_intake_connection_status",
+        "FULL_CLOSURE_ROUTE: GET /me/connections/{connection_id}/credential-intake-status"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/connections/{connection_id}/credential-intake-status:",
+        "    get:",
+        "operationId: credentialIntakeConnectionStatus"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_07",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_database_connection_status",
+          "migration_file": "migrations/194_sprint66_tenant_infrastructure_readiness_tools.sql",
+          "migration_markers": [
+            "'tenant_database_connection_status'",
+            "'GET'",
+            "'/me/infrastructure/connections/{connection_id}/status'"
+          ]
+        },
+        {
+          "tool_key": "tenant_ssh_connection_status",
+          "migration_file": "migrations/194_sprint66_tenant_infrastructure_readiness_tools.sql",
+          "migration_markers": [
+            "'tenant_ssh_connection_status'",
+            "'GET'",
+            "'/me/infrastructure/connections/{connection_id}/status'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/infrastructure/connections/{connection_id}/status",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/infrastructure/connections/:connection_id/status\"",
+        "/me/infrastructure/connections/:connection_id/status",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_database_connection_status",
+        "FULL_CLOSURE_TOOL: tenant_ssh_connection_status",
+        "FULL_CLOSURE_ROUTE: GET /me/infrastructure/connections/{connection_id}/status"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/connections/{connection_id}/status:",
+        "    get:",
+        "operationId: getMeInfrastructureConnectionsByConnectionIdStatusb88eb07e",
+        "x-source-file: routes/tenantInfrastructureRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_08",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_database_schema_read",
+          "migration_file": "migrations/196_sprint66_tenant_database_schema_read_tool.sql",
+          "migration_markers": [
+            "'tenant_database_schema_read'",
+            "'GET'",
+            "'/me/infrastructure/database/connections/{connection_id}/schema'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/infrastructure/database/connections/{connection_id}/schema",
+      "effect_class": "provider_read",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": true,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": true,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/infrastructure/database/connections/:connection_id/schema\"",
+        "/me/infrastructure/database/connections/:connection_id/schema",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_database_schema_read",
+        "FULL_CLOSURE_ROUTE: GET /me/infrastructure/database/connections/{connection_id}/schema"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/database/connections/{connection_id}/schema:",
+        "    get:",
+        "operationId: getMeInfrastructureDatabaseConnectionsByConnectionIdSchema58b69789",
+        "x-source-file: routes/tenantInfrastructureRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "provider_read_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "readRemoteDatabaseSchema(",
+            "source: \"information_schema\"",
+            "SET SESSION TRANSACTION READ ONLY"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_09",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_approval_request_status",
+          "migration_file": "migrations/201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_approval_request_status'",
+            "'GET'",
+            "'/me/infrastructure/ssh/cli/approval-requests/{request_id}'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/infrastructure/ssh/cli/approval-requests/{request_id}",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/infrastructure/ssh/cli/approval-requests/:request_id\"",
+        "/me/infrastructure/ssh/cli/approval-requests/:request_id",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_approval_request_status",
+        "FULL_CLOSURE_ROUTE: GET /me/infrastructure/ssh/cli/approval-requests/{request_id}"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/cli/approval-requests/{request_id}:",
+        "    get:",
+        "operationId: tenantSshCliApprovalRequestStatus"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_10",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_execute_job_result",
+          "migration_file": "migrations/204_sprint66_tenant_ssh_cli_execute_job_result_tool.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_execute_job_result'",
+            "'GET'",
+            "'/me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/infrastructure/ssh/connections/:connection_id/cli/execute-jobs/:job_id/result\"",
+        "/me/infrastructure/ssh/connections/:connection_id/cli/execute-jobs/:job_id/result",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_execute_job_result",
+        "FULL_CLOSURE_ROUTE: GET /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/connections/{connection_id}/cli/execute-jobs/{job_id}/result:",
+        "    get:",
+        "operationId: tenantSshCliExecuteJobResult"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_11",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_assets_list",
+          "migration_file": "migrations/193_sprint67_workspace_resource_authority_foundation.sql",
+          "migration_markers": [
+            "'workspace_assets_list'",
+            "'GET'",
+            "'/me/workspaces/{tenant_id}/assets'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/workspaces/{tenant_id}/assets",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/workspaceResourceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/workspaces/:tenant_id/assets\"",
+        "/me/workspaces/:tenant_id/assets",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildWorkspaceResourceRoutes }",
+        "app.use(buildWorkspaceResourceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_assets_list",
+        "FULL_CLOSURE_ROUTE: GET /me/workspaces/{tenant_id}/assets"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/assets:",
+        "    get:",
+        "operationId: getMeWorkspacesByTenantIdAssets3d4f26ac",
+        "x-source-file: routes/workspaceResourceRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_12",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_resource_grants_list",
+          "migration_file": "migrations/193_sprint67_workspace_resource_authority_foundation.sql",
+          "migration_markers": [
+            "'workspace_resource_grants_list'",
+            "'GET'",
+            "'/me/workspaces/{tenant_id}/resource-grants'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/workspaces/{tenant_id}/resource-grants",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/workspaceResourceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/workspaces/:tenant_id/resource-grants\"",
+        "/me/workspaces/:tenant_id/resource-grants",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildWorkspaceResourceRoutes }",
+        "app.use(buildWorkspaceResourceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_resource_grants_list",
+        "FULL_CLOSURE_ROUTE: GET /me/workspaces/{tenant_id}/resource-grants"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/resource-grants:",
+        "    get:",
+        "operationId: getMeWorkspacesByTenantIdResourceGrants6d84f19c",
+        "x-source-file: routes/workspaceResourceRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_13",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_vaults_list",
+          "migration_file": "migrations/193_sprint67_workspace_resource_authority_foundation.sql",
+          "migration_markers": [
+            "'workspace_vaults_list'",
+            "'GET'",
+            "'/me/workspaces/{tenant_id}/vaults'"
+          ]
+        }
+      ],
+      "route_signature": "GET /me/workspaces/{tenant_id}/vaults",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/workspaceResourceRoutes.js",
+      "route_markers": [
+        "router.get(\"/me/workspaces/:tenant_id/vaults\"",
+        "/me/workspaces/:tenant_id/vaults",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildWorkspaceResourceRoutes }",
+        "app.use(buildWorkspaceResourceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_vaults_list",
+        "FULL_CLOSURE_ROUTE: GET /me/workspaces/{tenant_id}/vaults"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/vaults:",
+        "    get:",
+        "operationId: getMeWorkspacesByTenantIdVaultsad928e4b",
+        "x-source-file: routes/workspaceResourceRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_14",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_docs_catalog",
+          "migration_file": "migrations/189_sprint66_tenant_gpt_operating_guide_tools.sql",
+          "migration_markers": [
+            "'tenant_docs_catalog'",
+            "'GET'",
+            "'/tenant/docs'"
+          ]
+        }
+      ],
+      "route_signature": "GET /tenant/docs",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantDocsRoutes.js",
+      "route_markers": [
+        "router.get(\"/tenant/docs\"",
+        "/tenant/docs",
+        "requireTenantUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantDocsRoutes }",
+        "app.use(buildTenantDocsRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_docs_catalog",
+        "FULL_CLOSURE_ROUTE: GET /tenant/docs"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /tenant/docs:",
+        "    get:",
+        "operationId: tenantDocsCatalog"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_15",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_capability_registry_read",
+          "migration_file": "migrations/189_sprint66_tenant_gpt_operating_guide_tools.sql",
+          "migration_markers": [
+            "'tenant_capability_registry_read'",
+            "'GET'",
+            "'/tenant/docs/read'"
+          ]
+        },
+        {
+          "tool_key": "tenant_gpt_operating_guide_read",
+          "migration_file": "migrations/189_sprint66_tenant_gpt_operating_guide_tools.sql",
+          "migration_markers": [
+            "'tenant_gpt_operating_guide_read'",
+            "'GET'",
+            "'/tenant/docs/read'"
+          ]
+        }
+      ],
+      "route_signature": "GET /tenant/docs/read",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantDocsRoutes.js",
+      "route_markers": [
+        "router.get(\"/tenant/docs/read\"",
+        "/tenant/docs/read",
+        "requireTenantUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantDocsRoutes }",
+        "app.use(buildTenantDocsRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_capability_registry_read",
+        "FULL_CLOSURE_TOOL: tenant_gpt_operating_guide_read",
+        "FULL_CLOSURE_ROUTE: GET /tenant/docs/read"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /tenant/docs/read:",
+        "    get:",
+        "operationId: tenantDocRead"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_16",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_member_update",
+          "migration_file": "migrations/199_sprint68_workspace_ownership_member_control_tools.sql",
+          "migration_markers": [
+            "'workspace_member_update'",
+            "'PATCH'",
+            "'/me/workspaces/{tenant_id}/members/{user_id}'"
+          ]
+        }
+      ],
+      "route_signature": "PATCH /me/workspaces/{tenant_id}/members/{user_id}",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.patch(\"/me/workspaces/:tenant_id/members/:user_id\"",
+        "/me/workspaces/:tenant_id/members/:user_id",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_member_update",
+        "FULL_CLOSURE_ROUTE: PATCH /me/workspaces/{tenant_id}/members/{user_id}"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/members/{user_id}:",
+        "    patch:",
+        "operationId: patchMeWorkspacesByTenantIdMembersByUserId9a94cdff",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_member_update",
+            "MUTATION_READBACK: workspace_member_update"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_17",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_database_preflight",
+          "migration_file": "migrations/194_sprint66_tenant_infrastructure_readiness_tools.sql",
+          "migration_markers": [
+            "'tenant_database_preflight'",
+            "'POST'",
+            "'/me/infrastructure/connections/{connection_id}/preflight'"
+          ]
+        },
+        {
+          "tool_key": "tenant_ssh_preflight",
+          "migration_file": "migrations/194_sprint66_tenant_infrastructure_readiness_tools.sql",
+          "migration_markers": [
+            "'tenant_ssh_preflight'",
+            "'POST'",
+            "'/me/infrastructure/connections/{connection_id}/preflight'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/connections/{connection_id}/preflight",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/connections/:connection_id/preflight\"",
+        "/me/infrastructure/connections/:connection_id/preflight",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_database_preflight",
+        "FULL_CLOSURE_TOOL: tenant_ssh_preflight",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/connections/{connection_id}/preflight"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/connections/{connection_id}/preflight:",
+        "    post:",
+        "operationId: postMeInfrastructureConnectionsByConnectionIdPreflight3f777409",
+        "x-source-file: routes/tenantInfrastructureRoutes.js"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_18",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_database_query_readonly",
+          "migration_file": "migrations/197_sprint66_tenant_database_query_readonly_tool.sql",
+          "migration_markers": [
+            "'tenant_database_query_readonly'",
+            "'POST'",
+            "'/me/infrastructure/database/connections/{connection_id}/query-readonly'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/database/connections/{connection_id}/query-readonly",
+      "effect_class": "provider_read",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": true,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": true,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/database/connections/:connection_id/query-readonly\"",
+        "/me/infrastructure/database/connections/:connection_id/query-readonly",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_database_query_readonly",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/database/connections/{connection_id}/query-readonly"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/database/connections/{connection_id}/query-readonly:",
+        "    post:",
+        "operationId: tenantDatabaseQueryReadonly"
+      ],
+      "evidence_files": [
+        {
+          "role": "provider_read_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "executeReadonlyDatabaseQuery(",
+            "source: \"tenant_database_query_readonly\"",
+            "read_only: true"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_19",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_approval_request_decide",
+          "migration_file": "migrations/201_sprint66_tenant_ssh_cli_approval_decision_tools.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_approval_request_decide'",
+            "'POST'",
+            "'/me/infrastructure/ssh/cli/approval-requests/{request_id}/decision'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/ssh/cli/approval-requests/{request_id}/decision",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/ssh/cli/approval-requests/:request_id/decision\"",
+        "/me/infrastructure/ssh/cli/approval-requests/:request_id/decision",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_approval_request_decide",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/ssh/cli/approval-requests/{request_id}/decision"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/cli/approval-requests/{request_id}/decision:",
+        "    post:",
+        "operationId: tenantSshCliApprovalRequestDecide"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: tenant_ssh_cli_approval_request_decide",
+            "MUTATION_READBACK: tenant_ssh_cli_approval_request_decide"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_20",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_approval_request_create",
+          "migration_file": "migrations/200_sprint66_tenant_ssh_cli_approval_request_tool.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_approval_request_create'",
+            "'POST'",
+            "'/me/infrastructure/ssh/connections/{connection_id}/cli/approval-request'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/approval-request",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/ssh/connections/:connection_id/cli/approval-request\"",
+        "/me/infrastructure/ssh/connections/:connection_id/cli/approval-request",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_approval_request_create",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/ssh/connections/{connection_id}/cli/approval-request"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/connections/{connection_id}/cli/approval-request:",
+        "    post:",
+        "operationId: tenantSshCliApprovalRequestCreate"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: tenant_ssh_cli_approval_request_create",
+            "MUTATION_READBACK: tenant_ssh_cli_approval_request_create"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_21",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_allowlisted_dry_run",
+          "migration_file": "migrations/199_sprint66_tenant_ssh_cli_dry_run_tool.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_allowlisted_dry_run'",
+            "'POST'",
+            "'/me/infrastructure/ssh/connections/{connection_id}/cli/dry-run'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run",
+      "effect_class": "read_only",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/ssh/connections/:connection_id/cli/dry-run\"",
+        "/me/infrastructure/ssh/connections/:connection_id/cli/dry-run",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_allowlisted_dry_run",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/connections/{connection_id}/cli/dry-run:",
+        "    post:",
+        "operationId: tenantSshCliAllowlistedDryRun"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_22",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_cli_allowlisted_execute",
+          "migration_file": "migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
+          "migration_markers": [
+            "'tenant_ssh_cli_allowlisted_execute'",
+            "'POST'",
+            "'/me/infrastructure/ssh/connections/{connection_id}/cli/execute'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/ssh/connections/{connection_id}/cli/execute",
+      "effect_class": "external_execute",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": true,
+      "external_writes_allowed": true,
+      "database_writes_allowed": true,
+      "transaction_required": false,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": true,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/ssh/connections/:connection_id/cli/execute\"",
+        "/me/infrastructure/ssh/connections/:connection_id/cli/execute",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_cli_allowlisted_execute",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/ssh/connections/{connection_id}/cli/execute"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/connections/{connection_id}/cli/execute:",
+        "    post:",
+        "operationId: tenantSshCliAllowlistedExecute"
+      ],
+      "evidence_files": [
+        {
+          "role": "external_execute_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "assertApprovedSshCliExecution(",
+            "executionFacade.submitJob(",
+            "executeApprovedSshCli(",
+            "approval_request_id",
+            "idempotency_key"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_23",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_ssh_probe",
+          "migration_file": "migrations/198_sprint66_tenant_ssh_probe_tool.sql",
+          "migration_markers": [
+            "'tenant_ssh_probe'",
+            "'POST'",
+            "'/me/infrastructure/ssh/connections/{connection_id}/probe'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/infrastructure/ssh/connections/{connection_id}/probe",
+      "effect_class": "provider_read",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": true,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": true,
+      "route_file": "routes/tenantInfrastructureRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/infrastructure/ssh/connections/:connection_id/probe\"",
+        "/me/infrastructure/ssh/connections/:connection_id/probe",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantInfrastructureRoutes }",
+        "app.use(buildTenantInfrastructureRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_ssh_probe",
+        "FULL_CLOSURE_ROUTE: POST /me/infrastructure/ssh/connections/{connection_id}/probe"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/infrastructure/ssh/connections/{connection_id}/probe:",
+        "    post:",
+        "operationId: tenantSshProbe"
+      ],
+      "evidence_files": [
+        {
+          "role": "provider_read_handler",
+          "file": "routes/tenantInfrastructureRoutes.js",
+          "markers": [
+            "probeSshTcpBanner(",
+            "ssh_banner_detected",
+            "command_executed: false"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_24",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_access_request_cancel",
+          "migration_file": "migrations/201_sprint68_workspace_access_request_control_tools.sql",
+          "migration_markers": [
+            "'workspace_access_request_cancel'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/access-requests/{request_id}/cancel'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/cancel\"",
+        "/me/workspaces/:tenant_id/access-requests/:request_id/cancel",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_access_request_cancel",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/access-requests/{request_id}/cancel:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdAccessRequestsByRequestIdCancelf504cdc7",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_access_request_cancel",
+            "MUTATION_READBACK: workspace_access_request_cancel"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_25",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_invitation_resend",
+          "migration_file": "migrations/200_sprint68_workspace_invitation_control_tools.sql",
+          "migration_markers": [
+            "'workspace_invitation_resend'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/invitations/{invitation_id}/resend'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/invitations/:invitation_id/resend\"",
+        "/me/workspaces/:tenant_id/invitations/:invitation_id/resend",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_invitation_resend",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/invitations/{invitation_id}/resend:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdInvitationsByInvitationIdResend4c57c689",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_invitation_resend",
+            "MUTATION_READBACK: workspace_invitation_resend"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_26",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_invitation_revoke",
+          "migration_file": "migrations/200_sprint68_workspace_invitation_control_tools.sql",
+          "migration_markers": [
+            "'workspace_invitation_revoke'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/invitations/:invitation_id/revoke\"",
+        "/me/workspaces/:tenant_id/invitations/:invitation_id/revoke",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_invitation_revoke",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/invitations/{invitation_id}/revoke:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdInvitationsByInvitationIdRevoke88ffb7b4",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_invitation_revoke",
+            "MUTATION_READBACK: workspace_invitation_revoke"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_27",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_invitations_expire_stale",
+          "migration_file": "migrations/200_sprint68_workspace_invitation_control_tools.sql",
+          "migration_markers": [
+            "'workspace_invitations_expire_stale'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/invitations/expire-stale'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/invitations/expire-stale",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/invitations/expire-stale\"",
+        "/me/workspaces/:tenant_id/invitations/expire-stale",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_invitations_expire_stale",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/invitations/expire-stale"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/invitations/expire-stale:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdInvitationsExpireStale9fe21774",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_invitations_expire_stale",
+            "MUTATION_READBACK: workspace_invitations_expire_stale"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_28",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_member_remove",
+          "migration_file": "migrations/199_sprint68_workspace_ownership_member_control_tools.sql",
+          "migration_markers": [
+            "'workspace_member_remove'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/members/{user_id}/remove'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/members/{user_id}/remove",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/members/:user_id/remove\"",
+        "/me/workspaces/:tenant_id/members/:user_id/remove",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_member_remove",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/members/{user_id}/remove"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/members/{user_id}/remove:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdMembersByUserIdRemove6d542ab5",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_member_remove",
+            "MUTATION_READBACK: workspace_member_remove"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_29",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_ownership_transfer",
+          "migration_file": "migrations/199_sprint68_workspace_ownership_member_control_tools.sql",
+          "migration_markers": [
+            "'workspace_ownership_transfer'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/ownership/transfer'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/ownership/transfer",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/tenantLifecycleRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/ownership/transfer\"",
+        "/me/workspaces/:tenant_id/ownership/transfer",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildTenantLifecycleRoutes }",
+        "app.use(buildTenantLifecycleRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_ownership_transfer",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/ownership/transfer"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/ownership/transfer:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdOwnershipTransfer1522ee89",
+        "x-source-file: routes/tenantLifecycleRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/tenantLifecycleRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_ownership_transfer",
+            "MUTATION_READBACK: workspace_ownership_transfer"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_30",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_resource_grant_create",
+          "migration_file": "migrations/194_sprint67_workspace_resource_grant_assignment_tools.sql",
+          "migration_markers": [
+            "'workspace_resource_grant_create'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/resource-grants'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/resource-grants",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/workspaceResourceRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/resource-grants\"",
+        "/me/workspaces/:tenant_id/resource-grants",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildWorkspaceResourceRoutes }",
+        "app.use(buildWorkspaceResourceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_resource_grant_create",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/resource-grants"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/resource-grants:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdResourceGrantsc249b397",
+        "x-source-file: routes/workspaceResourceRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/workspaceResourceRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_resource_grant_create",
+            "MUTATION_READBACK: workspace_resource_grant_create"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_31",
+      "tool_bindings": [
+        {
+          "tool_key": "workspace_resource_grant_revoke",
+          "migration_file": "migrations/194_sprint67_workspace_resource_grant_assignment_tools.sql",
+          "migration_markers": [
+            "'workspace_resource_grant_revoke'",
+            "'POST'",
+            "'/me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke'"
+          ]
+        }
+      ],
+      "route_signature": "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/workspaceResourceRoutes.js",
+      "route_markers": [
+        "router.post(\"/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke\"",
+        "/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildWorkspaceResourceRoutes }",
+        "app.use(buildWorkspaceResourceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: workspace_resource_grant_revoke",
+        "FULL_CLOSURE_ROUTE: POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke"
+      ],
+      "openapi_file": "openapi/frontend-runtime-routes.generated.yaml",
+      "openapi_markers": [
+        "  /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke:",
+        "    post:",
+        "operationId: postMeWorkspacesByTenantIdResourceGrantsByGrantIdRevoke59ecec8f",
+        "x-source-file: routes/workspaceResourceRoutes.js"
+      ],
+      "evidence_files": [
+        {
+          "role": "mutation_handler",
+          "file": "routes/workspaceResourceRoutes.js",
+          "markers": [
+            "MUTATION_TRANSACTION: workspace_resource_grant_revoke",
+            "MUTATION_READBACK: workspace_resource_grant_revoke"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_32",
+      "tool_bindings": [
+        {
+          "tool_key": "brand_workspace_context_resolve",
+          "migration_file": "migrations/1029_sprint69_minimal_dynamic_brand_resolution.sql",
+          "migration_markers": [
+            "'brand_workspace_context_resolve'",
+            "'POST'",
+            "'/system/tools/call'"
+          ]
+        },
+        {
+          "tool_key": "platform_resource_context_catalog",
+          "migration_file": "migrations/1030_sprint69_generic_platform_resource_context.sql",
+          "migration_markers": [
+            "'platform_resource_context_catalog'",
+            "'POST'",
+            "'/system/tools/call'"
+          ]
+        },
+        {
+          "tool_key": "platform_resource_context_diagnostic_handoff",
+          "migration_file": "migrations/1030_sprint69_generic_platform_resource_context.sql",
+          "migration_markers": [
+            "'platform_resource_context_diagnostic_handoff'",
+            "'POST'",
+            "'/system/tools/call'"
+          ]
+        },
+        {
+          "tool_key": "platform_resource_context_related",
+          "migration_file": "migrations/1030_sprint69_generic_platform_resource_context.sql",
+          "migration_markers": [
+            "'platform_resource_context_related'",
+            "'POST'",
+            "'/system/tools/call'"
+          ]
+        },
+        {
+          "tool_key": "platform_resource_context_resolve",
+          "migration_file": "migrations/1030_sprint69_generic_platform_resource_context.sql",
+          "migration_markers": [
+            "'platform_resource_context_resolve'",
+            "'POST'",
+            "'/system/tools/call'"
+          ]
+        }
+      ],
+      "route_signature": "POST /system/tools/call",
+      "effect_class": "read_only",
+      "auth_model": "backend_or_user",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": true,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": false,
+      "transaction_required": false,
+      "same_cycle_readback_required": false,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/systemLayerRoutes.js",
+      "route_markers": [
+        "router.post(\"/system/tools/call\"",
+        "/system/tools/call",
+        "dispatchToolForCaller"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildSystemLayerRoutes }",
+        "app.use(buildSystemLayerRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: brand_workspace_context_resolve",
+        "FULL_CLOSURE_TOOL: platform_resource_context_catalog",
+        "FULL_CLOSURE_TOOL: platform_resource_context_diagnostic_handoff",
+        "FULL_CLOSURE_TOOL: platform_resource_context_related",
+        "FULL_CLOSURE_TOOL: platform_resource_context_resolve",
+        "FULL_CLOSURE_ROUTE: POST /system/tools/call"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /system/tools/call:",
+        "    post:",
+        "operationId: callSystemTool"
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_33",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_agent_surface_deployment_upsert",
+          "migration_file": "migrations/1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+          "migration_markers": [
+            "'tenant_agent_surface_deployment_upsert'",
+            "'PUT'",
+            "'/me/agent-surfaces/{surface_key}/deployment'"
+          ]
+        }
+      ],
+      "route_signature": "PUT /me/agent-surfaces/{surface_key}/deployment",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/agentSurfaceRoutes.js",
+      "route_markers": [
+        "router.put(\"/me/agent-surfaces/:surface_key/deployment\"",
+        "/me/agent-surfaces/:surface_key/deployment",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildAgentSurfaceRoutes }",
+        "app.use(buildAgentSurfaceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_agent_surface_deployment_upsert",
+        "FULL_CLOSURE_ROUTE: PUT /me/agent-surfaces/{surface_key}/deployment"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/agent-surfaces/{surface_key}/deployment:",
+        "    put:",
+        "operationId: setTenantAgentSurfaceDeployment"
+      ],
+      "evidence_files": [
+        {
+          "role": "application_service",
+          "file": "agentSurfaceRuntimeService.js",
+          "markers": [
+            "MUTATION_TRANSACTION: tenant_agent_surface_deployment_upsert",
+            "MUTATION_READBACK: tenant_agent_surface_deployment_upsert"
+          ]
+        }
+      ]
+    },
+    {
+      "contract_key": "surface_route_family_34",
+      "tool_bindings": [
+        {
+          "tool_key": "tenant_agent_surface_preferences_update",
+          "migration_file": "migrations/1020_sprint69_multi_surface_tenant_agent_runtime.sql",
+          "migration_markers": [
+            "'tenant_agent_surface_preferences_update'",
+            "'PUT'",
+            "'/me/agent-surfaces/{surface_key}/preferences'"
+          ]
+        }
+      ],
+      "route_signature": "PUT /me/agent-surfaces/{surface_key}/preferences",
+      "effect_class": "database_mutation",
+      "auth_model": "user_jwt",
+      "runtime_execution_allowed": true,
+      "secrets_included": false,
+      "read_only": false,
+      "provider_calls_allowed": false,
+      "external_writes_allowed": false,
+      "database_writes_allowed": true,
+      "transaction_required": true,
+      "same_cycle_readback_required": true,
+      "credential_payload_reads_allowed": false,
+      "route_file": "routes/agentSurfaceRoutes.js",
+      "route_markers": [
+        "router.put(\"/me/agent-surfaces/:surface_key/preferences\"",
+        "/me/agent-surfaces/:surface_key/preferences",
+        "requireUserJwt"
+      ],
+      "mount_file": "routes/index.js",
+      "mount_markers": [
+        "import { buildAgentSurfaceRoutes }",
+        "app.use(buildAgentSurfaceRoutes"
+      ],
+      "test_file": "test-surface-callability-full-closure.mjs",
+      "test_markers": [
+        "SURFACE_CALLABILITY_FULL_CLOSURE",
+        "FULL_CLOSURE_TOOL: tenant_agent_surface_preferences_update",
+        "FULL_CLOSURE_ROUTE: PUT /me/agent-surfaces/{surface_key}/preferences"
+      ],
+      "openapi_file": "openapi.yaml",
+      "openapi_markers": [
+        "  /me/agent-surfaces/{surface_key}/preferences:",
+        "    put:",
+        "operationId: replaceOwnAgentSurfacePreferences"
+      ],
+      "evidence_files": [
+        {
+          "role": "application_service",
+          "file": "agentSurfaceRuntimeService.js",
+          "markers": [
+            "MUTATION_TRANSACTION: tenant_agent_surface_preferences_update",
+            "MUTATION_READBACK: tenant_agent_surface_preferences_update"
+          ]
+        }
+      ]
+    }
+  ],
+  "generated_by": "scripts/surface-callability-closure/generate_closure_contracts.mjs",
+  "secrets_included": false
+}
