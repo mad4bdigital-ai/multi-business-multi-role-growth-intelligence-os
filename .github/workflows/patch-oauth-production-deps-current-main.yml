@@ -77,18 +77,26 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          mkdir -p "$REPORT_DIR"
+          trap 'status=$?; { echo "status=$status"; echo "line=$LINENO"; echo "command=$BASH_COMMAND"; echo "head=$(git rev-parse HEAD)"; echo "main=$MAIN_SHA"; echo "git_status:"; git status --short; echo "name_status:"; git diff --name-status "$MAIN_SHA"; echo "numstat:"; git diff --numstat "$MAIN_SHA"; } | tee "$REPORT_DIR/apply-failure.txt"; exit "$status"' ERR
+
           paths=(
             .changes/e2e/spec012-oauth-production-dependency-composition.json
             http-generic-api/routes/index.js
             http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           )
           for path in "${paths[@]}"; do
+            echo "Applying reviewed blob: $path"
             mkdir -p "$(dirname "$path")"
             git show "$SOURCE_SHA:$path" > "$path"
+            source_blob="$(git rev-parse "$SOURCE_SHA:$path")"
+            applied_blob="$(git hash-object "$path")"
+            test "$applied_blob" = "$source_blob"
           done
           rm "$MARKER_PATH"
 
           mapfile -t changed < <(git diff --name-only "$MAIN_SHA" | sort)
+          printf 'Changed files relative to pinned main:\n%s\n' "$(printf '%s\n' "${changed[@]}")"
           test "${#changed[@]}" -eq 3
           test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${paths[@]}" | sort)"
           grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes(deps));' http-generic-api/routes/index.js
@@ -96,8 +104,13 @@ jobs:
             echo 'Stale dependency-free production mount remains.' >&2
             exit 1
           fi
-          test "$(git diff --numstat "$MAIN_SHA" -- http-generic-api/routes/index.js | awk '{print $1":"$2}')" = '1:1'
-          test "$(git diff --numstat "$MAIN_SHA" -- http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs | awk '{print $1":"$2}')" = '1:1'
+          routes_stat="$(git diff --numstat "$MAIN_SHA" -- http-generic-api/routes/index.js | awk '{print $1":"$2}')"
+          wiring_stat="$(git diff --numstat "$MAIN_SHA" -- http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs | awk '{print $1":"$2}')"
+          echo "routes_stat=$routes_stat"
+          echo "wiring_stat=$wiring_stat"
+          test "$routes_stat" = '1:1'
+          test "$wiring_stat" = '1:1'
+          printf 'apply_result=pass\n' > "$REPORT_DIR/apply-result.txt"
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
