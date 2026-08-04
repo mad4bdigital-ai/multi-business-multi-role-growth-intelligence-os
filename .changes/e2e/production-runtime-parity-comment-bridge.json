@@ -11,6 +11,8 @@
       ".github/workflows/production-runtime-parity-comment-bridge.yml",
       "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
       "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
       "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
       "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
       "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
@@ -21,7 +23,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Expose one registered, secret-free, issue-comment-triggered route for executing the existing canonical Production runtime parity reporter against the exact current protected Production SHA when direct workflow_dispatch is unavailable to the governed repository connector, while ensuring that a generated Work Map binding alone does not falsely claim parallel Spec ownership of this independently governed single-PR runtime change.",
+      "objective": "Expose one registered, secret-free, issue-comment-triggered route for executing the existing canonical Production runtime parity reporter against the exact current protected Production SHA when direct workflow_dispatch is unavailable to the governed repository connector, while ensuring that a generated Work Map binding alone does not falsely claim either parallel Spec ownership or direct Spec phase-contract ownership of this independently governed single-PR runtime change.",
       "e2e_journeys": [
         {
           "id": "run-current-production-runtime-parity-from-governed-incident-comment",
@@ -38,8 +40,8 @@
             "Run the existing canonical runtime parity reporter contract test.",
             "Probe only the fixed public HTTPS endpoint auth.mad4b.com/version using the canonical reporter.",
             "Upload bounded structured evidence and fail closed unless exact SHA, Production branch, service identity, DNS, TLS, HTTP, and no-side-effect assertions pass.",
-            "Classify an exact generated specs/<feature>/work-map-integration.json update as parallel-ownership-neutral when it accompanies an independently governed single-PR runtime contract.",
-            "Retain fail-closed parallel ownership when any non-neutral file under the same Spec changes."
+            "Classify an exact generated specs/<feature>/work-map-integration.json update as ownership-neutral when it accompanies an independently governed single-PR runtime contract.",
+            "Retain fail-closed parallel and direct phase-contract ownership when any non-neutral file under the same Spec changes."
           ],
           "assertions": [
             "The bridge has contents read and issues read only and declares no write permission.",
@@ -47,20 +49,23 @@
             "The runtime endpoint is fixed to https://auth.mad4b.com/version and cannot be supplied by the comment.",
             "Both main tooling and Production identities are reread from protected refs before the public request.",
             "The existing mad4b.production-runtime-parity-evidence.v1 reporter remains the only runtime parity implementation.",
-            "An exact work-map-integration.json binding is neutral only for parallel feature ownership discovery; Work Map generation, binding, schema, and readback guards still validate it.",
-            "A real Spec source or contract change still activates the parallel Spec contract and rejects an undeclared branch.",
+            "An exact work-map-integration.json binding is neutral only for E2E ownership discovery; Work Map generation, binding, schema, and readback guards still validate it.",
+            "A real Spec source or contract change still activates the Spec contract and rejects an undeclared or unchanged contract.",
             "The artifact declares secrets_included=false and all mutation/effect flags false."
           ],
           "tests": [
             {"id":"production-runtime-parity-comment-bridge-contract","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-comment-bridge.mjs","args":[]},
             {"id":"production-runtime-parity-canonical-reporter","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-evidence.mjs","args":[]},
             {"id":"parallel-pr-generated-binding-ownership-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-parallel-pr-flow-self-test.mjs","args":[]},
-            {"id":"parallel-work-governance-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-parallel-work-governance-self-test.mjs","args":[]}
+            {"id":"parallel-work-governance-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-parallel-work-governance-self-test.mjs","args":[]},
+            {"id":"phase-governance-generated-binding-ownership-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-phase-governance-self-test.mjs","args":[]}
           ],
           "evidence_paths": [
             ".github/workflows/production-runtime-parity-comment-bridge.yml",
             "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
             "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
+            "http-generic-api/scripts/e2e-phase-governance.mjs",
             "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
             "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
             "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
