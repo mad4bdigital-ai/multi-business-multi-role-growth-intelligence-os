@@ -130,6 +130,15 @@ jobs:
           EOF
           diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "bounded-file-list"
 
+      - name: Record immutable Git metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runner-pinning-metadata
+          printf '%s\n' "${EXPECTED_BASE_SHA}" > runner-pinning-metadata/base-commit-sha.txt
+          git rev-parse "${EXPECTED_BASE_SHA}^{tree}" > runner-pinning-metadata/base-tree-sha.txt
+          git rev-parse HEAD > runner-pinning-metadata/merged-head-sha.txt
+
       - name: Export exact bounded patch
         uses: actions/upload-artifact@v4
         with:
@@ -145,3 +154,4 @@ jobs:
             .github/workflows/governed-generated-artifact-refresh.yml
             .github/workflows/pr-generated-artifact-refresh.yml
             http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+            runner-pinning-metadata
