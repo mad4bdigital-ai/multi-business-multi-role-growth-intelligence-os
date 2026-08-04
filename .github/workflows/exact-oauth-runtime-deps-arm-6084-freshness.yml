@@ -1,0 +1,83 @@
+name: Exact OAuth Runtime Dependency ARM 6084 Freshness
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-runtime-deps-6084-0ccfc93b
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-oauth-runtime-deps-arm-6084-freshness-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+  EXPECTED_CANDIDATE_SHA: 7fdb384a007e2bfba7f3b82f4c346d42c1a831c6
+  EXPECTED_CANDIDATE_BRANCH: gpt/fix-oauth-runtime-deps-88439328-20260804
+
+jobs:
+  freshness:
+    name: Exact OAuth final freshness readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-runtime-deps-88439328-20260804' &&
+      github.event.pull_request.head.sha == '7fdb384a007e2bfba7f3b82f4c346d42c1a831c6'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout immutable synchronized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove protected main candidate head and exact scope remain fixed
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/oauth-6084-final-freshness"
+          mkdir -p "${evidence}"
+
+          git fetch --no-tags origin main
+          checked_out_head="$(git rev-parse HEAD)"
+          fetched_main="$(git rev-parse origin/main)"
+          remote_candidate="$(git ls-remote --exit-code origin "refs/heads/${EXPECTED_CANDIDATE_BRANCH}" | awk 'NR == 1 {print $1}')"
+          behind_count="$(git rev-list --count HEAD..origin/main)"
+
+          test "${checked_out_head}" = "${EXPECTED_CANDIDATE_SHA}"
+          test "${fetched_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${remote_candidate}" = "${EXPECTED_CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          test "${behind_count}" = "0"
+
+          git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | LC_ALL=C sort > "${evidence}/actual-files.txt"
+          printf '%s\n' \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
+            | LC_ALL=C sort > "${evidence}/expected-files.txt"
+          diff -u "${evidence}/expected-files.txt" "${evidence}/actual-files.txt"
+          test -z "$(git status --porcelain)"
+
+          {
+            echo "main_sha=${fetched_main}"
+            echo "candidate_sha=${checked_out_head}"
+            echo "remote_candidate_sha=${remote_candidate}"
+            echo "behind_count=${behind_count}"
+            echo "scope_files=2"
+            echo "protected_ref_mutation=false"
+            echo "force_push=false"
+          } > "${evidence}/metadata.txt"
+
+      - name: Upload exact final freshness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-runtime-deps-arm-6084-freshness-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/oauth-6084-final-freshness
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
