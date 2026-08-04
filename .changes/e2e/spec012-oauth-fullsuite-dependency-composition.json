@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec012-oauth-fullsuite-dependency-composition",
+  "title": "Spec 012 OAuth full-suite dependency composition",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec012-oauth-fullsuite-dependency-composition.json",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/test-auth-oauth-routes.mjs",
+      "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore canonical dependency injection for the governed Tenant GPT OAuth token route and prove deterministic integrated route behavior against the V2 no-secret diagnostics contract.",
+      "e2e_journeys": [
+        {
+          "id": "governed-oauth-token-route-uses-canonical-dependencies",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_gpt_oauth_client",
+          "entrypoint": "POST /auth/oauth/token",
+          "terminal_outcome": "The production route registry forwards canonical dependencies, a valid authorization code is exchanged exactly once, replay is classified as invalid_grant, and diagnostics expose only bounded V2 evidence.",
+          "steps": [
+            "Mount the governed OAuth metadata and token router before the legacy auth router using the canonical dependency object.",
+            "Validate OAuth client credentials and signed authorization-code bindings using the injected deterministic pool.",
+            "Consume the authorization code atomically and read back its durable state for replay classification.",
+            "Issue the access token and store activation context for a valid exchange.",
+            "Record V2 no-secret diagnostic evidence without token material or scope cardinality."
+          ],
+          "assertions": [
+            "The production route registry calls buildTenantGptOAuthMetadataRoutes(deps).",
+            "The integrated OAuth fixture uses the same governed token-route dependency boundary.",
+            "A successful exchange returns the standard OAuth response and a replay returns invalid_grant.",
+            "Invalid-client and success diagnostics use tenant_gpt_oauth_token_exchange_v2 and bounded code evidence.",
+            "Diagnostics omit raw access-token evidence, token length, client secrets, and requested-scope cardinality.",
+            "The governed token route remains mounted before the legacy OAuth token handler."
+          ],
+          "tests": [
+            {
+              "id": "tenant-gpt-oauth-token-exchange-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "spec012-t031-oauth-token-route-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-t031-oauth-token-route-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "integrated-auth-oauth-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "chatgpt-mcp-metadata-routing",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-metadata-routing.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec012-oauth-fullsuite-dependency-composition.json",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete exact-environment deployment and live successful OAuth exchange readback required before closing T031."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove replay and dependency-unavailability classification under exact-environment recovery conditions."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository composition repair does not authorize provider or tenant canary execution."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This PR grants no Production, deployment, provider, database, migration, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
