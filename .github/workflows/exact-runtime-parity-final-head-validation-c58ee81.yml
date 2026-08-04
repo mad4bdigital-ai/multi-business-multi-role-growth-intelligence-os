@@ -131,3 +131,5 @@ jobs:
           path: ${{ env.EVIDENCE_DIR }}/
           if-no-files-found: error
           retention-days: 14
+
+# synchronize registration marker: c58ee81-v2
