@@ -4,44 +4,16 @@
 
 ## Summary
 
-- Total queue items: 6
-- Critical review: 1
-- High review: 1
-- Medium review: 4
+- Total queue items: 3
+- Critical review: 0
+- High review: 0
+- Medium review: 3
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
 ## Top Queue Items
 
-### 1. `20260802_03_spec014_hostinger_storage_execution_evidence.sql`
-
-- Queue class: critical_review
-- Score: 803
-- Gap severity: high
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-- Surface counts: plugins=0, tools=3, views=3, policies=0, routes=3
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_tool_registry_binding` → runtime-registry-review; targets: `hostinger_storage_plan_apply`, `hostinger_storage_plan_inspect`, `hostinger_storage_snapshot_read`
-- `verify_readback_view` → db-readback-review; targets: `v_storage_admin_target_readiness`, `v_storage_cleanup_operation_readback`, `v_storage_tenant_target_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
-
-### 2. `20260730_hostinger_production_resync_policy.sql`
-
-- Queue class: high_review
-- Score: 479
-- Gap severity: medium
-- Missing docs: `Updating Registry Patch Index.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: none
-- Surface counts: plugins=0, tools=0, views=0, policies=1, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_policy_seed_readiness` → runtime-policy-review; targets: `repository_main_moved_trigger_policy_v1`
-
-### 3. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 1. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -55,7 +27,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 4. `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 2. `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 334
@@ -69,21 +41,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 5. `1043_sprint69_tenant_managed_execution_lifecycle.sql`
-
-- Queue class: medium_review
-- Score: 324
-- Gap severity: low
-- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- Missing OpenAPI routes: none
-- Safety marker gaps: `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=0
-- Remediation actions:
-- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
-- `verify_readback_view` → db-readback-review; targets: `v_managed_execution_lifecycle_readiness`
-- `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
-
-### 6. `20260728_governed_response_chunk_ownership.sql`
+### 3. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318
