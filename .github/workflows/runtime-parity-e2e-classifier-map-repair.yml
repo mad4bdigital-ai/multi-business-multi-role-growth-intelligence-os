@@ -11,9 +11,356 @@ permissions:
   contents: write
   pull-requests: read
 
+concurrency:
+  group: runtime-parity-e2e-classifier-map-repair-pr-5985
+  cancel-in-progress: true
+
 jobs:
   repair:
-    if: github.event.pull_request.number == 5985
+    if: >-
+      github.event.pull_request.number == 5985 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/add-runtime-parity-comment-bridge-v2-20260804' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      EXPECTED_PARENT_SHA: 0c6bb40dbf1604f5833b647c8557017275f443b3
+      LAUNCHER_PATH: .github/workflows/runtime-parity-e2e-classifier-map-repair.yml
+      GOVERNANCE_PATH: http-generic-api/scripts/e2e-parallel-work-governance.mjs
+      SELF_TEST_PATH: http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+      MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      GH_TOKEN: ${{ github.token }}
+
     steps:
-      - run: echo "placeholder; must be replaced after current main synchronization"
+      - name: Checkout exact repair request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Pin branch, parent, current main, and request scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          current_sha="$(git rev-parse HEAD)"
+          parent_sha="$(git rev-parse HEAD^)"
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${parent_sha}" = "${EXPECTED_PARENT_SHA}"
+          test "${remote_sha}" = "${current_sha}"
+
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          main_sha="$(git rev-parse origin/main)"
+          test "${main_sha}" = "$(git merge-base origin/main HEAD)"
+          echo "PINNED_MAIN_SHA=${main_sha}" >> "${GITHUB_ENV}"
+          echo "REPAIR_REQUEST_SHA=${current_sha}" >> "${GITHUB_ENV}"
+
+          mapfile -t request_files < <(git diff --name-only "${EXPECTED_PARENT_SHA}..HEAD")
+          test "${#request_files[@]}" -eq 1
+          test "${request_files[0]}" = "${LAUNCHER_PATH}"
+
+          actual_scope="$(git diff --name-only origin/main...HEAD | sort)"
+          expected_scope="$(printf '%s\n' \
+            '.changes/e2e/production-runtime-parity-comment-bridge.json' \
+            '.github/workflows/production-runtime-parity-comment-bridge.yml' \
+            '.github/workflows/runtime-parity-e2e-classifier-map-repair.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' \
+            'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs' \
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json' | sort)"
+          test "${actual_scope}" = "${expected_scope}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/5985")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = main
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${current_sha}"
+
+      - name: Patch generated-binding ownership classification
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git rm -- "${LAUNCHER_PATH}"
+          test ! -e "${LAUNCHER_PATH}"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          governance_path = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
+          governance = governance_path.read_text()
+          anchor = 'const SHA_PATTERN = /^[0-9a-f]{40}$/i;\n'
+          replacement = anchor + 'const PARALLEL_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);\n'
+          if governance.count(anchor) != 1:
+              raise SystemExit('Unexpected SHA_PATTERN anchor count.')
+          governance = governance.replace(anchor, replacement, 1)
+
+          old = '''function discoverContractPaths(changedFiles, policy) {
+            const paths = new Set();
+            for (const file of changedFiles) {
+              const feature = specKeyFromFile(file, policy);
+              if (feature) paths.add(normalize(path.posix.join(policy.spec_root, feature, policy.spec_contract_file)));
+              if (file.endsWith(`/${policy.spec_contract_file}`)) paths.add(file);
+              if (file.startsWith(`${normalize(policy.non_spec_contract_root)}/`) && file.endsWith(".json")) paths.add(file);
+            }
+            return [...paths].sort();
+          }
+          '''
+          new = '''function isParallelOwnershipNeutralSpecArtifact(file, policy) {
+            const feature = specKeyFromFile(file, policy);
+            if (!feature) return false;
+            const prefix = `${normalize(policy.spec_root)}/${feature}/`;
+            const relative = normalize(file).slice(prefix.length);
+            return PARALLEL_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS.has(relative);
+          }
+
+          function discoverContractPaths(changedFiles, policy) {
+            const paths = new Set();
+            for (const file of changedFiles) {
+              const feature = specKeyFromFile(file, policy);
+              if (feature && !isParallelOwnershipNeutralSpecArtifact(file, policy)) {
+                paths.add(normalize(path.posix.join(policy.spec_root, feature, policy.spec_contract_file)));
+              }
+              if (file.endsWith(`/${policy.spec_contract_file}`)) paths.add(file);
+              if (file.startsWith(`${normalize(policy.non_spec_contract_root)}/`) && file.endsWith(".json")) paths.add(file);
+            }
+            return [...paths].sort();
+          }
+          '''
+          if governance.count(old) != 1:
+              raise SystemExit('Unexpected discoverContractPaths block count.')
+          governance_path.write_text(governance.replace(old, new, 1))
+
+          self_test_path = Path('http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs')
+          self_test = self_test_path.read_text()
+          test_anchor = '''const undeclaredReport = JSON.parse(undeclaredBranch.stdout);
+          assert(undeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+          '''
+          test_insert = test_anchor + '''
+          fs.mkdirSync(path.join(root, ".changes", "e2e"), { recursive: true });
+          fs.writeFileSync(
+            path.join(root, ".changes", "e2e", "generated-binding-bridge.json"),
+            `${JSON.stringify({
+              schema_version: 1,
+              feature_key: "generated-binding-bridge",
+              title: "Generated binding bridge",
+              delivery_mode: "single_pr",
+              current_phase: "mvp",
+              scope: {
+                include: [
+                  ".changes/e2e/generated-binding-bridge.json",
+                  "http-generic-api/example/runtime/generated-binding-bridge.mjs"
+                ]
+              },
+              merge_contract: { minimum_phase: "mvp" },
+              phases: [{
+                id: "mvp",
+                status: "implemented",
+                objective: "Prove that a generated Work Map binding does not claim parallel feature ownership.",
+                blockers: [],
+                e2e_journeys: [{
+                  id: "generated-binding-bridge",
+                  end_to_end: true,
+                  level: "synthetic_runtime",
+                  actor: "repository maintainer",
+                  entrypoint: "single-PR runtime bridge",
+                  terminal_outcome: "The independently governed runtime bridge remains a standard PR.",
+                  steps: ["Change runtime bridge", "Refresh generated binding", "Classify standard PR"],
+                  assertions: ["The generated binding alone does not activate a parallel Spec contract."],
+                  tests: [{ id: "bridge", runner: "node", working_directory: "http-generic-api", path: "example/runtime/e2e.mjs", args: [] }],
+                  evidence_paths: ["http-generic-api/example/runtime/generated-binding-bridge.mjs"]
+                }]
+              }]
+            }, null, 2)}\\n`
+          );
+          fs.writeFileSync(
+            path.join(root, "specs", "001-example", "work-map-integration.json"),
+            `${JSON.stringify({ schema_version: 1, registry: { fingerprint: "generated" } }, null, 2)}\\n`
+          );
+          fs.writeFileSync(
+            path.join(root, "http-generic-api", "example", "runtime", "generated-binding-bridge.mjs"),
+            "export const generatedBindingBridge = true;\\n"
+          );
+          run("git", ["add", "."], root);
+          run("git", ["commit", "-m", "add independently governed bridge and generated binding"], root);
+          const generatedBindingHeadSha = run("git", ["rev-parse", "HEAD"], root).trim();
+
+          const generatedBindingBridge = JSON.parse(run(
+            process.execPath,
+            [GATE, "--root", root, "--base", headSha, "--head", generatedBindingHeadSha, "--head-ref", "gpt/generated-binding-bridge", "--base-ref", "main"],
+            root
+          ));
+          assert.equal(generatedBindingBridge.ok, true, JSON.stringify(generatedBindingBridge.findings));
+          assert.equal(generatedBindingBridge.pr_mode, "standard");
+          assert.deepEqual(generatedBindingBridge.contracts, []);
+
+          fs.writeFileSync(path.join(root, "specs", "001-example", "spec.md"), "# Real feature change\\n");
+          fs.appendFileSync(
+            path.join(root, "http-generic-api", "example", "runtime", "generated-binding-bridge.mjs"),
+            "export const realFeatureChange = true;\\n"
+          );
+          run("git", ["add", "."], root);
+          run("git", ["commit", "-m", "add real parallel feature change"], root);
+          const realFeatureHeadSha = run("git", ["rev-parse", "HEAD"], root).trim();
+          const realFeatureUndeclared = spawnSync(
+            process.execPath,
+            [GATE, "--root", root, "--base", generatedBindingHeadSha, "--head", realFeatureHeadSha, "--head-ref", "gpt/generated-binding-bridge", "--base-ref", "main"],
+            { cwd: root, encoding: "utf8" }
+          );
+          assert.notEqual(realFeatureUndeclared.status, 0);
+          const realFeatureUndeclaredReport = JSON.parse(realFeatureUndeclared.stdout);
+          assert(realFeatureUndeclaredReport.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+          '''
+          if self_test.count(test_anchor) != 1:
+              raise SystemExit('Unexpected undeclared-branch test anchor count.')
+          self_test_path.write_text(self_test.replace(test_anchor, test_insert, 1))
+          PY
+
+          node --check "${GOVERNANCE_PATH}"
+          node --check "${SELF_TEST_PATH}"
+
+      - name: Regenerate Work Maps and refresh final binding
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          REPORT_PATH="${RUNNER_TEMP}/precommit-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/precommit-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Build and validate the exact final tree locally
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: construct final classifier and Work Map tree'
+          local_final_sha="$(git rev-parse HEAD)"
+          echo "LOCAL_FINAL_SHA=${local_final_sha}" >> "${GITHUB_ENV}"
+
+          node "${SELF_TEST_PATH}"
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${local_final_sha}" \
+            --head-ref "${TARGET_BRANCH}" \
+            --base-ref main \
+            --report-file "${RUNNER_TEMP}/parallel-pr-evaluation.json"
+          node - "${RUNNER_TEMP}/parallel-pr-evaluation.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok) process.exit(1);
+          if (report.pr_mode !== 'standard') process.exit(1);
+          if (report.findings.length !== 0) process.exit(1);
+          if (report.contracts.length !== 0) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${local_final_sha}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${local_final_sha}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          REPORT_PATH="${RUNNER_TEMP}/final-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/final-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Restore launcher and stage only permanent outputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --binary "${REPAIR_REQUEST_SHA}" "${LOCAL_FINAL_SHA}" -- \
+            "${GOVERNANCE_PATH}" \
+            "${SELF_TEST_PATH}" \
+            docs/work-maps \
+            "${MANIFEST_PATH}" \
+            "${TASKS_PATH}" \
+            > "${RUNNER_TEMP}/permanent-repair.patch"
+          test -s "${RUNNER_TEMP}/permanent-repair.patch"
+
+          git reset --hard "${REPAIR_REQUEST_SHA}"
+          test -f "${LAUNCHER_PATH}"
+          git apply --index "${RUNNER_TEMP}/permanent-repair.patch"
+
+          mapfile -t changed < <(git diff --cached --name-only | sort)
+          test "${#changed[@]}" -ge 4
+          printf '%s\n' "${changed[@]}" | grep -Fx -- "${GOVERNANCE_PATH}" >/dev/null
+          printf '%s\n' "${changed[@]}" | grep -Fx -- "${SELF_TEST_PATH}" >/dev/null
+          printf '%s\n' "${changed[@]}" | grep -Fx -- "${MANIFEST_PATH}" >/dev/null
+          printf '%s\n' "${changed[@]}" | grep -E '^docs/work-maps/' >/dev/null
+          for file in "${changed[@]}"; do
+            case "${file}" in
+              "${GOVERNANCE_PATH}"|"${SELF_TEST_PATH}"|docs/work-maps/*|"${MANIFEST_PATH}"|"${TASKS_PATH}") ;;
+              *)
+                echo "Unexpected permanent repair output: ${file}" >&2
+                exit 1
+                ;;
+            esac
+          done
+          test -z "$(git diff --name-only)"
+
+      - name: Commit and push bounded permanent repair
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${PINNED_MAIN_SHA}"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "${REPAIR_REQUEST_SHA}"
+          test "${PINNED_MAIN_SHA}" = "$(git merge-base origin/main HEAD)"
+
+          git commit -m 'fix(e2e): keep generated Work Map binding ownership-neutral'
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish bounded repair evidence
+        if: always()
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
+        run: |
+          set -Eeuo pipefail
+          outcome=passed
+          if [[ "${{ job.status }}" != success ]]; then outcome=blocked; fi
+          {
+            echo '## Runtime Parity E2E Classifier and Work Map Repair'
+            echo
+            echo "\`E2E_CLASSIFIER_MAP_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} local_final_sha=${LOCAL_FINAL_SHA:-unresolved} temporary_workflow_removed=false protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
