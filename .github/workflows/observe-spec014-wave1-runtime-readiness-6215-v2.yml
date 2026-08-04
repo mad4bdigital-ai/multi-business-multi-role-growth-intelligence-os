@@ -1,0 +1,50 @@
+name: Observe Spec 014 Wave 1 Runtime Readiness 6215 v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/observe-spec014-wave1-runtime-readiness-6215-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  observe:
+    name: Collect structured Wave 1 runtime Artifact
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-observe-spec014-wave1-runtime-readiness-6215-v1' &&
+      github.event.pull_request.base.ref == 'gpt/observe-spec014-wave1-runtime-readiness-6215-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      EXPECTED_EVENT_HEAD: d76dc2bf9b073a18c2fa51cd5907cb30f0c03ab4
+      EVIDENCE_DIR: ${{ runner.temp }}/spec014-wave1-runtime-observer-v2
+    steps:
+      - name: Checkout trusted observer base
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Collect terminal target run and Artifact
+        run: node .github/ops/observe-spec014-wave1-runtime-readiness-6215-v2.mjs
+
+      - name: Upload observer and copied runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observe-spec014-wave1-runtime-readiness-6215-v2-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
