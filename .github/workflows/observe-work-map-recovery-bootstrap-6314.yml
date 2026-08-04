@@ -30,8 +30,8 @@ jobs:
 
           const outputPath = process.argv[2];
           const repository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
-          const commentId = '5181121793';
-          const expectedBody = '/activate-work-map-recovery 8810e10fe5eb9b25689dc0431df35760942b86b1';
+          const commentId = '5181268277';
+          const expectedBody = '/activate-work-map-recovery 758a0ebd7ed79eaac87ec1c4caf76977501a3f3f';
           const workflowFile = 'spec-kit-work-map-recovery-bootstrap.yml';
           const workflowName = 'Spec Kit Work Map Recovery Bootstrap';
           const maxDeltaMs = 5 * 60 * 1000;
@@ -81,7 +81,7 @@ jobs:
             .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
 
           const result = {
-            contract: 'work_map_recovery_bootstrap_public_run_discovery.v1',
+            contract: 'work_map_recovery_bootstrap_public_run_discovery.v2',
             trigger_comment_id: commentId,
             trigger_created_at: comment.created_at,
             trigger_actor: comment.user?.login || null,
@@ -102,7 +102,7 @@ jobs:
           };
           fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
           process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-          assert.ok(result.target?.id, 'Exact Work Map recovery bootstrap run was not registered');
+          assert.ok(result.target?.id, 'Exact corrected Work Map recovery bootstrap run was not registered');
           NODE
 
       - name: Write fail-closed observer result
@@ -115,7 +115,7 @@ jobs:
           evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-observer"
           mkdir -p "$evidence"
           if [[ ! -f "$evidence/result.json" ]]; then
-            jq -n --arg outcome "$OBSERVE_OUTCOME" '{contract:"work_map_recovery_bootstrap_public_run_discovery.v1",candidate_count:0,target:null,observer_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
+            jq -n --arg outcome "$OBSERVE_OUTCOME" '{contract:"work_map_recovery_bootstrap_public_run_discovery.v2",candidate_count:0,target:null,observer_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
           fi
           cat "$evidence/result.json"
 
