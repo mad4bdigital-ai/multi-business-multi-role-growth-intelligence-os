@@ -1,9 +1,6 @@
 name: CI Runner Queue Unblock
 
 on:
-  push:
-    branches: [gpt/ci-runner-concurrency-unblock-20260804]
-    paths: [.github/workflows/ci-runner-queue-unblock.yml]
   pull_request:
     branches: [main]
     types: [synchronize]
@@ -19,9 +16,8 @@ concurrency:
 jobs:
   patch:
     if: >-
-      github.event_name == 'push' ||
-      (github.event.pull_request.number == 6027 &&
-       github.event.pull_request.head.ref == 'gpt/ci-runner-concurrency-unblock-20260804')
+      github.event.pull_request.number == 6027 &&
+      github.event.pull_request.head.ref == 'gpt/ci-runner-concurrency-unblock-20260804'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
