@@ -20,7 +20,7 @@ on:
       - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -49,6 +49,78 @@ jobs:
       - name: Install HTTP Generic API dependencies
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Reconcile fail-closed dependency assertions
+        shell: bash
+        env:
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
+          source = path.read_text(encoding="utf-8")
+          old = '''let missingVerifierConsumeCalled = false;
+          const missingVerifierHarness = createHarness({
+            verifyCode: undefined,
+            consumeCode: async () => {
+              missingVerifierConsumeCalled = true;
+              return { consumed: true, outcome: "consumed" };
+            },
+          });
+          const missingVerifier = await runScenario(missingVerifierHarness);
+          assert.equal(missingVerifier.status, 503);
+          assert.equal(missingVerifier.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
+          assert.equal(missingVerifier.body.retry_same_code, true);
+          assert.equal(missingVerifierConsumeCalled, false);
+
+          let missingIssuerConsumeCalled = false;
+          const missingIssuerHarness = createHarness({
+            issueAccessToken: undefined,
+            consumeCode: async () => {
+              missingIssuerConsumeCalled = true;
+              return { consumed: true, outcome: "consumed" };
+            },
+          });
+          const missingIssuer = await runScenario(missingIssuerHarness);
+          assert.equal(missingIssuer.status, 503);
+          assert.equal(missingIssuer.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
+          assert.equal(missingIssuer.body.retry_same_code, true);
+          assert.equal(missingIssuerConsumeCalled, false);
+          '''
+          new = '''assert.throws(
+            () => createHarness({ verifyCode: undefined }),
+            (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
+            "route construction must fail closed when the governed code verifier is unavailable",
+          );
+
+          assert.throws(
+            () => createHarness({ issueAccessToken: undefined }),
+            (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
+            "route construction must fail closed when the governed token issuer is unavailable",
+          );
+          '''
+          if old not in source:
+              raise SystemExit("expected missing-dependency assertion block was not found")
+          source = source.replace(old, new, 1)
+          source = source.replace("  missingVerifierHarness,\n  missingIssuerHarness,\n", "", 1)
+          source = source.replace("  missingVerifier,\n  missingIssuer,\n", "", 1)
+          if "missingVerifierHarness" in source or "missingIssuerHarness" in source:
+              raise SystemExit("stale missing-dependency harness reference remains")
+          path.write_text(source, encoding="utf-8")
+          PY
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          (cd http-generic-api && node test-tenant-gpt-oauth-token-exchange-routes.mjs)
+          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs; then
+            echo "Route test already reconciled."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+            git commit -m "test(spec-012): assert fail-closed OAuth dependencies"
+            git push origin "HEAD:${PR_HEAD_BRANCH}"
+          fi
 
       - name: Check reconciled T033 syntax
         run: |
