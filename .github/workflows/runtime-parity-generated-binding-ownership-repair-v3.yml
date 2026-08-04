@@ -1,9 +1,9 @@
 name: Runtime Parity Generated Binding Ownership Repair V3
 
 on:
-  push:
-    branches:
-      - gpt/add-runtime-parity-comment-bridge-v2-20260804
+  pull_request:
+    types: [synchronize]
+    branches: [main]
     paths:
       - .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
 
@@ -11,31 +11,36 @@ permissions:
   contents: write
 
 concurrency:
-  group: runtime-parity-generated-binding-ownership-repair-v3
+  group: runtime-parity-generated-binding-ownership-repair-v3-pr
   cancel-in-progress: false
 
 jobs:
   repair:
+    if: github.event.pull_request.number == 5985
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     env:
       EXPECTED_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT: abb75190957387b2a866b426f3910deb560c49e9
+      EXPECTED_PARENT: 6e96963d888278bf707cfb6ed254f8df9688ba15
       EXPECTED_MAIN: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
       WRITER_PATH: .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
 
     steps:
-      - name: Checkout exact writer head
+      - name: Checkout exact PR head
         uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: true
 
       - name: Verify immutable parent, base, and initial scope
         shell: bash
+        env:
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -Eeuo pipefail
-          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          test "${GITHUB_HEAD_REF}" = "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${EVENT_HEAD}"
           test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT}"
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
