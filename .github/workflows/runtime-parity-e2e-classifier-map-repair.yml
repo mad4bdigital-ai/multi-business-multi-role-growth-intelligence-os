@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 30
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 0c6bb40dbf1604f5833b647c8557017275f443b3
+      EXPECTED_PARENT_SHA: 9655c504cb37e03903c6b9e87a108be95d075e52
       LAUNCHER_PATH: .github/workflows/runtime-parity-e2e-classifier-map-repair.yml
       GOVERNANCE_PATH: http-generic-api/scripts/e2e-parallel-work-governance.mjs
       SELF_TEST_PATH: http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
@@ -149,12 +149,10 @@ jobs:
               title: "Generated binding bridge",
               delivery_mode: "single_pr",
               current_phase: "mvp",
-              scope: {
-                include: [
-                  ".changes/e2e/generated-binding-bridge.json",
-                  "http-generic-api/example/runtime/generated-binding-bridge.mjs"
-                ]
-              },
+              scope: { include: [
+                ".changes/e2e/generated-binding-bridge.json",
+                "http-generic-api/example/runtime/generated-binding-bridge.mjs"
+              ] },
               merge_contract: { minimum_phase: "mvp" },
               phases: [{
                 id: "mvp",
@@ -238,8 +236,7 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
-          REPORT_PATH="${RUNNER_TEMP}/precommit-readback.json" \
-            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          REPORT_PATH="${RUNNER_TEMP}/precommit-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
           node - "${RUNNER_TEMP}/precommit-readback.json" <<'NODE'
           const fs = require('node:fs');
           const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
@@ -272,10 +269,8 @@ jobs:
           node - "${RUNNER_TEMP}/parallel-pr-evaluation.json" <<'NODE'
           const fs = require('node:fs');
           const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          if (!report.ok) process.exit(1);
-          if (report.pr_mode !== 'standard') process.exit(1);
-          if (report.findings.length !== 0) process.exit(1);
-          if (report.contracts.length !== 0) process.exit(1);
+          if (!report.ok || report.pr_mode !== 'standard') process.exit(1);
+          if (report.findings.length !== 0 || report.contracts.length !== 0) process.exit(1);
           if (report.secrets_included !== false) process.exit(1);
           NODE
 
@@ -290,8 +285,7 @@ jobs:
             --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          REPORT_PATH="${RUNNER_TEMP}/final-readback.json" \
-            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          REPORT_PATH="${RUNNER_TEMP}/final-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
           node - "${RUNNER_TEMP}/final-readback.json" <<'NODE'
           const fs = require('node:fs');
           const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
