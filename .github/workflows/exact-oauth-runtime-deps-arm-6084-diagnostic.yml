@@ -1,0 +1,107 @@
+name: Exact OAuth Runtime Dependency ARM 6084 Diagnostic
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-runtime-deps-6084-0ccfc93b
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-oauth-runtime-deps-arm-6084-diagnostic-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+  EXPECTED_CANDIDATE_SHA: 7fdb384a007e2bfba7f3b82f4c346d42c1a831c6
+
+jobs:
+  diagnose:
+    name: Exact OAuth focused regression diagnostics
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-runtime-deps-88439328-20260804' &&
+      github.event.pull_request.head.sha == '7fdb384a007e2bfba7f3b82f4c346d42c1a831c6'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove exact identity and two-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="${RUNNER_TEMP}/oauth-6084-diagnostic-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${ROOT}/logs"
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | LC_ALL=C sort > "${ROOT}/actual-files.txt"
+          printf '%s\n' \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
+            | LC_ALL=C sort > "${ROOT}/expected-files.txt"
+          diff -u "${ROOT}/expected-files.txt" "${ROOT}/actual-files.txt"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked API dependencies
+        run: npm ci --prefix http-generic-api
+
+      - name: Run all focused regressions independently
+        shell: bash
+        run: |
+          set -uo pipefail
+          : > "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/logs/${name}.log"
+            set +e
+            (
+              cd http-generic-api
+              "$@"
+            ) >"${log}" 2>&1
+            local code=$?
+            set -e
+            printf '%s\t%s\n' "${name}" "${code}" | tee -a "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          }
+
+          run_check route-wiring node test-spec012-t031-oauth-token-route-wiring.mjs
+          run_check auth-oauth-integration node test-auth-oauth-routes.mjs
+          run_check token-exchange-routes node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          run_check legacy-audience-compatibility node test-spec012-t032-legacy-audience-compatibility.mjs
+          run_check mcp-metadata-routes node test-chatgpt-mcp-metadata-routes.mjs
+
+          set +e
+          awk -F '\t' '$2 != 0 { failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          gate=$?
+          set -e
+          exit "${gate}"
+
+      - name: Upload complete focused evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-runtime-deps-arm-6084-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-6084-diagnostic-${{ github.run_id }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
