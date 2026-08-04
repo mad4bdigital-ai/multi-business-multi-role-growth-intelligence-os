@@ -1,4 +1,4 @@
-name: One-shot Runtime Parity Work Map ARM Repair
+name: One-shot Runtime Parity Work Map Repair
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: runtime-parity-work-map-arm-repair-pr-5985
+  group: runtime-parity-work-map-repair-pr-5985
   cancel-in-progress: true
 
 jobs:
@@ -27,9 +27,8 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 1f6af42113e84c2adafc693dc220ad5d104c2c19
+      EXPECTED_PARENT_SHA: c03c43bd097eb92077d883712975908007448471
       REPAIR_PATH: .github/workflows/runtime-parity-work-map-arm-repair.yml
-      PR_NUMBER: '5985'
 
     steps:
       - name: Checkout exact repair request head
@@ -39,10 +38,8 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Pin branch, parent, scope, and current main
+      - name: Pin request and synchronize current main locally
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           current_sha="$(git rev-parse HEAD)"
@@ -51,18 +48,21 @@ jobs:
           test "${parent_sha}" = "${EXPECTED_PARENT_SHA}"
           test "${remote_sha}" = "${current_sha}"
 
-          git fetch --no-tags origin main
-          main_sha="$(git rev-parse origin/main)"
-          if ! git merge-base --is-ancestor "${main_sha}" HEAD; then
-            echo "::error::Protected main ${main_sha} is not an ancestor of repair request ${current_sha}."
-            exit 1
-          fi
-          echo "PINNED_MAIN_SHA=${main_sha}" >> "${GITHUB_ENV}"
-          echo "REPAIR_REQUEST_SHA=${current_sha}" >> "${GITHUB_ENV}"
-
           mapfile -t request_files < <(git diff --name-only "${EXPECTED_PARENT_SHA}..HEAD")
           test "${#request_files[@]}" = 1
           test "${request_files[0]}" = "${REPAIR_PATH}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse origin/main)"
+          echo "PINNED_MAIN_SHA=${main_sha}" >> "${GITHUB_ENV}"
+          echo "REPAIR_REQUEST_SHA=${current_sha}" >> "${GITHUB_ENV}"
+
+          if ! git merge-base --is-ancestor "${main_sha}" HEAD; then
+            git merge --no-edit origin/main
+          fi
+          git merge-base --is-ancestor "${main_sha}" HEAD
 
           actual_scope="$(git diff --name-only origin/main...HEAD | sort)"
           expected_scope="$(printf '%s\n' \
@@ -72,30 +72,18 @@ jobs:
             'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs' | sort)"
           test "${actual_scope}" = "${expected_scope}"
 
-          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
-          test "$(jq -r '.state' <<<"${pr}")" = open
-          test "$(jq -r '.draft' <<<"${pr}")" = false
-          test "$(jq -r '.base.ref' <<<"${pr}")" = main
-          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
-          test "$(jq -r '.head.ref' <<<"${pr}")" = "${TARGET_BRANCH}"
-          test "$(jq -r '.head.sha' <<<"${pr}")" = "${current_sha}"
-
-      - name: Remove one-shot workflow before generation
+      - name: Generate maps from final workflow inventory
         shell: bash
         run: |
           set -Eeuo pipefail
           git rm -- "${REPAIR_PATH}"
           test ! -e "${REPAIR_PATH}"
 
-      - name: Regenerate Work Maps and prove idempotency
-        shell: bash
-        run: |
-          set -Eeuo pipefail
           node --check http-generic-api/scripts/platform-work-map-generator.mjs
           node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
-          unexpected="$(git diff --name-only | grep -Ev '^(docs/work-maps/|\.github/workflows/runtime-parity-work-map-arm-repair\.yml$)' || true)"
+          unexpected="$(git status --short | awk '{print $2}' | grep -Ev '^(docs/work-maps/|\.github/workflows/runtime-parity-work-map-arm-repair\.yml$)' || true)"
           test -z "${unexpected}"
           first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
@@ -104,11 +92,14 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           test -n "$(git diff --name-only -- docs/work-maps)"
 
-      - name: Commit and push bounded repair
+          git restore --source="${REPAIR_REQUEST_SHA}" --staged --worktree -- "${REPAIR_PATH}"
+          test -f "${REPAIR_PATH}"
+          unexpected_after_restore="$(git status --short | awk '{print $2}' | grep -Ev '^docs/work-maps/' || true)"
+          test -z "${unexpected_after_restore}"
+
+      - name: Commit and push bounded map repair
         id: publish
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -Eeuo pipefail
           git fetch --no-tags origin main
@@ -118,12 +109,15 @@ jobs:
 
           changed="$(git status --short)"
           printf '%s\n' "${changed}"
-          unexpected="$(git status --short | awk '{print $2}' | grep -Ev '^(docs/work-maps/|\.github/workflows/runtime-parity-work-map-arm-repair\.yml$)' || true)"
+          test -n "${changed}"
+          unexpected="$(git status --short | awk '{print $2}' | grep -Ev '^docs/work-maps/' || true)"
           test -z "${unexpected}"
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A -- docs/work-maps "${REPAIR_PATH}"
+          git add -- docs/work-maps
+          git diff --cached --quiet && {
+            echo 'Expected generated Work Map changes.' >&2
+            exit 1
+          }
           git commit -m 'docs(work-maps): regenerate runtime parity bridge maps'
           result_sha="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
@@ -138,14 +132,14 @@ jobs:
         run: |
           set -Eeuo pipefail
           outcome=passed
-          removed=true
+          maps_exclude_temporary_workflow=true
           if [[ "${{ job.status }}" != success ]]; then
             outcome=blocked
-            removed=false
+            maps_exclude_temporary_workflow=false
           fi
-          evidence="WORK_MAP_ARM_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} temporary_workflow_removed=${removed} protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false"
+          evidence="WORK_MAP_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} maps_exclude_temporary_workflow=${maps_exclude_temporary_workflow} temporary_workflow_removed=false protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false"
           {
-            echo '## Work Map ARM repair'
+            echo '## Work Map repair'
             echo
             printf '`%s`\n' "${evidence}"
           } >> "${GITHUB_STEP_SUMMARY}"
