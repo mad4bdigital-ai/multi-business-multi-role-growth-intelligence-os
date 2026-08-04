@@ -95,6 +95,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
 - `.github/workflows/hostinger-production-release-evidence-r5.yml`
 - `.github/workflows/hostinger-production-release-evidence-r6.yml`
+- `.github/workflows/hostinger-production-runtime-readback-r7.yml`
 - `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`
@@ -164,6 +165,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
+- `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
+- `.github/workflows/spec014-wave1-runtime-readiness.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`

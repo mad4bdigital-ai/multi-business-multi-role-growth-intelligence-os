@@ -256,11 +256,17 @@ if (options.baseRef === "Production" && !productionPromotion) {
   if (!productionPromotion && integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
   if (!productionPromotion && active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
+  const defaultBranchSync = options.headRef === "main"
+    && Boolean(options.baseRef)
+    && options.baseRef !== "Production";
+
   let mode = "standard";
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
-  if (!productionPromotion && active.length === 1) {
+  if (defaultBranchSync) {
+    mode = "default_branch_sync";
+  } else if (!productionPromotion && active.length === 1) {
     mode = "workstream";
     featureKey = active[0].contract.feature_key;
     contractPath = active[0].summary.contract_path;
