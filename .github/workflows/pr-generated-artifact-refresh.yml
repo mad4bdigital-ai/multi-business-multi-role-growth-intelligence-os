@@ -10,6 +10,8 @@ on:
       - ".changes/e2e/ci-generated-artifact-evidence-routing.json"
       - ".github/ci-evidence-routing.json"
       - ".github/repository-maintenance-tool-governance.json"
+      - ".github/workflows/ci-pull-request-recovery.yml"
+      - ".github/workflows/ci.yml"
       - ".github/workflows/ci-evidence-pr-publisher.yml"
       - ".github/workflows/governed-generated-artifact-refresh.yml"
       - ".github/workflows/pr-generated-artifact-refresh.yml"
@@ -230,6 +232,10 @@ jobs:
 
           dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
           expected_title="Spec Kit Work Map Autofix Recovery Dispatch · PR ${PR_NUMBER}"
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg pr_number "${PR_NUMBER}" \
+            '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}')"
           payload="$(jq -cn \
             --arg ref main \
             --arg pr_number "${PR_NUMBER}" \
