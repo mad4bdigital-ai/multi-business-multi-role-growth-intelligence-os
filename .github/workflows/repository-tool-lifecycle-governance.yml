@@ -75,7 +75,7 @@ jobs:
   fix-frontend-concurrency-expression:
     if: github.event.pull_request.head.ref == 'gpt/ci-runner-queue-unblock-current-main-20260804'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/ci-runner-queue-unblock-current-main-20260804
     steps:
@@ -93,6 +93,16 @@ jobs:
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "$remote_head" = "$(git rev-parse HEAD)"
+
+      - name: Merge stable live main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name mad4bdigital-ai
+          git config user.email mad4bdigital-ai@users.noreply.github.com
+          git fetch origin main
+          git rev-parse origin/main > "$RUNNER_TEMP/main-sha.txt"
+          git merge --no-edit origin/main
 
       - name: Restore dynamic Frontend concurrency and self-delete
         shell: bash
@@ -124,14 +134,22 @@ jobs:
           lifecycle.write_text(text[:start].rstrip() + '\n')
           PY
 
-      - name: Validate bounded correction
+      - name: Validate synchronized five-file result
         shell: bash
         run: |
           set -Eeuo pipefail
-          mapfile -t changed < <(git diff --name-only | sort -u)
-          test "${#changed[@]}" -eq 2
-          test "${changed[0]}" = ".github/workflows/frontend-surface-dispatch.yml"
-          test "${changed[1]}" = ".github/workflows/repository-tool-lifecycle-governance.yml"
+          mapfile -t changed < <(git diff --name-only origin/main...HEAD; git diff --name-only)
+          mapfile -t changed < <(printf '%s\n' "${changed[@]}" | sed '/^$/d' | sort -u)
+          test "${#changed[@]}" -eq 5
+          printf '%s\n' "${changed[@]}"
+          for expected in \
+            .github/workflows/ci.yml \
+            .github/workflows/context-kernel-hardcoding-report.yml \
+            .github/workflows/e2e-phase-governance.yml \
+            .github/workflows/frontend-surface-dispatch.yml \
+            .github/workflows/repository-tool-lifecycle-governance.yml; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$expected"
+          done
           git diff --check
           python3 - <<'PY'
           from pathlib import Path
@@ -144,15 +162,26 @@ jobs:
           assert 'TEMP FRONTEND CONCURRENCY FIX' not in lifecycle
           assert 'permissions:\n  contents: read\n' in lifecycle
           PY
-          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
 
-      - name: Create corrected commit
+      - name: Validate focused contracts
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name mad4bdigital-ai
-          git config user.email mad4bdigital-ai@users.noreply.github.com
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
+          (cd http-generic-api && node test-tenant-ssh-cli-approval-request.mjs)
+          ! grep -R "runs-on: ubuntu-latest" \
+            .github/workflows/ci.yml \
+            .github/workflows/context-kernel-hardcoding-report.yml \
+            .github/workflows/e2e-phase-governance.yml \
+            .github/workflows/frontend-surface-dispatch.yml \
+            .github/workflows/repository-tool-lifecycle-governance.yml
+
+      - name: Create corrected synchronized commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           git add -A
           git commit -m 'fix(ci): preserve dynamic Frontend concurrency key'
           mkdir -p /tmp/frontend-concurrency-commit
@@ -160,6 +189,13 @@ jobs:
           git rev-parse 'HEAD^{tree}' > /tmp/frontend-concurrency-commit/tree-sha.txt
           git rev-parse HEAD^ > /tmp/frontend-concurrency-commit/parent-sha.txt
           git show --stat --oneline HEAD > /tmp/frontend-concurrency-commit/summary.txt
+
+      - name: Verify live main remains stable
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch origin main
+          test "$(git rev-parse origin/main)" = "$(cat "$RUNNER_TEMP/main-sha.txt")"
 
       - name: Upload corrected commit metadata
         uses: actions/upload-artifact@v4
