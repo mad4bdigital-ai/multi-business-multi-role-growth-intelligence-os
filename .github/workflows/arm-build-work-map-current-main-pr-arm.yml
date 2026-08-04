@@ -1,0 +1,29 @@
+name: ARM Build Work Map Current Main PR ARM
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/arm-build-work-map-current-main-pr-arm.yml
+      - .github/scripts/arm-build-work-map-current-main.sh
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.head_ref == 'gpt/arm-build-work-map-current-main-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      OLD_BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      CANDIDATE_SHA: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+      TARGET_BRANCH: gpt/work-map-observable-exact-current-main-0ccfc9-20260804
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Build, validate, and publish exact source candidate
+        shell: bash
+        run: bash .github/scripts/arm-build-work-map-current-main.sh
