@@ -165,6 +165,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
+- `.github/workflows/spec-kit-work-map-recovery-bootstrap.yml`
+- `.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml`
+- `.github/workflows/spec014-wave1-runtime-evidence-readback.yml`
+- `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
+- `.github/workflows/spec014-wave1-runtime-readiness.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`

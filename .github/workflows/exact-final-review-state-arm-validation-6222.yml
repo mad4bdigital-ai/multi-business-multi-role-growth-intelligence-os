@@ -1,4 +1,4 @@
-name: Exact Final Review-State ARM Validation 6222
+name: Exact Final Review-State ARM Validation 6347
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-final-review-state-arm-6222-${{ github.event.pull_request.number }}
+  group: exact-final-review-state-arm-6347-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -18,14 +18,14 @@ jobs:
     name: Exact Final Review-State Full Validation
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/fix-final-review-state-readback-07264baf-20260804' &&
-      github.event.pull_request.head.sha == '83aebe711328f1a6a95793b3fcd500da013b6a5d'
+      github.event.pull_request.head.ref == 'gpt/fix-final-review-identity-current-main-v4-30938008890' &&
+      github.event.pull_request.head.sha == 'b7c6b4f34231ad5fdaa62ad0e6634744515aad71'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 120
     env:
-      EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
-      EXPECTED_HEAD_SHA: 83aebe711328f1a6a95793b3fcd500da013b6a5d
-      EXPECTED_HEAD_REF: gpt/fix-final-review-state-readback-07264baf-20260804
+      EXPECTED_MAIN_SHA: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
+      EXPECTED_HEAD_SHA: b7c6b4f34231ad5fdaa62ad0e6634744515aad71
+      EXPECTED_HEAD_REF: gpt/fix-final-review-identity-current-main-v4-30938008890
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -65,11 +65,11 @@ jobs:
           test "${files[5]}" = 'http-generic-api/test-github-repository-lifecycle.mjs'
           test "${files[6]}" = 'http-generic-api/test-repository-automation-control-plane.mjs'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-lifecycle-draft-merge-guard.json")" = 'f822dea0c91347b3921cbb05302654ac7a5ba728'
-          test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-lifecycle-final-review-state-readback.json")" = '478ebb3f92c50fb8aebafcb6e3b5efb1ef6d8e1a'
-          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/githubRepositoryLifecycle.js")" = 'ef4dcbd7a7bf88c03286fe6030e2a07b480dbb46'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:.changes/e2e/repository-lifecycle-final-review-state-readback.json")" = '598d135ea7402799e53827fc503196e3348cca40'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/githubRepositoryLifecycle.js")" = '78f5a3aed14a20700b1bdcfe453c04323c36e5ed'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/repositoryAutomationControlPlane.js")" = '18f037e8da34b231a78182e359a40691d4b39a26'
-          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-final-review-state-readback.mjs")" = 'a19683f3c50dfe2ed258d5a705c37eb51c00f076'
-          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-repository-lifecycle.mjs")" = '8e675e967c0a2d713fd71b0ea767349d05fc6226'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-final-review-state-readback.mjs")" = '605803d617342bdf71b18978a53a1a4636225183'
+          test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-github-repository-lifecycle.mjs")" = 'a2d1b319719e4b082074279b5424d8aa4f87f791'
           test "$(git rev-parse "$EXPECTED_HEAD_SHA:http-generic-api/test-repository-automation-control-plane.mjs")" = '432c5924094c482420d64d63d0502ba39af479e3'
 
       - name: Run canonical syntax and governance checks
@@ -167,7 +167,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-final-review-state-arm-validation-6222-${{ github.run_id }}
+          name: exact-final-review-state-arm-validation-6347-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/exact-final-review-state-arm-summary.json
             ${{ runner.temp }}/e2e-phase-*.json
