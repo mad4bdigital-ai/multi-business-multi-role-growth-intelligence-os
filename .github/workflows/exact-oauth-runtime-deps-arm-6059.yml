@@ -1,0 +1,155 @@
+name: Exact OAuth Runtime Dependency ARM 6059
+
+on:
+  pull_request:
+    branches:
+      - gpt/validation-oauth-runtime-deps-6059-72196dee
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-oauth-runtime-deps-arm-6059
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-runtime-deps-72196dee-20260804' &&
+      github.event.pull_request.head.sha == '1fdd518964d1e4af5579cd9c1e227b227f950aa1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout immutable candidate head
+        uses: actions/checkout@v4
+        with:
+          ref: 1fdd518964d1e4af5579cd9c1e227b227f950aa1
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove immutable identity, freshness, and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "1fdd518964d1e4af5579cd9c1e227b227f950aa1"
+          test "$(git rev-parse HEAD^)" = "72196dee20b13491972ae1371f2fe4a47d9bd8c9"
+          test "$(git rev-parse origin/main)" = "72196dee20b13491972ae1371f2fe4a47d9bd8c9"
+          mapfile -t changed < <(git diff --name-only origin/main...HEAD)
+          expected=(
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          printf '%s\n' "${changed[@]}" | sort > "$RUNNER_TEMP/changed.txt"
+          printf '%s\n' "${expected[@]}" | sort > "$RUNNER_TEMP/expected.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/changed.txt"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Validate changed JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/routes/index.js
+          node --check http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          git diff --check origin/main...HEAD
+
+      - name: Install locked API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+
+      - name: Run full Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: gpt/fix-oauth-runtime-deps-72196dee-20260804
+          DEPLOYMENT_COMMIT_SHA: 1fdd518964d1e4af5579cd9c1e227b227f950aa1
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run explicit OAuth and activation governance checks
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
+          node test-activation-lifecycle-operation-service.mjs
+          node test-activation-contract-finalization.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+
+      - name: Install locked root dependencies
+        run: npm ci
+
+      - name: Validate Execution Resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Prove final freshness and record state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "1fdd518964d1e4af5579cd9c1e227b227f950aa1"
+          test "$(git rev-parse origin/main)" = "72196dee20b13491972ae1371f2fe4a47d9bd8c9"
+          mkdir -p "$RUNNER_TEMP/oauth-runtime-deps-arm"
+          {
+            echo "base_sha=72196dee20b13491972ae1371f2fe4a47d9bd8c9"
+            echo "candidate_sha=1fdd518964d1e4af5579cd9c1e227b227f950aa1"
+            echo "freshness=one_ahead_zero_behind"
+            echo "scope_files=2"
+            echo "force_push=false"
+            echo "secrets_included=false"
+          } > "$RUNNER_TEMP/oauth-runtime-deps-arm/metadata.txt"
+          git status --short > "$RUNNER_TEMP/oauth-runtime-deps-arm/final-worktree.txt"
+          cp -R "$RUNNER_TEMP/test-suite-reports" "$RUNNER_TEMP/oauth-runtime-deps-arm/" 2>/dev/null || true
+
+      - name: Upload exact ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-runtime-deps-arm-6059-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/oauth-runtime-deps-arm
+            ${{ runner.temp }}/test-suite-reports
+          if-no-files-found: warn
+          retention-days: 14
