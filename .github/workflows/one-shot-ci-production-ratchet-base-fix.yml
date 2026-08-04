@@ -1,0 +1,229 @@
+name: One-shot CI Production ratchet base fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-ci-production-ratchet-base-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-ci-production-ratchet-base-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable launcher identity
+        shell: bash
+        env:
+          EXPECTED_PARENT_SHA: ab53d0373fb8e31c8496508760e3d4bfa8c93e84
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
+          test "$(git branch --show-current)" = "gpt/fix-ci-production-ratchet-base-20260805"
+
+      - name: Apply bounded CI ratchet-base correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import textwrap
+
+          root = Path(".")
+          workflow_paths = [
+              root / ".github/workflows/ci.yml",
+              root / ".github/workflows/ci-pull-request-recovery.yml",
+          ]
+          expr = lambda value: "$" + "{{ " + value + " }}"
+          replacement = textwrap.indent(textwrap.dedent("""\
+          - name: Determine context-kernel hardcoding ratchet scope
+            shell: bash
+            env:
+              EVENT_NAME: __EVENT_NAME__
+              PULL_REQUEST_BASE_SHA: __PR_BASE_SHA__
+              PULL_REQUEST_HEAD_REF: __PR_HEAD_REF__
+              PULL_REQUEST_BASE_REF: __PR_BASE_REF__
+              PUSH_BEFORE_SHA: __PUSH_BEFORE_SHA__
+              REF_NAME: __REF_NAME__
+              DEFAULT_BRANCH: __DEFAULT_BRANCH__
+            run: |
+              set -euo pipefail
+              CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
+              DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
+              if [[ "$EVENT_NAME" == "pull_request" && "$PULL_REQUEST_BASE_REF" == "Production" ]]; then
+                PROMOTION_REPORT="$RUNNER_TEMP/context-kernel-production-promotion.json"
+                node http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
+                  --base "$PULL_REQUEST_BASE_SHA" \
+                  --head "$(git rev-parse HEAD)" \
+                  --head-ref "$PULL_REQUEST_HEAD_REF" \
+                  --base-ref "$PULL_REQUEST_BASE_REF" \
+                  --report-file "$PROMOTION_REPORT"
+                BASE_SHA="$(node -e 'const fs=require("fs"); const report=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const base=report.phase_evaluation_base; if(!/^[0-9a-f]{40}$/.test(base || "")) process.exit(1); process.stdout.write(base);' "$PROMOTION_REPORT")"
+                git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+              elif [[ "$EVENT_NAME" == "pull_request" && -n "${PULL_REQUEST_BASE_SHA:-}" ]]; then
+                BASE_SHA="$PULL_REQUEST_BASE_SHA"
+                git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
+              elif [[ "$EVENT_NAME" == "push" && "$REF_NAME" == "$DEFAULT_BRANCH" && -n "${PUSH_BEFORE_SHA:-}" && ! "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
+                BASE_SHA="$PUSH_BEFORE_SHA"
+                git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+              elif git rev-parse --verify "origin/$DEFAULT_BRANCH" >/dev/null 2>&1; then
+                BASE_SHA="origin/$DEFAULT_BRANCH"
+                git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
+              else
+                BASE_SHA="$(git rev-parse HEAD^)"
+                git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+              fi
+              echo "Context-kernel hardcoding ratchet base: $BASE_SHA"
+              echo "Changed files considered by the ratchet:"
+              cat "$CHANGED_FILES"
+          """), "      ")
+          replacements = {
+              "__EVENT_NAME__": expr("github.event_name"),
+              "__PR_BASE_SHA__": expr("github.event.pull_request.base.sha"),
+              "__PR_HEAD_REF__": expr("github.event.pull_request.head.ref"),
+              "__PR_BASE_REF__": expr("github.event.pull_request.base.ref"),
+              "__PUSH_BEFORE_SHA__": expr("github.event.before"),
+              "__REF_NAME__": expr("github.ref_name"),
+              "__DEFAULT_BRANCH__": expr("github.event.repository.default_branch"),
+          }
+          for token, value in replacements.items():
+              replacement = replacement.replace(token, value)
+
+          pattern = re.compile(
+              r"      - name: Determine context-kernel hardcoding ratchet scope\n"
+              r"[\s\S]*?"
+              r"(?=      - name: Block context-kernel runtime hardcoding regressions\n)"
+          )
+          for path in workflow_paths:
+              original = path.read_text()
+              updated, count = pattern.subn(replacement, original)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one ratchet scope step, got {count}")
+              path.write_text(updated)
+
+          test_path = root / "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+          test_text = test_path.read_text()
+          old_token = '  "node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime",\n'
+          pr_head_token = f'PULL_REQUEST_HEAD_REF: {expr("github.event.pull_request.head.ref")}'
+          pr_base_token = f'PULL_REQUEST_BASE_REF: {expr("github.event.pull_request.base.ref")}'
+          required_additions = [
+              pr_head_token,
+              pr_base_token,
+              '"$PULL_REQUEST_BASE_REF" == "Production"',
+              "node http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+              "phase_evaluation_base",
+              'git diff --name-only "$BASE_SHA" HEAD',
+              "node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime",
+          ]
+          new_tokens = "".join(f"  {json.dumps(token)},\n" for token in required_additions)
+          if test_text.count(old_token) != 1:
+              raise SystemExit("recovery self-test ratchet token anchor mismatch")
+          test_text = test_text.replace(old_token, new_tokens)
+
+          canonical_anchor = (
+              'assert(canonical.includes("name: Unit & Integration Tests"), '
+              '"canonical Unit & Integration Tests job missing");\n'
+          )
+          canonical_values = required_additions[:-1]
+          canonical_array = json.dumps(canonical_values, indent=2)
+          canonical_checks = canonical_anchor + f"""
+          for (const token of {canonical_array}) {{
+            assert(canonical.includes(token), "canonical CI missing production ratchet token: " + token);
+          }}
+          """
+          if test_text.count(canonical_anchor) != 1:
+              raise SystemExit("canonical self-test anchor mismatch")
+          test_text = test_text.replace(canonical_anchor, canonical_checks)
+          test_text = test_text.replace(
+              '  canonical_workflow_unchanged: true,\n',
+              '  canonical_workflow_unchanged: false,\n'
+              '  production_promotion_phase_base: true,\n'
+          )
+          test_path.write_text(test_text)
+
+          contract_path = root / ".changes/e2e/ci-pull-request-recovery.json"
+          contract = json.loads(contract_path.read_text())
+          include = contract["scope"]["include"]
+          if ".github/workflows/ci.yml" not in include:
+              include.insert(1, ".github/workflows/ci.yml")
+          contract["title"] = "Exact-head CI recovery and Production promotion ratchet parity"
+          phase = next(item for item in contract["phases"] if item["id"] == "mvp")
+          phase["objective"] = (
+              "Keep canonical CI and exact-head recovery fail-closed while evaluating governed "
+              "Production promotions against the classifier-approved first-parent phase base and "
+              "ordinary pull requests against their declared base SHA."
+          )
+          journey = phase["e2e_journeys"][0]
+          journey["terminal_outcome"] = (
+              "Both workflows check out the exact candidate, classify pull requests targeting "
+              "Production through the canonical promotion gate, evaluate Context Kernel changes "
+              "against phase_evaluation_base, and retain ordinary pull-request base semantics "
+              "without write, deployment, credential, provider, migration, database, or external-send authority."
+          )
+          journey["steps"] = [
+              "Trigger canonical CI and recovery for pull requests targeting main or Production.",
+              "For a Production-targeted pull request, invoke the canonical E2E promotion classifier with the exact head, head ref, base ref, and base SHA.",
+              "Fail closed unless the classifier emits a 40-character phase_evaluation_base for an allowed Production promotion identity.",
+              "Diff the Context Kernel ratchet against phase_evaluation_base for governed promotions and against the declared pull-request base SHA for ordinary pull requests.",
+              "Run the unchanged runtime hardcoding scanner, tests, runtime evidence, governance contracts, and stale-evidence rejection.",
+              "Preserve read-only workflow permissions and bounded test-progress artifacts."
+          ]
+          journey["assertions"] = [
+              "Production promotion identity is not inferred from branch text alone.",
+              "The canonical e2e-parallel-pr-gate remains the authority for phase_evaluation_base.",
+              "Invalid Production candidates fail before the Context Kernel scanner rather than falling back to the Production base.",
+              "Ordinary pull requests still use github.event.pull_request.base.sha with three-dot diff semantics.",
+              "Both canonical CI and recovery use the same scope-selection logic and unchanged runtime scanner.",
+              "The workflows contain no write, deployment, credential, provider, SQL, Migration Apply, database mutation, or external-send authority.",
+              "secrets_included is false."
+          ]
+          evidence = journey["evidence_paths"]
+          if ".github/workflows/ci.yml" not in evidence:
+              evidence.insert(1, ".github/workflows/ci.yml")
+          contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+          PY
+
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check
+          git diff --stat
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+
+      - name: Commit bounded source fix and remove launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-shot-ci-production-ratchet-base-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs \
+            .github/workflows/one-shot-ci-production-ratchet-base-fix.yml
+          git diff --cached --check
+          git commit -m "fix(ci): evaluate governed promotions from phase base"
+          git push origin HEAD:gpt/fix-ci-production-ratchet-base-20260805
