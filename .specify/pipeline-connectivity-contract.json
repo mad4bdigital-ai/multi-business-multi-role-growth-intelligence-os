@@ -61,13 +61,13 @@
         {
           "pipeline": "work-map-recovery-bridge",
           "required_commands": [
-            "Validate immutable PR snapshot and dispatch sole writer",
+            "Resolve and validate exact same-repository target",
             "work-map-autofix:authorized",
-            "authorization_consumed=true",
+            "consumed=true",
             "spec-kit-work-map-autofix.yml/dispatches",
-            "direct_repository_content_mutation=false",
-            "protected_branch_mutation=false",
-            "force_push=false"
+            "direct_repository_mutation:false",
+            "protected_branch_mutation:false",
+            "force_push:false"
           ],
           "forbidden_commands": [
             "platform-work-map-generator.mjs --write",
@@ -124,34 +124,33 @@
   "pipelines": [
     {
       "key": "work-map-recovery-bridge",
-      "workflow": ".github/workflows/e2e-contract-reference-integrity.yml",
+      "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
       "mode": "consume_one_time_authorization_and_dispatch_exact_head_writer",
       "required_permissions": {
         "contents": "read"
       },
       "required_triggers": [
         "workflow_dispatch",
-        "pull_request"
+        "pull_request_target",
+        "issue_comment"
       ],
       "required_commands": [
-        "work-map-recovery-bridge",
-        "Validate immutable PR snapshot and dispatch sole writer",
-        "Publish Work Map writer dispatch evidence",
+        "Resolve and validate exact same-repository target",
+        "Publish structured recovery evidence on target PR",
         "work-map-autofix:authorized",
-        "authorization_consumed=true",
+        "consumed=true",
         "spec-kit-work-map-autofix.yml/dispatches",
         "expected_head_sha",
-        "delegated_run_id",
-        "current_behind_by",
-        "event_snapshot_behind_by",
+        "run_id",
+        "behind_by",
         "actions: write",
         "issues: write",
         "pull-requests: write",
         "gh api --method PATCH",
         "gh api --method POST",
-        "direct_repository_content_mutation=false",
-        "protected_branch_mutation=false",
-        "force_push=false"
+        "direct_repository_mutation:false",
+        "protected_branch_mutation:false",
+        "force_push:false"
       ],
       "forbidden_commands": [
         "platform-work-map-generator.mjs --write",
