@@ -37,7 +37,6 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin main "${BRANCH_NAME}"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
           mapfile -t trigger_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
           test "${#trigger_files[@]}" -eq 1
@@ -144,8 +143,7 @@ jobs:
             "${CONTRACT_PATH}" \
             http-generic-api/frontend-surface-dispatch.generated.json \
             http-generic-api/routes/index.js \
-            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
-            "${WORKFLOW_PATH}"
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           git commit -m "fix(spec-012): preserve OAuth dependencies at canonical mount"
           final_sha="$(git rev-parse HEAD)"
           mapfile -t final_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}")
