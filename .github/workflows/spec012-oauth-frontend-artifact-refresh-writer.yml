@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
-      PRE_UPDATE_HEAD: e44ad94ba23f85009632393741128c3b64c4eb11
+      PRE_UPDATE_HEAD: f4c006d25355d6fe38aa11ff9309e8bae0b32b96
       BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
       WORKFLOW_PATH: .github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml
 
