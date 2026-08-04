@@ -38,6 +38,7 @@
           ],
           "assertions": [
             "main and Production are never writer targets.",
+            "The request evaluator runs from trusted pull_request_target synchronize authority without checking out candidate code.",
             "The writer requires an exact 40-character expected head SHA and typed confirmation.",
             "The writer performs no force push.",
             "The expected effective generated write set is limited to frontend-operation-governance.generated.json and frontend-surface-dispatch.generated.json unless the canonical report proves another allowlisted deterministic artifact changed.",
