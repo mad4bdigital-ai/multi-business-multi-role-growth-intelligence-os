@@ -1,0 +1,106 @@
+name: CI Runner Main Resync
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/ci-runner-main-resync.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-runner-main-resync-6027
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    if: >-
+      github.event.pull_request.number == 6027 &&
+      github.event.pull_request.head.ref == 'gpt/ci-runner-concurrency-unblock-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: gpt/ci-runner-concurrency-unblock-20260804
+      WORKFLOW_PATH: .github/workflows/ci-runner-main-resync.yml
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact trigger and lease
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
+          test -f "${WORKFLOW_PATH}"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "$(git rev-parse HEAD)"
+
+      - name: Merge stable live main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch origin main
+          git rev-parse origin/main > "$RUNNER_TEMP/main-sha.txt"
+          git config user.name mad4bdigital-ai
+          git config user.email mad4bdigital-ai@users.noreply.github.com
+          git merge --no-edit origin/main
+
+      - name: Remove temporary workflow
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm "${WORKFLOW_PATH}"
+          git add -A
+          git commit -m 'ci: resync runner queue remediation with current main'
+
+      - name: Validate final five-file scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mapfile -t changed < <(git diff --name-only origin/main...HEAD | sort -u)
+          test "${#changed[@]}" -eq 5
+          printf '%s\n' "${changed[@]}"
+          for expected in \
+            .github/workflows/ci.yml \
+            .github/workflows/context-kernel-hardcoding-report.yml \
+            .github/workflows/e2e-phase-governance.yml \
+            .github/workflows/frontend-surface-dispatch.yml \
+            .github/workflows/repository-tool-lifecycle-governance.yml; do
+            printf '%s\n' "${changed[@]}" | grep -Fxq "$expected"
+          done
+          test ! -e "${WORKFLOW_PATH}"
+          git diff --check origin/main...HEAD
+
+      - name: Validate focused contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
+          (cd http-generic-api && node test-tenant-ssh-cli-approval-request.mjs)
+          ! grep -R "runs-on: ubuntu-latest" \
+            .github/workflows/ci.yml \
+            .github/workflows/context-kernel-hardcoding-report.yml \
+            .github/workflows/e2e-phase-governance.yml \
+            .github/workflows/frontend-surface-dispatch.yml \
+            .github/workflows/repository-tool-lifecycle-governance.yml
+
+      - name: Verify live main stability
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch origin main
+          test "$(cat "$RUNNER_TEMP/main-sha.txt")" = "$(git rev-parse origin/main)"
+
+      - name: Push synchronized result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
