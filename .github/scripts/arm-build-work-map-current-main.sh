@@ -1,6 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+on_error() {
+  local rc="$1"
+  local line="$2"
+  local command="$3"
+  trap - ERR
+  set +x
+  set +e
+  echo "::error title=Work Map builder failure::rc=${rc} line=${line} command=${command}"
+  if [[ -n "${GH_TOKEN:-}" && -n "${GITHUB_REPOSITORY:-}" && -n "${PR_NUMBER:-}" ]]; then
+    local body
+    body=$(cat <<EOF
+Temporary Work Map builder diagnostic — never-merge surface
+
+- Run: `${GITHUB_RUN_ID:-unknown}`
+- Exit code: `${rc}`
+- Script line: `${line}`
+- Failed command:
+
+```bash
+${command}
+```
+
+No candidate branch was accepted from this failed run.
+EOF
+)
+    gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="$body" >/dev/null || true
+  fi
+  exit "$rc"
+}
+trap 'on_error "$?" "$LINENO" "$BASH_COMMAND"' ERR
+PS4='+${BASH_SOURCE}:${LINENO}: '
+set -x
+
 EXPECTED_MAIN_SHA="${EXPECTED_MAIN_SHA:?}"
 OLD_BASE_SHA="${OLD_BASE_SHA:?}"
 CANDIDATE_SHA="${CANDIDATE_SHA:?}"
