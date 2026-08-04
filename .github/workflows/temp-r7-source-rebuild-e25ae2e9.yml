@@ -1,0 +1,66 @@
+name: TEMP R7 Source Rebuild e25ae2e9
+
+on:
+  pull_request:
+    branches:
+      - gpt/r7-source-rebuild-base-e25ae2e9
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  rebuild:
+    name: Rebuild exact reviewed R7 sources on current main
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/r7-source-rebuild-trigger-e25ae2e9-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      EXPECTED_MAIN_SHA: e25ae2e9c228e2902ca413d3035e677c4e48cf13
+      SOURCE_SHA: c17acfb377cbc3e6121db768e3b21329a01e76f2
+      TARGET_BRANCH: fix/hostinger-production-r7-registration-main-e25ae2e9-20260804
+    steps:
+      - name: Pin repository and target identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Checkout exact target branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Restore exact reviewed source blobs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git fetch --no-tags origin "${SOURCE_SHA}"
+          git show "${SOURCE_SHA}:.github/workflows/hostinger-production-runtime-readback-r7.yml" > .github/workflows/hostinger-production-runtime-readback-r7.yml
+          git show "${SOURCE_SHA}:http-generic-api/test-hostinger-production-runtime-readback-r7.mjs" > http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          git diff --name-only | sort > /tmp/actual.txt
+          printf '%s\n' '.github/workflows/hostinger-production-runtime-readback-r7.yml' 'http-generic-api/test-hostinger-production-runtime-readback-r7.mjs' | sort > /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/actual.txt
+          git diff --check
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+
+      - name: Commit and push candidate branch only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/hostinger-production-runtime-readback-r7.yml http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          git commit -m 'fix(ops): restore R7 issue-comment workflow registration'
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_sha}" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
