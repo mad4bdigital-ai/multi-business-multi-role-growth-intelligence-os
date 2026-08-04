@@ -44,11 +44,13 @@ jobs:
           test "$(git branch --show-current)" = "gpt/fix-ci-production-ratchet-base-20260805"
 '''
           new = '''        env:
-          EXPECTED_PARENT_SHA: ab53d0373fb8e31c8496508760e3d4bfa8c93e84
+          EXPECTED_BASE_SHA: ab53d0373fb8e31c8496508760e3d4bfa8c93e84
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
+          test "$EVENT_BASE_SHA" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD "$EXPECTED_BASE_SHA")" = "$EXPECTED_BASE_SHA"
           test "$EXPECTED_HEAD_REF" = "gpt/fix-ci-production-ratchet-base-20260805"
 '''
           if text.count(old) != 1:
