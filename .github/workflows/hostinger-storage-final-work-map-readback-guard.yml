@@ -34,14 +34,14 @@ jobs:
     env:
       TARGET_PR: '5985'
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      TARGET_SHA: e3007d167d103b4e2db77959feb9ee0cf4e1ee2e
+      TARGET_SHA: 249f55bb55d986d4f7615a522247d2ecdc724b47
       GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout immutable target candidate
         uses: actions/checkout@v5
         with:
-          ref: e3007d167d103b4e2db77959feb9ee0cf4e1ee2e
+          ref: 249f55bb55d986d4f7615a522247d2ecdc724b47
           fetch-depth: 1
           persist-credentials: false
 
@@ -137,7 +137,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: runtime-parity-final-head-readback-e3007d-${{ github.run_id }}
+          name: runtime-parity-final-head-readback-249f55-${{ github.run_id }}
           path: ${{ runner.temp }}/spec014-final-work-map-readback
           if-no-files-found: error
           retention-days: 14
@@ -155,5 +155,5 @@ jobs:
           const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           if (!report.ok) process.exit(1);
           if (report.secrets_included !== false) process.exit(1);
-          if (report.candidate_sha !== 'e3007d167d103b4e2db77959feb9ee0cf4e1ee2e') process.exit(1);
+          if (report.candidate_sha !== '249f55bb55d986d4f7615a522247d2ecdc724b47') process.exit(1);
           NODE
