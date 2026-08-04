@@ -100,4 +100,58 @@ try {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
-console.log("Work Map Autofix diagnostic report tests passed");
+const bootstrapWorkflow = readFileSync(
+  path.join(API_ROOT, "..", ".github", "workflows", "spec-kit-work-map-recovery-bootstrap.yml"),
+  "utf8",
+);
+
+assert.match(bootstrapWorkflow, /^name: Spec Kit Work Map Recovery Bootstrap$/mu);
+assert.match(bootstrapWorkflow, /issue_comment:\s*\n\s*types: \[created\]/u);
+assert.match(bootstrapWorkflow, /workflow_dispatch:/u);
+assert.doesNotMatch(bootstrapWorkflow, /^\s*pull_request(?:_target)?:/mu);
+assert.doesNotMatch(bootstrapWorkflow, /^\s*push:/mu);
+assert.match(
+  bootstrapWorkflow,
+  /permissions:\s*\n\s*actions: write\s*\n\s*contents: read\s*\n\s*issues: write\s*\n\s*pull-requests: read/u,
+);
+assert.doesNotMatch(bootstrapWorkflow, /contents: write/u);
+assert.doesNotMatch(
+  bootstrapWorkflow,
+  /^\s{6}REPORT_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/mu,
+  "runner.temp must not be evaluated in job-level env before runner allocation",
+);
+assert.match(bootstrapWorkflow, /Initialize bounded report directory after runner allocation/u);
+assert.match(
+  bootstrapWorkflow,
+  /report_dir="\$\{RUNNER_TEMP\}\/spec-kit-work-map-recovery-bootstrap"/u,
+);
+assert.match(bootstrapWorkflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
+assert.match(
+  bootstrapWorkflow,
+  /path: \$\{\{ env\.REPORT_DIR \}\}\//u,
+);
+assert.match(bootstrapWorkflow, /ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY/u);
+assert.match(bootstrapWorkflow, /\/activate-work-map-recovery\[\[:space:\]\]\+\(\[0-9a-f\]\{40\}\)/u);
+assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
+assert.match(bootstrapWorkflow, /test "\$\{behind_by\}" = "0"/u);
+assert.match(
+  bootstrapWorkflow,
+  /actions\/workflows\/\$\{recovery_workflow\}\/enable/u,
+);
+assert.match(
+  bootstrapWorkflow,
+  /actions\/workflows\/\$\{recovery_workflow\}\/dispatches/u,
+);
+assert.match(bootstrapWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
+assert.match(bootstrapWorkflow, /WORK_MAP_RECOVERY_BOOTSTRAP/u);
+assert.match(bootstrapWorkflow, /direct_repository_mutation:false/u);
+assert.match(bootstrapWorkflow, /authorization_consumed:false/u);
+assert.match(bootstrapWorkflow, /protected_branch_mutation:false/u);
+assert.match(bootstrapWorkflow, /force_push:false/u);
+assert.match(bootstrapWorkflow, /secrets_included:false/u);
+assert.doesNotMatch(bootstrapWorkflow, /spec-kit-work-map-autofix\.yml\/dispatches/u);
+assert.doesNotMatch(bootstrapWorkflow, /gh api --method PATCH/u);
+assert.doesNotMatch(bootstrapWorkflow, /git (?:add|commit|push)/u);
+assert.doesNotMatch(bootstrapWorkflow, /--force|force-with-lease/u);
+
+console.log("Work Map Autofix diagnostic and independent bootstrap tests passed");
