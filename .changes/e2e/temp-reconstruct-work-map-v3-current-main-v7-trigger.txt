@@ -1,0 +1,6 @@
+trigger=current-main-work-map-v3-reconstruction-v7
+main_sha=07264baf9957a26bb853df03e7cdb579c7a5c7e7
+workflow_sha=857216811cdea25559c236ccb0a62db6e77ed09e
+source_sha=f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+candidate_ref=gpt/work-map-v3-current-main-07264baf-v7-20260804
+changed_file_scope=6
