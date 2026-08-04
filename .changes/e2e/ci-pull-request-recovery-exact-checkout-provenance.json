@@ -10,8 +10,7 @@
       ".github/workflows/ci.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
       "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
-      ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
-      ".specify/work-map-currentness-probe.txt"
+      ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
     ]
   },
   "merge_contract": {
@@ -37,7 +36,6 @@
             "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
             "Use the pull-request event predicate as the only cancel-in-progress authority for CI and Recovery.",
             "Keep push and workflow-dispatch verification outside cancellation authority.",
-            "Use the registered currentness probe only to activate read-only generated-artifact evaluation and governed Recovery delegation.",
             "Upload ordered test progress reports without relabeling head execution as a different merge candidate."
           ],
           "assertions": [
@@ -45,7 +43,6 @@
             "A candidate identity mismatch fails before npm test.",
             "Superseded pull-request runs are cancellable in both CI workflows.",
             "Push and workflow-dispatch runs are not unconditionally cancellable.",
-            "The currentness probe grants no repository-content write authority.",
             "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced.",
             "The Recovery workflow retains read-only contents permission."
           ],
@@ -62,8 +59,7 @@
             ".github/workflows/ci.yml",
             ".github/workflows/ci-pull-request-recovery.yml",
             "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
-            ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
-            ".specify/work-map-currentness-probe.txt"
+            ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
           ]
         }
       ]
