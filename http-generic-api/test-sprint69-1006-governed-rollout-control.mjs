@@ -63,11 +63,14 @@ assert.equal(trigger.requested_by, 'mad4bdigital-ai');
 assert.equal(trigger.database_mutation_authorized, false);
 assert.equal(trigger.apply_authorized, false);
 
+assert.match(validator, /EXPECTED_REPOSITORY = 'mad4bdigital-ai\/multi-business-multi-role-growth-intelligence-os'/);
 assert.match(validator, /EXPECTED_ISSUE = 4122/);
 assert.match(validator, /EXPECTED_CONFIRMATION = 'AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE'/);
 assert.match(validator, /EXPECTED_CHECKSUM = '995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374'/);
 assert.match(validator, /EXPECTED_DISPATCH_CONFIRMATION_COMMENT_ID = 5170518874/);
+assert.match(validator, /COMMENT_READ_TIMEOUT_MS = 10_000/);
 assert.match(validator, /ALLOWED_ASSOCIATIONS = new Set\(\['OWNER', 'MEMBER', 'COLLABORATOR'\]\)/);
+assert.match(validator, /assert\.equal\(repository, EXPECTED_REPOSITORY, 'unexpected repository'\)/);
 assert.match(validator, /eventName === 'workflow_dispatch'/);
 assert.match(validator, /DISPATCH_CONFIRMATION_COMMENT_ID/);
 assert.match(validator, /DISPATCH_EXPECTED_MAIN_SHA/);
@@ -75,7 +78,10 @@ assert.match(validator, /confirmationCommentId,\s*EXPECTED_DISPATCH_CONFIRMATION
 assert.match(validator, /unexpected dispatch confirmation comment id/);
 assert.match(validator, /assert\.equal\(currentSha, expectedMainSha, 'workflow_dispatch main SHA mismatch'\)/);
 assert.match(validator, /requested_by: actor/);
-assert.match(validator, /issues\/comments\/\$\{marker\.confirmation_comment_id\}/);
+assert.match(validator, /repos\/\$\{EXPECTED_REPOSITORY\}\/issues\/comments\/\$\{marker\.confirmation_comment_id\}/);
+assert.match(validator, /redirect: 'error'/);
+assert.match(validator, /AbortSignal\.timeout\(COMMENT_READ_TIMEOUT_MS\)/);
+assert.match(validator, /invalid confirmation comment payload/);
 assert.match(validator, /comment\.body, EXPECTED_CONFIRMATION/);
 assert.match(validator, /comment\.user\?\.login, marker\.requested_by/);
 assert.match(validator, /marker\.database_mutation_authorized, false/);
@@ -115,14 +121,25 @@ const dispatchSha = 'a'.repeat(40);
 
 try {
   Object.assign(process.env, {
-    GITHUB_REPOSITORY: 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os',
-    GH_TOKEN: 'test-token',
+    GITHUB_REPOSITORY: 'mad4bdigital-ai/unexpected-repository',
+    GH_TOKEN: 'fixture',
     GITHUB_EVENT_NAME: 'workflow_dispatch',
     GITHUB_ACTOR: 'mad4bdigital-ai',
     GITHUB_SHA: dispatchSha,
     DISPATCH_EXPECTED_MAIN_SHA: dispatchSha,
-    DISPATCH_CONFIRMATION_COMMENT_ID: '5143273227',
+    DISPATCH_CONFIRMATION_COMMENT_ID: '5170518874',
   });
+  globalThis.fetch = async () => {
+    throw new Error('unexpected repository must fail before GitHub read');
+  };
+
+  await assert.rejects(
+    import('../.github/ops/validate-sprint69-1006-readiness-trigger.mjs?repository-rejected'),
+    /unexpected repository/,
+  );
+
+  process.env.GITHUB_REPOSITORY = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
+  process.env.DISPATCH_CONFIRMATION_COMMENT_ID = '5143273227';
   globalThis.fetch = async () => {
     throw new Error('historical comment replay must fail before GitHub read');
   };
@@ -133,8 +150,14 @@ try {
   );
 
   process.env.DISPATCH_CONFIRMATION_COMMENT_ID = '5170518874';
-  globalThis.fetch = async (url) => {
-    assert.match(String(url), /issues\/comments\/5170518874$/);
+  globalThis.fetch = async (url, options = {}) => {
+    assert.equal(
+      String(url),
+      'https://api.github.com/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/comments/5170518874',
+    );
+    assert.equal(options.redirect, 'error');
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.signal.aborted, false);
     return {
       ok: true,
       async json() {
