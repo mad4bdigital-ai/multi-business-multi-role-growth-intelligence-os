@@ -1,0 +1,138 @@
+name: Exact Production Reconciliation Builder 0ccfc93b V2
+
+on:
+  pull_request:
+    branches:
+      - gpt/production-reconciliation-builder-base-0ccfc93b-42177d36-v2
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: exact-production-reconciliation-builder-0ccfc93b-42177d36-v2
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build exact-main two-parent Production candidate
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/production-reconciliation-builder-trigger-0ccfc93b-42177d36-v2' &&
+      github.event.pull_request.base.ref == 'gpt/production-reconciliation-builder-base-0ccfc93b-42177d36-v2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      EXPECTED_PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      MARKER_PATH: .github/validation/exact-production-reconciliation-builder-0ccfc93b-v2.txt
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify marker-only identity and protected refs
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EVENT_HEAD_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EVENT_BASE_SHA}"
+          test "$(git rev-parse "${EVENT_BASE_SHA}^")" = "${EXPECTED_MAIN_SHA}"
+          test -f "${MARKER_PATH}"
+          printf '%s\n' "${MARKER_PATH}" > /tmp/expected-files.txt
+          git diff --name-only "${EVENT_BASE_SHA}" "${EVENT_HEAD_SHA}" | LC_ALL=C sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main" "+refs/heads/Production:refs/remotes/origin/Production"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Create deterministic exact-main reconciliation object
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_tree="$(git rev-parse "${EXPECTED_MAIN_SHA}^{tree}")"
+          fixed_date="$(git show -s --format=%cI "${EXPECTED_MAIN_SHA}")"
+          export GIT_AUTHOR_NAME='github-actions[bot]'
+          export GIT_AUTHOR_EMAIL='41898282+github-actions[bot]@users.noreply.github.com'
+          export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+          export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+          export GIT_AUTHOR_DATE="${fixed_date}"
+          export GIT_COMMITTER_DATE="${fixed_date}"
+          message='chore(production): reconcile exact main 0ccfc93b with Production 42177d36'
+          candidate_sha="$(printf '%s\n\nHistory-preserving exact-main reconciliation. First parent is protected main and second parent is protected Production. No force push, deployment, provider call, credential access, SQL, Migration Apply, database mutation, restart, external send, or secret inclusion.\n' "${message}" | git commit-tree "${main_tree}" -p "${EXPECTED_MAIN_SHA}" -p "${EXPECTED_PRODUCTION_SHA}")"
+          candidate_tree="$(git rev-parse "${candidate_sha}^{tree}")"
+          candidate_parents="$(git show -s --format=%P "${candidate_sha}")"
+          test "${candidate_tree}" = "${main_tree}"
+          test "${candidate_parents}" = "${EXPECTED_MAIN_SHA} ${EXPECTED_PRODUCTION_SHA}"
+          git diff --exit-code "${EXPECTED_MAIN_SHA}" "${candidate_sha}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${candidate_sha}"
+          git merge-base --is-ancestor "${EXPECTED_PRODUCTION_SHA}" "${candidate_sha}"
+          release_branch="release/production-candidate-20260804-${candidate_sha:0:8}-v1"
+          printf 'candidate_sha=%s\n' "${candidate_sha}" >> "${GITHUB_OUTPUT}"
+          printf 'candidate_tree=%s\n' "${candidate_tree}" >> "${GITHUB_OUTPUT}"
+          printf 'release_branch=%s\n' "${release_branch}" >> "${GITHUB_OUTPUT}"
+
+      - name: Push immutable candidate branch without force
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          RELEASE_BRANCH: ${{ steps.candidate.outputs.release_branch }}
+        run: |
+          set -euo pipefail
+          existing="$(git ls-remote --heads origin "refs/heads/${RELEASE_BRANCH}" | awk '{print $1}')"
+          if [ -n "${existing}" ]; then
+            test "${existing}" = "${CANDIDATE_SHA}"
+          else
+            git push origin "${CANDIDATE_SHA}:refs/heads/${RELEASE_BRANCH}"
+          fi
+          git fetch --no-tags origin "+refs/heads/${RELEASE_BRANCH}:refs/remotes/origin/${RELEASE_BRANCH}"
+          test "$(git rev-parse "refs/remotes/origin/${RELEASE_BRANCH}")" = "${CANDIDATE_SHA}"
+
+      - name: Write bounded candidate evidence
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ steps.candidate.outputs.candidate_sha }}
+          CANDIDATE_TREE: ${{ steps.candidate.outputs.candidate_tree }}
+          RELEASE_BRANCH: ${{ steps.candidate.outputs.release_branch }}
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/production-reconciliation-${GITHUB_RUN_ID}"
+          mkdir -p "${evidence}"
+          cat > "${evidence}/summary.txt" <<EOF
+          contract=exact_production_reconciliation_builder.v1
+          main_sha=${EXPECTED_MAIN_SHA}
+          production_sha=${EXPECTED_PRODUCTION_SHA}
+          candidate_sha=${CANDIDATE_SHA}
+          candidate_tree=${CANDIDATE_TREE}
+          release_branch=${RELEASE_BRANCH}
+          tree_equals_main=true
+          parents_exact=true
+          main_ancestor=true
+          production_ancestor=true
+          force_push=false
+          protected_ref_update=false
+          deployment=false
+          provider_call=false
+          credential_access=false
+          sql=false
+          migration_apply=false
+          database_mutation=false
+          external_send=false
+          secrets_included=false
+          EOF
+          printf 'EVIDENCE_ROOT=%s\n' "${evidence}" >> "${GITHUB_ENV}"
+
+      - name: Upload reconciliation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-reconciliation-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_ROOT }}
+          if-no-files-found: error
+          retention-days: 14
