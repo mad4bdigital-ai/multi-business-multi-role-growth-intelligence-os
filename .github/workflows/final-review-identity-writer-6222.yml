@@ -1,0 +1,250 @@
+name: Final Review Identity Writer 6222
+
+on:
+  pull_request:
+    branches:
+      - gpt/writer-final-review-identity-base-2959ecfa
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: final-review-identity-writer-6222-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  write-candidate:
+    name: Patch final identity readback and publish atomic branch
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-final-review-state-readback-07264baf-20260804' &&
+      github.event.pull_request.head.sha == '83aebe711328f1a6a95793b3fcd500da013b6a5d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      EXPECTED_MAIN_SHA: 2959ecfadf00be09c998bff573fe30a6539143ca
+      EXPECTED_SOURCE_SHA: 83aebe711328f1a6a95793b3fcd500da013b6a5d
+      EXPECTED_SOURCE_REF: gpt/fix-final-review-state-readback-07264baf-20260804
+      TARGET_BRANCH: gpt/fix-final-review-identity-after-reviews-2959ecfa-20260804
+    steps:
+      - name: Checkout exact reviewed source
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Verify immutable source and current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_SOURCE_REF"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:.changes/e2e/repository-lifecycle-draft-merge-guard.json")" = "f822dea0c91347b3921cbb05302654ac7a5ba728"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:.changes/e2e/repository-lifecycle-final-review-state-readback.json")" = "478ebb3f92c50fb8aebafcb6e3b5efb1ef6d8e1a"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:http-generic-api/githubRepositoryLifecycle.js")" = "ef4dcbd7a7bf88c03286fe6030e2a07b480dbb46"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:http-generic-api/repositoryAutomationControlPlane.js")" = "18f037e8da34b231a78182e359a40691d4b39a26"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:http-generic-api/test-github-final-review-state-readback.mjs")" = "a19683f3c50dfe2ed258d5a705c37eb51c00f076"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:http-generic-api/test-github-repository-lifecycle.mjs")" = "8e675e967c0a2d713fd71b0ea767349d05fc6226"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA:http-generic-api/test-repository-automation-control-plane.mjs")" = "432c5924094c482420d64d63d0502ba39af479e3"
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
+            echo "Target branch already exists; refusing duplicate writer run." >&2
+            exit 1
+          fi
+
+      - name: Apply bounded repair and regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          lifecycle_path = Path("http-generic-api/githubRepositoryLifecycle.js")
+          lifecycle = lifecycle_path.read_text()
+          marker = """\n  const merge = await githubLifecycleRequest({\n    owner,\n    repo,\n    apiPath: `/pulls/${pullNumber}/merge`,\n"""
+          if lifecycle.count(marker) != 1:
+              raise SystemExit(f"Expected one merge marker, found {lifecycle.count(marker)}")
+          final_identity = """
+          const finalPreMergePr = (await githubLifecycleRequest({
+            owner,
+            repo,
+            apiPath: `/pulls/${pullNumber}`,
+            token,
+            fetchImpl: options.fetchImpl,
+          })).payload;
+          const finalPreMergeState = String(finalPreMergePr?.state || "").trim().toLowerCase();
+          const finalPreMergeHeadSha = normalizeSha(finalPreMergePr?.head?.sha);
+          const finalPreMergeBaseSha = normalizeSha(finalPreMergePr?.base?.sha);
+          if (
+            finalPreMergeState !== "open"
+            || finalPreMergePr?.draft === true
+            || finalPreMergeHeadSha !== expectedHeadSha
+            || finalPreMergeBaseSha !== expectedBaseSha
+          ) {
+            throw lifecycleError(409, "github_pr_finalize_final_identity_mismatch", "Pull request state, Draft status, head, or base changed after final approval evidence and immediately before merge.", {
+              pull_number: pullNumber,
+              expected_state: "open",
+              current_state: finalPreMergeState || null,
+              is_draft: finalPreMergePr?.draft === true,
+              expected_head_sha: expectedHeadSha,
+              current_head_sha: finalPreMergeHeadSha || null,
+              expected_base_sha: expectedBaseSha,
+              current_base_sha: finalPreMergeBaseSha || null,
+              validation_phase: "final_pre_merge_identity_readback",
+              secrets_included: false,
+            });
+          }
+          """
+          lifecycle = lifecycle.replace(marker, "\n" + final_identity + marker, 1)
+          lifecycle_path.write_text(lifecycle)
+
+          test_path = Path("http-generic-api/test-github-final-review-state-readback.mjs")
+          tests = test_path.read_text()
+          success_marker = """    { status: 200, payload: [review(2, "APPROVED", "reviewer-a", HEAD_SHA, "2026-08-04T00:11:00Z")] },\n    { status: 200, payload: { merged: true, sha: MERGE_SHA, message: "merged" } },\n"""
+          if tests.count(success_marker) != 1:
+              raise SystemExit("Success-path marker missing or duplicated")
+          tests = tests.replace(
+              success_marker,
+              """    { status: 200, payload: [review(2, "APPROVED", "reviewer-a", HEAD_SHA, "2026-08-04T00:11:00Z")] },\n    pr(pullNumber),\n    { status: 200, payload: { merged: true, sha: MERGE_SHA, message: "merged" } },\n""",
+              1,
+          )
+          end_marker = '\nconsole.log("github final review-state readback tests passed");\n'
+          if tests.count(end_marker) != 1:
+              raise SystemExit("Test-file end marker missing or duplicated")
+          new_tests = r"""
+          {
+            const pullNumber = 58725;
+            const calls = [];
+            await assert.rejects(
+              () => finalizeGithubPullRequest(options(pullNumber, calls, [
+                ...gate(pullNumber),
+                pr(pullNumber),
+                { status: 200, payload: [review(50, "APPROVED", "reviewer-a")] },
+                pr(pullNumber),
+                { status: 200, payload: [review(51, "APPROVED", "reviewer-a", HEAD_SHA, "2026-08-04T00:16:00Z")] },
+                { status: 200, payload: { number: pullNumber, state: "open", draft: false, user: { login: "author", type: "User" }, base: { ref: "main", sha: STALE_SHA }, head: { ref: "gpt/final-review", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+              ])),
+              (error) => error.code === "github_pr_finalize_final_identity_mismatch"
+                && error.details?.validation_phase === "final_pre_merge_identity_readback"
+                && error.details?.current_base_sha === STALE_SHA,
+            );
+            assert.equal(mergeReached(calls), false);
+          }
+
+          {
+            const pullNumber = 58726;
+            const calls = [];
+            await assert.rejects(
+              () => finalizeGithubPullRequest(options(pullNumber, calls, [
+                ...gate(pullNumber),
+                pr(pullNumber),
+                { status: 200, payload: [review(60, "APPROVED", "reviewer-a")] },
+                pr(pullNumber),
+                { status: 200, payload: [review(61, "APPROVED", "reviewer-a", HEAD_SHA, "2026-08-04T00:17:00Z")] },
+                { status: 200, payload: { number: pullNumber, state: "open", draft: true, user: { login: "author", type: "User" }, base: { ref: "main", sha: BASE_SHA }, head: { ref: "gpt/final-review", sha: HEAD_SHA, repo: { full_name: `${OWNER}/${REPO}` } } } },
+              ])),
+              (error) => error.code === "github_pr_finalize_final_identity_mismatch"
+                && error.details?.validation_phase === "final_pre_merge_identity_readback"
+                && error.details?.is_draft === true,
+            );
+            assert.equal(mergeReached(calls), false);
+          }
+          """
+          tests = tests.replace(end_marker, "\n" + new_tests + end_marker, 1)
+          test_path.write_text(tests)
+
+          contract_path = Path(".changes/e2e/repository-lifecycle-final-review-state-readback.json")
+          contract = json.loads(contract_path.read_text())
+          phase = contract["phases"][0]
+          journey = phase["e2e_journeys"][0]
+          phase["objective"] = "Re-read bounded exact-head review decisions, then perform a final open/Draft/head/base identity readback immediately before merge and expose only the final validated approval evidence in merge audit output."
+          journey["terminal_outcome"] = "PUT /pulls/{number}/merge is reachable only when the final bounded review readback proves the required exact-head non-author human approval quorum and the subsequent final identity readback still proves an open non-Draft PR with unchanged head and base."
+          steps = journey["steps"]
+          final_step = "Re-read open/Draft/head/base identity after final review evidence and immediately before PUT /merge."
+          if final_step not in steps:
+              steps.insert(len(steps) - 1, final_step)
+          assertion = "State, Draft, head, or base drift after final review evidence fails with validation_phase=final_pre_merge_identity_readback and does not call the merge endpoint."
+          if assertion not in journey["assertions"]:
+              journey["assertions"].append(assertion)
+          contract_path.write_text(json.dumps(contract, indent=2) + "\n")
+          PY
+
+          git diff --check
+          node --check http-generic-api/githubRepositoryLifecycle.js
+          node --check http-generic-api/test-github-final-review-state-readback.mjs
+
+      - name: Install dependencies and run focused regressions
+        working-directory: http-generic-api
+        run: |
+          npm ci
+          node test-github-repository-lifecycle.mjs
+          node test-github-final-review-state-readback.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Reconstruct one-commit candidate on current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            ".changes/e2e/repository-lifecycle-draft-merge-guard.json"
+            ".changes/e2e/repository-lifecycle-final-review-state-readback.json"
+            "http-generic-api/githubRepositoryLifecycle.js"
+            "http-generic-api/repositoryAutomationControlPlane.js"
+            "http-generic-api/test-github-final-review-state-readback.mjs"
+            "http-generic-api/test-github-repository-lifecycle.mjs"
+            "http-generic-api/test-repository-automation-control-plane.mjs"
+          )
+          tar -cf "$RUNNER_TEMP/final-review-candidate.tar" "${files[@]}"
+          git checkout -B "$TARGET_BRANCH" "$EXPECTED_MAIN_SHA"
+          tar -xf "$RUNNER_TEMP/final-review-candidate.tar"
+
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_MAIN_SHA")
+          test "${#changed[@]}" -eq 7
+          for i in "${!files[@]}"; do
+            test "${changed[$i]}" = "${files[$i]}"
+          done
+
+          git diff --check
+          node --check http-generic-api/githubRepositoryLifecycle.js
+          node --check http-generic-api/test-github-final-review-state-readback.mjs
+          (
+            cd http-generic-api
+            node test-github-repository-lifecycle.mjs
+            node test-github-final-review-state-readback.mjs
+            node test-repository-automation-control-plane.mjs
+          )
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${files[@]}"
+          git commit -m "fix(github): close final identity race after review readback"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..HEAD")" -eq 1
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+      - name: Publish writer summary
+        shell: bash
+        run: |
+          {
+            echo "### Atomic candidate created"
+            echo "- base: \`$EXPECTED_MAIN_SHA\`"
+            echo "- head: \`$(git rev-parse HEAD)\`"
+            echo "- branch: \`$TARGET_BRANCH\`"
+            echo "- files: 7"
+            echo "- force push: false"
+            echo "- main mutated: false"
+            echo "- production mutated: false"
+          } >> "$GITHUB_STEP_SUMMARY"
