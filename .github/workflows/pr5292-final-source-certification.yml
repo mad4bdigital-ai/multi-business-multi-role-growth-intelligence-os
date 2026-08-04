@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 20
     env:
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      EXPECTED_MAIN: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+      EXPECTED_MAIN: 72196dee20b13491972ae1371f2fe4a47d9bd8c9
       HEAD_BRANCH: gpt/pr5210-surface-source-clean-20260803
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
       GOVERNANCE_ARTIFACT: http-generic-api/frontend-operation-governance.generated.json
