@@ -148,9 +148,17 @@ assert("legacy transition lifetime remains bounded to seven days",
   legacyBeforeCutoff.verification.lifetime_seconds === LEGACY_TTL_SECONDS);
 assert("legacy acceptance emits observable compatibility evidence",
   legacyEvidence[0]?.classification === "legacy_audience_accepted_before_cutoff");
+
+const cutoffIat = Math.floor((CUTOFF_MS - 60_000) / 1000);
+const legacyAtCutoffToken = signToken({
+  aud: LEGACY_AUDIENCE,
+  resource: undefined,
+  iat: cutoffIat,
+  exp: cutoffIat + STRICT_TTL_SECONDS,
+});
 assert(
   "legacy audience is rejected after cutoff",
-  failureCode(legacyToken, {
+  failureCode(legacyAtCutoffToken, {
     nowMs: CUTOFF_MS + 1,
     legacyAudienceCutoffMs: CUTOFF_MS,
   }) === "tenant_gpt_token_audience_invalid",
