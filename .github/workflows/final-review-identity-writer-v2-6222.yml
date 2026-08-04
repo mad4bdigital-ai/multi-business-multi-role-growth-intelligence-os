@@ -248,7 +248,10 @@ jobs:
           done
           sha256sum "${files[@]}" | diff -u "$manifest" - || fail restored_tree_digest_mismatch
 
-          mapfile -t changed < <(git diff --name-only | sort)
+          mapfile -t changed < <({
+            git diff --name-only
+            git ls-files --others --exclude-standard
+          } | sort -u)
           mapfile -t expected < <(printf '%s\n' "${files[@]}" | sort)
           [ "${#changed[@]}" -eq "${#expected[@]}" ] || {
             printf 'expected files:\n%s\nactual files:\n%s\n' "${expected[*]}" "${changed[*]}"
@@ -267,6 +270,7 @@ jobs:
           )
 
           git add -- "${files[@]}"
+          git diff --cached --check
           mapfile -t staged < <(git diff --cached --name-only | sort)
           [ "$(printf '%s\n' "${staged[@]}")" = "$(printf '%s\n' "${expected[@]}")" ] || fail staged_scope_mismatch
           git config user.name "github-actions[bot]"
