@@ -1,0 +1,214 @@
+name: Runtime Parity E2E Ownership Helper
+
+on:
+  pull_request:
+    branches:
+      - gpt/add-runtime-parity-comment-bridge-v2-20260804
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/runtime-parity-e2e-ownership-helper.yml
+      - .github/scripts/runtime-parity-e2e-ownership-helper.py
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: runtime-parity-e2e-ownership-helper
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/repair/runtime-parity-e2e-ownership-helper-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/add-runtime-parity-comment-bridge-v2-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      HELPER_BRANCH: gpt/repair/runtime-parity-e2e-ownership-helper-20260804
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      EXPECTED_PARENT_SHA: 6a6ea4dd8419c634d8b4d891bec9cdd69c6c7358
+      EXPECTED_TARGET_SHA: abb75190957387b2a866b426f3910deb560c49e9
+      EXPECTED_MAIN_SHA: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
+      PRODUCER_PATH: .github/scripts/runtime-parity-e2e-ownership-helper.py
+      LAUNCHER_PATH: .github/workflows/runtime-parity-e2e-ownership-helper.yml
+      PARALLEL_GOVERNANCE: http-generic-api/scripts/e2e-parallel-work-governance.mjs
+      PARALLEL_TEST: http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+      PHASE_GOVERNANCE: http-generic-api/scripts/e2e-phase-governance.mjs
+      PHASE_TEST: http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout exact helper head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Pin helper, target, main, and request scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          helper_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
+          git fetch --no-tags origin main "${TARGET_BRANCH}" "${HELPER_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "${EXPECTED_TARGET_SHA}"
+          test "$(git rev-parse "origin/${HELPER_BRANCH}")" = "${helper_sha}"
+          test "${EXPECTED_MAIN_SHA}" = "$(git merge-base origin/main "origin/${TARGET_BRANCH}")"
+          test "${EXPECTED_TARGET_SHA}" = "$(git merge-base "origin/${TARGET_BRANCH}" HEAD)"
+
+          mapfile -t request_files < <(git diff --name-only "${EXPECTED_PARENT_SHA}..HEAD")
+          test "${#request_files[@]}" -eq 1
+          test "${request_files[0]}" = "${LAUNCHER_PATH}"
+          mapfile -t helper_files < <(git diff --name-only "${EXPECTED_TARGET_SHA}...HEAD" | sort)
+          test "${#helper_files[@]}" -eq 2
+          test "${helper_files[0]}" = "${PRODUCER_PATH}"
+          test "${helper_files[1]}" = "${LAUNCHER_PATH}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${HELPER_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${helper_sha}"
+          echo "HELPER_REQUEST_SHA=${helper_sha}" >> "${GITHUB_ENV}"
+
+      - name: Apply permanent repair and remove helper files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 "${PRODUCER_PATH}"
+          node --check "${PARALLEL_GOVERNANCE}"
+          node --check "${PARALLEL_TEST}"
+          node --check "${PHASE_GOVERNANCE}"
+          node --check "${PHASE_TEST}"
+          git rm -- "${PRODUCER_PATH}" "${LAUNCHER_PATH}"
+
+      - name: Verify generated Work Maps and binding remain current
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          REPORT_PATH="${RUNNER_TEMP}/binding-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/binding-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Build exact final helper commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'fix(e2e): keep generated Work Map binding ownership-neutral'
+          final_sha="$(git rev-parse HEAD)"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_TARGET_SHA}...${final_sha}" | sort)
+          expected="$(printf '%s\n' \
+            "${PARALLEL_GOVERNANCE}" \
+            "${PARALLEL_TEST}" \
+            "${PHASE_GOVERNANCE}" \
+            "${PHASE_TEST}" | sort)"
+          actual="$(printf '%s\n' "${changed[@]}")"
+          test "${actual}" = "${expected}"
+          test ! -e "${PRODUCER_PATH}"
+          test ! -e "${LAUNCHER_PATH}"
+
+      - name: Run exact final-tree regression and governance gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node "${PARALLEL_TEST}"
+          node "${PHASE_TEST}"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --head-ref "${TARGET_BRANCH}" \
+            --base-ref main \
+            --report-file "${RUNNER_TEMP}/parallel-pr-evaluation.json"
+          node - "${RUNNER_TEMP}/parallel-pr-evaluation.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.pr_mode !== 'standard') process.exit(1);
+          if (report.findings.length !== 0 || report.contracts.length !== 0) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file "${RUNNER_TEMP}/reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/reference-integrity.json"
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          REPORT_PATH="${RUNNER_TEMP}/final-binding-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/final-binding-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Push validated helper head
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin main "${TARGET_BRANCH}" "${HELPER_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "${EXPECTED_TARGET_SHA}"
+          test "$(git rev-parse "origin/${HELPER_BRANCH}")" = "${HELPER_REQUEST_SHA}"
+          git push origin "HEAD:refs/heads/${HELPER_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${HELPER_BRANCH}" | awk '{print $1}')" = "${FINAL_SHA}"
+          echo "result_sha=${FINAL_SHA}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish helper evidence
+        if: always()
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
+        run: |
+          outcome=passed
+          if [[ "${{ job.status }}" != success ]]; then outcome=blocked; fi
+          {
+            echo '## Runtime Parity E2E Ownership Helper'
+            echo
+            echo "\`E2E_OWNERSHIP_HELPER outcome=${outcome} target_sha=${EXPECTED_TARGET_SHA} request_sha=${HELPER_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} main_sha=${EXPECTED_MAIN_SHA} helper_files_removed=true protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
