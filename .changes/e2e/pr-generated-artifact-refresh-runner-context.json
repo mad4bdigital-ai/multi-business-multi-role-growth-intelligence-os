@@ -1,15 +1,18 @@
 {
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
-  "feature_key": "pr-generated-artifact-refresh-runner-context",
-  "title": "PR Generated Artifact Refresh runner-context registration",
+  "feature_key": "work-map-recovery-runner-context-registration",
+  "title": "Work Map recovery-chain runner-context registration",
   "delivery_mode": "single_pr",
   "current_phase": "resilient",
   "scope": {
     "include": [
       ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
       ".github/workflows/pr-generated-artifact-refresh.yml",
-      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/test-work-map-runner-context-registration.mjs"
     ]
   },
   "merge_contract": {
@@ -19,28 +22,29 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Restore GitHub planning and registration for PR Generated Artifact Refresh by initializing runner-scoped report paths only after runner allocation.",
+      "objective": "Restore GitHub planning and registration across the PR refresh, Work Map Recovery, and Work Map Integration chain by initializing runner-scoped paths only after runner allocation.",
       "e2e_journeys": [
         {
-          "id": "pr-refresh-registers-with-runner-scoped-evidence-paths",
+          "id": "work-map-recovery-chain-registers-and-delegates",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "GitHub Actions workflow planner and pull-request validator",
-          "entrypoint": "pull_request or workflow_dispatch event for PR Generated Artifact Refresh",
-          "terminal_outcome": "Both read-only artifact evaluation and Work Map recovery activation receive absolute bounded report paths after runner allocation, allowing the workflow to register and emit canonical evidence.",
+          "actor": "GitHub Actions workflow planner and governed Work Map operator",
+          "entrypoint": "Authorized same-repository pull request changing a registered Work Map or generated-artifact path",
+          "terminal_outcome": "The PR workflow registers, validates the exact current head, delegates to Recovery, and makes Integration evidence paths available without evaluating runner.temp before runner allocation.",
           "steps": [
-            "Evaluate workflow triggers and job-level environments without referencing runner.temp.",
-            "Allocate the Ubuntu runner for the selected job.",
-            "Create a bounded directory beneath RUNNER_TEMP.",
-            "Publish absolute REPORT_PATH and REPORT_MARKDOWN_PATH values through GITHUB_ENV.",
-            "Run existing exact-head, read-only evaluation or governed Recovery delegation.",
-            "Upload evidence from the initialized absolute paths."
+            "Plan PR Generated Artifact Refresh without job-level runner.temp.",
+            "Allocate a runner and publish absolute refresh and activation report paths through GITHUB_ENV.",
+            "Validate the open same-repository pull request, exact head SHA, authorization marker, and behind_by=0.",
+            "Dispatch the Recovery workflow after its bounded report directory is initialized from RUNNER_TEMP.",
+            "Consume the one-time marker only inside Recovery and delegate to the sole Work Map writer.",
+            "Run Work Map Integration with its repair root initialized after runner allocation.",
+            "Upload canonical secret-free evidence from the initialized paths."
           ],
           "assertions": [
-            "No job-level environment evaluates runner.temp.",
-            "The refresh job initializes both JSON and Markdown report paths after runner allocation.",
-            "The Work Map activation job initializes its JSON report path after runner allocation.",
-            "The workflow retains read-only repository content authority and no git push path.",
+            "No workflow in the repaired chain evaluates runner.temp in job-level env.",
+            "PR evaluation and Integration retain contents: read and no git push authority.",
+            "Recovery preserves exact-head validation, one-time marker consumption, and sole-writer delegation.",
+            "All paths are derived from RUNNER_TEMP only after the runner is allocated.",
             "No Production, provider, deployment, database, SQL, Migration Apply, credential, protected-ref, force-push, or external-send authority is introduced."
           ],
           "tests": [
@@ -50,11 +54,21 @@
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-runner-context-registration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-runner-context-registration.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/test-work-map-runner-context-registration.mjs"
           ]
         }
       ]
@@ -62,12 +76,12 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Preserve existing exact-head validation, generated-artifact read-only evaluation, Recovery enablement and delegation, canonical comments, and bounded Artifact uploads."
+      "objective": "Preserve existing exact-head validation, read-only evaluation, workflow activation readback, Recovery authorization consumption, writer dispatch, Integration repair-candidate publication, and bounded Artifacts."
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail regression if runner.temp returns to job-level evaluation or either report-path initialization bridge is removed."
+      "objective": "Fail regression if runner.temp returns to pre-allocation evaluation or any required report-path initialization bridge is removed."
     },
     {
       "id": "canary",

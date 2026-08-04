@@ -18,6 +18,7 @@ on:
       - "http-generic-api/test-work-map-schema-classification.mjs"
       - "http-generic-api/test-work-map-schema-classification-contract.mjs"
       - "http-generic-api/test-work-map-autofix-diagnostics.mjs"
+      - "http-generic-api/test-work-map-runner-context-registration.mjs"
       - "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       - "http-generic-api/test-pipeline-connectivity-check.mjs"
       - ".specify/pipeline-connectivity-contract.json"
@@ -37,9 +38,17 @@ jobs:
     name: Work Map Integration Gate
     runs-on: ubuntu-latest
     env:
-      WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
       EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
+      - name: Initialize bounded Work Map repair root after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          repair_root="${RUNNER_TEMP}/work-map-repair-candidate"
+          rm -rf "${repair_root}"
+          mkdir -p "${repair_root}"
+          echo "WORK_MAP_REPAIR_ROOT=${repair_root}" >> "${GITHUB_ENV}"
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
@@ -61,6 +70,7 @@ jobs:
           node --check http-generic-api/test-work-map-schema-classification.mjs
           node --check http-generic-api/test-work-map-schema-classification-contract.mjs
           node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node --check http-generic-api/test-work-map-runner-context-registration.mjs
           node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
           node --check http-generic-api/test-pipeline-connectivity-check.mjs
 
@@ -69,6 +79,7 @@ jobs:
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
           node http-generic-api/test-pipeline-connectivity-check.mjs
           node http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/test-work-map-runner-context-registration.mjs
 
       - name: Verify generated Work Maps are current
         id: work_map_currentness
@@ -139,7 +150,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
-          path: ${{ runner.temp }}/work-map-repair-candidate
+          path: ${{ env.WORK_MAP_REPAIR_ROOT }}
           if-no-files-found: error
           retention-days: 14
 
@@ -163,5 +174,6 @@ jobs:
           node test-work-map-schema-classification.mjs
           node test-work-map-schema-classification-contract.mjs
           node test-work-map-autofix-diagnostics.mjs
+          node test-work-map-runner-context-registration.mjs
           node test-spec-kit-work-map-governance-gate.mjs
           node test-spec-kit-completion-gate.mjs
