@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "critical-runner-label-allocation-mitigation",
+  "title": "Pin critical validation workflows to explicit Ubuntu 24.04 runners",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/critical-runner-label-allocation-mitigation.json",
+      ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/branch-test-diagnostic-shards.yml",
+      ".github/workflows/ci-pull-request-recovery.yml",
+      ".github/workflows/ci.yml",
+      ".github/workflows/e2e-contract-reference-integrity.yml",
+      ".github/workflows/e2e-phase-governance.yml",
+      ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      ".github/workflows/http-generic-api-fanout-relocation.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
+      ".github/workflows/runtime-startup-deployment-evidence.yml",
+      ".github/workflows/supervisor-runtime-assurance.yml",
+      "http-generic-api/scripts/test-critical-runner-label-pinning.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Replace the mutable ubuntu-latest alias with the empirically allocatable ubuntu-24.04 label in the eleven load-bearing validation workflows without changing their triggers, permissions, commands, concurrency semantics, or runtime authority.",
+      "e2e_journeys": [
+        {
+          "id": "critical-validation-jobs-request-explicit-hosted-runner",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions hosted workflow scheduler and repository reviewer",
+          "entrypoint": "A pull request changes one or more of the eleven load-bearing validation workflows.",
+          "terminal_outcome": "Every allowlisted job requests ubuntu-24.04, no allowlisted job requests ubuntu-latest, and the previously merged read-only pull-request boundaries remain intact.",
+          "steps": [
+            "Read the eleven allowlisted workflow definitions from the exact candidate tree.",
+            "Require ubuntu-24.04 for every allowlisted workflow job.",
+            "Reject any remaining ubuntu-latest label in the allowlist.",
+            "Verify E2E reference integrity, Fanout reporting, and Supervisor assurance remain read-only on pull requests.",
+            "Verify Runtime Startup evidence and Branch Test Diagnostic jobs request the explicit runner label.",
+            "Verify the known-good shared canary remains pinned to ubuntu-24.04.",
+            "Publish no repository, provider, database, deployment, credential, or external runtime mutation."
+          ],
+          "assertions": [
+            "Exactly eleven load-bearing workflows are governed by the runner-label allowlist.",
+            "Every allowlisted workflow requests ubuntu-24.04 and none requests ubuntu-latest.",
+            "The patch does not alter CI cancellation behavior; superseded-run cancellation remains a separate delivery.",
+            "The three pull-request validation workflows remain read-only and contain no git push or write API command.",
+            "Runtime Startup evidence and Branch Diagnostic retain their original triggers, commands, artifacts, and concurrency semantics.",
+            "No Work Map writer is dispatched and no generated Work Map is manually edited by this source candidate.",
+            "No Production, provider, credential, SQL, Migration Apply, database, protected-ref, force-push, deployment, restart, or external-send authority is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "critical-runner-label-pinning",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-critical-runner-label-pinning.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/critical-runner-label-allocation-mitigation.json",
+            "http-generic-api/scripts/test-critical-runner-label-pinning.mjs",
+            ".github/workflows/ci.yml",
+            ".github/workflows/ci-pull-request-recovery.yml",
+            ".github/workflows/e2e-phase-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/runtime-startup-deployment-evidence.yml",
+            ".github/workflows/branch-test-diagnostic-shards.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Confirm the exact candidate's load-bearing jobs obtain first-step timestamps and terminal results on the explicit hosted runner label."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject reintroduction of ubuntu-latest into the governed load-bearing workflow allowlist."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Compare hosted-runner allocation evidence without invoking a provider or Production action."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository scheduling change performs no deployment or Production mutation."
+    }
+  ],
+  "secrets_included": false
+}
