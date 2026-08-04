@@ -1,0 +1,103 @@
+name: Spec 014 Final Work Map E2E Evidence Refresh Once
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - '.github/workflows/spec014-final-work-map-e2e-evidence-refresh-once.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-final-work-map-e2e-evidence-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Bind final Work Map commit evidence and remove launcher
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/spec014-final-work-map-binding-fee13eee-20260804' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: fix/spec014-final-work-map-binding-fee13eee-20260804
+      EXPECTED_PARENT_SHA: 8f51459367c90d0c0a8f5128ade98c1c5407388f
+      EVIDENCE_SHA: 8f51459367c90d0c0a8f5128ade98c1c5407388f
+      LAUNCHER_PATH: .github/workflows/spec014-final-work-map-e2e-evidence-refresh-once.yml
+      CONTRACT_PATH: specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
+    steps:
+      - name: Checkout exact launcher head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify launcher identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_head="$(git rev-parse HEAD)"
+          event_head="${{ github.event.pull_request.head.sha }}"
+          parent="$(git rev-parse HEAD^1)"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$actual_head" = "$event_head"
+          test "$remote_head" = "$event_head"
+          test "$parent" = "$EXPECTED_PARENT_SHA"
+          test "$(git diff --name-only "$EXPECTED_PARENT_SHA"...HEAD)" = "$LAUNCHER_PATH"
+
+      - name: Update bounded Workstream commit evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = process.env.CONTRACT_PATH;
+          const evidenceSha = process.env.EVIDENCE_SHA;
+          const contract = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const workstream = contract.parallel_work?.workstreams?.find((row) => row.id === 'final-work-map-readback');
+          if (!workstream) throw new Error('final-work-map-readback workstream missing');
+          if (workstream.status !== 'integrated') throw new Error(`unexpected workstream status: ${workstream.status}`);
+          const commits = Array.isArray(workstream.commit_evidence?.commits)
+            ? [...workstream.commit_evidence.commits]
+            : [];
+          if (!commits.includes(evidenceSha)) commits.push(evidenceSha);
+          workstream.commit_evidence = { head_sha: evidenceSha, commits };
+          fs.writeFileSync(file, `${JSON.stringify(contract)}\n`);
+          NODE
+          test "$(git diff --name-only)" = "$CONTRACT_PATH"
+          node -e "const c=require('./${CONTRACT_PATH}');const w=c.parallel_work.workstreams.find(x=>x.id==='final-work-map-readback');if(w.commit_evidence.head_sha!=='${EVIDENCE_SHA}'||!w.commit_evidence.commits.includes('${EVIDENCE_SHA}'))process.exit(1)"
+
+      - name: Remove launcher and publish bounded evidence update
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm "$LAUNCHER_PATH"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          staged="$(git diff --cached --name-only | sort)"
+          test "$staged" = "$(printf '%s\n%s\n' "$LAUNCHER_PATH" "$CONTRACT_PATH" | sort)"
+          git commit -m "docs(spec-014): bind refreshed Work Map E2E evidence"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+      - name: Upload evidence update summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-e2e-evidence-${{ github.run_id }}
+          path: ${{ env.CONTRACT_PATH }}
+          if-no-files-found: warn
+          retention-days: 14
