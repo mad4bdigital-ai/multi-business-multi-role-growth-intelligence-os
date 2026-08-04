@@ -1,4 +1,4 @@
-name: Spec 012 OAuth Frontend Artifact Refresh Writer
+name: Spec 012 OAuth Current-Main Artifact Refresh Writer
 
 on:
   pull_request:
@@ -11,20 +11,20 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: spec012-oauth-frontend-artifact-refresh-${{ github.event.pull_request.number }}
+  group: spec012-oauth-current-main-artifact-refresh-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  refresh-certify-push:
+  sync-refresh-certify-push:
     if: github.event.pull_request.number == 6128 && github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_MAIN_SHA: 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa
-      PRE_WRITER_HEAD: 98399a28573808a8e46a063e9297fb447c5cbac2
+      EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
+      PRE_UPDATE_HEAD: 8dfd4159ce43a3df143a3ef07a635be98c1bdf65
+      PRE_SYNC_BASE_SHA: 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa
       BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
       WORKFLOW_PATH: .github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml
-      CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
       ARTIFACT_PATH: http-generic-api/frontend-surface-dispatch.generated.json
     steps:
       - name: Checkout exact PR head
@@ -33,16 +33,17 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable refs and bounded writer scope
+      - name: Verify immutable refs and pre-sync scope
         shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin main "${BRANCH_NAME}"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git rev-parse HEAD^)" = "${PRE_WRITER_HEAD}"
+          test "$(git rev-parse HEAD^)" = "${PRE_UPDATE_HEAD}"
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git merge-base origin/main HEAD)" = "${EXPECTED_MAIN_SHA}"
-          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | sort)
+          test "$(git merge-base origin/main HEAD)" = "${PRE_SYNC_BASE_SHA}"
+          test -z "$(git status --porcelain)"
+          mapfile -t files < <(git diff --name-only "${PRE_SYNC_BASE_SHA}...HEAD" | sort)
           expected=(
             ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
             ".github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml"
@@ -52,6 +53,17 @@ jobs:
           )
           test "${#files[@]}" -eq "${#expected[@]}"
           diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Merge exact current main without rewriting history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-ff --no-edit "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          echo "SYNC_MERGE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
@@ -93,12 +105,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           mkdir -p evidence
           git rm "${WORKFLOW_PATH}"
           git add "${ARTIFACT_PATH}"
-          git commit -m "fix(spec-012): pin OAuth frontend dispatch baseline"
+          git commit -m "fix(spec-012): pin OAuth frontend dispatch to current main"
           final_sha="$(git rev-parse HEAD)"
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
           expected=(
@@ -141,10 +151,13 @@ jobs:
           const report = JSON.parse(fs.readFileSync(process.env.ARTIFACT_PATH, 'utf8'));
           const evidence = {
             main: process.env.EXPECTED_MAIN_SHA,
+            sync_merge: process.env.SYNC_MERGE_SHA,
             candidate: process.env.FINAL_SHA,
             effective_changed_files: 4,
             baseline_ref: report.baseline.ref,
             source_digest: report.baseline.source_digest,
+            history_preserved: true,
+            force_push: false,
             repository_scope: 'non_protected_branch_only',
             production_action: false,
             provider_action: false,
@@ -168,7 +181,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-frontend-artifact-refresh-${{ github.run_id }}
+          name: spec012-oauth-current-main-artifact-refresh-${{ github.run_id }}
           path: evidence/
           if-no-files-found: warn
           retention-days: 14
