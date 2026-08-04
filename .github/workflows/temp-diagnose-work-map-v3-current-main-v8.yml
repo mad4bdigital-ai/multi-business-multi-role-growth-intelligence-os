@@ -221,6 +221,7 @@ jobs:
         with:
           name: work-map-v3-read-only-diagnostic-v8-${{ github.run_id }}
           path: .diagnostic/
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 
