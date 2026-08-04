@@ -12,11 +12,16 @@ const CONTROL_PLANE_GUARD_PATH = path.join(
   ROOT,
   '.github/workflows/hostinger-storage-control-plane-guard.yml',
 );
+const SHARED_CANARY_GUARD_PATH = path.join(
+  ROOT,
+  '.github/workflows/hostinger-storage-shared-canary-guard.yml',
+);
 
-const [script, workflow, controlPlaneGuard] = await Promise.all([
+const [script, workflow, controlPlaneGuard, sharedCanaryGuard] = await Promise.all([
   fs.readFile(SCRIPT_PATH, 'utf8'),
   fs.readFile(WORKFLOW_PATH, 'utf8'),
   fs.readFile(CONTROL_PLANE_GUARD_PATH, 'utf8'),
+  fs.readFile(SHARED_CANARY_GUARD_PATH, 'utf8'),
 ]);
 const syntax = spawnSync(process.execPath, ['--check', SCRIPT_PATH], {
   cwd: ROOT,
@@ -79,9 +84,34 @@ assert.match(
   controlPlaneGuard,
   /collect-spec014-wave1-runtime-evidence:[\s\S]*node \.github\/ops\/spec014-wave1-runtime-evidence-readback\.mjs/,
 );
+
+assert.match(sharedCanaryGuard, /permissions:\n  actions: read\n  contents: read\n  issues: write/);
+assert.doesNotMatch(
+  sharedCanaryGuard.slice(0, sharedCanaryGuard.indexOf('jobs:')),
+  /actions:\s*write|contents:\s*write|pull-requests:\s*write/,
+);
+assert.match(sharedCanaryGuard, /collect-spec014-wave1-runtime-evidence:/);
+assert.match(sharedCanaryGuard, /name: Collect exact Spec 014 Wave 1 runtime Artifact/);
 assert.match(
-  controlPlaneGuard,
+  sharedCanaryGuard,
+  /github\.event\.pull_request\.head\.ref == 'gpt\/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1'/,
+);
+assert.match(sharedCanaryGuard, /github\.event\.pull_request\.base\.ref == 'main'/);
+assert.match(
+  sharedCanaryGuard,
+  /collect-spec014-wave1-runtime-evidence:[\s\S]*ref: main[\s\S]*persist-credentials: false/,
+);
+assert.match(
+  sharedCanaryGuard,
+  /collect-spec014-wave1-runtime-evidence:[\s\S]*node \.github\/ops\/spec014-wave1-runtime-evidence-readback\.mjs/,
+);
+assert.match(
+  sharedCanaryGuard,
   /collect-spec014-wave1-runtime-evidence:[\s\S]*spec014-wave1-runtime-evidence-readback-\$\{\{ github\.run_id \}\}/,
+);
+assert.doesNotMatch(
+  sharedCanaryGuard.match(/collect-spec014-wave1-runtime-evidence:[\s\S]*/)?.[0] || '',
+  /actions:\s*write|contents:\s*write|pull-requests:\s*write|auth\.mad4b\.com|BACKEND_API_KEY|mode:\s*(apply|dry_run)/,
 );
 
 for (const value of [
@@ -135,12 +165,12 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      contract: 'spec014_wave1_runtime_evidence_readback_contract.v5',
+      contract: 'spec014_wave1_runtime_evidence_readback_contract.v6',
       exact_issue_trigger: 'READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708',
       exact_pr_fallback:
         'gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1',
       control_plane_guard_carrier: true,
-      collector_job_permissions_isolated: true,
+      shared_canary_guard_carrier: true,
       authorization_comment_time_bound: true,
       fixed_event_head_assumption: false,
       structured_failure_comment: true,
