@@ -71,6 +71,7 @@ jobs:
           docs/work-maps/README.md
           docs/work-maps/repository-automation-map.md
           http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
           EOF
           git diff --name-only "${CURRENT_MAIN_SHA}...${CURRENT_HEAD_SHA}" | sort > "${report_dir}/actual-files.txt"
           diff -u "${report_dir}/expected-files.txt" "${report_dir}/actual-files.txt"
@@ -89,7 +90,7 @@ jobs:
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs | tee "${report_dir}/11-lifecycle.log"
           REPORT_PATH="${report_dir}/spec014-final-work-map-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${report_dir}/12-spec014.log"
           jq -e '.ok == true and ((.findings | length) == 0)' "${report_dir}/spec014-final-work-map-readback.json" >/dev/null
-          jq -n --arg candidate_sha "${CURRENT_HEAD_SHA}" --arg main_sha "${CURRENT_MAIN_SHA}" '{contract:"mad4b.r7-dynamic-exact-head-validation.v1",candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:5,contracts_passed:12,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' > "${report_dir}/summary.json"
+          jq -n --arg candidate_sha "${CURRENT_HEAD_SHA}" --arg main_sha "${CURRENT_MAIN_SHA}" '{contract:"mad4b.r7-dynamic-exact-head-validation.v2",candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:6,contracts_passed:12,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' > "${report_dir}/summary.json"
 
       - name: Re-read captured identity
         if: always()
