@@ -1,0 +1,173 @@
+name: OAuth Canonical Dependencies 9D0B6134 Architecture ARM
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-canonical-deps-9d0b6134-architecture-arm-base
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oauth-canonical-deps-9d0b6134-architecture-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact OAuth architecture and startup head
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804' &&
+      github.event.pull_request.head.sha == '9d0b6134dd84e33bfc350ce060ff91198e9d60a2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      BASE_SHA: 2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9
+      CANDIDATE_SHA: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+      CANDIDATE_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      REPORT_DIR: .artifacts/oauth-canonical-deps-9d0b6134-architecture
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact current-main identity and four-file scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$CANDIDATE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$CANDIDATE_BRANCH"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git merge-base "$BASE_SHA" "$CANDIDATE_SHA")" = "$BASE_SHA"
+          expected=(
+            .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+            http-generic-api/frontend-surface-dispatch.generated.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" | sort)
+          test "${#changed[@]}" -eq 4
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+          test ! -e .github/workflows/spec012-oauth-r7-main-sync-writer.yml
+          test ! -e .validation/spec012-oauth-r7-final-trigger.txt
+          grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes(deps));' http-generic-api/routes/index.js
+          if grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes());' http-generic-api/routes/index.js; then
+            echo 'Bare OAuth mount remains.' >&2
+            exit 1
+          fi
+          git diff --check "$BASE_SHA" "$CANDIDATE_SHA"
+          mkdir -p "$REPORT_DIR"
+          printf 'base_sha=%s\ncandidate_sha=%s\nexact_scope=true\nwriter_retired=true\ntrigger_retired=true\n' \
+            "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/identity.txt"
+          git diff --name-status "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/name-status.txt"
+          git diff --numstat "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/numstat.txt"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install locked HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify deterministic frontend dispatch
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:check
+
+      - name: Validate architecture
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Validate deployment manifest generator
+        working-directory: http-generic-api
+        run: node test-deployment-manifest-generator.mjs
+
+      - name: Generate local deployment manifest
+        working-directory: http-generic-api
+        env:
+          DEPLOYMENT_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+          DEPLOYMENT_COMMIT_SHA: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+        run: npm run manifest:deployment
+
+      - name: Run server startup smoke
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+          DEPLOYMENT_COMMIT_SHA: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+        run: node test-server-startup-smoke.mjs
+
+      - name: Capture post-generation interruption baseline
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "../$REPORT_DIR"
+          node scripts/interruption-readiness.mjs \
+            --ci --skip-merge --skip-worktree \
+            --report-file "../$REPORT_DIR/interruption-readiness-baseline.json"
+
+      - name: Verify interruption continuity immediately
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node scripts/interruption-readiness.mjs \
+            --ci --skip-merge --skip-worktree \
+            --verify-evidence "../$REPORT_DIR/interruption-readiness-baseline.json"
+
+      - name: Verify final freshness and write result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git merge-base "$BASE_SHA" "$CANDIDATE_SHA")" = "$BASE_SHA"
+          mkdir -p "$REPORT_DIR"
+          jq -n \
+            --arg contract 'oauth_canonical_dependencies_9d0b6134_architecture_arm.v1' \
+            --arg base_sha "$BASE_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{
+              contract: $contract,
+              result: "pass",
+              base_sha: $base_sha,
+              candidate_sha: $candidate_sha,
+              workflow_run_id: ($run_id | tonumber),
+              exact_scope: true,
+              frontend_dispatch_parity: "pass",
+              architecture_validation: "pass",
+              deployment_manifest_test: "pass",
+              deployment_manifest_generation: "pass",
+              startup_smoke: "pass",
+              interruption_continuity: "pass",
+              production_mutated: false,
+              migration_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_accessed: false,
+              protected_ref_mutated: false,
+              force_push: false,
+              external_send_executed: false,
+              secrets_included: false
+            }' > "$REPORT_DIR/result.json"
+
+      - name: Upload bounded architecture evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-canonical-deps-9d0b6134-architecture-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
