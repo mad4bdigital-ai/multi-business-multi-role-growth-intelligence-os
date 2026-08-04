@@ -1,4 +1,4 @@
-name: Exact Generated Refresh Runner Pinning ARM 6066
+name: Exact Generated Refresh Runner Pinning ARM 6066 R2
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: exact-generated-refresh-runner-pinning-arm-6066-${{ github.event.pull_request.number }}
+  group: exact-generated-refresh-runner-pinning-arm-6066-r2-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
-      EXPECTED_BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
-      EXPECTED_HEAD_SHA: 3a7ca1c84b90582b65569c6d67a3160f1f649ad2
-      EVIDENCE_DIR: .ci-evidence/exact-generated-refresh-runner-pinning-arm-6066
+      EXPECTED_BASE_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      EXPECTED_HEAD_SHA: 8cdc424c2bf4444bc926c215c4645d17e0ba63f6
+      EVIDENCE_DIR: .ci-evidence/exact-generated-refresh-runner-pinning-arm-6066-r2
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -83,7 +83,7 @@ jobs:
       - name: Upload exact-head evidence
         uses: actions/upload-artifact@v4
         with:
-          name: exact-generated-refresh-runner-pinning-arm-6066-${{ github.run_id }}
+          name: exact-generated-refresh-runner-pinning-arm-6066-r2-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}/
           if-no-files-found: error
           retention-days: 14
