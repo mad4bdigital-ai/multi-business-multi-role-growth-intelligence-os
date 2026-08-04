@@ -12,7 +12,10 @@ const AUTH_RESOURCE = "https://auth.mad4b.com";
 const ISSUER = "https://auth.mad4b.com";
 const LEGACY_AUDIENCE = "mad4b-tenant-gpt";
 const CUTOFF_MS = Date.parse("2026-10-31T23:59:59.000Z");
+const TEST_NOW_MS = Date.parse("2026-08-01T00:01:00.000Z");
 const BASE_IAT = Math.floor(Date.parse("2026-08-01T00:00:00.000Z") / 1000);
+const STRICT_TTL_SECONDS = 60 * 60;
+const LEGACY_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 let failed = 0;
 
@@ -26,21 +29,27 @@ function assert(label, condition, detail = "") {
 }
 
 function signToken(overrides = {}) {
+  const issuedAt = overrides.iat === undefined ? BASE_IAT : overrides.iat;
+  const expiresAt = overrides.exp === undefined
+    ? Number(issuedAt) + STRICT_TTL_SECONDS
+    : overrides.exp;
   return jwt.sign({
     iss: ISSUER,
     aud: ACTIVATION_RESOURCE,
     resource: ACTIVATION_RESOURCE,
     purpose: "tenant_gpt_access",
+    sub: "tenant:tenant-1:user:user-1",
     user_id: "user-1",
     tenant_id: "tenant-1",
-    iat: BASE_IAT,
+    iat: issuedAt,
+    exp: expiresAt,
     ...overrides,
-  }, process.env.JWT_SECRET, { expiresIn: "365d" });
+  }, process.env.JWT_SECRET);
 }
 
 function failure(token, options = {}) {
   try {
-    verifyTenantGptAccessToken(token, options);
+    verifyTenantGptAccessToken(token, { nowMs: TEST_NOW_MS, ...options });
     return null;
   } catch (error) {
     return error;
@@ -57,6 +66,7 @@ function captureDecision(token, options = {}) {
   let code = null;
   try {
     verifyTenantGptAccessToken(token, {
+      nowMs: TEST_NOW_MS,
       ...options,
       onCompatibilityEvidence: (entry) => evidence.push(entry),
     });
@@ -70,14 +80,18 @@ console.log("\n== Tenant GPT access token verifier");
 
 const strictEvidence = [];
 const strict = verifyTenantGptAccessToken(signToken(), {
+  nowMs: TEST_NOW_MS,
   onCompatibilityEvidence: (entry) => strictEvidence.push(entry),
 });
 assert("strict Activation audience is accepted", strict.verification.audience === ACTIVATION_RESOURCE);
 assert("strict token is not marked legacy", strict.verification.legacy_audience_accepted === false);
 assert("strict audience classification is explicit",
   strict.verification.audience_compatibility_classification === "strict_resource_audience_accepted");
-assert("strict verification emits exactly one metric decision", strictEvidence.length === 1);
-assert("strict metric decision contains no secrets", strictEvidence[0]?.secrets_included === false);
+assert("strict bearer profile is short lived", strict.verification.short_lived === true);
+assert("strict bearer lifetime is one hour", strict.verification.lifetime_seconds === STRICT_TTL_SECONDS);
+assert("strict subject binding is verified", strict.verification.subject_verified === true);
+assert("strict verification emits exactly one compatibility metric decision", strictEvidence.length === 1);
+assert("strict compatibility decision contains no secrets", strictEvidence[0]?.secrets_included === false);
 
 const wrongAudience = captureDecision(signToken({ aud: AUTH_RESOURCE, resource: AUTH_RESOURCE }));
 assert(
@@ -112,16 +126,26 @@ assert(
   "missing tenant subject is rejected",
   failureCode(signToken({ tenant_id: null })) === "tenant_gpt_token_subject_invalid",
 );
+assert(
+  "mismatched bound subject is rejected",
+  failureCode(signToken({ sub: "tenant:tenant-2:user:user-1" })) === "tenant_gpt_token_subject_invalid",
+);
 
-const legacyToken = signToken({ aud: LEGACY_AUDIENCE, resource: undefined });
+const legacyToken = signToken({
+  aud: LEGACY_AUDIENCE,
+  resource: undefined,
+  exp: BASE_IAT + LEGACY_TTL_SECONDS,
+});
 const legacyEvidence = [];
 const legacyBeforeCutoff = verifyTenantGptAccessToken(legacyToken, {
-  nowMs: Date.parse("2026-08-01T00:01:00.000Z"),
+  nowMs: TEST_NOW_MS,
   legacyAudienceCutoffMs: CUTOFF_MS,
   onCompatibilityEvidence: (entry) => legacyEvidence.push(entry),
 });
 assert("legacy audience is accepted before cutoff", legacyBeforeCutoff.verification.legacy_audience_accepted === true);
 assert("legacy acceptance exposes cutoff state", legacyBeforeCutoff.verification.legacy_audience_cutoff_state === "active");
+assert("legacy transition lifetime remains bounded to seven days",
+  legacyBeforeCutoff.verification.lifetime_seconds === LEGACY_TTL_SECONDS);
 assert("legacy acceptance emits observable compatibility evidence",
   legacyEvidence[0]?.classification === "legacy_audience_accepted_before_cutoff");
 assert(
@@ -134,21 +158,20 @@ assert(
 assert(
   "legacy audience can be disabled before cutoff",
   failureCode(legacyToken, {
-    nowMs: Date.parse("2026-08-01T00:01:00.000Z"),
-    legacyAudienceCutoffMs: CUTOFF_MS,
     allowLegacyAudience: false,
+    legacyAudienceCutoffMs: CUTOFF_MS,
   }) === "tenant_gpt_token_audience_invalid",
 );
 assert(
   "legacy audience fails closed when cutoff is invalid",
   failureCode(legacyToken, {
-    nowMs: Date.parse("2026-08-01T00:01:00.000Z"),
     legacyAudienceCutoffMs: 0,
   }) === "tenant_gpt_token_audience_invalid",
 );
 
 let telemetryFailureCalls = 0;
 const strictWithBrokenTelemetry = verifyTenantGptAccessToken(signToken(), {
+  nowMs: TEST_NOW_MS,
   onCompatibilityEvidence: () => {
     telemetryFailureCalls += 1;
     const error = new Error("telemetry unavailable");
