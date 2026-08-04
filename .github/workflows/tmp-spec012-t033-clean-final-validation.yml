@@ -20,7 +20,7 @@ on:
       - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -50,41 +50,7 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Apply isolated TTL assertion fixture
-        shell: bash
-        env:
-          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
-          source = path.read_text(encoding="utf-8")
-          old = '''  () => buildTenantGptOAuthTokenExchangeRoutes({ accessTokenTtlSeconds: 3601 }),'''
-          new = '''  () => buildTenantGptOAuthTokenExchangeRoutes({
-            verifyCode: () => ({}),
-            issueAccessToken: () => "test-access-token",
-            accessTokenTtlSeconds: 3601,
-          }),'''
-          if old in source:
-              source = source.replace(old, new, 1)
-          elif "issueAccessToken: () => \"test-access-token\"" not in source:
-              raise SystemExit("governed TTL assertion fixture was not found")
-          path.write_text(source, encoding="utf-8")
-          PY
-          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs; then
-            echo "TTL assertion fixture already isolated."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-            git commit -m "test(spec-012): isolate governed token TTL rejection"
-            git push origin "HEAD:${PR_HEAD_BRANCH}"
-          fi
-
-      - name: Check reconciled T033 syntax
+      - name: Check T033 syntax
         run: |
           node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
           node --check http-generic-api/tenantGptAccessTokenProfile.js
@@ -96,75 +62,7 @@ jobs:
           node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
 
-      - name: Prepare cumulative route-scenario runner
-        shell: bash
-        run: |
-          cat > /tmp/run-route-prefix.py <<'PY'
-          from pathlib import Path
-          import sys
-
-          marker = sys.argv[1]
-          label = sys.argv[2]
-          source_path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
-          source = source_path.read_text(encoding="utf-8")
-          if marker not in source:
-              raise SystemExit(f"route scenario marker not found: {marker}")
-          prefix = source[:source.index(marker)]
-          output = Path("http-generic-api/.tmp-route-scenario.mjs")
-          output.write_text(prefix + f'\nconsole.log("PASS route prefix: {label}");\n', encoding="utf-8")
-          PY
-
-      - name: Route scenario — successful exchange
-        run: |
-          python /tmp/run-route-prefix.py 'let replayConsumeCalls = 0;' success
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — replay rejection
-        run: |
-          python /tmp/run-route-prefix.py 'const unknownError = new Error(' replay
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — unknown consumption
-        run: |
-          python /tmp/run-route-prefix.py 'const issuedError = new Error(' unknown-consumption
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — issued-code retry
-        run: |
-          python /tmp/run-route-prefix.py 'let inactiveConsumeCalled = false;' issued-code-retry
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — inactive user
-        run: |
-          python /tmp/run-route-prefix.py 'let membershipConsumeCalled = false;' inactive-user
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — inactive membership
-        run: |
-          python /tmp/run-route-prefix.py 'const preConsumptionHarness = createHarness({' inactive-membership
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — pre-consumption and dependency guards
-        run: |
-          python /tmp/run-route-prefix.py 'const postConsumptionHarness = createHarness({' preconsumption-dependencies
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — post-consumption failure
-        run: |
-          python /tmp/run-route-prefix.py 'let raceConsumed = false;' post-consumption
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — concurrent consumption
-        run: |
-          python /tmp/run-route-prefix.py 'const invalidHostHarness = createHarness();' concurrent-consumption
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Route scenario — invalid host and TTL bound
-        run: |
-          python /tmp/run-route-prefix.py 'for (const harness of [' invalid-host-ttl
-          node http-generic-api/.tmp-route-scenario.mjs
-
-      - name: Validate full OAuth exchange route unit
+      - name: Validate OAuth exchange route unit
         working-directory: http-generic-api
         run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
 
@@ -203,7 +101,3 @@ jobs:
       - name: Validate T033 readiness contract
         working-directory: http-generic-api
         run: node test-spec012-t033-short-lived-bearer-profile.mjs
-
-      - name: Remove untracked diagnostic file
-        if: always()
-        run: rm -f http-generic-api/.tmp-route-scenario.mjs
