@@ -1,0 +1,149 @@
+name: Spec 012 OAuth Generated Refresh ARM Finalizer
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - .github/workflows/spec012-oauth-generated-refresh-arm-finalizer.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-generated-refresh-arm-finalizer-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    if: github.event.pull_request.number == 6248 && github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v3-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: f27686fdc42c4627a092c31838710983cde3bd3c
+      PRE_FINALIZER_HEAD: deaf0b1b60a0a1514dd56508df1465a691272c6c
+      BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v3-20260804
+      CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+      OLD_WRITER: .github/workflows/spec012-oauth-frontend-generated-refresh.yml
+      FINALIZER: .github/workflows/spec012-oauth-generated-refresh-arm-finalizer.yml
+
+    steps:
+      - name: Checkout exact finalizer head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact synchronized six-file pre-scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse HEAD^)" = "${PRE_FINALIZER_HEAD}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base origin/main HEAD)" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            ".github/workflows/spec012-oauth-frontend-generated-refresh.yml"
+            ".github/workflows/spec012-oauth-generated-refresh-arm-finalizer.yml"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Extend authority and regenerate canonical Frontend artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = process.env.CONTRACT_PATH;
+          const added = 'http-generic-api/frontend-operation-governance.generated.json';
+          const doc = JSON.parse(fs.readFileSync(path, 'utf8'));
+          if (!doc.scope.include.includes(added)) doc.scope.include.push(added);
+          const journeys = (doc.phases || []).flatMap((phase) => phase.e2e_journeys || []);
+          if (journeys.length !== 1) throw new Error(`Expected one journey, found ${journeys.length}`);
+          if (!journeys[0].evidence_paths.includes(added)) journeys[0].evidence_paths.push(added);
+          fs.writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
+          NODE
+          before="$(sha256sum http-generic-api/openapi/frontend-runtime-routes.generated.yaml | awk '{print $1}')"
+          (cd http-generic-api && npm run frontend:dispatch:generate -- --baseline-ref=main)
+          after="$(sha256sum http-generic-api/openapi/frontend-runtime-routes.generated.yaml | awk '{print $1}')"
+          test "${before}" = "${after}"
+          mapfile -t changed < <(git status --porcelain=v1 | awk '{print $2}' | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${changed[@]}")
+
+      - name: Create self-cleaned five-file candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${CONTRACT_PATH}" http-generic-api/frontend-operation-governance.generated.json http-generic-api/frontend-surface-dispatch.generated.json
+          git rm "${OLD_WRITER}" "${FINALIZER}"
+          git commit -m "chore(spec-012): refresh canonical Frontend artifacts"
+          final_sha="$(git rev-parse HEAD)"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+
+      - name: Verify exact OAuth Frontend E2E and full manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            npm run frontend:dispatch:generate -- --baseline-ref=main
+            git diff --exit-code -- frontend-operation-governance.generated.json frontend-surface-dispatch.generated.json openapi/frontend-runtime-routes.generated.yaml
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+          )
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${FINAL_SHA}" --report-file /tmp/spec012-oauth-e2e.json
+          node --input-type=module -e 'import fs from "node:fs"; const r=JSON.parse(fs.readFileSync("/tmp/spec012-oauth-e2e.json","utf8")); if(r.ok!==true||(r.findings||[]).length) process.exit(1);'
+          (cd http-generic-api && npm test)
+
+      - name: Push exact fast-forward candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${BRANCH_NAME}"
+          test "$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')" = "${FINAL_SHA}"
