@@ -56,7 +56,7 @@ concurrency:
 jobs:
   plan:
     name: Build family diagnostic matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
       family: ${{ steps.matrix.outputs.family }}
@@ -137,7 +137,7 @@ jobs:
   shard:
     name: ${{ matrix.family }} ${{ matrix.shard_number }}/${{ matrix.shard_count }} · ${{ matrix.command_count }} tests
     needs: plan
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
@@ -193,7 +193,7 @@ jobs:
 
   sequential:
     name: Sequential manifest order · full npm test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     defaults:
       run:
@@ -229,7 +229,7 @@ jobs:
       - shard
       - sequential
     if: ${{ always() && needs.plan.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download diagnostic reports
         uses: actions/download-artifact@v4
