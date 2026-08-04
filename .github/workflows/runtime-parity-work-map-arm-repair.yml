@@ -9,7 +9,6 @@ on:
 
 permissions:
   contents: write
-  issues: write
   pull-requests: read
 
 concurrency:
@@ -28,7 +27,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 6643b268f259ded9be37336e692dd7a89aca22f1
+      EXPECTED_PARENT_SHA: 615ef2a607d5e5ac2a2c1f3456fb32f0a71b8cc9
       REPAIR_PATH: .github/workflows/runtime-parity-work-map-arm-repair.yml
       PR_NUMBER: '5985'
 
@@ -54,7 +53,10 @@ jobs:
 
           git fetch --no-tags origin main
           main_sha="$(git rev-parse origin/main)"
-          git merge-base --is-ancestor "${main_sha}" HEAD
+          if ! git merge-base --is-ancestor "${main_sha}" HEAD; then
+            echo "::error::Protected main ${main_sha} is not an ancestor of repair request ${current_sha}."
+            exit 1
+          fi
           echo "PINNED_MAIN_SHA=${main_sha}" >> "${GITHUB_ENV}"
           echo "REPAIR_REQUEST_SHA=${current_sha}" >> "${GITHUB_ENV}"
 
@@ -132,11 +134,18 @@ jobs:
         if: always()
         shell: bash
         env:
-          GH_TOKEN: ${{ github.token }}
           RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
         run: |
           set -Eeuo pipefail
           outcome=passed
-          if [[ "${{ job.status }}" != success ]]; then outcome=blocked; fi
-          body="WORK_MAP_ARM_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} temporary_workflow_removed=true protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"
+          removed=true
+          if [[ "${{ job.status }}" != success ]]; then
+            outcome=blocked
+            removed=false
+          fi
+          evidence="WORK_MAP_ARM_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} temporary_workflow_removed=${removed} protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false"
+          {
+            echo '## Work Map ARM repair'
+            echo
+            printf '`%s`\n' "${evidence}"
+          } >> "${GITHUB_STEP_SUMMARY}"
