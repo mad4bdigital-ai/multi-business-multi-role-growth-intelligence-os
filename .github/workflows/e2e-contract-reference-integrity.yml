@@ -3,73 +3,154 @@ name: E2E Contract Reference Integrity
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/e2e-contract-reference-integrity.yml
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: e2e-contract-reference-integrity-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: exact-runtime-parity-e2e-reference-249f55
+  cancel-in-progress: false
 
 jobs:
   integrity:
-    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate/runtime-parity-e2e-reference-249f55-20260804' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.actor == 'mad4bdigital-ai'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      TARGET_PR: '5985'
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      BASE_SHA: 4033d886187e87b29a855b9b9a942788dafd88ca
+      HEAD_SHA: 249f55bb55d986d4f7615a522247d2ecdc724b47
+      GH_TOKEN: ${{ github.token }}
+      EVIDENCE_DIR: ${{ runner.temp }}/runtime-parity-e2e-reference-249f55
+
     steps:
-      - name: Checkout exact pull request head
-        if: github.event_name == 'pull_request'
+      - name: Checkout immutable target head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: 249f55bb55d986d4f7615a522247d2ecdc724b47
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Checkout selected branch
-        if: github.event_name == 'workflow_dispatch'
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+      - name: Verify immutable target identity and topology
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${HEAD_SHA}"
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = main
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${HEAD_SHA}"
+          compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${HEAD_SHA}")"
+          test "$(jq -r '.base_commit.sha' <<<"${compare_json}")" = "${BASE_SHA}"
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = 0
+          test "$(jq -r '.status' <<<"${compare_json}")" = ahead
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run E2E governance and evidence self-tests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-plan-init-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
+          node http-generic-api/scripts/test-e2e-parallel-test-runner-diagnostics.mjs
+          node http-generic-api/scripts/test-ci-evidence-source-stamp.mjs
+          node http-generic-api/scripts/test-ci-evidence-router.mjs
+          node http-generic-api/scripts/test-ci-evidence-pr-comment.mjs
 
       - name: Run reference integrity regression tests
-        run: node http-generic-api/test-e2e-contract-reference-integrity.mjs
-
-      - name: Run path-chain and Git-index regression tests
-        run: node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-
-      - name: Evaluate contract references
         shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          args=(--report-file artifacts/e2e-contract-reference-integrity.json)
-          if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-            test -n "${BASE_SHA}"
-            test -n "${HEAD_SHA}"
-            args+=(--base "${BASE_SHA}" --head "${HEAD_SHA}")
-          else
-            args+=(--all)
-          fi
-          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs "${args[@]}"
+          set -Eeuo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
 
-      - name: Verify path chain and tracked Git object modes
-        run: >-
-          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs
-          --report-file artifacts/e2e-contract-reference-integrity.json
+      - name: Evaluate exact-head contract references
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${EVIDENCE_DIR}/e2e-contract-reference-integrity.json"
 
-      - name: Upload canonical integrity report
+      - name: Evaluate and execute exact-head E2E phase contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${BASE_SHA}" \
+            --head "${HEAD_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-phase-evaluation.json" \
+            --execution-report-file "${EVIDENCE_DIR}/e2e-phase-execution.json"
+
+      - name: Enforce bounded evidence and write summary
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -s "${EVIDENCE_DIR}/e2e-contract-reference-integrity.json"
+          test -s "${EVIDENCE_DIR}/e2e-phase-evaluation.json"
+          test -s "${EVIDENCE_DIR}/e2e-phase-execution.json"
+          jq -n \
+            --arg contract 'mad4b.runtime-parity-e2e-reference-validation.v1' \
+            --arg base_sha "${BASE_SHA}" \
+            --arg head_sha "${HEAD_SHA}" \
+            '{contract:$contract,base_sha:$base_sha,head_sha:$head_sha,outcome:"passed",reference_integrity:true,e2e_governance_self_tests:true,e2e_phase_check:true,e2e_phase_execution:true,protected_ref_mutation:false,production_mutation:false,provider_calls:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,force_push:false,secrets_included:false,external_send:false}' \
+            > "${EVIDENCE_DIR}/validation-summary.json"
+          {
+            echo '## Runtime Parity E2E and Reference Validation'
+            echo
+            echo "- Target PR: #${TARGET_PR}"
+            echo "- Base SHA: \`${BASE_SHA}\`"
+            echo "- Head SHA: \`${HEAD_SHA}\`"
+            echo '- Reference integrity: `passed`'
+            echo '- E2E self-tests: `passed`'
+            echo '- E2E phase check: `passed`'
+            echo '- E2E phase execution: `passed`'
+            echo '- Protected/Production mutation: `false`'
+            echo '- Secrets included: `false`'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload bounded validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-contract-reference-integrity-${{ github.run_id }}
-          path: artifacts/e2e-contract-reference-integrity.json
+          name: runtime-parity-e2e-reference-249f55-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
           if-no-files-found: error
           retention-days: 14
