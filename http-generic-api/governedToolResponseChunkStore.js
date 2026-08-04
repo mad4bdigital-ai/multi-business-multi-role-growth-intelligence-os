@@ -94,7 +94,7 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
       required_column_count: GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.length,
       present_column_count: requiredPresent.length,
       missing_columns: missing,
-      migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      migration_file: "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
       secrets_included: false,
     };
   } catch (cause) {
@@ -106,7 +106,7 @@ export async function inspectGovernedResponseChunkSchema(deps = {}) {
       present_column_count: 0,
       missing_columns: [...GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS],
       cause_code: cause?.code || null,
-      migration_file: "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      migration_file: "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
       secrets_included: false,
     };
   }
