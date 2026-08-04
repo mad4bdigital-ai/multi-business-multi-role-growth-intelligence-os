@@ -1,0 +1,269 @@
+name: Runtime Parity Generated Binding Ownership Repair V3
+
+on:
+  push:
+    branches:
+      - gpt/add-runtime-parity-comment-bridge-v2-20260804
+    paths:
+      - .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-parity-generated-binding-ownership-repair-v3
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      EXPECTED_PARENT: abb75190957387b2a866b426f3910deb560c49e9
+      EXPECTED_MAIN: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
+      WRITER_PATH: .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
+
+    steps:
+      - name: Checkout exact writer head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable parent, base, and initial scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              '.changes/e2e/production-runtime-parity-comment-bridge.json',
+              '.github/workflows/production-runtime-parity-comment-bridge.yml',
+              '.github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml',
+              'docs/work-maps/README.md',
+              'docs/work-maps/repository-automation-map.md',
+              'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+          }
+          actual = set(subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/main...HEAD'], text=True
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f'initial scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
+          PY
+
+      - name: Patch generated binding ownership discovery and regressions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one target, found {count}')
+              return text.replace(old, new, 1)
+
+          helper_anchor = '''function specKeyFromFile(file, policy) {
+            const prefix = `${normalize(policy.spec_root)}/`;
+            const normalized = normalize(file);
+            if (!normalized.startsWith(prefix)) return null;
+            return normalized.slice(prefix.length).split("/")[0] || null;
+          }
+          '''
+          helper_replacement = helper_anchor + '''
+          function isGeneratedSpecIntegrationPath(file, policy) {
+            const feature = specKeyFromFile(file, policy);
+            if (!feature) return false;
+            return normalize(file) === normalize(path.posix.join(policy.spec_root, feature, "work-map-integration.json"));
+          }
+          '''
+
+          parallel_path = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
+          parallel = parallel_path.read_text()
+          parallel = replace_once(parallel, helper_anchor, helper_replacement, 'parallel helper anchor')
+          parallel = replace_once(
+              parallel,
+              '''  for (const file of changedFiles) {
+            const feature = specKeyFromFile(file, policy);
+          ''',
+              '''  for (const file of changedFiles) {
+            if (isGeneratedSpecIntegrationPath(file, policy)) continue;
+            const feature = specKeyFromFile(file, policy);
+          ''',
+              'parallel discovery loop'
+          )
+          parallel_path.write_text(parallel)
+
+          phase_path = Path('http-generic-api/scripts/e2e-phase-governance.mjs')
+          phase = phase_path.read_text()
+          phase = replace_once(phase, helper_anchor, helper_replacement, 'phase helper anchor')
+          phase = replace_once(
+              phase,
+              '''  const changedSpecs = new Set(changedFiles.map((file) => specKeyFromFile(file, policy)).filter(Boolean));
+          ''',
+              '''  const changedSpecs = new Set(
+            changedFiles
+              .filter((file) => !isGeneratedSpecIntegrationPath(file, policy))
+              .map((file) => specKeyFromFile(file, policy))
+              .filter(Boolean)
+          );
+          ''',
+              'phase changed spec discovery'
+          )
+          phase_path.write_text(phase)
+
+          parallel_test_path = Path('http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs')
+          parallel_test = parallel_test_path.read_text()
+          parallel_marker = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false }));\n'
+          parallel_regressions = '''{
+            const root = tempRepo();
+            const generatedBinding = "specs/001-example/work-map-integration.json";
+            write(root, generatedBinding, "{}\\n");
+            const report = evaluateParallelWork({
+              root,
+              policy,
+              changedFiles: [generatedBinding],
+              headRef: "gpt/unrelated-runtime-change",
+              head: "HEAD"
+            });
+            assert.equal(report.ok, true, JSON.stringify(report.findings));
+            assert.equal(report.contracts.length, 0);
+          }
+
+          {
+            const generatedBinding = "specs/001-example/work-map-integration.json";
+            const report = evaluate(baseContract(), [generatedBinding, "specs/001-example/spec.md"]);
+            assert.equal(report.ok, true, JSON.stringify(report.findings));
+            assert.equal(report.contracts[0].active_workstream, "contracts");
+          }
+
+          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_parallel_work_governance", secrets_included: false }));
+          '''
+          parallel_test = replace_once(parallel_test, parallel_marker, parallel_regressions, 'parallel regression marker')
+          parallel_test_path.write_text(parallel_test)
+
+          phase_test_path = Path('http-generic-api/scripts/e2e-phase-governance-self-test.mjs')
+          phase_test = phase_test_path.read_text()
+          phase_marker = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_phase_governance", secrets_included: false }));\n'
+          phase_regressions = '''{
+            const root = tempRepo();
+            const independentContract = ".changes/e2e/001-example.json";
+            const generatedBinding = "specs/001-example/work-map-integration.json";
+            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\\n");
+            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\\n`);
+            write(root, generatedBinding, "{}\\n");
+            const result = evaluateRepository({ root, policy, changedFiles: [independentContract, generatedBinding] });
+            assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+            assert.equal(result.report.contracts.length, 1);
+            assert.equal(result.report.contracts[0].contract_path, independentContract);
+          }
+
+          {
+            const root = tempRepo();
+            const independentContract = ".changes/e2e/001-example.json";
+            const generatedBinding = "specs/001-example/work-map-integration.json";
+            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\\n");
+            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\\n`);
+            write(root, generatedBinding, "{}\\n");
+            write(root, "specs/001-example/spec.md", "# Real spec change\\n");
+            const result = evaluateRepository({
+              root,
+              policy,
+              changedFiles: [independentContract, generatedBinding, "specs/001-example/spec.md"]
+            });
+            assert.equal(result.report.ok, false);
+            assert(result.report.findings.some((row) => row.code === "missing_spec_e2e_phase_contract"));
+          }
+
+          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));
+          '''
+          phase_test = replace_once(phase_test, phase_marker, phase_regressions, 'phase regression marker')
+          phase_test_path.write_text(phase_test)
+
+          contract_path = Path('.changes/e2e/production-runtime-parity-comment-bridge.json')
+          contract_data = json.loads(contract_path.read_text())
+          self_test = 'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs'
+          scope = contract_data['scope']['include']
+          if self_test not in scope:
+              scope.append(self_test)
+              scope.sort()
+          mvp = next(row for row in contract_data['phases'] if row.get('id') == 'mvp')
+          journey = mvp['e2e_journeys'][0]
+          evidence = journey['evidence_paths']
+          if self_test not in evidence:
+              evidence.append(self_test)
+              evidence.sort()
+          contract_path.write_text(json.dumps(contract_data, indent=2) + '\n')
+          PY
+
+      - name: Run focused governance and bridge tests
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node --check scripts/e2e-parallel-work-governance.mjs
+          node --check scripts/e2e-phase-governance.mjs
+          node --check scripts/e2e-parallel-work-governance-self-test.mjs
+          node --check scripts/e2e-phase-governance-self-test.mjs
+          node scripts/e2e-parallel-work-governance-self-test.mjs
+          node scripts/e2e-phase-governance-self-test.mjs
+          node scripts/e2e-parallel-pr-flow-self-test.mjs
+          node scripts/test-production-runtime-parity-comment-bridge.mjs
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run full canonical manifest
+        working-directory: http-generic-api
+        run: node scripts/test-manifest.mjs
+
+      - name: Verify final bounded scope and current base
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          rm -f "${WRITER_PATH}"
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              '.changes/e2e/production-runtime-parity-comment-bridge.json',
+              '.github/workflows/production-runtime-parity-comment-bridge.yml',
+              'docs/work-maps/README.md',
+              'docs/work-maps/repository-automation-map.md',
+              'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs',
+              'http-generic-api/scripts/e2e-parallel-work-governance.mjs',
+              'http-generic-api/scripts/e2e-phase-governance-self-test.mjs',
+              'http-generic-api/scripts/e2e-phase-governance.mjs',
+              'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+          }
+          actual = set(subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/main'], text=True
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f'final scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
+          PY
+          test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-parallel-work-governance.mjs)" = 1
+          test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-phase-governance.mjs)" = 1
+          test ! -e "${WRITER_PATH}"
+
+      - name: Commit and fast-forward target branch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "fix(ci): neutralize generated spec binding ownership"
+          test "$(git rev-parse HEAD^2 2>/dev/null || true)" = ""
+          git push origin "HEAD:${EXPECTED_BRANCH}"
