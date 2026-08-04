@@ -1,4 +1,4 @@
-name: Spec 012 OAuth Current-Main Artifact Refresh Writer
+name: Spec 012 OAuth Generated Drift Diagnostic
 
 on:
   pull_request:
@@ -7,54 +7,42 @@ on:
       - .github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
-  group: spec012-oauth-current-main-artifact-refresh-${{ github.event.pull_request.number }}
+  group: spec012-oauth-generated-drift-diagnostic-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
-  sync-refresh-certify-push:
+  diagnose-only:
     if: github.event.pull_request.number == 6128 && github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 90
+    timeout-minutes: 30
     env:
       EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
-      PRE_UPDATE_HEAD: 8dfd4159ce43a3df143a3ef07a635be98c1bdf65
+      PRE_DIAGNOSTIC_HEAD: 06f5da7b74cc6dfa30b0e8c6a7cc86890c4e866e
       PRE_SYNC_BASE_SHA: 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa
       BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
-      WORKFLOW_PATH: .github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml
-      ARTIFACT_PATH: http-generic-api/frontend-surface-dispatch.generated.json
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable refs and pre-sync scope
+      - name: Verify immutable refs and local-only boundary
         shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin main "${BRANCH_NAME}"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git rev-parse HEAD^)" = "${PRE_UPDATE_HEAD}"
+          test "$(git rev-parse HEAD^)" = "${PRE_DIAGNOSTIC_HEAD}"
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
           test "$(git merge-base origin/main HEAD)" = "${PRE_SYNC_BASE_SHA}"
           test -z "$(git status --porcelain)"
-          mapfile -t files < <(git diff --name-only "${PRE_SYNC_BASE_SHA}...HEAD" | sort)
-          expected=(
-            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
-            ".github/workflows/spec012-oauth-frontend-artifact-refresh-writer.yml"
-            "http-generic-api/frontend-surface-dispatch.generated.json"
-            "http-generic-api/routes/index.js"
-            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
-          )
-          test "${#files[@]}" -eq "${#expected[@]}"
-          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
 
-      - name: Merge exact current main without rewriting history
+      - name: Merge current main locally without push
         shell: bash
         run: |
           set -euo pipefail
@@ -62,8 +50,6 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git merge --no-ff --no-edit "${EXPECTED_MAIN_SHA}"
           test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
-          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
-          echo "SYNC_MERGE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
@@ -76,112 +62,102 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Regenerate source-pinned frontend dispatch
-        working-directory: http-generic-api
+      - name: Capture before state and regenerate
         shell: bash
         run: |
           set -euo pipefail
-          npm run frontend:dispatch:generate -- --baseline-ref=main
-          npm run frontend:dispatch:check
-          node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const report = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
-          if (report?.baseline?.ref !== 'main') {
-            throw new Error(`expected baseline.ref=main, received ${String(report?.baseline?.ref)}`);
-          }
-          console.log(JSON.stringify({ ok: true, baseline_ref: report.baseline.ref, source_digest: report.baseline.source_digest }));
-          NODE
+          mkdir -p evidence/before evidence/after
+          cp http-generic-api/frontend-operation-governance.generated.json evidence/before/
+          cp http-generic-api/frontend-surface-dispatch.generated.json evidence/before/
+          (cd http-generic-api && npm run frontend:dispatch:generate -- --baseline-ref=main && npm run frontend:dispatch:check) | tee evidence/generator.log
+          cp http-generic-api/frontend-operation-governance.generated.json evidence/after/
+          cp http-generic-api/frontend-surface-dispatch.generated.json evidence/after/
+          git status --porcelain | tee evidence/status.txt
+          git diff --numstat -- \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json | tee evidence/numstat.txt
+          git diff --no-ext-diff -- \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json > evidence/generated.diff
 
-      - name: Verify generator changed only the bounded artifact
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t changed < <(git status --porcelain | awk '{print $2}' | sort)
-          expected=("${ARTIFACT_PATH}")
-          test "${#changed[@]}" -eq 1
-          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${changed[@]}")
-
-      - name: Retire writer and certify final four-file scope
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p evidence
-          git rm "${WORKFLOW_PATH}"
-          git add "${ARTIFACT_PATH}"
-          git commit -m "fix(spec-012): pin OAuth frontend dispatch to current main"
-          final_sha="$(git rev-parse HEAD)"
-          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
-          expected=(
-            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
-            "http-generic-api/frontend-surface-dispatch.generated.json"
-            "http-generic-api/routes/index.js"
-            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
-          )
-          test "${#files[@]}" -eq "${#expected[@]}"
-          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
-          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
-          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
-
-      - name: Validate OAuth frontend E2E and complete manifest
-        shell: bash
-        run: |
-          set -euo pipefail
-          (
-            cd http-generic-api
-            node test-spec012-t031-oauth-token-route-wiring.mjs
-            node test-auth-oauth-routes.mjs
-            node test-spec012-t033-short-lived-bearer-profile.mjs
-            node test-frontend-dispatch-workflow-baseline.mjs
-            node test-frontend-operation-governance-generator.mjs
-            node test-frontend-surface-dispatch.mjs
-            node test-frontend-auth-openapi-parity.mjs
-            node test-openapi-route-coverage.mjs
-            npm run openapi:auth:check
-            npm run frontend:dispatch:check
-          ) | tee evidence/focused-validation.log
-          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${FINAL_SHA}" --report-file evidence/e2e-phase-evaluation.json
-          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
-
-      - name: Record bounded non-effects
+      - name: Summarize exact JSON changes
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const report = JSON.parse(fs.readFileSync(process.env.ARTIFACT_PATH, 'utf8'));
-          const evidence = {
-            main: process.env.EXPECTED_MAIN_SHA,
-            sync_merge: process.env.SYNC_MERGE_SHA,
-            candidate: process.env.FINAL_SHA,
-            effective_changed_files: 4,
-            baseline_ref: report.baseline.ref,
-            source_digest: report.baseline.source_digest,
-            history_preserved: true,
-            force_push: false,
-            repository_scope: 'non_protected_branch_only',
-            production_action: false,
-            provider_action: false,
-            database_mutation: false,
-            credential_access: false,
-            secrets_included: false
+          import crypto from 'node:crypto';
+          const names = [
+            'frontend-operation-governance.generated.json',
+            'frontend-surface-dispatch.generated.json'
+          ];
+          const digest = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
+          const summarize = (before, after) => {
+            let count = 0;
+            const paths = [];
+            const walk = (a, b, path) => {
+              if (Object.is(a, b)) return;
+              if (Array.isArray(a) && Array.isArray(b)) {
+                if (a.length !== b.length) paths.push({ path: `${path}/length`, before: a.length, after: b.length });
+                const max = Math.max(a.length, b.length);
+                for (let i = 0; i < max; i += 1) walk(a[i], b[i], `${path}/${i}`);
+                return;
+              }
+              if (a && b && typeof a === 'object' && typeof b === 'object') {
+                const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+                for (const key of keys) walk(a[key], b[key], `${path}/${key.replaceAll('~','~0').replaceAll('/','~1')}`);
+                return;
+              }
+              count += 1;
+              if (paths.length < 500) paths.push({ path: path || '/', before: a, after: b });
+            };
+            walk(before, after, '');
+            return { changed_leaf_count: count, captured_paths: paths.length, paths };
           };
-          fs.writeFileSync('evidence/non-effects.json', `${JSON.stringify(evidence, null, 2)}\n`);
+          const report = {};
+          for (const name of names) {
+            const beforeRaw = fs.readFileSync(`evidence/before/${name}`);
+            const afterRaw = fs.readFileSync(`evidence/after/${name}`);
+            const before = JSON.parse(beforeRaw);
+            const after = JSON.parse(afterRaw);
+            report[name] = {
+              before_sha256: digest(beforeRaw),
+              after_sha256: digest(afterRaw),
+              before_baseline: before.baseline ?? null,
+              after_baseline: after.baseline ?? null,
+              before_top_level_keys: Object.keys(before).sort(),
+              after_top_level_keys: Object.keys(after).sort(),
+              ...summarize(before, after)
+            };
+          }
+          fs.writeFileSync('evidence/json-change-summary.json', `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify(report, null, 2));
           NODE
 
-      - name: Push fast-forward exact head
+      - name: Record non-effects
+        if: always()
         shell: bash
         run: |
-          set -euo pipefail
-          git fetch --no-tags origin main "${BRANCH_NAME}"
-          test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          git push origin "HEAD:${BRANCH_NAME}"
+          mkdir -p evidence
+          cat > evidence/non-effects.json <<'JSON'
+          {
+            "diagnostic_only": true,
+            "commit_created": false,
+            "push_performed": false,
+            "protected_ref_write": false,
+            "production_action": false,
+            "provider_action": false,
+            "database_mutation": false,
+            "credential_access": false,
+            "secrets_included": false
+          }
+          JSON
 
-      - name: Upload bounded evidence
+      - name: Upload diagnostic evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec012-oauth-current-main-artifact-refresh-${{ github.run_id }}
+          name: spec012-oauth-generated-drift-diagnostic-${{ github.run_id }}
           path: evidence/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
