@@ -32,7 +32,6 @@ jobs:
       EVENT_COMMENT_ID: ${{ github.event.comment.id }}
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
       EVENT_ISSUE_NUMBER: ${{ github.event.issue.number }}
-      REPORT_DIR: ${{ runner.temp }}/hostinger-production-runtime-readback-r7
     steps:
       - name: Resolve immutable trigger identity
         id: trigger
@@ -45,6 +44,14 @@ jobs:
             exit 1
           fi
           echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Initialize bounded report directory after runner allocation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/hostinger-production-runtime-readback-r7"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
 
       - name: Checkout exact trusted default-branch tooling
         uses: actions/checkout@v5
@@ -235,7 +242,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-production-runtime-readback-r7-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/*
+          path: ${{ runner.temp }}/hostinger-production-runtime-readback-r7/*
           if-no-files-found: error
           retention-days: 30
 
