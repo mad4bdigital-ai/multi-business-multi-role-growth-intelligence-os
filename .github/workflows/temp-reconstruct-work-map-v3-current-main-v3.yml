@@ -1,0 +1,191 @@
+name: TEMP Reconstruct Work Map V3 Current Main V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/base-reconstruct-work-map-v3-main-81a254bf-v3-20260804
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temp-reconstruct-work-map-v3-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build tested current-main source candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      MAIN_SHA: 81a254bfae492e33526f92ec2241f2d927790de2
+      SOURCE_SHA: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+      SOURCE_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
+      CANDIDATE_REF: gpt/work-map-v3-current-main-81a254bf-v3-20260804
+      TRIGGER_REF: gpt/trigger-reconstruct-work-map-v3-main-81a254bf-v3-20260804
+    steps:
+      - name: Checkout exact current main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.MAIN_SHA }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable identities and fetch reviewed source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}"
+          test "${{ github.event.pull_request.head.ref }}" = "${TRIGGER_REF}"
+          test "$(git rev-parse HEAD)" = "${MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${MAIN_SHA}"
+          git fetch --no-tags origin "+refs/heads/${SOURCE_REF}:refs/remotes/origin/reviewed-source"
+          test "$(git rev-parse refs/remotes/origin/reviewed-source)" = "${SOURCE_SHA}"
+          git cat-file -e "${SOURCE_SHA}^{commit}"
+
+      - name: Copy non-overlapping reviewed sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout "${SOURCE_SHA}" -- \
+            .changes/e2e/work-map-post-write-exact-verification-dispatch.json \
+            .github/workflows/ci.yml \
+            .github/workflows/spec-kit-work-map-autofix.yml \
+            .github/workflows/spec-kit-work-map-integration.yml \
+            http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+
+      - name: Apply V3 governance to current-main records
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const contractPath = '.specify/pipeline-connectivity-contract.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const legacy = new Set([
+            'gh workflow run ci.yml',
+            'gh workflow run spec-kit-work-map-integration.yml',
+            'mad4b.spec-kit-work-map-autofix.v2',
+            'WORK_MAP_AUTOFIX_V2',
+          ]);
+          const modern = [
+            'RESULT_HEAD_SHA',
+            'gh api --method POST',
+            'actions/workflows/ci.yml/dispatches',
+            'actions/workflows/spec-kit-work-map-integration.yml/dispatches',
+            'ci_dispatch_exit_code',
+            'integration_dispatch_exit_code',
+            'ci_run_id',
+            'integration_run_id',
+            'head_sha ==',
+            'mad4b.spec-kit-work-map-autofix.v3',
+            'WORK_MAP_AUTOFIX_V3',
+          ];
+          const required = (values) => [...new Set([...values.filter((value) => !legacy.has(value)), ...modern])];
+          const forbidden = (values) => [...new Set([...values, ...legacy])];
+          const policy = contract.artifact_writer_policies.find((row) => row.key === 'platform-work-maps-sole-remote-writer');
+          const writer = contract.pipelines.find((row) => row.key === 'spec-kit-work-map-autofix');
+          if (!policy || !writer) throw new Error('canonical Work Map writer records missing');
+          policy.required_writer_commands = required(policy.required_writer_commands);
+          policy.forbidden_writer_commands = forbidden(policy.forbidden_writer_commands);
+          writer.required_commands = required(writer.required_commands);
+          writer.forbidden_commands = forbidden(writer.forbidden_commands);
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+
+          const testPath = 'http-generic-api/test-pipeline-connectivity-check.mjs';
+          let source = fs.readFileSync(testPath, 'utf8');
+          const policyAnchor = `  assert.deepEqual(\n    writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),\n    ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),\n  );`;
+          const policyInsert = `${policyAnchor}\n  assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run ci.yml"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          if (!source.includes(policyAnchor)) throw new Error('stable current-main writer policy assertion anchor missing');
+          source = source.replace(policyAnchor, policyInsert);
+
+          const oldBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          const newBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v3"));\n  assert.ok(writerWorkflow.includes("gh api --method POST"));\n  assert.ok(writerWorkflow.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("ci_dispatch_exit_code"));\n  assert.ok(writerWorkflow.includes("integration_dispatch_exit_code"));\n  assert.ok(writerWorkflow.includes("ci_run_id"));\n  assert.ok(writerWorkflow.includes("integration_run_id"));\n  assert.ok(writerWorkflow.includes(".head_sha =="));\n  assert.ok(writerWorkflow.includes("${RESULT_HEAD_SHA}"));\n  assert.ok(!writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(!writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));\n  assert.ok(!writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(!writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v2"));`;
+          if (!source.includes(oldBlock)) throw new Error('current-main legacy writer assertion block missing');
+          source = source.replace(oldBlock, newBlock);
+          fs.writeFileSync(testPath, source);
+          NODE
+
+      - name: Run focused source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8'))"
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
+          git diff --check
+
+      - name: Enforce exact seven-file source scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/expected-files.txt <<'EOF'
+          .changes/e2e/work-map-post-write-exact-verification-dispatch.json
+          .github/workflows/ci.yml
+          .github/workflows/spec-kit-work-map-autofix.yml
+          .github/workflows/spec-kit-work-map-integration.yml
+          .specify/pipeline-connectivity-contract.json
+          http-generic-api/test-pipeline-connectivity-check.mjs
+          http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          EOF
+          git diff --name-only | sort > /tmp/actual-files.txt
+          diff -u /tmp/expected-files.txt /tmp/actual-files.txt
+          test "$(wc -l < /tmp/actual-files.txt | tr -d '[:space:]')" = '7'
+          ! grep -q '^docs/work-maps/' /tmp/actual-files.txt
+
+      - name: Commit and push current-main source candidate
+        id: publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${MAIN_SHA}"
+          if git ls-remote --exit-code origin "refs/heads/${CANDIDATE_REF}" >/dev/null 2>&1; then
+            echo "Candidate ref already exists; refusing to overwrite it."
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            .changes/e2e/work-map-post-write-exact-verification-dispatch.json \
+            .github/workflows/ci.yml \
+            .github/workflows/spec-kit-work-map-autofix.yml \
+            .github/workflows/spec-kit-work-map-integration.yml \
+            .specify/pipeline-connectivity-contract.json \
+            http-generic-api/test-pipeline-connectivity-check.mjs \
+            http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+          git commit -m 'fix(ci): reconstruct observable Work Map verification on current main'
+          result_head="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "${MAIN_SHA}"
+          git push origin "HEAD:refs/heads/${CANDIDATE_REF}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${CANDIDATE_REF}" | awk '{print $1}')" = "${result_head}"
+          echo "result_head=${result_head}" >> "$GITHUB_OUTPUT"
+
+      - name: Report bounded result
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "outcome=${{ job.status }}"
+          echo "main_sha=${MAIN_SHA}"
+          echo "source_sha=${SOURCE_SHA}"
+          echo "candidate_ref=${CANDIDATE_REF}"
+          echo "result_head_sha=${{ steps.publish.outputs.result_head || 'none' }}"
+          echo "source_files=7"
+          echo "generated_files=0"
+          echo "main_mutated=false"
+          echo "production_mutated=false"
+          echo "force_push=false"
