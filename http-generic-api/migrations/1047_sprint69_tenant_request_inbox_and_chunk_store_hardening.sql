@@ -1,4 +1,4 @@
--- 1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql
+-- 1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql
 -- Purpose: add an explicit ticket-to-resolution-case link, bounded inbox indexes,
 -- and reconcile the durable response chunk columns used by runtime listing surfaces.
 -- Safety: additive/idempotent; no provider calls, credential reads, external sends,
