@@ -88,7 +88,7 @@ assert.equal(validate({ exp: null }).classification, "expiry_claim_invalid");
 assert.equal(validate({ iat: NOW_SECONDS + 301, exp: NOW_SECONDS + 601 }).classification, "issued_at_in_future");
 assert.equal(validate({ iat: NOW_SECONDS, exp: NOW_SECONDS }).classification, "token_lifetime_invalid");
 assert.equal(validate({ exp: payload().iat + 3601 }).classification, "strict_token_lifetime_exceeded");
-assert.equal(validate({ iat: NOW_SECONDS - 4000, exp: NOW_SECONDS - 1 }).classification, "token_expired");
+assert.equal(validate({ iat: NOW_SECONDS - 1000, exp: NOW_SECONDS - 1 }).classification, "token_expired");
 
 const legacyIssuedAt = NOW_SECONDS - 60;
 const legacy = validateTenantGptAccessTokenProfile(payload({
