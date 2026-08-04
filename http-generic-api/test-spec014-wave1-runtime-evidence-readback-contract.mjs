@@ -59,6 +59,9 @@ assert.match(discovery, /spec014-wave1-runtime-readiness\.yml/);
 assert.match(discovery, /event=issue_comment/);
 assert.match(discovery, /maxDeltaMs = 5 \* 60 \* 1000/);
 assert.match(discovery, /public_metadata_only: true/);
+assert.match(discovery, /HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7_RUN_DISCOVERY/);
+assert.match(discovery, /hostinger-production-runtime-readback-r7\.yml/);
+assert.match(discovery, /5180582293/);
 assert.match(discovery, /SPEC014_WAVE1_RUNTIME_LIVE_DIAGNOSTIC/);
 assert.match(discovery, /git\/ref\/heads\/main/);
 assert.match(discovery, /git\/ref\/heads\/Production/);
@@ -82,8 +85,9 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      contract: 'spec014_wave1_runtime_public_run_discovery_guard.v2',
+      contract: 'spec014_wave1_runtime_public_run_discovery_guard.v3',
       observer_branch: OBSERVER_BRANCH,
+      r7_run_discovery: true,
       public_runtime_get_diagnostic: true,
       artifact_download_performed: false,
       database_access: false,
