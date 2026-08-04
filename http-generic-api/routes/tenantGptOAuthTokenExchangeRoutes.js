@@ -1,10 +1,8 @@
 import express, { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
-import { TENANT_GPT_OAUTH_CLIENT_ID, TENANT_GPT_SCOPE } from "../tenantGptOAuthPreset.js";
+import { TENANT_GPT_OAUTH_CLIENT_ID } from "../tenantGptOAuthPreset.js";
 import {
-  TENANT_GPT_AUTHORIZATION_SERVER,
   normalizeTenantGptOAuthResource,
   resolveTenantGptOAuthResourceProfile,
   tenantGptRequestHostFromHeaders,
@@ -17,7 +15,6 @@ import {
 } from "../tenantGptOAuthTokenExchangeOutcomePolicy.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
@@ -108,10 +105,10 @@ function safeRedirectEvidence(value) {
   };
 }
 
-function safeCodeEvidence(code, nowMs) {
+function safeCodeEvidence(code, nowMs, decodeCode) {
   const raw = String(code || "");
   if (!raw) return { present: false, decoded: false };
-  const decoded = jwt.decode(raw);
+  const decoded = typeof decodeCode === "function" ? decodeCode(raw) : null;
   if (!decoded || typeof decoded !== "object") return { present: true, decoded: false };
   const issuedAtMs = Number.isFinite(Number(decoded.iat)) ? Number(decoded.iat) * 1000 : null;
   const expiresAtMs = Number.isFinite(Number(decoded.exp)) ? Number(decoded.exp) * 1000 : null;
@@ -126,43 +123,6 @@ function safeCodeEvidence(code, nowMs) {
     expires_in_seconds: expiresAtMs === null ? null : Math.round((expiresAtMs - nowMs) / 1000),
     redirect_uri: safeRedirectEvidence(decoded.redirect_uri),
   };
-}
-
-function defaultVerifyCode(code) {
-  return jwt.verify(String(code || ""), JWT_SECRET);
-}
-
-function defaultIssueAccessToken(payload, {
-  clientId,
-  jwtid,
-  resource,
-  expiresIn = USER_TOKEN_TTL_SECONDS,
-} = {}) {
-  const userId = text(payload?.user_id, 64);
-  const tenantId = text(payload?.tenant_id, 64);
-  const normalizedClientId = text(clientId || TENANT_GPT_OAUTH_CLIENT_ID, 191);
-  const normalizedResource = normalizeTenantGptOAuthResource(resource);
-  if (!userId || !tenantId || !normalizedClientId || !normalizedResource) {
-    const error = new Error("Tenant GPT access-token subject, client, and resource are required.");
-    error.code = "tenant_gpt_access_token_input_invalid";
-    throw error;
-  }
-  return jwt.sign(
-    {
-      iss: TENANT_GPT_AUTHORIZATION_SERVER,
-      aud: normalizedResource,
-      azp: normalizedClientId,
-      client_id: normalizedClientId,
-      resource: normalizedResource,
-      sub: `tenant:${tenantId}:user:${userId}`,
-      user_id: userId,
-      tenant_id: tenantId,
-      scope: TENANT_GPT_SCOPE,
-      purpose: "tenant_gpt_access",
-    },
-    JWT_SECRET,
-    { expiresIn, jwtid },
-  );
 }
 
 async function resolveActiveTokenSubject(pool, { user_id, tenant_id = null } = {}) {
@@ -229,6 +189,8 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       resource_profile: event.resource_profile || null,
       subject_prevalidated: event.subject_prevalidated === true,
       access_token_prepared: event.access_token_prepared === true,
+      access_token: event.access_token || null,
+      requested_scope: event.requested_scope || null,
       code_consumption: event.code_consumption || null,
       activation_context: event.activation_context || null,
       request_id: event.request_id || null,
@@ -285,8 +247,14 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const router = Router();
   const resolvePool = typeof deps.getPool === "function" ? deps.getPool : getPool;
   const validateClientCredentials = deps.validateClientCredentials || validateTenantGptOAuthClientCredentials;
-  const verifyCode = deps.verifyCode || defaultVerifyCode;
-  const issueAccessToken = deps.issueAccessToken || defaultIssueAccessToken;
+  const verifyCode = deps.verifyCode;
+  const issueAccessToken = deps.issueAccessToken;
+  const decodeCode = deps.decodeCode;
+  if (typeof verifyCode !== "function" || typeof issueAccessToken !== "function") {
+    const error = new Error("Governed OAuth code verification and access-token issuance dependencies are required.");
+    error.code = "oauth_token_exchange_crypto_dependencies_required";
+    throw error;
+  }
   const consumeCode = deps.consumeCode || consumeTenantGptOAuthAuthorizationCode;
   const recordActivationContext = deps.recordActivationContext || recordTenantGptActivationContext;
   const resolveSubject = deps.resolveActiveSubject || resolveActiveTokenSubject;
@@ -303,7 +271,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
     const tokenLogContext = {
       request_id: requestId,
       grant_type: req.body?.grant_type || null,
-      code: safeCodeEvidence(req.body?.code, startedAtMs),
+      code: safeCodeEvidence(req.body?.code, startedAtMs, decodeCode),
       redirect_uri: safeRedirectEvidence(req.body?.redirect_uri),
       client: safeClientEvidence(oauthClientCredentials(req)),
     };
@@ -469,6 +437,15 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         },
       );
       tokenLogContext.access_token_prepared = true;
+      tokenLogContext.access_token = {
+        token_type: "bearer",
+        length: String(accessToken || "").length,
+        secrets_included: false,
+      };
+      tokenLogContext.requested_scope = {
+        count: String(codePayload.scope || "").split(/\s+/u).filter(Boolean).length,
+        secrets_included: false,
+      };
 
       phase = "code_consumption";
       const codeConsumption = await consumeCode({
