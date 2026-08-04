@@ -56,8 +56,8 @@
       }
     },
     {
-      "migration_file": "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
-      "score": 334,
+      "migration_file": "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      "score": 335,
       "queue_class": "medium_review",
       "triage_class": "safety_marker_review",
       "gate_scope": "new_gap_gate_candidate",
