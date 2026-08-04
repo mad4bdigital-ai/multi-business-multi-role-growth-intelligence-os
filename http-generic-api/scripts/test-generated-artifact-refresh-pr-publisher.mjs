@@ -249,6 +249,16 @@ assert.match(
 assert.match(workBranchReadOnlyWorkflow, /^name: PR Generated Artifact Refresh$/mu);
 assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'gpt\/'\)/u);
 assert.match(workBranchReadOnlyWorkflow, /startsWith\(github\.event\.pull_request\.head\.ref, 'cert\/'\)/u);
+assert.match(
+  workBranchReadOnlyWorkflow,
+  /paths:[\s\S]*- "\.github\/workflows\/ci\.yml"[\s\S]*workflow_dispatch:/u,
+  "CI workflow changes must activate the governed Work Map recovery bridge",
+);
+assert.match(
+  workBranchReadOnlyWorkflow,
+  /paths:[\s\S]*- "\.github\/workflows\/ci-pull-request-recovery\.yml"[\s\S]*workflow_dispatch:/u,
+  "CI Pull Request Recovery changes must activate the governed Work Map recovery bridge",
+);
 assert.match(workBranchReadOnlyWorkflow, /permissions:\s*\n\s*contents: read/u);
 assert.match(workBranchReadOnlyWorkflow, /persist-credentials: false/u);
 assert.doesNotMatch(workBranchReadOnlyWorkflow, /contents: write/u);
@@ -347,8 +357,10 @@ assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 58,
+  cases: 60,
   work_branch_evaluator_excludes_production: true,
+  ci_workflow_change_activates_work_map_recovery: true,
+  ci_recovery_workflow_change_activates_work_map_recovery: true,
   protected_promotion_unique_workflow_name: true,
   protected_promotion_unique_workflow_path: true,
   protected_promotion_read_only: true,

@@ -10,6 +10,8 @@ on:
       - ".changes/e2e/ci-generated-artifact-evidence-routing.json"
       - ".github/ci-evidence-routing.json"
       - ".github/repository-maintenance-tool-governance.json"
+      - ".github/workflows/ci-pull-request-recovery.yml"
+      - ".github/workflows/ci.yml"
       - ".github/workflows/ci-evidence-pr-publisher.yml"
       - ".github/workflows/governed-generated-artifact-refresh.yml"
       - ".github/workflows/pr-generated-artifact-refresh.yml"
