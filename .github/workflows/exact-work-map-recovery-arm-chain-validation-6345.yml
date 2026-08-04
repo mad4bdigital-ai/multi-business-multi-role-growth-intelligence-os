@@ -36,15 +36,18 @@ jobs:
           set -Eeuo pipefail
           evidence="$RUNNER_TEMP/work-map-recovery-arm-chain-validation"
           mkdir -p "$evidence"
-          expected_head='058904a026aa39e22a8ff58ee5937c35383c92f5'
-          expected_main='30b48a17bae1921d796e7e49b1f72a9ab5a871ff'
+          expected_head='2ce262e66747582c5239a4e6c358dfe24b11df32'
+          expected_main='75043a78f56d37165315ac38fba7424084633800'
 
           test "$(git rev-parse HEAD)" = "$expected_head"
+          test "$(jq -r '.pull_request.head.sha' "$GITHUB_EVENT_PATH")" = "$expected_head"
           git fetch --no-tags origin "$expected_main"
           git diff --name-status "$expected_main" "$expected_head" | sort > "$evidence/actual-scope.txt"
           cat > "$evidence/expected-scope.txt" <<'EOF'
           M	.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml
           M	.github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          M	.specify/pipeline-connectivity-contract.json
+          M	http-generic-api/test-pipeline-connectivity-check.mjs
           M	http-generic-api/test-work-map-autofix-diagnostics.mjs
           EOF
           sort -o "$evidence/expected-scope.txt" "$evidence/expected-scope.txt"
@@ -52,11 +55,41 @@ jobs:
 
           test "$(git hash-object .github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml)" = 'fbab486acb1be34e4c961ef5b4a98764a69e9a41'
           test "$(git hash-object .github/workflows/spec-kit-work-map-recovery-bootstrap.yml)" = 'e9b5d1c3980d8264df45bc9b57a7396670b69032'
+          test "$(git hash-object .specify/pipeline-connectivity-contract.json)" = '04bc9e3ecd7ca2ea59558942200f90aee60df20a'
+          test "$(git hash-object http-generic-api/test-pipeline-connectivity-check.mjs)" = '6edba340717f0902137dd5657da71d77690b8fbd'
           test "$(git hash-object http-generic-api/test-work-map-autofix-diagnostics.mjs)" = '68b2f15c1aa54c21fd81307b226e5ce2e2548721'
+          test "$(git rev-parse "$expected_head:.github/workflows/spec-kit-work-map-autofix.yml")" = '19be68eac2fe0260a36b109b5b2a2370b4f1cb38'
+          test "$(git rev-parse "$expected_main:.github/workflows/spec-kit-work-map-autofix.yml")" = '19be68eac2fe0260a36b109b5b2a2370b4f1cb38'
 
+          node -e "JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8'))"
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          node --check http-generic-api/test-fanout-relocation-ci.mjs
+          node --check http-generic-api/test-supervisor-runtime-assurance-automation.mjs
           node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
+          (cd http-generic-api && node test-pipeline-connectivity-check.mjs)
+          (cd http-generic-api && node test-fanout-relocation-ci.mjs)
+          (cd http-generic-api && node test-supervisor-runtime-assurance-automation.mjs)
           (cd http-generic-api && node test-work-map-autofix-diagnostics.mjs)
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
+          python3 - <<'PY'
+          from pathlib import Path
+          bootstrap = Path('.github/workflows/spec-kit-work-map-recovery-bootstrap.yml').read_text(encoding='utf-8')
+          recovery = Path('.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml').read_text(encoding='utf-8')
+          writer = Path('.github/workflows/spec-kit-work-map-autofix.yml').read_text(encoding='utf-8')
+          recovery_on = recovery.split('\non:\n', 1)[1].split('\npermissions:', 1)[0]
+          assert 'runs-on: ubuntu-24.04-arm' in bootstrap
+          assert 'runs-on: ubuntu-24.04-arm' in recovery
+          assert 'workflow_dispatch:' in recovery_on
+          for forbidden in ('pull_request:', 'pull_request_target:', 'issue_comment:', 'push:', 'schedule:', 'workflow_run:'):
+              assert forbidden not in recovery_on, forbidden
+          assert 'runs-on: windows-latest' in writer
+          assert 'git push origin' not in bootstrap
+          assert 'spec-kit-work-map-autofix.yml/dispatches' not in bootstrap
+          assert 'git push origin' not in recovery
+          assert 'git commit' not in recovery
+          PY
 
           git diff --name-status "$expected_main" "$expected_head" > "$evidence/changed-files.tsv"
           node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
@@ -68,7 +101,7 @@ jobs:
           jq -n \
             --arg head "$expected_head" \
             --arg base "$expected_main" \
-            '{contract:"work_map_recovery_arm_chain_exact_validation.v1",ok:true,head_sha:$head,base_sha:$base,exact_three_file_scope:true,focused_regression_passed:true,lifecycle_policy_passed:true,recovery_explicit_dispatch_only:true,bootstrap_arm_runner:true,recovery_arm_runner:true,writer_unchanged:true,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:"work_map_recovery_arm_chain_exact_validation.v2",ok:true,head_sha:$head,base_sha:$base,exact_five_file_scope:true,exact_candidate_blobs:true,focused_regression_passed:true,lifecycle_policy_passed:true,recovery_explicit_dispatch_only:true,bootstrap_arm_runner:true,recovery_arm_runner:true,writer_unchanged:true,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
             > "$evidence/result.json"
 
       - name: Write fail-closed result
@@ -81,7 +114,7 @@ jobs:
           evidence="$RUNNER_TEMP/work-map-recovery-arm-chain-validation"
           mkdir -p "$evidence"
           if [[ ! -f "$evidence/result.json" ]]; then
-            jq -n --arg outcome "$VALIDATION_OUTCOME" --arg head "$(git rev-parse HEAD 2>/dev/null || true)" '{contract:"work_map_recovery_arm_chain_exact_validation.v1",ok:false,validation_outcome:$outcome,head_sha:$head,exact_three_file_scope:false,focused_regression_passed:false,lifecycle_policy_passed:false,recovery_explicit_dispatch_only:false,bootstrap_arm_runner:false,recovery_arm_runner:false,writer_unchanged:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' > "$evidence/result.json"
+            jq -n --arg outcome "$VALIDATION_OUTCOME" --arg head "$(git rev-parse HEAD 2>/dev/null || true)" '{contract:"work_map_recovery_arm_chain_exact_validation.v2",ok:false,validation_outcome:$outcome,head_sha:$head,exact_five_file_scope:false,exact_candidate_blobs:false,focused_regression_passed:false,lifecycle_policy_passed:false,recovery_explicit_dispatch_only:false,bootstrap_arm_runner:false,recovery_arm_runner:false,writer_unchanged:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' > "$evidence/result.json"
           fi
           cat "$evidence/result.json"
 
@@ -102,4 +135,4 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$VALIDATION_OUTCOME" = success
-          jq -e '.ok == true and .exact_three_file_scope == true and .focused_regression_passed == true and .lifecycle_policy_passed == true and .recovery_explicit_dispatch_only == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-arm-chain-validation/result.json" >/dev/null
+          jq -e '.ok == true and .exact_five_file_scope == true and .exact_candidate_blobs == true and .focused_regression_passed == true and .lifecycle_policy_passed == true and .recovery_explicit_dispatch_only == true and .writer_unchanged == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-arm-chain-validation/result.json" >/dev/null
