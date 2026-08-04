@@ -1,0 +1,179 @@
+name: Exact Spec 014 Wave 1 Runtime Readiness 6227 ARM v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-wave1-runtime-readiness-6227-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-wave1-runtime-readiness-6227-arm-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Exact Wave 1 readiness on ARM
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      EXPECTED_HEAD_SHA: 1eabe5260857f568e5b803eaae119e95cea0d80c
+      EXPECTED_HEAD_REF: gpt/014-hostinger/wave1-runtime-readiness-20260804
+      EXPECTED_BASE_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Initialize evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/spec014-wave1-arm-${GITHUB_RUN_ID}"
+          mkdir -p "$evidence_dir/reference-integrity" "$evidence_dir/repository-tool-lifecycle" "$evidence_dir/test-suite-reports"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+
+      - name: Verify exact identity scope and no-Apply boundary
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git merge-base "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = "$EXPECTED_BASE_SHA"
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF'
+          .changes/e2e/spec014-wave1-runtime-readiness.json
+          .github/ops/spec014-wave1-runtime-readiness.mjs
+          .github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml
+          .github/workflows/spec014-wave1-runtime-readiness.yml
+          http-generic-api/scripts/test-manifest.mjs
+          http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs
+          EOF
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          sort -o "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/expected-files.txt"
+          git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          git diff --name-status "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" > "$EVIDENCE_DIR/name-status.tsv"
+          ! grep -R -E "mode:[[:space:]]*['\"]apply['\"]|capability_resolution_envelope_apply_authorize|APPLY_GOVERNED_MIGRATION" \
+            .github/ops/spec014-wave1-runtime-readiness.mjs \
+            .github/workflows/spec014-wave1-runtime-readiness.yml
+          jq -n '{ok:true,changed_files:6,apply_job:false,apply_request:false,migration_apply_executed:false,secrets_included:false}' > "$EVIDENCE_DIR/preflight.json"
+
+      - name: Install dependencies
+        id: dependencies
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npm ci
+          npm --prefix http-generic-api ci
+
+      - name: Syntax canonical and boundary contract
+        id: contract
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check .github/ops/spec014-wave1-runtime-readiness.mjs
+          node --check http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs > "$EVIDENCE_DIR/boundary.json"
+          jq -e '.ok == true and .runtime_readiness_only == true and .apply_job_exposed == false and .migration_apply_executed == false and .secrets_included == false' "$EVIDENCE_DIR/boundary.json" >/dev/null
+          git diff --check
+
+      - name: E2E reference and lifecycle governance
+        id: governance
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_BASE_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files "$EVIDENCE_DIR/name-status.tsv" --policy .github/repository-maintenance-tool-governance.json --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+
+      - name: Full HTTP Generic API suite
+        id: api_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/spec014-wave1-arm-${{ github.run_id }}/test-suite-reports
+        run: |
+          npm test
+          npm run validate
+
+      - name: Root resolver tests
+        id: root_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        run: |
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Exact E2E journeys
+        id: e2e
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        run: |
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$EVIDENCE_DIR/e2e-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$EVIDENCE_DIR/e2e-run.json" --execution-report-file "$EVIDENCE_DIR/e2e-execution.json"
+
+      - name: Write result
+        if: always()
+        env:
+          PREFLIGHT: ${{ steps.preflight.outcome }}
+          DEPENDENCIES: ${{ steps.dependencies.outcome }}
+          CONTRACT: ${{ steps.contract.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          API_TESTS: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS: ${{ steps.root_tests.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          jq -n --arg candidate_sha "$EXPECTED_HEAD_SHA" --arg base_sha "$EXPECTED_BASE_SHA" --arg preflight "$PREFLIGHT" --arg dependencies "$DEPENDENCIES" --arg contract "$CONTRACT" --arg governance "$GOVERNANCE" --arg api_tests "$API_TESTS" --arg root_tests "$ROOT_TESTS" --arg e2e "$E2E" '{candidate_sha:$candidate_sha,base_sha:$base_sha,runner:"ubuntu-24.04-arm",outcomes:{preflight:$preflight,dependencies:$dependencies,contract:$contract,governance:$governance,api_tests:$api_tests,root_tests:$root_tests,e2e:$e2e},apply_authorized:false,apply_sent:false,migration_apply_executed:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' > "$EVIDENCE_DIR/result.json"
+          cat "$EVIDENCE_DIR/result.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-wave1-runtime-readiness-6227-arm-v2-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce result
+        if: always()
+        env:
+          PREFLIGHT: ${{ steps.preflight.outcome }}
+          DEPENDENCIES: ${{ steps.dependencies.outcome }}
+          CONTRACT: ${{ steps.contract.outcome }}
+          GOVERNANCE: ${{ steps.governance.outcome }}
+          API_TESTS: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS: ${{ steps.root_tests.outcome }}
+          E2E: ${{ steps.e2e.outcome }}
+        run: |
+          for outcome in "$PREFLIGHT" "$DEPENDENCIES" "$CONTRACT" "$GOVERNANCE" "$API_TESTS" "$ROOT_TESTS" "$E2E"; do test "$outcome" = success; done
+          jq -e '.candidate_sha == "1eabe5260857f568e5b803eaae119e95cea0d80c" and .base_sha == "07264baf9957a26bb853df03e7cdb579c7a5c7e7" and ([.outcomes[]] | all(. == "success")) and .apply_authorized == false and .apply_sent == false and .migration_apply_executed == false and .provider_call_executed == false and .credential_payload_accessed == false and .external_business_write_executed == false and .secrets_included == false' "$EVIDENCE_DIR/result.json" >/dev/null
