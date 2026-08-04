@@ -1,0 +1,108 @@
+name: TEMP R7 Validator 6100 V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-r7-base-6100-0ccfc93b
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: temp-r7-validator-6100-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact R7 candidate read-only
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      CANONICAL_PR: '6100'
+      EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      EXPECTED_HEAD_SHA: 490345cbba29f6ec2ca3195f8e9711bf3b2a01e1
+      EXPECTED_HEAD_REF: gpt/hostinger-production-runtime-readback-r7-main-0ccfc93b-20260804
+    steps:
+      - name: Pin canonical identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Checkout exact canonical head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact scope and contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/r7-exact-head-validation-6100"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}"
+          cat > "${report_dir}/expected-files.txt" <<'EOF'
+          .changes/e2e/hostinger-production-runtime-readback-r7.json
+          .github/workflows/hostinger-production-runtime-readback-r7.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          EOF
+          git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}" | sort > "${report_dir}/actual-files.txt"
+          diff -u "${report_dir}/expected-files.txt" "${report_dir}/actual-files.txt"
+          git diff --check "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}"
+
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs | tee "${report_dir}/01-r7.log"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs | tee "${report_dir}/02-e2e-reference.log"
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs | tee "${report_dir}/03-e2e-index.log"
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs | tee "${report_dir}/04-pipeline.log"
+          node http-generic-api/test-pipeline-connectivity-check.mjs | tee "${report_dir}/05-pipeline-regression.log"
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs | tee "${report_dir}/06-schema-contract.log"
+          node http-generic-api/scripts/work-map-schema-classification.mjs | tee "${report_dir}/07-schema.log"
+          node http-generic-api/test-work-map-schema-classification.mjs | tee "${report_dir}/08-schema-regression.log"
+          node http-generic-api/test-work-map-schema-classification-contract.mjs | tee "${report_dir}/09-schema-contract-regression.log"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee "${report_dir}/10-work-map-currentness.log"
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs | tee "${report_dir}/11-lifecycle.log"
+          REPORT_PATH="${report_dir}/spec014-final-work-map-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${report_dir}/12-spec014.log"
+          jq -e '.ok == true and ((.findings | length) == 0)' "${report_dir}/spec014-final-work-map-readback.json" >/dev/null
+          jq -n --arg candidate_sha "${EXPECTED_HEAD_SHA}" --arg main_sha "${EXPECTED_MAIN_SHA}" '{contract:"mad4b.r7-exact-head-validation.v3",candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:5,contracts_passed:12,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' > "${report_dir}/summary.json"
+
+      - name: Re-read canonical identity
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.head.sha')" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+
+      - name: Upload exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-exact-head-validation-6100-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
