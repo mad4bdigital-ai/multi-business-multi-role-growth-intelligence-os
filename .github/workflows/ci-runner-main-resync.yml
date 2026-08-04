@@ -104,3 +104,5 @@ jobs:
         run: |
           set -Eeuo pipefail
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+# synchronize trigger refresh
