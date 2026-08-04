@@ -20,15 +20,24 @@ const syntax = spawnSync(process.execPath, ['--check', SCRIPT_PATH], {
 assert.equal(syntax.status, 0, syntax.stderr || 'Readback script syntax check failed.');
 
 assert.match(workflow, /^on:\n  issue_comment:\n    types: \[created\]/m);
-assert.doesNotMatch(workflow, /^\s{2}(?:push|pull_request|workflow_dispatch|workflow_run):/m);
+assert.match(workflow, /^  pull_request:\n    branches: \[main\]\n    types: \[opened, reopened, synchronize\]/m);
+assert.doesNotMatch(workflow, /^\s{2}(?:push|workflow_dispatch|workflow_run):/m);
 assert.match(workflow, /actions: read/);
 assert.match(workflow, /contents: read/);
 assert.match(workflow, /issues: write/);
 assert.doesNotMatch(workflow, /contents:\s*write|pull-requests:\s*write/);
+assert.match(workflow, /github\.event_name == 'issue_comment'/);
 assert.match(workflow, /github\.event\.issue\.number == 6215/);
 assert.match(workflow, /!github\.event\.issue\.pull_request/);
 assert.match(workflow, /READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708/);
 assert.match(workflow, /\["OWNER","MEMBER","COLLABORATOR"\]/);
+assert.match(workflow, /github\.event_name == 'pull_request'/);
+assert.match(workflow, /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/);
+assert.match(
+  workflow,
+  /github\.event\.pull_request\.head\.ref == 'gpt\/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1'/,
+);
+assert.match(workflow, /github\.event\.pull_request\.base\.ref == 'main'/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /persist-credentials: false/);
 assert.match(workflow, /actions\/upload-artifact@v4/);
@@ -84,13 +93,15 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      contract: 'spec014_wave1_runtime_evidence_readback_contract.v2',
-      exact_trigger: 'READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708',
+      contract: 'spec014_wave1_runtime_evidence_readback_contract.v3',
+      exact_issue_trigger: 'READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708',
+      exact_pr_fallback:
+        'gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1',
       authorization_comment_time_bound: true,
       fixed_event_head_assumption: false,
       structured_failure_comment: true,
       actions_read: true,
-      issue_comment_write_only: true,
+      result_comment_write_only: true,
       runtime_contact: false,
       database_access: false,
       migration_apply_executed: false,
