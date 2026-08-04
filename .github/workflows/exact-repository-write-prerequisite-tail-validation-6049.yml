@@ -1,0 +1,159 @@
+name: Exact Repository Write Prerequisite Tail Validation 6049
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  EXPECTED_MAIN_SHA: 72196dee20b13491972ae1371f2fe4a47d9bd8c9
+  EXPECTED_CANDIDATE_SHA: 4e1f0283f8259fc0304b8bd18ceb6663c9d577d4
+  EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-72196dee-20260804-v5
+  EXPECTED_VALIDATOR_REF: gpt/exact-repository-write-prerequisite-tail-validation-6049-v2
+  CANONICAL_PR_NUMBER: '6049'
+  EVIDENCE_DIR: /tmp/exact-repository-write-prerequisite-tail-validation-6049
+
+jobs:
+  exact-tail:
+    name: Lifecycle, E2E, and final readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/exact-repository-write-prerequisite-tail-validation-6049-v2'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact validator head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify validator and canonical identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          test "$VALIDATOR_BASE_SHA" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse HEAD)" = "$VALIDATOR_HEAD_SHA"
+          mapfile -t files < <(git diff --name-only "$VALIDATOR_BASE_SHA"..."$VALIDATOR_HEAD_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = '.github/workflows/exact-repository-write-prerequisite-tail-validation-6049.yml'
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Checkout exact canonical candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact current-main topology and inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_CANDIDATE_SHA")" -eq 1
+          test "$(git rev-parse "$EXPECTED_CANDIDATE_SHA^")" = "$EXPECTED_MAIN_SHA"
+          mkdir -p "$EVIDENCE_DIR/repository-tool-lifecycle"
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" > "$EVIDENCE_DIR/repository-tool-changes.tsv"
+          test "$(wc -l < "$EVIDENCE_DIR/repository-tool-changes.tsv")" -eq 13
+
+      - name: Run repository lifecycle with exact SHA provenance
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          BASE_SHA: ${{ env.EXPECTED_MAIN_SHA }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$EVIDENCE_DIR/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+          report="$EVIDENCE_DIR/repository-tool-lifecycle/repository-tool-lifecycle-report.json"
+          test "$(jq -r '.ok' "$report")" = 'true'
+          test "$(jq -r '.candidate_sha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(jq -r '.base_sha' "$report")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.changed_file_count' "$report")" -eq 13
+          test "$(jq -r '.secrets_included' "$report")" = 'false'
+
+      - name: Run exact E2E reference and index integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+
+      - name: Run exact E2E phase evaluation and execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+      - name: Final protected-main and canonical PR readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Publish exact no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg parent_run_id '30865075591' \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg job_status "${{ job.status }}" \
+            '{contract:"mad4b.exact-repository-write-prerequisite-tail-validation.v1",base_sha:$base_sha,head_sha:$head_sha,parent_full_run_id:$parent_run_id,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/summary.json"
+
+      - name: Upload exact tail evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-repository-write-prerequisite-tail-validation-6049-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
