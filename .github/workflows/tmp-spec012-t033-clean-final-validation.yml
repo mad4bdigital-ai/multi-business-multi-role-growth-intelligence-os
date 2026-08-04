@@ -66,6 +66,18 @@ jobs:
         working-directory: http-generic-api
         run: node test-auth-oauth-routes.mjs
 
+      - name: Validate T031 binding guard unit
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-binding-guard.mjs
+
+      - name: Validate T031 exchange route unit
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
+
+      - name: Validate T031 outcome policy unit
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-exchange-outcome-policy.mjs
+
       - name: Validate T031 OAuth token route wiring
         working-directory: http-generic-api
         run: node test-spec012-t031-oauth-token-route-wiring.mjs
@@ -73,10 +85,6 @@ jobs:
       - name: Validate governed binding hardening
         working-directory: http-generic-api
         run: node test-tenant-gpt-oauth-token-binding-hardening.mjs
-
-      - name: Validate OAuth token exchange routes
-        working-directory: http-generic-api
-        run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
 
       - name: Validate short-lived bearer profile
         working-directory: http-generic-api
