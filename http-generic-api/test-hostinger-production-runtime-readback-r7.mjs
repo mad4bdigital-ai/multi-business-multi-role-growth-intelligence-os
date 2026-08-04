@@ -16,7 +16,6 @@ assert.match(workflow, /RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_pr
 assert.match(workflow, /\^\$\{TRIGGER_TOKEN\}\[\[:space:\]\]expected_production_sha=\(\[0-9a-f\]\{40\}\)\$/);
 assert.match(workflow, /runs-on: ubuntu-24\.04-arm/);
 assert.match(workflow, /persist-credentials: false/);
-assert.match(workflow, /issues: write/);
 assert.match(workflow, /git ls-remote origin refs\/heads\/Production/);
 assert.match(workflow, /git merge-base --is-ancestor "\$\{GITHUB_SHA\}" "\$\{remote_main_sha\}"/);
 
@@ -43,13 +42,13 @@ assert.match(workflow, /--tlsv1\.2/);
 assert.match(workflow, /--max-time 25/);
 assert.match(workflow, /--retry 3/);
 assert.match(workflow, /hostinger-production-runtime-readback-r7-\$\{\{ github\.run_id \}\}/);
-assert.match(workflow, /HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 status=completed/);
-assert.match(workflow, /gh api --method POST/);
+assert.match(workflow, /Publish bounded read-only runtime decision/);
+assert.match(workflow, /GITHUB_STEP_SUMMARY/);
+assert.match(workflow, /workflow_summary_performed: false/);
+assert.match(workflow, /workflow_summary_performed = true/);
 assert.match(workflow, /repository_content_mutation_performed: false/);
-assert.match(workflow, /repository_issue_comment_authorized: true/);
+assert.match(workflow, /repository_issue_comment_authorized: false/);
 assert.match(workflow, /repository_issue_comment_performed: false/);
-assert.match(workflow, /repository_issue_comment_performed = true/);
-assert.match(workflow, /repository_content_mutation=false repository_issue_comment_performed=true/);
 assert.match(workflow, /production_current/);
 assert.match(workflow, /runtime_activation_pending_or_sha_mismatch/);
 assert.match(workflow, /runtime_sha_current_branch_provenance_mismatch/);
@@ -59,6 +58,9 @@ assert.match(workflow, /deployment_performed: false/);
 assert.match(workflow, /restart_performed: false/);
 assert.match(workflow, /secrets_included: false/);
 
+assert.doesNotMatch(workflow, /issues: write/);
+assert.doesNotMatch(workflow, /GH_TOKEN/);
+assert.doesNotMatch(workflow, /\bgh\s+api\b/);
 assert.doesNotMatch(workflow, /repository_mutation_performed/);
 assert.doesNotMatch(workflow, /HOSTINGER_API_TOKEN/);
 assert.doesNotMatch(workflow, /secrets\./);
@@ -68,16 +70,17 @@ assert.doesNotMatch(workflow, /\bssh\b/i);
 assert.doesNotMatch(workflow, /\b(rsync|scp)\b/i);
 assert.doesNotMatch(workflow, /\b(DROP|TRUNCATE|ALTER|INSERT|UPDATE|DELETE)\b/);
 assert.doesNotMatch(workflow, /git push/);
-assert.doesNotMatch(workflow, /gh api --method (PUT|PATCH|DELETE)/);
 
 console.log(JSON.stringify({
   ok: true,
-  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v2',
+  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v3',
   trigger: 'owner_bound_issue_comment',
   report_directory_initialized_after_runner_allocation: true,
   public_get_only: true,
   repository_content_mutation_performed: false,
-  repository_issue_comment_authorized: true,
+  repository_issue_comment_authorized: false,
+  repository_issue_comment_performed: false,
+  workflow_summary_performed: true,
   provider_credential_accessed: false,
   provider_mutation_performed: false,
   deployment_performed: false,
