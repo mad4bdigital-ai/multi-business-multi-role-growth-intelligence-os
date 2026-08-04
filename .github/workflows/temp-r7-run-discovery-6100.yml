@@ -1,0 +1,71 @@
+name: TEMP R7 Run Discovery 6100
+
+on:
+  pull_request:
+    branches:
+      - gpt/r7-run-discovery-base-2f6634d3
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+
+jobs:
+  discover:
+    name: Discover R7 issue-comment run without mutation
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 5
+    env:
+      TARGET_PR: '6100'
+      TRIGGER_COMMENT_ID: '5177287041'
+      TRIGGER_CREATED_AT: '2026-08-04T09:43:38Z'
+      WORKFLOW_FILE: hostinger-production-runtime-readback-r7.yml
+    steps:
+      - name: Discover exact workflow run
+        id: discover
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          workflow="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${WORKFLOW_FILE}")"
+          workflow_id="$(jq -r '.id' <<<"${workflow}")"
+          workflow_state="$(jq -r '.state' <<<"${workflow}")"
+          test "${workflow_state}" = 'active'
+
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs?event=issue_comment&per_page=30")"
+          run="$(jq -c --arg created "${TRIGGER_CREATED_AT}" '[.workflow_runs[] | select(.created_at >= $created)] | sort_by(.created_at) | last // empty' <<<"${runs}")"
+          if [[ -z "${run}" ]]; then
+            echo 'run_found=false' >> "${GITHUB_OUTPUT}"
+            echo 'run_id=none' >> "${GITHUB_OUTPUT}"
+            echo 'status=not_found' >> "${GITHUB_OUTPUT}"
+            echo 'conclusion=none' >> "${GITHUB_OUTPUT}"
+            exit 0
+          fi
+
+          echo 'run_found=true' >> "${GITHUB_OUTPUT}"
+          echo "run_id=$(jq -r '.id' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+          echo "status=$(jq -r '.status' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+          echo "conclusion=$(jq -r '.conclusion // "none"' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+          echo "head_sha=$(jq -r '.head_sha' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+          echo "created_at=$(jq -r '.created_at' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+          echo "event=$(jq -r '.event' <<<"${run}")" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish bounded discovery evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_FOUND: ${{ steps.discover.outputs.run_found }}
+          RUN_ID: ${{ steps.discover.outputs.run_id }}
+          RUN_STATUS: ${{ steps.discover.outputs.status }}
+          RUN_CONCLUSION: ${{ steps.discover.outputs.conclusion }}
+          RUN_HEAD_SHA: ${{ steps.discover.outputs.head_sha }}
+          RUN_CREATED_AT: ${{ steps.discover.outputs.created_at }}
+          RUN_EVENT: ${{ steps.discover.outputs.event }}
+        run: |
+          set -Eeuo pipefail
+          body="R7_RUN_DISCOVERY trigger_comment_id=${TRIGGER_COMMENT_ID} run_found=${RUN_FOUND:-false} run_id=${RUN_ID:-none} status=${RUN_STATUS:-unknown} conclusion=${RUN_CONCLUSION:-none} head_sha=${RUN_HEAD_SHA:-none} created_at=${RUN_CREATED_AT:-none} event=${RUN_EVENT:-none} workflow=${WORKFLOW_FILE} workflow_mutation=false repository_content_mutation=false protected_ref_mutation=false provider_access=false deployment=false secrets_included=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" -f body="${body}" >/dev/null
