@@ -1,0 +1,74 @@
+name: One-shot CI launcher identity repair
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-ci-launcher-identity-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-ci-production-ratchet-base-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Repair detached-head identity assertion
+        shell: bash
+        env:
+          EXPECTED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EXPECTED_HEAD_REF" = "gpt/fix-ci-production-ratchet-base-20260805"
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/one-shot-ci-production-ratchet-base-fix.yml')
+          text = path.read_text()
+          old = '''        env:
+          EXPECTED_PARENT_SHA: ab53d0373fb8e31c8496508760e3d4bfa8c93e84
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
+          test "$(git branch --show-current)" = "gpt/fix-ci-production-ratchet-base-20260805"
+'''
+          new = '''        env:
+          EXPECTED_PARENT_SHA: ab53d0373fb8e31c8496508760e3d4bfa8c93e84
+          EXPECTED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
+          test "$EXPECTED_HEAD_REF" = "gpt/fix-ci-production-ratchet-base-20260805"
+'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one detached-head identity block')
+          path.write_text(text.replace(old, new))
+          PY
+          rm .github/workflows/one-shot-ci-launcher-identity-repair.yml
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            .github/workflows/one-shot-ci-launcher-identity-repair.yml \
+            .github/workflows/one-shot-ci-production-ratchet-base-fix.yml | sort)"
+
+      - name: Commit repaired launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .github/workflows/one-shot-ci-launcher-identity-repair.yml \
+            .github/workflows/one-shot-ci-production-ratchet-base-fix.yml
+          git commit -m "chore(ci): repair one-shot launcher identity check"
+          git push origin HEAD:gpt/fix-ci-production-ratchet-base-20260805
