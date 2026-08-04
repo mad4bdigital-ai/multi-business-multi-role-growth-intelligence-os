@@ -15,7 +15,7 @@ concurrency:
 jobs:
   evidence:
     name: Structured Runtime Startup Evidence
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
