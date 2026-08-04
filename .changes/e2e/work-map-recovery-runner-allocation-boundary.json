@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-recovery-runner-allocation-boundary",
+  "title": "Work Map recovery runner-allocation boundary",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      "http-generic-api/test-work-map-recovery-runner-allocation-boundary.mjs",
+      ".changes/e2e/work-map-recovery-runner-allocation-boundary.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Register the governed Work Map Recovery dispatcher by deferring report-directory initialization until after GitHub allocates the runner, without weakening exact-head authorization, marker consumption, or mutation boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "authorized-recovery-dispatch-initializes-runtime-report-path",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository maintainer and governed Work Map Recovery dispatcher",
+          "entrypoint": "Workflow dispatch, pull-request-target transition, or authorized issue comment",
+          "terminal_outcome": "The workflow is registrable, initializes REPORT_DIR from RUNNER_TEMP after runner allocation, validates an exact current pull-request head, consumes one authorization marker, and delegates only to the sole governed Work Map writer.",
+          "steps": [
+            "Allocate the Ubuntu runner before resolving a temporary report path.",
+            "Initialize REPORT_DIR from RUNNER_TEMP and publish it through GITHUB_ENV.",
+            "Resolve the open same-repository pull request and require behind_by=0.",
+            "Consume the one-time Work Map authorization marker.",
+            "Enable and dispatch only the governed writer and integration workflows.",
+            "Publish bounded no-secret recovery evidence without protected-branch mutation or force push."
+          ],
+          "assertions": [
+            "No job-level runner.temp expression remains.",
+            "Report initialization precedes exact target resolution.",
+            "The /recover-work-maps command and exact authorization marker remain required.",
+            "Stale pull-request heads fail closed before delegation.",
+            "Direct repository mutation, protected-branch mutation, force push, and secret inclusion remain false."
+          ],
+          "tests": [
+            {
+              "id": "work-map-recovery-runner-allocation-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-recovery-runner-allocation-boundary.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            "http-generic-api/test-work-map-recovery-runner-allocation-boundary.mjs",
+            ".changes/e2e/work-map-recovery-runner-allocation-boundary.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose registration and delegated-run identity through canonical workflow evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove fail-closed behavior across disabled writer workflows, stale heads, and repeated authorization attempts."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow registration repair has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository workflow registration repair grants no Production or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
