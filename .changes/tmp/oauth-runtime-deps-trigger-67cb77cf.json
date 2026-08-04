@@ -1,0 +1,9 @@
+{
+  "purpose": "temporary exact-head trigger for atomic OAuth runtime dependency composition writer",
+  "base_sha": "67cb77cffe94544b1b5d70997506afb4e75c3846",
+  "target_scope": [
+    "http-generic-api/routes/index.js",
+    "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+  ],
+  "secrets_included": false
+}
