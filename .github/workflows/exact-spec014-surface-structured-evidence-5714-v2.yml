@@ -1,0 +1,194 @@
+name: Exact Spec 014 Surface Structured Evidence 5714 v2
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-surface-ubuntu2404-base-5634-5db9-v1
+    types: [reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-surface-structured-evidence-5714-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  evidence:
+    name: Structured repository automation evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Initialize bounded evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/spec014-surface-structured-evidence-$GITHUB_RUN_ID"
+          mkdir -p "$evidence_dir"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+          echo "EXPECTED_HEAD_SHA=c2cdd1b0b748ceeb31a84648f448129a5da60701" >> "$GITHUB_ENV"
+          echo "EXPECTED_MAIN_SHA=5db9f992ff42b136fbac88f9191949a7e31ffbf0" >> "$GITHUB_ENV"
+
+      - name: Verify immutable candidate identity and exact scope
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "gpt/014-hostinger/surface-contract-generated-evidence-v5-final-20260803"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..${EXPECTED_HEAD_SHA}")" = "8"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" | wc -l | tr -d ' ')" = "18"
+
+      - name: Generate structured Surface discovery evidence
+        id: structured_evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { discoverSurfaces, buildPersistedDiscoveryReport } from './scripts/surface-contract-discovery.mjs';
+
+          const evidenceDir = process.env.EVIDENCE_DIR;
+          const migrationFile = '20260802_03_spec014_hostinger_storage_execution_evidence.sql';
+          const persistedQueue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const persistedStatus = JSON.parse(fs.readFileSync('../docs/surface-contract-discovery-status.json', 'utf8'));
+          const liveReport = discoverSurfaces({ limit: 200 });
+          const livePersisted = buildPersistedDiscoveryReport(liveReport);
+
+          const indexByMigration = (items = []) => new Map(items.map((item) => [item.migration_file, item]));
+          const persistedItems = indexByMigration(persistedQueue.top_items || []);
+          const liveItems = indexByMigration(liveReport.gap_queue?.top_items || []);
+          const added = [...liveItems.keys()].filter((key) => !persistedItems.has(key));
+          const removed = [...persistedItems.keys()].filter((key) => !liveItems.has(key));
+          const changed = [...liveItems.keys()].filter((key) => {
+            if (!persistedItems.has(key)) return false;
+            const live = liveItems.get(key);
+            const persisted = persistedItems.get(key);
+            return live.score !== persisted.score
+              || live.queue_class !== persisted.queue_class
+              || live.gap_severity !== persisted.gap_severity
+              || JSON.stringify(live.missing_docs || []) !== JSON.stringify(persisted.missing_docs || [])
+              || JSON.stringify(live.missing_openapi_routes || []) !== JSON.stringify(persisted.missing_openapi_routes || [])
+              || JSON.stringify(live.safety_marker_gaps || []) !== JSON.stringify(persisted.safety_marker_gaps || []);
+          });
+
+          const delta = {
+            ok: true,
+            schema_version: 'spec014-surface-structured-evidence-v2',
+            candidate_sha: process.env.EXPECTED_HEAD_SHA,
+            baseline_sha: process.env.EXPECTED_MAIN_SHA,
+            live: {
+              migration_surface_count: liveReport.migration_surface_count,
+              reported_count: liveReport.reported_count,
+              queue_total_items: liveReport.gap_queue.total_items,
+              queue_top_item_count: liveReport.gap_queue.top_items.length,
+              queue_class_counts: liveReport.gap_queue.class_counts,
+              persisted_projection_queue_total_items: livePersisted.gap_queue.total_items,
+              persisted_projection_top_item_count: livePersisted.gap_queue.top_item_count,
+              spec014_migration_in_queue: liveItems.has(migrationFile)
+            },
+            committed: {
+              discovery_migration_surface_count: persistedStatus.migration_surface_count,
+              discovery_queue_total_items: persistedStatus.gap_queue?.total_items,
+              gap_queue_total_items: persistedQueue.total_items,
+              gap_queue_top_item_count: (persistedQueue.top_items || []).length,
+              spec014_migration_in_queue: persistedItems.has(migrationFile)
+            },
+            delta: {
+              added_migrations: added,
+              removed_migrations: removed,
+              changed_migrations: changed,
+              count_delta: liveReport.gap_queue.total_items - persistedQueue.total_items
+            },
+            safety: {
+              executes_provider_calls: false,
+              reads_credentials: false,
+              mutates_runtime: false,
+              writes_database: false,
+              external_sends: false,
+              deploys: false,
+              secrets_included: false
+            }
+          };
+          fs.writeFileSync(path.join(evidenceDir, 'surface-discovery-delta.json'), JSON.stringify(delta, null, 2) + '\n');
+
+          let assertion = { ok: true };
+          try {
+            await import(`./test-surface-contract-discovery.mjs?evidence_run=${Date.now()}`);
+          } catch (error) {
+            assertion = {
+              ok: false,
+              name: error?.name || null,
+              code: error?.code || null,
+              message: error?.message || String(error),
+              actual: error?.actual ?? null,
+              expected: error?.expected ?? null,
+              operator: error?.operator || null,
+              stack: String(error?.stack || '').split('\n').slice(0, 12)
+            };
+          }
+
+          fs.writeFileSync(
+            path.join(evidenceDir, 'surface-test-assertion.json'),
+            JSON.stringify({
+              schema_version: 'spec014-surface-test-assertion-v1',
+              candidate_sha: process.env.EXPECTED_HEAD_SHA,
+              assertion,
+              safety: delta.safety
+            }, null, 2) + '\n'
+          );
+
+          if (!assertion.ok) process.exitCode = 1;
+          NODE
+
+      - name: Upload structured repository evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-surface-structured-evidence-5714-v2-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce structured evidence result
+        if: always()
+        shell: bash
+        env:
+          STRUCTURED_EVIDENCE_OUTCOME: ${{ steps.structured_evidence.outcome }}
+        run: |
+          set -euo pipefail
+          test -f "$EVIDENCE_DIR/surface-discovery-delta.json"
+          test -f "$EVIDENCE_DIR/surface-test-assertion.json"
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const evidenceDir = process.env.EVIDENCE_DIR;
+          const delta = JSON.parse(fs.readFileSync(`${evidenceDir}/surface-discovery-delta.json`, 'utf8'));
+          const test = JSON.parse(fs.readFileSync(`${evidenceDir}/surface-test-assertion.json`, 'utf8'));
+          assert.equal(delta.candidate_sha, 'c2cdd1b0b748ceeb31a84648f448129a5da60701');
+          assert.equal(delta.live.spec014_migration_in_queue, false);
+          assert.equal(delta.committed.spec014_migration_in_queue, false);
+          assert.equal(test.assertion.ok, true);
+          NODE
+          test "$STRUCTURED_EVIDENCE_OUTCOME" = "success"
