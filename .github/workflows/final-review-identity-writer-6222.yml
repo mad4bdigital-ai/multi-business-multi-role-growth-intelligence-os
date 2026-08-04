@@ -23,10 +23,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
-      EXPECTED_MAIN_SHA: 2959ecfadf00be09c998bff573fe30a6539143ca
+      EXPECTED_MAIN_SHA: b3b488082d4030e8110993fcffb74fb498930166
       EXPECTED_SOURCE_SHA: 83aebe711328f1a6a95793b3fcd500da013b6a5d
       EXPECTED_SOURCE_REF: gpt/fix-final-review-state-readback-07264baf-20260804
-      TARGET_BRANCH: gpt/fix-final-review-identity-after-reviews-2959ecfa-20260804
+      TARGET_BRANCH: gpt/fix-final-review-identity-after-reviews-b3b48808-20260804
     steps:
       - name: Checkout exact reviewed source
         uses: actions/checkout@v5
