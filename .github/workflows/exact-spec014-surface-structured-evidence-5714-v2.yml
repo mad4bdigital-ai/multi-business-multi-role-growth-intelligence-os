@@ -7,7 +7,7 @@ on:
     types: [reopened, synchronize, ready_for_review]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   evidence:
@@ -146,14 +146,55 @@ jobs:
           if (!assertion.ok) process.exitCode = 1;
           NODE
 
-      - name: Upload bounded structured evidence
+      - name: Checkout validation evidence branch
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/checkout@v5
         with:
-          name: exact-spec014-surface-structured-evidence-5714-v2-${{ github.run_id }}
-          path: ${{ runner.temp }}/spec014-surface-structured-evidence-${{ github.run_id }}/
-          if-no-files-found: error
-          retention-days: 14
+          ref: gpt/validate-spec014-surface-ubuntu2404-base-5634-5db9-v1
+          path: evidence-base
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Persist structured evidence on validation branch
+        if: always()
+        shell: bash
+        env:
+          EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
+        run: |
+          set -euo pipefail
+          source_dir="$RUNNER_TEMP/spec014-surface-structured-evidence-$GITHUB_RUN_ID"
+          target_dir="$GITHUB_WORKSPACE/evidence-base/.github/evidence/spec014-pr5714"
+          test -f "$source_dir/surface-discovery-delta.json"
+          test -f "$source_dir/surface-test-assertion.json"
+          mkdir -p "$target_dir"
+          cp "$source_dir/surface-discovery-delta.json" "$target_dir/surface-discovery-delta.json"
+          cp "$source_dir/surface-test-assertion.json" "$target_dir/surface-test-assertion.json"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const target = `${process.env.GITHUB_WORKSPACE}/evidence-base/.github/evidence/spec014-pr5714/run-metadata.json`;
+          fs.writeFileSync(target, JSON.stringify({
+            schema_version: 'spec014-surface-automation-run-v1',
+            run_id: Number(process.env.GITHUB_RUN_ID),
+            run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT),
+            workflow: process.env.GITHUB_WORKFLOW,
+            candidate_sha: 'c2cdd1b0b748ceeb31a84648f448129a5da60701',
+            evidence_outcome: process.env.EVIDENCE_OUTCOME,
+            provider_mutation: false,
+            production_mutation: false,
+            credential_access: false,
+            database_mutation: false,
+            external_write: false,
+            secrets_included: false
+          }, null, 2) + '\n');
+          NODE
+          cd "$GITHUB_WORKSPACE/evidence-base"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/evidence/spec014-pr5714
+          if ! git diff --cached --quiet; then
+            git commit -m "ci(validation): record Spec 014 surface evidence run $GITHUB_RUN_ID"
+            git push origin HEAD:gpt/validate-spec014-surface-ubuntu2404-base-5634-5db9-v1
+          fi
 
       - name: Enforce evidence verdict
         if: always()
@@ -162,7 +203,4 @@ jobs:
           EVIDENCE_OUTCOME: ${{ steps.evidence.outcome }}
         run: |
           set -euo pipefail
-          evidence_dir="$RUNNER_TEMP/spec014-surface-structured-evidence-$GITHUB_RUN_ID"
-          test -f "$evidence_dir/surface-discovery-delta.json"
-          test -f "$evidence_dir/surface-test-assertion.json"
           test "$EVIDENCE_OUTCOME" = "success"
