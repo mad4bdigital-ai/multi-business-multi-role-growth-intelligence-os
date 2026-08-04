@@ -4,97 +4,55 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const API_DIR = path.dirname(fileURLToPath(import.meta.url));
-const ROOT = path.resolve(API_DIR, '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OBSERVER_BRANCH = 'gpt/observe-spec014-wave1-runtime-run-5179409708-20260804';
-const SCRIPT_PATH = path.join(ROOT, '.github/ops/spec014-wave1-runtime-evidence-readback.mjs');
-const WORKFLOW_PATH = path.join(ROOT, '.github/workflows/spec014-wave1-runtime-evidence-readback.yml');
 const DISCOVERY_PATH = path.join(
   ROOT,
-  'http-generic-api/scripts/spec014-wave1-runtime-public-run-discovery.mjs',
+  'http-generic-api/scripts/hostinger-r7-public-run-discovery-5180820710.mjs',
 );
+const discovery = await fs.readFile(DISCOVERY_PATH, 'utf8');
+const syntax = spawnSync(process.execPath, ['--check', DISCOVERY_PATH], {
+  cwd: ROOT,
+  encoding: 'utf8',
+});
+assert.equal(syntax.status, 0, syntax.stderr || 'Corrected R7 observer syntax failed');
 
-const [script, workflow, discovery] = await Promise.all([
-  fs.readFile(SCRIPT_PATH, 'utf8'),
-  fs.readFile(WORKFLOW_PATH, 'utf8'),
-  fs.readFile(DISCOVERY_PATH, 'utf8'),
-]);
-
-for (const filePath of [SCRIPT_PATH, DISCOVERY_PATH]) {
-  const syntax = spawnSync(process.execPath, ['--check', filePath], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-  assert.equal(syntax.status, 0, syntax.stderr || `Syntax check failed for ${filePath}`);
-}
-
-assert.match(workflow, /^on:\n  issue_comment:\n    types: \[created\]/m);
-assert.match(workflow, /actions: read/);
-assert.match(workflow, /contents: read/);
-assert.match(workflow, /issues: write/);
-assert.doesNotMatch(workflow, /contents:\s*write|pull-requests:\s*write/);
-assert.match(workflow, /READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708/);
-assert.match(workflow, /ref: main/);
-assert.match(workflow, /persist-credentials: false/);
-
-for (const marker of [
-  'apply_authorized: false',
-  'apply_sent: false',
-  'migration_apply_executed: false',
-  'provider_call_executed: false',
-  'credential_payload_accessed: false',
-  'external_business_write_executed: false',
-  'secrets_included: false',
-  'target_run_not_found_near_authorization_comment',
-  'target_runtime_job_skipped_no_artifact',
-]) {
-  assert.ok(script.includes(marker), `Readback script is missing ${marker}`);
-}
-assert.doesNotMatch(
-  script,
-  /auth\.mad4b\.com|BACKEND_API_KEY|governed_migration_execute|mode:\s*['"](?:apply|dry_run)['"]/,
-);
-assert.match(discovery, /issues\/comments\/\$\{authorizationCommentId\}/);
-assert.match(discovery, /spec014-wave1-runtime-readiness\.yml/);
+assert.match(discovery, /5180820710/);
+assert.match(discovery, /hostinger-production-runtime-readback-r7\.yml/);
+assert.match(discovery, /Hostinger Production Runtime Readback R7/);
 assert.match(discovery, /event=issue_comment/);
 assert.match(discovery, /maxDeltaMs = 5 \* 60 \* 1000/);
 assert.match(discovery, /public_metadata_only: true/);
-assert.match(discovery, /HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7_RUN_DISCOVERY/);
-assert.match(discovery, /hostinger-production-runtime-readback-r7\.yml/);
-assert.match(discovery, /5180582293/);
-assert.match(discovery, /SPEC014_WAVE1_RUNTIME_LIVE_DIAGNOSTIC/);
-assert.match(discovery, /git\/ref\/heads\/main/);
-assert.match(discovery, /git\/ref\/heads\/Production/);
-assert.match(discovery, /publicRuntimeGet\('\/health'\)/);
-assert.match(discovery, /publicRuntimeGet\('\/version'\)/);
-assert.match(discovery, /publicRuntimeGet\('\/deployment-info'\)/);
-assert.match(discovery, /exact_runtime_parity:/);
-assert.match(discovery, /public_get_only: true/);
-assert.match(discovery, /runtime_contact: true/);
-assert.match(discovery, /database_access: false/);
+assert.match(discovery, /deployment_performed: false/);
+assert.match(discovery, /restart_performed: false/);
+assert.match(discovery, /sql_execution_performed: false/);
 assert.match(discovery, /migration_apply_executed: false/);
-assert.match(discovery, /provider_call_executed: false/);
+assert.match(discovery, /database_mutation_performed: false/);
 assert.match(discovery, /secrets_included: false/);
-assert.doesNotMatch(discovery, /Authorization:|GITHUB_TOKEN|BACKEND_API_KEY/);
+assert.doesNotMatch(
+  discovery,
+  /Authorization:|GITHUB_TOKEN|GH_TOKEN|BACKEND_API_KEY|HOSTINGER_API_TOKEN|auth\.mad4b\.com/,
+);
 
 if (String(process.env.GITHUB_HEAD_REF || '') === OBSERVER_BRANCH) {
-  await import('./scripts/spec014-wave1-runtime-public-run-discovery.mjs');
+  await import('./scripts/hostinger-r7-public-run-discovery-5180820710.mjs');
 }
 
 console.log(
   JSON.stringify(
     {
       ok: true,
-      contract: 'spec014_wave1_runtime_public_run_discovery_guard.v3',
+      contract: 'hostinger_r7_corrected_public_run_discovery_guard.v1',
       observer_branch: OBSERVER_BRANCH,
-      r7_run_discovery: true,
-      public_runtime_get_diagnostic: true,
-      artifact_download_performed: false,
-      database_access: false,
+      trigger_comment_id: '5180820710',
+      public_metadata_only: true,
+      runtime_contact: false,
+      provider_credential_accessed: false,
+      deployment_performed: false,
+      restart_performed: false,
+      sql_execution_performed: false,
       migration_apply_executed: false,
-      provider_call_executed: false,
-      credential_payload_accessed: false,
-      external_business_write_executed: false,
+      database_mutation_performed: false,
       secrets_included: false,
     },
     null,
