@@ -1,0 +1,125 @@
+name: Temporary Spec 014 Final Work Map Binding Writer
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/tmp-spec014-final-work-map-binding-main-4033d886.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: tmp-spec014-final-work-map-binding-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-final-binding:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec014-final-work-map-binding-main-4033d886-20260804' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      EXPECTED_MAIN_SHA: 4033d886187e87b29a855b9b9a942788dafd88ca
+      TARGET_BRANCH: gpt/spec014-final-work-map-binding-main-4033d886-20260804
+      TEMP_WORKFLOW: .github/workflows/tmp-spec014-final-work-map-binding-main-4033d886.yml
+      MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      REPORT_DIR: .ci-evidence/spec014-final-work-map-binding
+    steps:
+      - name: Checkout exact writer head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable source and one-file writer boundary
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "${{ github.event.pull_request.base.sha }}" = "${EXPECTED_MAIN_SHA}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${TEMP_WORKFLOW}"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run official deterministic binding refresh
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            > "${REPORT_DIR}/refresh.json"
+          mapfile -t generated < <(git diff --name-only)
+          test "${#generated[@]}" -ge 1
+          for path in "${generated[@]}"; do
+            test "${path}" = "${MANIFEST_PATH}" -o "${path}" = "${TASKS_PATH}"
+          done
+          printf '%s\n' "${generated[@]}" | grep -Fx "${MANIFEST_PATH}"
+          git diff --check
+
+      - name: Validate exact refreshed binding
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          REPORT_PATH="${REPORT_DIR}/readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${REPORT_DIR}/readback.stdout.json"
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback.json');process.stdout.write(String(r.ok))")" = true
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback.json');process.stdout.write(String(r.findings.length))")" = 0
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback.json');process.stdout.write(String(r.classification.coverage_percent))")" = 100
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback.json');process.stdout.write(String(r.classification.unresolved_count))")" = 0
+
+      - name: Retire writer and publish bounded candidate commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          remote_before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "$(git rev-parse HEAD)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${MANIFEST_PATH}" "${TASKS_PATH}"
+          git rm "${TEMP_WORKFLOW}"
+          mapfile -t final_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}")
+          test "${#final_paths[@]}" -ge 1
+          for path in "${final_paths[@]}"; do
+            test "${path}" = "${MANIFEST_PATH}" -o "${path}" = "${TASKS_PATH}"
+          done
+          printf '%s\n' "${final_paths[@]}" | grep -Fx "${MANIFEST_PATH}"
+          test ! -e "${TEMP_WORKFLOW}"
+          git diff --cached --check
+          git commit -m 'chore(spec-014): refresh final Work Map binding on main 4033d886'
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          for attempt in {1..20}; do
+            remote_after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            if [[ "${remote_after}" = "${result_sha}" ]]; then break; fi
+            sleep 2
+          done
+          test "${remote_after}" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload bounded no-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-binding-${{ github.run_id }}
+          path: .ci-evidence/spec014-final-work-map-binding/*
+          if-no-files-found: warn
+          retention-days: 30
