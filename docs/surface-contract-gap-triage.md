@@ -4,18 +4,16 @@
 
 ## Summary
 
-- Triaged items: 6
-- Gate candidates: 2
+- Triaged items: 3
+- Gate candidates: 0
 - New-gap gate: pass
 - Blocking new items: 0
 
 ## Class counts
 
-- new_surface_immediate_review: 2
-- safety_marker_review: 3
+- safety_marker_review: 2
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
-- `20260802_03_spec014_hostinger_storage_execution_evidence.sql` — critical_review, score 803; next: add targeted patch-index, parity, and governance documentation
-- `20260730_hostinger_production_resync_policy.sql` — high_review, score 479; next: add targeted patch-index, parity, and governance documentation
+- none
