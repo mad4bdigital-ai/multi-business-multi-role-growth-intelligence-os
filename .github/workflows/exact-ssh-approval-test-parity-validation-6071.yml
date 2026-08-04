@@ -48,7 +48,7 @@ jobs:
           test "${validator_files[0]}" = '.github/workflows/exact-ssh-approval-test-parity-validation-6071.yml'
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
           test "$(jq -r '.state' <<<"$pr")" = 'open'
-          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.draft' <<<"$pr")" = 'false'
           test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
           test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
           test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
@@ -126,7 +126,7 @@ jobs:
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
           pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
           test "$(jq -r '.state' <<<"$pr")" = 'open'
-          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.draft' <<<"$pr")" = 'false'
           test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
           test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
 
