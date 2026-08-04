@@ -5,3 +5,4 @@ Run OAuth baseline dependency-injection diagnostic.
 Capture patched OAuth diagnostic output independently.
 Prove complete one-file OAuth baseline correction.
 Retry after repairing temporary proof YAML.
+Use bounded OAuth code-expiry assertion.
