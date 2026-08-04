@@ -1,0 +1,108 @@
+name: TEMP R7 Registration Bridge 6186
+
+on:
+  pull_request:
+    branches:
+      - gpt/r7-registration-bridge-base-6186-c1806ef4
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  bridge:
+    name: Validate clean registration fix and dispatch sole writer
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      CANONICAL_PR: '6186'
+      EXPECTED_MAIN_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
+      EXPECTED_HEAD_SHA: 525c4a33417f6cf41f16e41408b70394363da651
+      EXPECTED_HEAD_REF: fix/hostinger-production-r7-registration-current-main-20260804
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    steps:
+      - name: Pin canonical identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run focused registration regression
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          if grep -Eq '^      REPORT_DIR:[[:space:]]*\$\{\{[[:space:]]*runner\.temp' .github/workflows/hostinger-production-runtime-readback-r7.yml; then
+            exit 1
+          fi
+
+      - name: Consume marker and dispatch official writer
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          body="$(jq -r '.body // ""' <<<"${pr}")"
+          test "$(grep -Fo "${AUTHORIZATION_MARKER}" <<<"${body}" | wc -l | tr -d ' ')" = '1'
+          next_body="${body//${AUTHORIZATION_MARKER}/}"
+          payload_file="${RUNNER_TEMP}/consume-marker.json"
+          jq -n --arg body "${next_body}" '{body:$body}' > "${payload_file}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --input "${payload_file}" >/dev/null
+
+          started="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn --arg ref main --arg branch "${EXPECTED_HEAD_REF}" --arg expected_head_sha "${EXPECTED_HEAD_SHA}" '{ref:$ref,inputs:{branch:$branch,expected_head_sha:$expected_head_sha}}')"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/dispatches" --input - <<<"${payload}"
+          run_id=''
+          for _ in $(seq 1 30); do
+            run_id="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix.yml/runs?event=workflow_dispatch&branch=main&per_page=30" --jq "[.workflow_runs[] | select(.created_at >= \"${started}\")] | sort_by(.created_at) | last | .id // empty")"
+            [[ -n "${run_id}" ]] && break
+            sleep 2
+          done
+          [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+          echo "run_id=${run_id}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish bounded bridge evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -Eeuo pipefail
+          outcome='passed'
+          [[ "${{ steps.dispatch.outcome }}" = 'success' ]] || outcome='blocked'
+          body="R7_REGISTRATION_BRIDGE_6186 outcome=${outcome} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} focused_regression=$([[ '${{ steps.dispatch.outcome }}' == 'success' ]] && echo passed || echo blocked) authorization_consumed=$([[ '${{ steps.dispatch.outcome }}' == 'success' ]] && echo true || echo false) delegated_run_id=${RUN_ID:-none} direct_generated_edit=false protected_branch_mutation=false force_push=false provider_access=false deployment=false secrets_included=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}" >/dev/null
