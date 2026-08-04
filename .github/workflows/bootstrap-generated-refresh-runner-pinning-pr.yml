@@ -10,7 +10,7 @@ on:
       - .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: bootstrap-generated-refresh-runner-pinning-pr-${{ github.event.pull_request.number }}
@@ -105,7 +105,6 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-
           fail_phase() {
             local status="$1"
             local phase="$2"
@@ -114,7 +113,6 @@ jobs:
             git diff --name-status "${EXPECTED_BASE_SHA}"
             exit "${status}"
           }
-
           node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs || fail_phase "$?" "node-check"
           (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) || fail_phase "$?" "focused-regression"
           git add -N .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json || fail_phase "$?" "register-new-contract"
@@ -131,14 +129,38 @@ jobs:
           EOF
           diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "bounded-file-list"
 
-      - name: Record immutable Git metadata
+      - name: Build detached bounded commit objects
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p runner-pinning-metadata
-          printf '%s\n' "${EXPECTED_BASE_SHA}" > runner-pinning-metadata/base-commit-sha.txt
-          git rev-parse "${EXPECTED_BASE_SHA}^{tree}" > runner-pinning-metadata/base-tree-sha.txt
-          git rev-parse HEAD > runner-pinning-metadata/merged-head-sha.txt
+          metadata_dir="runner-pinning-metadata"
+          mkdir -p "${metadata_dir}"
+          base_tree="$(git rev-parse "${EXPECTED_BASE_SHA}^{tree}")"
+          tree_elements="${RUNNER_TEMP}/tree-elements.json"
+          printf '[]\n' > "${tree_elements}"
+          cat > "${RUNNER_TEMP}/bounded-files.txt" <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
+          .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml
+          .github/workflows/governed-generated-artifact-refresh.yml
+          .github/workflows/pr-generated-artifact-refresh.yml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          EOF
+          while IFS= read -r path; do
+            blob_sha="$(base64 -w0 "${path}" | jq -Rs '{content:.,encoding:"base64"}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
+            jq --arg path "${path}" --arg sha "${blob_sha}" '. + [{path:$path,mode:"100644",type:"blob",sha:$sha}]' "${tree_elements}" > "${tree_elements}.next"
+            mv "${tree_elements}.next" "${tree_elements}"
+          done < "${RUNNER_TEMP}/bounded-files.txt"
+          tree_sha="$(jq -n --arg base_tree "${base_tree}" --slurpfile tree "${tree_elements}" '{base_tree:$base_tree,tree:$tree[0]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq .sha)"
+          commit_sha="$(jq -n --arg message 'fix(ci): pin generated refresh chain runners' --arg tree "${tree_sha}" --arg parent "${EXPECTED_BASE_SHA}" '{message:$message,tree:$tree,parents:[$parent]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq .sha)"
+          printf '%s\n' "${EXPECTED_BASE_SHA}" > "${metadata_dir}/base-commit-sha.txt"
+          printf '%s\n' "${base_tree}" > "${metadata_dir}/base-tree-sha.txt"
+          printf '%s\n' "${tree_sha}" > "${metadata_dir}/detached-tree-sha.txt"
+          printf '%s\n' "${commit_sha}" > "${metadata_dir}/detached-commit-sha.txt"
+          cp "${tree_elements}" "${metadata_dir}/tree-elements.json"
 
       - name: Export exact bounded patch
         uses: actions/upload-artifact@v4
