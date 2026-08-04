@@ -1,0 +1,292 @@
+name: Build Generated Refresh Skipped Outcome V1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-generated-refresh-skipped-outcome-v1-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.event.pull_request.head.ref == 'gpt/generated-refresh-skipped-outcome-main-0ccfc93b-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      PINNED_MAIN: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      HEAD_REF: gpt/generated-refresh-skipped-outcome-main-0ccfc93b-20260804
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      BUILDER_PATH: .github/workflows/build-generated-refresh-skipped-outcome-v1.yml
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "${SOURCE_HEAD}" ]]
+          git fetch origin main "${HEAD_REF}"
+          [[ "$(git rev-parse origin/main)" == "${PINNED_MAIN}" ]]
+          [[ "$(git rev-parse "origin/${HEAD_REF}")" == "${SOURCE_HEAD}" ]]
+          changed="$(git diff --name-only "${PINNED_MAIN}...${SOURCE_HEAD}")"
+          [[ "${changed}" == "${BUILDER_PATH}" ]]
+
+      - name: Apply bounded skipped-outcome patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python <<'PY'
+          from pathlib import Path
+          import json
+
+          workflow_path = Path('.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml')
+          test_path = Path('http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs')
+          contract_path = Path('.changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json')
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one anchor, found {count}')
+              return text.replace(old, new, 1)
+
+          workflow = workflow_path.read_text()
+          workflow = replace_once(
+              workflow,
+              '          failure_code=""\n          failure_detail=""\n',
+              '          failure_code=""\n          failure_detail=""\n          request_skipped="false"\n',
+              'dispatcher state anchor',
+          )
+          workflow = replace_once(
+              workflow,
+              '''          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" && "${request_source_run_id}" != "${SOURCE_RUN_ID}" ]]; then
+            failure_code="request_source_run_mismatch"
+            failure_detail="The request source run differs from the triggering workflow run."
+          elif [[ "${request_outcome}" != "eligible" ]]; then
+            failure_code="${request_reason:-request_not_eligible}"
+            failure_detail="The read-only request evaluator did not authorize writer dispatch."
+          fi
+''',
+              '''          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" && "${request_source_run_id}" != "${SOURCE_RUN_ID}" ]]; then
+            failure_code="request_source_run_mismatch"
+            failure_detail="The request source run differs from the triggering workflow run."
+          elif [[ "${request_outcome}" == "skipped" ]]; then
+            request_skipped="true"
+          elif [[ "${request_outcome}" != "eligible" ]]; then
+            failure_code="${request_reason:-request_not_eligible}"
+            failure_detail="The read-only request evaluator did not authorize writer dispatch."
+          fi
+''',
+              'dispatcher outcome anchor',
+          )
+          workflow = replace_once(
+              workflow,
+              '          target_branch="${target_ref}"\n',
+              '''          if [[ "${request_skipped}" == "true" ]]; then
+            jq -n \\
+              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \\
+              --arg target_ref "${target_ref}" \\
+              --arg expected_head_sha "${expected_head_sha}" \\
+              --argjson pr_number "${pr_number}" \\
+              --arg reason "${request_reason:-request_skipped}" \\
+              '{contract:$contract,outcome:"skipped",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,reason:$reason,dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \\
+              > "${REPORT_DIR}/dispatch.json"
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          target_branch="${target_ref}"
+''',
+              'dispatcher skipped decision insertion',
+          )
+          workflow_path.write_text(workflow)
+
+          test = test_path.read_text()
+          test = replace_once(
+              test,
+              'assert.match(requestWorkflow, /Upload exact-head refresh request/u);\n\n',
+              '''assert.match(requestWorkflow, /Upload exact-head refresh request/u);
+
+const requestInvalidBranchIndex = requestWorkflow.indexOf("invalid_governed_work_branch");
+const requestProtectedBranchIndex = requestWorkflow.indexOf("protected_branch_mutation_forbidden");
+const requestHeadMismatchIndex = requestWorkflow.indexOf("pull_request_head_mismatch");
+const requestLabelSkipIndex = requestWorkflow.indexOf("generated_artifact_refresh_label_absent");
+assert.ok(
+  requestInvalidBranchIndex >= 0 && requestInvalidBranchIndex < requestLabelSkipIndex,
+  "invalid governed branches must fail closed before label-based skip",
+);
+assert.ok(
+  requestProtectedBranchIndex >= 0 && requestProtectedBranchIndex < requestLabelSkipIndex,
+  "protected branches must fail closed before label-based skip",
+);
+assert.ok(
+  requestHeadMismatchIndex >= 0 && requestHeadMismatchIndex < requestLabelSkipIndex,
+  "stale request heads must fail closed before label-based skip",
+);
+
+''',
+              'request ordering test insertion',
+          )
+          test = replace_once(
+              test,
+              'assert.match(dispatcherWorkflow, /request_source_run_mismatch/u, "artifact source run substitution must fail closed");\n',
+              '''assert.match(dispatcherWorkflow, /request_source_run_mismatch/u, "artifact source run substitution must fail closed");
+assert.match(dispatcherWorkflow, /request_outcome.*==.*skipped/su, "a read-only skipped request must remain a first-class dispatcher decision");
+assert.match(dispatcherWorkflow, /request_skipped="true"/u, "the dispatcher must preserve skipped request state explicitly");
+assert.match(dispatcherWorkflow, /outcome:"skipped".*reason:\\$reason.*dispatch_requested:false.*delegated_run_observed:false/su, "skipped evidence must preserve the reason and prove no writer dispatch");
+''',
+              'dispatcher skipped assertions insertion',
+          )
+          test = replace_once(
+              test,
+              '''const validationIndex = dispatcherWorkflow.indexOf("Resolve and revalidate exact-head request before checkout or dispatch");
+const dispatchIndex = dispatcherWorkflow.indexOf("Dispatch and observe exact-head governed writer");
+const checkoutIndex = dispatcherWorkflow.indexOf("Checkout trusted default branch publisher");
+assert.ok(validationIndex >= 0 && validationIndex < dispatchIndex, "exact-head validation must precede writer dispatch");
+assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head and protected-branch validation must precede checkout");
+''',
+              '''const validationIndex = dispatcherWorkflow.indexOf("Resolve and revalidate exact-head request before checkout or dispatch");
+const skippedDecisionIndex = dispatcherWorkflow.indexOf('if [[ "${request_skipped}" == "true" ]]');
+const prRevalidationIndex = dispatcherWorkflow.indexOf('pr="$(gh api');
+const dispatchIndex = dispatcherWorkflow.indexOf("Dispatch and observe exact-head governed writer");
+const checkoutIndex = dispatcherWorkflow.indexOf("Checkout trusted default branch publisher");
+assert.ok(validationIndex >= 0 && validationIndex < dispatchIndex, "exact-head validation must precede writer dispatch");
+assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head and protected-branch validation must precede checkout");
+assert.ok(skippedDecisionIndex >= 0 && skippedDecisionIndex < prRevalidationIndex, "skipped requests must terminate before PR revalidation");
+assert.ok(skippedDecisionIndex < dispatchIndex, "skipped requests must terminate before writer dispatch");
+
+const skippedDecisionBlock = dispatcherWorkflow.slice(skippedDecisionIndex, dispatcherWorkflow.indexOf('target_branch="${target_ref}"'));
+assert.doesNotMatch(skippedDecisionBlock, /(?:--method|-X)\\s*(?:POST|PUT|PATCH|DELETE)|\\/dispatches/u, "skipped requests must perform no GitHub mutation or workflow dispatch");
+''',
+              'dispatcher ordering block replacement',
+          )
+          test = replace_once(test, '  tests: 81,\n', '  tests: 91,\n', 'test count')
+          test = replace_once(
+              test,
+              '  trusted_workflow_run_dispatcher: true,\n  candidate_checkout: false,\n',
+              '  trusted_workflow_run_dispatcher: true,\n  skipped_request_preserved: true,\n  skipped_request_dispatch_requested: false,\n  candidate_checkout: false,\n',
+              'test summary insertion',
+          )
+          test_path.write_text(test)
+
+          if contract_path.exists():
+              raise SystemExit('E2E contract path already exists unexpectedly')
+          contract = {
+              "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+              "schema_version": 1,
+              "feature_key": "governed-generated-artifact-refresh-skipped-outcome",
+              "title": "Preserve non-mutating skipped generated-artifact refresh decisions",
+              "delivery_mode": "single_pr",
+              "current_phase": "mvp",
+              "scope": {
+                  "include": [
+                      ".changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json",
+                      ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+                      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
+                  ]
+              },
+              "merge_contract": {"minimum_phase": "mvp"},
+              "phases": [
+                  {
+                      "id": "mvp",
+                      "status": "implemented",
+                      "objective": "Preserve a read-only request evaluator outcome of skipped as a successful non-dispatch decision instead of converting the absent generated-artifact-refresh label into a blocked writer failure.",
+                      "e2e_journeys": [
+                          {
+                              "id": "preserve-skipped-refresh-request-without-writer-dispatch",
+                              "end_to_end": True,
+                              "level": "synthetic_runtime",
+                              "actor": "trusted generated-artifact refresh request evaluator and workflow-run dispatcher",
+                              "entrypoint": "A successful read-only request artifact with outcome skipped because the open pull request does not carry the generated-artifact-refresh label",
+                              "terminal_outcome": "The trusted dispatcher publishes canonical skipped evidence bound to the exact pull request and head SHA, requests no writer run, performs no repository mutation, and completes successfully.",
+                              "steps": [
+                                  "Download the exact run-bound request artifact and validate its contract, pull request number, exact head SHA, and source run ID.",
+                                  "Recognize request outcome skipped before protected-branch, pull-request, checkout, or writer-dispatch processing.",
+                                  "Emit mad4b.governed-generated-artifact-refresh-dispatch.v1 with outcome skipped and the original request reason.",
+                                  "Record dispatch_requested=false and delegated_run_observed=false.",
+                                  "Load the trusted publisher from main, upload structured evidence, and publish the exact-head canonical decision.",
+                                  "Enforce skipped as a successful terminal decision without invoking the registered generated-artifact writer."
+                              ],
+                              "assertions": [
+                                  "A skipped request is not reclassified as blocked.",
+                                  "The original skip reason is preserved in canonical dispatcher evidence.",
+                                  "Skipped handling terminates before pull-request revalidation and writer dispatch.",
+                                  "No workflow_dispatch POST, repository content write, protected-ref mutation, or force push occurs on the skipped path.",
+                                  "Invalid governed branches, protected branches, stale request heads, malformed requests, and blocked requests remain fail-closed before label-based skip, while eligible labeled requests retain the existing writer-dispatch path.",
+                                  "Structured evidence remains Job-log independent and declares secrets_included=false."
+                              ],
+                              "tests": [
+                                  {
+                                      "id": "governed-generated-artifact-refresh-skipped-outcome-contract",
+                                      "runner": "node",
+                                      "working_directory": "http-generic-api",
+                                      "path": "test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+                                      "args": []
+                                  }
+                              ],
+                              "evidence_paths": [
+                                  ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+                                  ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+                                  "http-generic-api/scripts/generated-artifact-refresh-dispatch-pr-publisher.mjs",
+                                  "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
+                              ]
+                          }
+                      ]
+                  },
+                  {"id": "operational", "status": "planned", "objective": "Observe one unlabeled ready-for-review pull request produce a skipped request artifact and a successful canonical dispatcher decision without a delegated writer run."},
+                  {"id": "resilient", "status": "planned", "objective": "Continue rejecting invalid contracts, stale source runs, moved heads, protected branches, and malformed identities while preserving only authenticated skipped requests."},
+                  {"id": "canary", "status": "not_applicable", "objective": "The decision bridge performs no provider or deployment canary."},
+                  {"id": "production", "status": "not_applicable", "objective": "The skipped path performs no Production, deployment, provider, database, or protected-ref mutation."}
+              ],
+              "secrets_included": False
+          }
+          contract_path.parent.mkdir(parents=True, exist_ok=True)
+          contract_path.write_text(json.dumps(contract, indent=2) + '\n')
+          PY
+
+      - name: Validate focused scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          python -m json.tool .changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json >/dev/null
+          git diff --check
+          actual="$(git diff --name-only "${PINNED_MAIN}" -- . ':!${BUILDER_PATH}' | sort)"
+          expected="$(printf '%s\n' \
+            '.changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json' \
+            '.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml' \
+            'http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs' | sort)"
+          [[ "${actual}" == "${expected}" ]]
+
+      - name: Publish atomic candidate and self-retire
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main "${HEAD_REF}"
+          [[ "$(git rev-parse origin/main)" == "${PINNED_MAIN}" ]]
+          [[ "$(git rev-parse "origin/${HEAD_REF}")" == "${SOURCE_HEAD}" ]]
+          rm "${BUILDER_PATH}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            .changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json \
+            .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml \
+            http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs \
+            "${BUILDER_PATH}"
+          git commit -m 'fix(ci): preserve skipped generated refresh decisions'
+          final_files="$(git diff --name-only "${PINNED_MAIN}...HEAD" | sort)"
+          expected="$(printf '%s\n' \
+            '.changes/e2e/governed-generated-artifact-refresh-skipped-outcome.json' \
+            '.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml' \
+            'http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs' | sort)"
+          [[ "${final_files}" == "${expected}" ]]
+          git push origin "HEAD:${HEAD_REF}"
