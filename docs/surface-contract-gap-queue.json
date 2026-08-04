@@ -85,8 +85,8 @@
       }
     },
     {
-      "migration_file": "1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
-      "score": 334,
+      "migration_file": "1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql",
+      "score": 335,
       "queue_class": "medium_review",
       "gap_severity": "low",
       "documentation_complete": false,
