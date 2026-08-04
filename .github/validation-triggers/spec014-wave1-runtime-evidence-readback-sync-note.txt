@@ -1,0 +1,5 @@
+purpose=prepare_non_force_sync
+source_main_sha=cbdefb09bfe899f97ec8fe983b672e870d7f8c4a
+target_branch=gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1
+runtime_contact=false
+migration_apply=false
