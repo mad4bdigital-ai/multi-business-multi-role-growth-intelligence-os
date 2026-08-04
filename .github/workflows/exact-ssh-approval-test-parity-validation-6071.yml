@@ -1,0 +1,155 @@
+name: Exact SSH Approval Test Parity Validation 6071
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  EXPECTED_MAIN_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+  EXPECTED_CANDIDATE_SHA: 9f742d015b6668945126f07019e4e08b6a305210
+  EXPECTED_CANDIDATE_REF: fix/tenant-ssh-cli-approval-request-test-parity-67cb77cf-20260804
+  EXPECTED_VALIDATOR_REF: gpt/exact-ssh-approval-test-parity-validation-6071-v1
+  CANONICAL_PR_NUMBER: '6071'
+  EVIDENCE_DIR: /tmp/exact-ssh-approval-test-parity-validation-6071
+
+jobs:
+  exact-candidate:
+    name: Focused and complete SSH approval parity validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/exact-ssh-approval-test-parity-validation-6071-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - name: Checkout validator
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact validator and PR identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$VALIDATOR_BASE_SHA" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse HEAD)" = "$VALIDATOR_HEAD_SHA"
+          mapfile -t validator_files < <(git diff --name-only "$VALIDATOR_BASE_SHA"..."$VALIDATOR_HEAD_SHA")
+          test "${#validator_files[@]}" -eq 1
+          test "${validator_files[0]}" = '.github/workflows/exact-ssh-approval-test-parity-validation-6071.yml'
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify exact one-file topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..$EXPECTED_CANDIDATE_SHA")" -eq 1
+          mapfile -t files < <(git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_CANDIDATE_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = 'http-generic-api/test-tenant-ssh-cli-approval-request.mjs'
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused SSH approval tests
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-tenant-ssh-cli-dry-run.mjs
+          node test-tenant-ssh-cli-approval-request.mjs
+          node test-tenant-ssh-cli-approval-decision.mjs
+          node test-tenant-ssh-cli-allowlisted-execute.mjs
+
+      - name: Run complete API suite with exact provenance
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          GITHUB_SHA="$EXPECTED_CANDIDATE_SHA" npm test
+
+      - name: Verify complete suite provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_DIR"
+          for report in \
+            "$RUNNER_TEMP/test-suite-reports/test-manifest.json" \
+            "$RUNNER_TEMP/test-suite-reports/test-suite.json"; do
+            test -f "$report"
+            test "$(jq -r '.status' "$report")" = 'passed'
+            test "$(jq -r '.commitSha' "$report")" = "$EXPECTED_CANDIDATE_SHA"
+            test "$(jq -r '.firstFailure' "$report")" = 'null'
+            test "$(jq -r '.secretsIncluded' "$report")" = 'false'
+          done
+
+      - name: Final main and PR readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'true'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Publish no-secret summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg job_status "${{ job.status }}" \
+            '{contract:"mad4b.exact-ssh-approval-test-parity-validation.v1",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/summary.json"
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ssh-approval-test-parity-validation-6071-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_DIR }}/
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
