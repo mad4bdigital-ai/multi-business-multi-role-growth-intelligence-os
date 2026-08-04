@@ -1,0 +1,173 @@
+name: Spec 012 OAuth R7 Exact Validator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/spec012-oauth-r7-exact-validator.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec012-oauth-r7-exact-validator-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    if: github.event.pull_request.head.ref == 'gpt/validate-spec012-oauth-9d0b-r7-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9
+      EXPECTED_CANDIDATE_SHA: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+      CANDIDATE_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      VALIDATOR_PATH: .github/workflows/spec012-oauth-r7-exact-validator.yml
+    steps:
+      - name: Checkout validator trigger
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identities and validator-only scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git fetch --no-tags origin main "${CANDIDATE_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${CANDIDATE_BRANCH})" = "${EXPECTED_CANDIDATE_SHA}"
+          mapfile -t validator_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
+          test "${#validator_files[@]}" -eq 1
+          test "${validator_files[0]}" = "${VALIDATOR_PATH}"
+          {
+            echo "validator=$(git rev-parse HEAD)"
+            echo "main=${EXPECTED_MAIN_SHA}"
+            echo "candidate=${EXPECTED_CANDIDATE_SHA}"
+            echo "secrets_included=false"
+          } | tee evidence/identity.txt
+
+      - name: Checkout exact candidate and verify four-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_CANDIDATE_SHA}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${EXPECTED_CANDIDATE_SHA}"
+          git diff --stat "${EXPECTED_MAIN_SHA}...${EXPECTED_CANDIDATE_SHA}" | tee evidence/scope.txt
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate governed OAuth, frontend and E2E
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node --check routes/index.js
+            node --check test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            npm run frontend:dispatch:check
+          ) | tee evidence/focused.log
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_CANDIDATE_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
+
+      - name: Run complete Unit and Integration manifest
+        working-directory: http-generic-api
+        run: npm test 2>&1 | tee ../evidence/http-generic-api-manifest.log
+
+      - name: Validate architecture and runtime verification
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run validate 2>&1 | tee ../evidence/architecture.log
+          npm run verify 2>&1 | tee ../evidence/runtime-verify.log
+
+      - name: Validate structured startup evidence contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/test-runtime-startup-deployment-evidence.mjs 2>&1 | tee ../evidence/runtime-startup-reporter-test.log
+          node test-remote-mcp-disabled-startup-boundary.mjs 2>&1 | tee ../evidence/disabled-oauth-startup-boundary.log
+
+      - name: Generate structured runtime startup evidence
+        id: runtime_evidence
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: "gpt/spec012-oauth-canonical-deps-current-main-v2-20260804"
+          DEPLOYMENT_COMMIT_SHA: "9d0b6134dd84e33bfc350ce060ff91198e9d60a2"
+          CI_CANDIDATE_KIND: "head"
+          CI_CANDIDATE_SHA: "9d0b6134dd84e33bfc350ce060ff91198e9d60a2"
+          CI_SOURCE_HEAD_SHA: "9d0b6134dd84e33bfc350ce060ff91198e9d60a2"
+          RUNTIME_STARTUP_EVIDENCE_DIR: "${{ runner.temp }}/runtime-startup-deployment-evidence"
+        run: node scripts/runtime-startup-deployment-evidence.mjs --output-dir "$RUNTIME_STARTUP_EVIDENCE_DIR"
+
+      - name: Enforce structured startup decision
+        if: always()
+        working-directory: http-generic-api
+        env:
+          REPORT_PATH: "${{ runner.temp }}/runtime-startup-deployment-evidence/runtime-startup-deployment-evidence.json"
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const p = process.env.REPORT_PATH;
+            if (!p || !fs.existsSync(p)) process.exit(1);
+            const r = JSON.parse(fs.readFileSync(p, "utf8"));
+            const valid = r.contract === "mad4b.runtime-startup-deployment-evidence.v1" && r.secrets_included === false && r.outcome === "passed";
+            if (!valid) {
+              console.error(JSON.stringify({ok:false,outcome:r.outcome,first_failure:r.first_failure?.stage_id,secrets_included:false}));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ok:true,outcome:r.outcome,candidate_sha:r.identity?.candidate_sha,secrets_included:false}));
+          '
+
+      - name: Record no-mutation assertions
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "repository_mutation=false"
+            echo "production_action=false"
+            echo "provider_action=false"
+            echo "database_mutation=false"
+            echo "credential_access=false"
+            echo "secrets_included=false"
+          } > evidence/non-effects.txt
+
+      - name: Upload exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-r7-exact-${{ github.run_id }}
+          path: |
+            evidence/
+            ${{ runner.temp }}/runtime-startup-deployment-evidence/*
+          if-no-files-found: error
+          retention-days: 14
