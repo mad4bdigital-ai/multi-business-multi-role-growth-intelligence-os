@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "work-map-recovery-runner-allocation-boundary",
-  "title": "Work Map recovery runner-allocation boundary",
+  "title": "Work Map recovery runner-allocation and explicit-dispatch boundary",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -19,16 +19,18 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Register the governed Work Map Recovery dispatcher by deferring report-directory initialization until after GitHub allocates the runner, without weakening exact-head authorization, marker consumption, or mutation boundaries.",
+      "objective": "Register the governed Work Map Recovery dispatcher by deferring report-directory initialization until after GitHub allocates the runner and exposing repository mutation only through an explicitly dispatched tool, without weakening exact-head authorization, marker consumption, or mutation boundaries.",
       "e2e_journeys": [
         {
-          "id": "authorized-recovery-dispatch-initializes-runtime-report-path",
+          "id": "authorized-explicit-recovery-dispatch-initializes-runtime-report-path",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Repository maintainer and governed Work Map Recovery dispatcher",
-          "entrypoint": "Workflow dispatch, pull-request-target transition, or authorized issue comment",
-          "terminal_outcome": "The workflow is registrable, initializes REPORT_DIR from RUNNER_TEMP after runner allocation, validates an exact current pull-request head, consumes one authorization marker, and delegates only to the sole governed Work Map writer.",
+          "actor": "Recovery Bootstrap and explicitly dispatched governed Work Map Recovery tool",
+          "entrypoint": "Workflow dispatch with typed RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX confirmation",
+          "terminal_outcome": "The workflow is registrable, initializes REPORT_DIR from RUNNER_TEMP after runner allocation, accepts no pull-request or issue-comment trigger, validates an exact current pull-request head, consumes one authorization marker, and delegates only to the sole governed Work Map writer.",
           "steps": [
+            "Receive an explicit workflow dispatch from the independently governed Bootstrap surface.",
+            "Require the exact typed Recovery confirmation and pull-request number input.",
             "Allocate the Ubuntu runner before resolving a temporary report path.",
             "Initialize REPORT_DIR from RUNNER_TEMP and publish it through GITHUB_ENV.",
             "Resolve the open same-repository pull request and require behind_by=0.",
@@ -38,8 +40,10 @@
           ],
           "assertions": [
             "No job-level runner.temp expression remains.",
+            "No pull_request, pull_request_target, or issue_comment trigger grants the Recovery tool mutation authority.",
+            "The workflow_dispatch input requires exact typed confirmation.",
             "Report initialization precedes exact target resolution.",
-            "The /recover-work-maps command and exact authorization marker remain required.",
+            "The exact authorization marker remains required and is consumed once.",
             "Stale pull-request heads fail closed before delegation.",
             "Direct repository mutation, protected-branch mutation, force push, and secret inclusion remain false."
           ],
@@ -63,12 +67,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Expose registration and delegated-run identity through canonical workflow evidence."
+      "objective": "Expose registration, Bootstrap delegation, and delegated writer-run identity through canonical workflow evidence."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove fail-closed behavior across disabled writer workflows, stale heads, and repeated authorization attempts."
+      "objective": "Prove fail-closed behavior across invalid confirmations, disabled writer workflows, stale heads, and repeated authorization attempts."
     },
     {
       "id": "canary",
