@@ -9,7 +9,10 @@
     "include": [
       ".changes/e2e/work-map-recovery-independent-bootstrap.json",
       ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
+      ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+      ".specify/pipeline-connectivity-contract.json",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
       "http-generic-api/test-work-map-autofix-diagnostics.mjs"
     ]
   },
@@ -35,7 +38,7 @@
             "Read the open non-Draft same-repository pull request targeting main.",
             "Require the governed branch, exact requested head SHA, one-time Work Map marker, and behind_by=0.",
             "Enable and read back only spec-kit-work-map-autofix-recovery-dispatch.yml.",
-            "Dispatch the existing Recovery workflow with pr_number and RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX.",
+            "Dispatch the existing Recovery workflow with pr_number and exact expected_head_sha.",
             "Observe the delegated run ID and publish bounded JSON plus PR evidence.",
             "Leave marker consumption, writer enablement, Work Map generation, commit, and push to the existing Recovery and sole writer workflows."
           ],
@@ -74,17 +77,20 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation governance reviewer",
-          "entrypoint": "Bootstrap workflow contract and executable regression",
-          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced.",
+          "entrypoint": "Bootstrap and Recovery workflow contracts plus executable regressions",
+          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced, and the delegated Recovery surface remains explicitly dispatched and exact-head bound.",
           "steps": [
             "Inspect the bootstrap workflow as trusted default-branch code.",
             "Verify it enables and dispatches only the existing Recovery workflow.",
+            "Verify the Recovery workflow accepts workflow_dispatch only and validates the exact requested head before consuming authorization.",
             "Verify marker consumption remains absent from the bootstrap.",
-            "Verify no git commit, git push, writer dispatch, or generated path mutation exists."
+            "Verify no git commit, git push, writer dispatch from Bootstrap, or generated path mutation exists."
           ],
           "assertions": [
             "The Recovery workflow remains the only one-time authorization consumer.",
-            "spec-kit-work-map-autofix.yml remains the sole remote Work Map writer.",
+            "The Recovery trigger contract requires workflow_dispatch and explicitly forbids pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run.",
+            "Bootstrap and Recovery run on ubuntu-24.04-arm after runner allocation.",
+            "spec-kit-work-map-autofix.yml remains the unchanged Windows sole remote Work Map writer.",
             "Pull-request validation workflows remain read-only under the repository-write separation contract."
           ],
           "tests": [
@@ -94,12 +100,22 @@
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-diagnostics.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-recovery-connectivity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
             ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-            ".github/workflows/spec-kit-work-map-autofix.yml"
+            ".github/workflows/spec-kit-work-map-autofix.yml",
+            ".specify/pipeline-connectivity-contract.json",
+            "http-generic-api/test-pipeline-connectivity-check.mjs",
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs"
           ]
         }
       ]
@@ -107,25 +123,29 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, protected targets, disabled Recovery readback, rejected dispatch, or unobserved delegated runs.",
+      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, protected targets, forbidden external triggers, disabled Recovery readback, rejected dispatch, or unobserved delegated runs.",
       "e2e_journeys": [
         {
           "id": "bootstrap-fails-closed-before-delegation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository lifecycle gate",
-          "entrypoint": "Candidate changes to the bootstrap workflow or its contract",
-          "terminal_outcome": "Regression and lifecycle checks reject any mixed PR-write path or unbound delegation before merge.",
+          "entrypoint": "Candidate changes to the Bootstrap, Recovery, connectivity contract, or their executable regressions",
+          "terminal_outcome": "Regression, connectivity, and lifecycle checks reject any mixed PR-write path, forbidden Recovery trigger, stale exact-head delegation, or unbound writer handoff before merge.",
           "steps": [
-            "Validate workflow syntax and static authority boundaries.",
+            "Validate workflow syntax, trigger contracts, and static authority boundaries.",
             "Require exact SHA, branch, marker, actor permission, and main freshness.",
-            "Reject contents:write, pull_request triggers, direct writer dispatch, marker consumption, git commit, git push, and force push.",
+            "Require Recovery to be workflow_dispatch-only and reject pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run triggers.",
+            "Reject contents:write in Bootstrap, direct writer dispatch from Bootstrap, marker consumption outside Recovery, git commit, git push, and force push.",
+            "Run Work Map diagnostics and pipeline connectivity regressions against the exact candidate tree.",
             "Publish bounded evidence even when activation or dispatch is blocked."
           ],
           "assertions": [
-            "No candidate-code checkout is required.",
-            "No repository content mutation is performed by the bootstrap.",
-            "No secrets are included in evidence."
+            "Bootstrap and Recovery allocate ubuntu-24.04-arm runners before initializing report paths.",
+            "Recovery validates the exact requested head and behind_by=0 before consuming the one-time marker.",
+            "No repository content mutation is performed by Bootstrap or Recovery.",
+            "The Windows writer remains unchanged and is the sole remote Work Map content writer.",
+            "No deployment, runtime contact, database access, provider action, Migration Apply, protected-ref mutation, force push, or secrets are included."
           ],
           "tests": [
             {
@@ -134,12 +154,22 @@
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-diagnostics.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-recovery-trigger-connectivity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-recovery-independent-bootstrap.json",
             ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
             ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".specify/pipeline-connectivity-contract.json",
+            "http-generic-api/test-pipeline-connectivity-check.mjs",
             "http-generic-api/test-work-map-autofix-diagnostics.mjs"
           ]
         }
@@ -148,12 +178,12 @@
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This repository-control bootstrap has no provider canary authority."
+      "objective": "This repository-control recovery chain has no provider canary authority."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This repository-control bootstrap performs no Production action or deployment."
+      "objective": "This repository-control recovery chain performs no Production action or deployment."
     }
   ]
 }
