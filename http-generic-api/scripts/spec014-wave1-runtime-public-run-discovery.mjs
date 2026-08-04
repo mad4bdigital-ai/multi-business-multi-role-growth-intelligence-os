@@ -6,6 +6,7 @@ const authorizationBody =
   'AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION';
 const workflowFile = 'spec014-wave1-runtime-readiness.yml';
 const workflowName = 'Spec 014 Wave 1 Runtime Readiness';
+const runtimeBase = 'https://auth.mad4b.com';
 const maxDeltaMs = 5 * 60 * 1000;
 
 async function apiJson(url) {
@@ -20,6 +21,64 @@ async function apiJson(url) {
   const text = await response.text();
   assert.ok(response.ok, `GitHub public API ${response.status}: ${text.slice(0, 500)}`);
   return JSON.parse(text);
+}
+
+function collectShas(value, output = new Set()) {
+  if (typeof value === 'string') {
+    for (const match of value.matchAll(/\b[0-9a-f]{40}\b/gi)) output.add(match[0].toLowerCase());
+  } else if (Array.isArray(value)) {
+    for (const child of value) collectShas(child, output);
+  } else if (value && typeof value === 'object') {
+    for (const child of Object.values(value)) collectShas(child, output);
+  }
+  return output;
+}
+
+async function publicRuntimeGet(pathname) {
+  try {
+    const response = await fetch(`${runtimeBase}${pathname}`, {
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': 'spec014-wave1-runtime-public-observer',
+      },
+      redirect: 'error',
+      signal: AbortSignal.timeout(20_000),
+    });
+    const text = await response.text();
+    let payload = null;
+    let json = false;
+    try {
+      payload = text ? JSON.parse(text) : null;
+      json = true;
+    } catch {
+      payload = null;
+    }
+    return {
+      transport_ok: true,
+      status: response.status,
+      http_ok: response.ok,
+      json,
+      ok_flag: payload?.ok === true,
+      top_level_keys:
+        payload && typeof payload === 'object' && !Array.isArray(payload)
+          ? Object.keys(payload).sort().slice(0, 30)
+          : [],
+      sha_matches: [...collectShas(payload)].sort(),
+      non_json_body_length: json ? 0 : text.length,
+    };
+  } catch (error) {
+    return {
+      transport_ok: false,
+      status: null,
+      http_ok: false,
+      json: false,
+      ok_flag: false,
+      top_level_keys: [],
+      sha_matches: [],
+      non_json_body_length: 0,
+      transport_error: String(error?.name || 'Error'),
+    };
+  }
 }
 
 const comment = await apiJson(
@@ -70,6 +129,46 @@ const discovery = Object.freeze({
   external_business_write_executed: false,
   secrets_included: false,
 });
-
 process.stdout.write(`SPEC014_WAVE1_RUNTIME_RUN_DISCOVERY=${JSON.stringify(discovery)}\n`);
 assert.ok(discovery.target?.id, 'Exact Wave 1 runtime issue-comment run was not discovered');
+
+const [mainRef, productionRef, health, version, deploymentInfo] = await Promise.all([
+  apiJson(`https://api.github.com/repos/${repository}/git/ref/heads/main`),
+  apiJson(`https://api.github.com/repos/${repository}/git/ref/heads/Production`),
+  publicRuntimeGet('/health'),
+  publicRuntimeGet('/version'),
+  publicRuntimeGet('/deployment-info'),
+]);
+const mainSha = String(mainRef?.object?.sha || '').toLowerCase();
+const productionSha = String(productionRef?.object?.sha || '').toLowerCase();
+assert.match(mainSha, /^[0-9a-f]{40}$/);
+assert.match(productionSha, /^[0-9a-f]{40}$/);
+
+const diagnostic = Object.freeze({
+  contract: 'spec014_wave1_runtime_live_public_diagnostic.v1',
+  observed_at: new Date().toISOString(),
+  main_sha: mainSha,
+  production_sha: productionSha,
+  health,
+  version,
+  deployment_info: deploymentInfo,
+  health_pass: health.http_ok && health.ok_flag,
+  version_contains_production_sha: version.sha_matches.includes(productionSha),
+  deployment_info_contains_production_sha: deploymentInfo.sha_matches.includes(productionSha),
+  exact_runtime_parity:
+    health.http_ok &&
+    health.ok_flag &&
+    version.http_ok &&
+    version.sha_matches.includes(productionSha) &&
+    deploymentInfo.http_ok &&
+    deploymentInfo.sha_matches.includes(productionSha),
+  public_get_only: true,
+  runtime_contact: true,
+  database_access: false,
+  migration_apply_executed: false,
+  provider_call_executed: false,
+  credential_payload_accessed: false,
+  external_business_write_executed: false,
+  secrets_included: false,
+});
+process.stdout.write(`SPEC014_WAVE1_RUNTIME_LIVE_DIAGNOSTIC=${JSON.stringify(diagnostic)}\n`);
