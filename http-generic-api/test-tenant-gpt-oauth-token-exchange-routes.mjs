@@ -311,33 +311,17 @@ assert.equal(preConsumption.body.retry_same_code, true);
 assert.equal(preConsumption.body.outcome_unknown, false);
 assert.equal(preConsumption.body.operator_reconciliation_required, false);
 
-let missingVerifierConsumeCalled = false;
-const missingVerifierHarness = createHarness({
-  verifyCode: undefined,
-  consumeCode: async () => {
-    missingVerifierConsumeCalled = true;
-    return { consumed: true, outcome: "consumed" };
-  },
-});
-const missingVerifier = await runScenario(missingVerifierHarness);
-assert.equal(missingVerifier.status, 503);
-assert.equal(missingVerifier.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
-assert.equal(missingVerifier.body.retry_same_code, true);
-assert.equal(missingVerifierConsumeCalled, false);
+assert.throws(
+  () => createHarness({ verifyCode: undefined }),
+  (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
+  "route construction must fail closed when the governed code verifier is unavailable",
+);
 
-let missingIssuerConsumeCalled = false;
-const missingIssuerHarness = createHarness({
-  issueAccessToken: undefined,
-  consumeCode: async () => {
-    missingIssuerConsumeCalled = true;
-    return { consumed: true, outcome: "consumed" };
-  },
-});
-const missingIssuer = await runScenario(missingIssuerHarness);
-assert.equal(missingIssuer.status, 503);
-assert.equal(missingIssuer.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
-assert.equal(missingIssuer.body.retry_same_code, true);
-assert.equal(missingIssuerConsumeCalled, false);
+assert.throws(
+  () => createHarness({ issueAccessToken: undefined }),
+  (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
+  "route construction must fail closed when the governed token issuer is unavailable",
+);
 
 const postConsumptionHarness = createHarness({
   recordActivationContext: async () => {
@@ -396,8 +380,6 @@ for (const harness of [
   inactiveHarness,
   membershipHarness,
   preConsumptionHarness,
-  missingVerifierHarness,
-  missingIssuerHarness,
   postConsumptionHarness,
   raceHarness,
   invalidHostHarness,
@@ -414,8 +396,6 @@ for (const response of [
   inactive,
   membership,
   preConsumption,
-  missingVerifier,
-  missingIssuer,
   postConsumption,
   invalidHost,
 ]) {

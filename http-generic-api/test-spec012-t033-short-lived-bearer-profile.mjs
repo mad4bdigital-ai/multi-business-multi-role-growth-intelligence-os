@@ -103,8 +103,8 @@ assert.doesNotMatch(issuer, /7 \* 24 \* 60 \* 60/u,
 assert.match(route, /validateTenantGptAccessTokenTtlSeconds/u);
 assert.match(route, /expires_in: accessTokenTtlSeconds/u);
 assert.match(route, /accessExpiresAt = new Date\(now\(\) \+ accessTokenTtlSeconds \* 1000\)/u);
-assert.match(route, /oauth_token_exchange_verifier_unavailable/u);
-assert.match(route, /oauth_token_exchange_issuer_unavailable/u);
+assert.match(route, /oauth_token_exchange_crypto_dependencies_required/u);
+assert.match(route, /typeof verifyCode !== "function" \|\| typeof issueAccessToken !== "function"/u);
 assert.match(route, /bearer_profile/u);
 assert.doesNotMatch(route, /development_fallback_secret_only/u);
 assert.doesNotMatch(route, /USER_TOKEN_TTL_SECONDS/u);
