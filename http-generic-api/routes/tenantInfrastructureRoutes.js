@@ -486,84 +486,93 @@ function normalizeDecisionNote(value) {
   return String(value || "").trim().slice(0, 512);
 }
 
-async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
-  const row = await loadSshCliApprovalRequest(pool, req, requestId);
-  await assertWorkspaceApprovalRole(pool, req);
-  if (row.status !== "open" || row.hold_status !== "open") {
-    const err = new Error("Approval request is not open.");
-    err.status = 409;
-    err.code = "approval_request_not_open";
-    throw err;
+async function withInfrastructureTransaction(pool, work) {
+  const connection = pool && typeof pool.getConnection === "function" ? await pool.getConnection() : pool;
+  const transactional = connection && typeof connection.beginTransaction === "function";
+  try {
+    if (transactional) await connection.beginTransaction();
+    const result = await work(connection);
+    if (transactional) await connection.commit();
+    return result;
+  } catch (cause) {
+    if (transactional && typeof connection.rollback === "function") await connection.rollback();
+    throw cause;
+  } finally {
+    if (connection !== pool && typeof connection?.release === "function") connection.release();
   }
-  const decision = normalizeApprovalDecision(body.decision);
-  const note = normalizeDecisionNote(body.decision_note);
-  await pool.query(
-    `UPDATE tenant_ssh_cli_approval_requests
-        SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
-      WHERE request_id = ? AND tenant_id = ? AND status = 'open'`,
-    [decision, req.auth.user_id, note || null, requestId, req.auth.tenant_id]
-  );
-  await pool.query(
-    `UPDATE approval_holds
-        SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
-      WHERE hold_id COLLATE utf8mb4_unicode_ci = ? AND tenant_id COLLATE utf8mb4_unicode_ci = ? AND status = 'open'`,
-    [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
-  );
-  return sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
+}
+
+async function decideSshCliApprovalRequest(pool, req, requestId, body = {}) {
+  return withInfrastructureTransaction(pool, async (connection) => { // MUTATION_TRANSACTION: tenant_ssh_cli_approval_request_decide
+    const row = await loadSshCliApprovalRequest(connection, req, requestId);
+    await assertWorkspaceApprovalRole(connection, req);
+    if (row.status !== "open" || row.hold_status !== "open") {
+      const err = new Error("Approval request is not open.");
+      err.status = 409;
+      err.code = "approval_request_not_open";
+      throw err;
+    }
+    const decision = normalizeApprovalDecision(body.decision);
+    const note = normalizeDecisionNote(body.decision_note);
+    const [requestResult] = await connection.query(
+      `UPDATE tenant_ssh_cli_approval_requests
+          SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
+        WHERE request_id = ? AND tenant_id = ? AND status = 'open'`,
+      [decision, req.auth.user_id, note || null, requestId, req.auth.tenant_id]
+    );
+    if (requestResult.affectedRows !== 1) throw Object.assign(new Error("Approval request decision changed concurrently."), { status: 409, code: "approval_request_state_changed" });
+    const [holdResult] = await connection.query(
+      `UPDATE approval_holds
+          SET status = ?, decision_by = ?, decision_note = ?, decided_at = CURRENT_TIMESTAMP
+        WHERE hold_id COLLATE utf8mb4_unicode_ci = ? AND tenant_id COLLATE utf8mb4_unicode_ci = ? AND status = 'open'`,
+      [decision, req.auth.user_id, note || null, row.hold_id, req.auth.tenant_id]
+    );
+    if (holdResult.affectedRows !== 1) throw Object.assign(new Error("Approval hold decision changed concurrently."), { status: 409, code: "approval_hold_state_changed" });
+    const readback = sanitizeApprovalRequest(await loadSshCliApprovalRequest(connection, req, requestId)); // MUTATION_READBACK: tenant_ssh_cli_approval_request_decide
+    if (readback.status !== decision || readback.hold_status !== decision || readback.decision_by !== req.auth.user_id) throw Object.assign(new Error("Approval decision readback did not match the requested state."), { status: 409, code: "approval_request_decision_readback_mismatch" });
+    return readback;
+  });
 }
 
 async function createSshCliApprovalRequest(pool, req, row, plan) {
-  const requestId = randomUUID();
-  const holdId = randomUUID();
-  const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
-  const executionContextJson = JSON.stringify({
-    source: "tenant_infrastructure_routes",
-    parent_table: "tenant_ssh_cli_approval_requests",
-    request_id: requestId,
-    hold_id: holdId,
-    connection_id: row.connection_id,
-    command_key: plan.command_key,
-    relationship_status: "resolved_parent_reference",
-    secrets_included: false,
+  return withInfrastructureTransaction(pool, async (connection) => { // MUTATION_TRANSACTION: tenant_ssh_cli_approval_request_create
+    const requestId = randomUUID();
+    const holdId = randomUUID();
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const executionContextJson = JSON.stringify({
+      source: "tenant_infrastructure_routes",
+      parent_table: "tenant_ssh_cli_approval_requests",
+      request_id: requestId,
+      hold_id: holdId,
+      connection_id: row.connection_id,
+      command_key: plan.command_key,
+      relationship_status: "resolved_parent_reference",
+      secrets_included: false,
+    });
+    await connection.query(
+      `INSERT INTO tenant_ssh_cli_approval_requests
+         (request_id, hold_id, tenant_id, user_id, connection_id, command_key, command_argv_json, status, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+      [requestId, holdId, req.auth.tenant_id, req.auth.user_id, row.connection_id, plan.command_key, JSON.stringify(plan.argv), expiresAt]
+    );
+    await connection.query(
+      `INSERT INTO approval_holds
+         (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
+          request_id, correlation_id, execution_context_json,
+          hold_type, requested_by, required_role, status, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'supervisor_approval', ?, 'workspace_owner', 'open', ?)`,
+      [holdId, requestId, req.auth.tenant_id, req.auth.user_id, req.auth.user_id, req.auth.user_id ? "user" : "system", requestId, requestId, executionContextJson, req.auth.user_id, expiresAt]
+    );
+    const readback = sanitizeApprovalRequest(await loadSshCliApprovalRequest(connection, req, requestId)); // MUTATION_READBACK: tenant_ssh_cli_approval_request_create
+    if (readback.request_id !== requestId || readback.hold_id !== holdId || readback.status !== "open" || readback.hold_status !== "open") throw Object.assign(new Error("Approval request creation readback did not resolve the persisted request and hold."), { status: 409, code: "approval_request_create_readback_mismatch" });
+    return {
+      ...readback,
+      command_argv: plan.argv,
+      execution_enabled: false,
+      next_step: "approval_decision_required_before_execute",
+      secrets_included: false,
+    };
   });
-  await pool.query(
-    `INSERT INTO tenant_ssh_cli_approval_requests
-       (request_id, hold_id, tenant_id, user_id, connection_id, command_key, command_argv_json, status, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
-    [requestId, holdId, req.auth.tenant_id, req.auth.user_id, row.connection_id, plan.command_key, JSON.stringify(plan.argv), expiresAt]
-  );
-  await pool.query(
-    `INSERT INTO approval_holds
-       (hold_id, run_id, tenant_id, user_id, actor_id, actor_type,
-        request_id, correlation_id, execution_context_json,
-        hold_type, requested_by, required_role, status, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'supervisor_approval', ?, 'workspace_owner', 'open', ?)`,
-    [
-      holdId,
-      requestId,
-      req.auth.tenant_id,
-      req.auth.user_id,
-      req.auth.user_id,
-      req.auth.user_id ? "user" : "system",
-      requestId,
-      requestId,
-      executionContextJson,
-      req.auth.user_id,
-      expiresAt,
-    ]
-  );
-  return {
-    request_id: requestId,
-    hold_id: holdId,
-    status: "open",
-    required_role: "workspace_owner",
-    expires_at: expiresAt.toISOString(),
-    command_key: plan.command_key,
-    command_argv: plan.argv,
-    execution_enabled: false,
-    next_step: "approval_decision_and_execute_tool_not_enabled_yet",
-    secrets_included: false,
-  };
 }
 
 async function probeSshTcpBanner(row, options = {}) {
@@ -849,7 +858,14 @@ async function loadTenantConnection(pool, req, connectionId, expectedAuthType) {
 
 export function buildTenantInfrastructureRoutes(deps = {}) {
   const router = Router();
-  const pool = deps.pool || { query: (...args) => getPool().query(...args) };
+  let resolvedPool = deps.pool || null;
+  const pool = new Proxy({}, {
+    get(_target, property) {
+      if (!resolvedPool) resolvedPool = getPool();
+      const value = Reflect.get(resolvedPool, property, resolvedPool);
+      return typeof value === "function" ? value.bind(resolvedPool) : value;
+    },
+  });
   const executionFacade = deps.executionFacade || null;
 
   async function sendStatus(req, res, authType) {
@@ -948,28 +964,6 @@ export function buildTenantInfrastructureRoutes(deps = {}) {
   });
   router.get("/me/infrastructure/ssh/connections/:connection_id/status", requireUserJwt, (req, res) => sendStatus(req, res, "ssh_key_pair"));
   router.post("/me/infrastructure/ssh/connections/:connection_id/preflight", requireUserJwt, (req, res) => sendPreflight(req, res, "ssh_key_pair"));
-  router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
-    try {
-      const requestId = String(req.params.request_id || "").trim();
-      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
-      const approval_request = sanitizeApprovalRequest(await loadSshCliApprovalRequest(pool, req, requestId));
-      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, secrets_included: false });
-    } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_status_failed", message: err.message }, secrets_included: false });
-    }
-  });
-
-  router.post("/me/infrastructure/ssh/cli/approval-requests/:request_id/decision", requireUserJwt, async (req, res) => {
-    try {
-      const requestId = String(req.params.request_id || "").trim();
-      if (!requestId) return res.status(400).json({ ok: false, error: { code: "request_id_required", message: "request_id is required." }, secrets_included: false });
-      const approval_request = await decideSshCliApprovalRequest(pool, req, requestId, req.body || {});
-      return res.json({ ok: true, kind: "ssh", approval_request, execution_enabled: false, execute_tool_enabled: false, secrets_included: false });
-    } catch (err) {
-      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "tenant_ssh_cli_approval_decision_failed", message: err.message }, secrets_included: false });
-    }
-  });
-
   router.get("/me/infrastructure/ssh/cli/approval-requests/:request_id", requireUserJwt, async (req, res) => {
     try {
       const requestId = String(req.params.request_id || "").trim();
