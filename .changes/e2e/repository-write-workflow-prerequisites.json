@@ -23,7 +23,7 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "resilient"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
