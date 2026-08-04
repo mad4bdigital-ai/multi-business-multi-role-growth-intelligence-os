@@ -1,0 +1,7 @@
+observer_contract=spec014_wave1_runtime_observer.v1
+control_issue=6215
+authorization_comment_id=5179409708
+expected_event_head=d76dc2bf9b073a18c2fa51cd5907cb30f0c03ab4
+repository_write=false
+migration_apply=false
+secrets_included=false
