@@ -91,7 +91,7 @@ const tokenMount = metadataRoutes.indexOf("router.use(buildTenantGptOAuthTokenEx
 assert.equal(depsBuild >= 0, true, "governed token dependencies must be built with the resolved environment");
 assert.equal(guardMount > depsBuild, true, "request binding guard must mount after governed deps are prepared");
 assert.equal(tokenMount > guardMount, true, "request binding guard must mount before token handler");
-const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");
+const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");
 const legacyAuthMount = routeIndex.indexOf('app.use("/auth", buildAuthRoutes(deps))');
 assert.equal(metadataMount >= 0, true, "metadata router mount must exist");
 assert.equal(legacyAuthMount > metadataMount, true,

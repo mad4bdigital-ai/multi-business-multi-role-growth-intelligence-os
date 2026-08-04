@@ -1,0 +1,208 @@
+name: Spec Kit Work Map Recovery Bootstrap
+run-name: Spec Kit Work Map Recovery Bootstrap · PR ${{ github.event.issue.number || inputs.pr_number || 'unresolved' }}
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository pull request targeting main
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current pull-request head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: spec-kit-work-map-recovery-bootstrap-${{ github.event.issue.number || inputs.pr_number || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    name: Activate independent Work Map recovery
+    if: >-
+      github.actor != 'github-actions[bot]' &&
+      (
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event_name == 'issue_comment' &&
+          github.event.issue.pull_request != null &&
+          startsWith(github.event.comment.body, '/activate-work-map-recovery ')
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      REQUESTED_PR_NUMBER: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || github.event.issue.number }}
+      REQUESTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || 'UNRESOLVED' }}
+      MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
+      COMMENT_COMMAND: ${{ github.event.comment.body || '' }}
+      COMMAND_ACTOR: ${{ github.actor }}
+      AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
+    steps:
+      - name: Initialize bounded report directory after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/spec-kit-work-map-recovery-bootstrap"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
+      - name: Resolve exact authorized target
+        id: target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            if [[ "${MANUAL_CONFIRMATION}" != "ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY" ]]; then
+              echo "Manual bootstrap requires exact typed confirmation."
+              exit 1
+            fi
+          else
+            actor_permission="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${COMMAND_ACTOR}/permission" --jq '.permission')"
+            case "${actor_permission}" in
+              admin|maintain|write) ;;
+              *)
+                echo "Actor ${COMMAND_ACTOR} lacks write-level repository permission; permission=${actor_permission}."
+                exit 1
+                ;;
+            esac
+            if [[ ! "${COMMENT_COMMAND}" =~ ^/activate-work-map-recovery[[:space:]]+([0-9a-f]{40})$ ]]; then
+              echo "Command must be /activate-work-map-recovery followed by one exact lowercase SHA."
+              exit 1
+            fi
+            REQUESTED_HEAD_SHA="${BASH_REMATCH[1]}"
+          fi
+
+          [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUESTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+
+          pr_file="${REPORT_DIR}/pull-request.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" > "${pr_file}"
+
+          test "$(jq -r '.state' "${pr_file}")" = "open"
+          test "$(jq -r '.draft' "${pr_file}")" = "false"
+          test "$(jq -r '.base.ref' "${pr_file}")" = "main"
+          test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
+
+          target_branch="$(jq -r '.head.ref' "${pr_file}")"
+          expected_head_sha="$(jq -r '.head.sha' "${pr_file}")"
+          body="$(jq -r '.body // ""' "${pr_file}")"
+
+          [[ "${target_branch}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${target_branch}" != "main" && "${target_branch}" != "Production" ]]
+          test "${expected_head_sha}" = "${REQUESTED_HEAD_SHA}"
+          grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
+
+          compare_file="${REPORT_DIR}/main-comparison.json"
+          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" > "${compare_file}"
+          behind_by="$(jq -r '.behind_by' "${compare_file}")"
+          test "${behind_by}" = "0"
+
+          echo "pr_number=${REQUESTED_PR_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
+          echo "behind_by=${behind_by}" >> "$GITHUB_OUTPUT"
+
+      - name: Enable and dispatch independent Recovery workflow
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          recovery_workflow="spec-kit-work-map-autofix-recovery-dispatch.yml"
+          workflow_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}" --jq '.state')"
+          if [[ "${workflow_state}" != "active" ]]; then
+            gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/enable"
+          fi
+          workflow_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}" --jq '.state')"
+          test "${workflow_state}" = "active"
+
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          expected_title="Spec Kit Work Map Autofix Recovery Dispatch · PR ${PR_NUMBER}"
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg pr_number "${PR_NUMBER}" \
+            '{ref:$ref,inputs:{pr_number:$pr_number,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/dispatches" \
+            --input - <<<"${payload}"
+
+          delegated_run_id=""
+          for _ in $(seq 1 30); do
+            delegated_run_id="$(gh api \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/runs?event=workflow_dispatch&branch=main&per_page=30" \
+              --jq "[.workflow_runs[] | select(.created_at >= \"${dispatch_started_at}\" and .display_title == \"${expected_title}\")] | sort_by(.created_at) | last | .id // empty")"
+            if [[ -n "${delegated_run_id}" ]]; then
+              break
+            fi
+            sleep 2
+          done
+          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
+
+          echo "workflow_state=${workflow_state}" >> "$GITHUB_OUTPUT"
+          echo "run_id=${delegated_run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish structured bootstrap evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          TARGET_BRANCH: ${{ steps.target.outputs.target_branch }}
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
+          BEHIND_BY: ${{ steps.target.outputs.behind_by }}
+          WORKFLOW_STATE: ${{ steps.dispatch.outputs.workflow_state }}
+          DELEGATED_RUN_ID: ${{ steps.dispatch.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          outcome="passed"
+          if [[ "${{ job.status }}" != "success" ]]; then
+            outcome="blocked"
+          fi
+
+          jq -n \
+            --arg contract "mad4b.spec-kit-work-map-recovery-bootstrap.v1" \
+            --arg outcome "${outcome}" \
+            --arg source_event "${GITHUB_EVENT_NAME}" \
+            --arg actor "${COMMAND_ACTOR}" \
+            --arg target_branch "${TARGET_BRANCH:-unresolved}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA:-unresolved}" \
+            --arg behind_by "${BEHIND_BY:-unknown}" \
+            --arg workflow_state "${WORKFLOW_STATE:-unknown}" \
+            --arg delegated_run_id "${DELEGATED_RUN_ID:-none}" \
+            --argjson pr_number "${PR_NUMBER:-0}" \
+            '{contract:$contract,outcome:$outcome,source_event:$source_event,actor:$actor,pr_number:$pr_number,target_branch:$target_branch,expected_head_sha:$expected_head_sha,behind_by:$behind_by,recovery_workflow_state:$workflow_state,delegated_recovery_run_id:$delegated_run_id,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            > "${REPORT_DIR}/report.json"
+
+          if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
+            body="WORK_MAP_RECOVERY_BOOTSTRAP outcome=${outcome} source_event=${GITHUB_EVENT_NAME} actor=${COMMAND_ACTOR} expected_head_sha=${EXPECTED_HEAD_SHA:-unresolved} target_branch=${TARGET_BRANCH:-unresolved} behind_by=${BEHIND_BY:-unknown} recovery_workflow_state=${WORKFLOW_STATE:-unknown} delegated_recovery_run_id=${DELEGATED_RUN_ID:-none} direct_repository_mutation=false authorization_consumed=false protected_branch_mutation=false force_push=false"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}"
+          fi
+
+      - name: Upload bounded bootstrap evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec-kit-work-map-recovery-bootstrap-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: warn
+          retention-days: 30
