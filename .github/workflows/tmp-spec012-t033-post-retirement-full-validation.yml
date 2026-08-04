@@ -1,0 +1,45 @@
+name: Temporary Spec 012 T033 Post-Retirement Full Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/tmp-spec012-t033-post-retirement-full-validation.yml
+      - http-generic-api/**
+      - specs/012-tenant-activation-lifecycle/**
+
+permissions:
+  contents: read
+
+jobs:
+  full-validation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact pull-request head
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install dependencies from lockfile
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run full HTTP Generic API test manifest
+        working-directory: http-generic-api
+        run: npm test
