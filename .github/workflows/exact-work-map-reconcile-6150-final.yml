@@ -1,0 +1,206 @@
+name: Exact Work Map Reconcile 6150 Final
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-work-map-reconcile-6150-33c8dc3b
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-work-map-reconcile-6150-final-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9
+  EXPECTED_CANDIDATE_SHA: 94e0013960e65f756bf1d6ae6b24cdb003fc5e2c
+  EXPECTED_CANDIDATE_BRANCH: gpt/work-map-input-driven-governance-reconcile-20260804
+
+jobs:
+  technical:
+    name: Exact Work Map final technical validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-input-driven-governance-reconcile-20260804' &&
+      github.event.pull_request.head.sha == '94e0013960e65f756bf1d6ae6b24cdb003fc5e2c'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    steps:
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/work-map-6150-final-${GITHUB_RUN_ID}"
+          printf 'EVIDENCE_ROOT=%s\n' "${root}" >> "${GITHUB_ENV}"
+          mkdir -p "${root}/repository-tool-lifecycle" "${root}/test-suite-reports"
+
+      - name: Checkout immutable final candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove final identity zero-behind and seven-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          actual_head="$(git rev-parse HEAD)"
+          actual_main="$(git rev-parse origin/main)"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${EXPECTED_CANDIDATE_BRANCH}" | awk 'NR == 1 {print $1}')"
+          behind_count="$(git rev-list --count HEAD..origin/main)"
+          {
+            echo "actual_head_sha=${actual_head}"
+            echo "actual_main_sha=${actual_main}"
+            echo "remote_head_sha=${remote_head}"
+            echo "behind_count=${behind_count}"
+          } > "${EVIDENCE_ROOT}/identity.txt"
+          test "${actual_head}" = "${EXPECTED_CANDIDATE_SHA}"
+          test "${actual_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${remote_head}" = "${EXPECTED_CANDIDATE_SHA}"
+          test "${behind_count}" = "0"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | LC_ALL=C sort > "${EVIDENCE_ROOT}/actual-files.txt"
+          printf '%s\n' \
+            .changes/e2e/work-map-autofix-validation-diagnostics.json \
+            .github/workflows/spec-kit-work-map-autofix.yml \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md \
+            http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs \
+            http-generic-api/test-work-map-autofix-validation-diagnostics.mjs \
+            | LC_ALL=C sort > "${EVIDENCE_ROOT}/expected-files.txt"
+          diff -u "${EVIDENCE_ROOT}/expected-files.txt" "${EVIDENCE_ROOT}/actual-files.txt"
+          git diff --check "${EXPECTED_MAIN_SHA}...HEAD"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm ci --prefix http-generic-api
+
+      - name: Run focused Work Map regressions and generator parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs
+          node --check http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          node --check http-generic-api/test-work-map-autofix-validation-diagnostics.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs | tee "${EVIDENCE_ROOT}/lifecycle-regression.log"
+          node http-generic-api/test-work-map-autofix-validation-diagnostics.mjs | tee "${EVIDENCE_ROOT}/diagnostics-regression.log"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee "${EVIDENCE_ROOT}/work-map-generator-check.log"
+          test -z "$(git status --porcelain)"
+
+      - name: Run exact E2E and repository lifecycle governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          export BASE_SHA="${EXPECTED_MAIN_SHA}"
+          export CANDIDATE_SHA="${EXPECTED_CANDIDATE_SHA}"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "${BASE_SHA}" --head "${CANDIDATE_SHA}" --report-file "${EVIDENCE_ROOT}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "${EVIDENCE_ROOT}/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${BASE_SHA}" --head "${CANDIDATE_SHA}" --report-file "${EVIDENCE_ROOT}/e2e-phase-evaluation.json"
+          git diff --name-status "${BASE_SHA}" "${CANDIDATE_SHA}" > "${EVIDENCE_ROOT}/changed-files.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files "${EVIDENCE_ROOT}/changed-files.tsv" --policy .github/repository-maintenance-tool-governance.json --output-dir "${EVIDENCE_ROOT}/repository-tool-lifecycle"
+          node --input-type=module -e "import fs from 'node:fs'; const p=process.env.EVIDENCE_ROOT + '/repository-tool-lifecycle/repository-tool-lifecycle-report.json'; const r=JSON.parse(fs.readFileSync(p,'utf8')); if(!r.ok || r.findings.length) process.exit(1);"
+          test -z "$(git status --porcelain)"
+
+      - name: Run authentication and architecture governance
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/user-jwt-auth-governance.mjs --baseline-ref="${EXPECTED_MAIN_SHA}"
+          npm run validate
+          test -z "$(git status --porcelain)"
+
+      - name: Run complete HTTP API Unit and Integration manifest
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/work-map-6150-final-${{ github.run_id }}/test-suite-reports
+        run: npm test
+
+      - name: Run root Execution Resolver gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+          test -z "$(git status --porcelain)"
+
+      - name: Record final technical metadata
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "base_sha=${EXPECTED_MAIN_SHA}"
+            echo "candidate_sha=${EXPECTED_CANDIDATE_SHA}"
+            echo "scope_files=7"
+            echo "job_status=${{ job.status }}"
+            echo "read_only=true"
+            echo "force_push=false"
+            echo "protected_ref_mutation=false"
+            echo "secrets_included=false"
+          } > "${EVIDENCE_ROOT}/metadata.txt"
+          git status --short > "${EVIDENCE_ROOT}/final-worktree.txt" 2>/dev/null || true
+
+      - name: Upload final technical evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-work-map-6150-final-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/work-map-6150-final-${{ github.run_id }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+  freshness:
+    name: Exact Work Map final freshness readback
+    needs: technical
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout immutable final candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove main candidate and seven-file scope remained fixed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${EXPECTED_CANDIDATE_BRANCH}" | awk 'NR == 1 {print $1}')" = "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | LC_ALL=C sort > "${RUNNER_TEMP}/actual-files.txt"
+          printf '%s\n' \
+            .changes/e2e/work-map-autofix-validation-diagnostics.json \
+            .github/workflows/spec-kit-work-map-autofix.yml \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md \
+            http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs \
+            http-generic-api/test-work-map-autofix-validation-diagnostics.mjs \
+            | LC_ALL=C sort > "${RUNNER_TEMP}/expected-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+          test -z "$(git status --porcelain)"
