@@ -1,0 +1,213 @@
+name: One-shot Runtime Parity E2E Ownership Repair v2
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize, reopened]
+    paths:
+      - .github/workflows/runtime-parity-e2e-ownership-repair-v2.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: runtime-parity-e2e-ownership-repair-v2-pr-5985
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.number == 5985 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/add-runtime-parity-comment-bridge-v2-20260804' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    env:
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      EXPECTED_PARENT_SHA: 82e4c5badc6980dd3d0e504b286bff811ef1668f
+      OLD_LAUNCHER: .github/workflows/runtime-parity-e2e-classifier-map-repair.yml
+      NEW_LAUNCHER: .github/workflows/runtime-parity-e2e-ownership-repair-v2.yml
+      PRODUCER_PATH: .github/scripts/runtime-parity-e2e-ownership-repair.py
+      PARALLEL_GOVERNANCE: http-generic-api/scripts/e2e-parallel-work-governance.mjs
+      PARALLEL_TEST: http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+      PHASE_GOVERNANCE: http-generic-api/scripts/e2e-phase-governance.mjs
+      PHASE_TEST: http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+      MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Checkout exact repair request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Pin exact request and current main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          current_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${current_sha}"
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          main_sha="$(git rev-parse origin/main)"
+          test "${main_sha}" = "$(git merge-base origin/main HEAD)"
+          echo "PINNED_MAIN_SHA=${main_sha}" >> "${GITHUB_ENV}"
+          echo "REPAIR_REQUEST_SHA=${current_sha}" >> "${GITHUB_ENV}"
+
+          mapfile -t request_files < <(git diff --name-only "${EXPECTED_PARENT_SHA}..HEAD")
+          test "${#request_files[@]}" -eq 1
+          test "${request_files[0]}" = "${NEW_LAUNCHER}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/5985")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${current_sha}"
+
+      - name: Produce permanent classifier repair in final inventory tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 "${PRODUCER_PATH}"
+          node --check "${PARALLEL_GOVERNANCE}"
+          node --check "${PARALLEL_TEST}"
+          node --check "${PHASE_GOVERNANCE}"
+          node --check "${PHASE_TEST}"
+
+          git rm -- "${OLD_LAUNCHER}" "${NEW_LAUNCHER}" "${PRODUCER_PATH}"
+          test ! -e "${OLD_LAUNCHER}"
+          test ! -e "${NEW_LAUNCHER}"
+          test ! -e "${PRODUCER_PATH}"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          REPORT_PATH="${RUNNER_TEMP}/precommit-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/precommit-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Build exact final commit locally
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'test: construct final E2E ownership repair tree'
+          echo "LOCAL_FINAL_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Run permanent regressions and exact final-head gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node "${PARALLEL_TEST}"
+          node "${PHASE_TEST}"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${LOCAL_FINAL_SHA}" \
+            --head-ref "${TARGET_BRANCH}" \
+            --base-ref main \
+            --report-file "${RUNNER_TEMP}/parallel-pr-evaluation.json"
+          node - "${RUNNER_TEMP}/parallel-pr-evaluation.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.pr_mode !== 'standard') process.exit(1);
+          if (report.findings.length !== 0 || report.contracts.length !== 0) process.exit(1);
+          NODE
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${LOCAL_FINAL_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "${PINNED_MAIN_SHA}" \
+            --head "${LOCAL_FINAL_SHA}" \
+            --report-file "${RUNNER_TEMP}/e2e-phase-evaluation.json" \
+            --execution-report-file "${RUNNER_TEMP}/e2e-phase-execution.json"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          REPORT_PATH="${RUNNER_TEMP}/final-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${RUNNER_TEMP}/final-readback.json" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0) process.exit(1);
+          if (report.classification.coverage_percent !== 100) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          NODE
+
+      - name: Restore temporary launchers and stage only permanent outputs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git diff --binary "${REPAIR_REQUEST_SHA}" "${LOCAL_FINAL_SHA}" -- \
+            "${PARALLEL_GOVERNANCE}" "${PARALLEL_TEST}" \
+            "${PHASE_GOVERNANCE}" "${PHASE_TEST}" \
+            docs/work-maps "${MANIFEST_PATH}" "${TASKS_PATH}" \
+            > "${RUNNER_TEMP}/permanent.patch"
+          test -s "${RUNNER_TEMP}/permanent.patch"
+
+          git reset --hard "${REPAIR_REQUEST_SHA}"
+          test -f "${OLD_LAUNCHER}"
+          test -f "${NEW_LAUNCHER}"
+          test -f "${PRODUCER_PATH}"
+          git apply --index "${RUNNER_TEMP}/permanent.patch"
+
+          mapfile -t changed < <(git diff --cached --name-only | sort)
+          test "${#changed[@]}" -ge 6
+          for required in "${PARALLEL_GOVERNANCE}" "${PARALLEL_TEST}" "${PHASE_GOVERNANCE}" "${PHASE_TEST}" "${MANIFEST_PATH}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fx -- "${required}" >/dev/null
+          done
+          printf '%s\n' "${changed[@]}" | grep -E '^docs/work-maps/' >/dev/null
+          for file in "${changed[@]}"; do
+            case "${file}" in
+              "${PARALLEL_GOVERNANCE}"|"${PARALLEL_TEST}"|"${PHASE_GOVERNANCE}"|"${PHASE_TEST}"|docs/work-maps/*|"${MANIFEST_PATH}"|"${TASKS_PATH}") ;;
+              *) echo "Unexpected permanent output: ${file}" >&2; exit 1 ;;
+            esac
+          done
+          test -z "$(git diff --name-only)"
+
+      - name: Commit and push bounded permanent repair
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${PINNED_MAIN_SHA}"
+          test "$(git rev-parse "origin/${TARGET_BRANCH}")" = "${REPAIR_REQUEST_SHA}"
+          git commit -m 'fix(e2e): keep generated Work Map binding ownership-neutral'
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish bounded repair evidence
+        if: always()
+        shell: bash
+        env:
+          RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
+        run: |
+          outcome=passed
+          if [[ "${{ job.status }}" != success ]]; then outcome=blocked; fi
+          echo "\`E2E_OWNERSHIP_REPAIR outcome=${outcome} request_sha=${REPAIR_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} local_final_sha=${LOCAL_FINAL_SHA:-unresolved} temporary_files_removed=false protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false\`" >> "${GITHUB_STEP_SUMMARY}"
