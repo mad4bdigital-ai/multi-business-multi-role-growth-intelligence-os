@@ -16,5 +16,6 @@ export const testCommands = Object.freeze([
   "node test-spec012-t031-oauth-token-route-wiring.mjs",
   "node test-tenant-gpt-oauth-token-binding-hardening.mjs",
   "node test-spec012-t032-legacy-audience-compatibility.mjs",
+  "node test-spec012-t033-short-lived-bearer-profile.mjs",
   "node test-execution-capsule-mutation-and-rollout.mjs",
 ]);
