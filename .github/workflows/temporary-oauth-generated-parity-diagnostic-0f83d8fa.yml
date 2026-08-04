@@ -1,0 +1,188 @@
+name: Temporary OAuth Generated Parity Diagnostic 0f83d8fa
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/diagnostic-oauth-generated-parity-0f83d8fa-20260804' &&
+      github.event.pull_request.head.ref == 'gpt/trigger-oauth-generated-parity-diagnostic-0f83d8fa-20260804'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EXPECTED_MAIN_SHA: 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa
+      EXPECTED_TRIGGER_SHA: dc1da15e5ca58f4ba668a22c0c47cf020aa02c51
+      WORKFLOW_PATH: .github/workflows/temporary-oauth-generated-parity-diagnostic-0f83d8fa.yml
+      EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout immutable trigger
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Prove immutable identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_TRIGGER_SHA}"
+          test "${EVENT_HEAD_SHA}" = "${EXPECTED_TRIGGER_SHA}"
+          git fetch --no-tags origin \
+            "main:refs/remotes/origin/main" \
+            "gpt/diagnostic-oauth-generated-parity-0f83d8fa-20260804:refs/remotes/origin/diagnostic-base"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/diagnostic-base)" = "${EVENT_BASE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/diagnostic-base^)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" refs/remotes/origin/diagnostic-base)" = "${WORKFLOW_PATH}"
+          git checkout --detach "${EXPECTED_MAIN_SHA}"
+          test -z "$(git status --porcelain)"
+
+      - name: Apply exact failed-writer patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          changes = {
+            Path('http-generic-api/routes/index.js'): (
+              'app.use(buildTenantGptOAuthMetadataRoutes());',
+              'app.use(buildTenantGptOAuthMetadataRoutes(deps));'),
+            Path('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'): (
+              'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())")',
+              'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))")'),
+          }
+          for path, (old, new) in changes.items():
+            text = path.read_text(encoding='utf-8')
+            if text.count(old) != 1 or new in text:
+              raise SystemExit(f'replacement mismatch: {path}')
+            path.write_text(text.replace(old, new), encoding='utf-8')
+          contract = Path('.changes/e2e/spec012-t031-oauth-token-route-test-parity.json')
+          text = contract.read_text(encoding='utf-8')
+          c = '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json'
+          n = 'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js'
+          extra = ['http-generic-api/routes/index.js','http-generic-api/frontend-surface-dispatch.generated.json']
+          a = f'      "{c}",\n      "{n}",'
+          b = f'      "{c}",\n' + ''.join(f'      "{x}",\n' for x in extra) + f'      "{n}",'
+          ea = f'            "{c}",\n            "{n}",'
+          eb = f'            "{c}",\n' + ''.join(f'            "{x}",\n' for x in extra) + f'            "{n}",'
+          if text.count(a) != 1 or text.count(ea) != 1:
+            raise SystemExit('contract anchor mismatch')
+          contract.write_text(text.replace(a,b).replace(ea,eb), encoding='utf-8')
+          PY
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install and generate canonical evidence
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json','utf8'));
+          if (report?.baseline?.ref !== 'main') throw new Error(`unexpected baseline.ref: ${JSON.stringify(report?.baseline?.ref)}`);
+          NODE
+
+      - name: Run commands independently and capture bounded evidence
+        id: commands
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -uo pipefail
+          out="${RUNNER_TEMP}/oauth-generated-parity-diagnostic"
+          mkdir -p "${out}/logs"
+          commands=(
+            "node test-spec012-t031-oauth-token-route-wiring.mjs"
+            "node test-auth-oauth-routes.mjs"
+            "node test-tenant-gpt-oauth-token-route-integration.mjs"
+            "node test-tenant-gpt-oauth-token-request-binding-guard.mjs"
+            "node test-frontend-dispatch-workflow-baseline.mjs"
+            "node test-frontend-operation-governance-generator.mjs"
+            "node test-frontend-surface-dispatch.mjs"
+            "node test-frontend-auth-openapi-parity.mjs"
+            "node test-openapi-route-coverage.mjs"
+            "npm run openapi:auth:check"
+          )
+          printf '[]' > "${out}/results.json"
+          first_failure=""
+          for i in "${!commands[@]}"; do
+            idx=$((i+1)); cmd="${commands[$i]}"; log="${out}/logs/$(printf '%02d' "${idx}").log"
+            set +e
+            bash -lc "${cmd}" >"${log}" 2>&1
+            status=$?
+            set -e
+            if [ "${status}" -ne 0 ] && [ -z "${first_failure}" ]; then first_failure="${idx}"; fi
+            IDX="${idx}" CMD="${cmd}" STATUS="${status}" LOG_PATH="${log}" RESULTS="${out}/results.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(process.env.RESULTS,'utf8'));
+          const text = fs.readFileSync(process.env.LOG_PATH,'utf8');
+          rows.push({
+            index: Number(process.env.IDX),
+            command: process.env.CMD,
+            exit_code: Number(process.env.STATUS),
+            passed: Number(process.env.STATUS) === 0,
+            output_tail: text.split(/\r?\n/u).slice(-80).join('\n').slice(-12000),
+          });
+          fs.writeFileSync(process.env.RESULTS, JSON.stringify(rows,null,2)+'\n');
+          NODE
+          done
+          FIRST_FAILURE="${first_failure}" OUT="${out}" EXPECTED_MAIN_SHA="${EXPECTED_MAIN_SHA}" EXPECTED_TRIGGER_SHA="${EXPECTED_TRIGGER_SHA}" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const results = JSON.parse(fs.readFileSync(`${process.env.OUT}/results.json`,'utf8'));
+          const report = {
+            contract: 'mad4b.oauth-generated-parity-command-diagnostic.v1',
+            protected_main_sha: process.env.EXPECTED_MAIN_SHA,
+            trigger_sha: process.env.EXPECTED_TRIGGER_SHA,
+            first_failure_index: process.env.FIRST_FAILURE ? Number(process.env.FIRST_FAILURE) : null,
+            all_passed: results.every((row) => row.passed),
+            results,
+            protected_ref_mutation: false,
+            repository_push: false,
+            production_mutation: false,
+            provider_mutation: false,
+            database_mutation: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(`${process.env.OUT}/report.json`, JSON.stringify(report,null,2)+'\n');
+          NODE
+          echo "first_failure=${first_failure}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify no repository publication
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git fetch --no-tags origin "main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-generated-parity-command-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-generated-parity-diagnostic
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail after evidence when any command failed
+        if: always()
+        shell: bash
+        env:
+          FIRST_FAILURE: ${{ steps.commands.outputs.first_failure }}
+        run: |
+          set -euo pipefail
+          test -z "${FIRST_FAILURE}"
