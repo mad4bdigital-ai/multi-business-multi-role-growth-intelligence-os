@@ -20,6 +20,15 @@ assert.match(workflow, /issues: write/);
 assert.match(workflow, /git ls-remote origin refs\/heads\/Production/);
 assert.match(workflow, /git merge-base --is-ancestor "\$\{GITHUB_SHA\}" "\$\{remote_main_sha\}"/);
 
+assert.doesNotMatch(
+  workflow,
+  /^\s{6}REPORT_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/m,
+  'runner.temp must not be evaluated in job-level env before runner allocation',
+);
+assert.match(workflow, /report_dir="\$\{RUNNER_TEMP\}\/hostinger-production-runtime-readback-r7"/);
+assert.match(workflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/);
+assert.match(workflow, /path: \$\{\{ runner\.temp \}\}\/hostinger-production-runtime-readback-r7\/\*/);
+
 for (const endpoint of [
   'https://auth.mad4b.com/health',
   'https://auth.mad4b.com/version',
@@ -63,8 +72,9 @@ assert.doesNotMatch(workflow, /gh api --method (PUT|PATCH|DELETE)/);
 
 console.log(JSON.stringify({
   ok: true,
-  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v1',
+  contract: 'mad4b.hostinger-production-runtime-readback-r7.workflow-test.v2',
   trigger: 'owner_bound_issue_comment',
+  report_directory_initialized_after_runner_allocation: true,
   public_get_only: true,
   repository_content_mutation_performed: false,
   repository_issue_comment_authorized: true,
