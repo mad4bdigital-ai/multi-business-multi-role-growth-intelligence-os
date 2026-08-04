@@ -55,7 +55,9 @@ assert.match(script, /Math\.abs\(Date\.parse\(run\.created_at\) - authorizationC
 assert.match(script, /MAX_RUN_SELECTION_DELTA_MS/);
 assert.match(script, /run\.actor\?\.login === authorizationComment\.user\?\.login/);
 assert.match(script, /event === 'issue_comment'/);
-assert.match(script, /targetRun\.status, 'completed'/);
+assert.match(script, /targetRun\.status === 'completed'/);
+assert.match(script, /targetRun\.status !== 'completed'/);
+assert.match(script, /target_run_not_terminal_within_bounded_window/);
 assert.match(script, /startsWith\('spec014-wave1-runtime-readiness-'\)/);
 assert.match(script, /assertBoundary\(state\)/);
 assert.match(script, /assertBoundary\(observerResult\)/);
