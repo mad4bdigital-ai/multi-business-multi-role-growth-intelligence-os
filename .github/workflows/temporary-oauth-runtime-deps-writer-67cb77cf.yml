@@ -1,0 +1,154 @@
+name: Temporary OAuth Runtime Dependency Writer 67cb77cf
+
+on:
+  pull_request:
+    branches:
+      - gpt/writer-oauth-runtime-deps-67cb77cf-20260804
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-oauth-runtime-deps-writer-67cb77cf
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-oauth-runtime-deps-67cb77cf-20260804' &&
+      github.event.pull_request.head.sha == 'b8d07c1eed83818e0e8c095d3a7375275629a437'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout immutable trigger head
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/trigger-oauth-runtime-deps-67cb77cf-20260804
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prove exact repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "b8d07c1eed83818e0e8c095d3a7375275629a437"
+          test "$(git rev-parse HEAD^)" = "67cb77cffe94544b1b5d70997506afb4e75c3846"
+          test "$(git rev-parse origin/main)" = "67cb77cffe94544b1b5d70997506afb4e75c3846"
+          test -z "$(git status --porcelain)"
+          test -z "$(git ls-remote origin refs/heads/gpt/fix-oauth-runtime-deps-67cb77cf-20260804)"
+
+      - name: Apply exact two-file patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          replacements = [
+              (
+                  Path("http-generic-api/routes/index.js"),
+                  "  app.use(buildTenantGptOAuthMetadataRoutes());\n",
+                  "  app.use(buildTenantGptOAuthMetadataRoutes(deps));\n",
+              ),
+              (
+                  Path("http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"),
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())");\n',
+                  'const metadataMount = routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))");\n',
+              ),
+          ]
+          for path, old, new in replacements:
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"exact replacement count for {path}: expected 1, got {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          trigger = Path(".changes/tmp/oauth-runtime-deps-trigger-67cb77cf.json")
+          if not trigger.is_file():
+              raise SystemExit("temporary trigger file is missing")
+          trigger.unlink()
+
+          expected = {
+              ".changes/tmp/oauth-runtime-deps-trigger-67cb77cf.json",
+              "http-generic-api/routes/index.js",
+              "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
+          }
+          actual = set(subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines())
+          if actual != expected:
+              raise SystemExit(f"unexpected patch scope: {sorted(actual)}")
+          PY
+          git diff --check
+
+      - name: Install locked API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+
+      - name: Create atomic direct-parent commit and push without force
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "67cb77cffe94544b1b5d70997506afb4e75c3846"
+          test -z "$(git ls-remote origin refs/heads/gpt/fix-oauth-runtime-deps-67cb77cf-20260804)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          git reset --soft origin/main
+          mapfile -t staged < <(git diff --cached --name-only)
+          expected=(
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#staged[@]}" -eq "${#expected[@]}"
+          printf '%s\n' "${staged[@]}" | sort > "$RUNNER_TEMP/staged.txt"
+          printf '%s\n' "${expected[@]}" | sort > "$RUNNER_TEMP/expected.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/staged.txt"
+          git diff --cached --check
+          git commit -m "fix(oauth): forward runtime dependency composition"
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "67cb77cffe94544b1b5d70997506afb4e75c3846"
+          git push origin HEAD:refs/heads/gpt/fix-oauth-runtime-deps-67cb77cf-20260804
+          remote_sha="$(git ls-remote origin refs/heads/gpt/fix-oauth-runtime-deps-67cb77cf-20260804 | awk '{print $1}')"
+          test "$remote_sha" = "$final_sha"
+          echo "final_sha=$final_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Record bounded writer evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/oauth-runtime-deps-evidence"
+          {
+            echo "base_sha=67cb77cffe94544b1b5d70997506afb4e75c3846"
+            echo "trigger_sha=b8d07c1eed83818e0e8c095d3a7375275629a437"
+            echo "final_sha=${{ steps.publish.outputs.final_sha }}"
+            echo "job_status=${{ job.status }}"
+            echo "final_branch=gpt/fix-oauth-runtime-deps-67cb77cf-20260804"
+            echo "force_push=false"
+            echo "secrets_included=false"
+          } > "$RUNNER_TEMP/oauth-runtime-deps-evidence/metadata.txt"
+          git status --short > "$RUNNER_TEMP/oauth-runtime-deps-evidence/final-worktree.txt"
+
+      - name: Upload bounded writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-runtime-deps-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-runtime-deps-evidence
+          if-no-files-found: error
+          retention-days: 14
