@@ -1,0 +1,155 @@
+name: OAuth Production Dependencies Exact ARM
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-production-deps-arm-base
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oauth-production-deps-exact-arm-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact OAuth production dependency head
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-production-deps-67cb77cf-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      CANDIDATE_SHA: 3861a123e3e761c52a10febf5e100a99dcd077a0
+      CANDIDATE_BRANCH: gpt/spec012-oauth-production-deps-67cb77cf-20260804
+      REPORT_DIR: ${{ runner.temp }}/oauth-production-deps-reports
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity and three-file scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$CANDIDATE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$CANDIDATE_BRANCH"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse ${CANDIDATE_SHA}^1)" = "$BASE_SHA"
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" | sort)
+          expected=(
+            .changes/e2e/spec012-oauth-production-dependency-composition.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          test "${#changed[@]}" -eq 3
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+          mkdir -p "$REPORT_DIR"
+          printf '%s\n' "$CANDIDATE_SHA" > "$REPORT_DIR/candidate-sha.txt"
+          printf '%s\n' "$BASE_SHA" > "$REPORT_DIR/base-sha.txt"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Validate root execution resolver
+        run: |
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run focused OAuth production composition regressions
+        working-directory: http-generic-api
+        run: |
+          node --check routes/index.js
+          node --check test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-auth-oauth-routes.mjs
+          node test-chatgpt-mcp-metadata-routing.mjs
+
+      - name: Run Resource API and E2E changed-range gates
+        working-directory: http-generic-api
+        run: |
+          node scripts/resource-api-coverage-audit.mjs --ci --changed
+          node scripts/e2e-contract-reference-integrity.mjs --ci --changed
+          node scripts/e2e-phase-governance.mjs --ci --changed
+
+      - name: Run complete HTTP Generic API Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/oauth-production-deps-reports/test-suite
+        run: npm test
+
+      - name: Run architecture and startup validation
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/spec012-oauth-production-deps-67cb77cf-20260804
+          DEPLOYMENT_COMMIT_SHA: 3861a123e3e761c52a10febf5e100a99dcd077a0
+        run: |
+          npm run validate
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Verify final main and candidate freshness
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse ${CANDIDATE_SHA}^1)" = "$BASE_SHA"
+          jq -n \
+            --arg contract 'oauth_production_dependencies_exact_arm.v1' \
+            --arg base_sha "$BASE_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{
+              contract: $contract,
+              result: "pass",
+              base_sha: $base_sha,
+              candidate_sha: $candidate_sha,
+              workflow_run_id: ($run_id | tonumber),
+              exact_scope: true,
+              focused_oauth_tests: "pass",
+              full_unit_integration: "pass",
+              execution_resolver: "pass",
+              architecture_startup: "pass",
+              production_mutated: false,
+              migration_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_accessed: false,
+              protected_ref_mutated: false,
+              secrets_included: false
+            }' > "$REPORT_DIR/result.json"
+
+      - name: Upload bounded exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-production-deps-exact-arm-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
