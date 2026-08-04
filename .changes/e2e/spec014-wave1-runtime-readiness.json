@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-wave1-runtime-readiness",
+  "title": "Spec 014 Wave 1 checksum-bound runtime readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-wave1-runtime-readiness.json",
+      ".github/ops/spec014-wave1-runtime-readiness.mjs",
+      ".github/workflows/spec014-wave1-runtime-readiness.yml",
+      ".github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml",
+      "http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs",
+      "http-generic-api/scripts/test-manifest.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide an exact issue-comment-gated, checksum-bound runtime-readiness path for Spec 014 Wave 1 that verifies Production parity, performs readback first, creates only the governed authorization control-plane evidence when needed, and executes dry_run with applies_sql=false.",
+      "e2e_journeys": [
+        {
+          "id": "authorize-and-prove-spec014-wave1-runtime-readiness-without-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized repository operator and governed Spec 014 Wave 1 readiness workflow",
+          "entrypoint": "Exact OWNER, MEMBER, or COLLABORATOR comment on control issue #6215",
+          "terminal_outcome": "The workflow proves the current protected Production SHA and exact migration blob, performs schema and ledger readback before mutation, creates or reuses only checksum-bound authorization control-plane evidence, completes a governed dry-run with applies_sql=false, and never authorizes or executes Apply.",
+          "steps": [
+            "Require the exact filename-derived authorization comment on issue #6215 from an allowed repository association.",
+            "Checkout trusted main and prove it contains readiness merge 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa.",
+            "Read the protected Production ref and prove it contains source merge 7a96920eff2579321707d193a1d030e6454891b1.",
+            "Verify Production contains migration blob 1e820553d95e5bdb5f8c49d7bf09cb159c51c7bc and runtime health, version, and deployment evidence converge on the same protected SHA.",
+            "Perform governed schema and ledger readback before creating any new authorization evidence.",
+            "If the exact apply ledger already exists, report already_applied without creating authorization or dry-run evidence.",
+            "Otherwise create and approve only a checksum- and Production-bound capability envelope for governed_migration_authorization_bootstrap.",
+            "Bootstrap the exact authorization for checksum 9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053, four statements, PR #4564, and its merge SHA.",
+            "Execute governed_migration_execute in dry_run mode and require applies_sql=false, exact checksum and statement count, preflight pass, and zero risk.",
+            "Upload sanitized evidence without repository writes, provider calls, credential payload reads, business-data mutation, Apply authorization, Apply execution, deployment, or Production mutation."
+          ],
+          "assertions": [
+            "The workflow requires issue #6215, the exact authorization comment, and OWNER, MEMBER, or COLLABORATOR association.",
+            "The workflow never exposes an Apply job and has no push, pull_request, workflow_dispatch, or automatic runtime trigger.",
+            "Readback occurs before capability-envelope or authorization creation.",
+            "The implementation contains no mode=apply request and no capability_resolution_envelope_apply_authorize call.",
+            "The dry-run must report mode=dry_run, applies_sql=false, exact checksum, four statements, preflight pass, and zero risks.",
+            "Managed control-plane authorization evidence may be written only after the explicit operator comment; migration SQL, business data, providers, external systems, and Production refs remain unmodified.",
+            "Artifacts report apply_authorized=false, apply_sent=false, migration_apply_executed=false, provider_call_executed=false, credential_payload_accessed=false, external_business_write_executed=false, and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "spec014-wave1-runtime-readiness-boundary-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-wave1-runtime-readiness-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-wave1-runtime-readiness.json",
+            ".github/ops/spec014-wave1-runtime-readiness.mjs",
+            ".github/workflows/spec014-wave1-runtime-readiness.yml",
+            ".github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml",
+            "http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After merge, post the exact authorized comment and retain the runtime parity, readback, authorization-bootstrap, dry-run, and no-secret Artifact evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Keep Production drift, migration blob drift, runtime parity failure, existing-ledger ambiguity, checksum rotation, and dry-run risk fail-closed with bounded evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Use a successful runtime-readiness Artifact only as a prerequisite for a separately reviewed Wave 1 Apply contract."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This contract grants no Migration Apply, deployment, provider call, external business write, credential payload read, or Production ref mutation authority."
+    }
+  ]
+}
