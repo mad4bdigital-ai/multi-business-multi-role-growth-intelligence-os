@@ -23,9 +23,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
-      BASE_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
-      SOURCE_SHA: b41f2534dcc150e640c4ad3b719389eb8f1dfd97
-      TARGET_BRANCH: gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v2-clean
+      BASE_SHA: aecae5f93c77c92d119261a13963f446090da7f8
+      SOURCE_SHA: e9c6ac3f413af4e963d79f98aa4d5cd328012020
+      SOURCE_BASE_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
+      TARGET_BRANCH: gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v3-clean
     steps:
       - name: Checkout repository history
         uses: actions/checkout@v5
@@ -45,7 +46,7 @@ jobs:
           test "$EVENT_HEAD_REF" = "gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v1"
           test "$(git rev-parse "$BASE_SHA")" = "$BASE_SHA"
           test "$(git rev-parse "$SOURCE_SHA")" = "$SOURCE_SHA"
-          git merge-base --is-ancestor "$BASE_SHA" "$SOURCE_SHA"
+          test "$(git merge-base "$BASE_SHA" "$SOURCE_SHA")" = "$SOURCE_BASE_SHA"
           test -z "$(git ls-remote --heads origin "$TARGET_BRANCH")"
 
       - name: Build clean one-commit candidate
