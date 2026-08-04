@@ -1,0 +1,306 @@
+name: Exact Spec 014 Latest-Main Surface Validation v3
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-surface-current-main-e9-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-latest-main-surface-v3-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Exact latest-main Spec 014 Surface candidate
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      EXPECTED_HEAD_SHA: 030b10711fd7af63036753c04da727f6fe76b79b
+      EXPECTED_HEAD_REF: gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v3-clean
+      EXPECTED_BASE_SHA: aecae5f93c77c92d119261a13963f446090da7f8
+      MIGRATION_FILE: 20260802_03_spec014_hostinger_storage_execution_evidence.sql
+      MIGRATION_SHA256: cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/spec014-latest-main-v3-$GITHUB_RUN_ID"
+          mkdir -p "$evidence_dir/reference-integrity" "$evidence_dir/repository-tool-lifecycle" "$evidence_dir/test-suite-reports"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+          printf '{"candidate_sha":"%s","base_sha":"%s","runner":"ubuntu-24.04-arm","status":"initialized","secrets_included":false}\n' \
+            "$EXPECTED_HEAD_SHA" "$EXPECTED_BASE_SHA" > "$evidence_dir/identity-start.json"
+
+      - name: Verify immutable identity and exact scope
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          git merge-base --is-ancestor "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA"
+          test "$(git rev-list --count "${EXPECTED_BASE_SHA}..${EXPECTED_HEAD_SHA}")" = "1"
+
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF'
+          Updating Registry Patch Index.md
+          deployment_parity_checklist.md
+          docs/ai-docs-agent-governance.md
+          docs/auto-docs-agent/README.md
+          docs/change-documentation-governance.md
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-gap-trends.json
+          docs/surface-contract-gap-trends.md
+          docs/surface-contract-gap-triage.json
+          docs/surface-contract-gap-triage.md
+          docs/surface-contract-governance-compact.json
+          docs/surface-contract-governance-compact.md
+          docs/surface-contract-governance-dashboard.json
+          docs/surface-contract-governance-dashboard.md
+          docs/surface-contract-safety-attestations.json
+          EOF
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          sort -o "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/expected-files.txt"
+          git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          test "$(wc -l < "$EVIDENCE_DIR/actual-files.txt" | tr -d ' ')" = "18"
+          test -z "$(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" -- '.github/workflows/**' 'http-generic-api/migrations/**' 'http-generic-api/routes/**' 'http-generic-api/src/**' 'http-generic-api/openapi*.yaml')"
+          git diff --name-status "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" > "$EVIDENCE_DIR/name-status.tsv"
+          jq -n --arg candidate_sha "$EXPECTED_HEAD_SHA" --arg base_sha "$EXPECTED_BASE_SHA" \
+            '{ok:true,candidate_sha:$candidate_sha,base_sha:$base_sha,commit_count:1,changed_files:18,runner:"ubuntu-24.04-arm",workflow_changes:false,migration_changes:false,runtime_changes:false,openapi_changes:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/preflight.json"
+
+      - name: Install deterministic repository dependencies
+        id: dependencies
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm --prefix http-generic-api ci
+
+      - name: Syntax and canonical governance
+        id: syntax
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs)
+          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree)
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+
+      - name: Resource API coverage and regressions
+        id: resource_api
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          GITHUB_BASE_REF: main
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          node scripts/resource-api-coverage-audit.mjs --ci --changed
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+
+      - name: Prove generated Surface evidence and checksum-bound safety
+        id: surface_evidence
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check scripts/surface-contract-discovery.mjs
+          node --check scripts/surface-contract-gap-triage.mjs
+          node --check scripts/surface-contract-auto-remediator.mjs
+          node test-surface-contract-auto-remediation.mjs
+          node test-surface-contract-discovery.mjs
+          node test-surface-contract-governance-loop.mjs
+          node scripts/surface-contract-auto-remediator.mjs --check
+          node scripts/surface-contract-discovery.mjs --check
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          const migrationFile = process.env.MIGRATION_FILE;
+          const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+          const status = JSON.parse(fs.readFileSync('../docs/surface-contract-discovery-status.json', 'utf8'));
+          const attestations = JSON.parse(fs.readFileSync('../docs/surface-contract-safety-attestations.json', 'utf8'));
+          const item = attestations.items.find((entry) => entry.migration_file === migrationFile);
+          assert.equal(queue.ok, true);
+          assert.equal(queue.schema_version, 'surface-contract-gap-queue-v1');
+          assert.equal(status.ok, true);
+          assert.equal(status.gap_queue.total_items, queue.total_items);
+          assert.equal(queue.total_items, 3);
+          assert.equal(queue.class_counts.critical_review, 0);
+          assert.equal(JSON.stringify(queue).includes(migrationFile), false);
+          assert(item);
+          assert.equal(item.migration_sha256, process.env.MIGRATION_SHA256);
+          assert.equal(item.checksum_canonicalization, 'utf8_lf_v1');
+          assert.equal(item.attestation_status, 'verified_static_no_external_side_effects');
+          assert.equal(item.evidence_mode, 'checksum_bound_human_review');
+          assert.equal(item.review_status, 'approved_checksum_bound_internal_sql');
+          assert.equal(item.execution_authorized, false);
+          for (const value of Object.values(item.safety || {})) assert.equal(value, false);
+          for (const value of Object.values(item.safety_markers || {})) assert.equal(value, true);
+          fs.writeFileSync(process.env.EVIDENCE_DIR + '/surface-evidence.json', JSON.stringify({
+            ok:true,queue_total_items:queue.total_items,critical_review_items:queue.class_counts.critical_review,
+            migration_file:migrationFile,migration_absent_from_gap_queue:true,migration_sha256:item.migration_sha256,
+            attestation_status:item.attestation_status,execution_authorized:false,provider_mutation:false,
+            production_mutation:false,credential_access:false,database_mutation:false,external_write:false,secrets_included:false
+          }, null, 2) + '\n');
+          NODE
+          git diff --exit-code
+
+      - name: E2E contract reference integrity
+        id: reference_integrity
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+
+      - name: Repository tool lifecycle governance
+        id: lifecycle
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_BASE_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$EVIDENCE_DIR/name-status.tsv" --policy .github/repository-maintenance-tool-governance.json --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+
+      - name: HTTP Generic API unit integration and architecture
+        id: api_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/spec014-latest-main-v3-${{ github.run_id }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          npm test
+          npm run validate
+
+      - name: Execution resolver typecheck and tests
+        id: root_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Exact E2E phase evaluation and journeys
+        id: e2e
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run --base "$EXPECTED_BASE_SHA" --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+      - name: Write bounded validation result
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          RESOURCE_API_OUTCOME: ${{ steps.resource_api.outcome }}
+          SURFACE_EVIDENCE_OUTCOME: ${{ steps.surface_evidence.outcome }}
+          REFERENCE_INTEGRITY_OUTCOME: ${{ steps.reference_integrity.outcome }}
+          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
+          API_TESTS_OUTCOME: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS_OUTCOME: ${{ steps.root_tests.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          jq -n --arg candidate_sha "$EXPECTED_HEAD_SHA" --arg base_sha "$EXPECTED_BASE_SHA" \
+            --arg preflight "$PREFLIGHT_OUTCOME" --arg dependencies "$DEPENDENCIES_OUTCOME" --arg syntax "$SYNTAX_OUTCOME" \
+            --arg resource_api "$RESOURCE_API_OUTCOME" --arg surface_evidence "$SURFACE_EVIDENCE_OUTCOME" \
+            --arg reference_integrity "$REFERENCE_INTEGRITY_OUTCOME" --arg lifecycle "$LIFECYCLE_OUTCOME" \
+            --arg api_tests "$API_TESTS_OUTCOME" --arg root_tests "$ROOT_TESTS_OUTCOME" --arg e2e "$E2E_OUTCOME" \
+            '{candidate_sha:$candidate_sha,base_sha:$base_sha,runner:"ubuntu-24.04-arm",outcomes:{preflight:$preflight,dependencies:$dependencies,syntax:$syntax,resource_api:$resource_api,surface_evidence:$surface_evidence,reference_integrity:$reference_integrity,lifecycle:$lifecycle,api_tests:$api_tests,root_tests:$root_tests,e2e:$e2e},provider_mutation:false,production_mutation:false,credential_access:false,database_mutation:false,external_write:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/result.json"
+          cat "$EVIDENCE_DIR/result.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-latest-main-surface-v3-arm-v1-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce exact validation result
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          RESOURCE_API_OUTCOME: ${{ steps.resource_api.outcome }}
+          SURFACE_EVIDENCE_OUTCOME: ${{ steps.surface_evidence.outcome }}
+          REFERENCE_INTEGRITY_OUTCOME: ${{ steps.reference_integrity.outcome }}
+          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
+          API_TESTS_OUTCOME: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS_OUTCOME: ${{ steps.root_tests.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          for outcome in "$PREFLIGHT_OUTCOME" "$DEPENDENCIES_OUTCOME" "$SYNTAX_OUTCOME" "$RESOURCE_API_OUTCOME" "$SURFACE_EVIDENCE_OUTCOME" "$REFERENCE_INTEGRITY_OUTCOME" "$LIFECYCLE_OUTCOME" "$API_TESTS_OUTCOME" "$ROOT_TESTS_OUTCOME" "$E2E_OUTCOME"; do
+            test "$outcome" = success
+          done
+          jq -e '
+            .candidate_sha == "030b10711fd7af63036753c04da727f6fe76b79b" and
+            .base_sha == "aecae5f93c77c92d119261a13963f446090da7f8" and
+            .runner == "ubuntu-24.04-arm" and
+            ([.outcomes[]] | all(. == "success")) and
+            .provider_mutation == false and .production_mutation == false and .credential_access == false and
+            .database_mutation == false and .external_write == false and .secrets_included == false
+          ' "$EVIDENCE_DIR/result.json" >/dev/null
