@@ -69,14 +69,35 @@ jobs:
           frontend.write_text(text.replace(anchor, replacement, 1))
           PY
 
-      - name: Validate focused workflow contracts
+      - name: Validate diff formatting
         shell: bash
         run: |
           set -Eeuo pipefail
           git diff --check
+
+      - name: Validate E2E phase governance workflow
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+
+      - name: Validate repository tool lifecycle workflow
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
+
+      - name: Validate frontend dispatch workflow baseline
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node test-frontend-dispatch-workflow-baseline.mjs
+
+      - name: Validate explicit runner pins
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           ! grep -R "runs-on: ubuntu-latest" \
             .github/workflows/ci.yml \
             .github/workflows/frontend-surface-dispatch.yml \
