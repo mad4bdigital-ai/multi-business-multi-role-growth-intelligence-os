@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -20,6 +21,8 @@ jobs:
       OLD_BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
       CANDIDATE_SHA: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
       TARGET_BRANCH: gpt/work-map-observable-exact-current-main-c1806e-20260804
+      PR_NUMBER: '6116'
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v5
         with:
