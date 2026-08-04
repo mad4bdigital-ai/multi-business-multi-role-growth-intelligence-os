@@ -92,10 +92,11 @@ jobs:
           PY
 
           git diff --name-status "$expected_main" "$expected_head" > "$evidence/changed-files.tsv"
-          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
-            --changed-files "$evidence/changed-files.tsv" \
-            --policy .github/repository-maintenance-tool-governance.json \
-            --output-dir "$evidence/lifecycle"
+          BASE_SHA="$expected_main" CANDIDATE_SHA="$expected_head" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "$evidence/changed-files.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "$evidence/lifecycle"
           jq -e '.ok == true and (.findings | length) == 0' "$evidence/lifecycle/repository-tool-lifecycle-report.json" >/dev/null
 
           jq -n \
