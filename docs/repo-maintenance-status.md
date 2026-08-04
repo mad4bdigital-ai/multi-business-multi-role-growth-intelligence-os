@@ -95,6 +95,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
 - `.github/workflows/hostinger-production-release-evidence-r5.yml`
 - `.github/workflows/hostinger-production-release-evidence-r6.yml`
+- `.github/workflows/hostinger-production-runtime-readback-r7.yml`
 - `.github/workflows/hostinger-storage-authorized-dependency-injection-readback-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-mount-executor-guard.yml`
 - `.github/workflows/hostinger-storage-authorized-route-resolution-guard.yml`

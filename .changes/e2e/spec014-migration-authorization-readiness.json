@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/spec014-migration-authorization-readiness.json",
       ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+      ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
       ".github/workflows/hostinger-storage-migration-authorization-readiness-guard.yml",
       "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
       "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
@@ -21,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Produce a repository-only, checksum-bound readiness packet for the three promoted Spec 014 migrations using the canonical governed authorization inspector while proving that no capability envelope, authorization registry write, dry-run, migration execution, or live database readback occurs.",
+      "objective": "Produce a repository-only, checksum-bound readiness packet for the four promoted Spec 014 migrations using the canonical governed authorization inspector while proving that no capability envelope, authorization registry write, dry-run, migration execution, or live database readback occurs.",
       "e2e_journeys": [
         {
           "id": "runtime-migration-contract-to-fail-closed-readiness-packet",
@@ -29,21 +30,23 @@
           "level": "synthetic_runtime",
           "actor": "Spec 014 migration release reviewer",
           "entrypoint": "Hostinger Storage Migration Authorization Readiness Guard",
-          "terminal_outcome": "Wave 1 and Wave 2 pass repository candidate inspection, Wave 2 remains dependency-ledger blocked, and Wave 3 remains blocked by the canonical zero-risk preflight until live view/tool absence readback exists; no authorization or migration action is performed.",
+          "terminal_outcome": "Wave 1 is the only next authorization candidate; Wave 2 remains Wave-1-ledger blocked; Wave 3 remains blocked by canonical zero-risk preflight and live view/tool absence readback; Wave 4 remains Wave-3-ledger, live table compatibility, and signed-verification-refresh blocked; no authorization or migration action is performed.",
           "steps": [
-            "Load the exact promoted runtime migration contract and bind PR #4564 plus its merge SHA.",
-            "Validate the exact three migration filenames, checksums, statement counts, ordering, and dependencies.",
-            "Run the canonical repository-only governed migration authorization candidate inspector for each wave.",
+            "Load the exact promoted runtime migration contract and bind Waves 1-3 to PR #4564 and Wave 4 to PR #4879 with their merge SHAs.",
+            "Validate all four migration filenames, checksums, statement counts, ordering, and dependencies.",
+            "Run the canonical repository-only governed migration authorization candidate inspector for every wave.",
             "Require Wave 1 and Wave 2 to pass checksum, statement-count, additive SQL, and zero-risk repository preflight.",
-            "Require Wave 2 to retain its Wave 1 successful apply-ledger dependency.",
+            "Require Wave 2 to retain its exact Wave 1 successful apply-ledger dependency.",
             "Require Wave 3 to fail closed on the canonical zero-risk preflight and retain live view/tool-key absence requirements.",
+            "Require Wave 4 to pass repository candidate inspection while retaining the Wave 3 successful apply-ledger dependency, live target-table absence or exact-compatibility readback, fresh capability and authorization, same-cycle dry-run/readback, and signed schema-verification refresh requirements.",
             "Return an immutable readiness packet declaring no capability envelope, authorization registry mutation, dry-run, SQL execution, live database access, schema verification, production readiness, or provider dispatch."
           ],
           "assertions": [
-            "The packet is bound to PR #4564 and merge SHA 7a96920eff2579321707d193a1d030e6454891b1.",
+            "Waves 1-3 are bound to PR #4564 and merge SHA 7a96920eff2579321707d193a1d030e6454891b1; Wave 4 is bound to PR #4879 and merge SHA 4ca8d8691baa66210b679da51c5d92909c88c14c.",
             "Wave 1 is the only next authorization candidate and authorization is not created by this slice.",
             "Wave 2 cannot become apply-eligible without exact successful apply-ledger evidence for Wave 1.",
             "Wave 3 cannot pass authorization candidate inspection until all three views and three tool keys are proven absent through a separately governed live readback.",
+            "Wave 4 cannot become apply-eligible without exact successful Wave 3 apply-ledger evidence, live table absence or exact-compatibility readback, and a refreshed signed schema-verification contract.",
             "No database client, capability-envelope resolution, authorization write, dry-run, migration execution, Hostinger access, provider dispatch, or secret is used."
           ],
           "tests": [
@@ -57,6 +60,7 @@
           ],
           "evidence_paths": [
             ".github/contracts/spec014/hostinger-storage-migration-authorization-readiness.json",
+            ".github/contracts/spec014/hostinger-storage-runtime-migrations.json",
             "http-generic-api/hostingerStorageMigrationAuthorizationReadiness.js",
             "http-generic-api/test-hostinger-storage-migration-authorization-readiness.mjs"
           ]
