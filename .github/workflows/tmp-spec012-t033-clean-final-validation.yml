@@ -20,7 +20,7 @@ on:
       - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   validate:
@@ -49,6 +49,40 @@ jobs:
       - name: Install HTTP Generic API dependencies
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply isolated TTL assertion fixture
+        shell: bash
+        env:
+          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
+          source = path.read_text(encoding="utf-8")
+          old = '''  () => buildTenantGptOAuthTokenExchangeRoutes({ accessTokenTtlSeconds: 3601 }),'''
+          new = '''  () => buildTenantGptOAuthTokenExchangeRoutes({
+            verifyCode: () => ({}),
+            issueAccessToken: () => "test-access-token",
+            accessTokenTtlSeconds: 3601,
+          }),'''
+          if old in source:
+              source = source.replace(old, new, 1)
+          elif "issueAccessToken: () => \"test-access-token\"" not in source:
+              raise SystemExit("governed TTL assertion fixture was not found")
+          path.write_text(source, encoding="utf-8")
+          PY
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs; then
+            echo "TTL assertion fixture already isolated."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+            git commit -m "test(spec-012): isolate governed token TTL rejection"
+            git push origin "HEAD:${PR_HEAD_BRANCH}"
+          fi
 
       - name: Check reconciled T033 syntax
         run: |
