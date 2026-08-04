@@ -1,0 +1,2 @@
+trigger=current-main-work-map-v3-reconstruction
+main_sha=08d09443169a0382687900f6cd1dd045206850f4
