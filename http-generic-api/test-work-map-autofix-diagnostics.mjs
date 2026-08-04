@@ -100,8 +100,9 @@ try {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
+const workflowRoot = path.join(API_ROOT, "..", ".github", "workflows");
 const bootstrapWorkflow = readFileSync(
-  path.join(API_ROOT, "..", ".github", "workflows", "spec-kit-work-map-recovery-bootstrap.yml"),
+  path.join(workflowRoot, "spec-kit-work-map-recovery-bootstrap.yml"),
   "utf8",
 );
 
@@ -154,4 +155,55 @@ assert.doesNotMatch(bootstrapWorkflow, /gh api --method PATCH/u);
 assert.doesNotMatch(bootstrapWorkflow, /git (?:add|commit|push)/u);
 assert.doesNotMatch(bootstrapWorkflow, /--force|force-with-lease/u);
 
-console.log("Work Map Autofix diagnostic and independent bootstrap tests passed");
+const prRefreshWorkflow = readFileSync(
+  path.join(workflowRoot, "pr-generated-artifact-refresh.yml"),
+  "utf8",
+);
+const recoveryWorkflow = readFileSync(
+  path.join(workflowRoot, "spec-kit-work-map-autofix-recovery-dispatch.yml"),
+  "utf8",
+);
+const integrationWorkflow = readFileSync(
+  path.join(workflowRoot, "spec-kit-work-map-integration.yml"),
+  "utf8",
+);
+
+for (const [name, workflow] of [
+  ["PR Generated Artifact Refresh", prRefreshWorkflow],
+  ["Spec Kit Work Map Autofix Recovery Dispatch", recoveryWorkflow],
+  ["Spec Kit Work Map Integration", integrationWorkflow],
+]) {
+  assert.doesNotMatch(
+    workflow,
+    /\$\{\{\s*runner\.temp\s*\}\}/u,
+    `${name} must not evaluate runner.temp before runner allocation.`,
+  );
+}
+
+assert.match(prRefreshWorkflow, /Initialize bounded refresh report paths after runner allocation/u);
+assert.match(prRefreshWorkflow, /Initialize bounded activation report path after runner allocation/u);
+assert.match(prRefreshWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
+assert.match(prRefreshWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/work-map-recovery-activation"/u);
+assert.match(prRefreshWorkflow, /GITHUB_ENV/u);
+assert.doesNotMatch(prRefreshWorkflow, /contents:\s*write/u);
+assert.doesNotMatch(prRefreshWorkflow, /git\s+push/u);
+
+assert.match(recoveryWorkflow, /Initialize bounded recovery report directory after runner allocation/u);
+assert.match(recoveryWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/spec-kit-work-map-autofix-recovery"/u);
+assert.match(recoveryWorkflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
+assert.match(recoveryWorkflow, /path:\s*\$\{\{ env\.REPORT_DIR \}\}\//u);
+assert.match(recoveryWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
+assert.match(recoveryWorkflow, /authorization_consumed/u);
+assert.match(recoveryWorkflow, /protected_branch_mutation:false/u);
+assert.match(recoveryWorkflow, /force_push:false/u);
+assert.doesNotMatch(recoveryWorkflow, /--force|force-with-lease/u);
+
+assert.match(integrationWorkflow, /Initialize bounded Work Map repair root after runner allocation/u);
+assert.match(integrationWorkflow, /repair_root="\$\{RUNNER_TEMP\}\/work-map-repair-candidate"/u);
+assert.match(integrationWorkflow, /echo "WORK_MAP_REPAIR_ROOT=\$\{repair_root\}" >> "\$\{GITHUB_ENV\}"/u);
+assert.match(integrationWorkflow, /path:\s*\$\{\{ env\.WORK_MAP_REPAIR_ROOT \}\}/u);
+assert.match(integrationWorkflow, /permissions:\s*\n\s*contents:\s*read/u);
+assert.doesNotMatch(integrationWorkflow, /contents:\s*write/u);
+assert.doesNotMatch(integrationWorkflow, /git\s+push/u);
+
+console.log("Work Map Autofix diagnostics and recovery-chain registration tests passed");

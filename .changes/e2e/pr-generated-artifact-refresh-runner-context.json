@@ -12,7 +12,7 @@
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
       ".github/workflows/spec-kit-work-map-integration.yml",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
-      "http-generic-api/test-work-map-runner-context-registration.mjs"
+      "http-generic-api/test-work-map-autofix-diagnostics.mjs"
     ]
   },
   "merge_contract": {
@@ -56,10 +56,10 @@
               "args": []
             },
             {
-              "id": "work-map-runner-context-registration-regression",
+              "id": "work-map-recovery-chain-diagnostics-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-work-map-runner-context-registration.mjs",
+              "path": "test-work-map-autofix-diagnostics.mjs",
               "args": []
             }
           ],
@@ -68,7 +68,7 @@
             ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
-            "http-generic-api/test-work-map-runner-context-registration.mjs"
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs"
           ]
         }
       ]
@@ -76,12 +76,89 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Preserve existing exact-head validation, read-only evaluation, workflow activation readback, Recovery authorization consumption, writer dispatch, Integration repair-candidate publication, and bounded Artifacts."
+      "objective": "Preserve existing exact-head validation, read-only evaluation, workflow activation readback, Recovery authorization consumption, writer dispatch, Integration repair-candidate publication, and bounded Artifacts.",
+      "e2e_journeys": [
+        {
+          "id": "recovery-chain-preserves-authority-boundaries",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation governance reviewer",
+          "entrypoint": "Static workflow contracts and focused executable regressions",
+          "terminal_outcome": "The repaired chain retains the original authority split: read-only PR evaluation and Integration, one-time authorization consumption in Recovery, and remote content mutation only in the sole writer.",
+          "steps": [
+            "Inspect the permissions and triggers of the three repaired workflows.",
+            "Require exact-head and zero-behind validation before Recovery delegation.",
+            "Require one-time marker consumption only in Recovery.",
+            "Require PR evaluation and Integration to remain free of contents: write and git push.",
+            "Require bounded report and repair paths to be published through GITHUB_ENV after allocation."
+          ],
+          "assertions": [
+            "The PR workflow and Integration remain repository read-only.",
+            "Recovery dispatches the existing sole writer and does not implement a duplicate writer.",
+            "Protected branch mutation and force push remain false in structured evidence.",
+            "No secrets are included in reports or Artifacts."
+          ],
+          "tests": [
+            {
+              "id": "work-map-operational-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail regression if runner.temp returns to pre-allocation evaluation or any required report-path initialization bridge is removed."
+      "objective": "Fail regression if runner.temp returns to pre-allocation evaluation or any required report-path initialization bridge is removed.",
+      "e2e_journeys": [
+        {
+          "id": "runner-context-regression-fails-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Work Map integration gate",
+          "entrypoint": "Candidate change to any repaired workflow or Work Map governance test",
+          "terminal_outcome": "The exact-head gate rejects pre-allocation runner context use, missing initialization bridges, widened write authority, or unbounded report paths before merge.",
+          "steps": [
+            "Load each repaired workflow as trusted text.",
+            "Reject any runner.temp expression in the repaired chain.",
+            "Require the named post-allocation initialization step and RUNNER_TEMP path for each job.",
+            "Require GITHUB_ENV publication and matching Artifact paths.",
+            "Run E2E reference integrity and repository lifecycle governance on the bounded changed scope."
+          ],
+          "assertions": [
+            "The regression fails before delegation if a runner-scoped path is evaluated too early.",
+            "The regression fails if read-only jobs gain contents: write or git push.",
+            "No temporary unregistered repository tool is introduced.",
+            "All implemented phases expose at least one complete E2E journey."
+          ],
+          "tests": [
+            {
+              "id": "work-map-resilient-runner-context-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-work-map-autofix-diagnostics.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
