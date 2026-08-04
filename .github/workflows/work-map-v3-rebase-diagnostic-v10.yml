@@ -1,0 +1,128 @@
+name: Work Map V3 Rebase Diagnostic V10
+
+on:
+  pull_request:
+    branches:
+      - gpt/base-diagnose-work-map-v3-main-30b48a17-v10-20260804
+    paths:
+      - '.github/work-map-v3-rebase-diagnostic-v10.trigger'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: work-map-v3-rebase-diagnostic-v10-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Reconstruct on latest main and capture exact evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      PINNED_MAIN_SHA: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
+      SOURCE_CANDIDATE_SHA: 8b2c24d0311947a21a4686b51ef77710f744ff73
+      EVIDENCE_DIR: ${{ runner.temp }}/work-map-v3-rebase-diagnostic-v10
+    steps:
+      - name: Checkout pinned main
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.PINNED_MAIN_SHA }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Reconstruct and run focused contracts
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "$EVIDENCE_DIR"
+          : > "$EVIDENCE_DIR/results.env"
+
+          actual_sha="$(git rev-parse HEAD)"
+          live_main_sha="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          printf '%s\n' "$actual_sha" > "$EVIDENCE_DIR/checked-out-sha.txt"
+          printf '%s\n' "$live_main_sha" > "$EVIDENCE_DIR/live-main-sha.txt"
+
+          test "$actual_sha" = "$PINNED_MAIN_SHA"
+          checkout_identity_exit=$?
+          test "$live_main_sha" = "$PINNED_MAIN_SHA"
+          live_main_identity_exit=$?
+
+          git fetch --no-tags origin "$SOURCE_CANDIDATE_SHA" >"$EVIDENCE_DIR/fetch-source.stdout" 2>"$EVIDENCE_DIR/fetch-source.stderr"
+          fetch_source_exit=$?
+
+          if [[ "$checkout_identity_exit" -eq 0 && "$live_main_identity_exit" -eq 0 && "$fetch_source_exit" -eq 0 ]]; then
+            git cherry-pick --no-commit "$SOURCE_CANDIDATE_SHA" >"$EVIDENCE_DIR/cherry-pick.stdout" 2>"$EVIDENCE_DIR/cherry-pick.stderr"
+            cherry_pick_exit=$?
+          else
+            cherry_pick_exit=98
+          fi
+
+          git status --short > "$EVIDENCE_DIR/git-status.txt" 2>&1
+          git diff --name-only --diff-filter=U > "$EVIDENCE_DIR/unmerged-files.txt" 2>&1
+          git diff --name-status HEAD > "$EVIDENCE_DIR/changed-files.tsv" 2>&1
+          git diff --stat HEAD > "$EVIDENCE_DIR/diff-stat.txt" 2>&1
+
+          run_check() {
+            local name="$1"
+            shift
+            if [[ "$cherry_pick_exit" -ne 0 ]]; then
+              printf '99\n' > "$EVIDENCE_DIR/${name}.exit"
+              return
+            fi
+            "$@" >"$EVIDENCE_DIR/${name}.stdout" 2>"$EVIDENCE_DIR/${name}.stderr"
+            printf '%s\n' "$?" > "$EVIDENCE_DIR/${name}.exit"
+          }
+
+          run_check json_contract node -e "JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8')); JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))"
+          run_check pipeline_syntax node --check http-generic-api/test-pipeline-connectivity-check.mjs
+          run_check exact_dispatch bash -lc 'cd http-generic-api && node test-work-map-post-write-exact-verification-dispatch.mjs'
+          run_check pipeline_runtime node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_check pipeline_regression node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_check repository_lifecycle node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          run_check diff_check git diff --check HEAD
+
+          {
+            echo "checkout_identity_exit=$checkout_identity_exit"
+            echo "live_main_identity_exit=$live_main_identity_exit"
+            echo "fetch_source_exit=$fetch_source_exit"
+            echo "cherry_pick_exit=$cherry_pick_exit"
+            for name in json_contract pipeline_syntax exact_dispatch pipeline_runtime pipeline_regression repository_lifecycle diff_check; do
+              value="$(cat "$EVIDENCE_DIR/${name}.exit")"
+              echo "${name}_exit=$value"
+            done
+          } | tee "$EVIDENCE_DIR/results.env"
+
+          exit 0
+
+      - name: Upload diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-v3-rebase-diagnostic-v10-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-v3-rebase-diagnostic-v10/
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
+
+      - name: Enforce diagnostic result
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$EVIDENCE_DIR/results.env"
+          test "$checkout_identity_exit" -eq 0
+          test "$live_main_identity_exit" -eq 0
+          test "$fetch_source_exit" -eq 0
+          test "$cherry_pick_exit" -eq 0
+          test "$json_contract_exit" -eq 0
+          test "$pipeline_syntax_exit" -eq 0
+          test "$exact_dispatch_exit" -eq 0
+          test "$pipeline_runtime_exit" -eq 0
+          test "$pipeline_regression_exit" -eq 0
+          test "$repository_lifecycle_exit" -eq 0
+          test "$diff_check_exit" -eq 0
+          test ! -s "$EVIDENCE_DIR/unmerged-files.txt"
