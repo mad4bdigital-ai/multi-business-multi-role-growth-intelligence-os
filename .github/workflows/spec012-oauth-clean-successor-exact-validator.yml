@@ -16,7 +16,7 @@ concurrency:
 jobs:
   validate:
     if: github.event.pull_request.head.ref == 'gpt/validate-spec012-oauth-e67d-clean-20260804'
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
