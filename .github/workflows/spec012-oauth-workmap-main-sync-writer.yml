@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 90
     env:
       EXPECTED_MAIN_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
-      PRE_WRITER_HEAD: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+      PRE_WRITER_HEAD: 2bb224d5821ce6e81fae1c401e3c28a895ad6484
       BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
       WORKFLOW_PATH: .github/workflows/spec012-oauth-workmap-main-sync-writer.yml
       CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
@@ -68,7 +68,7 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Install locked dependencies
+      - name: Install locked candidate dependencies
         working-directory: http-generic-api
         run: npm ci
 
@@ -114,7 +114,9 @@ jobs:
           mkdir -p evidence
           git rm "${WORKFLOW_PATH}"
           git add "${CONTRACT_PATH}" http-generic-api/frontend-surface-dispatch.generated.json
-          if ! git diff --cached --quiet; then git commit -m "ci(spec-012): retire Work Map main sync writer"; fi
+          if ! git diff --cached --quiet; then
+            git commit -m "ci(spec-012): retire corrected Work Map main sync writer"
+          fi
           final_sha="$(git rev-parse HEAD)"
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
           expected=(
@@ -139,38 +141,33 @@ jobs:
             node test-spec012-t033-short-lived-bearer-profile.mjs
             npm run frontend:dispatch:check
           ) | tee evidence/focused-validation.log
-          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${FINAL_SHA}" --report-file evidence/e2e-phase-evaluation.json
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
           (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
 
-      - name: Classify architecture result against current main
+      - name: Validate architecture against dependency-complete current main
         shell: bash
         run: |
           set -euo pipefail
           baseline_dir="${RUNNER_TEMP}/oauth-main-baseline"
           git worktree add --detach "${baseline_dir}" "${EXPECTED_MAIN_SHA}"
-          set +e
-          (cd "${baseline_dir}/http-generic-api" && node validate-architecture.mjs) > evidence/architecture-main.log 2>&1
-          main_status=$?
-          (cd http-generic-api && node validate-architecture.mjs) > evidence/architecture-candidate.log 2>&1
-          candidate_status=$?
-          set -e
+          (cd "${baseline_dir}/http-generic-api" && npm ci --ignore-scripts)
+          (cd "${baseline_dir}/http-generic-api" && node validate-architecture.mjs) 2>&1 | tee evidence/architecture-main.log
+          (cd http-generic-api && node validate-architecture.mjs) 2>&1 | tee evidence/architecture-candidate.log
           base_lines="$(wc -l < "${baseline_dir}/http-generic-api/routes/index.js" | tr -d ' ')"
           candidate_lines="$(wc -l < http-generic-api/routes/index.js | tr -d ' ')"
           test "${base_lines}" = "${candidate_lines}"
-          if [ "${candidate_status}" -ne 0 ]; then
-            test "${main_status}" -ne 0
-            grep -F "http-generic-api/routes/index.js — Large file (${base_lines} lines) — consider splitting" evidence/architecture-main.log
-            grep -F "http-generic-api/routes/index.js — Large file (${candidate_lines} lines) — consider splitting" evidence/architecture-candidate.log
-          fi
           {
-            echo "main_architecture_status=${main_status}"
-            echo "candidate_architecture_status=${candidate_status}"
+            echo "main_architecture_status=0"
+            echo "candidate_architecture_status=0"
             echo "main_route_index_lines=${base_lines}"
             echo "candidate_route_index_lines=${candidate_lines}"
             echo "architecture_baseline_equal=true"
           } | tee evidence/architecture-classification.txt
 
-      - name: Validate runtime verify and structured startup independently
+      - name: Validate structured startup independently
         working-directory: http-generic-api
         shell: bash
         env:
@@ -180,7 +177,12 @@ jobs:
           RUNTIME_STARTUP_EVIDENCE_DIR: "${{ runner.temp }}/runtime-startup-deployment-evidence"
         run: |
           set -euo pipefail
-          npm run verify 2>&1 | tee ../evidence/runtime-verify.log
+          {
+            echo "live_runtime_verification=not_applicable_pre_merge"
+            echo "reason=verify-runtime.mjs requires a deployed RUNTIME_BASE_URL and is not a local candidate test"
+            echo "provider_or_runtime_access=false"
+            echo "secrets_included=false"
+          } | tee ../evidence/runtime-verify-classification.txt
           node scripts/test-runtime-startup-deployment-evidence.mjs 2>&1 | tee ../evidence/runtime-startup-reporter-test.log
           node test-remote-mcp-disabled-startup-boundary.mjs 2>&1 | tee ../evidence/disabled-oauth-startup-boundary.log
           export DEPLOYMENT_COMMIT_SHA="${FINAL_SHA}"
@@ -216,6 +218,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
           test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
           git push origin "HEAD:${BRANCH_NAME}"
