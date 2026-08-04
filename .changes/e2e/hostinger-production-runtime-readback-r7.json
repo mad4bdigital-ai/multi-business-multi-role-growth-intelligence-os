@@ -19,30 +19,32 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a reusable owner-bound, public-HTTPS-GET-only readback that compares the exact protected Production ref with public runtime SHA and branch provenance after each governed Git promotion.",
+      "objective": "Provide a reusable owner-bound, public-HTTPS-GET-only readback that compares the exact protected Production ref with public runtime SHA and branch provenance after each governed Git promotion without mutating repository content or conversations.",
       "e2e_journeys": [
         {
-          "id": "verify-current-production-runtime-without-provider-mutation",
+          "id": "verify-current-production-runtime-without-provider-or-repository-mutation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository owner performing post-promotion runtime verification",
-          "entrypoint": "An exact issue or pull-request comment using RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=<40-hex-sha>",
-          "terminal_outcome": "The workflow publishes scrubbed Artifact and conversation evidence that classifies the runtime as production_current only when all four public endpoints return HTTP 200 and both runtime SHA and branch provenance exactly match the protected Production ref.",
+          "entrypoint": "An exact pull-request comment using RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=<40-hex-sha>",
+          "terminal_outcome": "The workflow publishes a scrubbed Artifact and read-only Job Summary that classify the runtime as production_current only when all four public endpoints return HTTP 200 and both runtime SHA and branch provenance exactly match the protected Production ref.",
           "steps": [
             "Validate the trigger author identity and exact 40-hex expected Production SHA command.",
+            "Initialize the bounded report directory after runner allocation rather than evaluating runner.temp in job-level environment configuration.",
             "Checkout trusted default-branch tooling without persisted credentials.",
             "Read protected main and Production refs and require the Production ref to equal the expected SHA before collection.",
             "Fetch health, version, deployment-info, and connector-agent version through bounded public HTTPS GET requests.",
             "Scrub sensitive response keys and derive exact SHA, branch, HTTP, and classification evidence.",
             "Re-read the protected Production ref after collection to reject ref movement during the evidence cycle.",
-            "Publish exactly one bounded GitHub result comment, mark that comment mutation explicitly in the summary, upload the resulting evidence, and fail closed unless production_current is true."
+            "Publish the bounded decision only to the GitHub Actions Job Summary and retained Artifact, then fail closed unless production_current is true."
           ],
           "assertions": [
             "Only the repository owner numeric identity can trigger the workflow.",
             "The command must contain exactly one lowercase 40-hex expected Production SHA.",
             "The protected Production ref is read before and after public runtime collection and must remain exact.",
             "The workflow uses no Hostinger credential or provider API token.",
-            "Repository content and protected refs remain read-only; one bounded GitHub issue or pull-request result comment is the only authorized repository mutation.",
+            "Repository content, protected refs, issues, pull-request conversations, and comments remain read-only.",
+            "The workflow requires no issues:write permission and performs no gh api mutation.",
             "The workflow performs no build creation, deployment, release activation, restart, SQL, Migration Apply, database mutation, force push, or external business send.",
             "Runtime currentness requires HTTP 200 for all four endpoints, exact SHA parity in version and deployment-info, and exact Production branch provenance.",
             "All persisted evidence is bounded, scrubbed, and secret-free."
@@ -67,22 +69,98 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Allow an exact owner comment to generate same-cycle public runtime evidence and one bounded GitHub result comment."
+      "objective": "Allow an exact owner comment to generate same-cycle public runtime evidence through a bounded Artifact and read-only Job Summary.",
+      "e2e_journeys": [
+        {
+          "id": "publish-same-cycle-read-only-runtime-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner reviewing the runtime state after a governed Production promotion",
+          "entrypoint": "An exact pull-request comment containing the owner-bound R7 command and the expected protected Production SHA",
+          "terminal_outcome": "The workflow retains one bounded Artifact and a Job Summary tied to the run, trigger comment, tooling SHA, protected refs, HTTP observations, and final runtime classification without writing to repository conversations.",
+          "steps": [
+            "Bind the trigger to the repository owner identity and exact expected Production SHA.",
+            "Capture trusted tooling, main, and Production commit identities before public collection.",
+            "Collect and scrub the four bounded public HTTPS responses.",
+            "Publish the classification to the run Job Summary and retained Artifact.",
+            "Enforce exact production_current evidence before the workflow can succeed."
+          ],
+          "assertions": [
+            "The evidence records the run, trigger comment, tooling SHA, and observed protected refs.",
+            "The Artifact path is initialized only after runner allocation and fails if no report is available.",
+            "The Job Summary and Artifact describe the same bounded runtime decision.",
+            "No issue or pull-request comment is created or modified.",
+            "No provider credential, deployment action, SQL, Migration Apply, or secret is used."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-readback-r7-operational-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on malformed commands, protected-ref movement, DNS or HTTP failure, non-JSON or oversized responses, runtime SHA mismatch, branch provenance mismatch, or result-comment publication failure."
+      "objective": "Fail closed on malformed commands, protected-ref movement, DNS or HTTP failure, non-JSON or oversized responses, runtime SHA mismatch, branch provenance mismatch, unavailable bounded evidence, or any repository-mutation signature.",
+      "e2e_journeys": [
+        {
+          "id": "reject-readback-mutation-and-runtime-parity-regressions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance validating changes to the R7 runtime readback surface",
+          "entrypoint": "A change to the R7 workflow, executable contract test, or E2E phase contract",
+          "terminal_outcome": "The contract test and fail-closed workflow reject repository-write permissions, GitHub API mutations, unsafe report-directory evaluation, unbounded transport behavior, protected-ref drift, or incomplete runtime parity.",
+          "steps": [
+            "Load the permanent R7 workflow through the executable contract test.",
+            "Assert the owner-bound trigger, exact SHA format, protected-ref reads, and bounded HTTPS transport.",
+            "Reject issues:write, GH_TOKEN, gh api, git push, provider credentials, deployment tools, SQL mutations, and secrets.",
+            "Require runner-safe report initialization, retained Artifact publication, and Job Summary evidence.",
+            "Require exact HTTP, SHA, and branch provenance parity before success."
+          ],
+          "assertions": [
+            "Malformed trigger commands and protected-ref movement fail closed.",
+            "Missing, non-JSON, oversized, or unsuccessful public responses cannot produce production_current.",
+            "Runtime SHA or Production branch provenance mismatch cannot pass enforcement.",
+            "Repository conversations and protected refs remain read-only.",
+            "Regression signatures for provider access, deployment, restart, SQL, Migration Apply, database mutation, or secret access are absent."
+          ],
+          "tests": [
+            {
+              "id": "production-runtime-readback-r7-resilience-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Execute the first exact Production readback after merge and preserve the run, job, Artifact, and bounded result comment as acceptance evidence."
+      "objective": "Execute the first exact Production readback after merge and preserve the run, job, Artifact, and Job Summary as acceptance evidence."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This read-only evidence workflow never performs a Production ref change, Hostinger provider mutation, deployment, restart, SQL, Migration Apply, or database mutation."
+      "objective": "This read-only evidence workflow never performs a Production ref change, GitHub repository mutation, Hostinger provider mutation, deployment, restart, SQL, Migration Apply, or database mutation."
     }
   ],
   "secrets_included": false
