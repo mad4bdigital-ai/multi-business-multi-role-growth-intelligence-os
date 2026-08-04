@@ -1,20 +1,26 @@
 name: Spec 014 Surface Generated Evidence Writer 20260804
 
 on:
-  push:
+  pull_request:
     branches:
-      - gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v1
+      - main
+    types: [opened, reopened, synchronize]
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: spec014-surface-generated-evidence-writer-20260804
+  group: spec014-surface-generated-evidence-writer-20260804-${{ github.event.pull_request.number }}
   cancel-in-progress: false
 
 jobs:
   generate:
     name: Generate bounded Spec 014 Surface evidence
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v1' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -24,10 +30,10 @@ jobs:
       MIGRATION_FILE: 20260802_03_spec014_hostinger_storage_execution_evidence.sql
       MIGRATION_SHA256: cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096
     steps:
-      - name: Checkout exact writer branch
+      - name: Checkout exact PR head
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
@@ -35,13 +41,22 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Verify immutable base and writer-only starting delta
+      - name: Verify immutable PR identity and writer-only starting delta
         shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_EVENT_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = "$TARGET_BRANCH"
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "$TARGET_BRANCH"
+          test "$BASE_REF" = "main"
+          test "$BASE_EVENT_SHA" = "$BASE_SHA"
+          test "$(git rev-parse HEAD)" = "$HEAD_SHA"
           git merge-base --is-ancestor "$BASE_SHA" HEAD
-          test "$(git rev-list --count "${BASE_SHA}..HEAD")" = "1"
           git diff --name-only "$BASE_SHA" HEAD | sort > "$RUNNER_TEMP/initial-files.txt"
           printf '%s\n' "$WRITER_PATH" > "$RUNNER_TEMP/expected-initial-files.txt"
           diff -u "$RUNNER_TEMP/expected-initial-files.txt" "$RUNNER_TEMP/initial-files.txt"
