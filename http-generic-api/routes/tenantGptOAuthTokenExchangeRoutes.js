@@ -1,7 +1,10 @@
 import express, { Router } from "express";
 import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
-import { TENANT_GPT_OAUTH_CLIENT_ID } from "../tenantGptOAuthPreset.js";
+import {
+  resolveTenantGptAccessTokenTtlSeconds,
+  validateTenantGptAccessTokenTtlSeconds,
+} from "../tenantGptAccessTokenProfile.js";
 import {
   normalizeTenantGptOAuthResource,
   resolveTenantGptOAuthResourceProfile,
@@ -15,7 +18,6 @@ import {
 } from "../tenantGptOAuthTokenExchangeOutcomePolicy.js";
 import { recordTenantGptActivationContext } from "../tenantGptActivationContextStore.js";
 
-const USER_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
 const CHATGPT_CANONICAL_CALLBACK_HOST = "chatgpt.com";
 const CHATGPT_LEGACY_CALLBACK_HOST = "chat.openai.com";
 
@@ -187,6 +189,7 @@ async function recordTokenExchangeDiagnostic(query, event = {}) {
       client: event.client || null,
       client_validation_source: event.client_validation_source || null,
       resource_profile: event.resource_profile || null,
+      bearer_profile: event.bearer_profile || null,
       subject_prevalidated: event.subject_prevalidated === true,
       access_token_prepared: event.access_token_prepared === true,
       access_token: event.access_token || null,
@@ -260,6 +263,9 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const resolveSubject = deps.resolveActiveSubject || resolveActiveTokenSubject;
   const createId = deps.randomUUID || randomUUID;
   const now = deps.now || (() => Date.now());
+  const accessTokenTtlSeconds = deps.accessTokenTtlSeconds === undefined
+    ? resolveTenantGptAccessTokenTtlSeconds(deps.env || process.env)
+    : validateTenantGptAccessTokenTtlSeconds(deps.accessTokenTtlSeconds);
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     const startedAtMs = now();
@@ -274,6 +280,17 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       code: safeCodeEvidence(req.body?.code, startedAtMs, decodeCode),
       redirect_uri: safeRedirectEvidence(req.body?.redirect_uri),
       client: safeClientEvidence(oauthClientCredentials(req)),
+      bearer_profile: {
+        ttl_seconds: accessTokenTtlSeconds,
+        issuer_claim_required: true,
+        audience_claim_required: true,
+        subject_claim_required: true,
+        expiry_claim_required: true,
+        user_claim_required: true,
+        tenant_claim_required: true,
+        short_lived: true,
+        secrets_included: false,
+      },
     };
 
     delete req.headers.cookie;
@@ -426,14 +443,14 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       tokenLogContext.subject_prevalidated = true;
 
       const accessJti = createId();
-      const accessExpiresAt = new Date(now() + USER_TOKEN_TTL_SECONDS * 1000);
+      const accessExpiresAt = new Date(now() + accessTokenTtlSeconds * 1000);
       const accessToken = issueAccessToken(
         { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
         {
           clientId: clientValidation.client_id,
           jwtid: accessJti,
           resource: resourceProfile.resource,
-          expiresIn: USER_TOKEN_TTL_SECONDS,
+          expiresIn: accessTokenTtlSeconds,
         },
       );
       tokenLogContext.access_token_prepared = true;
@@ -490,7 +507,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       const tokenResponse = {
         access_token: accessToken,
         token_type: "bearer",
-        expires_in: USER_TOKEN_TTL_SECONDS,
+        expires_in: accessTokenTtlSeconds,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
 
