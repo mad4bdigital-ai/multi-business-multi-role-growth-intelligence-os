@@ -18,32 +18,76 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   final-work-map-readback:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.number == 6306 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate/runtime-parity-final-head-c58ee81-20260804' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.actor == 'mad4bdigital-ai'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      TARGET_PR: '5985'
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      TARGET_SHA: c58ee81cc0bf817cf8e6cd396cde3574800b928c
+      GH_TOKEN: ${{ github.token }}
+
     steps:
-      - name: Checkout exact candidate head
+      - name: Checkout immutable target candidate
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: c58ee81cc0bf817cf8e6cd396cde3574800b928c
+          fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify exact candidate checkout
-        if: github.event_name == 'pull_request'
+      - name: Verify immutable target identity and scope
         shell: bash
         run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${TARGET_SHA}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = open
+          test "$(jq -r '.draft' <<<"${pr_json}")" = false
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = main
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${TARGET_SHA}"
+
+          compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${TARGET_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = 0
+          status="$(jq -r '.status' <<<"${compare_json}")"
+          [[ "${status}" = ahead || "${status}" = identical ]]
+
+          actual_scope="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}/files" --jq '.[].filename' | sort)"
+          expected_scope="$(printf '%s\n' \
+            '.changes/e2e/production-runtime-parity-comment-bridge.json' \
+            '.github/workflows/production-runtime-parity-comment-bridge.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' \
+            'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs' | sort)"
+          test "${actual_scope}" = "${expected_scope}"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: "22"
 
-      - name: Check readback syntax
-        run: node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
+      - name: Validate bridge and Work Map generation contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
 
       - name: Build structured exact-head readback
         id: readback
@@ -65,14 +109,14 @@ jobs:
           const dir = process.argv[2];
           const report = JSON.parse(fs.readFileSync(path.join(dir, 'summary.json'), 'utf8'));
           const rows = [
-            '# Spec 014 Final Work Map Readback',
+            '# Runtime Parity Final Head Work Map Readback',
             '',
-            `- Outcome: **${report.ok ? 'passed' : 'failed'}**`,
+            `- Target PR: **#5985**`,
             `- Candidate SHA: \`${report.candidate_sha}\``,
+            `- Outcome: **${report.ok ? 'passed' : 'failed'}**`,
             `- Current registry fingerprint: \`${report.current_registry.fingerprint}\``,
             `- Manifest fingerprint: \`${report.manifest_registry?.fingerprint || 'missing'}\``,
             `- Work Maps: \`${report.current_registry.map_count}\``,
-            `- Schema domains: \`${report.current_registry.domain_count}\``,
             `- Classification coverage: \`${report.classification.coverage_percent}%\``,
             `- Findings: \`${report.findings.length}\``,
             `- Secrets included: \`${report.secrets_included}\``,
@@ -92,10 +136,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: spec014-final-work-map-readback-${{ github.run_id }}
+          name: runtime-parity-final-head-readback-c58ee81-${{ github.run_id }}
           path: ${{ runner.temp }}/spec014-final-work-map-readback
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 14
 
       - name: Publish workflow summary
         if: always()
@@ -109,4 +153,6 @@ jobs:
           const fs = require('node:fs');
           const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           if (!report.ok) process.exit(1);
+          if (report.secrets_included !== false) process.exit(1);
+          if (report.candidate_sha !== 'c58ee81cc0bf817cf8e6cd396cde3574800b928c') process.exit(1);
           NODE
