@@ -137,6 +137,7 @@ export function buildTenantGptOAuthTokenExchangeDeps(deps = {}, env = deps.env |
   const accessTokenTtlSeconds = resolveTenantGptAccessTokenTtlSeconds(env);
   const injectedVerifyCode = typeof deps.verifyCode === "function" ? deps.verifyCode : null;
   const injectedIssueAccessToken = typeof deps.issueAccessToken === "function" ? deps.issueAccessToken : null;
+  const decodeCode = typeof deps.decodeCode === "function" ? deps.decodeCode : ((code) => jwt.decode(String(code || "")));
   const verifyCode = injectedVerifyCode || ((code) => {
     const rawCode = String(code || "").trim();
     if (!rawCode || rawCode.length > BINDING_LIMITS.code) {
@@ -161,6 +162,7 @@ export function buildTenantGptOAuthTokenExchangeDeps(deps = {}, env = deps.env |
       return validateTenantGptOAuthAuthorizationCodeBindings(verifyCode(code));
     },
     issueAccessToken,
+    decodeCode,
   };
 }
 
