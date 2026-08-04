@@ -1,0 +1,142 @@
+name: Validation-only Writer Dispatch Failure Collector 92142994372
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/collect-writer-dispatch-failure-92142994372.yml
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    name: Collect exact Writer dispatch failure
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      TARGET_JOB_ID: "92142994372"
+      TARGET_RUN_ID: "30954109829"
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Collect immutable metadata and job log
+        id: collect
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p evidence
+          status=0
+
+          if ! gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "repos/${GITHUB_REPOSITORY}/actions/jobs/${TARGET_JOB_ID}" \
+            > evidence/job-metadata.json 2> evidence/metadata-fetch.stderr.txt; then
+            status=1
+          fi
+
+          if [[ -s evidence/job-metadata.json ]]; then
+            if ! jq -e \
+              --arg job "${TARGET_JOB_ID}" \
+              --arg run "${TARGET_RUN_ID}" \
+              '.id == ($job | tonumber) and .run_id == ($run | tonumber)' \
+              evidence/job-metadata.json \
+              > evidence/identity-check.json 2> evidence/identity-check.stderr.txt; then
+              status=1
+            fi
+          else
+            printf '%s\n' 'job metadata was not retrieved' > evidence/identity-check.stderr.txt
+            status=1
+          fi
+
+          if ! curl --fail --silent --show-error --location \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/jobs/${TARGET_JOB_ID}/logs" \
+            --output evidence/job.log \
+            2> evidence/log-fetch.stderr.txt; then
+            status=1
+          fi
+
+          if [[ ! -s evidence/job.log ]]; then
+            printf '%s\n' 'job log was not retrieved or was empty' >> evidence/log-fetch.stderr.txt
+            status=1
+          fi
+
+          printf '%s\n' "${status}" > evidence/collector-status.txt
+          exit "${status}"
+
+      - name: Extract dispatch failure evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source = Path('evidence/job.log')
+          target = Path('evidence/focused-log-excerpt.txt')
+          if not source.exists():
+              target.write_text('job.log is unavailable\n', encoding='utf-8')
+              raise SystemExit(0)
+
+          lines = source.read_text(encoding='utf-8', errors='replace').splitlines()
+          needles = (
+              'Dispatch exact-head verification',
+              'Dispatch strict verification workflow for generated head',
+              'spec-kit-work-map-integration',
+              'gh workflow run',
+              'HTTP 4',
+              'HTTP 5',
+              'could not',
+              'failed',
+              'error',
+              '422',
+              '404',
+              '403',
+          )
+          hits = [i for i, line in enumerate(lines) if any(n.lower() in line.lower() for n in needles)]
+          selected = set()
+          for i in hits:
+              selected.update(range(max(0, i - 35), min(len(lines), i + 70)))
+          if not selected:
+              selected.update(range(max(0, len(lines) - 600), len(lines)))
+          rendered = []
+          previous = None
+          for i in sorted(selected):
+              if previous is not None and i != previous + 1:
+                  rendered.append('--- omitted ---')
+              rendered.append(f'{i + 1:06d}: {lines[i]}')
+              previous = i
+          target.write_text('\n'.join(rendered) + '\n', encoding='utf-8')
+          PY
+
+          jq '{id,run_id,name,workflow_name,head_sha,status,conclusion,runner_name,started_at,completed_at}' \
+            evidence/job-metadata.json > evidence/job-identity-summary.json
+          find evidence -maxdepth 1 -type f ! -name sha256sums.txt -print0 \
+            | sort -z | xargs -0 sha256sum > evidence/sha256sums.txt
+
+      - name: Upload immutable Writer failure evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: writer-dispatch-failure-92142994372
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce successful evidence collection
+        if: always()
+        env:
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${COLLECT_OUTCOME}" = success
+          test "$(cat evidence/collector-status.txt)" = "0"
+          test -s evidence/job-metadata.json
+          test -s evidence/job.log
+          test -s evidence/focused-log-excerpt.txt
