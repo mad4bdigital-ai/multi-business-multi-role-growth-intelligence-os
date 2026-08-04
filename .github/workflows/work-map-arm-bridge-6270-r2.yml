@@ -1,0 +1,96 @@
+name: Work Map ARM Bridge 6270 R2
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches:
+      - gpt/governed/work-map-arm-bridge-6270-r2-base-20260804
+    paths:
+      - docs/governance/work-map-arm-bridge-6270-r2.trigger.md
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: work-map-arm-bridge-6270-r2
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/governed/work-map-arm-bridge-6270-r2-trigger-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      TARGET_PR: '6270'
+      TARGET_BRANCH: fix/hostinger-production-r7-registration-main-e25ae2e9-20260804
+      EXPECTED_HEAD_SHA: 9c018835333cfef9456e3c9a4c47fb5491582ab6
+      AUTHORIZATION_MARKER: '- [x] work-map-autofix:authorized'
+      TRIGGER_PATH: docs/governance/work-map-arm-bridge-6270-r2.trigger.md
+    steps:
+      - name: Validate immutable bridge trigger and target PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.base.ref }}" = "gpt/governed/work-map-arm-bridge-6270-r2-base-20260804"
+          test "${{ github.event.pull_request.head.ref }}" = "gpt/governed/work-map-arm-bridge-6270-r2-trigger-20260804"
+          test "${{ github.event.pull_request.changed_files }}" = "1"
+
+          files="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}/files" --paginate --jq '.[].filename')"
+          test "${files}" = "${TRIGGER_PATH}"
+
+          target="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = "open"
+          test "$(jq -r '.draft' <<<"${target}")" = "true"
+          test "$(jq -r '.base.ref' <<<"${target}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${target}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${EXPECTED_HEAD_SHA}"
+          body="$(jq -r '.body // ""' <<<"${target}")"
+          grep -Fqx -- "${AUTHORIZATION_MARKER}" <<<"${body}"
+
+      - name: Consume one-time authorization marker
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          target="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          body="$(jq -r '.body // ""' <<<"${target}")"
+          current_head="$(jq -r '.head.sha' <<<"${target}")"
+          test "${current_head}" = "${EXPECTED_HEAD_SHA}"
+          next_body="$(printf '%s\n' "${body}" | sed 's/^- \[x\] work-map-autofix:authorized$/- [x] work-map-autofix:consumed head=9c018835333cfef9456e3c9a4c47fb5491582ab6 bridge_run='"${GITHUB_RUN_ID}"'/')"
+          test "${next_body}" != "${body}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" -f body="${next_body}" >/dev/null
+          reread="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.head.sha' <<<"${reread}")" = "${EXPECTED_HEAD_SHA}"
+          grep -Fq -- "work-map-autofix:consumed head=${EXPECTED_HEAD_SHA} bridge_run=${GITHUB_RUN_ID}" <<<"$(jq -r '.body // ""' <<<"${reread}")"
+
+      - name: Dispatch sole official Work Map writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" --jq '.head.sha')" = "${EXPECTED_HEAD_SHA}"
+          gh workflow run spec-kit-work-map-autofix.yml \
+            --ref main \
+            -f branch="${TARGET_BRANCH}" \
+            -f expected_head_sha="${EXPECTED_HEAD_SHA}"
+          {
+            echo "# Work Map ARM Bridge 6270 R2"
+            echo
+            echo "- Target PR: #${TARGET_PR}"
+            echo "- Authorized head: \`${EXPECTED_HEAD_SHA}\`"
+            echo "- Official writer: \`spec-kit-work-map-autofix.yml\`"
+            echo "- Direct generated edit: \`false\`"
+            echo "- Protected-ref mutation: \`false\`"
+            echo "- Force push: \`false\`"
+            echo "- Provider / deployment / SQL / migration: \`false\`"
+            echo "- Secrets included: \`false\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
