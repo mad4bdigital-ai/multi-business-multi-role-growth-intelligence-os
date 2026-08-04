@@ -1,0 +1,241 @@
+name: TEMP Diagnose Work Map V3 Current Main V8
+
+on:
+  pull_request:
+    branches:
+      - gpt/base-diagnose-work-map-v3-main-7b8754c4-v8-20260804
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: temp-diagnose-work-map-v3-v8-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    name: Read-only focused source diagnosis
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    env:
+      MAIN_SHA: 7b8754c46efd7f72dac7decb60c327b7205e6687
+      SOURCE_SHA: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+      SOURCE_REF: gpt/work-map-post-write-exact-observable-dispatch-a61cd9e8-v2-20260804
+      TRIGGER_REF: gpt/trigger-diagnose-work-map-v3-main-7b8754c4-v8-20260804
+    steps:
+      - name: Checkout pinned main snapshot
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.MAIN_SHA }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Record identities and fetch reviewed source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .diagnostic
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "event_head_repo=${{ github.event.pull_request.head.repo.full_name }}"
+            echo "event_head_ref=${{ github.event.pull_request.head.ref }}"
+            echo "expected_trigger_ref=${TRIGGER_REF}"
+            echo "checked_out_sha=$(git rev-parse HEAD)"
+            echo "pinned_main_sha=${MAIN_SHA}"
+            live_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            echo "live_main_sha=${live_main_sha}"
+            if [ "${live_main_sha}" = "${MAIN_SHA}" ]; then
+              echo 'main_moved=false'
+            else
+              echo 'main_moved=true'
+            fi
+          } > .diagnostic/identities.log 2>&1
+
+          identity_rc=0
+          test "${{ github.event.pull_request.head.repo.full_name }}" = "${GITHUB_REPOSITORY}" || identity_rc=1
+          test "${{ github.event.pull_request.head.ref }}" = "${TRIGGER_REF}" || identity_rc=1
+          test "$(git rev-parse HEAD)" = "${MAIN_SHA}" || identity_rc=1
+          git fetch --no-tags origin "+refs/heads/${SOURCE_REF}:refs/remotes/origin/reviewed-source" >> .diagnostic/identities.log 2>&1 || identity_rc=1
+          test "$(git rev-parse refs/remotes/origin/reviewed-source 2>/dev/null)" = "${SOURCE_SHA}" || identity_rc=1
+          git cat-file -e "${SOURCE_SHA}^{commit}" || identity_rc=1
+          echo "${identity_rc}" > .diagnostic/identities.rc
+          cat .diagnostic/identities.log
+          exit 0
+
+      - name: Reconstruct bounded six-file source
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .diagnostic
+          (
+            set -euo pipefail
+            git checkout "${SOURCE_SHA}" -- \
+              .github/workflows/ci.yml \
+              .github/workflows/spec-kit-work-map-autofix.yml \
+              .github/workflows/spec-kit-work-map-integration.yml \
+              http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs
+
+            python3 <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/spec-kit-work-map-autofix.yml')
+          source = path.read_text()
+          old = '          [[ "${TARGET_BRANCH}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]'
+          new = '          [[ "${TARGET_BRANCH}" != refs/* ]]'
+          if source.count(old) != 1:
+              raise SystemExit('reviewed branch-prefix assertion is not unique')
+          path.write_text(source.replace(old, new))
+          PY
+
+            node <<'NODE'
+          const fs = require('node:fs');
+          const contractPath = '.specify/pipeline-connectivity-contract.json';
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const legacy = new Set([
+            'gh workflow run ci.yml',
+            'gh workflow run spec-kit-work-map-integration.yml',
+            'mad4b.spec-kit-work-map-autofix.v2',
+            'WORK_MAP_AUTOFIX_V2',
+          ]);
+          const modern = [
+            'RESULT_HEAD_SHA',
+            'gh api --method POST',
+            'actions/workflows/ci.yml/dispatches',
+            'actions/workflows/spec-kit-work-map-integration.yml/dispatches',
+            'ci_dispatch_exit_code',
+            'integration_dispatch_exit_code',
+            'ci_run_id',
+            'integration_run_id',
+            'head_sha ==',
+            'mad4b.spec-kit-work-map-autofix.v3',
+            'WORK_MAP_AUTOFIX_V3',
+          ];
+          const required = (values) => [...new Set([...values.filter((value) => !legacy.has(value)), ...modern])];
+          const forbidden = (values) => [...new Set([...values, ...legacy])];
+          const policy = contract.artifact_writer_policies.find((row) => row.key === 'platform-work-maps-sole-remote-writer');
+          const writer = contract.pipelines.find((row) => row.key === 'spec-kit-work-map-autofix');
+          if (!policy || !writer) throw new Error('canonical Work Map writer records missing');
+          policy.required_writer_commands = required(policy.required_writer_commands);
+          policy.forbidden_writer_commands = forbidden(policy.forbidden_writer_commands);
+          writer.required_commands = required(writer.required_commands);
+          writer.forbidden_commands = forbidden(writer.forbidden_commands);
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+
+          const testPath = 'http-generic-api/test-pipeline-connectivity-check.mjs';
+          let source = fs.readFileSync(testPath, 'utf8');
+          const policyAnchor = `  assert.deepEqual(\n    writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),\n    ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),\n  );`;
+          const policyInsert = `${policyAnchor}\n  assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run ci.yml"));\n  assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          if (!source.includes(policyAnchor)) throw new Error('stable current-main writer policy assertion anchor missing');
+          source = source.replace(policyAnchor, policyInsert);
+
+          const oldBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));`;
+          const newBlock = `  assert.ok(writerWorkflow.includes("WORK_MAP_AUTOFIX_V3"));\n  assert.ok(writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v3"));\n  assert.ok(writerWorkflow.includes("gh api --method POST"));\n  assert.ok(writerWorkflow.includes("actions/workflows/ci.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));\n  assert.ok(writerWorkflow.includes("ci_dispatch_exit_code"));\n  assert.ok(writerWorkflow.includes("integration_dispatch_exit_code"));\n  assert.ok(writerWorkflow.includes("ci_run_id"));\n  assert.ok(writerWorkflow.includes("integration_run_id"));\n  assert.ok(writerWorkflow.includes(".head_sha =="));\n  assert.ok(writerWorkflow.includes("RESULT_HEAD_SHA"));\n  assert.ok(!writerWorkflow.includes("gh workflow run ci.yml"));\n  assert.ok(!writerWorkflow.includes("gh workflow run spec-kit-work-map-integration.yml"));\n  assert.ok(!writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));\n  assert.ok(!writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v2"));`;
+          if (!source.includes(oldBlock)) throw new Error('current-main legacy writer assertion block missing');
+          fs.writeFileSync(testPath, source.replace(oldBlock, newBlock));
+          NODE
+          ) > .diagnostic/reconstruct.log 2>&1
+          reconstruct_rc=$?
+          echo "${reconstruct_rc}" > .diagnostic/reconstruct.rc
+          cat .diagnostic/reconstruct.log
+          exit 0
+
+      - name: Run every focused contract independently
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .diagnostic
+          run_one() {
+            name="$1"
+            command="$2"
+            echo "command=${command}" > ".diagnostic/${name}.meta"
+            bash -lc "${command}" > ".diagnostic/${name}.log" 2>&1
+            rc=$?
+            echo "${rc}" > ".diagnostic/${name}.rc"
+            echo "=== ${name}: rc=${rc} ==="
+            cat ".diagnostic/${name}.log"
+          }
+
+          run_one node_check_pipeline "node --check http-generic-api/test-pipeline-connectivity-check.mjs"
+          run_one node_check_dispatch "node --check http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs"
+          run_one exact_dispatch_cwd "cd http-generic-api && node test-work-map-post-write-exact-verification-dispatch.mjs"
+          run_one pipeline_connectivity_script "node http-generic-api/scripts/pipeline-connectivity-check.mjs"
+          run_one pipeline_connectivity_test "node http-generic-api/test-pipeline-connectivity-check.mjs"
+          run_one pipeline_contract_json "node -e \"JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8'))\""
+          run_one dispatch_contract_json "node -e \"JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))\""
+          run_one git_diff_check "git diff --check"
+          exit 0
+
+      - name: Capture reconstructed scope
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          mkdir -p .diagnostic
+          git diff --name-status > .diagnostic/diff-name-status.txt 2>&1
+          git diff --name-only | sort > .diagnostic/actual-files.txt 2>&1
+          printf '%s\n' \
+            '.github/workflows/ci.yml' \
+            '.github/workflows/spec-kit-work-map-autofix.yml' \
+            '.github/workflows/spec-kit-work-map-integration.yml' \
+            '.specify/pipeline-connectivity-contract.json' \
+            'http-generic-api/test-pipeline-connectivity-check.mjs' \
+            'http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs' \
+            | sort > .diagnostic/expected-files.txt
+          diff -u .diagnostic/expected-files.txt .diagnostic/actual-files.txt > .diagnostic/scope-diff.txt 2>&1
+          echo "$?" > .diagnostic/scope.rc
+          cat .diagnostic/diff-name-status.txt
+          cat .diagnostic/scope-diff.txt
+          exit 0
+
+      - name: Build diagnostic summary
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          {
+            echo '# Work Map V3 read-only diagnostic V8'
+            echo
+            echo "pinned_main_sha=${MAIN_SHA}"
+            echo "source_sha=${SOURCE_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo
+            for rc_file in .diagnostic/*.rc; do
+              [ -e "${rc_file}" ] || continue
+              echo "$(basename "${rc_file}" .rc)=$(cat "${rc_file}")"
+            done | sort
+          } > .diagnostic/summary.txt
+          cat .diagnostic/summary.txt
+
+      - name: Upload read-only diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-v3-read-only-diagnostic-v8-${{ github.run_id }}
+          path: .diagnostic/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Fail after preserving all evidence
+        if: always()
+        shell: bash
+        run: |
+          set +e
+          failed=0
+          for rc_file in .diagnostic/*.rc; do
+            [ -e "${rc_file}" ] || continue
+            rc="$(cat "${rc_file}")"
+            if [ "${rc}" != '0' ]; then
+              echo "FAILED: $(basename "${rc_file}" .rc) rc=${rc}"
+              failed=1
+            fi
+          done
+          exit "${failed}"
