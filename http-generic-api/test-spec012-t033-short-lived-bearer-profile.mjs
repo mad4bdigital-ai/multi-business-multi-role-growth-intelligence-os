@@ -26,6 +26,7 @@ const manifest = read("http-generic-api/scripts/manifests/test-manifest-spec012.
 
 assert.equal(record.task_id, "T033");
 assert.equal(record.status, "repository_issuance_and_verification_profile_ready_live_readback_required");
+assert.equal(record.observed_main_sha, "81a254bfae492e33526f92ec2241f2d927790de2");
 assert.equal(record.authority.requirement, "FR-007");
 assert.equal(record.authority.concern, "C-005");
 assert.equal(record.issuance_contract.default_ttl_seconds, 3600);
@@ -63,11 +64,17 @@ assert.equal(record.validation.route_regression_complete_on_current_head, true);
 assert.equal(record.validation.verifier_regression_complete_on_current_head, true);
 assert.equal(record.validation.readiness_regression_complete_on_current_head, true);
 assert.equal(record.validation.exact_head_ci_complete, true);
-assert.equal(record.validation.validation_head_sha, "06b7d6fe17d331e61a59165d802b499b7d269a44");
-assert.equal(record.validation.validation_run_id, 30894239894);
-assert.equal(record.validation.validation_job_id, 91943221875);
+assert.equal(record.validation.validation_head_sha, "617a316df7400c7765cd9f8f8bd8a563cbfb42b7");
+assert.equal(record.validation.validation_run_id, 30894684698);
+assert.equal(record.validation.validation_job_id, 91944682230);
 assert.equal(record.validation.api_dependencies_installed_from_lockfile, true);
-assert.equal(record.validation.temporary_validation_workflow_retirement_required_before_ready, true);
+assert.equal(record.validation.temporary_validation_workflow_retirement_required_before_ready, false);
+assert.equal(record.validation.temporary_validation_workflow_retired_before_ready, true);
+assert.equal(
+  record.validation.post_validation_workflow_retirement_commit,
+  "146f70805d40ef927f6d50a4986959ae801ed57d",
+);
+assert.equal(record.validation.validated_production_tree_preserved_by_workflow_retirement, true);
 assert.equal(record.validation.evidence_record_update_changes_production_code, false);
 assert.equal(record.validation.production_deployed, false);
 assert.equal(record.validation.live_claim_evidence_readback_complete, false);
@@ -77,12 +84,12 @@ assert.equal(record.completion_gate.deterministic_regression_complete, true);
 assert.equal(record.completion_gate.exact_head_ci_complete, true);
 assert.equal(record.completion_gate.production_deployed, false);
 assert.equal(record.completion_gate.task_completion_allowed, false);
-assert.equal(record.completion_gate.required_before_completion.length >= 7, true);
+assert.equal(record.completion_gate.required_before_completion.length >= 6, true);
 assert.equal(
   record.completion_gate.required_before_completion.includes(
     "retire the temporary validation workflow change before Ready review",
   ),
-  true,
+  false,
 );
 assert.match(tasks, /^- \[ \] \*\*T033\*\*/mu,
   "T033 must remain open until deployment and live claim evidence readback");
