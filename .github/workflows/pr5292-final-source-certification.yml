@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 20
     env:
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
-      EXPECTED_MAIN: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_MAIN: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
       DIAGNOSTIC_PATH: .github/pr5292-generator-write-set.txt
 
