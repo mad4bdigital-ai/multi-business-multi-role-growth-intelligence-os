@@ -1,0 +1,104 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec012-oauth-production-dependency-composition",
+  "title": "Spec 012 OAuth production dependency composition",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec012-oauth-production-dependency-composition.json",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Forward the canonical production dependency object into the governed Tenant GPT OAuth metadata and token router while preserving mount order ahead of the legacy auth router.",
+      "e2e_journeys": [
+        {
+          "id": "production-registry-forwards-governed-oauth-dependencies",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant_gpt_oauth_client",
+          "entrypoint": "POST /auth/oauth/token",
+          "terminal_outcome": "The production route registry forwards canonical dependencies, the governed metadata router prepares the token-exchange dependencies, and OAuth token requests remain handled before the legacy auth router.",
+          "steps": [
+            "Register the production route graph with the canonical dependency object.",
+            "Mount buildTenantGptOAuthMetadataRoutes(deps) before the legacy /auth router.",
+            "Build the governed verification and access-token issuance dependencies inside the metadata router.",
+            "Exercise token success, invalid-client, replay, and metadata-routing regressions through existing synthetic-runtime tests."
+          ],
+          "assertions": [
+            "The production route registry calls buildTenantGptOAuthMetadataRoutes(deps).",
+            "The metadata router builds the governed token-exchange dependency boundary before mounting the handler.",
+            "The governed token router remains mounted before buildAuthRoutes(deps).",
+            "Existing OAuth integration and replay regressions remain green without overwriting the merged diagnostic contract.",
+            "No Production, provider, deployment, database, migration, credential, protected-ref, or external-send action is authorized."
+          ],
+          "tests": [
+            {
+              "id": "spec012-t031-oauth-token-route-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-t031-oauth-token-route-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-gpt-oauth-token-exchange-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "integrated-auth-oauth-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "chatgpt-mcp-metadata-routing",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-metadata-routing.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec012-oauth-production-dependency-composition.json",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete governed exact-environment deployment and live OAuth exchange readback before closing T031."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove exact-environment replay and dependency-unavailability recovery classifications."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository composition repair does not authorize tenant or provider canary execution."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This PR grants no Production, deployment, provider, database, migration, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
