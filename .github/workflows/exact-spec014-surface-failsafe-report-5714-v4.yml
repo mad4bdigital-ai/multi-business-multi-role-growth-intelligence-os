@@ -1,0 +1,167 @@
+name: Exact Spec 014 Surface Fail-safe Report 5714 v4
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-surface-ubuntu2404-base-5634-5db9-v1
+    types: [reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Fail-safe Surface report
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact frozen candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable identity and initialize report
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          expected_head=c2cdd1b0b748ceeb31a84648f448129a5da60701
+          expected_main=5db9f992ff42b136fbac88f9191949a7e31ffbf0
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "gpt/014-hostinger/surface-contract-generated-evidence-v5-final-20260803"
+          test "$HEAD_SHA" = "$expected_head"
+          test "$(git rev-parse HEAD)" = "$expected_head"
+          git merge-base --is-ancestor "$expected_main" "$expected_head"
+          test "$(git rev-list --count "${expected_main}..${expected_head}")" = "8"
+          test "$(git diff --name-only "$expected_main" "$expected_head" | wc -l | tr -d ' ')" = "18"
+          mkdir -p "$GITHUB_WORKSPACE/spec014-failsafe-evidence"
+
+      - name: Generate fail-safe structured report
+        id: report
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { spawnSync } from 'node:child_process';
+
+          const outDir = path.resolve('..', 'spec014-failsafe-evidence');
+          const candidateSha = 'c2cdd1b0b748ceeb31a84648f448129a5da60701';
+          const migrationFile = '20260802_03_spec014_hostinger_storage_execution_evidence.sql';
+          const report = {
+            ok: false,
+            schema_version: 'spec014-surface-failsafe-report-v1',
+            candidate_sha: candidateSha,
+            phases: {},
+            discovery: null,
+            assertion: null,
+            safety: {
+              executes_provider_calls: false,
+              reads_credentials: false,
+              mutates_runtime: false,
+              writes_database: false,
+              external_sends: false,
+              deploys: false,
+              secrets_included: false
+            }
+          };
+
+          const serializeError = (error) => ({
+            name: error?.name || null,
+            code: error?.code || null,
+            message: error?.message || String(error),
+            actual: error?.actual ?? null,
+            expected: error?.expected ?? null,
+            operator: error?.operator || null,
+            stack: String(error?.stack || '').split('\n').slice(0, 16)
+          });
+
+          try {
+            const queue = JSON.parse(fs.readFileSync('../docs/surface-contract-gap-queue.json', 'utf8'));
+            const status = JSON.parse(fs.readFileSync('../docs/surface-contract-discovery-status.json', 'utf8'));
+            const attestations = JSON.parse(fs.readFileSync('../docs/surface-contract-safety-attestations.json', 'utf8'));
+            const item = attestations.items.find((entry) => entry.migration_file === migrationFile) || null;
+            report.discovery = {
+              committed_queue_total_items: queue.total_items,
+              committed_status_queue_total_items: status.gap_queue?.total_items ?? null,
+              committed_migration_surface_count: status.migration_surface_count,
+              spec014_migration_in_queue: JSON.stringify(queue).includes(migrationFile),
+              attestation: item ? {
+                migration_sha256: item.migration_sha256,
+                checksum_canonicalization: item.checksum_canonicalization,
+                attestation_status: item.attestation_status,
+                evidence_mode: item.evidence_mode,
+                review_status: item.review_status,
+                reviewed_by: item.reviewed_by,
+                reviewed_at: item.reviewed_at,
+                execution_authorized: item.execution_authorized,
+                safety: item.safety,
+                safety_markers: item.safety_markers
+              } : null
+            };
+            report.phases.committed_inputs = { ok: true };
+          } catch (error) {
+            report.phases.committed_inputs = { ok: false, error: serializeError(error) };
+          }
+
+          try {
+            const module = await import('./scripts/surface-contract-discovery.mjs');
+            const live = module.discoverSurfaces({ limit: 200 });
+            report.discovery = {
+              ...(report.discovery || {}),
+              live_queue_total_items: live.gap_queue.total_items,
+              live_migration_surface_count: live.migration_surface_count,
+              live_spec014_migration_in_queue: live.gap_queue.top_items.some((entry) => entry.migration_file === migrationFile),
+              queue_count_delta: live.gap_queue.total_items - Number(report.discovery?.committed_queue_total_items ?? 0)
+            };
+            report.phases.live_discovery = { ok: true };
+          } catch (error) {
+            report.phases.live_discovery = { ok: false, error: serializeError(error) };
+          }
+
+          const test = spawnSync(process.execPath, ['test-surface-contract-discovery.mjs'], {
+            cwd: process.cwd(),
+            encoding: 'utf8',
+            env: process.env
+          });
+          report.assertion = {
+            ok: test.status === 0,
+            exit_code: test.status,
+            signal: test.signal,
+            stdout_tail: String(test.stdout || '').split('\n').filter(Boolean).slice(-20),
+            stderr_tail: String(test.stderr || '').split('\n').filter(Boolean).slice(-30)
+          };
+          report.phases.discovery_test = { ok: test.status === 0 };
+          report.ok = Object.values(report.phases).every((phase) => phase.ok === true)
+            && report.discovery?.spec014_migration_in_queue === false
+            && report.discovery?.live_spec014_migration_in_queue === false;
+          fs.writeFileSync(path.join(outDir, 'surface-failsafe-report.json'), JSON.stringify(report, null, 2) + '\n');
+          NODE
+
+      - name: Upload fail-safe repository evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-surface-failsafe-report-5714-v4-${{ github.run_id }}
+          path: spec014-failsafe-evidence/surface-failsafe-report.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce report presence only
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f spec014-failsafe-evidence/surface-failsafe-report.json
