@@ -254,7 +254,7 @@
           "evidence_paths": [
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/systemLayerRoutes.js",
-            "http-generic-api/test-governed-response-chunk-store.mjs",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs",
             "http-generic-api/test-platform-routes.mjs",
             "http-generic-api/test-tenant-request-auth-parity.mjs",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
