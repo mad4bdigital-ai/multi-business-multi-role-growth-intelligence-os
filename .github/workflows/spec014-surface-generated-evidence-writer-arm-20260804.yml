@@ -68,6 +68,7 @@ jobs:
         run: npm ci
 
       - name: Converge manual and generated Surface evidence
+        id: converge
         working-directory: http-generic-api
         shell: bash
         run: |
@@ -75,21 +76,74 @@ jobs:
           node scripts/surface-contract-auto-remediator.mjs --write \
             > "$RUNNER_TEMP/spec014-surface-auto-remediation-write.json"
 
-      - name: Verify focused regressions and generated parity
+      - name: Execute structured Surface regressions
+        id: regressions
+        continue-on-error: true
         working-directory: http-generic-api
         shell: bash
         run: |
-          set -euo pipefail
-          node test-surface-contract-auto-remediation.mjs
-          node test-surface-contract-discovery.mjs
-          node test-surface-contract-gap-triage.mjs
-          node test-surface-contract-governance-loop.mjs
-          node scripts/surface-contract-auto-remediator.mjs --check \
-            > "$RUNNER_TEMP/spec014-surface-auto-remediation-check.json"
-          node scripts/surface-contract-discovery.mjs --check
-          git diff --check
+          set -uo pipefail
+          report="$RUNNER_TEMP/spec014-surface-regression-results.json"
+          logs="$RUNNER_TEMP/spec014-surface-regression-logs"
+          mkdir -p "$logs"
+          printf '[]\n' > "$report"
+
+          run_case() {
+            name="$1"
+            shift
+            stdout_file="$logs/${name}.stdout.txt"
+            stderr_file="$logs/${name}.stderr.txt"
+            set +e
+            "$@" >"$stdout_file" 2>"$stderr_file"
+            status=$?
+            set -e
+            node --input-type=module - "$report" "$name" "$status" "$stdout_file" "$stderr_file" <<'NODE'
+          import fs from 'node:fs';
+          const [reportPath, name, statusRaw, stdoutPath, stderrPath] = process.argv.slice(2);
+          const items = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+          const bounded = (file) => fs.readFileSync(file, 'utf8').slice(-4000);
+          items.push({
+            name,
+            exit_status: Number(statusRaw),
+            outcome: Number(statusRaw) === 0 ? 'success' : 'failure',
+            stdout_tail: bounded(stdoutPath),
+            stderr_tail: bounded(stderrPath),
+            secrets_included: false
+          });
+          fs.writeFileSync(reportPath, JSON.stringify(items, null, 2) + '\n');
+          NODE
+            return "$status"
+          }
+
+          failed=0
+          run_case auto_remediation_tests node test-surface-contract-auto-remediation.mjs || failed=1
+          run_case discovery_tests node test-surface-contract-discovery.mjs || failed=1
+          run_case gap_triage_tests node test-surface-contract-gap-triage.mjs || failed=1
+          run_case governance_loop_tests node test-surface-contract-governance-loop.mjs || failed=1
+          run_case auto_remediator_check node scripts/surface-contract-auto-remediator.mjs --check || failed=1
+          run_case discovery_generated_check node scripts/surface-contract-discovery.mjs --check || failed=1
+          run_case git_diff_check git diff --check || failed=1
+
+          node --input-type=module - "$report" "$failed" <<'NODE'
+          import fs from 'node:fs';
+          const [reportPath, failedRaw] = process.argv.slice(2);
+          const results = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+          const report = {
+            ok: Number(failedRaw) === 0,
+            schema_version: 'spec014-surface-regression-results-v1',
+            total: results.length,
+            passed: results.filter((item) => item.outcome === 'success').length,
+            failed: results.filter((item) => item.outcome === 'failure').length,
+            results,
+            secrets_included: false
+          };
+          fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
+          NODE
+          exit "$failed"
 
       - name: Verify semantic Spec 014 contract
+        id: semantic
+        if: always() && steps.converge.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -136,6 +190,8 @@ jobs:
           NODE
 
       - name: Enforce bounded generated write set
+        id: write_set
+        if: steps.regressions.outcome == 'success' && steps.semantic.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -167,6 +223,8 @@ jobs:
           test ! -s "$RUNNER_TEMP/outside-allowlist.txt"
 
       - name: Commit generated evidence and self-delete writer
+        id: commit
+        if: steps.write_set.outcome == 'success'
         shell: bash
         env:
           EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -194,7 +252,8 @@ jobs:
           name: spec014-surface-generated-evidence-writer-arm-20260804-${{ github.run_id }}
           path: |
             ${{ runner.temp }}/spec014-surface-auto-remediation-write.json
-            ${{ runner.temp }}/spec014-surface-auto-remediation-check.json
+            ${{ runner.temp }}/spec014-surface-regression-results.json
+            ${{ runner.temp }}/spec014-surface-regression-logs/
             ${{ runner.temp }}/spec014-surface-semantic-evidence.json
             ${{ runner.temp }}/initial-files.txt
             ${{ runner.temp }}/generated-files.txt
@@ -204,3 +263,20 @@ jobs:
             ${{ runner.temp }}/final-head-sha.txt
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Enforce writer evidence outcome
+        if: always()
+        shell: bash
+        env:
+          CONVERGE_OUTCOME: ${{ steps.converge.outcome }}
+          REGRESSION_OUTCOME: ${{ steps.regressions.outcome }}
+          SEMANTIC_OUTCOME: ${{ steps.semantic.outcome }}
+          WRITE_SET_OUTCOME: ${{ steps.write_set.outcome }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
+        run: |
+          set -euo pipefail
+          test "$CONVERGE_OUTCOME" = success
+          test "$REGRESSION_OUTCOME" = success
+          test "$SEMANTIC_OUTCOME" = success
+          test "$WRITE_SET_OUTCOME" = success
+          test "$COMMIT_OUTCOME" = success
