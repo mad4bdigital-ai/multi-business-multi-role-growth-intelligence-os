@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: b6b6f04726d7c0bdefb9252ee8da9799a7a7d4d1
+      EXPECTED_PARENT_SHA: 1f6af42113e84c2adafc693dc220ad5d104c2c19
       REPAIR_PATH: .github/workflows/runtime-parity-work-map-arm-repair.yml
       PR_NUMBER: '5985'
 
