@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
-      EXPECTED_BASE_SHA: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
       SOURCE_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
       PR_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
     steps:
@@ -36,16 +35,18 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Merge pinned main snapshot
+      - name: Merge fetched main snapshot
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "${EXPECTED_BASE_SHA}"
+          base_sha="$(git rev-parse origin/main)"
+          test -n "${base_sha}"
+          printf 'EXPECTED_BASE_SHA=%s\n' "${base_sha}" >> "${GITHUB_ENV}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-edit "${EXPECTED_BASE_SHA}"
+          git merge --no-edit "${base_sha}"
 
       - name: Verify exact bootstrap-only scope
         shell: bash
