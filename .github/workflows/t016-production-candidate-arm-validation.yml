@@ -90,7 +90,8 @@ jobs:
         run: node --check find-canonical-domain.mjs
 
       - name: Resource API coverage
-        run: node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+        working-directory: http-generic-api
+        run: node scripts/resource-api-coverage-audit.mjs --ci --changed
 
       - name: Spec completion gate
         run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
