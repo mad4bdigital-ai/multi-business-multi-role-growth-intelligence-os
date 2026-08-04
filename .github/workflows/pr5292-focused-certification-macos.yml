@@ -1,0 +1,134 @@
+name: PR 5292 Focused Exact-Tree Certification macOS
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - .github/workflows/pr5292-focused-certification-macos.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr5292-focused-exact-tree-certification-macos
+  cancel-in-progress: true
+
+jobs:
+  certify:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.pull_request.number == 5292 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/pr5210-surface-source-clean-20260803' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: macos-14
+    timeout-minutes: 30
+    env:
+      EXPECTED_PRODUCT_PARENT: fe0b300c78346173e2b2385c116d8899c14ace47
+      EXPECTED_MAIN: 72196dee20b13491972ae1371f2fe4a47d9bd8c9
+      WORKFLOW_PATH: .github/workflows/pr5292-focused-certification-macos.yml
+
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact product tree and baseline
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PRODUCT_PARENT}"
+          trigger_files="$(git diff --name-only HEAD^ HEAD)"
+          test "$(printf '%s\n' "$trigger_files" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
+          test "$trigger_files" = "${WORKFLOW_PATH}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
+          git branch -f main origin/main
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Check changed JavaScript syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          files=(
+            http-generic-api/agentSurfaceRuntimeService.js
+            http-generic-api/routes/agentSurfaceRoutes.js
+            http-generic-api/routes/tenantInfrastructureRoutes.js
+            http-generic-api/routes/tenantLifecycleRoutes.js
+            http-generic-api/routes/workspaceResourceRoutes.js
+            http-generic-api/scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+            http-generic-api/scripts/resource-api-callability-contracts.mjs
+            http-generic-api/scripts/surface-callability-closure/generate_closure_contracts.mjs
+            http-generic-api/scripts/surface-contract-sql-registry-extractor.mjs
+            http-generic-api/scripts/test-manifest.mjs
+            http-generic-api/test-resource-api-callability-effect-classes.mjs
+            http-generic-api/test-surface-callability-full-closure.mjs
+            http-generic-api/test-surface-contract-sql-registry-extractor.mjs
+          )
+          for file in "${files[@]}"; do
+            node --check "$file"
+          done
+
+      - name: Verify canonical frontend artifacts
+        working-directory: http-generic-api
+        env:
+          CANONICAL_BASELINE_REF: main
+          TARGET_REF: main
+        run: npm run frontend:dispatch:check
+
+      - name: Run Surface SQL registry extractor regression
+        working-directory: http-generic-api
+        run: node test-surface-contract-sql-registry-extractor.mjs
+
+      - name: Run Resource API effect-class regression
+        working-directory: http-generic-api
+        run: node test-resource-api-callability-effect-classes.mjs
+
+      - name: Run multi-surface runtime regression
+        working-directory: http-generic-api
+        run: node test-multi-surface-agent-runtime.mjs
+
+      - name: Run Resource API coverage regression
+        working-directory: http-generic-api
+        run: node test-resource-api-coverage.mjs
+
+      - name: Run Surface full-closure regression
+        working-directory: http-generic-api
+        run: node test-surface-callability-full-closure.mjs
+
+      - name: Verify Hostinger closure safety evidence
+        working-directory: http-generic-api
+        run: node scripts/maintenance-tools/verify-hostinger-full-closure-safety.mjs
+
+      - name: Run canonical OpenAPI route coverage
+        working-directory: http-generic-api
+        run: node test-openapi-route-coverage.mjs
+
+      - name: Run server startup smoke regression
+        working-directory: http-generic-api
+        run: node test-server-startup-smoke.mjs
+
+      - name: Run current test-manifest regression
+        working-directory: http-generic-api
+        run: node test-test-manifest-runner.mjs
+
+      - name: Verify certification remained read-only
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
