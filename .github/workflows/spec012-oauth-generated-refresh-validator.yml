@@ -1,0 +1,246 @@
+name: Spec 012 OAuth Generated Refresh Validator
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-generated-refresh-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-validate-publish:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/spec012-oauth-generated-refresh-validator-base-20260804' &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v3-20260804' &&
+      github.event.pull_request.head.sha == '912ab81f7dcc4f684893a9e09e0b136d0ecfe27d'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: b3b488082d4030e8110993fcffb74fb498930166
+      EXPECTED_HEAD_SHA: 912ab81f7dcc4f684893a9e09e0b136d0ecfe27d
+      TARGET_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v3-20260804
+      TARGET_PR: '6248'
+      E2E_CONTRACT: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+      EVIDENCE_DIR: evidence/spec012-oauth-generated-refresh
+
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable identities and exact four-file scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.draft }}" = "true"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          test "$(git merge-base origin/main HEAD)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor origin/main HEAD
+          test -z "$(git status --porcelain=v1)"
+
+          mapfile -d '' -t files < <(git diff --name-only -z "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}" | sort -zu)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+          target="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${target}")" = "open"
+          test "$(jq -r '.draft' <<<"${target}")" = "true"
+          test "$(jq -r '.base.ref' <<<"${target}")" = "main"
+          test "$(jq -r '.head.ref' <<<"${target}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${target}")" = "${EXPECTED_HEAD_SHA}"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate canonical Frontend artifacts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node scripts/frontend-operation-governance-generator.mjs --check
+          npm run frontend:dispatch:check
+
+      - name: Extend T031 evidence to operation governance artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = process.env.E2E_CONTRACT;
+          const doc = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const required = 'http-generic-api/frontend-operation-governance.generated.json';
+          const anchor = 'http-generic-api/frontend-surface-dispatch.generated.json';
+          const add = (items) => {
+            if (!Array.isArray(items)) throw new Error('expected array');
+            if (items.includes(required)) return items;
+            const index = items.indexOf(anchor);
+            if (index < 0) throw new Error(`missing insertion anchor ${anchor}`);
+            return [...items.slice(0, index), required, ...items.slice(index)];
+          };
+          doc.scope.include = add(doc.scope.include);
+          const journey = doc.phases?.[0]?.e2e_journeys?.[0];
+          if (!journey) throw new Error('missing T031 journey');
+          journey.evidence_paths = add(journey.evidence_paths);
+          fs.writeFileSync(path, `${JSON.stringify(doc, null, 2)}\n`);
+          NODE
+
+      - name: Verify bounded generated delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' -t changed < <(
+            git status --porcelain=v1 -z |
+              while IFS= read -r -d '' entry; do printf '%s\0' "${entry:3}"; done |
+              sort -zu
+          )
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${changed[@]}")
+          git diff --check
+
+      - name: Create exact local candidate commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            "${E2E_CONTRACT}" \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json
+          git commit -m "fix(spec-012): refresh OAuth Frontend governance evidence"
+          final_sha="$(git rev-parse HEAD)"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+          mapfile -d '' -t files < <(git diff --name-only -z "${EXPECTED_MAIN_SHA}...${final_sha}" | sort -zu)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          test -z "$(git status --porcelain=v1)"
+
+      - name: Validate focused OAuth Frontend and OpenAPI contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          (
+            cd http-generic-api
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            npm run frontend:dispatch:check
+          ) | tee "${EVIDENCE_DIR}/focused-validation.log"
+
+      - name: Validate exact E2E governance and test manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file "${EVIDENCE_DIR}/e2e-phase-evaluation.json"
+          (cd http-generic-api && npm test) | tee "${EVIDENCE_DIR}/http-generic-api-manifest.log"
+
+      - name: Record immutable evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          git status --short > "${EVIDENCE_DIR}/git-status.txt" || true
+          git diff --name-status "${EXPECTED_MAIN_SHA}...HEAD" > "${EVIDENCE_DIR}/changed-files.txt" || true
+          git rev-parse HEAD > "${EVIDENCE_DIR}/local-head.txt" || true
+          git rev-parse HEAD^{tree} > "${EVIDENCE_DIR}/local-tree.txt" || true
+          sha256sum \
+            "${E2E_CONTRACT}" \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            > "${EVIDENCE_DIR}/sha256sums.txt" || true
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = {
+            contract: 'mad4b.spec012.oauth-generated-refresh.v1',
+            base_sha: process.env.EXPECTED_MAIN_SHA,
+            source_head_sha: process.env.EXPECTED_HEAD_SHA,
+            local_candidate_sha: process.env.FINAL_SHA || null,
+            effective_changed_files: 5,
+            generated_artifacts: [
+              'http-generic-api/frontend-operation-governance.generated.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json'
+            ],
+            history_preserved: true,
+            force_push: false,
+            protected_main_write: false,
+            production_action: false,
+            provider_action: false,
+            database_mutation: false,
+            credential_access: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(`${process.env.EVIDENCE_DIR}/summary.json`, `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Push fast-forward exact final head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${TARGET_BRANCH})" = "${EXPECTED_HEAD_SHA}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_sha}" = "${FINAL_SHA}"
+          echo "${remote_sha}" > "${EVIDENCE_DIR}/remote-head.txt"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-generated-refresh-${{ github.run_id }}
+          path: evidence/spec012-oauth-generated-refresh/
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 30
