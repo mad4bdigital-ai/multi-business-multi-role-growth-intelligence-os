@@ -1,0 +1,124 @@
+name: TEMP Work Map Writer 6035
+
+on:
+  pull_request:
+    branches:
+      - gpt/arm/work-map-writer-6035-base-edfc85f0
+    types: [opened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: temp-work-map-writer-6035
+  cancel-in-progress: false
+
+jobs:
+  write:
+    name: Generate exact Work Maps
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'gpt/ci-pr-stale-cancellation-source-edfc85f0-20260804' && github.event.pull_request.head.sha == 'f2c6b127ae458dcf92f2155eadcc49164ff5aac0'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    env:
+      EXPECTED_MAIN_SHA: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+      EXPECTED_HEAD_SHA: f2c6b127ae458dcf92f2155eadcc49164ff5aac0
+      TARGET_BRANCH: gpt/ci-pr-stale-cancellation-source-edfc85f0-20260804
+      CANONICAL_PR: '6035'
+    steps:
+      - name: Checkout exact authorized source head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Guard immutable identity and scope
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          test "$(git ls-remote --exit-code origin refs/heads/$TARGET_BRANCH | awk '{print $1}')" = "$EXPECTED_HEAD_SHA"
+          test -z "$(git status --porcelain)"
+
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$CANONICAL_PR" > "$RUNNER_TEMP/pr.json"
+          test "$(jq -r '.state' "$RUNNER_TEMP/pr.json")" = "open"
+          test "$(jq -r '.draft' "$RUNNER_TEMP/pr.json")" = "true"
+          test "$(jq -r '.base.ref' "$RUNNER_TEMP/pr.json")" = "main"
+          test "$(jq -r '.base.sha' "$RUNNER_TEMP/pr.json")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' "$RUNNER_TEMP/pr.json")" = "$TARGET_BRANCH"
+          test "$(jq -r '.head.sha' "$RUNNER_TEMP/pr.json")" = "$EXPECTED_HEAD_SHA"
+          test "$(jq -r '.head.repo.full_name' "$RUNNER_TEMP/pr.json")" = "$GITHUB_REPOSITORY"
+
+          mapfile -t changed < <(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$CANONICAL_PR/files?per_page=100" --jq '.[].filename' | sort)
+          expected=(
+            '.changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json'
+            '.github/workflows/ci-pull-request-recovery.yml'
+            '.github/workflows/ci.yml'
+            'http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs'
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for i in "${!expected[@]}"; do test "${changed[$i]}" = "${expected[$i]}"; done
+
+      - name: Validate generator contracts
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Generate and prove exact deterministic output
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            'docs/work-maps/README.md'
+            'docs/work-maps/repository-automation-map.md'
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for i in "${!expected[@]}"; do test "${changed[$i]}" = "${expected[$i]}"; done
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "$first_hash" = "$second_hash"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/test-platform-work-map-generator.mjs
+          node http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs
+
+      - name: Commit and push generated Work Maps
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin refs/heads/$TARGET_BRANCH | awk '{print $1}')" = "$EXPECTED_HEAD_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          test "$(git diff --cached --name-only | wc -l | tr -d '[:space:]')" = '2'
+          git commit -m 'docs(work-maps): regenerate governed platform maps'
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          test "$(git ls-remote --exit-code origin refs/heads/$TARGET_BRANCH | awk '{print $1}')" = "$result_head"
+          printf '{"contract":"mad4b.temp-work-map-writer.6035","base_sha":"%s","source_sha":"%s","result_sha":"%s","protected_branch_mutation":false,"force_push":false,"production_mutated":false,"provider_call":false,"credential_read":false,"sql_executed":false,"migration_apply":false,"database_mutated":false,"external_send":false,"secrets_included":false}\n' "$EXPECTED_MAIN_SHA" "$EXPECTED_HEAD_SHA" "$result_head" > "$RUNNER_TEMP/work-map-writer-6035.json"
+
+      - name: Upload writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: temp-work-map-writer-6035-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-writer-6035.json
+          if-no-files-found: warn
+          retention-days: 14
