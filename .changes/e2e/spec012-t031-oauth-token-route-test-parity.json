@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec012-t031-oauth-token-route-test-parity",
+  "title": "Spec 012 T031 governed token route dependency and integration parity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json",
+      "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+      "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
+      "http-generic-api/test-auth-oauth-routes.mjs",
+      "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep POST /auth/oauth/token on the governed T031 handler with fail-closed crypto dependencies, bounded token diagnostics, and integration-test pool parity.",
+      "e2e_journeys": [
+        {
+          "id": "metadata-mount-to-governed-token-exchange",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant GPT OAuth integration reviewer",
+          "entrypoint": "The metadata router mounted before the legacy auth router with an injected test pool",
+          "terminal_outcome": "Invalid requests retain OAuth errors, a valid code returns a fresh token and bounded diagnostics, and no local JWT fallback or legacy bypass remains.",
+          "steps": [
+            "Mount the metadata router before the legacy auth router with the bounded integration-test pool.",
+            "Resolve verification, access-token issuance, and diagnostic decoding through the governed binding layer.",
+            "Exercise invalid-client, invalid-target, successful exchange, activation context, and diagnostic behavior.",
+            "Verify bounded token type, length, scope count, and code timing evidence without raw secrets."
+          ],
+          "assertions": [
+            "The route requires injected verifyCode and issueAccessToken dependencies and fails closed when absent.",
+            "The route does not import jsonwebtoken or contain a development fallback secret.",
+            "The metadata integration test uses the same mock pool for all token-exchange persistence.",
+            "Diagnostic evidence uses the v2 action key and contains only bounded token and scope metadata.",
+            "No deployment, provider, database, migration, credential, Production, protected-ref, or external business mutation is performed."
+          ],
+          "tests": [
+            {
+              "id": "auth-oauth-routes-integration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-auth-oauth-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "t031-token-route",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "t031-route-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec012-t031-oauth-token-route-wiring.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json",
+            "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
+            "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
+            "http-generic-api/test-auth-oauth-routes.mjs",
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
