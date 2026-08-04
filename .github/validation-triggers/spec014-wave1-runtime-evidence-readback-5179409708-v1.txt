@@ -1,6 +1,7 @@
 contract=spec014_wave1_runtime_evidence_readback_trigger.v1
 authorization_comment_id=5179409708
 control_issue=6215
+retrigger=1
 runtime_contact=false
 database_access=false
 migration_apply=false
