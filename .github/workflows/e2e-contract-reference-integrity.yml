@@ -19,10 +19,9 @@ jobs:
   integrity:
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.number == 6315 &&
       github.event.pull_request.head.ref == 'gpt/validate/runtime-parity-e2e-reference-249f55-20260804' &&
-      github.event.pull_request.base.ref == 'main' &&
-      github.actor == 'mad4bdigital-ai'
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
