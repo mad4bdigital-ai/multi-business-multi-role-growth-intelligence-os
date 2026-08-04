@@ -70,10 +70,7 @@ jobs:
           set -euo pipefail
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            if [[ "${MANUAL_CONFIRMATION}" != "ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY" ]]; then
-              echo "Manual bootstrap requires exact typed confirmation."
-              exit 1
-            fi
+            test "${MANUAL_CONFIRMATION}" = "ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY"
           else
             actor_permission="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${COMMAND_ACTOR}/permission" --jq '.permission')"
             case "${actor_permission}" in
@@ -102,22 +99,22 @@ jobs:
           test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
 
           target_branch="$(jq -r '.head.ref' "${pr_file}")"
-          expected_head_sha="$(jq -r '.head.sha' "${pr_file}")"
+          current_head_sha="$(jq -r '.head.sha' "${pr_file}")"
           body="$(jq -r '.body // ""' "${pr_file}")"
 
           [[ "${target_branch}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "${target_branch}" != "main" && "${target_branch}" != "Production" ]]
-          test "${expected_head_sha}" = "${REQUESTED_HEAD_SHA}"
+          test "${current_head_sha}" = "${REQUESTED_HEAD_SHA}"
           grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
 
           compare_file="${REPORT_DIR}/main-comparison.json"
-          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" > "${compare_file}"
+          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${REQUESTED_HEAD_SHA}" > "${compare_file}"
           behind_by="$(jq -r '.behind_by' "${compare_file}")"
           test "${behind_by}" = "0"
 
           echo "pr_number=${REQUESTED_PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
-          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${REQUESTED_HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "behind_by=${behind_by}" >> "$GITHUB_OUTPUT"
 
       - name: Enable and dispatch independent Recovery workflow
@@ -126,6 +123,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ steps.target.outputs.pr_number }}
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
         run: |
           set -euo pipefail
           recovery_workflow="spec-kit-work-map-autofix-recovery-dispatch.yml"
@@ -141,7 +139,8 @@ jobs:
           payload="$(jq -cn \
             --arg ref main \
             --arg pr_number "${PR_NUMBER}" \
-            '{ref:$ref,inputs:{pr_number:$pr_number,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            '{ref:$ref,inputs:{pr_number:$pr_number,expected_head_sha:$expected_head_sha,confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/actions/workflows/${recovery_workflow}/dispatches" \
             --input - <<<"${payload}"
@@ -180,7 +179,7 @@ jobs:
           fi
 
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-recovery-bootstrap.v1" \
+            --arg contract "mad4b.spec-kit-work-map-recovery-bootstrap.v2" \
             --arg outcome "${outcome}" \
             --arg source_event "${GITHUB_EVENT_NAME}" \
             --arg actor "${COMMAND_ACTOR}" \
