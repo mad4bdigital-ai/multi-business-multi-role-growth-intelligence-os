@@ -1,0 +1,7 @@
+Temporary trigger for the bounded Work Map V3 reconstruction V9.
+
+Main snapshot: 2423f272161f73d18bcc2d492e0ed3be414d07ba
+Reviewed source: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+Workflow commit: 74351fe00a64bc25b114f7f079d455c166481fb6
+Candidate branch: gpt/work-map-v3-current-main-2423f272-v9-20260804
+This trigger pull request must be closed without merge.
