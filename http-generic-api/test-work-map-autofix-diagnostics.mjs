@@ -181,13 +181,21 @@ for (const [name, workflow] of [
 }
 
 assert.match(prRefreshWorkflow, /Initialize bounded refresh report paths after runner allocation/u);
-assert.match(prRefreshWorkflow, /Initialize bounded activation report path after runner allocation/u);
 assert.match(prRefreshWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
-assert.match(prRefreshWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/work-map-recovery-activation"/u);
 assert.match(prRefreshWorkflow, /GITHUB_ENV/u);
+assert.match(prRefreshWorkflow, /permissions:\s*\n\s*contents:\s*read/u);
+assert.doesNotMatch(prRefreshWorkflow, /actions:\s*write/u);
+assert.doesNotMatch(prRefreshWorkflow, /issues:\s*write/u);
+assert.doesNotMatch(prRefreshWorkflow, /pull-requests:\s*write/u);
 assert.doesNotMatch(prRefreshWorkflow, /contents:\s*write/u);
 assert.doesNotMatch(prRefreshWorkflow, /git\s+push/u);
+assert.doesNotMatch(prRefreshWorkflow, /work-map-recovery-activation/u);
+assert.doesNotMatch(prRefreshWorkflow, /WORK_MAP_RECOVERY_ACTIVATION_BRIDGE/u);
+assert.doesNotMatch(prRefreshWorkflow, /spec-kit-work-map-autofix-recovery-dispatch\.yml\/dispatches/u);
 
+assert.match(recoveryWorkflow, /^\s{2}workflow_dispatch:/mu);
+assert.doesNotMatch(recoveryWorkflow, /^\s{2}pull_request(?:_target)?:/mu);
+assert.doesNotMatch(recoveryWorkflow, /^\s{2}issue_comment:/mu);
 assert.match(recoveryWorkflow, /Initialize bounded recovery report directory after runner allocation/u);
 assert.match(recoveryWorkflow, /report_dir="\$\{RUNNER_TEMP\}\/spec-kit-work-map-autofix-recovery"/u);
 assert.match(recoveryWorkflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
@@ -206,4 +214,4 @@ assert.match(integrationWorkflow, /permissions:\s*\n\s*contents:\s*read/u);
 assert.doesNotMatch(integrationWorkflow, /contents:\s*write/u);
 assert.doesNotMatch(integrationWorkflow, /git\s+push/u);
 
-console.log("Work Map Autofix diagnostics and recovery-chain registration tests passed");
+console.log("Work Map Autofix diagnostics and separated recovery-chain registration tests passed");

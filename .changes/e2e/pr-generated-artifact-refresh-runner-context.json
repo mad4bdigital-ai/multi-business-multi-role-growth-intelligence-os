@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "work-map-recovery-runner-context-registration",
-  "title": "Work Map recovery-chain runner-context registration",
+  "title": "Work Map recovery-chain registration and write-authority separation",
   "delivery_mode": "single_pr",
   "current_phase": "resilient",
   "scope": {
@@ -22,41 +22,41 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Restore GitHub planning and registration across the PR refresh, Work Map Recovery, and Work Map Integration chain by initializing runner-scoped paths only after runner allocation.",
+      "objective": "Restore workflow registration while separating pull-request validation from all repository and Actions mutation authority.",
       "e2e_journeys": [
         {
-          "id": "work-map-recovery-chain-registers-and-delegates",
+          "id": "read-only-pr-validation-and-dispatch-only-recovery",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "GitHub Actions workflow planner and governed Work Map operator",
-          "entrypoint": "Authorized same-repository pull request changing a registered Work Map or generated-artifact path",
-          "terminal_outcome": "The PR workflow registers, validates the exact current head, delegates to Recovery, and makes Integration evidence paths available without evaluating runner.temp before runner allocation.",
+          "entrypoint": "A governed pull request plus a separate authorized Bootstrap activation",
+          "terminal_outcome": "PR Generated Artifact Refresh evaluates the exact head read-only; the independent Bootstrap dispatches a workflow_dispatch-only Recovery; Recovery consumes one authorization marker and delegates to the sole writer; Integration publishes bounded exact-head repair evidence.",
           "steps": [
-            "Plan PR Generated Artifact Refresh without job-level runner.temp.",
-            "Allocate a runner and publish absolute refresh and activation report paths through GITHUB_ENV.",
-            "Validate the open same-repository pull request, exact head SHA, authorization marker, and behind_by=0.",
-            "Dispatch the Recovery workflow after its bounded report directory is initialized from RUNNER_TEMP.",
-            "Consume the one-time marker only inside Recovery and delegate to the sole Work Map writer.",
-            "Run Work Map Integration with its repair root initialized after runner allocation.",
-            "Upload canonical secret-free evidence from the initialized paths."
+            "Plan PR Generated Artifact Refresh without job-level runner.temp and without write permissions or mutation commands.",
+            "Allocate a runner and publish absolute refresh report paths through GITHUB_ENV.",
+            "Evaluate generated artifacts from the exact same-repository head without repository mutation.",
+            "Use the independent Bootstrap to validate actor, PR, marker, exact head, and behind_by=0 before dispatching Recovery.",
+            "Run Recovery only through workflow_dispatch after initializing its report directory from RUNNER_TEMP.",
+            "Consume the one-time marker in Recovery and dispatch the existing sole Work Map writer.",
+            "Run Work Map Integration with its repair root initialized after runner allocation."
           ],
           "assertions": [
-            "No workflow in the repaired chain evaluates runner.temp in job-level env.",
-            "PR evaluation and Integration retain contents: read and no git push authority.",
-            "Recovery preserves exact-head validation, one-time marker consumption, and sole-writer delegation.",
-            "All paths are derived from RUNNER_TEMP only after the runner is allocated.",
+            "The pull-request workflow contains no actions: write, issues: write, pull-requests: write, contents: write, git push, or Recovery dispatch.",
+            "Recovery exposes workflow_dispatch only and has no pull_request, pull_request_target, or issue_comment trigger.",
+            "No repaired workflow evaluates runner.temp in job-level env.",
+            "Integration remains contents: read and free of git push authority.",
             "No Production, provider, deployment, database, SQL, Migration Apply, credential, protected-ref, force-push, or external-send authority is introduced."
           ],
           "tests": [
             {
-              "id": "pr-generated-artifact-refresh-runner-context-regression",
+              "id": "pr-generated-artifact-refresh-read-only-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
               "args": []
             },
             {
-              "id": "work-map-recovery-chain-diagnostics-regression",
+              "id": "work-map-recovery-authority-separation-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-diagnostics.mjs",
@@ -65,6 +65,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
             ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
@@ -76,31 +77,31 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Preserve existing exact-head validation, read-only evaluation, workflow activation readback, Recovery authorization consumption, writer dispatch, Integration repair-candidate publication, and bounded Artifacts.",
+      "objective": "Preserve exact-head validation, bounded evidence, one-time authorization consumption, sole-writer delegation, and Integration repair-candidate publication under separated workflow authority.",
       "e2e_journeys": [
         {
-          "id": "recovery-chain-preserves-authority-boundaries",
+          "id": "bootstrap-recovery-writer-authority-chain",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation governance reviewer",
-          "entrypoint": "Static workflow contracts and focused executable regressions",
-          "terminal_outcome": "The repaired chain retains the original authority split: read-only PR evaluation and Integration, one-time authorization consumption in Recovery, and remote content mutation only in the sole writer.",
+          "entrypoint": "Static contracts and executable regressions for Bootstrap, Recovery, writer, and Integration",
+          "terminal_outcome": "Only the independently triggered Bootstrap may dispatch Recovery; only Recovery may consume the marker and dispatch the existing writer; pull-request validation and Integration remain read-only.",
           "steps": [
-            "Inspect the permissions and triggers of the three repaired workflows.",
-            "Require exact-head and zero-behind validation before Recovery delegation.",
-            "Require one-time marker consumption only in Recovery.",
-            "Require PR evaluation and Integration to remain free of contents: write and git push.",
-            "Require bounded report and repair paths to be published through GITHUB_ENV after allocation."
+            "Verify Bootstrap has no contents: write, marker consumption, direct writer dispatch, or git mutation.",
+            "Verify Bootstrap dispatches the Recovery workflow using the typed confirmation contract.",
+            "Verify Recovery is dispatch-only and validates one exact current same-repository PR.",
+            "Verify Recovery consumes one marker and delegates to the existing writer.",
+            "Verify PR validation and Integration retain read-only authority."
           ],
           "assertions": [
-            "The PR workflow and Integration remain repository read-only.",
-            "Recovery dispatches the existing sole writer and does not implement a duplicate writer.",
-            "Protected branch mutation and force push remain false in structured evidence.",
+            "No pull-request-triggered workflow in the changed scope has write authority.",
+            "Recovery structured evidence declares protected_branch_mutation=false and force_push=false.",
+            "The sole writer remains the only Work Map content-writing workflow.",
             "No secrets are included in reports or Artifacts."
           ],
           "tests": [
             {
-              "id": "work-map-operational-authority-regression",
+              "id": "work-map-operational-authority-chain-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-diagnostics.mjs",
@@ -108,9 +109,9 @@
             }
           ],
           "evidence_paths": [
-            ".github/workflows/pr-generated-artifact-refresh.yml",
+            ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
             ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
             "http-generic-api/test-work-map-autofix-diagnostics.mjs"
           ]
         }
@@ -119,31 +120,31 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail regression if runner.temp returns to pre-allocation evaluation or any required report-path initialization bridge is removed.",
+      "objective": "Fail closed on pre-allocation runner context use, pull-request write authority, stale heads, missing authorization, or missing bounded path initialization.",
       "e2e_journeys": [
         {
-          "id": "runner-context-regression-fails-closed",
+          "id": "lifecycle-and-runner-context-guards-fail-closed",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Work Map integration gate",
-          "entrypoint": "Candidate change to any repaired workflow or Work Map governance test",
-          "terminal_outcome": "The exact-head gate rejects pre-allocation runner context use, missing initialization bridges, widened write authority, or unbounded report paths before merge.",
+          "actor": "Repository Tool Lifecycle and Work Map integration gates",
+          "entrypoint": "Candidate change to any workflow or governance contract in the repaired chain",
+          "terminal_outcome": "The candidate is rejected before merge if a pull-request workflow regains mutation authority, Recovery gains an ambient trigger, runner.temp is evaluated before allocation, or evidence paths become unbounded.",
           "steps": [
-            "Load each repaired workflow as trusted text.",
-            "Reject any runner.temp expression in the repaired chain.",
-            "Require the named post-allocation initialization step and RUNNER_TEMP path for each job.",
-            "Require GITHUB_ENV publication and matching Artifact paths.",
-            "Run E2E reference integrity and repository lifecycle governance on the bounded changed scope."
+            "Evaluate changed workflows through Repository Tool Lifecycle Governance.",
+            "Reject pull-request workflows containing write permissions or mutation paths.",
+            "Load each repaired workflow and reject any runner.temp expression.",
+            "Require RUNNER_TEMP initialization through GITHUB_ENV after runner allocation.",
+            "Validate complete E2E journeys and bounded changed scope."
           ],
           "assertions": [
-            "The regression fails before delegation if a runner-scoped path is evaluated too early.",
-            "The regression fails if read-only jobs gain contents: write or git push.",
-            "No temporary unregistered repository tool is introduced.",
-            "All implemented phases expose at least one complete E2E journey."
+            "PULL_REQUEST_WRITE_WORKFLOW findings are absent from the final lifecycle report.",
+            "Recovery has workflow_dispatch only.",
+            "The regression fails if read-only jobs gain contents: write, Actions dispatch, issue mutation, PR mutation, or git push.",
+            "All implemented phases expose complete E2E journeys."
           ],
           "tests": [
             {
-              "id": "work-map-resilient-runner-context-regression",
+              "id": "work-map-resilient-lifecycle-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-work-map-autofix-diagnostics.mjs",
