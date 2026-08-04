@@ -113,6 +113,17 @@ assert.match(bindingGuard, /retry_same_code: retrySameCode === true/u);
 assert.match(bindingGuard, /secrets_included: false/u);
 
 assert.match(route, /router\.post\("\/auth\/oauth\/token"/u);
+assert.doesNotMatch(route, /from ["']jsonwebtoken["']/u,
+  "route must not import a local JWT implementation");
+assert.doesNotMatch(route, /development_fallback_secret_only/u,
+  "route must not contain a local JWT fallback secret");
+assert.doesNotMatch(route, /defaultVerifyCode|defaultIssueAccessToken/u,
+  "route must require governed crypto dependencies from the binding layer");
+assert.match(route, /oauth_token_exchange_crypto_dependencies_required/u);
+assert.match(route, /requested_scope/u,
+  "route must expose bounded requested-scope evidence without the raw token");
+assert.match(bindingGuard, /decodeCode/u,
+  "binding layer must provide bounded diagnostic code decoding");
 assert.match(route, /delete req\.headers\.cookie/u);
 assert.match(route, /res\.setHeader\("Cache-Control", "no-store"\)/u);
 assert.match(route, /res\.setHeader\("Pragma", "no-cache"\)/u);
@@ -157,8 +168,12 @@ assert.match(legacyAuthRoutes, /router\.post\("\/oauth\/token"/u,
   "legacy handler remains present but must be shadowed only for the exact route");
 assert.match(route, /client_secret_present: Boolean/u,
   "diagnostics may retain only the presence bit for a client secret");
-assert.doesNotMatch(route, /access_token:\s*event/u,
-  "diagnostics must not attach an access token");
+assert.match(route, /access_token:\s*event\.access_token \|\| null/u,
+  "diagnostics may attach only the bounded access-token evidence object");
+assert.match(route, /tokenLogContext\.access_token = \{[\s\S]*token_type: "bearer"[\s\S]*length: String\(accessToken \|\| ""\)\.length[\s\S]*secrets_included: false/u,
+  "access-token diagnostics must contain only token type, length, and the no-secret marker");
+assert.doesNotMatch(route, /tokenLogContext\.access_token\s*=\s*accessToken/u,
+  "diagnostics must never attach the raw access token");
 assert.doesNotMatch(route, /authorization:\s*event/u,
   "diagnostics must not attach an authorization header");
 assert.doesNotMatch(route, /cookie:\s*event/u,
