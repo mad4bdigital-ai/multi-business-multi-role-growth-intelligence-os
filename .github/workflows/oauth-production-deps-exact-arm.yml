@@ -25,7 +25,7 @@ jobs:
       BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
       CANDIDATE_SHA: 3861a123e3e761c52a10febf5e100a99dcd077a0
       CANDIDATE_BRANCH: gpt/spec012-oauth-production-deps-67cb77cf-20260804
-      REPORT_DIR: ${{ runner.temp }}/oauth-production-deps-reports
+      REPORT_DIR: .artifacts/oauth-production-deps-reports
     steps:
       - name: Checkout exact candidate
         uses: actions/checkout@v5
@@ -96,7 +96,7 @@ jobs:
       - name: Run complete HTTP Generic API Unit and Integration suite
         working-directory: http-generic-api
         env:
-          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/oauth-production-deps-reports/test-suite
+          TEST_SUITE_REPORT_DIR: ../.artifacts/oauth-production-deps-reports/test-suite
         run: npm test
 
       - name: Run architecture and startup validation
