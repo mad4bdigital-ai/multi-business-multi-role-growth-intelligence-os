@@ -1,0 +1,107 @@
+name: TEMP R7 Registration Validator 6173
+
+on:
+  pull_request:
+    branches:
+      - gpt/r7-registration-validator-base-6173-2f6634d3
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    name: Validate exact R7 registration candidate read-only
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      CANONICAL_PR: '6173'
+      EXPECTED_HEAD_REF: fix/hostinger-production-r7-registration-context-20260804
+    steps:
+      - name: Capture and pin canonical identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${current_main_sha}"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${current_main_sha}...${current_head_sha}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${current_main_sha}"
+          echo "CURRENT_MAIN_SHA=${current_main_sha}" >> "${GITHUB_ENV}"
+          echo "CURRENT_HEAD_SHA=${current_head_sha}" >> "${GITHUB_ENV}"
+
+      - name: Checkout canonical candidate branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/hostinger-production-r7-registration-context-20260804
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact scope and contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/r7-registration-validation-6173"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+          test "$(git rev-parse HEAD)" = "${CURRENT_HEAD_SHA}"
+          git fetch --no-tags origin "${CURRENT_MAIN_SHA}"
+          cat > "${report_dir}/expected-files.txt" <<'EOF'
+          .github/workflows/hostinger-production-runtime-readback-r7.yml
+          docs/work-maps/README.md
+          docs/work-maps/repository-automation-map.md
+          http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          EOF
+          git diff --name-only "${CURRENT_MAIN_SHA}...${CURRENT_HEAD_SHA}" | sort > "${report_dir}/actual-files.txt"
+          diff -u "${report_dir}/expected-files.txt" "${report_dir}/actual-files.txt"
+          git diff --check "${CURRENT_MAIN_SHA}...${CURRENT_HEAD_SHA}"
+
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs | tee "${report_dir}/01-r7-registration.log"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs | tee "${report_dir}/02-e2e-reference.log"
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs | tee "${report_dir}/03-e2e-index.log"
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs | tee "${report_dir}/04-pipeline.log"
+          node http-generic-api/test-pipeline-connectivity-check.mjs | tee "${report_dir}/05-pipeline-regression.log"
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs | tee "${report_dir}/06-schema-contract.log"
+          node http-generic-api/scripts/work-map-schema-classification.mjs | tee "${report_dir}/07-schema.log"
+          node http-generic-api/test-work-map-schema-classification.mjs | tee "${report_dir}/08-schema-regression.log"
+          node http-generic-api/test-work-map-schema-classification-contract.mjs | tee "${report_dir}/09-schema-contract-regression.log"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee "${report_dir}/10-work-map-currentness.log"
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs | tee "${report_dir}/11-lifecycle.log"
+          REPORT_PATH="${report_dir}/spec014-final-work-map-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${report_dir}/12-spec014.log"
+          jq -e '.ok == true and ((.findings | length) == 0)' "${report_dir}/spec014-final-work-map-readback.json" >/dev/null
+          jq -n --arg candidate_sha "${CURRENT_HEAD_SHA}" --arg main_sha "${CURRENT_MAIN_SHA}" '{contract:"mad4b.r7-registration-exact-head-validation.v1",candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:4,contracts_passed:12,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' > "${report_dir}/summary.json"
+
+      - name: Re-read captured identity
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${CURRENT_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.head.sha')" = "${CURRENT_HEAD_SHA}"
+          test "$(git rev-parse HEAD)" = "${CURRENT_HEAD_SHA}"
+
+      - name: Upload exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: r7-registration-validation-6173-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
