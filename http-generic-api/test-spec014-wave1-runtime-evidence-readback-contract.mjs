@@ -59,12 +59,20 @@ assert.match(discovery, /spec014-wave1-runtime-readiness\.yml/);
 assert.match(discovery, /event=issue_comment/);
 assert.match(discovery, /maxDeltaMs = 5 \* 60 \* 1000/);
 assert.match(discovery, /public_metadata_only: true/);
-assert.match(discovery, /runtime_contact: false/);
+assert.match(discovery, /SPEC014_WAVE1_RUNTIME_LIVE_DIAGNOSTIC/);
+assert.match(discovery, /git\/ref\/heads\/main/);
+assert.match(discovery, /git\/ref\/heads\/Production/);
+assert.match(discovery, /publicRuntimeGet\('\/health'\)/);
+assert.match(discovery, /publicRuntimeGet\('\/version'\)/);
+assert.match(discovery, /publicRuntimeGet\('\/deployment-info'\)/);
+assert.match(discovery, /exact_runtime_parity:/);
+assert.match(discovery, /public_get_only: true/);
+assert.match(discovery, /runtime_contact: true/);
 assert.match(discovery, /database_access: false/);
 assert.match(discovery, /migration_apply_executed: false/);
 assert.match(discovery, /provider_call_executed: false/);
 assert.match(discovery, /secrets_included: false/);
-assert.doesNotMatch(discovery, /Authorization:|GITHUB_TOKEN|BACKEND_API_KEY|auth\.mad4b\.com/);
+assert.doesNotMatch(discovery, /Authorization:|GITHUB_TOKEN|BACKEND_API_KEY/);
 
 if (String(process.env.GITHUB_HEAD_REF || '') === OBSERVER_BRANCH) {
   await import('./scripts/spec014-wave1-runtime-public-run-discovery.mjs');
@@ -74,11 +82,10 @@ console.log(
   JSON.stringify(
     {
       ok: true,
-      contract: 'spec014_wave1_runtime_public_run_discovery_guard.v1',
+      contract: 'spec014_wave1_runtime_public_run_discovery_guard.v2',
       observer_branch: OBSERVER_BRANCH,
-      public_metadata_only: true,
+      public_runtime_get_diagnostic: true,
       artifact_download_performed: false,
-      runtime_contact: false,
       database_access: false,
       migration_apply_executed: false,
       provider_call_executed: false,
