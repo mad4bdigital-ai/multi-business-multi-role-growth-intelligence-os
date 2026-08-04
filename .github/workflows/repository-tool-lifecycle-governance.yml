@@ -74,7 +74,7 @@ jobs:
   # BEGIN TEMP FRONTEND CONCURRENCY FIX
   fix-frontend-concurrency-expression:
     if: github.event.pull_request.head.ref == 'gpt/ci-runner-queue-unblock-current-main-20260804'
-    runs-on: ubuntu-24.04
+    runs-on: macos-14
     timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/ci-runner-queue-unblock-current-main-20260804
@@ -138,26 +138,35 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          mapfile -t changed < <(git diff --name-only origin/main...HEAD; git diff --name-only)
-          mapfile -t changed < <(printf '%s\n' "${changed[@]}" | sed '/^$/d' | sort -u)
-          test "${#changed[@]}" -eq 5
-          printf '%s\n' "${changed[@]}"
-          for expected in \
-            .github/workflows/ci.yml \
-            .github/workflows/context-kernel-hardcoding-report.yml \
-            .github/workflows/e2e-phase-governance.yml \
-            .github/workflows/frontend-surface-dispatch.yml \
-            .github/workflows/repository-tool-lifecycle-governance.yml; do
-            printf '%s\n' "${changed[@]}" | grep -Fxq "$expected"
-          done
           git diff --check
           python3 - <<'PY'
           from pathlib import Path
+          import subprocess
+
+          committed = subprocess.check_output(
+              ['git', 'diff', '--name-only', 'origin/main...HEAD'],
+              text=True,
+          ).splitlines()
+          worktree = subprocess.check_output(
+              ['git', 'diff', '--name-only'],
+              text=True,
+          ).splitlines()
+          changed = sorted(set(filter(None, committed + worktree)))
+          expected_files = sorted([
+              '.github/workflows/ci.yml',
+              '.github/workflows/context-kernel-hardcoding-report.yml',
+              '.github/workflows/e2e-phase-governance.yml',
+              '.github/workflows/frontend-surface-dispatch.yml',
+              '.github/workflows/repository-tool-lifecycle-governance.yml',
+          ])
+          print('\n'.join(changed))
+          assert changed == expected_files, f'unexpected_final_scope:{changed}'
+
           expression = '$' + '{{ github.event.pull_request.number || github.ref }}'
           expected = f'group: frontend-surface-dispatch-{expression}'
-          text = Path('.github/workflows/frontend-surface-dispatch.yml').read_text()
-          assert text.count(expected) == 1, 'dynamic Frontend concurrency expression missing'
-          assert 'frontend-surface-dispatch-6122' not in text, 'fixed PR number remains'
+          frontend = Path('.github/workflows/frontend-surface-dispatch.yml').read_text()
+          assert frontend.count(expected) == 1, 'dynamic Frontend concurrency expression missing'
+          assert 'frontend-surface-dispatch-6122' not in frontend, 'fixed PR number remains'
           lifecycle = Path('.github/workflows/repository-tool-lifecycle-governance.yml').read_text()
           assert 'TEMP FRONTEND CONCURRENCY FIX' not in lifecycle
           assert 'permissions:\n  contents: read\n' in lifecycle
