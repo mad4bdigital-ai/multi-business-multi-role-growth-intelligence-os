@@ -36,7 +36,7 @@ concurrency:
 jobs:
   analyze:
     name: Analyze automation ownership and overlap
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
