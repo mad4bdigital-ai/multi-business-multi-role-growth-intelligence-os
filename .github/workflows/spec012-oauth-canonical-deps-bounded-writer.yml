@@ -1,0 +1,201 @@
+name: Spec 012 OAuth Canonical Dependency Bounded Writer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/spec012-oauth-canonical-deps-bounded-writer.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-canonical-deps-writer-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  write-bounded-candidate:
+    if: github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 81a254bfae492e33526f92ec2241f2d927790de2
+      BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      WORKFLOW_PATH: .github/workflows/spec012-oauth-canonical-deps-bounded-writer.yml
+      CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+    steps:
+      - name: Checkout exact writer branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable writer identity and current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          mapfile -t trigger_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
+          test "${#trigger_files[@]}" -eq 1
+          test "${trigger_files[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Apply bounded OAuth and E2E contract edits
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceExactlyOnce(path, before, after) {
+            const source = fs.readFileSync(path, 'utf8');
+            const count = source.split(before).length - 1;
+            if (count !== 1) throw new Error(`${path}: expected exactly one bounded replacement, found ${count}`);
+            fs.writeFileSync(path, source.replace(before, after));
+          }
+
+          replaceExactlyOnce(
+            'http-generic-api/routes/index.js',
+            'app.use(buildTenantGptOAuthMetadataRoutes());',
+            'app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+          );
+          replaceExactlyOnce(
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+            'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())")',
+            'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))")',
+          );
+
+          const contractPath = process.env.CONTRACT_PATH;
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const required = [
+            '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
+            'http-generic-api/routes/index.js',
+            'http-generic-api/frontend-surface-dispatch.generated.json',
+            'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js',
+            'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js',
+            'http-generic-api/test-auth-oauth-routes.mjs',
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+            'docs/work-maps/README.md',
+            'docs/work-maps/repository-automation-map.md',
+          ];
+          contract.scope.include = required;
+          const journeys = contract.phases?.flatMap((phase) => phase.e2e_journeys || []) || [];
+          if (journeys.length !== 1) throw new Error(`Expected one T031 E2E journey, found ${journeys.length}`);
+          journeys[0].evidence_paths = required;
+          fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+          NODE
+
+      - name: Generate deterministic frontend dispatch artifact
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate
+          npm run frontend:dispatch:check
+
+      - name: Verify bounded working-tree scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "${WORKFLOW_PATH}"
+          mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^.. //' | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            ".github/workflows/spec012-oauth-canonical-deps-bounded-writer.yml"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${changed[@]}")
+          git diff --check
+
+      - name: Run focused governed checks
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/index.js
+          node --check test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+
+      - name: Create final bounded commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            "${CONTRACT_PATH}" \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
+            "${WORKFLOW_PATH}"
+          git commit -m "fix(spec-012): preserve OAuth dependencies at canonical mount"
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -t final_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}")
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#final_files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${final_files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Validate final E2E phase contract and full manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
+          (
+            cd http-generic-api
+            npm test
+          ) | tee evidence/http-generic-api-manifest.log
+          {
+            echo "main=${EXPECTED_MAIN_SHA}"
+            echo "candidate=${FINAL_SHA}"
+            echo "changed_files=4"
+            echo "secrets_included=false"
+            echo "repository_scope=non_protected_branch_only"
+            echo "production_action=false"
+            echo "provider_action=false"
+            echo "database_mutation=false"
+          } > evidence/summary.txt
+
+      - name: Push bounded fast-forward result
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${BRANCH_NAME}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-canonical-deps-writer-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
