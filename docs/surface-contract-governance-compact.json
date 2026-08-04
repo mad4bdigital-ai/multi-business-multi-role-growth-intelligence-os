@@ -1,48 +1,17 @@
 {
   "ok": true,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.71,
+  "docs_completion_percent": 99.35,
   "docs_complete_count": 458,
-  "docs_gap_count": 6,
-  "queue_items": 26,
+  "docs_gap_count": 3,
+  "queue_items": 3,
   "blocking_new_item_count": 0,
   "gate_ok": true,
-  "top_actionable": [
-    {
-      "migration_file": "1020_sprint69_multi_surface_tenant_agent_runtime.sql",
-      "queue_class": "critical_review",
-      "score": 1421,
-      "next_step": "confirm registry binding/readback evidence before promotion"
-    },
-    {
-      "migration_file": "1030_sprint69_generic_platform_resource_context.sql",
-      "queue_class": "critical_review",
-      "score": 826,
-      "next_step": "confirm registry binding/readback evidence before promotion"
-    },
-    {
-      "migration_file": "20260802_03_spec014_hostinger_storage_execution_evidence.sql",
-      "queue_class": "critical_review",
-      "score": 803,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    },
-    {
-      "migration_file": "1029_sprint69_minimal_dynamic_brand_resolution.sql",
-      "queue_class": "critical_review",
-      "score": 771,
-      "next_step": "confirm registry binding/readback evidence before promotion"
-    },
-    {
-      "migration_file": "20260730_hostinger_production_resync_policy.sql",
-      "queue_class": "high_review",
-      "score": 547,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    }
-  ],
+  "top_actionable": [],
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 673,
   "total_sql_route_like_count": 704,
-  "safety_marker_gap_migrations": 2,
+  "safety_marker_gap_migrations": 1,
   "trend_quality_gate": {
     "ok": true,
     "schema_version": "surface-contract-trend-quality-gate-v1",
