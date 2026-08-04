@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: patch-oauth-production-deps-current-main
+  group: patch-oauth-production-deps-current-main-v2
   cancel-in-progress: false
 
 jobs:
@@ -18,18 +18,18 @@ jobs:
     name: Apply bounded OAuth dependency composition patch
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/spec012-oauth-production-deps-88439328-20260804' &&
-      github.event.pull_request.head.sha == '3c7b7e61cee3ce7e9b5d5bd56d6e7e7bc566bf12'
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-production-deps-0ccfc93b-20260804' &&
+      github.event.pull_request.head.sha == '5644da3a793e131f9adc62828097958f0fe92a83'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
-      MAIN_SHA: 88439328058c46a87f205cc49be47a1ab0651faf
+      MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
       OLD_BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
       SOURCE_SHA: 3861a123e3e761c52a10febf5e100a99dcd077a0
-      TRIGGER_SHA: 3c7b7e61cee3ce7e9b5d5bd56d6e7e7bc566bf12
-      TARGET_BRANCH: gpt/spec012-oauth-production-deps-88439328-20260804
+      TRIGGER_SHA: 5644da3a793e131f9adc62828097958f0fe92a83
+      TARGET_BRANCH: gpt/spec012-oauth-production-deps-0ccfc93b-20260804
       SOURCE_BRANCH: gpt/spec012-oauth-production-deps-67cb77cf-20260804
-      MARKER_PATH: .github/validation/patch-oauth-production-deps-current-main.txt
+      MARKER_PATH: .github/validation/patch-oauth-production-deps-current-main-v2.txt
       REPORT_DIR: .artifacts/oauth-current-main-writer
     steps:
       - name: Checkout exact target trigger
@@ -39,14 +39,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify immutable inputs and non-overlap
+      - name: Verify immutable inputs and no OAuth overlap
         shell: bash
         run: |
           set -Eeuo pipefail
           test "${{ github.event.pull_request.head.sha }}" = "$TRIGGER_SHA"
           test "$(git rev-parse HEAD)" = "$TRIGGER_SHA"
           test -f "$MARKER_PATH"
-          grep -Fxq 'PATCH_OAUTH_PRODUCTION_DEPS_CURRENT_MAIN' "$MARKER_PATH"
+          grep -Fxq 'PATCH_OAUTH_PRODUCTION_DEPS_CURRENT_MAIN_V2' "$MARKER_PATH"
           grep -Fxq "base_sha=$MAIN_SHA" "$MARKER_PATH"
           grep -Fxq "source_sha=$SOURCE_SHA" "$MARKER_PATH"
 
@@ -59,19 +59,27 @@ jobs:
           test "$(git rev-parse refs/remotes/origin/target)" = "$TRIGGER_SHA"
           test "$(git rev-parse refs/remotes/origin/source)" = "$SOURCE_SHA"
           test "$(git rev-parse ${SOURCE_SHA}^1)" = "$OLD_BASE_SHA"
+          git merge-base --is-ancestor "$OLD_BASE_SHA" "$MAIN_SHA"
 
-          mapfile -t main_delta < <(git diff --name-only "$OLD_BASE_SHA" "$MAIN_SHA" | sort)
-          test "${#main_delta[@]}" -eq 1
-          test "${main_delta[0]}" = 'http-generic-api/test-tenant-ssh-cli-approval-request.mjs'
-
-          mapfile -t source_delta < <(git diff --name-only "$OLD_BASE_SHA" "$SOURCE_SHA" | sort)
           expected=(
             .changes/e2e/spec012-oauth-production-dependency-composition.json
             http-generic-api/routes/index.js
             http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
           )
+          mapfile -t source_delta < <(git diff --name-only "$OLD_BASE_SHA" "$SOURCE_SHA" | sort)
           test "${#source_delta[@]}" -eq 3
           test "$(printf '%s\n' "${source_delta[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+
+          mapfile -t main_delta < <(git diff --name-only "$OLD_BASE_SHA" "$MAIN_SHA" | sort)
+          for path in "${expected[@]}"; do
+            if printf '%s\n' "${main_delta[@]}" | grep -Fxq "$path"; then
+              echo "Current main overlaps reviewed OAuth path: $path" >&2
+              exit 1
+            fi
+          done
+          mkdir -p "$REPORT_DIR"
+          printf '%s\n' "${main_delta[@]}" > "$REPORT_DIR/main-delta.txt"
+          printf 'overlap_result=pass\nmain_sha=%s\nsource_sha=%s\n' "$MAIN_SHA" "$SOURCE_SHA" > "$REPORT_DIR/identity.txt"
 
       - name: Apply exact reviewed three-file patch
         shell: bash
@@ -132,7 +140,7 @@ jobs:
           node test-auth-oauth-routes.mjs
           node test-chatgpt-mcp-metadata-routing.mjs
 
-      - name: Validate E2E contract bytes and references
+      - name: Validate reviewed E2E contract and references
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -140,7 +148,7 @@ jobs:
           node http-generic-api/test-e2e-contract-reference-integrity.mjs
           mkdir -p "$REPORT_DIR"
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --base "$MAIN_SHA" \
+            --base "$OLD_BASE_SHA" \
             --head "$SOURCE_SHA" \
             --report-file "$REPORT_DIR/e2e-reference.json"
 
@@ -175,7 +183,7 @@ jobs:
           test "$readback" = "$FINAL_SHA"
           mkdir -p "$REPORT_DIR"
           jq -n \
-            --arg contract 'oauth_current_main_writer.v1' \
+            --arg contract 'oauth_current_main_writer.v2' \
             --arg main_sha "$MAIN_SHA" \
             --arg source_sha "$SOURCE_SHA" \
             --arg trigger_sha "$TRIGGER_SHA" \
