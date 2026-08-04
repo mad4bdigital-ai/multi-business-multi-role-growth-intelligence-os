@@ -29,7 +29,7 @@ jobs:
       TARGET_PR: '6264'
       TARGET_BRANCH: gpt/ci/frontend-generated-baseline-main-7b8754c4-20260804
       EXPECTED_HEAD_SHA: b2d9d11da1690bea8a616edc00b678da0f490554
-      AUTHORIZATION_COMMENT_ID: '5180131493'
+      AUTHORIZATION_COMMENT_ID: '5180417938'
       AUTHORIZATION_USER_ID: '271942579'
       AUTHORIZATION_COMMAND: /refresh-generated-artifacts b2d9d11da1690bea8a616edc00b678da0f490554
       TRIGGER_PATH: docs/governance/generated-refresh-arm-bridge-6264.trigger.md
@@ -76,6 +76,7 @@ jobs:
           set -Eeuo pipefail
           test "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" --jq '.head.sha')" = "${EXPECTED_HEAD_SHA}"
           gh workflow run governed-generated-artifact-refresh.yml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref main \
             -f target_ref="${TARGET_BRANCH}" \
             -f expected_head_sha="${EXPECTED_HEAD_SHA}" \
