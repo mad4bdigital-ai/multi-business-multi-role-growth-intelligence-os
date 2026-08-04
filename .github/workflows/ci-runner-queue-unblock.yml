@@ -141,6 +141,19 @@ jobs:
           git add -A
           git commit -m 'ci: pin required checks and cancel superseded runs'
           test ! -e "${WORKFLOW_PATH}"
+          mkdir -p /tmp/bounded-commit
+          git rev-parse HEAD > /tmp/bounded-commit/commit-sha.txt
+          git rev-parse 'HEAD^{tree}' > /tmp/bounded-commit/tree-sha.txt
+          git rev-parse HEAD^ > /tmp/bounded-commit/parent-sha.txt
+          git show --stat --oneline --decorate=short HEAD > /tmp/bounded-commit/summary.txt
+
+      - name: Upload bounded commit metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-runner-bounded-commit-${{ github.event.pull_request.head.sha }}
+          path: /tmp/bounded-commit
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Push bounded commit
         shell: bash
