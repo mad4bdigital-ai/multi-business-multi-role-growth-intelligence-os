@@ -1,2 +1,0 @@
-PR 5292 exact-head CI authorization trigger.
-This file is intentionally removed in the next commit; the pair must have zero net tree change.
