@@ -1,0 +1,125 @@
+name: Spec 012 OAuth Canonical Dependency Exact-Head Validator
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - .github/workflows/spec012-oauth-canonical-deps-exact-head-validator.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec012-oauth-canonical-deps-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-exact-product-head:
+    if: github.event.pull_request.head.ref == 'gpt/validate-spec012-oauth-canonical-deps-38af9e94-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      EXPECTED_PRODUCT_SHA: 38af9e943deef4968fb692dc2e421dd981851cae
+      PRODUCT_BRANCH: gpt/spec012-oauth-canonical-deps-20260804
+      VALIDATOR_PATH: .github/workflows/spec012-oauth-canonical-deps-exact-head-validator.yml
+    steps:
+      - name: Checkout validator trigger
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify immutable identities and validator-only trigger scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git fetch --no-tags origin main "${PRODUCT_BRANCH}"
+          actual_main="$(git rev-parse origin/main)"
+          actual_product="$(git rev-parse "origin/${PRODUCT_BRANCH}")"
+          test "${actual_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${actual_product}" = "${EXPECTED_PRODUCT_SHA}"
+          mapfile -t validator_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
+          test "${#validator_files[@]}" -eq 1
+          test "${validator_files[0]}" = "${VALIDATOR_PATH}"
+          {
+            echo "validator_head=$(git rev-parse HEAD)"
+            echo "main=${actual_main}"
+            echo "product=${actual_product}"
+            printf 'validator_file=%s\n' "${validator_files[0]}"
+          } | tee evidence/identity.txt
+
+      - name: Checkout exact product head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${EXPECTED_PRODUCT_SHA}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_PRODUCT_SHA}"
+          mapfile -t product_files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}")
+          test "${#product_files[@]}" -eq 2
+          test "${product_files[0]}" = "http-generic-api/routes/index.js"
+          test "${product_files[1]}" = "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          git diff --check "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}"
+          git diff --stat "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}" | tee evidence/product-scope.txt
+          git diff "${EXPECTED_MAIN_SHA}...${EXPECTED_PRODUCT_SHA}" -- \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
+            > evidence/product.patch
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee ../evidence/npm-ci.log
+
+      - name: Verify syntax and focused governed OAuth contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check routes/index.js 2>&1 | tee ../evidence/routes-index-syntax.log
+          node --check test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee ../evidence/t031-wiring-syntax.log
+          node test-spec012-t031-oauth-token-route-wiring.mjs 2>&1 | tee ../evidence/t031-wiring.log
+          node test-auth-oauth-routes.mjs 2>&1 | tee ../evidence/auth-oauth-routes.log
+
+      - name: Run complete HTTP Generic API manifest
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm test 2>&1 | tee ../evidence/http-generic-api-manifest.log
+
+      - name: Record bounded completion evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "expected_main=${EXPECTED_MAIN_SHA}"
+            echo "expected_product=${EXPECTED_PRODUCT_SHA}"
+            echo "workflow_run_id=${GITHUB_RUN_ID}"
+            echo "workflow_job=${GITHUB_JOB}"
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "secrets_included=false"
+            echo "repository_mutation=false"
+            echo "production_action=false"
+            echo "provider_action=false"
+            echo "database_mutation=false"
+          } > evidence/summary.txt
+
+      - name: Upload no-secret validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-canonical-deps-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
