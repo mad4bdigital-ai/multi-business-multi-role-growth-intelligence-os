@@ -87,7 +87,7 @@ jobs:
 
           : > "$unexpected_paths"
           git status --porcelain=v1 --untracked-files=all > "$raw_status"
-          sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> /' | sed '/^$/d' > "$normalized_paths"
+          sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> //' | sed '/^$/d' > "$normalized_paths"
 
           while IFS= read -r path; do
             case "$path" in
