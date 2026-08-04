@@ -134,10 +134,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           metadata_dir="runner-pinning-metadata"
           mkdir -p "${metadata_dir}"
-          base_tree="$(git rev-parse "${EXPECTED_BASE_SHA}^{tree}")"
+          log_path="${metadata_dir}/object-build.log"
+          exec > >(tee -a "${log_path}") 2>&1
+
+          fail_object_phase() {
+            local phase="$1"
+            local status="${2:-1}"
+            printf '%s\n' "${phase}" > "${metadata_dir}/failure-phase.txt"
+            echo "::error::OBJECT_PHASE_FAILED:${phase}:exit=${status}"
+            exit "${status}"
+          }
+
+          base_tree="$(git rev-parse "${EXPECTED_BASE_SHA}^{tree}")" || fail_object_phase "base-tree"
+          printf '%s\n' "${EXPECTED_BASE_SHA}" > "${metadata_dir}/base-commit-sha.txt"
+          printf '%s\n' "${base_tree}" > "${metadata_dir}/base-tree-sha.txt"
           tree_elements="${RUNNER_TEMP}/tree-elements.json"
           printf '[]\n' > "${tree_elements}"
           cat > "${RUNNER_TEMP}/bounded-files.txt" <<'EOF'
@@ -149,20 +162,67 @@ jobs:
           .github/workflows/pr-generated-artifact-refresh.yml
           http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
           EOF
-          while IFS= read -r path; do
-            blob_sha="$(base64 -w0 "${path}" | jq -Rs '{content:.,encoding:"base64"}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
-            jq --arg path "${path}" --arg sha "${blob_sha}" '. + [{path:$path,mode:"100644",type:"blob",sha:$sha}]' "${tree_elements}" > "${tree_elements}.next"
-            mv "${tree_elements}.next" "${tree_elements}"
-          done < "${RUNNER_TEMP}/bounded-files.txt"
-          tree_sha="$(jq -n --arg base_tree "${base_tree}" --slurpfile tree "${tree_elements}" '{base_tree:$base_tree,tree:$tree[0]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq .sha)"
-          commit_sha="$(jq -n --arg message 'fix(ci): pin generated refresh chain runners' --arg tree "${tree_sha}" --arg parent "${EXPECTED_BASE_SHA}" '{message:$message,tree:$tree,parents:[$parent]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq .sha)"
-          printf '%s\n' "${EXPECTED_BASE_SHA}" > "${metadata_dir}/base-commit-sha.txt"
-          printf '%s\n' "${base_tree}" > "${metadata_dir}/base-tree-sha.txt"
-          printf '%s\n' "${tree_sha}" > "${metadata_dir}/detached-tree-sha.txt"
-          printf '%s\n' "${commit_sha}" > "${metadata_dir}/detached-commit-sha.txt"
-          cp "${tree_elements}" "${metadata_dir}/tree-elements.json"
 
-      - name: Export exact bounded patch
+          while IFS= read -r path; do
+            phase="blob:${path}"
+            echo "OBJECT_PHASE_START:${phase}"
+            expected_blob="$(git hash-object "${path}")" || fail_object_phase "${phase}:local-hash"
+            payload="${RUNNER_TEMP}/blob-payload.json"
+            response="${RUNNER_TEMP}/blob-response.json"
+            error_file="${RUNNER_TEMP}/blob-error.txt"
+            jq -n --rawfile content "${path}" '{content:$content,encoding:"utf-8"}' > "${payload}" || fail_object_phase "${phase}:payload"
+            if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input "${payload}" > "${response}" 2> "${error_file}"; then
+              cat "${error_file}"
+              cat "${response}" || true
+              fail_object_phase "${phase}:api"
+            fi
+            cat "${error_file}" || true
+            cat "${response}"
+            blob_sha="$(jq -r '.sha // empty' "${response}")" || fail_object_phase "${phase}:response"
+            test -n "${blob_sha}" || fail_object_phase "${phase}:missing-sha"
+            test "${blob_sha}" = "${expected_blob}" || fail_object_phase "${phase}:sha-mismatch"
+            jq --arg path "${path}" --arg sha "${blob_sha}" '. + [{path:$path,mode:"100644",type:"blob",sha:$sha}]' "${tree_elements}" > "${tree_elements}.next" || fail_object_phase "${phase}:tree-entry"
+            mv "${tree_elements}.next" "${tree_elements}" || fail_object_phase "${phase}:tree-entry-move"
+            echo "OBJECT_PHASE_SUCCESS:${phase}:${blob_sha}"
+          done < "${RUNNER_TEMP}/bounded-files.txt"
+
+          cp "${tree_elements}" "${metadata_dir}/tree-elements.json"
+          tree_payload="${RUNNER_TEMP}/tree-payload.json"
+          tree_response="${RUNNER_TEMP}/tree-response.json"
+          tree_error="${RUNNER_TEMP}/tree-error.txt"
+          jq -n --arg base_tree "${base_tree}" --slurpfile tree "${tree_elements}" '{base_tree:$base_tree,tree:$tree[0]}' > "${tree_payload}" || fail_object_phase "tree:payload"
+          echo "OBJECT_PHASE_START:tree"
+          if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input "${tree_payload}" > "${tree_response}" 2> "${tree_error}"; then
+            cat "${tree_error}"
+            cat "${tree_response}" || true
+            fail_object_phase "tree:api"
+          fi
+          cat "${tree_error}" || true
+          cat "${tree_response}"
+          tree_sha="$(jq -r '.sha // empty' "${tree_response}")" || fail_object_phase "tree:response"
+          test -n "${tree_sha}" || fail_object_phase "tree:missing-sha"
+          printf '%s\n' "${tree_sha}" > "${metadata_dir}/detached-tree-sha.txt"
+          echo "OBJECT_PHASE_SUCCESS:tree:${tree_sha}"
+
+          commit_payload="${RUNNER_TEMP}/commit-payload.json"
+          commit_response="${RUNNER_TEMP}/commit-response.json"
+          commit_error="${RUNNER_TEMP}/commit-error.txt"
+          jq -n --arg message 'fix(ci): pin generated refresh chain runners' --arg tree "${tree_sha}" --arg parent "${EXPECTED_BASE_SHA}" '{message:$message,tree:$tree,parents:[$parent]}' > "${commit_payload}" || fail_object_phase "commit:payload"
+          echo "OBJECT_PHASE_START:commit"
+          if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input "${commit_payload}" > "${commit_response}" 2> "${commit_error}"; then
+            cat "${commit_error}"
+            cat "${commit_response}" || true
+            fail_object_phase "commit:api"
+          fi
+          cat "${commit_error}" || true
+          cat "${commit_response}"
+          commit_sha="$(jq -r '.sha // empty' "${commit_response}")" || fail_object_phase "commit:response"
+          test -n "${commit_sha}" || fail_object_phase "commit:missing-sha"
+          printf '%s\n' "${commit_sha}" > "${metadata_dir}/detached-commit-sha.txt"
+          echo "OBJECT_PHASE_SUCCESS:commit:${commit_sha}"
+
+      - name: Export exact bounded patch and diagnostics
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: generated-refresh-runner-pinning-${{ github.event.pull_request.number }}-${{ github.run_id }}
