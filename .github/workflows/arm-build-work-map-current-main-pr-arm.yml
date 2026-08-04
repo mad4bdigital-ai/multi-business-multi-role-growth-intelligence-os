@@ -16,10 +16,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     env:
-      EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+      EXPECTED_MAIN_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
       OLD_BASE_SHA: a61cd9e83070618001676bbc679bc937f0551875
       CANDIDATE_SHA: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
-      TARGET_BRANCH: gpt/work-map-observable-exact-current-main-0ccfc9-20260804
+      TARGET_BRANCH: gpt/work-map-observable-exact-current-main-c1806e-20260804
     steps:
       - uses: actions/checkout@v5
         with:
