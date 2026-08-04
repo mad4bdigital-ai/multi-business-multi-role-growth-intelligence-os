@@ -56,6 +56,7 @@ function validate(exampleContract, extraFiles = {}) {
 const legacyRead = validate(contract());
 assert.equal(legacyRead.ok, true, JSON.stringify(legacyRead.findings));
 assert.equal(legacyRead.covered_contracts[0].effect_class, "read_only");
+assert.equal(legacyRead.covered_contracts[0].auth_model, "user_jwt");
 
 const databaseMutation = validate(contract({
   effect_class: "database_mutation",
@@ -88,11 +89,19 @@ const externalExecute = validate(contract({
   external_writes_allowed: true,
   credential_payload_reads_allowed: true,
   database_writes_allowed: true,
-  transaction_required: true,
+  transaction_required: false,
   same_cycle_readback_required: true,
 }));
 assert.equal(externalExecute.ok, true, JSON.stringify(externalExecute.findings));
 assert.equal(externalExecute.covered_contracts[0].effect_class, "external_execute");
+
+const backendOrUser = validate(contract({ auth_model: "backend_or_user" }));
+assert.equal(backendOrUser.ok, true, JSON.stringify(backendOrUser.findings));
+assert.equal(backendOrUser.covered_contracts[0].auth_model, "backend_or_user");
+
+const invalidAuthModel = validate(contract({ auth_model: "route_inferred" }));
+assert.equal(invalidAuthModel.ok, false);
+assert(invalidAuthModel.findings.some((row) => row.type === "direct_route_contract_auth_model_invalid"));
 
 const policyMismatch = validate(contract({
   effect_class: "provider_read",
