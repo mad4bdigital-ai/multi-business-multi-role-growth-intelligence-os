@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+const EXPECTED_REPOSITORY = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
 const EXPECTED_ISSUE = 4122;
 const EXPECTED_CONFIRMATION = 'AUTHORIZE_GOVERNED_MIGRATION_1006_SPRINT69_AGENT_CAPABILITY_EVIDENCE_COVERAGE';
 const EXPECTED_CHECKSUM = '995c657922413f9917fd4d93ac1213e76bc66b077c68646e4f5572c62c744374';
 const EXPECTED_DISPATCH_CONFIRMATION_COMMENT_ID = 5170518874;
+const COMMENT_READ_TIMEOUT_MS = 10_000;
 const ALLOWED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
 const triggerPath = process.env.READINESS_TRIGGER_PATH || '.github/ops/triggers/sprint69-1006-readiness-trigger.json';
 const repository = process.env.GITHUB_REPOSITORY;
@@ -13,7 +15,7 @@ const eventName = process.env.GITHUB_EVENT_NAME || '';
 const actor = process.env.GITHUB_ACTOR || '';
 const currentSha = process.env.GITHUB_SHA || '';
 
-assert.ok(repository, 'GITHUB_REPOSITORY is required');
+assert.equal(repository, EXPECTED_REPOSITORY, 'unexpected repository');
 assert.ok(token, 'GH_TOKEN or GITHUB_TOKEN is required');
 
 let marker;
@@ -64,8 +66,10 @@ assert.ok(Number.isSafeInteger(marker.confirmation_comment_id) && marker.confirm
 assert.match(marker.requested_by, /^[A-Za-z0-9-]+$/, 'invalid requested_by login');
 
 const response = await fetch(
-  `https://api.github.com/repos/${repository}/issues/comments/${marker.confirmation_comment_id}`,
+  `https://api.github.com/repos/${EXPECTED_REPOSITORY}/issues/comments/${marker.confirmation_comment_id}`,
   {
+    redirect: 'error',
+    signal: AbortSignal.timeout(COMMENT_READ_TIMEOUT_MS),
     headers: {
       Accept: 'application/vnd.github+json',
       Authorization: `Bearer ${token}`,
@@ -80,6 +84,7 @@ if (!response.ok) {
 }
 
 const comment = await response.json();
+assert.ok(comment && typeof comment === 'object' && !Array.isArray(comment), 'invalid confirmation comment payload');
 assert.equal(comment.body, EXPECTED_CONFIRMATION, 'confirmation comment body mismatch');
 assert.equal(comment.user?.login, marker.requested_by, 'confirmation author mismatch');
 assert.ok(ALLOWED_ASSOCIATIONS.has(comment.author_association), `confirmation author association is not allowed: ${comment.author_association}`);
