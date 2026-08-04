@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: runtime-parity-work-map-arm-repair-pr-5985
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
@@ -23,11 +23,11 @@ jobs:
       github.event.pull_request.head.ref == 'gpt/add-runtime-parity-comment-bridge-v2-20260804' &&
       github.event.pull_request.base.ref == 'main' &&
       github.actor == 'mad4bdigital-ai'
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 615ef2a607d5e5ac2a2c1f3456fb32f0a71b8cc9
+      EXPECTED_PARENT_SHA: b6b6f04726d7c0bdefb9252ee8da9799a7a7d4d1
       REPAIR_PATH: .github/workflows/runtime-parity-work-map-arm-repair.yml
       PR_NUMBER: '5985'
 
