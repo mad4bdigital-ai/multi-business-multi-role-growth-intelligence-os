@@ -3,3 +3,4 @@ pinned_main_sha=30b48a17bae1921d796e7e49b1f72a9ab5a871ff
 source_candidate_sha=8b2c24d0311947a21a4686b51ef77710f744ff73
 write_authority=false
 never_merge=true
+trigger_revision=2
