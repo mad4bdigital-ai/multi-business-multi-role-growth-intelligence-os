@@ -1,4 +1,4 @@
-name: Final Review Identity Writer V2 6222
+name: Final Review Identity Writer V3 6222
 
 on:
   pull_request:
@@ -10,12 +10,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: final-review-identity-writer-v2-6222-${{ github.event.pull_request.number }}
+  group: final-review-identity-writer-v3-6222-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   write-candidate:
-    name: Patch final identity race and publish atomic candidate
+    name: Patch final identity race on live non-overlapping main
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/fix-final-review-state-readback-07264baf-20260804' &&
@@ -23,10 +23,10 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 60
     env:
-      EXPECTED_MAIN_SHA: b3b488082d4030e8110993fcffb74fb498930166
+      SOURCE_BASE_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
       EXPECTED_SOURCE_SHA: 83aebe711328f1a6a95793b3fcd500da013b6a5d
       EXPECTED_SOURCE_REF: gpt/fix-final-review-state-readback-07264baf-20260804
-      TARGET_BRANCH: gpt/fix-final-review-identity-after-reviews-b3b48808-20260804
+      TARGET_BRANCH: gpt/fix-final-review-identity-after-reviews-current-main-20260804-v3
     steps:
       - name: Checkout exact reviewed source
         uses: actions/checkout@v5
@@ -44,14 +44,14 @@ jobs:
             package-lock.json
             http-generic-api/package-lock.json
 
-      - name: Verify immutable source and current main
+      - name: Verify source and resolve non-overlapping main
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
           test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_SOURCE_REF"
-          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
-          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse "$EXPECTED_SOURCE_SHA^")" = "$SOURCE_BASE_SHA"
+
           declare -A expected=(
             [".changes/e2e/repository-lifecycle-draft-merge-guard.json"]="f822dea0c91347b3921cbb05302654ac7a5ba728"
             [".changes/e2e/repository-lifecycle-final-review-state-readback.json"]="478ebb3f92c50fb8aebafcb6e3b5efb1ef6d8e1a"
@@ -64,10 +64,23 @@ jobs:
           for path in "${!expected[@]}"; do
             test "$(git rev-parse "$EXPECTED_SOURCE_SHA:$path")" = "${expected[$path]}"
           done
+
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          actual_main_sha="$(git rev-parse refs/remotes/origin/main)"
+          git merge-base --is-ancestor "$SOURCE_BASE_SHA" "$actual_main_sha"
+          mapfile -t main_changed < <(git diff --name-only "$SOURCE_BASE_SHA..$actual_main_sha")
+          for path in "${!expected[@]}"; do
+            if printf '%s\n' "${main_changed[@]}" | grep -Fx -- "$path" >/dev/null; then
+              echo "Current main overlaps reviewed candidate path: $path" >&2
+              exit 1
+            fi
+          done
           if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" >/dev/null 2>&1; then
             echo "Target branch already exists; refusing duplicate writer run." >&2
             exit 1
           fi
+          echo "ACTUAL_MAIN_SHA=$actual_main_sha" >> "$GITHUB_ENV"
+          echo "Resolved main: $actual_main_sha"
 
       - name: Apply bounded repair and update mocks
         shell: bash
@@ -122,7 +135,6 @@ jobs:
           if final_tests.count(success_marker) != 1:
               raise SystemExit("Final-review success marker missing or duplicated")
           final_tests = final_tests.replace(success_marker, success_replacement, 1)
-
           end_marker = '\nconsole.log("github final review-state readback tests passed");\n'
           if final_tests.count(end_marker) != 1:
               raise SystemExit("Final-review test end marker missing or duplicated")
@@ -189,7 +201,6 @@ jobs:
               journey["assertions"].append(assertion)
           contract_path.write_text(json.dumps(contract, indent=2) + "\n")
           PY
-
           git diff --check
           node --check http-generic-api/githubRepositoryLifecycle.js
           node --check http-generic-api/test-github-final-review-state-readback.mjs
@@ -203,7 +214,7 @@ jobs:
           node test-github-final-review-state-readback.mjs
           node test-repository-automation-control-plane.mjs
 
-      - name: Reconstruct one-commit candidate on pinned main
+      - name: Reconstruct and publish one-commit candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -217,9 +228,11 @@ jobs:
             "http-generic-api/test-repository-automation-control-plane.mjs"
           )
           tar -cf "$RUNNER_TEMP/final-review-candidate.tar" "${files[@]}"
-          git checkout -B "$TARGET_BRANCH" "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$ACTUAL_MAIN_SHA"
+          git checkout -B "$TARGET_BRANCH" "$ACTUAL_MAIN_SHA"
           tar -xf "$RUNNER_TEMP/final-review-candidate.tar"
-          mapfile -t changed < <(git diff --name-only "$EXPECTED_MAIN_SHA")
+          mapfile -t changed < <(git diff --name-only "$ACTUAL_MAIN_SHA")
           test "${#changed[@]}" -eq 7
           for i in "${!files[@]}"; do test "${changed[$i]}" = "${files[$i]}"; done
           git diff --check
@@ -235,8 +248,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${files[@]}"
           git commit -m "fix(github): close final identity race after review readback"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
-          test "$(git rev-list --count "$EXPECTED_MAIN_SHA..HEAD")" -eq 1
+          test "$(git rev-parse HEAD^)" = "$ACTUAL_MAIN_SHA"
+          test "$(git rev-list --count "$ACTUAL_MAIN_SHA..HEAD")" -eq 1
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$ACTUAL_MAIN_SHA"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
 
       - name: Publish bounded writer summary
@@ -244,7 +259,7 @@ jobs:
         run: |
           {
             echo "### Atomic candidate created"
-            echo "- base: \`$EXPECTED_MAIN_SHA\`"
+            echo "- base: \`$ACTUAL_MAIN_SHA\`"
             echo "- head: \`$(git rev-parse HEAD)\`"
             echo "- branch: \`$TARGET_BRANCH\`"
             echo "- files: 7"
