@@ -42,25 +42,21 @@ jobs:
           test "${{ github.event.pull_request.head.sha }}" = "$CANDIDATE_SHA"
           test "${{ github.event.pull_request.head.ref }}" = "$CANDIDATE_BRANCH"
           test "${{ github.event.pull_request.base.ref }}" = "$VALIDATION_BASE_BRANCH"
-
           git fetch --no-tags origin \
             "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH" \
             "+refs/heads/$VALIDATION_BASE_BRANCH:refs/remotes/origin/$VALIDATION_BASE_BRANCH" \
             "+refs/heads/main:refs/remotes/origin/main" \
             "+refs/heads/Production:refs/remotes/origin/Production"
-
           test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
           test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
           test "$(git rev-parse ${CANDIDATE_SHA}^1)" = "$CERTIFIED_CUT_SHA"
           test "$(git rev-list --parents -n 1 "$CANDIDATE_SHA" | awk '{print NF-1}')" -ge 2
           git diff --quiet "$CERTIFIED_CUT_SHA" "$CANDIDATE_SHA"
-
           CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
           CURRENT_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
           test "$CURRENT_PRODUCTION_SHA" = "$PRODUCTION_BASELINE_SHA"
           git merge-base --is-ancestor "$CERTIFIED_CUT_SHA" "$CURRENT_MAIN_SHA"
           git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$CANDIDATE_SHA"
-
           printf '%s\n' "$CURRENT_MAIN_SHA" > "$RUNNER_TEMP/main-sha-initial.txt"
           printf '%s\n' "$CURRENT_PRODUCTION_SHA" > "$RUNNER_TEMP/production-sha-initial.txt"
 
@@ -72,20 +68,40 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Run canonical syntax and governance checks
+      - name: Schema documentation guard
+        run: node http-generic-api/scripts/schema-docs-change-guard.mjs
+
+      - name: Migration placement guard
+        run: node http-generic-api/scripts/migration-placement-guard.mjs
+
+      - name: User JWT governance
+        run: node http-generic-api/scripts/user-jwt-auth-governance.mjs
+
+      - name: Interruption readiness
+        run: node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+
+      - name: Validate canonical sources
+        run: node validate-canonical-sources.mjs
+
+      - name: Verify canonical build currentness
+        run: node build-canonicals.mjs --check
+
+      - name: Verify canonical-domain syntax
+        run: node --check find-canonical-domain.mjs
+
+      - name: Resource API coverage
+        run: node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+
+      - name: Spec completion gate
+        run: node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+
+      - name: Validate memory schema
+        run: node validate-memory-schema.mjs
+
+      - name: Diff hygiene and JavaScript syntax sweep
         shell: bash
         run: |
           set -Eeuo pipefail
-          node http-generic-api/scripts/schema-docs-change-guard.mjs
-          node http-generic-api/scripts/migration-placement-guard.mjs
-          node http-generic-api/scripts/user-jwt-auth-governance.mjs
-          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
-          node validate-canonical-sources.mjs
-          node build-canonicals.mjs --check
-          node --check find-canonical-domain.mjs
-          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
-          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
-          node validate-memory-schema.mjs
           git diff --check
           shopt -s nullglob
           for file in http-generic-api/*.js http-generic-api/*.mjs http-generic-api/routes/*.js http-generic-api/scripts/*.mjs http-generic-api/wordpress/*.js; do
@@ -129,7 +145,6 @@ jobs:
             "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH" \
             "+refs/heads/main:refs/remotes/origin/main" \
             "+refs/heads/Production:refs/remotes/origin/Production"
-
           CANDIDATE_FINAL="$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)"
           MAIN_FINAL="$(git rev-parse refs/remotes/origin/main)"
           PRODUCTION_FINAL="$(git rev-parse refs/remotes/origin/Production)"
@@ -139,7 +154,6 @@ jobs:
           git diff --quiet "$CERTIFIED_CUT_SHA" "$CANDIDATE_SHA"
           git merge-base --is-ancestor "$CERTIFIED_CUT_SHA" "$MAIN_FINAL"
           git merge-base --is-ancestor "$PRODUCTION_FINAL" "$CANDIDATE_SHA"
-
           jq -n \
             --arg contract 't016_production_candidate_arm_validation.v1' \
             --arg candidate_sha "$CANDIDATE_SHA" \
