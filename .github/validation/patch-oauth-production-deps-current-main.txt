@@ -1,0 +1,4 @@
+PATCH_OAUTH_PRODUCTION_DEPS_CURRENT_MAIN
+base_sha=88439328058c46a87f205cc49be47a1ab0651faf
+source_sha=3861a123e3e761c52a10febf5e100a99dcd077a0
+secrets_included=false
