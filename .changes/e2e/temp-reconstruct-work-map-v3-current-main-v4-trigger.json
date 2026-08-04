@@ -1,0 +1,8 @@
+{
+  "schema": "mad4b.temp-reconstruct-work-map-v3-current-main-trigger.v1",
+  "main_sha": "2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9",
+  "source_sha": "f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e",
+  "candidate_ref": "gpt/work-map-v3-current-main-2f6634d3-v4-20260804",
+  "merge_authority": false,
+  "production_authority": false
+}
