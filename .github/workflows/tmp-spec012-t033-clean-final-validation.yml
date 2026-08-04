@@ -1,0 +1,73 @@
+name: Temporary Spec 012 T033 Clean Final Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/tmp-spec012-t033-clean-final-validation.yml
+      - http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+      - http-generic-api/scripts/manifests/test-manifest-spec012.mjs
+      - http-generic-api/tenantGptAccessTokenProfile.js
+      - http-generic-api/tenantGptAccessTokenVerifier.js
+      - http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+      - http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
+      - http-generic-api/test-tenant-gpt-access-token-profile.mjs
+      - http-generic-api/test-tenant-gpt-access-token-verifier.mjs
+      - http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+      - http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+      - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.json
+      - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact pull-request head
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Check reconciled T033 syntax
+        run: |
+          node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          node --check http-generic-api/tenantGptAccessTokenProfile.js
+          node --check http-generic-api/tenantGptAccessTokenVerifier.js
+          node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          node --check http-generic-api/test-tenant-gpt-access-token-profile.mjs
+          node --check http-generic-api/test-tenant-gpt-access-token-verifier.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
+
+      - name: Validate T031 T032 and T033 runtime contracts
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-auth-oauth-routes.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-binding-hardening.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-tenant-gpt-access-token-profile.mjs
+          node test-tenant-gpt-access-token-verifier.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+          node test-spec012-t033-short-lived-bearer-profile.mjs
