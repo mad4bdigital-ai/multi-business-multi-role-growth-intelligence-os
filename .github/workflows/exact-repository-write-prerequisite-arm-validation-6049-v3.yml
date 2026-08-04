@@ -1,4 +1,4 @@
-name: Exact Repository Write Prerequisite ARM Validation 6049 V3
+name: Exact Repository Write Prerequisite ARM Validation 6049 V4
 
 on:
   pull_request:
@@ -10,13 +10,13 @@ permissions:
   pull-requests: read
 
 env:
-  EXPECTED_MAIN_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
-  EXPECTED_CANDIDATE_SHA: b44cd93561401ad5c759f57ac890460c3aec5631
-  EXPECTED_PRIOR_CANDIDATE_SHA: 4e1f0283f8259fc0304b8bd18ceb6663c9d577d4
+  EXPECTED_MAIN_SHA: 88439328058c46a87f205cc49be47a1ab0651faf
+  EXPECTED_CANDIDATE_SHA: 4a45cd80252999d994290e6edf8172273b11cc83
+  EXPECTED_PRIOR_CANDIDATE_SHA: b44cd93561401ad5c759f57ac890460c3aec5631
   EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-72196dee-20260804-v5
   EXPECTED_VALIDATOR_REF: gpt/exact-repository-write-prerequisite-arm-validation-6049-v3
   CANONICAL_PR_NUMBER: '6049'
-  EVIDENCE_DIR: /tmp/exact-repository-write-prerequisite-arm-validation-6049-v3
+  EVIDENCE_DIR: /tmp/exact-repository-write-prerequisite-arm-validation-6049-v4
 
 jobs:
   exact-candidate:
@@ -244,14 +244,14 @@ jobs:
             --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
             --arg run_id "$GITHUB_RUN_ID" \
             --arg job_status "${{ job.status }}" \
-            '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v3",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            '{contract:"mad4b.exact-repository-write-prerequisite-arm-validation.v4",base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
             > "$EVIDENCE_DIR/summary.json"
 
       - name: Upload exact validation evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: exact-repository-write-prerequisite-arm-validation-6049-v3-${{ github.run_id }}
+          name: exact-repository-write-prerequisite-arm-validation-6049-v4-${{ github.run_id }}
           path: |
             ${{ env.EVIDENCE_DIR }}/
             ${{ runner.temp }}/test-suite-reports/*.json
