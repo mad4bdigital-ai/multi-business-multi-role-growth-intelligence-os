@@ -1,0 +1,19 @@
+name: One-shot Runtime Parity E2E Classifier and Work Map Repair
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize, reopened]
+    paths:
+      - .github/workflows/runtime-parity-e2e-classifier-map-repair.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  repair:
+    if: github.event.pull_request.number == 5985
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - run: echo "placeholder; must be replaced after current main synchronization"
