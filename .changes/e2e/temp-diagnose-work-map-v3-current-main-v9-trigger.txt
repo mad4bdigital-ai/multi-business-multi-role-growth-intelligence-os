@@ -1,0 +1,6 @@
+Temporary read-only diagnostic trigger for Work Map V3 reconstruction V9.
+
+Pinned main snapshot: 2423f272161f73d18bcc2d492e0ed3be414d07ba
+Reviewed source: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+Diagnostic workflow commit: 6c30697b728f5f627d6ecf3f389e480623bdfd65
+No repository write authority is granted to the diagnostic workflow.
