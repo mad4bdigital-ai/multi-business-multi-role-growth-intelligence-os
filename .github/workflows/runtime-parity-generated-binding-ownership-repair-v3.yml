@@ -1,4 +1,4 @@
-name: Runtime Parity Generated Binding Ownership Repair V3
+name: Runtime Parity Generated Binding Ownership Diagnostic V3
 
 on:
   pull_request:
@@ -8,32 +8,32 @@ on:
       - .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: runtime-parity-generated-binding-ownership-repair-v3-pr
+  group: runtime-parity-generated-binding-ownership-diagnostic-v3
   cancel-in-progress: false
 
 jobs:
-  repair:
+  diagnose:
     if: github.event.pull_request.number == 5985
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 120
+    timeout-minutes: 20
     env:
       EXPECTED_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT: 4296587b9b0f209795af80dcf078436c7635a1d1
+      EXPECTED_PARENT: bc1da4020ad451ce31ccf4efb42566e71b7efb52
       EXPECTED_MAIN: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
-      WRITER_PATH: .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
+      REPORT_DIR: ${{ runner.temp }}/generated-binding-focused
 
     steps:
-      - name: Checkout exact PR head
+      - name: Checkout exact diagnostic head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Verify immutable parent, base, and initial scope
+      - name: Verify immutable parent, base, and diagnostic scope
         shell: bash
         env:
           EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
@@ -59,10 +59,10 @@ jobs:
               ['git', 'diff', '--name-only', 'origin/main...HEAD'], text=True
           ).splitlines())
           if actual != expected:
-              raise SystemExit(f'initial scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
+              raise SystemExit(f'diagnostic scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
           PY
 
-      - name: Patch generated binding ownership discovery and regressions
+      - name: Materialize proposed ownership patch locally
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -71,8 +71,8 @@ jobs:
           import re
           from pathlib import Path
 
-          def regex_once(text, pattern, replacement, label, flags=0):
-              updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+          def regex_once(text, pattern, replacement, label):
+              updated, count = re.subn(pattern, replacement, text, count=1)
               if count != 1:
                   raise SystemExit(f'{label}: expected one target, found {count}')
               return updated
@@ -87,8 +87,6 @@ jobs:
 
           parallel_path = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
           parallel = parallel_path.read_text()
-          if 'function isGeneratedSpecIntegrationPath' in parallel:
-              raise SystemExit('parallel helper already present')
           parallel = regex_once(
               parallel,
               r'(?=function discoverContractPaths\(changedFiles, policy\) \{)',
@@ -105,8 +103,6 @@ jobs:
 
           phase_path = Path('http-generic-api/scripts/e2e-phase-governance.mjs')
           phase = phase_path.read_text()
-          if 'function isGeneratedSpecIntegrationPath' in phase:
-              raise SystemExit('phase helper already present')
           phase = regex_once(
               phase,
               r'(?=function discoverContractPaths\(policy, changedFiles\) \{)',
@@ -203,79 +199,70 @@ jobs:
           contract_path = Path('.changes/e2e/production-runtime-parity-comment-bridge.json')
           contract_data = json.loads(contract_path.read_text())
           self_test = 'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs'
-          scope = contract_data['scope']['include']
-          if self_test not in scope:
-              scope.append(self_test)
-              scope.sort()
-          mvp = next(row for row in contract_data['phases'] if row.get('id') == 'mvp')
-          journey = mvp['e2e_journeys'][0]
-          evidence = journey['evidence_paths']
-          if self_test not in evidence:
-              evidence.append(self_test)
-              evidence.sort()
+          if self_test not in contract_data['scope']['include']:
+              contract_data['scope']['include'].append(self_test)
+              contract_data['scope']['include'].sort()
+          journey = next(row for row in contract_data['phases'] if row.get('id') == 'mvp')['e2e_journeys'][0]
+          if self_test not in journey['evidence_paths']:
+              journey['evidence_paths'].append(self_test)
+              journey['evidence_paths'].sort()
           contract_path.write_text(json.dumps(contract_data, indent=2) + '\n')
           PY
 
-      - name: Run focused governance and bridge tests
+      - name: Run focused tests independently and preserve output
+        id: focused
+        continue-on-error: true
         shell: bash
         working-directory: http-generic-api
         run: |
-          set -Eeuo pipefail
-          node --check scripts/e2e-parallel-work-governance.mjs
-          node --check scripts/e2e-phase-governance.mjs
-          node --check scripts/e2e-parallel-work-governance-self-test.mjs
-          node --check scripts/e2e-phase-governance-self-test.mjs
-          node scripts/e2e-parallel-work-governance-self-test.mjs
-          node scripts/e2e-phase-governance-self-test.mjs
-          node scripts/e2e-parallel-pr-flow-self-test.mjs
-          node scripts/test-production-runtime-parity-comment-bridge.mjs
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci
-
-      - name: Run full canonical manifest
-        working-directory: http-generic-api
-        run: node scripts/test-manifest.mjs
-
-      - name: Verify final bounded scope and current base
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
-          rm -f "${WRITER_PATH}"
-          python3 - <<'PY'
-          import subprocess
-          expected = {
-              '.changes/e2e/production-runtime-parity-comment-bridge.json',
-              '.github/workflows/production-runtime-parity-comment-bridge.yml',
-              'docs/work-maps/README.md',
-              'docs/work-maps/repository-automation-map.md',
-              'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs',
-              'http-generic-api/scripts/e2e-parallel-work-governance.mjs',
-              'http-generic-api/scripts/e2e-phase-governance-self-test.mjs',
-              'http-generic-api/scripts/e2e-phase-governance.mjs',
-              'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
-              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+          set -uo pipefail
+          mkdir -p "${REPORT_DIR}"
+          run_case() {
+            local name="$1"
+            shift
+            set +e
+            "$@" >"${REPORT_DIR}/${name}.log" 2>&1
+            local status=$?
+            set -e
+            printf '%s\n' "${status}" >"${REPORT_DIR}/${name}.status"
+            {
+              echo "===== ${name} status=${status} ====="
+              cat "${REPORT_DIR}/${name}.log"
+            } | tee -a "${REPORT_DIR}/combined.log"
           }
-          actual = set(subprocess.check_output(
-              ['git', 'diff', '--name-only', 'origin/main'], text=True
-          ).splitlines())
-          if actual != expected:
-              raise SystemExit(f'final scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
-          PY
-          test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-parallel-work-governance.mjs)" = 1
-          test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-phase-governance.mjs)" = 1
-          test ! -e "${WRITER_PATH}"
+          set -e
+          run_case check_parallel node --check scripts/e2e-parallel-work-governance.mjs
+          run_case check_phase node --check scripts/e2e-phase-governance.mjs
+          run_case check_parallel_test node --check scripts/e2e-parallel-work-governance-self-test.mjs
+          run_case check_phase_test node --check scripts/e2e-phase-governance-self-test.mjs
+          run_case parallel_self_test node scripts/e2e-parallel-work-governance-self-test.mjs
+          run_case phase_self_test node scripts/e2e-phase-governance-self-test.mjs
+          run_case parallel_flow_self_test node scripts/e2e-parallel-pr-flow-self-test.mjs
+          run_case bridge_test node scripts/test-production-runtime-parity-comment-bridge.mjs
+          git diff -- http-generic-api/scripts/e2e-parallel-work-governance.mjs \
+            http-generic-api/scripts/e2e-phase-governance.mjs \
+            http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs \
+            http-generic-api/scripts/e2e-phase-governance-self-test.mjs \
+            .changes/e2e/production-runtime-parity-comment-bridge.json \
+            >"${REPORT_DIR}/proposed.patch"
+          if find "${REPORT_DIR}" -name '*.status' -exec grep -L '^0$' {} + | grep -q .; then
+            exit 1
+          fi
 
-      - name: Commit and fast-forward target branch
+      - name: Upload focused diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-parity-generated-binding-focused-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce diagnostic outcome
+        if: always()
         shell: bash
+        env:
+          FOCUSED_OUTCOME: ${{ steps.focused.outcome }}
         run: |
           set -Eeuo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add -A
-          git commit -m "fix(ci): neutralize generated spec binding ownership"
-          test "$(git rev-parse HEAD^2 2>/dev/null || true)" = ""
-          git push origin "HEAD:${EXPECTED_BRANCH}"
+          test "${FOCUSED_OUTCOME}" = success
