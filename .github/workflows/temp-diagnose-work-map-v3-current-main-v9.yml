@@ -172,7 +172,7 @@ jobs:
           run_one pipeline_connectivity_test "node http-generic-api/test-pipeline-connectivity-check.mjs"
           run_one pipeline_contract_json "node -e \"JSON.parse(require('node:fs').readFileSync('.specify/pipeline-connectivity-contract.json','utf8'))\""
           run_one dispatch_contract_json "node -e \"JSON.parse(require('node:fs').readFileSync('.changes/e2e/work-map-post-write-exact-verification-dispatch.json','utf8'))\""
-          run_one git_diff_check "git diff --check"
+          run_one git_diff_check "git diff HEAD --check"
           exit 0
 
       - name: Capture bounded converged scope
@@ -181,8 +181,9 @@ jobs:
         run: |
           set +e
           mkdir -p "${EVIDENCE_DIR}"
-          git diff --name-status > "${EVIDENCE_DIR}/diff-name-status.txt" 2>&1
-          git diff --name-only | sort > "${EVIDENCE_DIR}/actual-files.txt" 2>&1
+          git diff HEAD --name-status > "${EVIDENCE_DIR}/diff-name-status.txt" 2>&1
+          git diff HEAD --name-only | sort > "${EVIDENCE_DIR}/actual-files.txt" 2>&1
+          git status --short > "${EVIDENCE_DIR}/git-status-short.txt" 2>&1
           printf '%s\n' \
             '.changes/e2e/work-map-post-write-exact-verification-dispatch.json' \
             '.github/workflows/ci.yml' \
