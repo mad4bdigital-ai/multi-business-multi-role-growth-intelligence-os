@@ -1,0 +1,202 @@
+name: Spec 012 OAuth Generated Parity Helper 6248
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - .github/workflows/spec012-oauth-generated-parity-helper-6248.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-generated-parity-helper-6248
+  cancel-in-progress: false
+
+jobs:
+  regenerate-validate-retire:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v3-20260804' &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-generated-parity-912ab81f-b3b48808-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      EXPECTED_MAIN_SHA: b3b488082d4030e8110993fcffb74fb498930166
+      PRODUCT_HEAD_SHA: 912ab81f7dcc4f684893a9e09e0b136d0ecfe27d
+      PRODUCT_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v3-20260804
+      HELPER_BRANCH: gpt/spec012-oauth-generated-parity-912ab81f-b3b48808-20260804
+      WORKFLOW_PATH: .github/workflows/spec012-oauth-generated-parity-helper-6248.yml
+      OPERATION_ARTIFACT: http-generic-api/frontend-operation-governance.generated.json
+      SURFACE_ARTIFACT: http-generic-api/frontend-surface-dispatch.generated.json
+      OPENAPI_INDEX: http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+
+    steps:
+      - name: Checkout exact helper head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable refs and one-file helper envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.draft }}" = "true"
+          git fetch --no-tags origin main "${PRODUCT_BRANCH}" "${HELPER_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "${PRODUCT_HEAD_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${PRODUCT_BRANCH})" = "${PRODUCT_HEAD_SHA}"
+          test "$(git merge-base origin/main "${PRODUCT_HEAD_SHA}")" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${PRODUCT_HEAD_SHA}"
+          test -z "$(git status --porcelain=v1)"
+          mapfile -d '' -t files < <(git diff --name-only -z "${PRODUCT_HEAD_SHA}...HEAD" | sort -zu)
+          expected=("${WORKFLOW_PATH}")
+          test "${#files[@]}" -eq 1
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate canonical frontend artifacts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          npm run frontend:dispatch:check
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const surface = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          if (surface?.baseline?.ref !== 'main') {
+            throw new Error(`expected baseline.ref=main, received ${String(surface?.baseline?.ref)}`);
+          }
+          console.log(JSON.stringify({ ok: true, baseline_ref: surface.baseline.ref, source_digest: surface.baseline.source_digest }));
+          NODE
+
+      - name: Enforce exact two-file generated drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' -t changed < <(git status --porcelain=v1 -z | sed -z 's/^...//' | sort -zu)
+          expected=(
+            "${OPERATION_ARTIFACT}"
+            "${SURFACE_ARTIFACT}"
+          )
+          test "${#changed[@]}" -eq 2
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${changed[@]}")
+          test -z "$(git diff --name-only -- "${OPENAPI_INDEX}")"
+          git diff --check -- "${OPERATION_ARTIFACT}" "${SURFACE_ARTIFACT}"
+
+      - name: Retire helper and certify five-file candidate scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p evidence
+          git rm "${WORKFLOW_PATH}"
+          git add "${OPERATION_ARTIFACT}" "${SURFACE_ARTIFACT}"
+          git commit -m "chore(spec-012): refresh current-main frontend governance parity"
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -d '' -t helper_files < <(git diff --name-only -z "${PRODUCT_HEAD_SHA}...${final_sha}" | sort -zu)
+          helper_expected=(
+            "${OPERATION_ARTIFACT}"
+            "${SURFACE_ARTIFACT}"
+          )
+          test "${#helper_files[@]}" -eq 2
+          diff -u <(printf '%s\n' "${helper_expected[@]}") <(printf '%s\n' "${helper_files[@]}")
+          mapfile -d '' -t candidate_files < <(git diff --name-only -z "${EXPECTED_MAIN_SHA}...${final_sha}" | sort -zu)
+          candidate_expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#candidate_files[@]}" -eq 5
+          diff -u <(printf '%s\n' "${candidate_expected[@]}") <(printf '%s\n' "${candidate_files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          test -z "$(git status --porcelain=v1)"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Validate focused OAuth and frontend contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            npm run frontend:dispatch:check
+          ) | tee evidence/focused-validation.log
+
+      - name: Validate E2E governance and complete API manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
+          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
+
+      - name: Record bounded non-effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > evidence/non-effects.json <<JSON
+          {
+            "main": "${EXPECTED_MAIN_SHA}",
+            "product_head": "${PRODUCT_HEAD_SHA}",
+            "helper_final": "${FINAL_SHA}",
+            "helper_changed_files": 2,
+            "candidate_effective_changed_files": 5,
+            "openapi_index_changed": false,
+            "history_preserved": true,
+            "force_push": false,
+            "protected_ref_write": false,
+            "production_action": false,
+            "provider_action": false,
+            "database_mutation": false,
+            "credential_access": false,
+            "secrets_included": false
+          }
+          JSON
+
+      - name: Push fast-forward helper head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${PRODUCT_BRANCH}" "${HELPER_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${PRODUCT_BRANCH})" = "${PRODUCT_HEAD_SHA}"
+          test "$(git rev-parse origin/${HELPER_BRANCH})" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${HELPER_BRANCH}"
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${HELPER_BRANCH}" | awk '{print $1}')"
+          test "${remote_sha}" = "${FINAL_SHA}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-generated-parity-helper-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
