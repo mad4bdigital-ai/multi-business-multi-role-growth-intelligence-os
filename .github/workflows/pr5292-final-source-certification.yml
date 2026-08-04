@@ -76,7 +76,8 @@ jobs:
           TARGET_REF: main
         run: npm run frontend:dispatch:check
 
-      - name: Capture and validate exact generated write set
+      - name: Capture exact generated write set
+        id: capture
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -84,6 +85,7 @@ jobs:
           normalized_paths="${RUNNER_TEMP}/pr5292-generator-paths.txt"
           unexpected_paths="${RUNNER_TEMP}/pr5292-generator-unexpected-paths.txt"
 
+          : > "$unexpected_paths"
           git status --porcelain=v1 --untracked-files=all > "$raw_status"
           sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> /' | sed '/^$/d' > "$normalized_paths"
 
@@ -97,37 +99,54 @@ jobs:
             esac
           done < "$normalized_paths"
 
-          if [ -s "$unexpected_paths" ]; then
-            echo '::error::Generator changed paths outside the bounded generated-artifact set.'
-            cat "$unexpected_paths"
-            exit 1
-          fi
-
           if [ -s "$raw_status" ]; then
             write_set_state=nonempty
           else
             write_set_state=empty
+          fi
+          if [ -s "$unexpected_paths" ]; then
+            bounded_state=unexpected
+          else
+            bounded_state=bounded
           fi
 
           {
             printf 'exact_head=%s\n' "${EXPECTED_HEAD}"
             printf 'pinned_main=%s\n' "${EXPECTED_MAIN}"
             printf 'write_set_state=%s\n' "$write_set_state"
+            printf 'bounded_state=%s\n' "$bounded_state"
             printf '%s\n' 'raw_porcelain_begin'
             cat "$raw_status"
             printf '%s\n' 'raw_porcelain_end'
             printf '%s\n' 'normalized_paths_begin'
             cat "$normalized_paths"
             printf '%s\n' 'normalized_paths_end'
+            printf '%s\n' 'unexpected_paths_begin'
+            cat "$unexpected_paths"
+            printf '%s\n' 'unexpected_paths_end'
           } > "${DIAGNOSTIC_PATH}"
 
           test -s "${DIAGNOSTIC_PATH}"
           test -z "$(git diff --cached --name-only)"
+          printf 'unexpected_file=%s\n' "$unexpected_paths" >> "$GITHUB_OUTPUT"
 
       - name: Upload write-set diagnostic
+        if: always() && hashFiles('.github/pr5292-generator-write-set.txt') != ''
         uses: actions/upload-artifact@v4
         with:
           name: pr5292-generator-write-set
           path: .github/pr5292-generator-write-set.txt
           if-no-files-found: error
           retention-days: 1
+
+      - name: Enforce bounded generated write set
+        if: always() && steps.capture.outcome == 'success'
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          unexpected_file="${{ steps.capture.outputs.unexpected_file }}"
+          if [ -s "$unexpected_file" ]; then
+            echo '::error::Generator changed paths outside the bounded generated-artifact set.'
+            cat "$unexpected_file"
+            exit 1
+          fi
