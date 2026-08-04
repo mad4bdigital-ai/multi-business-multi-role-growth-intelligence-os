@@ -1,0 +1,241 @@
+name: OAuth Canonical Dependencies 4D4D729D Exact ARM
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-canonical-deps-4d4d729d-arm-base
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oauth-canonical-deps-4d4d729d-exact-arm-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact canonical OAuth dependency head
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804' &&
+      github.event.pull_request.head.sha == '4d4d729d876e60c7e2db84275f15d4e0f03bc02d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      BASE_SHA: 81a254bfae492e33526f92ec2241f2d927790de2
+      CANDIDATE_SHA: 4d4d729d876e60c7e2db84275f15d4e0f03bc02d
+      CANDIDATE_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      REPORT_DIR: .artifacts/oauth-canonical-deps-4d4d729d
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable identity, ancestry, blobs, and effective scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$CANDIDATE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$CANDIDATE_BRANCH"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git merge-base "$BASE_SHA" "$CANDIDATE_SHA")" = "$BASE_SHA"
+
+          expected=(
+            .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+            http-generic-api/frontend-surface-dispatch.generated.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" | sort)
+          test "${#changed[@]}" -eq 4
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+
+          test "$(git rev-parse "$CANDIDATE_SHA:.changes/e2e/spec012-t031-oauth-token-route-test-parity.json")" = 'b74d027d300b5baeb2aeb8285d97b199ed153577'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/frontend-surface-dispatch.generated.json")" = 'cc84f8b9e97c64973347c2612252e442fb8daa9d'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/routes/index.js")" = '07f5966079784e8a18df69559976753362c8f00e'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs")" = '4e3fdf4f75e6b650327b9ec2e1fd0a26d5287000'
+          test "$(git diff --numstat "$BASE_SHA" "$CANDIDATE_SHA" -- http-generic-api/routes/index.js | awk '{print $1":"$2}')" = '1:1'
+          test "$(git diff --numstat "$BASE_SHA" "$CANDIDATE_SHA" -- http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs | awk '{print $1":"$2}')" = '1:1'
+          test ! -e .github/workflows/spec012-oauth-canonical-deps-bounded-writer.yml
+          test ! -e .validation/spec012-oauth-exact-head-trigger.txt
+          git diff --check "$BASE_SHA" "$CANDIDATE_SHA"
+
+          mkdir -p "$REPORT_DIR"
+          printf 'base_sha=%s\ncandidate_sha=%s\nexact_scope=true\nwriter_retired=true\ntrigger_retired=true\n' \
+            "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/identity.txt"
+          git diff --name-status "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/name-status.txt"
+          git diff --numstat "$BASE_SHA" "$CANDIDATE_SHA" > "$REPORT_DIR/numstat.txt"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run root syntax and governance gates
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+
+      - name: Validate root execution resolver
+        run: |
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --no-audit --no-fund
+
+      - name: Verify deterministic Frontend dispatch parity
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:check
+
+      - name: Run HTTP governance, resource, and syntax gates
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node scripts/user-jwt-auth-governance.mjs
+          node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          GITHUB_BASE_REF=main node scripts/resource-api-coverage-audit.mjs --ci --changed
+          node test-resource-api-architecture.mjs
+          node test-resource-api-service.mjs
+          shopt -s nullglob
+          for file in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+            node --check "$file" || { echo "SYNTAX ERROR: $file"; exit 1; }
+          done
+
+      - name: Run focused OAuth canonical composition regressions
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-auth-oauth-routes.mjs
+          node test-chatgpt-mcp-metadata-routing.mjs
+
+      - name: Run exact changed-range E2E gates
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "../$REPORT_DIR"
+          node test-e2e-contract-reference-integrity.mjs
+          node scripts/e2e-contract-reference-integrity.mjs \
+            --base "$BASE_SHA" \
+            --head "$CANDIDATE_SHA" \
+            --report-file "../$REPORT_DIR/e2e-reference.json"
+          node scripts/e2e-phase-governance.mjs check \
+            --base "$BASE_SHA" \
+            --head "$CANDIDATE_SHA" \
+            --report-file "../$REPORT_DIR/e2e-phase-check.json"
+          node scripts/e2e-phase-governance.mjs run \
+            --base "$BASE_SHA" \
+            --head "$CANDIDATE_SHA" \
+            --report-file "../$REPORT_DIR/e2e-phase-run.json" \
+            --execution-report-file "../$REPORT_DIR/e2e-phase-execution.json"
+
+      - name: Run context-kernel and Connect security gates
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "../$REPORT_DIR"
+          git diff --name-only "$BASE_SHA"..."$CANDIDATE_SHA" > "../$REPORT_DIR/changed-files.txt"
+          node scripts/context-kernel-hardcoding-scan.mjs \
+            --fail-on=runtime \
+            --changed-files-from="../$REPORT_DIR/changed-files.txt"
+          node test-user-jwt-auth.mjs
+          node test-connect-secret-boundary.mjs
+          node test-tenant-connect-bootstrap-transaction.mjs
+          node test-tenant-connection-self-repair-routes.mjs
+          node scripts/interruption-readiness.mjs \
+            --ci --skip-merge --skip-worktree \
+            --report-file "../$REPORT_DIR/interruption-readiness-baseline.json"
+
+      - name: Run complete HTTP Generic API Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ../.artifacts/oauth-canonical-deps-4d4d729d/test-suite
+        run: npm test
+
+      - name: Run architecture and startup validation
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+          DEPLOYMENT_COMMIT_SHA: 4d4d729d876e60c7e2db84275f15d4e0f03bc02d
+        run: |
+          set -Eeuo pipefail
+          npm run validate
+          node test-deployment-manifest-generator.mjs
+          node test-server-startup-smoke.mjs
+          node scripts/interruption-readiness.mjs \
+            --ci --skip-dependencies --skip-merge --skip-worktree \
+            --verify-evidence "../$REPORT_DIR/interruption-readiness-baseline.json"
+
+      - name: Verify final freshness and write result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$BASE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git merge-base "$BASE_SHA" "$CANDIDATE_SHA")" = "$BASE_SHA"
+          mkdir -p "$REPORT_DIR"
+          jq -n \
+            --arg contract 'oauth_canonical_dependencies_4d4d729d_exact_arm.v1' \
+            --arg base_sha "$BASE_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{
+              contract: $contract,
+              result: "pass",
+              base_sha: $base_sha,
+              candidate_sha: $candidate_sha,
+              workflow_run_id: ($run_id | tonumber),
+              exact_scope: true,
+              reviewed_blob_identity: true,
+              generated_dispatch_parity: "pass",
+              focused_oauth_tests: "pass",
+              full_unit_integration: "pass",
+              execution_resolver: "pass",
+              architecture_startup: "pass",
+              production_mutated: false,
+              migration_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_accessed: false,
+              protected_ref_mutated: false,
+              force_push: false,
+              external_send_executed: false,
+              secrets_included: false
+            }' > "$REPORT_DIR/result.json"
+
+      - name: Upload bounded exact-head evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-canonical-deps-4d4d729d-exact-arm-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
