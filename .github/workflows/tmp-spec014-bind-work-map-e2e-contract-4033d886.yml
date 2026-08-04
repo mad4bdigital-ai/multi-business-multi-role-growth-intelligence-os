@@ -26,6 +26,7 @@ jobs:
     env:
       EXPECTED_MAIN_SHA: 4033d886187e87b29a855b9b9a942788dafd88ca
       PRODUCT_EVIDENCE_SHA: a0e18090b45c0d888940c84ec8815a2a74f7b594
+      PRIOR_EVIDENCE_SHA: 3fdded3ce97bf024fe9fbb71f362aaf52a3d09f3
       TARGET_BRANCH: gpt/spec014-final-work-map-binding-main-4033d886-20260804
       TEMP_WORKFLOW: .github/workflows/tmp-spec014-bind-work-map-e2e-contract-4033d886.yml
       WORK_MAP_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
@@ -65,6 +66,7 @@ jobs:
 
           const contractPath = process.env.CONTRACT_PATH;
           const evidenceSha = process.env.PRODUCT_EVIDENCE_SHA;
+          const priorEvidenceSha = process.env.PRIOR_EVIDENCE_SHA;
           const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
           const workstreams = contract?.parallel_work?.workstreams;
           if (!Array.isArray(workstreams)) throw new Error('parallel_work.workstreams is missing');
@@ -72,19 +74,20 @@ jobs:
           if (matches.length !== 1) throw new Error(`Expected one final-work-map-readback workstream, found ${matches.length}`);
           const target = matches[0];
           if (!target.commit_evidence || typeof target.commit_evidence !== 'object') throw new Error('commit_evidence is missing');
-          if (target.commit_evidence.head_sha !== '3fdded3ce97bf024fe9fbb71f362aaf52a3d09f3') {
+          if (target.commit_evidence.head_sha !== priorEvidenceSha) {
             throw new Error(`Unexpected prior evidence head: ${target.commit_evidence.head_sha}`);
           }
           if (!Array.isArray(target.commit_evidence.commits)) throw new Error('commit_evidence.commits is missing');
+          if (!target.commit_evidence.commits.includes(priorEvidenceSha)) throw new Error('Prior evidence commit is missing');
           target.commit_evidence.head_sha = evidenceSha;
           if (!target.commit_evidence.commits.includes(evidenceSha)) target.commit_evidence.commits.push(evidenceSha);
           const output = `${JSON.stringify(contract)}\n`;
           fs.writeFileSync(contractPath, output);
           const report = {
-            contract: 'mad4b.spec014-work-map-e2e-binding.v1',
+            contract: 'mad4b.spec014-work-map-e2e-binding.v2',
             ok: true,
             workstream_id: target.id,
-            prior_head_sha: '3fdded3ce97bf024fe9fbb71f362aaf52a3d09f3',
+            prior_head_sha: priorEvidenceSha,
             bound_product_evidence_sha: evidenceSha,
             commit_count: target.commit_evidence.commits.length,
             contract_sha256: crypto.createHash('sha256').update(output).digest('hex'),
@@ -104,8 +107,29 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          node -e "const c=require('./${CONTRACT_PATH}');const w=c.parallel_work.workstreams.filter(x=>x.id==='final-work-map-readback');if(w.length!==1||w[0].commit_evidence.head_sha!=='${PRODUCT_EVIDENCE_SHA}'||!w[0].commit_evidence.commits.includes('${PRODUCT_EVIDENCE_SHA}'))process.exit(1)"
-          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const contract = JSON.parse(fs.readFileSync(process.env.CONTRACT_PATH, 'utf8'));
+          if (contract.schema_version !== '1.0.0') throw new Error('Unexpected schema_version');
+          if (contract.feature !== '014-governed-hostinger-storage-orchestration') throw new Error('Unexpected feature');
+          if (contract.contract !== 'mad4b.e2e-phase-contract.v1') throw new Error('Unexpected contract type');
+          const matches = contract.parallel_work.workstreams.filter((row) => row.id === 'final-work-map-readback');
+          if (matches.length !== 1) throw new Error(`Unexpected Work Map workstream count: ${matches.length}`);
+          const evidence = matches[0].commit_evidence;
+          if (evidence.head_sha !== process.env.PRODUCT_EVIDENCE_SHA) throw new Error('Final evidence head mismatch');
+          if (!evidence.commits.includes(process.env.PRIOR_EVIDENCE_SHA)) throw new Error('Prior evidence history was not preserved');
+          if (evidence.commits.filter((sha) => sha === process.env.PRODUCT_EVIDENCE_SHA).length !== 1) {
+            throw new Error('Final evidence SHA must occur exactly once');
+          }
+          console.log(JSON.stringify({
+            ok: true,
+            contract: 'mad4b.spec014-work-map-e2e-binding-validation.v1',
+            workstream_id: matches[0].id,
+            evidence_head_sha: evidence.head_sha,
+            evidence_commit_count: evidence.commits.length
+          }));
+          NODE
           git rm "${TEMP_WORKFLOW}"
           git add "${CONTRACT_PATH}"
           mapfile -t final_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}")
