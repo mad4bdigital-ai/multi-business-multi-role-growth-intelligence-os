@@ -1,0 +1,44 @@
+name: Read Main Tree SHA V9
+
+on:
+  push:
+    branches:
+      - gpt/read-main-tree-sha-v8-97e4ee7
+    paths:
+      - ".github/workflows/read-main-tree-sha-v8.yml"
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: read-main-tree-sha-v9-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  read-main-tree:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout immutable current main
+        uses: actions/checkout@v4
+        with:
+          ref: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Read and publish immutable tree identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tested_sha="$(git rev-parse HEAD)"
+          test "${tested_sha}" = "edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d"
+          tree_sha="$(git rev-parse 'HEAD^{tree}')"
+          test -n "${tree_sha}"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${GITHUB_SHA}" \
+            -f state=success \
+            -f context=read-main-tree-sha-v9 \
+            -f description="tree=${tree_sha}" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          printf 'BASE_SHA=%s\nTREE_SHA=%s\nREF_UPDATED=false\nSECRETS_INCLUDED=false\n' "${tested_sha}" "${tree_sha}"
