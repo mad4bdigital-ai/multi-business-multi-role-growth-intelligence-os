@@ -2,11 +2,12 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-pull-request-recovery-exact-checkout-provenance",
-  "title": "CI Pull Request Recovery exact checkout provenance",
+  "title": "CI exact checkout provenance and pull-request stale-run cancellation",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".github/workflows/ci.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
       "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
       ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
@@ -19,27 +20,31 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out and executed instead of allowing an event-level pull-request merge SHA to label a head-SHA test result.",
+      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out and cancel only superseded pull-request CI runs so obsolete heads cannot serialize ahead of the current candidate while push and workflow-dispatch verification remain non-cancellable.",
       "e2e_journeys": [
         {
           "id": "checked-out-head-sha-stamps-recovery-test-evidence",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "CI evidence publisher and repository reviewer",
-          "entrypoint": "CI Pull Request Recovery Unit & Integration Tests job",
-          "terminal_outcome": "The test suite starts only after the checked-out SHA matches the selected candidate and its structured progress reports expose that same checked-out SHA through the process-local GITHUB_SHA value.",
+          "entrypoint": "CI and CI Pull Request Recovery concurrency plus the Recovery Unit & Integration Tests job",
+          "terminal_outcome": "The test suite starts only after the checked-out SHA matches the selected candidate; structured progress reports expose that same checked-out SHA; and a newer pull-request synchronization cancels obsolete PR runs without making push or workflow-dispatch runs cancellable.",
           "steps": [
             "Checkout the selected pull-request head SHA or explicit workflow-dispatch SHA.",
-            "Resolve git rev-parse HEAD immediately before the test suite.",
+            "Resolve git rev-parse HEAD immediately before the Recovery test suite.",
             "Reject any mismatch between the checked-out SHA and the selected candidate SHA.",
             "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
+            "Use the pull-request event predicate as the only cancel-in-progress authority for CI and Recovery.",
+            "Keep push and workflow-dispatch verification outside cancellation authority.",
             "Upload ordered test progress reports without relabeling head execution as a different merge candidate."
           ],
           "assertions": [
             "Recovery reports cannot inherit a different event-level GITHUB_SHA after exact-head checkout.",
             "A candidate identity mismatch fails before npm test.",
+            "Superseded pull-request runs are cancellable in both CI workflows.",
+            "Push and workflow-dispatch runs are not unconditionally cancellable.",
             "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced.",
-            "The workflow retains read-only contents permission."
+            "The Recovery workflow retains read-only contents permission."
           ],
           "tests": [
             {
@@ -51,6 +56,7 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/ci.yml",
             ".github/workflows/ci-pull-request-recovery.yml",
             "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
             ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
@@ -61,22 +67,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Publish the verified checkout identity as an explicit typed field across all recovery evidence families."
+      "objective": "Publish the verified checkout identity and superseded-run cancellation reason as explicit typed fields across all CI evidence families."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove identity preservation across reruns, workflow dispatch, pull-request synchronize events, and cancelled/restarted jobs."
+      "objective": "Prove identity preservation and current-head selection across reruns, workflow dispatch, pull-request synchronize events, and cancelled/restarted jobs."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This CI evidence correction has no provider canary authority."
+      "objective": "This CI evidence and scheduling correction has no provider canary authority."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This CI evidence correction grants no Production or deployment authority."
+      "objective": "This CI evidence and scheduling correction grants no Production or deployment authority."
     }
   ],
   "secrets_included": false
