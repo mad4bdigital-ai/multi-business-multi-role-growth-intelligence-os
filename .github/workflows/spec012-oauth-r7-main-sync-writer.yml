@@ -1,0 +1,174 @@
+name: Spec 012 OAuth R7 Main Sync Writer
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - .github/workflows/spec012-oauth-r7-main-sync-writer.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-r7-main-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync-and-validate:
+    if: github.event.pull_request.number == 6128 && github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9
+      PRE_WRITER_HEAD: 913960da410568cbecef7e22449b103c7f67668c
+      BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      WORKFLOW_PATH: .github/workflows/spec012-oauth-r7-main-sync-writer.yml
+      CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify refs and bounded pre-sync scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "${PRE_WRITER_HEAD}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          merge_base="$(git merge-base origin/main HEAD)"
+          mapfile -t files < <(git diff --name-only "${merge_base}...HEAD" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            ".github/workflows/spec012-oauth-r7-main-sync-writer.yml"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Merge current main without rewrite
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
+          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Reassert OAuth and E2E authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const index = fs.readFileSync('http-generic-api/routes/index.js', 'utf8');
+          if (!index.includes('app.use(buildTenantGptOAuthMetadataRoutes(deps));')) throw new Error('dependency-bearing OAuth mount missing');
+          if (index.includes('app.use(buildTenantGptOAuthMetadataRoutes());')) throw new Error('bare OAuth mount remains');
+          const wiring = fs.readFileSync('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs', 'utf8');
+          if (!wiring.includes('routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))")')) throw new Error('dependency-bearing wiring assertion missing');
+          const path = process.env.CONTRACT_PATH;
+          const contract = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const required = [
+            '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
+            'http-generic-api/routes/index.js',
+            'http-generic-api/frontend-surface-dispatch.generated.json',
+            'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js',
+            'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js',
+            'http-generic-api/test-auth-oauth-routes.mjs',
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+            'docs/work-maps/README.md',
+            'docs/work-maps/repository-automation-map.md'
+          ];
+          contract.scope.include = required;
+          const journeys = contract.phases?.flatMap((phase) => phase.e2e_journeys || []) || [];
+          if (journeys.length !== 1) throw new Error(`Expected one T031 journey, found ${journeys.length}`);
+          journeys[0].evidence_paths = required;
+          fs.writeFileSync(path, `${JSON.stringify(contract, null, 2)}\n`);
+          NODE
+
+      - name: Regenerate frontend dispatch
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate && npm run frontend:dispatch:check
+
+      - name: Retire writer and certify final scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rm "${WORKFLOW_PATH}"
+          git add "${CONTRACT_PATH}" http-generic-api/frontend-surface-dispatch.generated.json
+          if ! git diff --cached --quiet; then git commit -m "ci(spec-012): retire R7 main sync writer"; fi
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          base_lines="$(git show "${EXPECTED_MAIN_SHA}:http-generic-api/routes/index.js" | wc -l | tr -d ' ')"
+          candidate_lines="$(wc -l < http-generic-api/routes/index.js | tr -d ' ')"
+          test "${base_lines}" = "${candidate_lines}"
+          {
+            echo "main=${EXPECTED_MAIN_SHA}"
+            echo "candidate=${final_sha}"
+            echo "route_index_base_lines=${base_lines}"
+            echo "route_index_candidate_lines=${candidate_lines}"
+            echo "effective_changed_files=4"
+            echo "secrets_included=false"
+            echo "production_action=false"
+            echo "provider_action=false"
+            echo "database_mutation=false"
+          } | tee evidence/identity.txt
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Validate synchronized candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            npm run frontend:dispatch:check
+          ) | tee evidence/focused-validation.log
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${FINAL_SHA}" --report-file evidence/e2e-phase-evaluation.json
+          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
+
+      - name: Push fast-forward synchronized head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git push origin "HEAD:${BRANCH_NAME}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-r7-main-sync-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
