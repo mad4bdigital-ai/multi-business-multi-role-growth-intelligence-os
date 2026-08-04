@@ -1,0 +1,105 @@
+name: Exact Work Map Recovery ARM Chain Validation 6345
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/work-map-recovery-arm-runner-chain-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact scope, regressions, and lifecycle policy
+        id: validation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-arm-chain-validation"
+          mkdir -p "$evidence"
+          expected_head='058904a026aa39e22a8ff58ee5937c35383c92f5'
+          expected_main='30b48a17bae1921d796e7e49b1f72a9ab5a871ff'
+
+          test "$(git rev-parse HEAD)" = "$expected_head"
+          git fetch --no-tags origin "$expected_main"
+          git diff --name-status "$expected_main" "$expected_head" | sort > "$evidence/actual-scope.txt"
+          cat > "$evidence/expected-scope.txt" <<'EOF'
+          M	.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml
+          M	.github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+          M	http-generic-api/test-work-map-autofix-diagnostics.mjs
+          EOF
+          sort -o "$evidence/expected-scope.txt" "$evidence/expected-scope.txt"
+          diff -u "$evidence/expected-scope.txt" "$evidence/actual-scope.txt"
+
+          test "$(git hash-object .github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml)" = 'fbab486acb1be34e4c961ef5b4a98764a69e9a41'
+          test "$(git hash-object .github/workflows/spec-kit-work-map-recovery-bootstrap.yml)" = 'e9b5d1c3980d8264df45bc9b57a7396670b69032'
+          test "$(git hash-object http-generic-api/test-work-map-autofix-diagnostics.mjs)" = '68b2f15c1aa54c21fd81307b226e5ce2e2548721'
+
+          node --check http-generic-api/test-work-map-autofix-diagnostics.mjs
+          (cd http-generic-api && node test-work-map-autofix-diagnostics.mjs)
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+
+          git diff --name-status "$expected_main" "$expected_head" > "$evidence/changed-files.tsv"
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$evidence/changed-files.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$evidence/lifecycle"
+          jq -e '.ok == true and (.findings | length) == 0' "$evidence/lifecycle/repository-tool-lifecycle-report.json" >/dev/null
+
+          jq -n \
+            --arg head "$expected_head" \
+            --arg base "$expected_main" \
+            '{contract:"work_map_recovery_arm_chain_exact_validation.v1",ok:true,head_sha:$head,base_sha:$base,exact_three_file_scope:true,focused_regression_passed:true,lifecycle_policy_passed:true,recovery_explicit_dispatch_only:true,bootstrap_arm_runner:true,recovery_arm_runner:true,writer_unchanged:true,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
+            > "$evidence/result.json"
+
+      - name: Write fail-closed result
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-arm-chain-validation"
+          mkdir -p "$evidence"
+          if [[ ! -f "$evidence/result.json" ]]; then
+            jq -n --arg outcome "$VALIDATION_OUTCOME" --arg head "$(git rev-parse HEAD 2>/dev/null || true)" '{contract:"work_map_recovery_arm_chain_exact_validation.v1",ok:false,validation_outcome:$outcome,head_sha:$head,exact_three_file_scope:false,focused_regression_passed:false,lifecycle_policy_passed:false,recovery_explicit_dispatch_only:false,bootstrap_arm_runner:false,recovery_arm_runner:false,writer_unchanged:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' > "$evidence/result.json"
+          fi
+          cat "$evidence/result.json"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-recovery-arm-chain-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-recovery-arm-chain-validation/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce exact validation
+        if: always()
+        shell: bash
+        env:
+          VALIDATION_OUTCOME: ${{ steps.validation.outcome }}
+        run: |
+          set -Eeuo pipefail
+          test "$VALIDATION_OUTCOME" = success
+          jq -e '.ok == true and .exact_three_file_scope == true and .focused_regression_passed == true and .lifecycle_policy_passed == true and .recovery_explicit_dispatch_only == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-arm-chain-validation/result.json" >/dev/null
