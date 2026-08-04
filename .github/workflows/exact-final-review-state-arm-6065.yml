@@ -1,0 +1,260 @@
+name: Exact Final Review State ARM 6065
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-final-review-state-arm-6065-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact final review-state TOCTOU candidate
+    if: github.event.pull_request.head.ref == 'gpt/validate-final-review-state-2d2072df-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    env:
+      BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      CANDIDATE_SHA: 2d2072df408b38b7c107d80afaabc7cbb9d3f710
+      VALIDATOR_PATH: .github/workflows/exact-final-review-state-arm-6065.yml
+    steps:
+      - name: Checkout exact validator head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify validator identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$VALIDATOR_PATH"
+
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+
+      - name: Verify direct-parent topology scope and exact blobs
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA")
+          expected=(
+            '.changes/e2e/repository-lifecycle-draft-merge-guard.json'
+            '.changes/e2e/repository-lifecycle-final-review-state-readback.json'
+            'http-generic-api/githubRepositoryLifecycle.js'
+            'http-generic-api/repositoryAutomationControlPlane.js'
+            'http-generic-api/test-github-final-review-state-readback.mjs'
+            'http-generic-api/test-github-repository-lifecycle.mjs'
+            'http-generic-api/test-repository-automation-control-plane.mjs'
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          for i in "${!expected[@]}"; do test "${files[$i]}" = "${expected[$i]}"; done
+          test "$(git rev-parse "$CANDIDATE_SHA:.changes/e2e/repository-lifecycle-draft-merge-guard.json")" = 'f822dea0c91347b3921cbb05302654ac7a5ba728'
+          test "$(git rev-parse "$CANDIDATE_SHA:.changes/e2e/repository-lifecycle-final-review-state-readback.json")" = '478ebb3f92c50fb8aebafcb6e3b5efb1ef6d8e1a'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/githubRepositoryLifecycle.js")" = 'ef4dcbd7a7bf88c03286fe6030e2a07b480dbb46'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/repositoryAutomationControlPlane.js")" = '18f037e8da34b231a78182e359a40691d4b39a26'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/test-github-final-review-state-readback.mjs")" = 'a19683f3c50dfe2ed258d5a705c37eb51c00f076'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/test-github-repository-lifecycle.mjs")" = '8e675e967c0a2d713fd71b0ea767349d05fc6226'
+          test "$(git rev-parse "$CANDIDATE_SHA:http-generic-api/test-repository-automation-control-plane.mjs")" = '432c5924094c482420d64d63d0502ba39af479e3'
+          git diff --name-status "$BASE_SHA" "$CANDIDATE_SHA" > "$RUNNER_TEMP/changed-files.tsv"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install exact dependencies
+        id: install
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts 2>&1 | tee "$RUNNER_TEMP/root-npm-ci.log"
+          cd http-generic-api
+          npm ci 2>&1 | tee "$RUNNER_TEMP/api-npm-ci.log"
+
+      - name: Validate changed syntax and JSON
+        id: syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/githubRepositoryLifecycle.js
+          node --check http-generic-api/repositoryAutomationControlPlane.js
+          node --check http-generic-api/test-github-final-review-state-readback.mjs
+          node --check http-generic-api/test-github-repository-lifecycle.mjs
+          node --check http-generic-api/test-repository-automation-control-plane.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/repository-lifecycle-draft-merge-guard.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/repository-lifecycle-final-review-state-readback.json','utf8'))"
+
+      - name: Run focused final review-state regressions
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          {
+            node test-github-final-review-state-readback.mjs
+            node test-github-repository-lifecycle.mjs
+            node test-repository-automation-control-plane.mjs
+          } 2>&1 | tee "$RUNNER_TEMP/focused-review-state.log"
+
+      - name: Run complete HTTP Generic API Unit and Integration suite
+        id: full_suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm test 2>&1 | tee "$RUNNER_TEMP/http-generic-api-full-suite.log"
+
+      - name: Run runtime startup and architecture validation
+        id: runtime_architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          {
+            node test-server-startup-smoke.mjs
+            npm run validate
+          } 2>&1 | tee "$RUNNER_TEMP/runtime-architecture.log"
+
+      - name: Run E2E reference and phase governance
+        id: e2e
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$BASE_SHA" --head "$CANDIDATE_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$RUNNER_TEMP/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$BASE_SHA" --head "$CANDIDATE_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$BASE_SHA" --head "$CANDIDATE_SHA" \
+            --report-file "$RUNNER_TEMP/e2e-phase-evaluation.json" \
+            --execution-report-file "$RUNNER_TEMP/e2e-phase-execution.json"
+
+      - name: Run repository tool lifecycle governance
+        id: lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$RUNNER_TEMP/changed-files.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$RUNNER_TEMP/repository-tool-lifecycle"
+
+      - name: Run root Execution Resolver gates
+        id: resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run ci:execution-resolvers 2>&1 | tee "$RUNNER_TEMP/execution-resolver.log"
+
+      - name: Verify final worktree remains clean
+        id: clean_readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Build bounded ARM evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/final-review-state-arm"
+          mkdir -p "$evidence"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'final-review-state-arm' / 'summary.json'
+          output.write_text(json.dumps({
+              'pull_request': 6065,
+              'tracking_issue': 5872,
+              'base_sha': os.environ['BASE_SHA'],
+              'candidate_sha': os.environ['CANDIDATE_SHA'],
+              'identity_outcome': '${{ steps.identity.outcome }}',
+              'install_outcome': '${{ steps.install.outcome }}',
+              'syntax_outcome': '${{ steps.syntax.outcome }}',
+              'focused_outcome': '${{ steps.focused.outcome }}',
+              'full_suite_outcome': '${{ steps.full_suite.outcome }}',
+              'runtime_architecture_outcome': '${{ steps.runtime_architecture.outcome }}',
+              'e2e_outcome': '${{ steps.e2e.outcome }}',
+              'repository_tool_lifecycle_outcome': '${{ steps.lifecycle.outcome }}',
+              'execution_resolver_outcome': '${{ steps.resolver.outcome }}',
+              'clean_readback_outcome': '${{ steps.clean_readback.outcome }}',
+              'secrets_included': False,
+              'repository_mutation': False,
+              'production_mutation': False,
+              'protected_ref_mutation': False,
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+          cp "$RUNNER_TEMP/changed-files.tsv" "$evidence/changed-files.tsv"
+          for report in \
+            "$RUNNER_TEMP/e2e-contract-reference-integrity.json" \
+            "$RUNNER_TEMP/e2e-phase-evaluation.json" \
+            "$RUNNER_TEMP/e2e-phase-execution.json"; do
+            test -f "$report" && cp "$report" "$evidence/$(basename "$report")" || true
+          done
+          if test -d "$RUNNER_TEMP/repository-tool-lifecycle"; then
+            cp -R "$RUNNER_TEMP/repository-tool-lifecycle" "$evidence/"
+          fi
+          for source in \
+            "$RUNNER_TEMP/root-npm-ci.log" \
+            "$RUNNER_TEMP/api-npm-ci.log" \
+            "$RUNNER_TEMP/focused-review-state.log" \
+            "$RUNNER_TEMP/http-generic-api-full-suite.log" \
+            "$RUNNER_TEMP/runtime-architecture.log" \
+            "$RUNNER_TEMP/execution-resolver.log"; do
+            test -f "$source" || continue
+            sed -e 's/test-client-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/wrong-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/oauth_route_test_secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/development_fallback_secret_only/[REDACTED_TEST_SECRET]/g' \
+                "$source" > "$evidence/$(basename "$source")"
+          done
+
+      - name: Upload exact ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-final-review-state-arm-6065-${{ github.run_id }}
+          path: ${{ runner.temp }}/final-review-state-arm
+          if-no-files-found: error
+          retention-days: 30
