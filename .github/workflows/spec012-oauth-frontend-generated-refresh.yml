@@ -20,8 +20,8 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
-      EXPECTED_MAIN_SHA: b3b488082d4030e8110993fcffb74fb498930166
-      PRE_WRITER_HEAD: c22e1e1b840ce99eb415fc665548187b630a82b8
+      EXPECTED_MAIN_SHA: 7b8754c46efd7f72dac7decb60c327b7205e6687
+      PRE_WRITER_HEAD: a7b6cad2b874ef6f0c288b984917835d50ee0917
       BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v3-20260804
       WORKFLOW_PATH: .github/workflows/spec012-oauth-frontend-generated-refresh.yml
       CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
@@ -51,6 +51,15 @@ jobs:
           )
           test "${#files[@]}" -eq "${#expected[@]}"
           diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Merge current main without history rewrite
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
+          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
 
       - name: Set up Node 22
         uses: actions/setup-node@v4
@@ -112,8 +121,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "${CONTRACT_PATH}" http-generic-api/frontend-operation-governance.generated.json http-generic-api/frontend-surface-dispatch.generated.json
           git rm "${WORKFLOW_PATH}"
           git commit -m "chore(spec-012): refresh canonical Frontend artifacts"
