@@ -1,0 +1,192 @@
+name: Exact Production ARM Validation e9948b05
+
+on:
+  pull_request:
+    branches:
+      - gpt/production-arm-base-81a254bf-e9948b05-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-production-arm-e9948b05-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Exact Production ARM full validation
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-production-candidate-20260804-e9948b05-v1' &&
+      github.event.pull_request.head.sha == 'e9948b0516409b35d0bfb48f9c10c53c151da1b0'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      MAIN_SHA: 81a254bfae492e33526f92ec2241f2d927790de2
+      PRODUCTION_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      CANDIDATE_SHA: e9948b0516409b35d0bfb48f9c10c53c151da1b0
+      CANDIDATE_REF: release/production-candidate-20260804-e9948b05-v1
+      VALIDATION_REF: gpt/validate-production-candidate-20260804-e9948b05-v1
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          EVIDENCE_ROOT="${RUNNER_TEMP}/exact-production-arm-${GITHUB_RUN_ID}"
+          mkdir -p "${EVIDENCE_ROOT}"
+          printf 'EVIDENCE_ROOT=%s\n' "${EVIDENCE_ROOT}" >> "${GITHUB_ENV}"
+
+      - name: Verify exact candidate identity, tree, parents, and protected refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${CANDIDATE_SHA}"
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production" \
+            "+refs/heads/${CANDIDATE_REF}:refs/remotes/origin/${CANDIDATE_REF}" \
+            "+refs/heads/${VALIDATION_REF}:refs/remotes/origin/${VALIDATION_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${PRODUCTION_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_REF})" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_REF})" = "${CANDIDATE_SHA}"
+          test "$(git show -s --format=%P "${CANDIDATE_SHA}")" = "${MAIN_SHA} ${PRODUCTION_SHA}"
+          test "$(git rev-parse "${CANDIDATE_SHA}^{tree}")" = "$(git rev-parse "${MAIN_SHA}^{tree}")"
+          git diff --exit-code "${MAIN_SHA}" "${CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${MAIN_SHA}" "${CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${PRODUCTION_SHA}" "${CANDIDATE_SHA}"
+          {
+            printf 'candidate_sha=%s\n' "${CANDIDATE_SHA}"
+            printf 'main_sha=%s\n' "${MAIN_SHA}"
+            printf 'production_sha=%s\n' "${PRODUCTION_SHA}"
+            printf 'candidate_tree=%s\n' "$(git rev-parse "${CANDIDATE_SHA}^{tree}")"
+            printf 'parents=%s\n' "$(git show -s --format=%P "${CANDIDATE_SHA}")"
+            printf 'tree_equals_main=true\nparents_exact=true\nprotected_refs_fresh=true\n'
+          } | tee "${EVIDENCE_ROOT}/identity.txt"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate Production promotion classifier and syntax/governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
+            --base "${PRODUCTION_SHA}" \
+            --head "${CANDIDATE_SHA}" \
+            --head-ref "${CANDIDATE_REF}" \
+            --base-ref Production \
+            --report-file "${EVIDENCE_ROOT}/production-classifier.json" \
+            2>&1 | tee "${EVIDENCE_ROOT}/production-classifier.log"
+          node validate-canonical-sources.mjs 2>&1 | tee "${EVIDENCE_ROOT}/canonical-sources.log"
+          node build-canonicals.mjs --check 2>&1 | tee "${EVIDENCE_ROOT}/canonical-output.log"
+          node validate-memory-schema.mjs 2>&1 | tee "${EVIDENCE_ROOT}/memory-schema.log"
+          git diff --check
+          (
+            cd http-generic-api
+            set -e
+            shopt -s nullglob
+            for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do
+              node --check "$f" || { echo "SYNTAX ERROR: $f"; exit 1; }
+            done
+          ) 2>&1 | tee "${EVIDENCE_ROOT}/javascript-syntax.log"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run complete Unit and Integration manifest
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+          GITHUB_SHA: e9948b0516409b35d0bfb48f9c10c53c151da1b0
+        run: npm test 2>&1 | tee "${EVIDENCE_ROOT}/unit-integration.log"
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: release/production-candidate-20260804-e9948b05-v1
+          DEPLOYMENT_COMMIT_SHA: e9948b0516409b35d0bfb48f9c10c53c151da1b0
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs 2>&1 | tee "${EVIDENCE_ROOT}/deployment-manifest-test.log"
+          npm run manifest:deployment 2>&1 | tee "${EVIDENCE_ROOT}/deployment-manifest-generate.log"
+          node test-server-startup-smoke.mjs 2>&1 | tee "${EVIDENCE_ROOT}/server-startup.log"
+
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate 2>&1 | tee "${EVIDENCE_ROOT}/architecture.log"
+
+      - name: Install root dependencies and run Execution Resolver Gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci 2>&1 | tee "${EVIDENCE_ROOT}/root-install.log"
+          npm run typecheck 2>&1 | tee "${EVIDENCE_ROOT}/execution-resolver-typecheck.log"
+          npm test -- --runInBand 2>&1 | tee "${EVIDENCE_ROOT}/execution-resolver-tests.log"
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit > "${EVIDENCE_ROOT}/resolver-surface.txt"
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit > "${EVIDENCE_ROOT}/approval-surface.txt"
+
+      - name: Final protected-ref and candidate freshness readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production" \
+            "+refs/heads/${CANDIDATE_REF}:refs/remotes/origin/${CANDIDATE_REF}" \
+            "+refs/heads/${VALIDATION_REF}:refs/remotes/origin/${VALIDATION_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/Production)" = "${PRODUCTION_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${CANDIDATE_REF})" = "${CANDIDATE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${VALIDATION_REF})" = "${CANDIDATE_SHA}"
+          cat > "${EVIDENCE_ROOT}/summary.json" <<EOF
+          {
+            "contract": "exact_production_arm_validation.v1",
+            "ok": true,
+            "candidate_sha": "${CANDIDATE_SHA}",
+            "main_sha": "${MAIN_SHA}",
+            "production_sha": "${PRODUCTION_SHA}",
+            "tree_equals_main": true,
+            "parents_exact": true,
+            "full_unit_integration": true,
+            "runtime_startup": true,
+            "architecture": true,
+            "execution_resolver": true,
+            "branch_freshness_preserved": true,
+            "merge_executed": false,
+            "deployment_executed": false,
+            "provider_call_executed": false,
+            "credential_payload_read": false,
+            "sql_executed": false,
+            "migration_apply_executed": false,
+            "database_mutation_executed": false,
+            "external_send_executed": false,
+            "secrets_included": false
+          }
+          EOF
+
+      - name: Upload exact ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-production-arm-e9948b05-${{ github.run_id }}
+          path: |
+            ${{ env.EVIDENCE_ROOT }}
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
