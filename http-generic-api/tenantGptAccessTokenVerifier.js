@@ -49,6 +49,22 @@ function emitEvidence(evidence, callback, failureCode) {
   }
 }
 
+function emitCompatibilityEvidence(evidence, callback) {
+  emitEvidence(
+    evidence,
+    callback,
+    "tenant_gpt_audience_compatibility_evidence_failed",
+  );
+}
+
+function emitTokenProfileEvidence(evidence, callback) {
+  emitEvidence(
+    evidence,
+    callback,
+    "tenant_gpt_access_token_profile_evidence_failed",
+  );
+}
+
 function profileFailure(profile) {
   if (["user_claim_invalid", "tenant_claim_invalid", "subject_claim_invalid"].includes(profile.classification)) {
     return tokenFailure(
@@ -104,19 +120,14 @@ export function verifyTenantGptAccessToken(token, {
   });
 
   if (!compatibility.accepted) {
-    emitEvidence(
-      compatibility,
-      onCompatibilityEvidence,
-      "tenant_gpt_audience_compatibility_evidence_failed",
-    );
+    emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
     throw tokenFailure("tenant_gpt_token_audience_invalid", "User token is not valid for the Activation protected resource.");
   }
 
   if (payload.resource && normalizeTenantGptOAuthResource(payload.resource) !== resource) {
-    emitEvidence(
+    emitCompatibilityEvidence(
       rejectTenantGptAudienceCompatibilityForResourceMismatch(compatibility),
       onCompatibilityEvidence,
-      "tenant_gpt_audience_compatibility_evidence_failed",
     );
     throw tokenFailure("tenant_gpt_token_resource_invalid", "User token resource claim does not match the Activation protected resource.");
   }
@@ -130,18 +141,10 @@ export function verifyTenantGptAccessToken(token, {
     audienceMode: compatibility.audience_mode,
     nowMs,
   });
-  emitEvidence(
-    tokenProfile,
-    onTokenProfileEvidence,
-    "tenant_gpt_access_token_profile_evidence_failed",
-  );
+  emitTokenProfileEvidence(tokenProfile, onTokenProfileEvidence);
   if (!tokenProfile.accepted) throw profileFailure(tokenProfile);
 
-  emitEvidence(
-    compatibility,
-    onCompatibilityEvidence,
-    "tenant_gpt_audience_compatibility_evidence_failed",
-  );
+  emitCompatibilityEvidence(compatibility, onCompatibilityEvidence);
   return {
     payload,
     verification: {
