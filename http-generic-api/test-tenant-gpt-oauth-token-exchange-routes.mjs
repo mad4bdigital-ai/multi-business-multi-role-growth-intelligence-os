@@ -367,7 +367,11 @@ assert.equal(invalidHost.status, 400);
 assert.equal(invalidHost.body.error, "invalid_target");
 
 assert.throws(
-  () => buildTenantGptOAuthTokenExchangeRoutes({ accessTokenTtlSeconds: 3601 }),
+  () => buildTenantGptOAuthTokenExchangeRoutes({
+  verifyCode: () => ({}),
+  issueAccessToken: () => "test-access-token",
+  accessTokenTtlSeconds: 3601,
+}),
   (error) => error?.code === "tenant_gpt_access_token_ttl_invalid",
   "route construction must reject an access-token TTL above the governed maximum",
 );
