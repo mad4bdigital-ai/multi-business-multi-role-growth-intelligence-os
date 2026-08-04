@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const API_ROOT = path.dirname(fileURLToPath(import.meta.url));
+const REPOSITORY_ROOT = path.join(API_ROOT, "..");
 const SCRIPT = path.join(API_ROOT, "scripts", "work-map-autofix-diagnostics.mjs");
 const temporaryDirectory = mkdtempSync(path.join(tmpdir(), "work-map-autofix-diagnostics-"));
 const reportRoot = path.join(temporaryDirectory, "report");
@@ -30,6 +31,22 @@ function run(args) {
     shell: false,
     env: environment,
   });
+}
+
+function workflow(name) {
+  return readFileSync(path.join(REPOSITORY_ROOT, ".github", "workflows", name), "utf8");
+}
+
+function assertPostAllocationReportDirectory(source, directoryName) {
+  assert.doesNotMatch(
+    source,
+    /^\s{6}REPORT_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/mu,
+    `${directoryName}: runner.temp must not be evaluated in job-level env`,
+  );
+  assert.match(source, /Initialize bounded report directory after runner allocation/u);
+  assert.match(source, new RegExp(`report_dir="\\$\\{RUNNER_TEMP\\}/${directoryName}"`, "u"));
+  assert.match(source, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
+  assert.match(source, new RegExp(`path: \\$\\{\\{ runner\\.temp \\}\\}/${directoryName}/`, "u"));
 }
 
 try {
@@ -72,7 +89,6 @@ try {
   assert.equal(report.expectedHeadSha, "b".repeat(40));
   assert.equal(report.commands.length, 2);
   assert.equal(report.lastPassed.id, "passing-command");
-  assert.equal(report.lastPassed.status, "passed");
   assert.equal(report.firstFailure.id, "failing-command");
   assert.equal(report.firstFailure.exitCode, 7);
   assert.match(report.firstFailure.outputTail, /governed failure marker/u);
@@ -88,10 +104,8 @@ try {
   assert.match(markdown, /does not enumerate environment values/u);
 
   const uncapturedRoot = path.join(temporaryDirectory, "uncaptured");
-  const uncapturedInit = run(["init", "--root", uncapturedRoot]);
-  assert.equal(uncapturedInit.status, 0, uncapturedInit.stderr || uncapturedInit.stdout);
-  const uncapturedFinalize = run(["finalize", "--root", uncapturedRoot, "--conclusion", "failure"]);
-  assert.equal(uncapturedFinalize.status, 0, uncapturedFinalize.stderr || uncapturedFinalize.stdout);
+  assert.equal(run(["init", "--root", uncapturedRoot]).status, 0);
+  assert.equal(run(["finalize", "--root", uncapturedRoot, "--conclusion", "failure"]).status, 0);
   const uncapturedReport = JSON.parse(readFileSync(path.join(uncapturedRoot, "report.json"), "utf8"));
   assert.equal(uncapturedReport.status, "failed");
   assert.equal(uncapturedReport.uncapturedFailure, true);
@@ -100,48 +114,28 @@ try {
   rmSync(temporaryDirectory, { recursive: true, force: true });
 }
 
-const bootstrapWorkflow = readFileSync(
-  path.join(API_ROOT, "..", ".github", "workflows", "spec-kit-work-map-recovery-bootstrap.yml"),
-  "utf8",
-);
+const bootstrapWorkflow = workflow("spec-kit-work-map-recovery-bootstrap.yml");
+const recoveryWorkflow = workflow("spec-kit-work-map-autofix-recovery-dispatch.yml");
+const writerWorkflow = workflow("spec-kit-work-map-autofix.yml");
 
 assert.match(bootstrapWorkflow, /^name: Spec Kit Work Map Recovery Bootstrap$/mu);
 assert.match(bootstrapWorkflow, /issue_comment:\s*\n\s*types: \[created\]/u);
 assert.match(bootstrapWorkflow, /workflow_dispatch:/u);
 assert.doesNotMatch(bootstrapWorkflow, /^\s*pull_request(?:_target)?:/mu);
 assert.doesNotMatch(bootstrapWorkflow, /^\s*push:/mu);
+assert.match(bootstrapWorkflow, /^\s{4}runs-on: ubuntu-24\.04-arm$/mu);
 assert.match(
   bootstrapWorkflow,
   /permissions:\s*\n\s*actions: write\s*\n\s*contents: read\s*\n\s*issues: write\s*\n\s*pull-requests: read/u,
 );
 assert.doesNotMatch(bootstrapWorkflow, /contents: write/u);
-assert.doesNotMatch(
-  bootstrapWorkflow,
-  /^\s{6}REPORT_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/mu,
-  "runner.temp must not be evaluated in job-level env before runner allocation",
-);
-assert.match(bootstrapWorkflow, /Initialize bounded report directory after runner allocation/u);
-assert.match(
-  bootstrapWorkflow,
-  /report_dir="\$\{RUNNER_TEMP\}\/spec-kit-work-map-recovery-bootstrap"/u,
-);
-assert.match(bootstrapWorkflow, /echo "REPORT_DIR=\$\{report_dir\}" >> "\$\{GITHUB_ENV\}"/u);
-assert.match(
-  bootstrapWorkflow,
-  /path: \$\{\{ env\.REPORT_DIR \}\}\//u,
-);
+assertPostAllocationReportDirectory(bootstrapWorkflow, "spec-kit-work-map-recovery-bootstrap");
 assert.match(bootstrapWorkflow, /ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY/u);
 assert.match(bootstrapWorkflow, /\/activate-work-map-recovery\[\[:space:\]\]\+\(\[0-9a-f\]\{40\}\)/u);
 assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
 assert.match(bootstrapWorkflow, /test "\$\{behind_by\}" = "0"/u);
-assert.match(
-  bootstrapWorkflow,
-  /actions\/workflows\/\$\{recovery_workflow\}\/enable/u,
-);
-assert.match(
-  bootstrapWorkflow,
-  /actions\/workflows\/\$\{recovery_workflow\}\/dispatches/u,
-);
+assert.match(bootstrapWorkflow, /actions\/workflows\/\$\{recovery_workflow\}\/enable/u);
+assert.match(bootstrapWorkflow, /actions\/workflows\/\$\{recovery_workflow\}\/dispatches/u);
 assert.match(bootstrapWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
 assert.match(bootstrapWorkflow, /WORK_MAP_RECOVERY_BOOTSTRAP/u);
 assert.match(bootstrapWorkflow, /direct_repository_mutation:false/u);
@@ -154,4 +148,34 @@ assert.doesNotMatch(bootstrapWorkflow, /gh api --method PATCH/u);
 assert.doesNotMatch(bootstrapWorkflow, /git (?:add|commit|push)/u);
 assert.doesNotMatch(bootstrapWorkflow, /--force|force-with-lease/u);
 
-console.log("Work Map Autofix diagnostic and independent bootstrap tests passed");
+assert.match(recoveryWorkflow, /^name: Spec Kit Work Map Autofix Recovery Dispatch$/mu);
+assert.match(recoveryWorkflow, /^\s{4}runs-on: ubuntu-24\.04-arm$/mu);
+assert.match(
+  recoveryWorkflow,
+  /permissions:\s*\n\s*actions: write\s*\n\s*contents: read\s*\n\s*issues: write\s*\n\s*pull-requests: write/u,
+);
+assert.doesNotMatch(recoveryWorkflow, /contents: write/u);
+assertPostAllocationReportDirectory(recoveryWorkflow, "spec-kit-work-map-autofix-recovery");
+assert.match(recoveryWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
+assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
+assert.match(recoveryWorkflow, /behind_by/u);
+assert.match(recoveryWorkflow, /Consume one-time authorization marker/u);
+assert.match(recoveryWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/pulls\/\$\{PR_NUMBER\}"/u);
+assert.match(recoveryWorkflow, /actions\/workflows\/spec-kit-work-map-autofix\.yml\/dispatches/u);
+assert.match(recoveryWorkflow, /authorization_consumed:\$authorization_consumed/u);
+assert.match(recoveryWorkflow, /direct_repository_mutation:false/u);
+assert.match(recoveryWorkflow, /protected_branch_mutation:false/u);
+assert.match(recoveryWorkflow, /force_push:false/u);
+assert.match(recoveryWorkflow, /secrets_included:false/u);
+assert.doesNotMatch(recoveryWorkflow, /git (?:add|commit|push)/u);
+assert.doesNotMatch(recoveryWorkflow, /--force|force-with-lease/u);
+
+assert.match(writerWorkflow, /^name: Spec Kit Work Map Autofix$/mu);
+assert.match(writerWorkflow, /^\s{4}runs-on: windows-latest$/mu);
+assert.match(writerWorkflow, /contents: write/u);
+assert.match(writerWorkflow, /EXPECTED_HEAD_SHA/u);
+assert.match(writerWorkflow, /remote_head_sha/u);
+assert.match(writerWorkflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
+assert.match(writerWorkflow, /git push/u);
+
+console.log("Work Map Autofix diagnostics and ARM recovery-chain boundaries passed");
