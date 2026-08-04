@@ -19,7 +19,7 @@ jobs:
     name: Collect terminal structured runtime evidence
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'main' &&
+      github.event.pull_request.head.ref == 'gpt/trigger-observe-spec014-wave1-runtime-readiness-6215-v1' &&
       github.event.pull_request.base.ref == 'gpt/observe-spec014-wave1-runtime-readiness-6215-v1'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
