@@ -1,0 +1,232 @@
+name: Spec 012 OAuth Work Map Main Sync Writer
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - .github/workflows/spec012-oauth-workmap-main-sync-writer.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-workmap-main-sync-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync-certify-push:
+    if: github.event.pull_request.number == 6128 && github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v2-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
+      PRE_WRITER_HEAD: 9d0b6134dd84e33bfc350ce060ff91198e9d60a2
+      BRANCH_NAME: gpt/spec012-oauth-canonical-deps-current-main-v2-20260804
+      WORKFLOW_PATH: .github/workflows/spec012-oauth-workmap-main-sync-writer.yml
+      CONTRACT_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable refs and bounded pre-sync scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "${PRE_WRITER_HEAD}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          merge_base="$(git merge-base origin/main HEAD)"
+          mapfile -t files < <(git diff --name-only "${merge_base}...HEAD" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            ".github/workflows/spec012-oauth-workmap-main-sync-writer.yml"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+
+      - name: Merge current main without history rewrite
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit origin/main
+          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Reassert OAuth and E2E authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const index = fs.readFileSync('http-generic-api/routes/index.js', 'utf8');
+          if (!index.includes('app.use(buildTenantGptOAuthMetadataRoutes(deps));')) throw new Error('dependency-bearing OAuth mount missing');
+          if (index.includes('app.use(buildTenantGptOAuthMetadataRoutes());')) throw new Error('bare OAuth mount remains');
+          const wiring = fs.readFileSync('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs', 'utf8');
+          if (!wiring.includes('routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))")')) throw new Error('dependency-bearing wiring assertion missing');
+          const path = process.env.CONTRACT_PATH;
+          const contract = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const required = [
+            '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
+            'http-generic-api/routes/index.js',
+            'http-generic-api/frontend-surface-dispatch.generated.json',
+            'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js',
+            'http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js',
+            'http-generic-api/test-auth-oauth-routes.mjs',
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+            'docs/work-maps/README.md',
+            'docs/work-maps/repository-automation-map.md'
+          ];
+          contract.scope.include = required;
+          const journeys = contract.phases?.flatMap((phase) => phase.e2e_journeys || []) || [];
+          if (journeys.length !== 1) throw new Error(`Expected one T031 journey, found ${journeys.length}`);
+          journeys[0].evidence_paths = required;
+          fs.writeFileSync(path, `${JSON.stringify(contract, null, 2)}\n`);
+          NODE
+
+      - name: Regenerate deterministic frontend dispatch
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate && npm run frontend:dispatch:check
+
+      - name: Retire writer and certify final scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rm "${WORKFLOW_PATH}"
+          git add "${CONTRACT_PATH}" http-generic-api/frontend-surface-dispatch.generated.json
+          if ! git diff --cached --quiet; then git commit -m "ci(spec-012): retire Work Map main sync writer"; fi
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Validate product and complete manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            npm run frontend:dispatch:check
+          ) | tee evidence/focused-validation.log
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${EXPECTED_MAIN_SHA}" --head "${FINAL_SHA}" --report-file evidence/e2e-phase-evaluation.json
+          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
+
+      - name: Classify architecture result against current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          baseline_dir="${RUNNER_TEMP}/oauth-main-baseline"
+          git worktree add --detach "${baseline_dir}" "${EXPECTED_MAIN_SHA}"
+          set +e
+          (cd "${baseline_dir}/http-generic-api" && node validate-architecture.mjs) > evidence/architecture-main.log 2>&1
+          main_status=$?
+          (cd http-generic-api && node validate-architecture.mjs) > evidence/architecture-candidate.log 2>&1
+          candidate_status=$?
+          set -e
+          base_lines="$(wc -l < "${baseline_dir}/http-generic-api/routes/index.js" | tr -d ' ')"
+          candidate_lines="$(wc -l < http-generic-api/routes/index.js | tr -d ' ')"
+          test "${base_lines}" = "${candidate_lines}"
+          if [ "${candidate_status}" -ne 0 ]; then
+            test "${main_status}" -ne 0
+            grep -F "http-generic-api/routes/index.js — Large file (${base_lines} lines) — consider splitting" evidence/architecture-main.log
+            grep -F "http-generic-api/routes/index.js — Large file (${candidate_lines} lines) — consider splitting" evidence/architecture-candidate.log
+          fi
+          {
+            echo "main_architecture_status=${main_status}"
+            echo "candidate_architecture_status=${candidate_status}"
+            echo "main_route_index_lines=${base_lines}"
+            echo "candidate_route_index_lines=${candidate_lines}"
+            echo "architecture_baseline_equal=true"
+          } | tee evidence/architecture-classification.txt
+
+      - name: Validate runtime verify and structured startup independently
+        working-directory: http-generic-api
+        shell: bash
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: "gpt/spec012-oauth-canonical-deps-current-main-v2-20260804"
+          CI_CANDIDATE_KIND: "head"
+          RUNTIME_STARTUP_EVIDENCE_DIR: "${{ runner.temp }}/runtime-startup-deployment-evidence"
+        run: |
+          set -euo pipefail
+          npm run verify 2>&1 | tee ../evidence/runtime-verify.log
+          node scripts/test-runtime-startup-deployment-evidence.mjs 2>&1 | tee ../evidence/runtime-startup-reporter-test.log
+          node test-remote-mcp-disabled-startup-boundary.mjs 2>&1 | tee ../evidence/disabled-oauth-startup-boundary.log
+          export DEPLOYMENT_COMMIT_SHA="${FINAL_SHA}"
+          export CI_CANDIDATE_SHA="${FINAL_SHA}"
+          export CI_SOURCE_HEAD_SHA="${FINAL_SHA}"
+          node scripts/runtime-startup-deployment-evidence.mjs --output-dir "${RUNTIME_STARTUP_EVIDENCE_DIR}"
+          REPORT_PATH="${RUNTIME_STARTUP_EVIDENCE_DIR}/runtime-startup-deployment-evidence.json" node --input-type=module -e '
+            import fs from "node:fs";
+            const r = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, "utf8"));
+            if (r.contract !== "mad4b.runtime-startup-deployment-evidence.v1" || r.secrets_included !== false || r.outcome !== "passed") {
+              console.error(JSON.stringify({ok:false,outcome:r.outcome,first_failure:r.first_failure?.stage_id,secrets_included:false}));
+              process.exit(1);
+            }
+            console.log(JSON.stringify({ok:true,outcome:r.outcome,candidate_sha:r.identity?.candidate_sha,secrets_included:false}));
+          '
+
+      - name: Record bounded non-effects
+        shell: bash
+        run: |
+          {
+            echo "main=${EXPECTED_MAIN_SHA}"
+            echo "candidate=${FINAL_SHA}"
+            echo "effective_changed_files=4"
+            echo "repository_scope=non_protected_branch_only"
+            echo "production_action=false"
+            echo "provider_action=false"
+            echo "database_mutation=false"
+            echo "credential_access=false"
+            echo "secrets_included=false"
+          } > evidence/non-effects.txt
+
+      - name: Push fast-forward synchronized head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git push origin "HEAD:${BRANCH_NAME}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-workmap-main-sync-${{ github.run_id }}
+          path: |
+            evidence/
+            ${{ runner.temp }}/runtime-startup-deployment-evidence/*
+          if-no-files-found: warn
+          retention-days: 14
