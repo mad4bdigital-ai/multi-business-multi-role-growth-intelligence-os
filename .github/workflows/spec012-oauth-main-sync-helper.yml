@@ -1,0 +1,174 @@
+name: Spec 012 OAuth Isolated Main Sync Helper
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/spec012-oauth-main-sync-helper.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec012-oauth-main-sync-helper-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  merge-certify-retire:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-sync-main-d76dc2bf-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/spec012-oauth-canonical-deps-clean-successor-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: d76dc2bf9b073a18c2fa51cd5907cb30f0c03ab4
+      EXPECTED_PRODUCT_HEAD: e67d4c7a1d3af38e53f830a0a22782969243c4ee
+      PRE_SYNC_BASE_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
+      HELPER_BRANCH: gpt/spec012-oauth-sync-main-d76dc2bf-20260804
+      PRODUCT_BRANCH: gpt/spec012-oauth-canonical-deps-clean-successor-20260804
+      WORKFLOW_PATH: .github/workflows/spec012-oauth-main-sync-helper.yml
+    steps:
+      - name: Checkout exact helper head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable refs and one-file helper envelope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${HELPER_BRANCH}" "${PRODUCT_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PRODUCT_HEAD}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${PRODUCT_BRANCH})" = "${EXPECTED_PRODUCT_HEAD}"
+          test "$(git merge-base origin/main HEAD)" = "${PRE_SYNC_BASE_SHA}"
+          test -z "$(git status --porcelain=v1)"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_PRODUCT_HEAD}...HEAD" | sort)
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${WORKFLOW_PATH}"
+
+      - name: Merge exact current main without rewriting history
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-ff --no-edit "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          echo "SYNC_MERGE_SHA=$(git rev-parse HEAD)" >> "${GITHUB_ENV}"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Prove generated artifacts remain current
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/frontend-operation-governance-generator.mjs --check
+          node scripts/frontend-surface-dispatch.mjs --check --baseline-ref=main
+          test -z "$(git status --porcelain=v1)"
+
+      - name: Retire helper and certify four-file product scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          git rm "${WORKFLOW_PATH}"
+          git commit -m "chore(spec-012): retire isolated main sync helper"
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          printf '%s\n' "${files[@]}" > evidence/final-product-files.txt
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Validate OAuth frontend and E2E contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd http-generic-api
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+            node test-spec012-t033-short-lived-bearer-profile.mjs
+            node test-frontend-dispatch-workflow-baseline.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            npm run frontend:dispatch:check
+          ) | tee evidence/focused-validation.log
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
+
+      - name: Run complete HTTP Generic API manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
+
+      - name: Record bounded non-effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > evidence/non-effects.json <<JSON
+          {
+            "main": "${EXPECTED_MAIN_SHA}",
+            "product_before_sync": "${EXPECTED_PRODUCT_HEAD}",
+            "sync_merge": "${SYNC_MERGE_SHA}",
+            "helper_candidate": "${FINAL_SHA}",
+            "effective_product_files": 4,
+            "history_preserved": true,
+            "force_push": false,
+            "protected_ref_write": false,
+            "production_action": false,
+            "provider_action": false,
+            "deployment_action": false,
+            "database_mutation": false,
+            "credential_access": false,
+            "secrets_included": false
+          }
+          JSON
+
+      - name: Push exact fast-forward helper head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${HELPER_BRANCH}" "${PRODUCT_BRANCH}"
+          test "$(git rev-parse origin/${HELPER_BRANCH})" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse origin/${PRODUCT_BRANCH})" = "${EXPECTED_PRODUCT_HEAD}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git push origin "HEAD:${HELPER_BRANCH}"
+
+      - name: Upload sync evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-isolated-main-sync-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
