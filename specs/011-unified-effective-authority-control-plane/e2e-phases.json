@@ -2,18 +2,23 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "011-unified-effective-authority-control-plane",
-  "title": "Unified effective authority control plane governed operational evidence cycle",
+  "title": "Unified effective authority control plane governed evidence pipeline",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".changes/e2e/ueacp-repository-source-candidate-builder.json",
       ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
+      "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
       "http-generic-api/authorityEvidenceRepositorySnapshotCollector.js",
+      "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
       "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "http-generic-api/scripts/authority-governed-operational-evidence-cycle.mjs",
+      "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
       "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
-      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md"
+      "specs/011-unified-effective-authority-control-plane/governed-operational-evidence-cycle.md",
+      "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
     ]
   },
   "merge_contract": {
@@ -23,8 +28,50 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind exactly eight reviewed authority-source documents to one reviewed ancestor ref, validate canonical path completeness, compose them with the bounded live catalog observer, and produce a no-secret packet ready only for later human ownership review.",
+      "objective": "Build and review bounded repository authority-source candidates, bind reviewed source documents to an ancestor ref, compose them with the bounded live catalog observer, and produce no-secret evidence ready only for later human ownership review.",
       "e2e_journeys": [
+        {
+          "id": "build-reviewed-repository-source-candidates",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "UEACP evidence reviewer",
+          "entrypoint": "A previously captured complete no-secret array of eight canonical authority source snapshots",
+          "terminal_outcome": "Eight deterministic bounded repository source candidates and one review-required index are validated or written without final manifest binding or any runtime effect.",
+          "steps": [
+            "Load a source snapshot array directly or from snapshots, sources, or source_bundle.sources.",
+            "Require exactly one snapshot for every registered authority source family.",
+            "Validate complete pagination, bounded records, timestamps, evidence references, and explicit no-effect/no-secret markers.",
+            "Reject lexical or realpath escapes, final or intermediate symlinks, unsafe existing output types, sensitive values, excessive records, and rendered outputs above 8 MiB.",
+            "Render deterministic source documents and a candidate index containing paths, content hashes, record counts, and capture timestamps.",
+            "Default to dry-run and write only when the caller explicitly supplies --write.",
+            "Keep the index review-required and not dispatch-ready until a later change binds reviewed ancestor and Git blob identities."
+          ],
+          "assertions": [
+            "The builder emits exactly eight source documents and one candidate index.",
+            "The builder emits neither blob_sha nor the final repository manifest contract.",
+            "The candidate index requires post-commit blob binding and human review.",
+            "Dry-run creates no repository files and write mode remains inside the canonical repository real path.",
+            "T001 and T002 remain open and migration_apply_authorized remains false.",
+            "No live collector, SQL, database/provider mutation, credential payload read, external write, deployment, Production promotion, runtime authority change, or task closure occurs."
+          ],
+          "tests": [
+            {
+              "id": "authority-evidence-repository-candidate-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-authority-evidence-repository-candidate-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/ueacp-repository-source-candidate-builder.json",
+            "http-generic-api/authorityEvidenceRepositoryCandidateBuilder.js",
+            "http-generic-api/scripts/authority-evidence-repository-candidates.mjs",
+            "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+            "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
+            "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md"
+          ]
+        },
         {
           "id": "collect-governed-ueacp-live-evidence",
           "end_to_end": true,
@@ -82,7 +129,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Merge and review exact eight source documents, then merge a manifest binding their reviewed ancestor ref and source hashes, configure the protected Environment, and explicitly authorize one bounded Production read-only evidence cycle."
+      "objective": "Capture all eight sources under explicit read-only authorization, review and merge source documents, finalize a reviewed ancestor and Git blob-bound manifest, configure the protected Environment, and separately authorize one bounded Production read-only evidence cycle."
     }
   ],
   "secrets_included": false

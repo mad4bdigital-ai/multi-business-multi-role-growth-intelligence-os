@@ -4,6 +4,13 @@ const VERIFIED_INVALID_GRANT_OUTCOMES = new Set([
   "expired",
   "already_consumed",
   "revoked",
+  "invalid",
+  "payload_invalid",
+  "client_mismatch",
+  "resource_invalid",
+  "redirect_mismatch",
+  "user_inactive",
+  "membership_inactive",
 ]);
 
 const ALLOWED_PHASES = new Set([
@@ -104,15 +111,21 @@ export function classifyTenantGptOAuthTokenExchangeOutcome({
     });
   }
 
+  const codeStillAvailable = phase === "before_code_consumption";
+  const consumptionAttemptUnknown = phase === "code_consumption";
   return freezeDecision({
-    classification: "token_exchange_dependency_unavailable",
+    classification: codeStillAvailable
+      ? "token_exchange_preconsumption_dependency_unavailable"
+      : "token_exchange_dependency_unavailable",
     http_status: 503,
     oauth_error: "temporarily_unavailable",
-    error_code: "oauth_token_exchange_dependency_unavailable",
-    retry_same_code: false,
+    error_code: codeStillAvailable
+      ? "oauth_token_exchange_preconsumption_unavailable"
+      : "oauth_token_exchange_dependency_unavailable",
+    retry_same_code: codeStillAvailable,
     restart_authorization: false,
-    outcome_unknown: phase === "code_consumption",
-    operator_reconciliation_required: phase === "code_consumption",
+    outcome_unknown: consumptionAttemptUnknown,
+    operator_reconciliation_required: consumptionAttemptUnknown,
     failure_reason: text(failure_reason, 160) || "token_exchange_dependency_unavailable",
   });
 }
@@ -128,11 +141,13 @@ export function buildTenantGptOAuthTokenErrorResponse(decision, { request_id = n
       "The authorization-code consumption result is unknown. Do not replay this code until the exchange is reconciled.",
     oauth_code_store_temporarily_unavailable:
       "The authorization-code store is temporarily unavailable. Retry only when instructed by the response metadata.",
+    oauth_token_exchange_preconsumption_unavailable:
+      "The token exchange is temporarily unavailable before code consumption. Retrying the same authorization code is allowed.",
     oauth_token_exchange_dependency_unavailable:
       "The token exchange is temporarily unavailable.",
   };
   const description = decision.oauth_error === "invalid_grant"
-    ? "The authorization code is invalid, expired, already used, revoked, or does not match this client request."
+    ? "The authorization code is invalid, expired, already used, revoked, or no longer valid for this client, resource, redirect, user, or tenant membership."
     : descriptions[decision.error_code] || "The token exchange is temporarily unavailable.";
 
   return Object.freeze({
