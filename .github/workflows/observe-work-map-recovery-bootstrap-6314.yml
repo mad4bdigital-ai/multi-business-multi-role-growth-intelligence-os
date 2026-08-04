@@ -1,0 +1,134 @@
+name: Observe Work Map Recovery Bootstrap 6314
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  observe:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chore/spec014-wave1-runtime-evidence-cleanup-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    steps:
+      - name: Observe exact bootstrap run through public GitHub metadata
+        id: observe
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-observer"
+          mkdir -p "$evidence"
+          node --input-type=module - "$evidence/result.json" <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const outputPath = process.argv[2];
+          const repository = 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os';
+          const commentId = '5181121793';
+          const expectedBody = '/activate-work-map-recovery 8810e10fe5eb9b25689dc0431df35760942b86b1';
+          const workflowFile = 'spec-kit-work-map-recovery-bootstrap.yml';
+          const workflowName = 'Spec Kit Work Map Recovery Bootstrap';
+          const maxDeltaMs = 5 * 60 * 1000;
+
+          async function apiJson(url) {
+            const response = await fetch(url, {
+              headers: {
+                Accept: 'application/vnd.github+json',
+                'X-GitHub-Api-Version': '2022-11-28',
+                'User-Agent': 'work-map-recovery-bootstrap-public-observer',
+              },
+              signal: AbortSignal.timeout(30_000),
+            });
+            const text = await response.text();
+            assert.ok(response.ok, `GitHub public API ${response.status}: ${text.slice(0, 500)}`);
+            return JSON.parse(text);
+          }
+
+          const comment = await apiJson(
+            `https://api.github.com/repos/${repository}/issues/comments/${commentId}`,
+          );
+          assert.equal(String(comment.id), commentId);
+          assert.equal(comment.body, expectedBody);
+          assert.ok(String(comment.issue_url || '').endsWith('/issues/6314'));
+          const createdAtMs = Date.parse(comment.created_at);
+          assert.ok(Number.isFinite(createdAtMs));
+
+          const runs = await apiJson(
+            `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?event=issue_comment&per_page=100`,
+          );
+          const candidates = (runs.workflow_runs || [])
+            .filter((run) => run.event === 'issue_comment')
+            .filter((run) => run.name === workflowName)
+            .filter((run) => run.actor?.login === comment.user?.login)
+            .map((run) => ({
+              id: run.id,
+              status: run.status,
+              conclusion: run.conclusion,
+              created_at: run.created_at,
+              updated_at: run.updated_at,
+              head_sha: run.head_sha,
+              head_branch: run.head_branch,
+              actor: run.actor?.login || null,
+              delta_ms: Math.abs(Date.parse(run.created_at) - createdAtMs),
+            }))
+            .filter((entry) => Number.isFinite(entry.delta_ms) && entry.delta_ms <= maxDeltaMs)
+            .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
+
+          const result = {
+            contract: 'work_map_recovery_bootstrap_public_run_discovery.v1',
+            trigger_comment_id: commentId,
+            trigger_created_at: comment.created_at,
+            trigger_actor: comment.user?.login || null,
+            candidate_count: candidates.length,
+            target: candidates[0] || null,
+            candidates,
+            public_metadata_only: true,
+            direct_repository_mutation: false,
+            authorization_consumed: false,
+            protected_branch_mutation: false,
+            force_push: false,
+            runtime_contact: false,
+            database_access: false,
+            provider_action: false,
+            deployment_performed: false,
+            migration_apply_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
+          process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+          assert.ok(result.target?.id, 'Exact Work Map recovery bootstrap run was not registered');
+          NODE
+
+      - name: Write fail-closed observer result
+        if: always()
+        shell: bash
+        env:
+          OBSERVE_OUTCOME: ${{ steps.observe.outcome }}
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-observer"
+          mkdir -p "$evidence"
+          if [[ ! -f "$evidence/result.json" ]]; then
+            jq -n --arg outcome "$OBSERVE_OUTCOME" '{contract:"work_map_recovery_bootstrap_public_run_discovery.v1",candidate_count:0,target:null,observer_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
+          fi
+          cat "$evidence/result.json"
+
+      - name: Upload bootstrap registration evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-recovery-bootstrap-observer-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-recovery-bootstrap-observer/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce bootstrap registration
+        if: always()
+        shell: bash
+        run: jq -e '.candidate_count >= 1 and .target.id != null and .direct_repository_mutation == false and .protected_branch_mutation == false and .force_push == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-bootstrap-observer/result.json" >/dev/null
