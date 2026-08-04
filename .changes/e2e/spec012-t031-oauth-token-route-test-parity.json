@@ -15,7 +15,8 @@
       "http-generic-api/test-auth-oauth-routes.mjs",
       "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
       "docs/work-maps/README.md",
-      "docs/work-maps/repository-automation-map.md"
+      "docs/work-maps/repository-automation-map.md",
+      "http-generic-api/frontend-operation-governance.generated.json"
     ]
   },
   "merge_contract": {
@@ -79,7 +80,8 @@
             "http-generic-api/test-auth-oauth-routes.mjs",
             "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
             "docs/work-maps/README.md",
-            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/repository-automation-map.md",
+            "http-generic-api/frontend-operation-governance.generated.json"
           ]
         }
       ]
