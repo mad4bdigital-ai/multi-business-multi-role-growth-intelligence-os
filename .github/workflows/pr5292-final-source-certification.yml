@@ -1,4 +1,4 @@
-name: PR 5292 Generator Write-Set Capture
+name: PR 5292 Bounded Generated Artifact Finalizer
 
 on:
   pull_request:
@@ -8,14 +8,14 @@ on:
       - .github/workflows/pr5292-final-source-certification.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pr5292-generator-write-set-capture
+  group: pr5292-bounded-generated-artifact-finalizer
   cancel-in-progress: true
 
 jobs:
-  capture:
+  finalize:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
       github.event.pull_request.number == 5292 &&
@@ -27,8 +27,10 @@ jobs:
     env:
       EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
       EXPECTED_MAIN: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+      HEAD_BRANCH: gpt/pr5210-surface-source-clean-20260803
       WORKFLOW_PATH: .github/workflows/pr5292-final-source-certification.yml
-      DIAGNOSTIC_PATH: .github/pr5292-generator-write-set.txt
+      GOVERNANCE_ARTIFACT: http-generic-api/frontend-operation-governance.generated.json
+      DISPATCH_ARTIFACT: http-generic-api/frontend-surface-dispatch.generated.json
 
     steps:
       - name: Checkout exact PR head
@@ -36,7 +38,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify exact bounded trigger and baseline
         shell: bash
@@ -76,77 +78,59 @@ jobs:
           TARGET_REF: main
         run: npm run frontend:dispatch:check
 
-      - name: Capture exact generated write set
-        id: capture
+      - name: Enforce exact generated write set
         shell: bash
         run: |
           set -Eeuo pipefail
-          raw_status="${RUNNER_TEMP}/pr5292-generator-status.txt"
-          normalized_paths="${RUNNER_TEMP}/pr5292-generator-paths.txt"
-          unexpected_paths="${RUNNER_TEMP}/pr5292-generator-unexpected-paths.txt"
+          raw_status="${RUNNER_TEMP}/pr5292-finalizer-status.txt"
+          actual_paths="${RUNNER_TEMP}/pr5292-finalizer-paths.txt"
+          expected_paths="${RUNNER_TEMP}/pr5292-finalizer-expected.txt"
 
-          : > "$unexpected_paths"
           git status --porcelain=v1 --untracked-files=all > "$raw_status"
-          sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> //' | sed '/^$/d' > "$normalized_paths"
+          sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> //' | sed '/^$/d' | sort -u > "$actual_paths"
+          printf '%s\n' "${GOVERNANCE_ARTIFACT}" "${DISPATCH_ARTIFACT}" | sort -u > "$expected_paths"
 
-          while IFS= read -r path; do
-            case "$path" in
-              http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/frontend-operation-governance.generated.json|openapi/frontend-runtime-routes.generated.yaml)
-                ;;
-              *)
-                printf '%s\n' "$path" >> "$unexpected_paths"
-                ;;
-            esac
-          done < "$normalized_paths"
-
-          if [ -s "$raw_status" ]; then
-            write_set_state=nonempty
-          else
-            write_set_state=empty
-          fi
-          if [ -s "$unexpected_paths" ]; then
-            bounded_state=unexpected
-          else
-            bounded_state=bounded
-          fi
-
-          {
-            printf 'exact_head=%s\n' "${EXPECTED_HEAD}"
-            printf 'pinned_main=%s\n' "${EXPECTED_MAIN}"
-            printf 'write_set_state=%s\n' "$write_set_state"
-            printf 'bounded_state=%s\n' "$bounded_state"
-            printf '%s\n' 'raw_porcelain_begin'
-            cat "$raw_status"
-            printf '%s\n' 'raw_porcelain_end'
-            printf '%s\n' 'normalized_paths_begin'
-            cat "$normalized_paths"
-            printf '%s\n' 'normalized_paths_end'
-            printf '%s\n' 'unexpected_paths_begin'
-            cat "$unexpected_paths"
-            printf '%s\n' 'unexpected_paths_end'
-          } > "${DIAGNOSTIC_PATH}"
-
-          test -s "${DIAGNOSTIC_PATH}"
-          test -z "$(git diff --cached --name-only)"
-          printf 'unexpected_file=%s\n' "$unexpected_paths" >> "$GITHUB_OUTPUT"
-
-      - name: Upload write-set diagnostic
-        if: always() && hashFiles('.github/pr5292-generator-write-set.txt') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr5292-generator-write-set
-          path: .github/pr5292-generator-write-set.txt
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Enforce bounded generated write set
-        if: always() && steps.capture.outcome == 'success'
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          unexpected_file="${{ steps.capture.outputs.unexpected_file }}"
-          if [ -s "$unexpected_file" ]; then
-            echo '::error::Generator changed paths outside the bounded generated-artifact set.'
-            cat "$unexpected_file"
+          if ! cmp -s "$expected_paths" "$actual_paths"; then
+            echo '::error::Official generator write set differs from the certified two-file set.'
+            echo 'Expected:'
+            cat "$expected_paths"
+            echo 'Actual:'
+            cat "$actual_paths"
             exit 1
           fi
+
+      - name: Stage bounded product result and remove finalizer
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -- "${WORKFLOW_PATH}"
+          git add -- "${GOVERNANCE_ARTIFACT}" "${DISPATCH_ARTIFACT}" "${WORKFLOW_PATH}"
+
+          staged_paths="${RUNNER_TEMP}/pr5292-finalizer-staged.txt"
+          expected_staged="${RUNNER_TEMP}/pr5292-finalizer-expected-staged.txt"
+          git diff --cached --name-only | sort -u > "$staged_paths"
+          printf '%s\n' "${WORKFLOW_PATH}" "${GOVERNANCE_ARTIFACT}" "${DISPATCH_ARTIFACT}" | sort -u > "$expected_staged"
+
+          if ! cmp -s "$expected_staged" "$staged_paths"; then
+            echo '::error::Staged paths escaped the bounded product result.'
+            echo 'Expected:'
+            cat "$expected_staged"
+            echo 'Actual:'
+            cat "$staged_paths"
+            exit 1
+          fi
+
+          git diff --quiet
+          test -z "$(git ls-files --others --exclude-standard)"
+
+      - name: Commit and push exact product result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${HEAD_BRANCH}" | awk '{print $1}')"
+          test "$remote_head" = "${EXPECTED_HEAD}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(surface): refresh bounded frontend artifacts'
+          git push origin "HEAD:refs/heads/${HEAD_BRANCH}"
