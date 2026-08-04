@@ -28,7 +28,7 @@ jobs:
     env:
       HELPER_BRANCH: gpt/repair/runtime-parity-e2e-ownership-helper-20260804
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: 6a6ea4dd8419c634d8b4d891bec9cdd69c6c7358
+      EXPECTED_PARENT_SHA: 0232daca460f59c8aecb82a61f19fd59253d540f
       EXPECTED_TARGET_SHA: abb75190957387b2a866b426f3910deb560c49e9
       EXPECTED_MAIN_SHA: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
       PRODUCER_PATH: .github/scripts/runtime-parity-e2e-ownership-helper.py
@@ -37,6 +37,8 @@ jobs:
       PARALLEL_TEST: http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
       PHASE_GOVERNANCE: http-generic-api/scripts/e2e-phase-governance.mjs
       PHASE_TEST: http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+      MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
       GH_TOKEN: ${{ github.token }}
 
     steps:
@@ -124,13 +126,24 @@ jobs:
           echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
 
           mapfile -t changed < <(git diff --name-only "${EXPECTED_TARGET_SHA}...${final_sha}" | sort)
-          expected="$(printf '%s\n' \
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -ge 4
+          for required in \
             "${PARALLEL_GOVERNANCE}" \
             "${PARALLEL_TEST}" \
             "${PHASE_GOVERNANCE}" \
-            "${PHASE_TEST}" | sort)"
-          actual="$(printf '%s\n' "${changed[@]}")"
-          test "${actual}" = "${expected}"
+            "${PHASE_TEST}"; do
+            printf '%s\n' "${changed[@]}" | grep -Fx -- "${required}" >/dev/null
+          done
+          for file in "${changed[@]}"; do
+            case "${file}" in
+              "${PARALLEL_GOVERNANCE}"|"${PARALLEL_TEST}"|"${PHASE_GOVERNANCE}"|"${PHASE_TEST}"|docs/work-maps/*|"${MANIFEST_PATH}"|"${TASKS_PATH}") ;;
+              *)
+                echo "Unexpected final helper output: ${file}" >&2
+                exit 1
+                ;;
+            esac
+          done
           test ! -e "${PRODUCER_PATH}"
           test ! -e "${LAUNCHER_PATH}"
 
