@@ -77,9 +77,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
 - `.github/workflows/governed-generated-artifact-refresh.yml`
-- `.github/workflows/governed-local-connector-production-closure-pr-target.yml`
-- `.github/workflows/governed-local-connector-production-closure-push.yml`
-- `.github/workflows/governed-local-connector-production-closure.yml`
 - `.github/workflows/governed-migration-dependency-gate.yml`
 - `.github/workflows/governed-production-candidate-dispatch-bridge.yml`
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
@@ -137,6 +134,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-storage-tenant-safe-durable-projection-guard.yml`
 - `.github/workflows/hostinger-storage-toolchain-guard.yml`
 - `.github/workflows/hostinger-storage-verified-sql-runtime-composition-guard.yml`
+- `.github/workflows/http-generic-api-fanout-relocation-apply.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/openapi-auto-sync.yml`
@@ -151,6 +149,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
+- `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml`
@@ -171,6 +170,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
 - `.github/workflows/staging-post-deploy-verification.yml`
+- `.github/workflows/supervisor-runtime-assurance-alert.yml`
 - `.github/workflows/supervisor-runtime-assurance.yml`
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
@@ -257,6 +257,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
+- `http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs`
 - `http-generic-api/test-schema-overlay-json-asset-loader.mjs`
 - `http-generic-api/test-schema-overlay-resolver.mjs`
 - `http-generic-api/test-schema-split-importer-v2-reference-preservation.mjs`
