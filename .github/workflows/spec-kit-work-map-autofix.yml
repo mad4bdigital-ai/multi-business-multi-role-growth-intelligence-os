@@ -44,7 +44,7 @@ jobs:
           : > "${diagnostic_root}/validation-results.tsv"
 
           git check-ref-format --branch "${TARGET_BRANCH}"
-          [[ "${TARGET_BRANCH}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "${TARGET_BRANCH}" != refs/* ]]
           [[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]
           [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
 
