@@ -69,23 +69,58 @@ jobs:
           TARGET_REF: main
         run: npm run frontend:dispatch:generate -- --baseline-ref=main
 
-      - name: Capture exact generated write set
+      - name: Verify generated artifacts
+        working-directory: http-generic-api
+        env:
+          CANONICAL_BASELINE_REF: main
+          TARGET_REF: main
+        run: npm run frontend:dispatch:check
+
+      - name: Capture and validate exact generated write set
         shell: bash
         run: |
           set -Eeuo pipefail
           raw_status="${RUNNER_TEMP}/pr5292-generator-status.txt"
+          normalized_paths="${RUNNER_TEMP}/pr5292-generator-paths.txt"
+          unexpected_paths="${RUNNER_TEMP}/pr5292-generator-unexpected-paths.txt"
+
           git status --porcelain=v1 --untracked-files=all > "$raw_status"
-          test -s "$raw_status"
+          sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> /' | sed '/^$/d' > "$normalized_paths"
+
+          while IFS= read -r path; do
+            case "$path" in
+              http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+                ;;
+              *)
+                printf '%s\n' "$path" >> "$unexpected_paths"
+                ;;
+            esac
+          done < "$normalized_paths"
+
+          if [ -s "$unexpected_paths" ]; then
+            echo '::error::Generator changed paths outside the bounded generated-artifact set.'
+            cat "$unexpected_paths"
+            exit 1
+          fi
+
+          if [ -s "$raw_status" ]; then
+            write_set_state=nonempty
+          else
+            write_set_state=empty
+          fi
+
           {
             printf 'exact_head=%s\n' "${EXPECTED_HEAD}"
             printf 'pinned_main=%s\n' "${EXPECTED_MAIN}"
+            printf 'write_set_state=%s\n' "$write_set_state"
             printf '%s\n' 'raw_porcelain_begin'
             cat "$raw_status"
             printf '%s\n' 'raw_porcelain_end'
             printf '%s\n' 'normalized_paths_begin'
-            sed -E 's/^...//' "$raw_status" | sed -E 's/.* -> /'
+            cat "$normalized_paths"
             printf '%s\n' 'normalized_paths_end'
           } > "${DIAGNOSTIC_PATH}"
+
           test -s "${DIAGNOSTIC_PATH}"
           test -z "$(git diff --cached --name-only)"
 
