@@ -1,0 +1,279 @@
+name: Main Ruleset Readback 6079
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: main-ruleset-readback-6079-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Read active main rules and bypass posture
+    if: github.event.pull_request.head.ref == 'gpt/readback-main-ruleset-6079-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_PARENT_SHA: 88439328058c46a87f205cc49be47a1ab0651faf
+      TARGET_PR_NUMBER: '6079'
+      TARGET_PR_HEAD: fd1f82a7b1956ea3537d5b4352aa1d69a17c55ec
+      TARGET_PR_BASE: 88439328058c46a87f205cc49be47a1ab0651faf
+      VALIDATOR_PATH: .github/workflows/main-ruleset-readback-6079.yml
+      DECLARED_FINALIZER_APP_ID: ${{ vars.GITHUB_APP_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact readback head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify readback identity and one-file scope
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$VALIDATOR_PATH"
+
+      - name: Query active branch rules and pull-request state
+        id: api_readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/main-ruleset-readback"
+          mkdir -p "$evidence/rulesets"
+
+          fetch_json() {
+            local name="$1"
+            local endpoint="$2"
+            local status
+            status="$(curl --silent --show-error \
+              --output "$evidence/${name}.json" \
+              --write-out '%{http_code}' \
+              --header 'Accept: application/vnd.github+json' \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/${endpoint}")"
+            printf '%s\n' "$status" > "$evidence/${name}.status"
+          }
+
+          fetch_json active-rules "repos/${GITHUB_REPOSITORY}/rules/branches/main"
+          fetch_json rulesets-index "repos/${GITHUB_REPOSITORY}/rulesets?includes_parents=true&per_page=100"
+          fetch_json branch-protection "repos/${GITHUB_REPOSITORY}/branches/main/protection"
+          fetch_json target-pr "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR_NUMBER}"
+          fetch_json target-pr-reviews "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR_NUMBER}/reviews?per_page=100"
+          fetch_json target-pr-review-comments "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR_NUMBER}/comments?per_page=100"
+
+          if test "$(cat "$evidence/active-rules.status")" = '200'; then
+            jq -r '.[]? | .ruleset_id // empty' "$evidence/active-rules.json" | sort -u | while read -r ruleset_id; do
+              test -n "$ruleset_id" || continue
+              status="$(curl --silent --show-error \
+                --output "$evidence/rulesets/${ruleset_id}.json" \
+                --write-out '%{http_code}' \
+                --header 'Accept: application/vnd.github+json' \
+                --header "Authorization: Bearer ${GH_TOKEN}" \
+                --header 'X-GitHub-Api-Version: 2022-11-28' \
+                "https://api.github.com/repos/${GITHUB_REPOSITORY}/rulesets/${ruleset_id}")"
+              printf '%s\n' "$status" > "$evidence/rulesets/${ruleset_id}.status"
+            done
+          fi
+
+      - name: Build bounded server-policy assessment
+        id: assessment
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ['RUNNER_TEMP']) / 'main-ruleset-readback'
+
+          def status(name):
+              path = root / f'{name}.status'
+              return path.read_text().strip() if path.exists() else None
+
+          def load(name, fallback=None):
+              path = root / f'{name}.json'
+              if not path.exists():
+                  return fallback
+              try:
+                  return json.loads(path.read_text())
+              except Exception:
+                  return fallback
+
+          active_rules = load('active-rules', []) if status('active-rules') == '200' else []
+          ruleset_index = load('rulesets-index', []) if status('rulesets-index') == '200' else []
+          branch_protection = load('branch-protection', {}) if status('branch-protection') == '200' else {}
+          target_pr = load('target-pr', {}) if status('target-pr') == '200' else {}
+          reviews = load('target-pr-reviews', []) if status('target-pr-reviews') == '200' else []
+          review_comments = load('target-pr-review-comments', []) if status('target-pr-review-comments') == '200' else []
+
+          pull_request_rules = []
+          status_check_rules = []
+          merge_queue_rules = []
+          for rule in active_rules if isinstance(active_rules, list) else []:
+              if not isinstance(rule, dict):
+                  continue
+              projection = {
+                  'type': rule.get('type'),
+                  'ruleset_id': rule.get('ruleset_id'),
+                  'ruleset_source_type': rule.get('ruleset_source_type'),
+                  'ruleset_source': rule.get('ruleset_source'),
+                  'parameters': rule.get('parameters') or {},
+              }
+              if rule.get('type') == 'pull_request':
+                  pull_request_rules.append(projection)
+              elif rule.get('type') == 'required_status_checks':
+                  status_check_rules.append(projection)
+              elif rule.get('type') == 'merge_queue':
+                  merge_queue_rules.append(projection)
+
+          protection_reviews = branch_protection.get('required_pull_request_reviews') or {}
+          approval_counts = []
+          dismiss_values = []
+          thread_resolution_values = []
+          last_push_values = []
+          for rule in pull_request_rules:
+              params = rule.get('parameters') or {}
+              value = params.get('required_approving_review_count')
+              if isinstance(value, int): approval_counts.append(value)
+              if 'dismiss_stale_reviews_on_push' in params:
+                  dismiss_values.append(bool(params.get('dismiss_stale_reviews_on_push')))
+              if 'required_review_thread_resolution' in params:
+                  thread_resolution_values.append(bool(params.get('required_review_thread_resolution')))
+              if 'require_last_push_approval' in params:
+                  last_push_values.append(bool(params.get('require_last_push_approval')))
+
+          bp_count = protection_reviews.get('required_approving_review_count')
+          if isinstance(bp_count, int): approval_counts.append(bp_count)
+          if protection_reviews:
+              dismiss_values.append(bool(protection_reviews.get('dismiss_stale_reviews')))
+              thread_resolution_values.append(bool(protection_reviews.get('require_conversation_resolution')))
+              last_push_values.append(bool(protection_reviews.get('require_last_push_approval')))
+
+          ruleset_details = []
+          bypass_actors = []
+          rulesets_dir = root / 'rulesets'
+          if rulesets_dir.exists():
+              for path in sorted(rulesets_dir.glob('*.json')):
+                  status_path = path.with_suffix('.status')
+                  detail_status = status_path.read_text().strip() if status_path.exists() else None
+                  try:
+                      payload = json.loads(path.read_text())
+                  except Exception:
+                      payload = {}
+                  projection = {
+                      'id': payload.get('id'),
+                      'name': payload.get('name'),
+                      'target': payload.get('target'),
+                      'enforcement': payload.get('enforcement'),
+                      'source_type': payload.get('source_type'),
+                      'source': payload.get('source'),
+                      'http_status': detail_status,
+                      'bypass_actors': payload.get('bypass_actors') or [],
+                  }
+                  ruleset_details.append(projection)
+                  for actor in projection['bypass_actors']:
+                      if isinstance(actor, dict):
+                          bypass_actors.append({
+                              'ruleset_id': payload.get('id'),
+                              'ruleset_name': payload.get('name'),
+                              'actor_id': actor.get('actor_id'),
+                              'actor_type': actor.get('actor_type'),
+                              'bypass_mode': actor.get('bypass_mode'),
+                          })
+
+          declared_app_id_text = str(os.environ.get('DECLARED_FINALIZER_APP_ID') or '').strip()
+          declared_app_id = int(declared_app_id_text) if declared_app_id_text.isdigit() else None
+          matching_bypass = [
+              actor for actor in bypass_actors
+              if declared_app_id is not None
+              and actor.get('actor_type') == 'Integration'
+              and actor.get('actor_id') == declared_app_id
+          ]
+
+          required_approvals = max(approval_counts) if approval_counts else None
+          required_reviews_proven = required_approvals is not None and required_approvals >= 1
+          dismiss_stale_proven = any(dismiss_values)
+          thread_resolution_proven = any(thread_resolution_values)
+          finalizer_identity_resolved = declared_app_id is not None
+          finalizer_not_bypass_proven = finalizer_identity_resolved and len(matching_bypass) == 0 and len(ruleset_details) > 0
+
+          assessment = {
+              'pull_request': int(os.environ['TARGET_PR_NUMBER']),
+              'expected_head_sha': os.environ['TARGET_PR_HEAD'],
+              'expected_base_sha': os.environ['TARGET_PR_BASE'],
+              'api_status': {
+                  'active_rules': status('active-rules'),
+                  'rulesets_index': status('rulesets-index'),
+                  'branch_protection': status('branch-protection'),
+                  'target_pr': status('target-pr'),
+                  'target_pr_reviews': status('target-pr-reviews'),
+                  'target_pr_review_comments': status('target-pr-review-comments'),
+              },
+              'target_pr_readback': {
+                  'state': target_pr.get('state'),
+                  'draft': target_pr.get('draft'),
+                  'head_sha': (target_pr.get('head') or {}).get('sha'),
+                  'base_sha': (target_pr.get('base') or {}).get('sha'),
+                  'review_count': len(reviews) if isinstance(reviews, list) else None,
+                  'inline_review_comment_count': len(review_comments) if isinstance(review_comments, list) else None,
+              },
+              'active_rule_count': len(active_rules) if isinstance(active_rules, list) else None,
+              'pull_request_rules': pull_request_rules,
+              'required_status_check_rules': status_check_rules,
+              'merge_queue_rules': merge_queue_rules,
+              'ruleset_index': ruleset_index,
+              'ruleset_details': ruleset_details,
+              'bypass_actors': bypass_actors,
+              'declared_finalizer_app_id': declared_app_id,
+              'matching_finalizer_bypass_actors': matching_bypass,
+              'proof': {
+                  'required_reviews_proven': required_reviews_proven,
+                  'required_approving_review_count': required_approvals,
+                  'dismiss_stale_reviews_proven': dismiss_stale_proven,
+                  'required_review_thread_resolution_proven': thread_resolution_proven,
+                  'require_last_push_approval_observed': any(last_push_values),
+                  'merge_queue_rule_observed': len(merge_queue_rules) > 0,
+                  'finalizer_app_identity_resolved': finalizer_identity_resolved,
+                  'finalizer_not_bypass_proven': finalizer_not_bypass_proven,
+                  'server_policy_gate_complete': all([
+                      required_reviews_proven,
+                      dismiss_stale_proven,
+                      thread_resolution_proven,
+                      finalizer_not_bypass_proven,
+                  ]),
+              },
+              'secrets_included': False,
+              'repository_mutation': False,
+              'production_mutation': False,
+              'protected_ref_mutation': False,
+          }
+          (root / 'assessment.json').write_text(json.dumps(assessment, indent=2) + '\n')
+          PY
+
+      - name: Upload bounded ruleset readback
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: main-ruleset-readback-6079-${{ github.run_id }}
+          path: ${{ runner.temp }}/main-ruleset-readback
+          if-no-files-found: error
+          retention-days: 30
