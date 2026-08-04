@@ -1,0 +1,99 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "frontend-generated-baseline-current-main",
+  "title": "Current-main Frontend generated baseline repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/frontend-generated-baseline-current-main.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Refresh the two deterministic Frontend generated artifacts on the exact current-main authority after the registered test manifest changed, using only the governed generated-artifact writer and exact-head verification.",
+      "e2e_journeys": [
+        {
+          "id": "refresh-current-main-frontend-generated-baseline",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed repository automation",
+          "entrypoint": "A non-draft same-repository pull request on a governed work branch carries the generated-artifact-refresh label and emits a human-authored synchronize event bound to its exact head SHA.",
+          "terminal_outcome": "The read-only request and dispatcher validate the exact PR identity, the registered writer regenerates only allowlisted deterministic artifacts on the work branch without force push, and the resulting exact head passes Frontend generation and parity checks with baseline.ref=main.",
+          "steps": [
+            "Bind the request to the open same-repository pull request, governed branch, main base, required label, and exact head SHA.",
+            "Delegate mutation to governed-generated-artifact-refresh.yml with typed confirmation.",
+            "Regenerate the Frontend operation-governance and surface-dispatch artifacts from the current authority using baseline.ref=main.",
+            "Reject any generated write outside the registered allowlist.",
+            "Push by normal fast-forward only after a final exact-head readback.",
+            "Dispatch read-only verification on the resulting exact head and publish bounded no-secret evidence."
+          ],
+          "assertions": [
+            "main and Production are never writer targets.",
+            "The writer requires an exact 40-character expected head SHA and typed confirmation.",
+            "The writer performs no force push.",
+            "The expected effective generated write set is limited to frontend-operation-governance.generated.json and frontend-surface-dispatch.generated.json unless the canonical report proves another allowlisted deterministic artifact changed.",
+            "The generated Frontend baseline retains baseline.ref=main.",
+            "Frontend operation-governance, surface-dispatch, auth/OpenAPI parity, route coverage, and OpenAPI auth checks pass on the resulting exact head.",
+            "Evidence declares consult_job_logs=false and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "frontend-operation-governance-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-surface-dispatch",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-auth-openapi-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-auth-openapi-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Record terminal request, dispatcher, writer, exact-head verification, and artifact identities in the pull request."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Fail closed on stale head, missing label, protected branch, unexpected generated path, verification drift, or concurrent branch movement."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe the bounded generated refresh on the non-production work branch."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Merge repository evidence only after exact-head checks; perform no deployment or Production mutation."
+    }
+  ]
+}
