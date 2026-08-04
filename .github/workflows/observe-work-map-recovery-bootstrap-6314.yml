@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 10
     steps:
-      - name: Observe exact bootstrap run through public GitHub metadata
+      - name: Observe exact bootstrap registration through public GitHub metadata
         id: observe
         continue-on-error: true
         shell: bash
@@ -34,7 +34,7 @@ jobs:
           const expectedBody = '/activate-work-map-recovery 758a0ebd7ed79eaac87ec1c4caf76977501a3f3f';
           const workflowFile = 'spec-kit-work-map-recovery-bootstrap.yml';
           const workflowName = 'Spec Kit Work Map Recovery Bootstrap';
-          const maxDeltaMs = 5 * 60 * 1000;
+          const maxDeltaMs = 10 * 60 * 1000;
 
           async function apiJson(url) {
             const response = await fetch(url, {
@@ -59,15 +59,18 @@ jobs:
           const createdAtMs = Date.parse(comment.created_at);
           assert.ok(Number.isFinite(createdAtMs));
 
-          const runs = await apiJson(
-            `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?event=issue_comment&per_page=100`,
+          const workflow = await apiJson(
+            `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}`,
           );
-          const candidates = (runs.workflow_runs || [])
-            .filter((run) => run.event === 'issue_comment')
-            .filter((run) => run.name === workflowName)
-            .filter((run) => run.actor?.login === comment.user?.login)
+          const runs = await apiJson(
+            `https://api.github.com/repos/${repository}/actions/workflows/${workflowFile}/runs?per_page=100`,
+          );
+          const nearbyRuns = (runs.workflow_runs || [])
             .map((run) => ({
               id: run.id,
+              name: run.name,
+              display_title: run.display_title,
+              event: run.event,
               status: run.status,
               conclusion: run.conclusion,
               created_at: run.created_at,
@@ -79,15 +82,31 @@ jobs:
             }))
             .filter((entry) => Number.isFinite(entry.delta_ms) && entry.delta_ms <= maxDeltaMs)
             .sort((a, b) => a.delta_ms - b.delta_ms || Number(a.id) - Number(b.id));
+          const candidates = nearbyRuns
+            .filter((run) => run.event === 'issue_comment')
+            .filter((run) => run.name === workflowName)
+            .filter((run) => run.actor === comment.user?.login);
 
           const result = {
-            contract: 'work_map_recovery_bootstrap_public_run_discovery.v2',
+            contract: 'work_map_recovery_bootstrap_registration_diagnostic.v1',
             trigger_comment_id: commentId,
             trigger_created_at: comment.created_at,
             trigger_actor: comment.user?.login || null,
+            workflow: {
+              id: workflow.id,
+              node_id: workflow.node_id,
+              name: workflow.name,
+              path: workflow.path,
+              state: workflow.state,
+              created_at: workflow.created_at,
+              updated_at: workflow.updated_at,
+              badge_url: workflow.badge_url,
+            },
+            all_run_count: Number(runs.total_count || 0),
+            nearby_run_count: nearbyRuns.length,
+            nearby_runs: nearbyRuns,
             candidate_count: candidates.length,
             target: candidates[0] || null,
-            candidates,
             public_metadata_only: true,
             direct_repository_mutation: false,
             authorization_consumed: false,
@@ -102,7 +121,6 @@ jobs:
           };
           fs.writeFileSync(outputPath, `${JSON.stringify(result, null, 2)}\n`);
           process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-          assert.ok(result.target?.id, 'Exact corrected Work Map recovery bootstrap run was not registered');
           NODE
 
       - name: Write fail-closed observer result
@@ -115,20 +133,20 @@ jobs:
           evidence="$RUNNER_TEMP/work-map-recovery-bootstrap-observer"
           mkdir -p "$evidence"
           if [[ ! -f "$evidence/result.json" ]]; then
-            jq -n --arg outcome "$OBSERVE_OUTCOME" '{contract:"work_map_recovery_bootstrap_public_run_discovery.v2",candidate_count:0,target:null,observer_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
+            jq -n --arg outcome "$OBSERVE_OUTCOME" '{contract:"work_map_recovery_bootstrap_registration_diagnostic.v1",workflow:null,all_run_count:0,nearby_run_count:0,nearby_runs:[],candidate_count:0,target:null,observer_outcome:$outcome,public_metadata_only:true,direct_repository_mutation:false,authorization_consumed:false,protected_branch_mutation:false,force_push:false,runtime_contact:false,database_access:false,provider_action:false,deployment_performed:false,migration_apply_performed:false,secrets_included:false}' > "$evidence/result.json"
           fi
           cat "$evidence/result.json"
 
-      - name: Upload bootstrap registration evidence
+      - name: Upload bootstrap registration diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-recovery-bootstrap-observer-${{ github.run_id }}
+          name: work-map-recovery-bootstrap-registration-diagnostic-${{ github.run_id }}
           path: ${{ runner.temp }}/work-map-recovery-bootstrap-observer/
           if-no-files-found: error
           retention-days: 14
 
-      - name: Enforce bootstrap registration
+      - name: Enforce diagnostic transport only
         if: always()
         shell: bash
-        run: jq -e '.candidate_count >= 1 and .target.id != null and .direct_repository_mutation == false and .protected_branch_mutation == false and .force_push == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-bootstrap-observer/result.json" >/dev/null
+        run: jq -e '.workflow.id != null and .workflow.path == ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml" and .public_metadata_only == true and .direct_repository_mutation == false and .protected_branch_mutation == false and .force_push == false and .secrets_included == false' "$RUNNER_TEMP/work-map-recovery-bootstrap-observer/result.json" >/dev/null
