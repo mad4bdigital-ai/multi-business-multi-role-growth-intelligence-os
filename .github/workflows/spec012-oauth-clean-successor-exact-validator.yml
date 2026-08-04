@@ -19,8 +19,8 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      EXPECTED_MAIN_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
-      EXPECTED_CANDIDATE_SHA: e67d4c7a1d3af38e53f830a0a22782969243c4ee
+      EXPECTED_MAIN_SHA: d76dc2bf9b073a18c2fa51cd5907cb30f0c03ab4
+      EXPECTED_CANDIDATE_SHA: ac8b5d39d2015e8f7382c742626e6ec461daf456
       CANDIDATE_BRANCH: gpt/spec012-oauth-canonical-deps-clean-successor-20260804
       VALIDATOR_PATH: .github/workflows/spec012-oauth-clean-successor-exact-validator.yml
     steps:
@@ -129,10 +129,10 @@ jobs:
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
           DEPLOYMENT_BRANCH: "gpt/spec012-oauth-canonical-deps-clean-successor-20260804"
-          DEPLOYMENT_COMMIT_SHA: "e67d4c7a1d3af38e53f830a0a22782969243c4ee"
+          DEPLOYMENT_COMMIT_SHA: "ac8b5d39d2015e8f7382c742626e6ec461daf456"
           CI_CANDIDATE_KIND: "head"
-          CI_CANDIDATE_SHA: "e67d4c7a1d3af38e53f830a0a22782969243c4ee"
-          CI_SOURCE_HEAD_SHA: "e67d4c7a1d3af38e53f830a0a22782969243c4ee"
+          CI_CANDIDATE_SHA: "ac8b5d39d2015e8f7382c742626e6ec461daf456"
+          CI_SOURCE_HEAD_SHA: "ac8b5d39d2015e8f7382c742626e6ec461daf456"
           RUNTIME_STARTUP_EVIDENCE_DIR: "${{ runner.temp }}/runtime-startup-deployment-evidence"
         run: node scripts/runtime-startup-deployment-evidence.mjs --output-dir "$RUNTIME_STARTUP_EVIDENCE_DIR"
 
