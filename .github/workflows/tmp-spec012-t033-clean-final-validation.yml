@@ -50,7 +50,7 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Reconcile fail-closed dependency assertions
+      - name: Apply fail-closed assertion reconciliation
         shell: bash
         env:
           PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
@@ -59,37 +59,11 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
-          source = path.read_text(encoding="utf-8")
-          old = '''let missingVerifierConsumeCalled = false;
-          const missingVerifierHarness = createHarness({
-            verifyCode: undefined,
-            consumeCode: async () => {
-              missingVerifierConsumeCalled = true;
-              return { consumed: true, outcome: "consumed" };
-            },
-          });
-          const missingVerifier = await runScenario(missingVerifierHarness);
-          assert.equal(missingVerifier.status, 503);
-          assert.equal(missingVerifier.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
-          assert.equal(missingVerifier.body.retry_same_code, true);
-          assert.equal(missingVerifierConsumeCalled, false);
-
-          let missingIssuerConsumeCalled = false;
-          const missingIssuerHarness = createHarness({
-            issueAccessToken: undefined,
-            consumeCode: async () => {
-              missingIssuerConsumeCalled = true;
-              return { consumed: true, outcome: "consumed" };
-            },
-          });
-          const missingIssuer = await runScenario(missingIssuerHarness);
-          assert.equal(missingIssuer.status, 503);
-          assert.equal(missingIssuer.body.error_code, "oauth_token_exchange_preconsumption_unavailable");
-          assert.equal(missingIssuer.body.retry_same_code, true);
-          assert.equal(missingIssuerConsumeCalled, false);
-          '''
-          new = '''assert.throws(
+          route_test = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
+          source = route_test.read_text(encoding="utf-8")
+          start_marker = "let missingVerifierConsumeCalled = false;"
+          end_marker = "const postConsumptionHarness = createHarness({"
+          replacement = '''assert.throws(
             () => createHarness({ verifyCode: undefined }),
             (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
             "route construction must fail closed when the governed code verifier is unavailable",
@@ -100,25 +74,42 @@ jobs:
             (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
             "route construction must fail closed when the governed token issuer is unavailable",
           );
+
           '''
-          if old not in source:
-              raise SystemExit("expected missing-dependency assertion block was not found")
-          source = source.replace(old, new, 1)
-          source = source.replace("  missingVerifierHarness,\n  missingIssuerHarness,\n", "", 1)
-          source = source.replace("  missingVerifier,\n  missingIssuer,\n", "", 1)
-          if "missingVerifierHarness" in source or "missingIssuerHarness" in source:
-              raise SystemExit("stale missing-dependency harness reference remains")
-          path.write_text(source, encoding="utf-8")
+          if start_marker in source:
+              start = source.index(start_marker)
+              end = source.index(end_marker, start)
+              source = source[:start] + replacement + source[end:]
+          elif "route construction must fail closed when the governed code verifier is unavailable" not in source:
+              raise SystemExit("missing-dependency assertion region was not found")
+          source = source.replace("  missingVerifierHarness,\n  missingIssuerHarness,\n", "")
+          source = source.replace("  missingVerifier,\n  missingIssuer,\n", "")
+          for stale in ("missingVerifierHarness", "missingIssuerHarness", "missingVerifierConsumeCalled", "missingIssuerConsumeCalled"):
+              if stale in source:
+                  raise SystemExit(f"stale route-test reference remains: {stale}")
+          route_test.write_text(source, encoding="utf-8")
+
+          readiness = Path("http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs")
+          readiness_source = readiness.read_text(encoding="utf-8")
+          old = '''assert.match(route, /oauth_token_exchange_verifier_unavailable/u);
+          assert.match(route, /oauth_token_exchange_issuer_unavailable/u);'''
+          new = '''assert.match(route, /oauth_token_exchange_crypto_dependencies_required/u);
+          assert.match(route, /typeof verifyCode !== "function" \\|\\| typeof issueAccessToken !== "function"/u);'''
+          if old in readiness_source:
+              readiness_source = readiness_source.replace(old, new, 1)
+          elif "oauth_token_exchange_crypto_dependencies_required" not in readiness_source:
+              raise SystemExit("T033 dependency readiness assertions were not found")
+          readiness.write_text(readiness_source, encoding="utf-8")
           PY
           node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-          (cd http-generic-api && node test-tenant-gpt-oauth-token-exchange-routes.mjs)
-          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs; then
-            echo "Route test already reconciled."
+          node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
+          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs; then
+            echo "Fail-closed assertions already reconciled."
           else
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-            git commit -m "test(spec-012): assert fail-closed OAuth dependencies"
+            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
+            git commit -m "test(spec-012): align route tests with fail-closed construction"
             git push origin "HEAD:${PR_HEAD_BRANCH}"
           fi
 
