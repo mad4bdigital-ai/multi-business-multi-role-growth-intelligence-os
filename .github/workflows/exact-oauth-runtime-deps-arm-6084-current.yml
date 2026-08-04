@@ -1,0 +1,203 @@
+name: Exact OAuth Runtime Dependency ARM 6084 Current
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-oauth-runtime-deps-6084-0ccfc93b
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-oauth-runtime-deps-arm-6084-current-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
+  EXPECTED_CANDIDATE_SHA: 7fdb384a007e2bfba7f3b82f4c346d42c1a831c6
+  EXPECTED_PRODUCT_COMMIT: 8d5a6737e71ae00774b1fb6b663ccf6cfc5032b9
+  EXPECTED_CANDIDATE_BRANCH: gpt/fix-oauth-runtime-deps-88439328-20260804
+
+jobs:
+  technical-validation:
+    name: Exact current-main OAuth full ARM
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/fix-oauth-runtime-deps-88439328-20260804' &&
+      github.event.pull_request.head.sha == '7fdb384a007e2bfba7f3b82f4c346d42c1a831c6'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    steps:
+      - name: Checkout immutable synchronized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove immutable identity freshness and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          git merge-base --is-ancestor "${EXPECTED_PRODUCT_COMMIT}" HEAD
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
+          expected=(
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          printf '%s\n' "${changed[@]}" | LC_ALL=C sort > "$RUNNER_TEMP/changed.txt"
+          printf '%s\n' "${expected[@]}" | LC_ALL=C sort > "$RUNNER_TEMP/expected.txt"
+          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/changed.txt"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Validate changed syntax and patch cleanliness
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/routes/index.js
+          node --check http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          git diff --check "${EXPECTED_MAIN_SHA}...HEAD"
+          grep -Fq 'buildTenantGptOAuthMetadataRoutes(deps)' http-generic-api/routes/index.js
+
+      - name: Install locked API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-spec012-t032-legacy-audience-compatibility.mjs
+          node test-chatgpt-mcp-metadata-routes.mjs
+
+      - name: Run complete HTTP API Unit and Integration manifest
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Prove runtime startup and deployment evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: "true"
+          DEPLOYMENT_BRANCH: gpt/fix-oauth-runtime-deps-88439328-20260804
+          DEPLOYMENT_COMMIT_SHA: 7fdb384a007e2bfba7f3b82f4c346d42c1a831c6
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Run canonical architecture validation
+        working-directory: http-generic-api
+        run: npm run validate
+
+      - name: Run explicit OAuth activation and schema governance
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-custom-gpt-schemas.mjs
+          node test-tenant-activation-contract-inventory-parity.mjs
+          node test-activation-lifecycle-contract-foundation.mjs
+          node test-activation-lifecycle-state-machine.mjs
+          node test-activation-lifecycle-operation-service.mjs
+          node test-activation-contract-finalization.mjs
+          node test-openapi-split-governance.mjs
+          node test-openapi-split-regeneration-parity.mjs
+
+      - name: Install locked root dependencies
+        run: npm ci
+
+      - name: Validate root Execution Resolver
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Record bounded technical evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/oauth-runtime-deps-arm-current"
+          mkdir -p "$evidence"
+          {
+            echo "base_sha=${EXPECTED_MAIN_SHA}"
+            echo "candidate_sha=${EXPECTED_CANDIDATE_SHA}"
+            echo "product_commit=${EXPECTED_PRODUCT_COMMIT}"
+            echo "scope_files=2"
+            echo "job_status=${{ job.status }}"
+            echo "force_push=false"
+            echo "protected_ref_mutation=false"
+            echo "secrets_included=false"
+          } > "$evidence/metadata.txt"
+          git status --short > "$evidence/final-worktree.txt"
+          cp -R "$RUNNER_TEMP/test-suite-reports" "$evidence/" 2>/dev/null || true
+
+      - name: Upload exact technical ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-runtime-deps-arm-current-${{ github.event.pull_request.head.sha }}
+          path: |
+            ${{ runner.temp }}/oauth-runtime-deps-arm-current
+            ${{ runner.temp }}/test-suite-reports
+          if-no-files-found: warn
+          include-hidden-files: true
+          retention-days: 14
+
+  final-freshness-readback:
+    name: Exact final main and candidate freshness
+    needs: technical-validation
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout immutable synchronized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove protected main and feature head remained fixed
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "refs/heads/${EXPECTED_CANDIDATE_BRANCH}:refs/remotes/origin/candidate"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_CANDIDATE_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/candidate)" = "${EXPECTED_CANDIDATE_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          test "$(git rev-list --count HEAD..origin/main)" = "0"
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD")
+          test "${#changed[@]}" = "2"
+          printf '%s\n' "${changed[@]}" | LC_ALL=C sort > "$RUNNER_TEMP/final-changed.txt"
+          printf '%s\n' \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs \
+            | LC_ALL=C sort > "$RUNNER_TEMP/final-expected.txt"
+          diff -u "$RUNNER_TEMP/final-expected.txt" "$RUNNER_TEMP/final-changed.txt"
+          test -z "$(git status --porcelain)"
