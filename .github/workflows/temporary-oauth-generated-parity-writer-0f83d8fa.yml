@@ -1,0 +1,250 @@
+name: Temporary OAuth Generated Parity Writer 0f83d8fa
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/writer-oauth-generated-parity-0f83d8fa-20260804' &&
+      github.event.pull_request.head.ref == 'gpt/trigger-oauth-generated-parity-0f83d8fa-20260804'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      EXPECTED_MAIN_SHA: 0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa
+      EXPECTED_TRIGGER_SHA: 0100fe990c14b129ea97957ed42d6590de8929a3
+      WRITER_BASE_REF: gpt/writer-oauth-generated-parity-0f83d8fa-20260804
+      FINAL_BRANCH: gpt/fix-oauth-generated-parity-0f83d8fa-20260804
+      WORKFLOW_PATH: .github/workflows/temporary-oauth-generated-parity-writer-0f83d8fa.yml
+      EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Checkout immutable trigger head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Prove exact repository state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_TRIGGER_SHA}"
+          test "${EVENT_HEAD_SHA}" = "${EXPECTED_TRIGGER_SHA}"
+          git fetch --no-tags origin \
+            "main:refs/remotes/origin/main" \
+            "${WRITER_BASE_REF}:refs/remotes/origin/${WRITER_BASE_REF}"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${WRITER_BASE_REF})" = "${EVENT_BASE_SHA}"
+          test "$(git rev-parse refs/remotes/origin/${WRITER_BASE_REF}^)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git diff --name-only "${EXPECTED_MAIN_SHA}" "refs/remotes/origin/${WRITER_BASE_REF}")" = "${WORKFLOW_PATH}"
+          if git ls-remote --exit-code --heads origin "refs/heads/${FINAL_BRANCH}" >/dev/null 2>&1; then
+            echo "::error::final branch already exists"
+            exit 1
+          fi
+          git checkout --detach "${EXPECTED_MAIN_SHA}"
+          test -z "$(git status --porcelain)"
+
+      - name: Apply exact source test and E2E contract patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          replacements = {
+              Path('http-generic-api/routes/index.js'): (
+                  'app.use(buildTenantGptOAuthMetadataRoutes());',
+                  'app.use(buildTenantGptOAuthMetadataRoutes(deps));',
+              ),
+              Path('http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs'): (
+                  'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes())")',
+                  'routeIndex.indexOf("app.use(buildTenantGptOAuthMetadataRoutes(deps))")',
+              ),
+          }
+          for path, (old, new) in replacements.items():
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1 or new in text:
+                  raise SystemExit(f'fail-closed replacement mismatch: {path}')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+
+          contract = Path('.changes/e2e/spec012-t031-oauth-token-route-test-parity.json')
+          text = contract.read_text(encoding='utf-8')
+          contract_path = '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json'
+          next_path = 'http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js'
+          additions = [
+              'http-generic-api/routes/index.js',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+          ]
+          scope_old = f'      "{contract_path}",\n      "{next_path}",'
+          scope_new = f'      "{contract_path}",\n' + ''.join(f'      "{path}",\n' for path in additions) + f'      "{next_path}",'
+          evidence_old = f'            "{contract_path}",\n            "{next_path}",'
+          evidence_new = f'            "{contract_path}",\n' + ''.join(f'            "{path}",\n' for path in additions) + f'            "{next_path}",'
+          if text.count(scope_old) != 1 or text.count(evidence_old) != 1:
+              raise SystemExit('fail-closed E2E contract anchor mismatch')
+          for path in additions:
+              if path in text:
+                  raise SystemExit(f'E2E contract path already present: {path}')
+          text = text.replace(scope_old, scope_new).replace(evidence_old, evidence_new)
+          contract.write_text(text, encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Install locked API dependencies
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Generate canonical frontend evidence
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          npm ci
+          git fetch --no-tags origin "main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          npm run frontend:dispatch:generate -- --baseline-ref=main
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = JSON.parse(fs.readFileSync('frontend-surface-dispatch.generated.json', 'utf8'));
+          if (report?.baseline?.ref !== 'main') {
+            throw new Error(`expected baseline.ref=main, received ${JSON.stringify(report?.baseline?.ref)}`);
+          }
+          NODE
+
+      - name: Run focused OAuth and frontend regressions
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-auth-oauth-routes.mjs
+          node test-tenant-gpt-oauth-token-route-integration.mjs
+          node test-tenant-gpt-oauth-token-request-binding-guard.mjs
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Prove deterministic generation and exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          before="$(sha256sum http-generic-api/frontend-surface-dispatch.generated.json | awk '{print $1}')"
+          (
+            cd http-generic-api
+            npm run frontend:dispatch:generate -- --baseline-ref=main
+          )
+          after="$(sha256sum http-generic-api/frontend-surface-dispatch.generated.json | awk '{print $1}')"
+          test "${before}" = "${after}"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const path = '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json';
+          const contract = JSON.parse(fs.readFileSync(path, 'utf8'));
+          const required = [
+            path,
+            'http-generic-api/routes/index.js',
+            'http-generic-api/frontend-surface-dispatch.generated.json',
+            'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+          ];
+          const include = contract?.scope?.include || [];
+          const evidence = contract?.phases?.flatMap((phase) => phase?.e2e_journeys || [])
+            .flatMap((journey) => journey?.evidence_paths || []);
+          for (const item of required) {
+            if (!include.includes(item) || !evidence.includes(item)) {
+              throw new Error(`missing governed contract coverage: ${item}`);
+            }
+          }
+          NODE
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#changed[@]}" -eq "${#expected_sorted[@]}"
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+          test -z "$(git status --porcelain | awk '$1 == "??" {print}')"
+          git diff --check
+
+      - name: Create atomic direct-parent commit and push without force
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          if git ls-remote --exit-code --heads origin "refs/heads/${FINAL_BRANCH}" >/dev/null 2>&1; then
+            echo "::error::final branch appeared during validation"
+            exit 1
+          fi
+          git switch -c "${FINAL_BRANCH}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/spec012-t031-oauth-token-route-test-parity.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/routes/index.js \
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          git commit -m "fix(oauth): restore runtime dependency and generated parity"
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD | sort | wc -l | tr -d ' ')" = "4"
+          git push origin "HEAD:refs/heads/${FINAL_BRANCH}"
+          echo "final_sha=${final_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Record bounded writer evidence
+        if: always()
+        shell: bash
+        env:
+          FINAL_SHA: ${{ steps.publish.outputs.final_sha }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/oauth-generated-parity-writer"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const report = {
+            contract: 'mad4b.oauth-generated-parity-writer.v1',
+            job_status: process.env.JOB_STATUS,
+            protected_main_sha: process.env.EXPECTED_MAIN_SHA,
+            trigger_sha: process.env.EXPECTED_TRIGGER_SHA,
+            final_branch: process.env.FINAL_BRANCH,
+            final_sha: process.env.FINAL_SHA || null,
+            expected_changed_files: [
+              '.changes/e2e/spec012-t031-oauth-token-route-test-parity.json',
+              'http-generic-api/frontend-surface-dispatch.generated.json',
+              'http-generic-api/routes/index.js',
+              'http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs',
+            ],
+            canonical_baseline_ref: 'main',
+            protected_ref_mutation: false,
+            force_push: false,
+            production_mutation: false,
+            provider_mutation: false,
+            database_mutation: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/oauth-generated-parity-writer/report.json`, `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Upload bounded writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-generated-parity-writer-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-generated-parity-writer/report.json
+          if-no-files-found: error
+          retention-days: 14
