@@ -20,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide an explicit default-branch manual readiness channel when connector-created issue comments do not emit Actions events, without extending Apply authority, permitting historical authorization replay, or allowing checkout drift after authorization.",
+      "objective": "Provide an explicit default-branch manual readiness channel when connector-created issue comments do not emit Actions events, without extending Apply authority, permitting historical authorization replay, allowing checkout drift, or accepting an unbounded cross-repository authorization read.",
       "e2e_journeys": [
         {
           "id": "validate-manual-readiness-dispatch-boundary",
@@ -28,7 +28,7 @@
           "level": "synthetic_runtime",
           "actor": "Repository administrator dispatching the trusted default-branch workflow",
           "entrypoint": "Sprint 69 Migration 1006 workflow_dispatch with authorization comment ID 5170518874 and an exact main SHA",
-          "terminal_outcome": "The workflow validates and checks out the immutable event SHA plus authorization comment 5170518874 before readiness; historical comments, checkout drift, and manual Apply remain unreachable.",
+          "terminal_outcome": "The workflow validates and checks out the immutable event SHA, binds the exact repository, and reads authorization comment 5170518874 through a bounded non-redirecting request before readiness; historical comments, checkout drift, cross-repository reads, and manual Apply remain unreachable.",
           "steps": [
             "Require confirmation_comment_id and expected_main_sha inputs on workflow_dispatch.",
             "Require confirmation_comment_id to equal the immutable fresh authorization comment 5170518874.",
@@ -36,7 +36,9 @@
             "Checkout github.sha for workflow_dispatch instead of resolving mutable main at runner time.",
             "Verify git rev-parse HEAD equals GITHUB_SHA before runtime readiness begins.",
             "Validate expected_main_sha against GITHUB_SHA.",
-            "Read exact Issue #4122 comment 5170518874 and require the fixed readiness token, matching dispatcher login, and an allowed author association.",
+            "Require GITHUB_REPOSITORY to equal mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os before any GitHub read.",
+            "Read exact Issue #4122 comment 5170518874 with redirects disabled and a 10-second AbortSignal timeout.",
+            "Require the fixed readiness token, matching dispatcher login, allowed author association, exact issue binding, and an object response payload.",
             "Preserve the historical push fallback unchanged and keep the Apply job issue_comment-only.",
             "Publish the existing no-secret Artifact and Job Summary evidence boundaries."
           ],
@@ -45,6 +47,8 @@
             "Historical authorization comment 5143273227 and every comment ID other than 5170518874 fail closed before readiness execution.",
             "A stale or malformed main SHA fails closed before readiness execution.",
             "Manual dispatch checks out exactly github.sha and verifies the checked-out HEAD before authorization validation and readiness execution.",
+            "Any repository identity other than mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os fails closed before a network request.",
+            "The authorization read is bounded to 10 seconds, rejects redirects, and requires a non-array object payload.",
             "A different comment author, issue, token, or association fails closed.",
             "database_mutation_authorized and apply_authorized remain false during trigger validation.",
             "The workflow keeps contents:read and performs no Issue mutation, SQL Apply, provider call, deployment, Production mutation, or external business write in contract validation."
@@ -74,7 +78,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Keep SHA checkout, comment-ID replay, actor, association, and Apply-separation regressions fail-closed."
+      "objective": "Keep SHA checkout, repository identity, bounded authorization read, comment-ID replay, actor, association, and Apply-separation regressions fail-closed."
     },
     {
       "id": "canary",
