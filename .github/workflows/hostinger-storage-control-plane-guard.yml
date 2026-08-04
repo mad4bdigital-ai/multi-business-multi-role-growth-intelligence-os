@@ -11,7 +11,6 @@ on:
       - '**/*.mts'
       - '**/*.cts'
       - '.github/workflows/hostinger-storage-control-plane-guard.yml'
-      - '.github/validation-triggers/spec014-wave1-runtime-evidence-readback-5179409708-v1.txt'
       - 'specs/014-governed-hostinger-storage-orchestration/**'
 
 permissions:
@@ -19,7 +18,7 @@ permissions:
 
 jobs:
   storage-control-plane:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
@@ -128,45 +127,3 @@ jobs:
       - name: Validate repository provenance brand
         working-directory: http-generic-api
         run: node test-hostinger-storage-control-plane-repository-brand.mjs
-
-  collect-spec014-wave1-runtime-evidence:
-    name: Collect exact Spec 014 Wave 1 runtime Artifact
-    if: >-
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1' &&
-      github.event.pull_request.base.ref == 'main'
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 45
-    permissions:
-      actions: read
-      contents: read
-      issues: write
-    env:
-      GITHUB_TOKEN: ${{ github.token }}
-      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
-      ISSUE_NUMBER: '6215'
-      EVIDENCE_DIR: ${{ runner.temp }}/spec014-wave1-runtime-evidence-readback
-    steps:
-      - name: Checkout trusted main
-        uses: actions/checkout@v5
-        with:
-          ref: main
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Read and report structured runtime evidence
-        run: node .github/ops/spec014-wave1-runtime-evidence-readback.mjs
-
-      - name: Upload copied target evidence and readback report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: spec014-wave1-runtime-evidence-readback-${{ github.run_id }}
-          path: ${{ env.EVIDENCE_DIR }}/
-          if-no-files-found: error
-          retention-days: 14
