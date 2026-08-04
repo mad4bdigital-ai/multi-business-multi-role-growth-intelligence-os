@@ -3,9 +3,6 @@ name: Spec 014 Wave 1 Runtime Evidence Readback
 on:
   issue_comment:
     types: [created]
-  pull_request:
-    branches: [main]
-    types: [opened, reopened, synchronize]
 
 permissions:
   actions: read
@@ -16,18 +13,11 @@ jobs:
   readback:
     name: Read exact Wave 1 runtime Artifact and report IDs
     if: >-
-      (
-        github.event_name == 'issue_comment' &&
-        github.event.issue.number == 6215 &&
-        !github.event.issue.pull_request &&
-        github.event.comment.body == 'READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708' &&
-        contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
-      ) || (
-        github.event_name == 'pull_request' &&
-        github.event.pull_request.head.repo.full_name == github.repository &&
-        github.event.pull_request.head.ref == 'gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1' &&
-        github.event.pull_request.base.ref == 'main'
-      )
+      github.event_name == 'issue_comment' &&
+      github.event.issue.number == 6215 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'READBACK_SPEC014_WAVE1_RUNTIME_EVIDENCE_5179409708' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
     env:
