@@ -132,10 +132,11 @@ assert.doesNotMatch(bootstrapWorkflow, /contents: write/u);
 assertPostAllocationReportDirectory(bootstrapWorkflow, "spec-kit-work-map-recovery-bootstrap");
 assert.match(bootstrapWorkflow, /ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY/u);
 assert.match(bootstrapWorkflow, /\/activate-work-map-recovery\[\[:space:\]\]\+\(\[0-9a-f\]\{40\}\)/u);
-assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
+assert.match(bootstrapWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(bootstrapWorkflow, /test "\$\{behind_by\}" = "0"/u);
 assert.match(bootstrapWorkflow, /actions\/workflows\/\$\{recovery_workflow\}\/enable/u);
 assert.match(bootstrapWorkflow, /actions\/workflows\/\$\{recovery_workflow\}\/dispatches/u);
+assert.match(bootstrapWorkflow, /expected_head_sha:\$expected_head_sha/u);
 assert.match(bootstrapWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
 assert.match(bootstrapWorkflow, /WORK_MAP_RECOVERY_BOOTSTRAP/u);
 assert.match(bootstrapWorkflow, /direct_repository_mutation:false/u);
@@ -149,6 +150,11 @@ assert.doesNotMatch(bootstrapWorkflow, /git (?:add|commit|push)/u);
 assert.doesNotMatch(bootstrapWorkflow, /--force|force-with-lease/u);
 
 assert.match(recoveryWorkflow, /^name: Spec Kit Work Map Autofix Recovery Dispatch$/mu);
+assert.match(recoveryWorkflow, /on:\s*\n\s*workflow_dispatch:/u);
+assert.doesNotMatch(recoveryWorkflow, /^\s*issue_comment:/mu);
+assert.doesNotMatch(recoveryWorkflow, /^\s*pull_request(?:_target)?:/mu);
+assert.doesNotMatch(recoveryWorkflow, /^\s*push:/mu);
+assert.match(recoveryWorkflow, /expected_head_sha:\s*\n\s*description: Exact current pull-request head SHA authorized for recovery/u);
 assert.match(recoveryWorkflow, /^\s{4}runs-on: ubuntu-24\.04-arm$/mu);
 assert.match(
   recoveryWorkflow,
@@ -156,9 +162,10 @@ assert.match(
 );
 assert.doesNotMatch(recoveryWorkflow, /contents: write/u);
 assertPostAllocationReportDirectory(recoveryWorkflow, "spec-kit-work-map-autofix-recovery");
+assert.match(recoveryWorkflow, /REQUESTED_HEAD_SHA: \$\{\{ inputs\.expected_head_sha \}\}/u);
 assert.match(recoveryWorkflow, /RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX/u);
-assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{expected_head_sha\}/u);
-assert.match(recoveryWorkflow, /behind_by/u);
+assert.match(recoveryWorkflow, /test "\$\{current_head_sha\}" = "\$\{REQUESTED_HEAD_SHA\}"/u);
+assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(recoveryWorkflow, /Consume one-time authorization marker/u);
 assert.match(recoveryWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/pulls\/\$\{PR_NUMBER\}"/u);
 assert.match(recoveryWorkflow, /actions\/workflows\/spec-kit-work-map-autofix\.yml\/dispatches/u);
@@ -178,4 +185,4 @@ assert.match(writerWorkflow, /remote_head_sha/u);
 assert.match(writerWorkflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
 assert.match(writerWorkflow, /git push/u);
 
-console.log("Work Map Autofix diagnostics and ARM recovery-chain boundaries passed");
+console.log("Work Map diagnostics, explicit recovery isolation, and ARM runner boundaries passed");
