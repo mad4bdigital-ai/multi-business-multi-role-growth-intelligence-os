@@ -1,0 +1,117 @@
+name: Exact Spec 014 Wave 1 Evidence Guard Collector v1
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-wave1-evidence-guard-collector-v1
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate exact readback guard collector
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      EXPECTED_HEAD_SHA: dd2618502d81c30eee5a25c6201043d7bc61056e
+      EXPECTED_BASE_SHA: f27686fdc42c4627a092c31838710983cde3bd3c
+      EVIDENCE_DIR: ${{ runner.temp }}/spec014-wave1-evidence-guard-collector
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Initialize evidence
+        run: mkdir -p "$EVIDENCE_DIR"
+
+      - name: Verify immutable identity and two-file scope
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git merge-base "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = "$EXPECTED_BASE_SHA"
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF'
+          .github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml
+          http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+          EOF
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          sort -o "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/expected-files.txt"
+          git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          jq -n '{ok:true,changed_files:2,runtime_contact:false,database_access:false,migration_apply_executed:false,provider_call_executed:false,secrets_included:false}' > "$EVIDENCE_DIR/preflight.json"
+
+      - name: Install YAML parser dependency
+        id: dependencies
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Parse workflows and execute contract
+        id: contract
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check .github/ops/spec014-wave1-runtime-evidence-readback.mjs
+          node --check http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+          (
+            cd http-generic-api
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import YAML from 'yaml';
+          for (const file of [
+            '../.github/workflows/spec014-wave1-runtime-evidence-readback.yml',
+            '../.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml',
+          ]) {
+            const parsed = YAML.parse(fs.readFileSync(file, 'utf8'));
+            if (!parsed || typeof parsed !== 'object' || !parsed.jobs) {
+              throw new Error(`Invalid workflow structure: ${file}`);
+            }
+          }
+          NODE
+          )
+          node http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs > "$EVIDENCE_DIR/contract.json"
+          jq -e '.ok == true and .proven_guard_collector == true and .runtime_contact == false and .database_access == false and .migration_apply_executed == false and .provider_call_executed == false and .secrets_included == false' "$EVIDENCE_DIR/contract.json" >/dev/null
+
+      - name: Write validation result
+        if: always()
+        env:
+          PREFLIGHT: ${{ steps.preflight.outcome }}
+          DEPENDENCIES: ${{ steps.dependencies.outcome }}
+          CONTRACT: ${{ steps.contract.outcome }}
+        run: |
+          jq -n --arg head "$EXPECTED_HEAD_SHA" --arg base "$EXPECTED_BASE_SHA" --arg preflight "$PREFLIGHT" --arg dependencies "$DEPENDENCIES" --arg contract "$CONTRACT" '{candidate_sha:$head,base_sha:$base,runner:"ubuntu-24.04-arm",outcomes:{preflight:$preflight,dependencies:$dependencies,contract:$contract},runtime_contact:false,database_access:false,migration_apply_executed:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' > "$EVIDENCE_DIR/result.json"
+
+      - name: Upload validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-wave1-evidence-guard-collector-v1-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce validation result
+        if: always()
+        env:
+          PREFLIGHT: ${{ steps.preflight.outcome }}
+          DEPENDENCIES: ${{ steps.dependencies.outcome }}
+          CONTRACT: ${{ steps.contract.outcome }}
+        run: |
+          for outcome in "$PREFLIGHT" "$DEPENDENCIES" "$CONTRACT"; do test "$outcome" = success; done
+          jq -e '.candidate_sha == "dd2618502d81c30eee5a25c6201043d7bc61056e" and .base_sha == "f27686fdc42c4627a092c31838710983cde3bd3c" and ([.outcomes[]] | all(. == "success")) and .runtime_contact == false and .database_access == false and .migration_apply_executed == false and .provider_call_executed == false and .credential_payload_accessed == false and .external_business_write_executed == false and .secrets_included == false' "$EVIDENCE_DIR/result.json" >/dev/null
