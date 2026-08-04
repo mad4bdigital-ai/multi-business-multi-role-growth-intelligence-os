@@ -1,0 +1,96 @@
+name: Exact Spec 014 Wave 1 Evidence Cleanup Validation 6314
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chore/spec014-wave1-runtime-evidence-cleanup-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact cleanup head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Validate exact cleanup scope and retained contracts
+        id: validation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence="$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation"
+          mkdir -p "$evidence"
+          expected_head='30c68e8e48ce94e238c5caecc7c001d3fca2a1b8'
+          expected_main='4033d886187e87b29a855b9b9a942788dafd88ca'
+          report="$evidence/result.json"
+          trap 'rc=$?; jq -n --argjson ok "$([[ $rc -eq 0 ]] && echo true || echo false)" --arg head "$(git rev-parse HEAD 2>/dev/null || true)" --arg expected_head "$expected_head" --arg expected_main "$expected_main" --argjson exit_code "$rc" '{contract:"spec014_wave1_runtime_evidence_cleanup_validation.v1",ok:$ok,head_sha:$head,expected_head_sha:$expected_head,expected_main_sha:$expected_main,exit_code:$exit_code,exact_five_file_scope:true,control_plane_guard_restored:true,r7_retained:true,wave1_runtime_readiness_retained:true,runtime_contact:false,database_access:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,protected_ref_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' > "$report"' EXIT
+
+          test "$(git rev-parse HEAD)" = "$expected_head"
+          git fetch --no-tags origin "$expected_main"
+
+          git diff --name-status "$expected_main...$expected_head" | sort > "$evidence/actual-scope.txt"
+          cat > "$evidence/expected-scope.txt" <<'EOF'
+          D	.github/ops/spec014-wave1-runtime-evidence-readback.mjs
+          D	.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml
+          D	.github/workflows/spec014-wave1-runtime-evidence-readback.yml
+          M	.github/workflows/hostinger-storage-control-plane-guard.yml
+          D	http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+          EOF
+          sort -o "$evidence/expected-scope.txt" "$evidence/expected-scope.txt"
+          diff -u "$evidence/expected-scope.txt" "$evidence/actual-scope.txt"
+
+          test "$(git hash-object .github/workflows/hostinger-storage-control-plane-guard.yml)" = '17954e24425d6a792043a04b87946d65ec6f1a5c'
+          test "$(git hash-object .github/workflows/hostinger-production-runtime-readback-r7.yml)" = '2d31a445f7ced416502958cf3fac15aed8a52723'
+          test "$(git hash-object http-generic-api/test-hostinger-production-runtime-readback-r7.mjs)" = '86092081e82e6af8b8a419884e411654a8b0019e'
+          test -f .github/workflows/spec014-wave1-runtime-readiness.yml
+          test -f .github/ops/spec014-wave1-runtime-readiness.mjs
+
+          test ! -e .github/ops/spec014-wave1-runtime-evidence-readback.mjs
+          test ! -e .github/workflows/spec014-wave1-runtime-evidence-readback.yml
+          test ! -e .github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml
+          test ! -e http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+          ! grep -R -n --exclude-dir=.git 'spec014-wave1-runtime-evidence-readback' .github http-generic-api
+
+          node --check http-generic-api/hostingerStorageExecutionAuthorization.js
+          node --check http-generic-api/hostingerStorageExecutionAuthorizationV2.js
+          node --check http-generic-api/hostingerStorageControlPlaneRepositoryBase.js
+          node --check http-generic-api/hostingerStorageControlPlaneRepository.js
+          node --check http-generic-api/test-hostinger-storage-execution-authorization.mjs
+          node --check http-generic-api/test-hostinger-storage-control-plane-repository.mjs
+          node --check http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs
+          (
+            cd http-generic-api
+            node test-hostinger-storage-execution-authorization.mjs
+            node test-hostinger-storage-control-plane-repository.mjs
+            node test-hostinger-storage-control-plane-repository-brand.mjs
+          )
+
+      - name: Upload exact cleanup validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-wave1-evidence-cleanup-validation-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-wave1-evidence-cleanup-validation/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce cleanup validation
+        if: always()
+        shell: bash
+        run: jq -e '.ok == true and .exact_five_file_scope == true and .control_plane_guard_restored == true and .r7_retained == true and .wave1_runtime_readiness_retained == true and .deployment_performed == false and .migration_apply_performed == false and .secrets_included == false' "$RUNNER_TEMP/spec014-wave1-evidence-cleanup-validation/result.json" >/dev/null
