@@ -1,0 +1,164 @@
+name: Exact SSH Approval Parity ARM 6071
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-ssh-approval-parity-arm-6071-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate exact SSH approval parity candidate
+    if: github.event.pull_request.head.ref == 'gpt/validate-ssh-approval-parity-9f742d01-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      CANDIDATE_SHA: 9f742d015b6668945126f07019e4e08b6a305210
+      EXPECTED_BLOB_SHA: 02291badf8fa40844417ed3f99d48b76fd93009a
+      CHANGED_FILE: http-generic-api/test-tenant-ssh-cli-approval-request.mjs
+      VALIDATOR_PATH: .github/workflows/exact-ssh-approval-parity-arm-6071.yml
+    steps:
+      - name: Checkout exact validator head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify validator identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$VALIDATOR_PATH"
+
+      - name: Checkout immutable SSH parity candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+
+      - name: Verify candidate identity scope and blob
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          mapfile -t files < <(git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA")
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "$CHANGED_FILE"
+          test "$(git rev-parse "$CANDIDATE_SHA:$CHANGED_FILE")" = "$EXPECTED_BLOB_SHA"
+          git diff --check "$BASE_SHA" "$CANDIDATE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact API dependencies
+        id: install
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm ci 2>&1 | tee "$RUNNER_TEMP/api-npm-ci.log"
+
+      - name: Validate changed syntax and focused SSH approval regressions
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          {
+            node --check test-tenant-ssh-cli-approval-request.mjs
+            node test-tenant-ssh-cli-approval-request.mjs
+            node test-tenant-ssh-cli-approval-decision.mjs
+          } 2>&1 | tee "$RUNNER_TEMP/ssh-approval-focused.log"
+
+      - name: Run complete HTTP Generic API Unit and Integration suite
+        id: full_suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm test 2>&1 | tee "$RUNNER_TEMP/http-generic-api-full-suite.log"
+
+      - name: Verify final worktree remains clean
+        id: clean_readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Build bounded validation evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/ssh-approval-parity-arm"
+          mkdir -p "$evidence"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'ssh-approval-parity-arm' / 'summary.json'
+          output.write_text(json.dumps({
+              'pull_request': 6071,
+              'base_sha': os.environ['BASE_SHA'],
+              'candidate_sha': os.environ['CANDIDATE_SHA'],
+              'changed_file': os.environ['CHANGED_FILE'],
+              'expected_blob_sha': os.environ['EXPECTED_BLOB_SHA'],
+              'identity_outcome': '${{ steps.identity.outcome }}',
+              'install_outcome': '${{ steps.install.outcome }}',
+              'focused_outcome': '${{ steps.focused.outcome }}',
+              'full_suite_outcome': '${{ steps.full_suite.outcome }}',
+              'clean_readback_outcome': '${{ steps.clean_readback.outcome }}',
+              'secrets_included': False,
+              'repository_mutation': False,
+              'production_mutation': False,
+              'protected_ref_mutation': False,
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+          for source in \
+            "$RUNNER_TEMP/api-npm-ci.log" \
+            "$RUNNER_TEMP/ssh-approval-focused.log" \
+            "$RUNNER_TEMP/http-generic-api-full-suite.log"; do
+            test -f "$source" || continue
+            sed -e 's/test-client-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/wrong-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/oauth_route_test_secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/development_fallback_secret_only/[REDACTED_TEST_SECRET]/g' \
+                "$source" > "$evidence/$(basename "$source")"
+          done
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-ssh-approval-parity-arm-6071-${{ github.run_id }}
+          path: ${{ runner.temp }}/ssh-approval-parity-arm
+          if-no-files-found: error
+          retention-days: 30
