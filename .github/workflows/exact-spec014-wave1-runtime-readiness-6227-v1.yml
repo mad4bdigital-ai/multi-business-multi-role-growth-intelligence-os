@@ -1,0 +1,282 @@
+name: Exact Spec 014 Wave 1 Runtime Readiness 6227 v1
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-spec014-wave1-runtime-readiness-6227-v1
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-spec014-wave1-runtime-readiness-6227-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Exact Wave 1 runtime-readiness candidate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      EXPECTED_HEAD_SHA: 1eabe5260857f568e5b803eaae119e95cea0d80c
+      EXPECTED_HEAD_REF: gpt/014-hostinger/wave1-runtime-readiness-20260804
+      EXPECTED_BASE_SHA: 07264baf9957a26bb853df03e7cdb579c7a5c7e7
+      AUTH_CONFIRM: AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION
+      MIGRATION_SHA256: 9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="$RUNNER_TEMP/spec014-wave1-readiness-${GITHUB_RUN_ID}"
+          mkdir -p "$evidence_dir/reference-integrity" "$evidence_dir/repository-tool-lifecycle" "$evidence_dir/test-suite-reports"
+          echo "EVIDENCE_DIR=$evidence_dir" >> "$GITHUB_ENV"
+          printf '{"candidate_sha":"%s","base_sha":"%s","runner":"ubuntu-24.04","status":"initialized","secrets_included":false}\n' \
+            "$EXPECTED_HEAD_SHA" "$EXPECTED_BASE_SHA" > "$evidence_dir/identity-start.json"
+
+      - name: Verify immutable identity and exact scope
+        id: preflight
+        continue-on-error: true
+        shell: bash
+        env:
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$HEAD_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$HEAD_SHA" = "$EXPECTED_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+          test "$(git merge-base "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA")" = "$EXPECTED_BASE_SHA"
+
+          cat > "$EVIDENCE_DIR/expected-files.txt" <<'EOF'
+          .changes/e2e/spec014-wave1-runtime-readiness.json
+          .github/ops/spec014-wave1-runtime-readiness.mjs
+          .github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml
+          .github/workflows/spec014-wave1-runtime-readiness.yml
+          http-generic-api/scripts/test-manifest.mjs
+          http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs
+          EOF
+          sed -i 's/^          //' "$EVIDENCE_DIR/expected-files.txt"
+          sort -o "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/expected-files.txt"
+          git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          diff -u "$EVIDENCE_DIR/expected-files.txt" "$EVIDENCE_DIR/actual-files.txt"
+          test "$(wc -l < "$EVIDENCE_DIR/actual-files.txt" | tr -d ' ')" = "6"
+          git diff --name-status "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" > "$EVIDENCE_DIR/name-status.tsv"
+
+          test -z "$(git diff --name-only "$EXPECTED_BASE_SHA" "$EXPECTED_HEAD_SHA" -- 'http-generic-api/migrations/**' 'http-generic-api/routes/**' 'http-generic-api/src/**' 'http-generic-api/openapi*.yaml')"
+          ! grep -R -E "mode:[[:space:]]*['\"]apply['\"]|capability_resolution_envelope_apply_authorize|APPLY_GOVERNED_MIGRATION" \
+            .github/ops/spec014-wave1-runtime-readiness.mjs \
+            .github/workflows/spec014-wave1-runtime-readiness.yml
+          grep -q "$AUTH_CONFIRM" .github/workflows/spec014-wave1-runtime-readiness.yml
+          grep -q "$MIGRATION_SHA256" .github/ops/spec014-wave1-runtime-readiness.mjs
+
+          jq -n \
+            --arg candidate_sha "$EXPECTED_HEAD_SHA" \
+            --arg base_sha "$EXPECTED_BASE_SHA" \
+            '{ok:true,candidate_sha:$candidate_sha,base_sha:$base_sha,changed_files:6,apply_job:false,apply_request:false,migration_changes:false,runtime_route_changes:false,openapi_changes:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/preflight.json"
+
+      - name: Install deterministic dependencies
+        id: dependencies
+        if: steps.preflight.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm --prefix http-generic-api ci
+
+      - name: Syntax and canonical governance
+        id: syntax
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check .github/ops/spec014-wave1-runtime-readiness.mjs
+          node --check http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/spec014-wave1-runtime-readiness.json','utf8'))"
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          git diff --check
+
+      - name: Enforce runtime-readiness boundary regression
+        id: boundary
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs \
+            > "$EVIDENCE_DIR/wave1-runtime-readiness-contract.json"
+          jq -e '
+            .ok == true and
+            .runtime_readiness_only == true and
+            .apply_job_exposed == false and
+            .migration_apply_executed == false and
+            .provider_call_executed == false and
+            .credential_payload_accessed == false and
+            .external_business_write_executed == false and
+            .secrets_included == false
+          ' "$EVIDENCE_DIR/wave1-runtime-readiness-contract.json" >/dev/null
+
+      - name: E2E contract reference integrity
+        id: reference_integrity
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_BASE_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/reference-integrity/report.json"
+
+      - name: Repository tool lifecycle governance
+        id: lifecycle
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          BASE_SHA="$EXPECTED_BASE_SHA" CANDIDATE_SHA="$EXPECTED_HEAD_SHA" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "$EVIDENCE_DIR/name-status.tsv" \
+              --policy .github/repository-maintenance-tool-governance.json \
+              --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+
+      - name: HTTP Generic API unit integration and architecture
+        id: api_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        working-directory: http-generic-api
+        env:
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/spec014-wave1-readiness-${{ github.run_id }}/test-suite-reports
+        run: |
+          set -euo pipefail
+          npm test
+          npm run validate
+
+      - name: Execution resolver typecheck and tests
+        id: root_tests
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Exact E2E phase evaluation and journeys
+        id: e2e
+        if: steps.dependencies.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_BASE_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_BASE_SHA" \
+            --head "$EXPECTED_HEAD_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+
+      - name: Write bounded validation result
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          REFERENCE_INTEGRITY_OUTCOME: ${{ steps.reference_integrity.outcome }}
+          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
+          API_TESTS_OUTCOME: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS_OUTCOME: ${{ steps.root_tests.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg candidate_sha "$EXPECTED_HEAD_SHA" \
+            --arg base_sha "$EXPECTED_BASE_SHA" \
+            --arg preflight "$PREFLIGHT_OUTCOME" \
+            --arg dependencies "$DEPENDENCIES_OUTCOME" \
+            --arg syntax "$SYNTAX_OUTCOME" \
+            --arg boundary "$BOUNDARY_OUTCOME" \
+            --arg reference_integrity "$REFERENCE_INTEGRITY_OUTCOME" \
+            --arg lifecycle "$LIFECYCLE_OUTCOME" \
+            --arg api_tests "$API_TESTS_OUTCOME" \
+            --arg root_tests "$ROOT_TESTS_OUTCOME" \
+            --arg e2e "$E2E_OUTCOME" \
+            '{candidate_sha:$candidate_sha,base_sha:$base_sha,runner:"ubuntu-24.04",outcomes:{preflight:$preflight,dependencies:$dependencies,syntax:$syntax,boundary:$boundary,reference_integrity:$reference_integrity,lifecycle:$lifecycle,api_tests:$api_tests,root_tests:$root_tests,e2e:$e2e},apply_authorized:false,apply_sent:false,migration_apply_executed:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/result.json"
+          cat "$EVIDENCE_DIR/result.json" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-spec014-wave1-runtime-readiness-6227-v1-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce exact validation result
+        if: always()
+        shell: bash
+        env:
+          PREFLIGHT_OUTCOME: ${{ steps.preflight.outcome }}
+          DEPENDENCIES_OUTCOME: ${{ steps.dependencies.outcome }}
+          SYNTAX_OUTCOME: ${{ steps.syntax.outcome }}
+          BOUNDARY_OUTCOME: ${{ steps.boundary.outcome }}
+          REFERENCE_INTEGRITY_OUTCOME: ${{ steps.reference_integrity.outcome }}
+          LIFECYCLE_OUTCOME: ${{ steps.lifecycle.outcome }}
+          API_TESTS_OUTCOME: ${{ steps.api_tests.outcome }}
+          ROOT_TESTS_OUTCOME: ${{ steps.root_tests.outcome }}
+          E2E_OUTCOME: ${{ steps.e2e.outcome }}
+        run: |
+          set -euo pipefail
+          for outcome in \
+            "$PREFLIGHT_OUTCOME" "$DEPENDENCIES_OUTCOME" "$SYNTAX_OUTCOME" \
+            "$BOUNDARY_OUTCOME" "$REFERENCE_INTEGRITY_OUTCOME" "$LIFECYCLE_OUTCOME" \
+            "$API_TESTS_OUTCOME" "$ROOT_TESTS_OUTCOME" "$E2E_OUTCOME"
+          do
+            test "$outcome" = success
+          done
+          jq -e '
+            .candidate_sha == "1eabe5260857f568e5b803eaae119e95cea0d80c" and
+            .base_sha == "07264baf9957a26bb853df03e7cdb579c7a5c7e7" and
+            ([.outcomes[]] | all(. == "success")) and
+            .apply_authorized == false and
+            .apply_sent == false and
+            .migration_apply_executed == false and
+            .provider_call_executed == false and
+            .credential_payload_accessed == false and
+            .external_business_write_executed == false and
+            .secrets_included == false
+          ' "$EVIDENCE_DIR/result.json" >/dev/null
