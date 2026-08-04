@@ -27,12 +27,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v5
+      - name: Checkout exact pull-request head
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
-      - uses: actions/setup-node@v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -60,15 +62,34 @@ jobs:
           node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
 
-      - name: Validate T031 T032 and T033 runtime contracts
+      - name: Validate shared OAuth route contracts
         working-directory: http-generic-api
-        run: |
-          set -euo pipefail
-          node test-auth-oauth-routes.mjs
-          node test-spec012-t031-oauth-token-route-wiring.mjs
-          node test-tenant-gpt-oauth-token-binding-hardening.mjs
-          node test-tenant-gpt-oauth-token-exchange-routes.mjs
-          node test-tenant-gpt-access-token-profile.mjs
-          node test-tenant-gpt-access-token-verifier.mjs
-          node test-spec012-t032-legacy-audience-compatibility.mjs
-          node test-spec012-t033-short-lived-bearer-profile.mjs
+        run: node test-auth-oauth-routes.mjs
+
+      - name: Validate T031 OAuth token route wiring
+        working-directory: http-generic-api
+        run: node test-spec012-t031-oauth-token-route-wiring.mjs
+
+      - name: Validate governed binding hardening
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-binding-hardening.mjs
+
+      - name: Validate OAuth token exchange routes
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
+
+      - name: Validate short-lived bearer profile
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-access-token-profile.mjs
+
+      - name: Validate access-token verifier
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-access-token-verifier.mjs
+
+      - name: Validate T032 legacy audience compatibility
+        working-directory: http-generic-api
+        run: node test-spec012-t032-legacy-audience-compatibility.mjs
+
+      - name: Validate T033 readiness contract
+        working-directory: http-generic-api
+        run: node test-spec012-t033-short-lived-bearer-profile.mjs
