@@ -36,6 +36,7 @@
             "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
             "Use the pull-request event predicate as the only cancel-in-progress authority for CI and Recovery.",
             "Keep push and workflow-dispatch verification outside cancellation authority.",
+            "Confirm the temporary Work Map currentness probe is absent from the finalized repository.",
             "Upload ordered test progress reports without relabeling head execution as a different merge candidate."
           ],
           "assertions": [
@@ -43,6 +44,7 @@
             "A candidate identity mismatch fails before npm test.",
             "Superseded pull-request runs are cancellable in both CI workflows.",
             "Push and workflow-dispatch runs are not unconditionally cancellable.",
+            "The finalized repository contains no temporary Work Map currentness probe.",
             "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced.",
             "The Recovery workflow retains read-only contents permission."
           ],
