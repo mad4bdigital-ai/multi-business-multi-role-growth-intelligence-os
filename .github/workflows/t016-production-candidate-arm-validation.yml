@@ -1,0 +1,180 @@
+name: T016 Production Candidate ARM Validation
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-t016-production-arm-base
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: t016-production-candidate-arm-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate exact T016 Production candidate on ARM
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-t016-production-arm-candidate'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    env:
+      CERTIFIED_CUT_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
+      CANDIDATE_SHA: e619680e17a9dea5e1ea6df0c6b725a2f33d5077
+      PRODUCTION_BASELINE_SHA: 42177d360e9c6d76b4f09eaf06bd98ac26d09abe
+      CANDIDATE_BRANCH: gpt/validate-t016-production-arm-candidate
+      VALIDATION_BASE_BRANCH: gpt/validate-t016-production-arm-base
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable release identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$CANDIDATE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$CANDIDATE_BRANCH"
+          test "${{ github.event.pull_request.base.ref }}" = "$VALIDATION_BASE_BRANCH"
+
+          git fetch --no-tags origin \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH" \
+            "+refs/heads/$VALIDATION_BASE_BRANCH:refs/remotes/origin/$VALIDATION_BASE_BRANCH" \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse ${CANDIDATE_SHA}^1)" = "$CERTIFIED_CUT_SHA"
+          test "$(git rev-list --parents -n 1 "$CANDIDATE_SHA" | awk '{print NF-1}')" -ge 2
+          git diff --quiet "$CERTIFIED_CUT_SHA" "$CANDIDATE_SHA"
+
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          CURRENT_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+          test "$CURRENT_PRODUCTION_SHA" = "$PRODUCTION_BASELINE_SHA"
+          git merge-base --is-ancestor "$CERTIFIED_CUT_SHA" "$CURRENT_MAIN_SHA"
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$CANDIDATE_SHA"
+
+          printf '%s\n' "$CURRENT_MAIN_SHA" > "$RUNNER_TEMP/main-sha-initial.txt"
+          printf '%s\n' "$CURRENT_PRODUCTION_SHA" > "$RUNNER_TEMP/production-sha-initial.txt"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run canonical syntax and governance checks
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          node http-generic-api/scripts/user-jwt-auth-governance.mjs
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          node http-generic-api/scripts/resource-api-coverage-audit.mjs --ci --changed
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          shopt -s nullglob
+          for file in http-generic-api/*.js http-generic-api/*.mjs http-generic-api/routes/*.js http-generic-api/scripts/*.mjs http-generic-api/wordpress/*.js; do
+            node --check "$file"
+          done
+
+      - name: Install and validate execution resolver
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npm run typecheck
+          npm test -- --runInBand
+
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run HTTP Generic API Unit and Integration suite
+        working-directory: http-generic-api
+        env:
+          TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
+        run: npm test
+
+      - name: Run architecture validation and startup evidence
+        working-directory: http-generic-api
+        env:
+          FORCE_ROUTE_RUNTIME_TESTS: 'true'
+          DEPLOYMENT_BRANCH: gpt/validate-t016-production-arm-candidate
+          DEPLOYMENT_COMMIT_SHA: e619680e17a9dea5e1ea6df0c6b725a2f33d5077
+        run: |
+          npm run validate
+          node test-deployment-manifest-generator.mjs
+          npm run manifest:deployment
+          node test-server-startup-smoke.mjs
+
+      - name: Verify final immutable readback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin \
+            "+refs/heads/$CANDIDATE_BRANCH:refs/remotes/origin/$CANDIDATE_BRANCH" \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/Production:refs/remotes/origin/Production"
+
+          CANDIDATE_FINAL="$(git rev-parse refs/remotes/origin/$CANDIDATE_BRANCH)"
+          MAIN_FINAL="$(git rev-parse refs/remotes/origin/main)"
+          PRODUCTION_FINAL="$(git rev-parse refs/remotes/origin/Production)"
+          test "$CANDIDATE_FINAL" = "$CANDIDATE_SHA"
+          test "$PRODUCTION_FINAL" = "$PRODUCTION_BASELINE_SHA"
+          test "$(git rev-parse ${CANDIDATE_SHA}^1)" = "$CERTIFIED_CUT_SHA"
+          git diff --quiet "$CERTIFIED_CUT_SHA" "$CANDIDATE_SHA"
+          git merge-base --is-ancestor "$CERTIFIED_CUT_SHA" "$MAIN_FINAL"
+          git merge-base --is-ancestor "$PRODUCTION_FINAL" "$CANDIDATE_SHA"
+
+          jq -n \
+            --arg contract 't016_production_candidate_arm_validation.v1' \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --arg certified_cut_sha "$CERTIFIED_CUT_SHA" \
+            --arg production_sha "$PRODUCTION_FINAL" \
+            --arg main_sha "$MAIN_FINAL" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            '{
+              contract: $contract,
+              result: "pass",
+              candidate_sha: $candidate_sha,
+              certified_cut_sha: $certified_cut_sha,
+              production_sha: $production_sha,
+              current_main_sha: $main_sha,
+              workflow_run_id: ($run_id | tonumber),
+              candidate_tree_equals_certified_cut: true,
+              production_ancestry_preserved: true,
+              syntax_check: "pass",
+              unit_integration_tests: "pass",
+              execution_resolver_gate: "pass",
+              architecture_drift_detection: "pass",
+              runtime_readiness_invoked: false,
+              migration_apply_executed: false,
+              production_merge_executed: false,
+              provider_call_executed: false,
+              credential_payload_accessed: false,
+              protected_ref_mutated: false,
+              secrets_included: false
+            }' > "$RUNNER_TEMP/t016-production-candidate-arm-validation.json"
+
+      - name: Upload bounded ARM evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: t016-production-candidate-arm-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/t016-production-candidate-arm-validation.json
+            ${{ runner.temp }}/test-suite-reports/*.json
+          if-no-files-found: warn
+          retention-days: 14
