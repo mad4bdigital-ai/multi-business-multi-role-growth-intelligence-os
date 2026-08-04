@@ -1,0 +1,196 @@
+name: Patch OAuth Production Dependencies Current Main
+
+on:
+  pull_request:
+    branches:
+      - gpt/patch-oauth-deps-current-main-base
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-oauth-production-deps-current-main
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Apply bounded OAuth dependency composition patch
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-production-deps-88439328-20260804' &&
+      github.event.pull_request.head.sha == '3c7b7e61cee3ce7e9b5d5bd56d6e7e7bc566bf12'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      MAIN_SHA: 88439328058c46a87f205cc49be47a1ab0651faf
+      OLD_BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      SOURCE_SHA: 3861a123e3e761c52a10febf5e100a99dcd077a0
+      TRIGGER_SHA: 3c7b7e61cee3ce7e9b5d5bd56d6e7e7bc566bf12
+      TARGET_BRANCH: gpt/spec012-oauth-production-deps-88439328-20260804
+      SOURCE_BRANCH: gpt/spec012-oauth-production-deps-67cb77cf-20260804
+      MARKER_PATH: .github/validation/patch-oauth-production-deps-current-main.txt
+      REPORT_DIR: .artifacts/oauth-current-main-writer
+    steps:
+      - name: Checkout exact target trigger
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable inputs and non-overlap
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ github.event.pull_request.head.sha }}" = "$TRIGGER_SHA"
+          test "$(git rev-parse HEAD)" = "$TRIGGER_SHA"
+          test -f "$MARKER_PATH"
+          grep -Fxq 'PATCH_OAUTH_PRODUCTION_DEPS_CURRENT_MAIN' "$MARKER_PATH"
+          grep -Fxq "base_sha=$MAIN_SHA" "$MARKER_PATH"
+          grep -Fxq "source_sha=$SOURCE_SHA" "$MARKER_PATH"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/target" \
+            "+refs/heads/$SOURCE_BRANCH:refs/remotes/origin/source"
+
+          test "$(git rev-parse refs/remotes/origin/main)" = "$MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/target)" = "$TRIGGER_SHA"
+          test "$(git rev-parse refs/remotes/origin/source)" = "$SOURCE_SHA"
+          test "$(git rev-parse ${SOURCE_SHA}^1)" = "$OLD_BASE_SHA"
+
+          mapfile -t main_delta < <(git diff --name-only "$OLD_BASE_SHA" "$MAIN_SHA" | sort)
+          test "${#main_delta[@]}" -eq 1
+          test "${main_delta[0]}" = 'http-generic-api/test-tenant-ssh-cli-approval-request.mjs'
+
+          mapfile -t source_delta < <(git diff --name-only "$OLD_BASE_SHA" "$SOURCE_SHA" | sort)
+          expected=(
+            .changes/e2e/spec012-oauth-production-dependency-composition.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          test "${#source_delta[@]}" -eq 3
+          test "$(printf '%s\n' "${source_delta[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+
+      - name: Apply exact reviewed three-file patch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          paths=(
+            .changes/e2e/spec012-oauth-production-dependency-composition.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          for path in "${paths[@]}"; do
+            mkdir -p "$(dirname "$path")"
+            git show "$SOURCE_SHA:$path" > "$path"
+          done
+          rm "$MARKER_PATH"
+
+          mapfile -t changed < <(git diff --name-only "$MAIN_SHA" | sort)
+          test "${#changed[@]}" -eq 3
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${paths[@]}" | sort)"
+          grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes(deps));' http-generic-api/routes/index.js
+          if grep -Fq 'app.use(buildTenantGptOAuthMetadataRoutes());' http-generic-api/routes/index.js; then
+            echo 'Stale dependency-free production mount remains.' >&2
+            exit 1
+          fi
+          test "$(git diff --numstat "$MAIN_SHA" -- http-generic-api/routes/index.js | awk '{print $1":"$2}')" = '1:1'
+          test "$(git diff --numstat "$MAIN_SHA" -- http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs | awk '{print $1":"$2}')" = '1:1'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install HTTP Generic API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Run focused OAuth composition regressions
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node --check routes/index.js
+          node --check test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-spec012-t031-oauth-token-route-wiring.mjs
+          node test-tenant-gpt-oauth-token-exchange-routes.mjs
+          node test-auth-oauth-routes.mjs
+          node test-chatgpt-mcp-metadata-routing.mjs
+
+      - name: Validate E2E contract bytes and references
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/spec012-oauth-production-dependency-composition.json','utf8'))"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          mkdir -p "$REPORT_DIR"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$MAIN_SHA" \
+            --head "$SOURCE_SHA" \
+            --report-file "$REPORT_DIR/e2e-reference.json"
+
+      - name: Commit and push exact product result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mapfile -t changed < <(git diff --name-only "$MAIN_SHA" | sort)
+          expected=(
+            .changes/e2e/spec012-oauth-production-dependency-composition.json
+            http-generic-api/routes/index.js
+            http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          )
+          test "${#changed[@]}" -eq 3
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}" | sort)"
+
+          git fetch --no-tags origin \
+            "+refs/heads/main:refs/remotes/origin/main" \
+            "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/target"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$MAIN_SHA"
+          test "$(git rev-parse refs/remotes/origin/target)" = "$TRIGGER_SHA"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${expected[@]}" "$MARKER_PATH"
+          git commit -m 'fix(spec-012): forward production OAuth dependencies on current main'
+          FINAL_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-parse ${FINAL_SHA}^1)" = "$TRIGGER_SHA"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+          readback="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$readback" = "$FINAL_SHA"
+          mkdir -p "$REPORT_DIR"
+          jq -n \
+            --arg contract 'oauth_current_main_writer.v1' \
+            --arg main_sha "$MAIN_SHA" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg trigger_sha "$TRIGGER_SHA" \
+            --arg final_sha "$FINAL_SHA" \
+            '{
+              contract: $contract,
+              result: "pass",
+              main_sha: $main_sha,
+              source_sha: $source_sha,
+              trigger_sha: $trigger_sha,
+              final_sha: $final_sha,
+              changed_files: 3,
+              focused_oauth_tests: "pass",
+              force_push: false,
+              protected_ref_mutated: false,
+              production_mutated: false,
+              migration_apply_executed: false,
+              provider_call_executed: false,
+              credential_payload_accessed: false,
+              external_send_executed: false,
+              secrets_included: false
+            }' > "$REPORT_DIR/result.json"
+
+      - name: Upload bounded writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: oauth-current-main-writer-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: warn
+          retention-days: 14
