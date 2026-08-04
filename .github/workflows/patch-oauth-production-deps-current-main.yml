@@ -101,6 +101,7 @@ jobs:
             applied_blob="$(git hash-object "$path")"
             test "$applied_blob" = "$source_blob"
           done
+          git add -N "${paths[0]}"
           rm "$MARKER_PATH"
 
           mapfile -t changed < <(git diff --name-only "$MAIN_SHA" | sort)
