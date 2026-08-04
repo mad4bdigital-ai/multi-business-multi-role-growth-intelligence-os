@@ -1,0 +1,11 @@
+export const spec014Wave1RuntimeEvidenceReadbackTrigger = Object.freeze({
+  contract: 'spec014_wave1_runtime_evidence_readback_trigger.v1',
+  authorization_comment_id: '5179409708',
+  control_issue: 6215,
+  carrier_main_sha: 'cbdefb09bfe899f97ec8fe983b672e870d7f8c4a',
+  runtime_contact: false,
+  database_access: false,
+  migration_apply: false,
+  provider_call: false,
+  secrets_included: false,
+});
