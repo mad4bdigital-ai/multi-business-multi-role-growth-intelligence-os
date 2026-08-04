@@ -5,8 +5,26 @@ import fs from "node:fs";
 const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml";
 const retiredRequestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
 const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";
+const delegatedDecisionWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
+const writerWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";
+const verificationWorkflowPath = "../.github/workflows/pr-generated-artifact-refresh.yml";
 const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
 const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
+const delegatedDecisionWorkflow = fs.readFileSync(delegatedDecisionWorkflowPath, "utf8");
+const writerWorkflow = fs.readFileSync(writerWorkflowPath, "utf8");
+const verificationWorkflow = fs.readFileSync(verificationWorkflowPath, "utf8");
+
+const pinnedRunnerWorkflows = [
+  ["read-only request", requestWorkflow],
+  ["trusted request dispatcher", dispatcherWorkflow],
+  ["V2 decision dispatcher", delegatedDecisionWorkflow],
+  ["governed writer", writerWorkflow],
+  ["read-only verification", verificationWorkflow],
+];
+for (const [name, workflow] of pinnedRunnerWorkflows) {
+  assert.match(workflow, /^\s*runs-on:\s*ubuntu-24\.04\s*$/mu, `${name} must use the explicit ubuntu-24.04 runner`);
+  assert.doesNotMatch(workflow, /^\s*runs-on:\s*ubuntu-latest\s*$/mu, `${name} must not depend on the mutable ubuntu-latest alias`);
+}
 
 assert.equal(fs.existsSync(retiredRequestWorkflowPath), false, "retired request bridge path must remain absent");
 assert.match(requestWorkflow, /^name:\s*Governed Generated Artifact Refresh PR Target Request$/mu);
@@ -97,7 +115,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 81,
+  tests: 91,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",

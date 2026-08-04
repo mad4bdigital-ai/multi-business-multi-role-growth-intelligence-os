@@ -27,7 +27,7 @@ concurrency:
 
 jobs:
   apply:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh

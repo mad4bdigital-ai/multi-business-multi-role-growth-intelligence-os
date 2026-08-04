@@ -70,7 +70,7 @@ jobs:
         startsWith(github.event.pull_request.head.ref, 'cert/')))
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       EVENT_NAME: ${{ github.event_name }}
@@ -175,7 +175,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       PR_NUMBER: ${{ github.event.pull_request.number }}
