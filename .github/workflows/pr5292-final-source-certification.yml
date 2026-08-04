@@ -89,7 +89,7 @@ jobs:
 
           while IFS= read -r path; do
             case "$path" in
-              http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/frontend-operation-governance.generated.json|http-generic-api/openapi/frontend-runtime-routes.generated.yaml)
+              http-generic-api/frontend-surface-dispatch.generated.json|http-generic-api/frontend-operation-governance.generated.json|openapi/frontend-runtime-routes.generated.yaml)
                 ;;
               *)
                 printf '%s\n' "$path" >> "$unexpected_paths"
