@@ -39,7 +39,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: frontend-surface-dispatch-6122
+  group: frontend-surface-dispatch-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
