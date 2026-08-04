@@ -74,6 +74,10 @@ The builder never emits `blob_sha` and never emits a final manifest contract. Th
 
 Repository writes occur only when the operator adds `--write`. Output paths must remain inside the declared repository root, and the index must remain inside the source directory. Writes are atomic file replacements and do not commit, push, dispatch workflows, or mutate protected refs.
 
+## Generated parity boundary
+
+The candidate-builder implementation does not own Frontend runtime routing. However, exact merge-candidate validation must preserve repository-wide deterministic generated parity. When unrelated source digests already merged into `main` cause `frontend-surface-dispatch.generated.json` to drift on the exact merge candidate, the governed generated-artifact refresh path may update that single generated file on this work branch. Such a refresh is mechanical parity maintenance only: it does not alter the candidate-builder contracts, runtime behavior, source-document model, no-effect/no-secret boundaries, or task state.
+
 ## Safety and task state
 
 This phase performs no live workflow dispatch, SQL query or mutation, database change, provider call, credential payload read, external send, deployment, Production promotion, runtime authority change, PEP activation, migration design or Apply, legacy removal, or automatic task closure.
