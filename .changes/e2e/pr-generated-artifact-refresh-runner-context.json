@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr-generated-artifact-refresh-runner-context",
+  "title": "PR Generated Artifact Refresh runner-context registration",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore GitHub planning and registration for PR Generated Artifact Refresh by initializing runner-scoped report paths only after runner allocation.",
+      "e2e_journeys": [
+        {
+          "id": "pr-refresh-registers-with-runner-scoped-evidence-paths",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow planner and pull-request validator",
+          "entrypoint": "pull_request or workflow_dispatch event for PR Generated Artifact Refresh",
+          "terminal_outcome": "Both read-only artifact evaluation and Work Map recovery activation receive absolute bounded report paths after runner allocation, allowing the workflow to register and emit canonical evidence.",
+          "steps": [
+            "Evaluate workflow triggers and job-level environments without referencing runner.temp.",
+            "Allocate the Ubuntu runner for the selected job.",
+            "Create a bounded directory beneath RUNNER_TEMP.",
+            "Publish absolute REPORT_PATH and REPORT_MARKDOWN_PATH values through GITHUB_ENV.",
+            "Run existing exact-head, read-only evaluation or governed Recovery delegation.",
+            "Upload evidence from the initialized absolute paths."
+          ],
+          "assertions": [
+            "No job-level environment evaluates runner.temp.",
+            "The refresh job initializes both JSON and Markdown report paths after runner allocation.",
+            "The Work Map activation job initializes its JSON report path after runner allocation.",
+            "The workflow retains read-only repository content authority and no git push path.",
+            "No Production, provider, deployment, database, SQL, Migration Apply, credential, protected-ref, force-push, or external-send authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "pr-generated-artifact-refresh-runner-context-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve existing exact-head validation, generated-artifact read-only evaluation, Recovery enablement and delegation, canonical comments, and bounded Artifact uploads."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail regression if runner.temp returns to job-level evaluation or either report-path initialization bridge is removed."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow-registration repair has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}

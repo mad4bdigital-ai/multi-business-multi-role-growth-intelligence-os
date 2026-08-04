@@ -147,6 +147,31 @@ runCheck("read-only-verification-workflow", () => {
   assert.match(prWorkflowSource, /Verify local and remote exact-head identity/u);
 });
 
+runCheck("pr-workflow-runner-context-availability", () => {
+  assert.doesNotMatch(
+    prWorkflowSource,
+    /\$\{\{\s*runner\.temp\s*\}\}/u,
+    "PR workflow must not evaluate runner.temp before runner allocation",
+  );
+  assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
+  assert.match(prWorkflowSource, /Initialize bounded activation report path after runner allocation/u);
+  assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
+  assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/work-map-recovery-activation"/u);
+  assert.match(
+    prWorkflowSource,
+    /echo "REPORT_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.json" >> "\$\{GITHUB_ENV\}"/u,
+  );
+  assert.match(
+    prWorkflowSource,
+    /echo "REPORT_MARKDOWN_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.md" >> "\$\{GITHUB_ENV\}"/u,
+  );
+  assert.match(
+    prWorkflowSource,
+    /echo "REPORT_PATH=\$\{report_dir\}\/work-map-recovery-activation\.json" >> "\$\{GITHUB_ENV\}"/u,
+  );
+  assert.match(prWorkflowSource, /path:\s*\$\{\{ env\.REPORT_PATH \}\}/u);
+});
+
 const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
 runCheck("trusted-publisher-dispatch-route", () => {
   assert.match(publisherWorkflowSource, /workflow_run\.event == 'workflow_dispatch'/u);

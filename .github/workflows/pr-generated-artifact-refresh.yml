@@ -76,9 +76,17 @@ jobs:
       EVENT_NAME: ${{ github.event_name }}
       CI_SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
-      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
-      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
     steps:
+      - name: Initialize bounded refresh report paths after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/pr-generated-artifact-refresh"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_PATH=${report_dir}/pr-generated-artifact-refresh-summary.json" >> "${GITHUB_ENV}"
+          echo "REPORT_MARKDOWN_PATH=${report_dir}/pr-generated-artifact-refresh-summary.md" >> "${GITHUB_ENV}"
+
       - name: Validate exact candidate inputs
         shell: bash
         run: |
@@ -182,8 +190,16 @@ jobs:
       TARGET_REF: ${{ github.event.pull_request.head.ref }}
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
-      REPORT_PATH: ${{ runner.temp }}/work-map-recovery-activation.json
     steps:
+      - name: Initialize bounded activation report path after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/work-map-recovery-activation"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_PATH=${report_dir}/work-map-recovery-activation.json" >> "${GITHUB_ENV}"
+
       - name: Validate exact current Work Map recovery target
         id: target
         shell: bash
