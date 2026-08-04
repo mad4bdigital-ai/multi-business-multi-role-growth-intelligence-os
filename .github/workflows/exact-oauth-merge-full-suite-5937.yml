@@ -1,0 +1,154 @@
+name: Exact OAuth Merge Full Suite 5937
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-oauth-merge-full-suite-5937-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate OAuth repair on immutable current main
+    if: github.event.pull_request.head.ref == 'gpt/validate-oauth-main-72196dee-20260804'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      EXPECTED_CURRENT_MAIN_SHA: 72196dee20b13491972ae1371f2fe4a47d9bd8c9
+      EXPECTED_OAUTH_MERGE_SHA: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
+      VALIDATOR_PATH: .github/workflows/exact-oauth-merge-full-suite-5937.yml
+    steps:
+      - name: Checkout exact validator head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Verify validator identity and one-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_CURRENT_MAIN_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$VALIDATOR_PATH"
+
+      - name: Checkout immutable current-main SHA
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CURRENT_MAIN_SHA }}
+          fetch-depth: 3
+          persist-credentials: false
+          clean: true
+
+      - name: Verify current main and OAuth merge tree equality
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CURRENT_MAIN_SHA"
+          git cat-file -e "$EXPECTED_OAUTH_MERGE_SHA^{commit}"
+          git diff --quiet "$EXPECTED_OAUTH_MERGE_SHA" "$EXPECTED_CURRENT_MAIN_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install exact lockfile dependencies
+        id: install
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm ci 2>&1 | tee "$RUNNER_TEMP/npm-ci.log"
+
+      - name: Run focused OAuth regressions
+        id: focused
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          {
+            node test-tenant-gpt-oauth-token-binding-guard.mjs
+            node test-tenant-gpt-oauth-token-exchange-routes.mjs
+            node test-spec012-t031-oauth-token-route-wiring.mjs
+            node test-auth-oauth-routes.mjs
+          } 2>&1 | tee "$RUNNER_TEMP/oauth-focused.log"
+
+      - name: Run complete HTTP Generic API Unit and Integration suite
+        id: full_suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          npm test 2>&1 | tee "$RUNNER_TEMP/http-generic-api-full-suite.log"
+
+      - name: Verify final checkout remains clean
+        id: clean_readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CURRENT_MAIN_SHA"
+          git diff --quiet "$EXPECTED_OAUTH_MERGE_SHA" "$EXPECTED_CURRENT_MAIN_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Build bounded validation evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/oauth-merge-validation"
+          mkdir -p "$evidence"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          output = Path(os.environ['RUNNER_TEMP']) / 'oauth-merge-validation' / 'summary.json'
+          output.write_text(json.dumps({
+              'issue': 5937,
+              'merged_pull_request': 6017,
+              'oauth_merge_sha': os.environ['EXPECTED_OAUTH_MERGE_SHA'],
+              'validated_current_main_sha': os.environ['EXPECTED_CURRENT_MAIN_SHA'],
+              'tree_equal_to_oauth_merge': True,
+              'install_outcome': '${{ steps.install.outcome }}',
+              'focused_outcome': '${{ steps.focused.outcome }}',
+              'full_suite_outcome': '${{ steps.full_suite.outcome }}',
+              'clean_readback_outcome': '${{ steps.clean_readback.outcome }}',
+              'secrets_included': False,
+              'repository_mutation': False,
+              'production_mutation': False,
+          }, indent=2) + '\n', encoding='utf-8')
+          PY
+          for source in "$RUNNER_TEMP/npm-ci.log" "$RUNNER_TEMP/oauth-focused.log" "$RUNNER_TEMP/http-generic-api-full-suite.log"; do
+            test -f "$source" || continue
+            name="$(basename "$source")"
+            sed -e 's/test-client-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/wrong-secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/oauth_route_test_secret/[REDACTED_TEST_SECRET]/g' \
+                -e 's/development_fallback_secret_only/[REDACTED_TEST_SECRET]/g' \
+                "$source" > "$evidence/$name"
+          done
+
+      - name: Upload exact validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-oauth-merge-full-suite-5937-${{ github.run_id }}
+          path: ${{ runner.temp }}/oauth-merge-validation
+          if-no-files-found: error
+          retention-days: 30
