@@ -10,7 +10,7 @@ on:
       - .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: bootstrap-generated-refresh-runner-pinning-pr-${{ github.event.pull_request.number }}
@@ -25,8 +25,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
-      EXPECTED_BASE_SHA: 97e4ee7ec790844ad20ee2349125579353c693d5
-      TARGET_BRANCH: gpt/ci/generated-refresh-runner-pinning-20260804
+      EXPECTED_BASE_SHA: edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d
       SOURCE_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning.yml
       PR_BOOTSTRAP: .github/workflows/bootstrap-generated-refresh-runner-pinning-pr.yml
     steps:
@@ -35,13 +34,23 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
+
+      - name: Merge pinned main snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_BASE_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-edit "${EXPECTED_BASE_SHA}"
 
       - name: Verify exact bootstrap-only scope
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           test "$(git merge-base "${EXPECTED_BASE_SHA}" HEAD)" = "${EXPECTED_BASE_SHA}"
           git diff --name-only "${EXPECTED_BASE_SHA}"...HEAD | sort > "${RUNNER_TEMP}/bootstrap-files.txt"
           cat > "${RUNNER_TEMP}/expected-bootstrap-files.txt" <<'EOF'
@@ -100,27 +109,16 @@ jobs:
             local status="$1"
             local phase="$2"
             echo "::error::PHASE_FAILED:${phase}:exit=${status}"
-            echo "DIAGNOSTIC:git-status"
             git status --short
-            echo "DIAGNOSTIC:name-status"
             git diff --name-status "${EXPECTED_BASE_SHA}"
             exit "${status}"
           }
 
-          echo "PHASE:node-check"
           node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs || fail_phase "$?" "node-check"
-
-          echo "PHASE:focused-regression"
           (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) || fail_phase "$?" "focused-regression"
-
-          echo "PHASE:register-new-contract"
           git add -N .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json || fail_phase "$?" "register-new-contract"
-
-          echo "PHASE:diff-check"
           git diff --check "${EXPECTED_BASE_SHA}" || fail_phase "$?" "diff-check"
-
-          echo "PHASE:changed-files"
-          git diff --name-only "${EXPECTED_BASE_SHA}" | sort | tee "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "changed-files"
+          git diff --name-only "${EXPECTED_BASE_SHA}" | sort > "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "changed-files"
           cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
           .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
           .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
@@ -131,14 +129,19 @@ jobs:
           http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
           EOF
           diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt" || fail_phase "$?" "bounded-file-list"
-          echo "PHASE:verification-complete"
 
-      - name: Commit and push bounded patch
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(ci): pin generated refresh chain runners"
-          git push origin "HEAD:${TARGET_BRANCH}"
+      - name: Export exact bounded patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-refresh-runner-pinning-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
+            .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
+            .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+            .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml
+            .github/workflows/governed-generated-artifact-refresh.yml
+            .github/workflows/pr-generated-artifact-refresh.yml
+            http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
