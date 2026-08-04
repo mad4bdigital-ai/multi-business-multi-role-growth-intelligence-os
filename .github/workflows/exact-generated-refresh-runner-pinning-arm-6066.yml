@@ -1,0 +1,89 @@
+name: Exact Generated Refresh Runner Pinning ARM 6066
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-generated-refresh-runner-pinning-arm-base-67cb77
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-generated-refresh-runner-pinning-arm-6066-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/ci/generated-refresh-runner-pinning-clean-20260804'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      EXPECTED_BASE_SHA: 67cb77cffe94544b1b5d70997506afb4e75c3846
+      EXPECTED_HEAD_SHA: 3a7ca1c84b90582b65569c6d67a3160f1f649ad2
+      EVIDENCE_DIR: .ci-evidence/exact-generated-refresh-runner-pinning-arm-6066
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable head and bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "${{ github.event.pull_request.head.sha }}" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_BASE_SHA}"
+          test "$(git merge-base origin/main HEAD)" = "${EXPECTED_BASE_SHA}"
+          git diff --check origin/main...HEAD
+          git diff --name-only origin/main...HEAD | sort > "${RUNNER_TEMP}/actual-files.txt"
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .changes/e2e/governed-generated-artifact-refresh-runner-pinning.json
+          .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml
+          .github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml
+          .github/workflows/governed-generated-artifact-refresh.yml
+          .github/workflows/pr-generated-artifact-refresh.yml
+          http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          EOF
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+
+      - name: Run focused runner pinning regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${EVIDENCE_DIR}"
+          node --check http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) | tee "${EVIDENCE_DIR}/focused-regression.json"
+
+      - name: Record exact-head evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg contract 'mad4b.generated-refresh-runner-pinning-exact-arm.v1' \
+            --arg base_sha "${EXPECTED_BASE_SHA}" \
+            --arg head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg run_id "${GITHUB_RUN_ID}" \
+            --arg job "validate" \
+            '{contract:$contract,ok:true,base_sha:$base_sha,head_sha:$head_sha,run_id:$run_id,job:$job,changed_files:7,focused_assertions:91,secrets_included:false}' \
+            > "${EVIDENCE_DIR}/exact-head-evidence.json"
+
+      - name: Upload exact-head evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-generated-refresh-runner-pinning-arm-6066-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
