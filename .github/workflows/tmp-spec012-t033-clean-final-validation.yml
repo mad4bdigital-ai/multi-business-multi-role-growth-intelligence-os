@@ -20,7 +20,7 @@ on:
       - specs/012-tenant-activation-lifecycle/implementation/pr-2o-t033-short-lived-bearer-profile.md
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -50,69 +50,6 @@ jobs:
         working-directory: http-generic-api
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Apply fail-closed assertion reconciliation
-        shell: bash
-        env:
-          PR_HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          route_test = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
-          source = route_test.read_text(encoding="utf-8")
-          start_marker = "let missingVerifierConsumeCalled = false;"
-          end_marker = "const postConsumptionHarness = createHarness({"
-          replacement = '''assert.throws(
-            () => createHarness({ verifyCode: undefined }),
-            (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
-            "route construction must fail closed when the governed code verifier is unavailable",
-          );
-
-          assert.throws(
-            () => createHarness({ issueAccessToken: undefined }),
-            (error) => error?.code === "oauth_token_exchange_crypto_dependencies_required",
-            "route construction must fail closed when the governed token issuer is unavailable",
-          );
-
-          '''
-          if start_marker in source:
-              start = source.index(start_marker)
-              end = source.index(end_marker, start)
-              source = source[:start] + replacement + source[end:]
-          elif "route construction must fail closed when the governed code verifier is unavailable" not in source:
-              raise SystemExit("missing-dependency assertion region was not found")
-          source = source.replace("  missingVerifierHarness,\n  missingIssuerHarness,\n", "")
-          source = source.replace("  missingVerifier,\n  missingIssuer,\n", "")
-          for stale in ("missingVerifierHarness", "missingIssuerHarness", "missingVerifierConsumeCalled", "missingIssuerConsumeCalled"):
-              if stale in source:
-                  raise SystemExit(f"stale route-test reference remains: {stale}")
-          route_test.write_text(source, encoding="utf-8")
-
-          readiness = Path("http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs")
-          readiness_source = readiness.read_text(encoding="utf-8")
-          old = '''assert.match(route, /oauth_token_exchange_verifier_unavailable/u);
-          assert.match(route, /oauth_token_exchange_issuer_unavailable/u);'''
-          new = '''assert.match(route, /oauth_token_exchange_crypto_dependencies_required/u);
-          assert.match(route, /typeof verifyCode !== "function" \\|\\| typeof issueAccessToken !== "function"/u);'''
-          if old in readiness_source:
-              readiness_source = readiness_source.replace(old, new, 1)
-          elif "oauth_token_exchange_crypto_dependencies_required" not in readiness_source:
-              raise SystemExit("T033 dependency readiness assertions were not found")
-          readiness.write_text(readiness_source, encoding="utf-8")
-          PY
-          node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
-          node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
-          if git diff --quiet -- http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs; then
-            echo "Fail-closed assertions already reconciled."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
-            git commit -m "test(spec-012): align route tests with fail-closed construction"
-            git push origin "HEAD:${PR_HEAD_BRANCH}"
-          fi
-
       - name: Check reconciled T033 syntax
         run: |
           node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
@@ -125,6 +62,78 @@ jobs:
           node --check http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
           node --check http-generic-api/test-spec012-t033-short-lived-bearer-profile.mjs
 
+      - name: Prepare cumulative route-scenario runner
+        shell: bash
+        run: |
+          cat > /tmp/run-route-prefix.py <<'PY'
+          from pathlib import Path
+          import sys
+
+          marker = sys.argv[1]
+          label = sys.argv[2]
+          source_path = Path("http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs")
+          source = source_path.read_text(encoding="utf-8")
+          if marker not in source:
+              raise SystemExit(f"route scenario marker not found: {marker}")
+          prefix = source[:source.index(marker)]
+          output = Path("http-generic-api/.tmp-route-scenario.mjs")
+          output.write_text(prefix + f'\nconsole.log("PASS route prefix: {label}");\n', encoding="utf-8")
+          PY
+
+      - name: Route scenario — successful exchange
+        run: |
+          python /tmp/run-route-prefix.py 'let replayConsumeCalls = 0;' success
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — replay rejection
+        run: |
+          python /tmp/run-route-prefix.py 'const unknownError = new Error(' replay
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — unknown consumption
+        run: |
+          python /tmp/run-route-prefix.py 'const issuedError = new Error(' unknown-consumption
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — issued-code retry
+        run: |
+          python /tmp/run-route-prefix.py 'let inactiveConsumeCalled = false;' issued-code-retry
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — inactive user
+        run: |
+          python /tmp/run-route-prefix.py 'let membershipConsumeCalled = false;' inactive-user
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — inactive membership
+        run: |
+          python /tmp/run-route-prefix.py 'const preConsumptionHarness = createHarness({' inactive-membership
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — pre-consumption and dependency guards
+        run: |
+          python /tmp/run-route-prefix.py 'const postConsumptionHarness = createHarness({' preconsumption-dependencies
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — post-consumption failure
+        run: |
+          python /tmp/run-route-prefix.py 'let raceConsumed = false;' post-consumption
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — concurrent consumption
+        run: |
+          python /tmp/run-route-prefix.py 'const invalidHostHarness = createHarness();' concurrent-consumption
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Route scenario — invalid host and TTL bound
+        run: |
+          python /tmp/run-route-prefix.py 'for (const harness of [' invalid-host-ttl
+          node http-generic-api/.tmp-route-scenario.mjs
+
+      - name: Validate full OAuth exchange route unit
+        working-directory: http-generic-api
+        run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
+
       - name: Validate shared OAuth route contracts
         working-directory: http-generic-api
         run: node test-auth-oauth-routes.mjs
@@ -132,10 +141,6 @@ jobs:
       - name: Validate T031 binding guard unit
         working-directory: http-generic-api
         run: node test-tenant-gpt-oauth-token-binding-guard.mjs
-
-      - name: Validate T031 exchange route unit
-        working-directory: http-generic-api
-        run: node test-tenant-gpt-oauth-token-exchange-routes.mjs
 
       - name: Validate T031 outcome policy unit
         working-directory: http-generic-api
@@ -164,3 +169,7 @@ jobs:
       - name: Validate T033 readiness contract
         working-directory: http-generic-api
         run: node test-spec012-t033-short-lived-bearer-profile.mjs
+
+      - name: Remove untracked diagnostic file
+        if: always()
+        run: rm -f http-generic-api/.tmp-route-scenario.mjs
