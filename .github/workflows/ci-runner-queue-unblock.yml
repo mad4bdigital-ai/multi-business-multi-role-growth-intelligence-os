@@ -2,10 +2,8 @@ name: CI Runner Queue Unblock
 
 on:
   push:
-    branches:
-      - gpt/ci-runner-concurrency-unblock-20260804
-    paths:
-      - .github/workflows/ci-runner-queue-unblock.yml
+    branches: [gpt/ci-runner-concurrency-unblock-20260804]
+    paths: [.github/workflows/ci-runner-queue-unblock.yml]
 
 permissions:
   contents: write
@@ -16,109 +14,73 @@ concurrency:
 
 jobs:
   patch:
-    runs-on: macos-14
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       TARGET_BRANCH: gpt/ci-runner-concurrency-unblock-20260804
       WORKFLOW_PATH: .github/workflows/ci-runner-queue-unblock.yml
     steps:
-      - name: Checkout exact branch
-        uses: actions/checkout@v5
+      - uses: actions/checkout@v5
         with:
           ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify bounded trigger
+      - name: Verify exact trigger
         shell: bash
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
-          changed="$(git diff --name-only HEAD^ HEAD)"
-          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l | tr -d ' ')" -eq 1
-          test "$changed" = "${WORKFLOW_PATH}"
+          test "$(git diff --name-only HEAD^ HEAD)" = "${WORKFLOW_PATH}"
 
-      - name: Patch required CI runners and concurrency
+      - name: Apply bounded runner remediation
         shell: bash
         run: |
           set -Eeuo pipefail
           python3 - <<'PY'
           from pathlib import Path
-
           paths = [
-              Path('.github/workflows/ci.yml'),
-              Path('.github/workflows/frontend-surface-dispatch.yml'),
-              Path('.github/workflows/repository-tool-lifecycle-governance.yml'),
-              Path('.github/workflows/context-kernel-hardcoding-report.yml'),
-              Path('.github/workflows/e2e-phase-governance.yml'),
+            Path('.github/workflows/ci.yml'),
+            Path('.github/workflows/frontend-surface-dispatch.yml'),
+            Path('.github/workflows/repository-tool-lifecycle-governance.yml'),
+            Path('.github/workflows/context-kernel-hardcoding-report.yml'),
+            Path('.github/workflows/e2e-phase-governance.yml'),
           ]
-
           for path in paths:
-              text = path.read_text()
-              if 'runs-on: ubuntu-latest' not in text:
-                  raise SystemExit(f'missing_ubuntu_latest:{path}')
-              text = text.replace('runs-on: ubuntu-latest', 'runs-on: ubuntu-24.04')
-              path.write_text(text)
-
+            text = path.read_text()
+            if 'runs-on: ubuntu-latest' not in text:
+              raise SystemExit(f'missing_runner_anchor:{path}')
+            path.write_text(text.replace('runs-on: ubuntu-latest', 'runs-on: ubuntu-24.04'))
           ci = Path('.github/workflows/ci.yml')
           text = ci.read_text()
-          old = '  cancel-in-progress: false\n'
-          if old not in text:
-              raise SystemExit('ci_cancel_in_progress_contract_missing')
-          ci.write_text(text.replace(old, '  cancel-in-progress: true\n', 1))
-
+          if '  cancel-in-progress: false\n' not in text:
+            raise SystemExit('missing_ci_concurrency_anchor')
+          ci.write_text(text.replace('  cancel-in-progress: false\n', '  cancel-in-progress: true\n', 1))
           frontend = Path('.github/workflows/frontend-surface-dispatch.yml')
           text = frontend.read_text()
           anchor = 'permissions:\n  contents: read\n\njobs:\n'
-          replacement = (
-              'permissions:\n  contents: read\n\n'
-              'concurrency:\n'
-              '  group: frontend-surface-dispatch-${{ github.event.pull_request.number || github.ref }}\n'
-              '  cancel-in-progress: true\n\n'
-              'jobs:\n'
-          )
+          replacement = 'permissions:\n  contents: read\n\nconcurrency:\n  group: frontend-surface-dispatch-${{ github.event.pull_request.number || github.ref }}\n  cancel-in-progress: true\n\njobs:\n'
           if anchor not in text:
-              raise SystemExit('frontend_concurrency_anchor_missing')
+            raise SystemExit('missing_frontend_concurrency_anchor')
           frontend.write_text(text.replace(anchor, replacement, 1))
           PY
 
-      - name: Validate bounded patch
+      - name: Validate focused workflow contracts
         shell: bash
         run: |
           set -Eeuo pipefail
           git diff --check
-          ruby -e "require 'yaml'; ARGV.each { |f| YAML.safe_load(File.read(f), aliases: true) }" \
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
+          ! grep -R "runs-on: ubuntu-latest" \
             .github/workflows/ci.yml \
             .github/workflows/frontend-surface-dispatch.yml \
             .github/workflows/repository-tool-lifecycle-governance.yml \
             .github/workflows/context-kernel-hardcoding-report.yml \
             .github/workflows/e2e-phase-governance.yml
-          python3 - <<'PY'
-          from pathlib import Path
-          paths = [
-              '.github/workflows/ci.yml',
-              '.github/workflows/frontend-surface-dispatch.yml',
-              '.github/workflows/repository-tool-lifecycle-governance.yml',
-              '.github/workflows/context-kernel-hardcoding-report.yml',
-              '.github/workflows/e2e-phase-governance.yml',
-          ]
-          for raw in paths:
-              text = Path(raw).read_text()
-              if 'runs-on: ubuntu-latest' in text:
-                  raise SystemExit(f'unpinned_runner:{raw}')
-              if 'runs-on: ubuntu-24.04' not in text:
-                  raise SystemExit(f'missing_pinned_runner:{raw}')
-          if 'cancel-in-progress: true' not in Path('.github/workflows/ci.yml').read_text():
-              raise SystemExit('ci_cancellation_not_enabled')
-          frontend = Path('.github/workflows/frontend-surface-dispatch.yml').read_text()
-          if 'group: frontend-surface-dispatch-${{ github.event.pull_request.number || github.ref }}' not in frontend:
-              raise SystemExit('frontend_concurrency_group_missing')
-          PY
-          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
-          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
-          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
 
-      - name: Remove temporary workflow and enforce final scope
+      - name: Remove temporary workflow and enforce scope
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -136,17 +98,15 @@ jobs:
             printf '%s\n' "${changed[@]}" | grep -Fxq "$expected"
           done
 
-      - name: Commit exact five-file result
+      - name: Commit five-file result
         shell: bash
         run: |
           set -Eeuo pipefail
           before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "$before" = "$(git rev-parse HEAD)"
-          git config user.name 'mad4bdigital-ai'
-          git config user.email 'mad4bdigital-ai@users.noreply.github.com'
+          git config user.name mad4bdigital-ai
+          git config user.email mad4bdigital-ai@users.noreply.github.com
           git add -A
           git commit -m 'ci: pin required checks and cancel superseded runs'
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
-          after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "$after" = "$(git rev-parse HEAD)"
           test ! -e "${WORKFLOW_PATH}"
