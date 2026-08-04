@@ -1,0 +1,9 @@
+{
+  "schema": "mad4b.temp-diagnose-work-map-v3-current-main.v1",
+  "main_sha": "c1806ef4d1a6fc5bf859a39162e47c1e58290081",
+  "source_sha": "f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e",
+  "read_only": true,
+  "candidate_authority": false,
+  "merge_authority": false,
+  "production_authority": false
+}
