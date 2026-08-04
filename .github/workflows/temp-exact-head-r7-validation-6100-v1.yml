@@ -1,4 +1,4 @@
-name: TEMP Exact Head R7 Validation 6100 V1
+name: TEMP Exact Head R7 Validation 6100 V2
 
 on:
   pull_request:
@@ -6,27 +6,25 @@ on:
       - gpt/validate-r7-base-6100-0ccfc93b
     types: [opened, reopened, synchronize]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
-  group: temp-exact-head-r7-validation-6100-v1-${{ github.event.pull_request.number }}
+  group: temp-exact-head-r7-validation-6100-v2-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
   validate:
-    name: Validate exact R7 candidate without mutation
+    name: Validate exact R7 candidate read-only
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
-    permissions:
-      contents: read
-      pull-requests: read
     env:
       CANONICAL_PR: '6100'
       EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
       EXPECTED_HEAD_SHA: 490345cbba29f6ec2ca3195f8e9711bf3b2a01e1
       EXPECTED_HEAD_REF: gpt/hostinger-production-runtime-readback-r7-main-0ccfc93b-20260804
       REPORT_DIR: ${{ runner.temp }}/r7-exact-head-validation-6100
-    outputs:
-      failed_count: ${{ steps.contracts.outputs.failed_count }}
-      passed_count: ${{ steps.contracts.outputs.passed_count }}
     steps:
       - name: Pin canonical identity before execution
         shell: bash
@@ -42,8 +40,7 @@ jobs:
           test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
           test "$(jq -r '.head.ref' <<<"${pr}")" = "${EXPECTED_HEAD_REF}"
           test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
-          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
           comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}")"
           test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
           test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
@@ -55,7 +52,12 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify exact five-file scope
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact scope and run contracts
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -73,87 +75,34 @@ jobs:
           diff -u "${REPORT_DIR}/expected-files.txt" "${REPORT_DIR}/actual-files.txt"
           git diff --check "${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}"
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Run focused and governance contracts
-        id: contracts
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          mkdir -p "${REPORT_DIR}/logs"
-          results="${REPORT_DIR}/contract-results.tsv"
-          : > "${results}"
-
           run_contract() {
             local name="$1"
             shift
-            local log="${REPORT_DIR}/logs/${name}.log"
-            set +e
-            "$@" >"${log}" 2>&1
-            local rc=$?
-            set -e
-            if [[ ${rc} -eq 0 ]]; then
-              printf '%s\tpassed\t0\n' "${name}" >> "${results}"
-            else
-              printf '%s\tfailed\t%s\n' "${name}" "${rc}" >> "${results}"
-            fi
+            echo "::group::${name}"
+            "$@" 2>&1 | tee "${REPORT_DIR}/${name}.log"
+            echo "::endgroup::"
           }
 
-          run_contract r7-workflow-contract \
-            node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
-          run_contract e2e-reference-integrity \
-            node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          run_contract e2e-git-index-integrity \
-            node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          run_contract pipeline-connectivity \
-            node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          run_contract pipeline-connectivity-regression \
-            node http-generic-api/test-pipeline-connectivity-check.mjs
-          run_contract schema-classification-contract \
-            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          run_contract schema-classification \
-            node http-generic-api/scripts/work-map-schema-classification.mjs
-          run_contract schema-classification-regression \
-            node http-generic-api/test-work-map-schema-classification.mjs
-          run_contract schema-classification-contract-regression \
-            node http-generic-api/test-work-map-schema-classification-contract.mjs
-          run_contract work-map-generator-currentness \
-            node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          run_contract repository-tool-lifecycle-regression \
-            node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          run_contract r7-workflow-contract node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          run_contract e2e-reference-integrity node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          run_contract e2e-git-index-integrity node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          run_contract pipeline-connectivity node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          run_contract pipeline-connectivity-regression node http-generic-api/test-pipeline-connectivity-check.mjs
+          run_contract schema-classification-contract node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_contract schema-classification node http-generic-api/scripts/work-map-schema-classification.mjs
+          run_contract schema-classification-regression node http-generic-api/test-work-map-schema-classification.mjs
+          run_contract schema-classification-contract-regression node http-generic-api/test-work-map-schema-classification-contract.mjs
+          run_contract work-map-generator-currentness node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          run_contract repository-tool-lifecycle-regression node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          REPORT_PATH="${REPORT_DIR}/spec014-final-work-map-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${REPORT_DIR}/spec014-final-work-map-readback.log"
+          jq -e '.ok == true and ((.findings | length) == 0)' "${REPORT_DIR}/spec014-final-work-map-readback.json" >/dev/null
 
-          set +e
-          REPORT_PATH="${REPORT_DIR}/spec014-final-work-map-readback.json" \
-            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
-            > "${REPORT_DIR}/logs/spec014-final-work-map-readback.stdout.log" 2> "${REPORT_DIR}/logs/spec014-final-work-map-readback.stderr.log"
-          spec014_rc=$?
-          if [[ ${spec014_rc} -eq 0 ]]; then
-            jq -e '.ok == true and .findings | length == 0' "${REPORT_DIR}/spec014-final-work-map-readback.json" >/dev/null
-            spec014_rc=$?
-          fi
-          set -e
-          if [[ ${spec014_rc} -eq 0 ]]; then
-            printf '%s\tpassed\t0\n' spec014-final-work-map-readback >> "${results}"
-          else
-            printf '%s\tfailed\t%s\n' spec014-final-work-map-readback "${spec014_rc}" >> "${results}"
-          fi
-
-          passed_count="$(awk -F '\t' '$2 == "passed" {n++} END {print n+0}' "${results}")"
-          failed_count="$(awk -F '\t' '$2 == "failed" {n++} END {print n+0}' "${results}")"
-          echo "passed_count=${passed_count}" >> "${GITHUB_OUTPUT}"
-          echo "failed_count=${failed_count}" >> "${GITHUB_OUTPUT}"
-          jq -Rn \
-            --arg contract mad4b.r7-exact-head-validation.v1 \
+          jq -n \
+            --arg contract mad4b.r7-exact-head-validation.v2 \
             --arg candidate_sha "${EXPECTED_HEAD_SHA}" \
             --arg main_sha "${EXPECTED_MAIN_SHA}" \
-            --argjson passed_count "${passed_count}" \
-            --argjson failed_count "${failed_count}" \
-            '[inputs | split("\t") | {contract:.[0], outcome:.[1], exit_code:(.[2]|tonumber)}] as $results | {contract:$contract,candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:5,passed_count:$passed_count,failed_count:$failed_count,results:$results,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' \
-            < "${results}" > "${REPORT_DIR}/summary.json"
-          cat "${REPORT_DIR}/summary.json"
+            '{contract:$contract,candidate_sha:$candidate_sha,main_sha:$main_sha,scope_files:5,contracts_passed:12,repository_content_mutation:false,protected_ref_mutation:false,provider_credential_accessed:false,provider_mutation:false,deployment:false,restart:false,sql:false,migration_apply:false,database_mutation:false,external_business_send:false,secrets_included:false}' \
+            > "${REPORT_DIR}/summary.json"
 
       - name: Re-read canonical identity after execution
         if: always()
@@ -174,39 +123,3 @@ jobs:
           path: ${{ env.REPORT_DIR }}
           if-no-files-found: error
           retention-days: 30
-
-      - name: Enforce validation decision
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          test "${{ steps.contracts.outputs.failed_count }}" = '0'
-          test "${{ steps.contracts.outputs.passed_count }}" = '12'
-
-  publish:
-    name: Publish bounded canonical validation evidence
-    if: always()
-    needs: validate
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: read
-    env:
-      CANONICAL_PR: '6100'
-      EXPECTED_MAIN_SHA: 0ccfc93b64b70c65df423d141f91861fba0b1d4e
-      EXPECTED_HEAD_SHA: 490345cbba29f6ec2ca3195f8e9711bf3b2a01e1
-    steps:
-      - name: Publish one bounded result comment
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VALIDATION_OUTCOME: ${{ needs.validate.result }}
-          FAILED_COUNT: ${{ needs.validate.outputs.failed_count }}
-          PASSED_COUNT: ${{ needs.validate.outputs.passed_count }}
-        run: |
-          set -Eeuo pipefail
-          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          current_head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.head.sha')"
-          body="R7_EXACT_HEAD_VALIDATION status=${VALIDATION_OUTCOME} run_id=${GITHUB_RUN_ID} expected_main_sha=${EXPECTED_MAIN_SHA} observed_main_sha=${current_main} expected_head_sha=${EXPECTED_HEAD_SHA} observed_head_sha=${current_head} passed_contracts=${PASSED_COUNT:-0} failed_contracts=${FAILED_COUNT:-unknown} scope_files=5 repository_content_mutation=false protected_ref_mutation=false provider_credential_accessed=false provider_mutation=false deployment=false restart=false sql=false migration_apply=false database_mutation=false external_business_send=false secrets_included=false"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}" >/dev/null
