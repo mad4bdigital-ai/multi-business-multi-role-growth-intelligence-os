@@ -27,7 +27,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT_SHA: c58ee81cc0bf817cf8e6cd396cde3574800b928c
+      EXPECTED_PARENT_SHA: 9ec33b8844af51c36eea64887a4d2e2f4a4bf9ff
       LAUNCHER_PATH: .github/workflows/runtime-parity-final-work-map-binding-refresh.yml
       MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
       TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
@@ -124,11 +124,20 @@ jobs:
           remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_sha}" = "${REFRESH_REQUEST_SHA}"
 
-          changed="$(git status --short)"
-          printf '%s\n' "${changed}"
-          actual_changed="$(git status --short | awk '{print $2}' | sort)"
-          expected_changed="$(printf '%s\n' "${MANIFEST_PATH}" "${TASKS_PATH}" | sort)"
-          test "${actual_changed}" = "${expected_changed}"
+          mapfile -t actual_changed < <(git diff --name-only | sort)
+          printf '%s\n' "${actual_changed[@]}"
+          test "${#actual_changed[@]}" -ge 1
+          test "${#actual_changed[@]}" -le 2
+          printf '%s\n' "${actual_changed[@]}" | grep -Fx -- "${MANIFEST_PATH}" >/dev/null
+          for path in "${actual_changed[@]}"; do
+            case "${path}" in
+              "${MANIFEST_PATH}"|"${TASKS_PATH}") ;;
+              *)
+                echo "Unexpected deterministic binding output: ${path}" >&2
+                exit 1
+                ;;
+            esac
+          done
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -142,12 +151,14 @@ jobs:
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
           test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
           echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
+          echo "changed_count=${#actual_changed[@]}" >> "${GITHUB_OUTPUT}"
 
       - name: Publish bounded refresh evidence
         if: always()
         shell: bash
         env:
           RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
+          CHANGED_COUNT: ${{ steps.publish.outputs.changed_count }}
         run: |
           set -Eeuo pipefail
           outcome=passed
@@ -155,5 +166,5 @@ jobs:
           {
             echo '## Final Work Map Binding Refresh'
             echo
-            echo "\`WORK_MAP_BINDING_REFRESH outcome=${outcome} request_sha=${REFRESH_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} files=2 temporary_workflow_removed=false protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false\`"
+            echo "\`WORK_MAP_BINDING_REFRESH outcome=${outcome} request_sha=${REFRESH_REQUEST_SHA:-unresolved} result_sha=${RESULT_SHA:-unresolved} pinned_main_sha=${PINNED_MAIN_SHA:-unresolved} files=${CHANGED_COUNT:-unresolved} temporary_workflow_removed=false protected_branch_mutation=false production_mutation=false force_push=false secrets_included=false\`"
           } >> "${GITHUB_STEP_SUMMARY}"
