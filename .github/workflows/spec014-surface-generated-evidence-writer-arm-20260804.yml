@@ -67,30 +67,27 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
-      - name: Generate repository-native Surface evidence
+      - name: Converge manual and generated Surface evidence
         working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/repo-maintenance-sync.mjs \
-            --write \
-            --skip-openapi-autofill \
-            --skip-work-maps \
-            --report-file "$RUNNER_TEMP/spec014-surface-maintenance-write.json"
+          node scripts/surface-contract-auto-remediator.mjs --write \
+            > "$RUNNER_TEMP/spec014-surface-auto-remediation-write.json"
 
       - name: Verify focused regressions and generated parity
         working-directory: http-generic-api
         shell: bash
         run: |
           set -euo pipefail
+          node test-surface-contract-auto-remediation.mjs
           node test-surface-contract-discovery.mjs
           node test-surface-contract-gap-triage.mjs
           node test-surface-contract-governance-loop.mjs
-          node scripts/repo-maintenance-sync.mjs \
-            --check \
-            --skip-openapi-autofill \
-            --skip-work-maps \
-            --report-file "$RUNNER_TEMP/spec014-surface-maintenance-check.json"
+          node scripts/surface-contract-auto-remediator.mjs --check \
+            > "$RUNNER_TEMP/spec014-surface-auto-remediation-check.json"
+          node scripts/surface-contract-discovery.mjs --check
+          git diff --check
 
       - name: Verify semantic Spec 014 contract
         shell: bash
@@ -196,8 +193,8 @@ jobs:
         with:
           name: spec014-surface-generated-evidence-writer-arm-20260804-${{ github.run_id }}
           path: |
-            ${{ runner.temp }}/spec014-surface-maintenance-write.json
-            ${{ runner.temp }}/spec014-surface-maintenance-check.json
+            ${{ runner.temp }}/spec014-surface-auto-remediation-write.json
+            ${{ runner.temp }}/spec014-surface-auto-remediation-check.json
             ${{ runner.temp }}/spec014-surface-semantic-evidence.json
             ${{ runner.temp }}/initial-files.txt
             ${{ runner.temp }}/generated-files.txt
