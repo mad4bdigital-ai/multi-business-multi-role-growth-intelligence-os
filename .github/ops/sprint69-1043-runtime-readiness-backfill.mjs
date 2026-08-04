@@ -16,15 +16,34 @@ const SOURCE_DIR = String(process.env.SOURCE_DIR || '.artifacts/sprint69-1043-ru
 const TOKEN = String(process.env.GH_TOKEN || '').trim();
 const OUTPUT_PATH = String(process.env.GITHUB_OUTPUT || '').trim();
 const ALLOWED_ASSOCIATIONS = new Set(['OWNER', 'MEMBER', 'COLLABORATOR']);
+const ALLOWED_AUTHORIZATION_COMMENT_IDS = new Set([5160291051, 5169156192]);
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+const SAFE_EVIDENCE_KEYS = new Set([
+  'activation_registry_sync_executed',
+  'apply_authorized',
+  'apply_sent',
+  'authorization_bootstrap',
+  'authorization_comment_id',
+  'authorization_created',
+  'authorization_required',
+  'business_data_mutation_executed',
+  'credential_payload_accessed',
+  'external_business_write_executed',
+  'external_write_executed',
+  'managed_control_plane_write_executed',
+  'migration_apply_executed',
+  'provider_call_executed',
+  'repository_mutation_performed',
+  'secrets_included',
+]);
 
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
     key,
-    sensitiveKey.test(key) && key !== 'authorization_created' && key !== 'authorization_bootstrap'
+    sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key)
       ? '[redacted]'
       : sanitize(child),
   ]));
@@ -74,7 +93,7 @@ function isoMs(value) {
 async function discover() {
   assert.equal(REPOSITORY, 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os');
   assert.equal(ISSUE_NUMBER, 4449);
-  assert.equal(AUTHORIZATION_COMMENT_ID, 5160291051);
+  assert.ok(ALLOWED_AUTHORIZATION_COMMENT_IDS.has(AUTHORIZATION_COMMENT_ID), 'Authorization comment is not an approved immutable T016 binding');
 
   const comment = await githubJson(`/repos/${REPOSITORY}/issues/comments/${AUTHORIZATION_COMMENT_ID}`);
   assert.equal(String(comment?.body || '').trim(), AUTHORIZATION_COMMENT);
@@ -83,18 +102,34 @@ async function discover() {
   assert.ok(ALLOWED_ASSOCIATIONS.has(String(comment?.author_association || '').toUpperCase()));
 
   const commentMs = isoMs(comment.created_at);
-  const list = await githubJson(
-    `/repos/${REPOSITORY}/actions/workflows/${encodeURIComponent(WORKFLOW_FILE)}/runs?event=issue_comment&per_page=50`,
-  );
-  const candidates = (list?.workflow_runs || [])
+  const allRuns = [];
+  let pagesFetched = 0;
+  let reachedCommentBoundary = false;
+  for (let page = 1; page <= 20; page += 1) {
+    const list = await githubJson(
+      `/repos/${REPOSITORY}/actions/workflows/${encodeURIComponent(WORKFLOW_FILE)}/runs?event=issue_comment&per_page=100&page=${page}`,
+    );
+    const pageRuns = list?.workflow_runs || [];
+    pagesFetched = page;
+    allRuns.push(...pageRuns);
+    if (!pageRuns.length) break;
+    const oldestMs = Math.min(...pageRuns.map((candidate) => isoMs(candidate.created_at)));
+    if (oldestMs <= commentMs) {
+      reachedCommentBoundary = true;
+      break;
+    }
+  }
+  assert.ok(reachedCommentBoundary, 'Runtime Readiness run pagination did not reach the authorization boundary');
+  const candidates = allRuns
     .filter((run) => run?.name === WORKFLOW_NAME)
     .filter((run) => run?.event === 'issue_comment')
     .filter((run) => run?.head_branch === 'main')
     .filter((run) => run?.actor?.login === comment.user.login)
     .filter((run) => isoMs(run.created_at) >= commentMs)
     .sort((left, right) => isoMs(left.created_at) - isoMs(right.created_at));
+  const nonSkippedCandidates = candidates.filter((run) => run?.conclusion !== 'skipped');
 
-  let run = candidates[0] || null;
+  let run = nonSkippedCandidates[0] || null;
   if (run) {
     for (let attempt = 1; attempt <= 12 && run.status !== 'completed'; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 10000));
@@ -131,7 +166,11 @@ async function discover() {
     authorization_created_at: comment.created_at,
     workflow_name: WORKFLOW_NAME,
     workflow_file: WORKFLOW_FILE,
+    pages_fetched: pagesFetched,
+    reached_comment_boundary: reachedCommentBoundary,
+    scanned_run_count: allRuns.length,
     candidate_count: candidates.length,
+    non_skipped_candidate_count: nonSkippedCandidates.length,
     run_id: run?.id || null,
     run_url: run?.html_url || null,
     run_status: run?.status || null,
@@ -171,9 +210,13 @@ async function readJsonIfPresent(filePath) {
   }
 }
 
+function safeBoolean(value) {
+  return value === true || value === false ? value : null;
+}
+
 function boundedRuntimeResult(summary, failure, discovery) {
   if (summary) {
-    assert.equal(summary.secrets_included, false);
+    assert.equal(safeBoolean(summary.secrets_included), false);
     assert.equal(summary.contract, 'sprint69_1043_runtime_readiness.v1');
     return {
       status: 'pass',
@@ -194,7 +237,7 @@ function boundedRuntimeResult(summary, failure, discovery) {
     };
   }
   if (failure) {
-    assert.equal(failure.secrets_included, false);
+    const failureSecretsIncluded = safeBoolean(failure.secrets_included);
     assert.equal(failure.contract, 'sprint69_1043_runtime_readiness_failure.v1');
     return {
       status: 'fail',
@@ -205,12 +248,12 @@ function boundedRuntimeResult(summary, failure, discovery) {
       migration_checksum_sha256: failure.migration_checksum_sha256 || null,
       statement_count: failure.statement_count ?? null,
       error_code: failure.error?.code || 'runtime_readiness_failed',
-      authorization_created: failure.authorization_created ?? false,
-      apply_authorized: failure.apply_authorized ?? false,
-      apply_sent: failure.apply_sent ?? false,
-      migration_apply_executed: failure.migration_apply_executed ?? false,
-      activation_registry_sync_executed: failure.activation_registry_sync_executed ?? false,
-      secrets_included: false,
+      authorization_created: safeBoolean(failure.authorization_created),
+      apply_authorized: safeBoolean(failure.apply_authorized),
+      apply_sent: safeBoolean(failure.apply_sent),
+      migration_apply_executed: safeBoolean(failure.migration_apply_executed),
+      activation_registry_sync_executed: safeBoolean(failure.activation_registry_sync_executed),
+      secrets_included: failureSecretsIncluded,
     };
   }
   return {
@@ -242,14 +285,14 @@ function markdownBody(discovery, runtime) {
     `- Migration checksum: \`${runtime.migration_checksum_sha256 || 'unverified'}\``,
     `- Statement count: ${runtime.statement_count ?? 'unverified'}`,
     `- Runtime parity: ${runtime.runtime_parity || 'unverified'}`,
-    `- Authorization created by readiness run: ${runtime.authorization_created ?? false}`,
+    `- Authorization created by readiness run: ${runtime.authorization_created ?? 'unverified'}`,
     `- Authorization bootstrap: ${runtime.authorization_bootstrap || 'unverified'}`,
     `- Dry run: ${runtime.dry_run || 'unverified'}`,
-    `- Apply authorized: ${runtime.apply_authorized ?? false}`,
-    `- Apply sent: ${runtime.apply_sent ?? false}`,
-    `- Migration Apply executed: ${runtime.migration_apply_executed ?? false}`,
-    `- Activation registry sync executed: ${runtime.activation_registry_sync_executed ?? false}`,
-    `- Secrets included: ${runtime.secrets_included}`,
+    `- Apply authorized: ${runtime.apply_authorized ?? 'unverified'}`,
+    `- Apply sent: ${runtime.apply_sent ?? 'unverified'}`,
+    `- Migration Apply executed: ${runtime.migration_apply_executed ?? 'unverified'}`,
+    `- Activation registry sync executed: ${runtime.activation_registry_sync_executed ?? 'unverified'}`,
+    `- Secrets included: ${runtime.secrets_included ?? 'unverified'}`,
     '',
     runtime.status === 'pass'
       ? 'Runtime Readiness evidence passed. Migration Apply remains a separate explicit action and was not triggered by this publisher.'

@@ -28,7 +28,7 @@ jobs:
     env:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       ISSUE_NUMBER: '4449'
-      AUTHORIZATION_COMMENT_ID: '5160291051'
+      AUTHORIZATION_COMMENT_ID: '5169156192'
       REPORT_DIR: .artifacts/sprint69-1043-runtime-readiness-backfill
       SOURCE_DIR: .artifacts/sprint69-1043-runtime-readiness-source
       GH_TOKEN: ${{ github.token }}

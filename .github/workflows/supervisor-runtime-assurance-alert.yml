@@ -1,0 +1,107 @@
+name: Supervisor Runtime Assurance Alert Lifecycle
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 4 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supervisor-runtime-assurance-alert-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  assurance:
+    name: Scheduled static readiness and behavioral dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Collect supervisor assurance evidence
+        run: |
+          set -euo pipefail
+          mkdir -p supervisor-assurance-evidence
+          node http-generic-api/scripts/supervisor-runtime-readiness.mjs \
+            | tee supervisor-assurance-evidence/readiness.json
+          node http-generic-api/scripts/supervisor-behavioral-certification.mjs \
+            | tee supervisor-assurance-evidence/behavioral-dry-run.json
+          node http-generic-api/scripts/check-supervisor-admin-tool-export-sync.mjs \
+            | tee supervisor-assurance-evidence/export-sync.json
+
+      - name: Validate evidence contract
+        run: |
+          node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import { readFileSync } from 'node:fs';
+          const readJson = (name) => JSON.parse(readFileSync(`supervisor-assurance-evidence/${name}`, 'utf8'));
+          const readiness = readJson('readiness.json');
+          const behavioral = readJson('behavioral-dry-run.json');
+          const exportSync = readJson('export-sync.json');
+          assert.equal(readiness.ok, true, JSON.stringify(readiness));
+          assert.equal(readiness.secrets_included, false);
+          assert.equal(behavioral.ok, true, JSON.stringify(behavioral));
+          assert.equal(behavioral.mode, 'dry_run');
+          assert.equal(behavioral.applies_provider_calls, false);
+          assert.equal(behavioral.persistent_fixture_writes, false);
+          assert.equal(behavioral.transaction_rollback_required, true);
+          assert.equal(behavioral.secrets_included, false);
+          assert.equal(exportSync.ok, true, JSON.stringify(exportSync));
+          assert.equal(exportSync.secrets_included, false);
+          NODE
+
+      - name: Upload assurance evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supervisor-runtime-assurance-alert-${{ github.run_id }}
+          path: supervisor-assurance-evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+  alert-lifecycle:
+    name: Reconcile supervisor assurance issue
+    needs: assurance
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open or resolve repository assurance issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSURANCE_RESULT: ${{ needs.assurance.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          LABEL="supervisor-runtime-assurance"
+          TITLE="[Supervisor Runtime Assurance] Scheduled check failed"
+          gh label create "$LABEL" --repo "$GITHUB_REPOSITORY" --color D93F0B \
+            --description "Automated supervisor readiness or behavioral dry-run failure" --force
+          ISSUE_NUMBER=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --label "$LABEL" \
+            --json number --jq '.[0].number // empty')
+          if [ "$ASSURANCE_RESULT" != "success" ]; then
+            BODY="The scheduled supervisor assurance workflow failed. Review ${RUN_URL}. No live apply, provider call, credential read, or external runtime write was attempted."
+            if [ -n "$ISSUE_NUMBER" ]; then
+              gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --body "$BODY"
+            else
+              gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --label "$LABEL" --body "$BODY"
+            fi
+          elif [ -n "$ISSUE_NUMBER" ]; then
+            gh issue comment "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --body "Supervisor assurance recovered successfully. Evidence: ${RUN_URL}."
+            gh issue close "$ISSUE_NUMBER" --repo "$GITHUB_REPOSITORY" --reason completed
+          fi
