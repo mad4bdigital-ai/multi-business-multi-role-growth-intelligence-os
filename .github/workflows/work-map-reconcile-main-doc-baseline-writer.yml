@@ -1,0 +1,88 @@
+name: Work Map Reconcile Main Doc Baseline Writer
+
+on:
+  pull_request:
+    branches:
+      - gpt/validate-work-map-reconcile-6150-33c8dc3b
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: work-map-reconcile-main-doc-baseline-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN_SHA: 2f6634d39cf6a281efb1f7744bb1dee3a28f2cd9
+  EXPECTED_HEAD_SHA: d608e3db9a4182943d3606ee5514607e2a392907
+  TARGET_BRANCH: gpt/work-map-input-driven-governance-reconcile-20260804
+
+jobs:
+  align:
+    name: Align generated docs to current main before history sync
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/work-map-input-driven-governance-reconcile-20260804' &&
+      github.event.pull_request.head.sha == 'd608e3db9a4182943d3606ee5514607e2a392907'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Initialize bounded evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/work-map-main-doc-alignment-${GITHUB_RUN_ID}"
+          printf 'EVIDENCE_ROOT=%s\n' "${root}" >> "${GITHUB_ENV}"
+          mkdir -p "${root}"
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prove identities and align only generated docs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk 'NR == 1 {print $1}')" = "${EXPECTED_HEAD_SHA}"
+          git show "${EXPECTED_MAIN_SHA}:docs/work-maps/README.md" > docs/work-maps/README.md
+          git show "${EXPECTED_MAIN_SHA}:docs/work-maps/repository-automation-map.md" > docs/work-maps/repository-automation-map.md
+          git diff --name-only | LC_ALL=C sort > "${EVIDENCE_ROOT}/actual-files.txt"
+          printf '%s\n' \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md \
+            | LC_ALL=C sort > "${EVIDENCE_ROOT}/expected-files.txt"
+          diff -u "${EVIDENCE_ROOT}/expected-files.txt" "${EVIDENCE_ROOT}/actual-files.txt"
+          git diff --check
+          test "$(git hash-object docs/work-maps/README.md)" = "$(git rev-parse "${EXPECTED_MAIN_SHA}:docs/work-maps/README.md")"
+          test "$(git hash-object docs/work-maps/repository-automation-map.md)" = "$(git rev-parse "${EXPECTED_MAIN_SHA}:docs/work-maps/repository-automation-map.md")"
+
+      - name: Commit and push exact alignment without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk 'NR == 1 {print $1}')" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          git commit -m "chore(work-maps): align generated baseline before main sync"
+          new_head="$(git rev-parse HEAD)"
+          printf '%s\n' "${new_head}" > "${EVIDENCE_ROOT}/published-head-sha.txt"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk 'NR == 1 {print $1}')" = "${new_head}"
+
+      - name: Upload bounded alignment evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-main-doc-alignment-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-main-doc-alignment-${{ github.run_id }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
