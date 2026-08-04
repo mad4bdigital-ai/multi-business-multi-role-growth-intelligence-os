@@ -44,9 +44,9 @@ jobs:
           set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           test "${{ github.event.pull_request.base.sha }}" = "${EXPECTED_MAIN_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
           git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse --abbrev-ref HEAD)" = "${TARGET_BRANCH}"
           mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD)
           test "${#changed[@]}" -eq 1
           test "${changed[0]}" = "${TEMP_WORKFLOW}"
@@ -113,7 +113,6 @@ jobs:
             sleep 2
           done
           test "${remote_after}" = "${result_sha}"
-          echo "result_sha=${result_sha}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload bounded no-secret evidence
         if: always()
