@@ -2,4 +2,6 @@ Temporary read-only diagnostic trigger for Work Map V3 reconstruction V8.
 
 Pinned main snapshot: 7b8754c46efd7f72dac7decb60c327b7205e6687
 Reviewed source: f1bc371bb27ccf249ddc3ca3d7081dc8a3eb995e
+Diagnostic workflow commit: 25517505e4ced3ab3002f191716fafa6ca6e9e06
+Artifact retry: include hidden diagnostic files.
 No repository write authority is granted to the diagnostic workflow.
