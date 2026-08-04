@@ -1,0 +1,130 @@
+name: Spec 012 OAuth Route Test Parity Diagnostic V3
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-phase-g-schema-arm-base-20260803
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec012-oauth-route-test-parity-diagnostic-v3-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose Spec 012 OAuth parity checks independently
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-token-route-test-parity-20260804' &&
+      github.event.pull_request.head.sha == 'a61cd9e83070618001676bbc679bc937f0551875'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      EXPECTED_HEAD_SHA: a61cd9e83070618001676bbc679bc937f0551875
+      SCRIPT_BRANCH: gpt/exact-phase-g-schema-arm-base-20260803
+      SCRIPT_COMMIT_SHA: 9bc786994e58d5e7e46f5b137eebbe3c93fe018b
+      E2E_PATH: .changes/e2e/spec012-t031-oauth-token-route-test-parity.json
+
+    steps:
+      - name: Checkout exact clean candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Prepare exact transformed tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIAGNOSTIC_ROOT="${RUNNER_TEMP}/spec012-oauth-route-test-parity-diagnostic-v3-${GITHUB_RUN_ID}"
+          printf 'DIAGNOSTIC_ROOT=%s\n' "${DIAGNOSTIC_ROOT}" >> "${GITHUB_ENV}"
+          mkdir -p "${DIAGNOSTIC_ROOT}/logs"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain)"
+          npm ci --prefix http-generic-api
+          git fetch --no-tags origin "refs/heads/${SCRIPT_BRANCH}:refs/remotes/origin/${SCRIPT_BRANCH}"
+          git merge-base --is-ancestor "${SCRIPT_COMMIT_SHA}" "refs/remotes/origin/${SCRIPT_BRANCH}"
+          git show "${SCRIPT_COMMIT_SHA}:.github/scripts/apply-spec012-oauth-route-test-parity.py" > /tmp/apply-spec012-oauth-route-test-parity.py
+          python -m py_compile /tmp/apply-spec012-oauth-route-test-parity.py
+          python /tmp/apply-spec012-oauth-route-test-parity.py
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          git diff --name-only -- docs/work-maps | LC_ALL=C sort > "${DIAGNOSTIC_ROOT}/generated-files.txt"
+          python - "${E2E_PATH}" "${DIAGNOSTIC_ROOT}/generated-files.txt" <<'PY'
+          import json, sys
+          from pathlib import Path
+          e2e = Path(sys.argv[1])
+          generated = [line.strip() for line in Path(sys.argv[2]).read_text().splitlines() if line.strip()]
+          payload = json.loads(e2e.read_text())
+          targets = [payload['scope']['include'], payload['phases'][0]['e2e_journeys'][0]['evidence_paths']]
+          for target in targets:
+              for value in generated:
+                  if value not in target:
+                      target.append(value)
+          e2e.write_text(json.dumps(payload, indent=2, ensure_ascii=False) + '\n')
+          PY
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          {
+            git diff --name-only "${EXPECTED_MAIN_SHA}"
+            git ls-files --others --exclude-standard
+          } | LC_ALL=C sort -u > "${DIAGNOSTIC_ROOT}/actual-files.txt"
+          git diff --stat "${EXPECTED_MAIN_SHA}" > "${DIAGNOSTIC_ROOT}/diff-stat.txt"
+          git diff --check "${EXPECTED_MAIN_SHA}"
+
+      - name: Run every validation and preserve all outputs
+        shell: bash
+        run: |
+          set -uo pipefail
+          : > "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+
+          run_check() {
+            local name="$1"
+            shift
+            local log="${DIAGNOSTIC_ROOT}/logs/${name}.log"
+            set +e
+            "$@" >"${log}" 2>&1
+            local code=$?
+            set -e
+            printf '%s\t%s\n' "${name}" "${code}" | tee -a "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          }
+
+          run_check route-syntax node --check http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          run_check binding-syntax node --check http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js
+          run_check binding-guard node http-generic-api/test-tenant-gpt-oauth-token-binding-guard.mjs
+          run_check binding-hardening node http-generic-api/test-tenant-gpt-oauth-token-binding-hardening.mjs
+          run_check exchange-routes node http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs
+          run_check auth-oauth-integration node http-generic-api/test-auth-oauth-routes.mjs
+          run_check route-wiring node http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs
+          run_check jwt-governance bash -lc "cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref='${EXPECTED_MAIN_SHA}'"
+          run_check no-local-jsonwebtoken bash -lc "! grep -Fq 'from \"jsonwebtoken\"' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
+          run_check no-fallback-secret bash -lc "! grep -Fq 'development_fallback_secret_only' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js"
+          run_check required-crypto-error grep -Fq 'oauth_token_exchange_crypto_dependencies_required' http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js
+          run_check injected-test-pool grep -Fq 'getPool: () => oauthClientPool' http-generic-api/test-auth-oauth-routes.mjs
+          run_check e2e-json node -e "JSON.parse(require('fs').readFileSync(process.env.E2E_PATH, 'utf8'))"
+          run_check work-map-check node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          set +e
+          awk -F '\t' '$2 != 0 { failed=1 } END { exit failed ? 1 : 0 }' "${DIAGNOSTIC_ROOT}/validation-results.tsv"
+          gate=$?
+          set -e
+          exit "${gate}"
+
+      - name: Upload complete diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec012-oauth-route-test-parity-diagnostic-v3-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec012-oauth-route-test-parity-diagnostic-v3-${{ github.run_id }}
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 14
