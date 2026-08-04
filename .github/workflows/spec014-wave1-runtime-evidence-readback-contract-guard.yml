@@ -6,10 +6,13 @@ on:
       - '.github/ops/spec014-wave1-runtime-evidence-readback.mjs'
       - '.github/workflows/spec014-wave1-runtime-evidence-readback.yml'
       - '.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml'
+      - '.github/validation-triggers/spec014-wave1-runtime-evidence-readback-5179409708-v1.txt'
       - 'http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs'
 
 permissions:
+  actions: read
   contents: read
+  issues: write
 
 jobs:
   contract:
@@ -55,7 +58,7 @@ jobs:
             --rawfile syntax_stderr "$evidence/syntax.stderr.txt" \
             --rawfile contract_stdout "$evidence/contract.stdout.txt" \
             --rawfile contract_stderr "$evidence/contract.stderr.txt" \
-            '{contract:"spec014_wave1_runtime_evidence_readback_guard_report.v1",syntax_exit:$syntax_exit,contract_exit:$contract_exit,syntax_stderr:($syntax_stderr[0:2000]),contract_stdout:($contract_stdout[0:4000]),contract_stderr:($contract_stderr[0:4000]),runtime_contact:false,database_access:false,migration_apply_executed:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
+            '{contract:"spec014_wave1_runtime_evidence_readback_guard_report.v2",syntax_exit:$syntax_exit,contract_exit:$contract_exit,syntax_stderr:($syntax_stderr[0:2000]),contract_stdout:($contract_stdout[0:4000]),contract_stderr:($contract_stderr[0:4000]),runtime_contact:false,database_access:false,migration_apply_executed:false,provider_call_executed:false,credential_payload_accessed:false,external_business_write_executed:false,secrets_included:false}' \
             > "$evidence/report.json"
           cat "$evidence/report.json"
           test "$syntax_exit" = 0
@@ -75,3 +78,41 @@ jobs:
         env:
           REGRESSION_OUTCOME: ${{ steps.regression.outcome }}
         run: test "$REGRESSION_OUTCOME" = success
+
+  collect-runtime-evidence:
+    name: Collect exact Wave 1 runtime Artifact
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/trigger-spec014-wave1-runtime-evidence-readback-5179409708-v1' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      ISSUE_NUMBER: '6215'
+      EVIDENCE_DIR: ${{ runner.temp }}/spec014-wave1-runtime-evidence-readback
+    steps:
+      - name: Checkout trusted main
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Read and report structured runtime evidence
+        run: node .github/ops/spec014-wave1-runtime-evidence-readback.mjs
+
+      - name: Upload copied target evidence and readback report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-wave1-runtime-evidence-readback-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
