@@ -1,0 +1,180 @@
+name: Exact Repository Write Prerequisite Ready Tail Validation 6049
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  EXPECTED_MAIN_SHA: 88439328058c46a87f205cc49be47a1ab0651faf
+  EXPECTED_PARENT_SHA: 4a45cd80252999d994290e6edf8172273b11cc83
+  EXPECTED_CANDIDATE_SHA: 0100da8833eb95fc881bf3f7b76cb77c56bd3313
+  EXPECTED_CANDIDATE_REF: gpt/repository-write-prerequisite-main-72196dee-20260804-v5
+  EXPECTED_VALIDATOR_REF: gpt/exact-repository-write-prerequisite-arm-validation-6049-v3
+  CANONICAL_PR_NUMBER: '6049'
+  EVIDENCE_DIR: /tmp/exact-repository-write-prerequisite-ready-tail-validation-6049
+
+jobs:
+  exact-ready-tail:
+    name: Exact Ready lifecycle and E2E readback
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/exact-repository-write-prerequisite-arm-validation-6049-v3'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    steps:
+      - name: Checkout exact validator head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify validator and Ready canonical identities
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATOR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          VALIDATOR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$VALIDATOR_BASE_SHA" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse HEAD)" = "$VALIDATOR_HEAD_SHA"
+          mapfile -t validator_files < <(git diff --name-only "$VALIDATOR_BASE_SHA"..."$VALIDATOR_HEAD_SHA" | sort)
+          test "${#validator_files[@]}" -eq 2
+          test "${validator_files[0]}" = '.github/workflows/exact-repository-write-prerequisite-arm-validation-6049-v3.yml'
+          test "${validator_files[1]}" = '.github/workflows/exact-repository-write-prerequisite-ready-tail-validation-6049.yml'
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'false'
+          test "$(jq -r '.mergeable' <<<"$pr")" != 'false'
+          test "$(jq -r '.base.ref' <<<"$pr")" = 'main'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.ref' <<<"$pr")" = "$EXPECTED_CANDIDATE_REF"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+
+      - name: Checkout exact canonical candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify one-line correction and exact current-main scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_CANDIDATE_SHA"
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          test "$(git rev-parse refs/remotes/origin/main)" = "$EXPECTED_MAIN_SHA"
+          test "$(git merge-base "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA")" = "$EXPECTED_MAIN_SHA"
+          test "$(git rev-parse "$EXPECTED_CANDIDATE_SHA^")" = "$EXPECTED_PARENT_SHA"
+          test "$(git diff --numstat "$EXPECTED_PARENT_SHA"..."$EXPECTED_CANDIDATE_SHA" | awk '{print $1":"$2":"$3}')" = '1:1:.changes/e2e/repository-write-workflow-prerequisites.json'
+          test "$(jq -r '.merge_contract.minimum_phase' .changes/e2e/repository-write-workflow-prerequisites.json)" = 'mvp'
+          test "$(jq -r '.current_phase' .changes/e2e/repository-write-workflow-prerequisites.json)" = 'resilient'
+
+          mkdir -p "$EVIDENCE_DIR/repository-tool-lifecycle"
+          git diff --name-only "$EXPECTED_MAIN_SHA"..."$EXPECTED_CANDIDATE_SHA" | sort > "$EVIDENCE_DIR/actual-files.txt"
+          test "$(wc -l < "$EVIDENCE_DIR/actual-files.txt")" -eq 13
+          git diff --name-status "$EXPECTED_MAIN_SHA" "$EXPECTED_CANDIDATE_SHA" > "$EVIDENCE_DIR/repository-tool-changes.tsv"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run exact lifecycle, reference integrity, and E2E journeys
+        shell: bash
+        env:
+          CANDIDATE_SHA: ${{ env.EXPECTED_CANDIDATE_SHA }}
+          BASE_SHA: ${{ env.EXPECTED_MAIN_SHA }}
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+            --changed-files "$EVIDENCE_DIR/repository-tool-changes.tsv" \
+            --policy .github/repository-maintenance-tool-governance.json \
+            --output-dir "$EVIDENCE_DIR/repository-tool-lifecycle"
+          lifecycle="$EVIDENCE_DIR/repository-tool-lifecycle/repository-tool-lifecycle-report.json"
+          test "$(jq -r '.ok' "$lifecycle")" = 'true'
+          test "$(jq -r '.candidate_sha' "$lifecycle")" = "$EXPECTED_CANDIDATE_SHA"
+          test "$(jq -r '.base_sha' "$lifecycle")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.changed_file_count' "$lifecycle")" -eq 13
+          test "$(jq -r '.findings | length' "$lifecycle")" -eq 0
+          test "$(jq -r '.secrets_included' "$lifecycle")" = 'false'
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "$EVIDENCE_DIR/e2e-contract-reference-integrity.json"
+          test "$(jq -r '.ok' "$EVIDENCE_DIR/e2e-contract-reference-integrity.json")" = 'true'
+          test "$(jq -r '.findings | length' "$EVIDENCE_DIR/e2e-contract-reference-integrity.json")" -eq 0
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation.json"
+          test "$(jq -r '.ok' "$EVIDENCE_DIR/e2e-phase-evaluation.json")" = 'true'
+          test "$(jq -r '.findings | length' "$EVIDENCE_DIR/e2e-phase-evaluation.json")" -eq 0
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs run \
+            --base "$EXPECTED_MAIN_SHA" \
+            --head "$EXPECTED_CANDIDATE_SHA" \
+            --report-file "$EVIDENCE_DIR/e2e-phase-evaluation-run.json" \
+            --execution-report-file "$EVIDENCE_DIR/e2e-phase-execution.json"
+          test "$(jq -r '.ok' "$EVIDENCE_DIR/e2e-phase-evaluation-run.json")" = 'true'
+          test "$(jq -r '.ok' "$EVIDENCE_DIR/e2e-phase-execution.json")" = 'true'
+          test "$(jq -r '.results | all(.status == "passed")' "$EVIDENCE_DIR/e2e-phase-execution.json")" = 'true'
+          test "$(jq -r '.secrets_included' "$EVIDENCE_DIR/e2e-phase-execution.json")" = 'false'
+
+      - name: Final protected-main, Ready PR, and review-thread readback
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN_SHA"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR_NUMBER}")"
+          test "$(jq -r '.state' <<<"$pr")" = 'open'
+          test "$(jq -r '.draft' <<<"$pr")" = 'false'
+          test "$(jq -r '.base.sha' <<<"$pr")" = "$EXPECTED_MAIN_SHA"
+          test "$(jq -r '.head.sha' <<<"$pr")" = "$EXPECTED_CANDIDATE_SHA"
+          threads="$(gh api graphql -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' -F owner="${GITHUB_REPOSITORY_OWNER}" -F name="${GITHUB_REPOSITORY#*/}" -F number="$CANONICAL_PR_NUMBER")"
+          test "$(jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length' <<<"$threads")" -eq 0
+
+      - name: Publish exact no-secret Ready summary
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p "$EVIDENCE_DIR"
+          jq -n \
+            --arg base_sha "$EXPECTED_MAIN_SHA" \
+            --arg parent_sha "$EXPECTED_PARENT_SHA" \
+            --arg head_sha "$EXPECTED_CANDIDATE_SHA" \
+            --arg draft_full_run_id '30866671157' \
+            --arg draft_tail_run_id '30867087884' \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg job_status "${{ job.status }}" \
+            '{contract:"mad4b.exact-repository-write-prerequisite-ready-tail-validation.v1",base_sha:$base_sha,parent_sha:$parent_sha,head_sha:$head_sha,draft_full_run_id:$draft_full_run_id,draft_tail_run_id:$draft_tail_run_id,run_id:$run_id,job_status:$job_status,candidate_mutated:false,main_mutated:false,production_mutated:false,provider_call:false,credential_read:false,sql_executed:false,migration_apply:false,database_mutated:false,external_send:false,secrets_included:false}' \
+            > "$EVIDENCE_DIR/summary.json"
+
+      - name: Upload exact Ready evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-repository-write-prerequisite-ready-tail-validation-6049-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}/
+          if-no-files-found: error
+          retention-days: 14
