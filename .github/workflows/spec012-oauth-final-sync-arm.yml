@@ -1,0 +1,134 @@
+name: Spec 012 OAuth Final Sync ARM
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec012-oauth-final-sync-arm-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.base.ref == 'gpt/spec012-oauth-final-sync-arm-base-20260804' &&
+      github.event.pull_request.head.ref == 'gpt/spec012-oauth-canonical-deps-current-main-v3-20260804' &&
+      github.event.pull_request.head.sha == '6b03d895408df15c6a733873735c6a395471b00d'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 180
+    env:
+      BASE_SHA: cbdefb09bfe899f97ec8fe983b672e870d7f8c4a
+      HEAD_SHA: 6b03d895408df15c6a733873735c6a395471b00d
+      TEST_SUITE_REPORT_DIR: /tmp/spec012-test-suite-reports
+
+    steps:
+      - name: Checkout exact synchronized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact identities ancestry and five-file scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "${HEAD_SHA}"
+          test "$(git rev-parse origin/main)" = "${BASE_SHA}"
+          test "$(git merge-base origin/main HEAD)" = "${BASE_SHA}"
+          git merge-base --is-ancestor origin/main HEAD
+          mapfile -t files < <(git diff --name-only "${BASE_SHA}...${HEAD_SHA}" | sort)
+          expected=(
+            ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json"
+            "http-generic-api/frontend-operation-governance.generated.json"
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+            "http-generic-api/routes/index.js"
+            "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          test -z "$(git status --porcelain=v1)"
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          (cd http-generic-api && npm ci)
+
+      - name: Run syntax and repository governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/schema-docs-change-guard.mjs
+          node http-generic-api/scripts/migration-placement-guard.mjs
+          (cd http-generic-api && node scripts/user-jwt-auth-governance.mjs --baseline-ref="${BASE_SHA}")
+          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-worktree)
+          node validate-canonical-sources.mjs
+          node build-canonicals.mjs --check
+          node --check find-canonical-domain.mjs
+          (cd http-generic-api && node scripts/resource-api-coverage-audit.mjs --ci --changed)
+          (cd http-generic-api && node test-resource-api-architecture.mjs && node test-resource-api-service.mjs)
+          node http-generic-api/scripts/spec-kit-completion-gate.mjs --ci --changed
+          node validate-memory-schema.mjs
+          git diff --check
+          (cd http-generic-api && for f in *.js *.mjs routes/*.js scripts/*.mjs wordpress/*.js; do node --check "$f"; done)
+
+      - name: Run Context Kernel Unit Integration and runtime startup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > /tmp/context-kernel-files.txt
+          (cd http-generic-api && node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime --changed-files-from=/tmp/context-kernel-files.txt)
+          (cd http-generic-api && node test-user-jwt-auth.mjs && node test-connect-secret-boundary.mjs && node test-tenant-connect-bootstrap-transaction.mjs && node test-tenant-connection-self-repair-routes.mjs)
+          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-merge --skip-worktree --report-file /tmp/interruption-readiness.json)
+          (cd http-generic-api && npm test)
+          (cd http-generic-api && FORCE_ROUTE_RUNTIME_TESTS=true DEPLOYMENT_BRANCH=gpt/spec012-oauth-canonical-deps-current-main-v3-20260804 DEPLOYMENT_COMMIT_SHA="${HEAD_SHA}" node test-deployment-manifest-generator.mjs)
+          (cd http-generic-api && npm run manifest:deployment)
+          (cd http-generic-api && FORCE_ROUTE_RUNTIME_TESTS=true DEPLOYMENT_BRANCH=gpt/spec012-oauth-canonical-deps-current-main-v3-20260804 DEPLOYMENT_COMMIT_SHA="${HEAD_SHA}" node test-server-startup-smoke.mjs)
+          (cd http-generic-api && node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence /tmp/interruption-readiness.json)
+
+      - name: Run resolver and architecture gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run typecheck
+          npm test -- --runInBand
+          (cd http-generic-api && npm run validate)
+          test -f src/services/execution/dispatchPlanStep.ts
+          test -f src/services/connectors/execution/resolveConnectorExecutor.ts
+          test -f src/store/registries/connectorExecutorRegistry.ts
+          grep -R "resolveConnectorExecutor" src/services/execution src/services/connectors/execution tests/unit >/dev/null
+          grep -R "approval_required" src/store/registries src/services/connectors/execution tests/unit >/dev/null
+          test "$(wc -l < http-generic-api/server.js)" -le 6000
+          (cd http-generic-api && node -e "import('./wordpress/index.js').then(m=>{if(Object.keys(m).length<545)process.exit(1)})")
+
+      - name: Run E2E lifecycle and canonical Frontend parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/e2e /tmp/lifecycle
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs --base "${BASE_SHA}" --head "${HEAD_SHA}" --report-file /tmp/e2e/reference.json
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs --report-file /tmp/e2e/reference.json
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${BASE_SHA}" --head "${HEAD_SHA}" --report-file /tmp/e2e/phase.json
+          node http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs
+          git diff --name-status "${BASE_SHA}" "${HEAD_SHA}" > /tmp/lifecycle/changes.tsv
+          BASE_SHA="${BASE_SHA}" CANDIDATE_SHA="${HEAD_SHA}" node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs --changed-files /tmp/lifecycle/changes.tsv --policy .github/repository-maintenance-tool-governance.json --output-dir /tmp/lifecycle/report
+          (cd http-generic-api && npm run frontend:dispatch:generate -- --baseline-ref=main)
+          git diff --exit-code -- http-generic-api/frontend-operation-governance.generated.json http-generic-api/frontend-surface-dispatch.generated.json http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs && node test-frontend-operation-governance-generator.mjs && node test-frontend-surface-dispatch.mjs && node test-frontend-auth-openapi-parity.mjs && node test-openapi-route-coverage.mjs && npm run openapi:auth:check)
