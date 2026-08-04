@@ -1,0 +1,125 @@
+name: Spec 014 Surface Clean Candidate Builder 20260804
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-surface-clean-candidate-builder-20260804-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build one-commit clean Surface candidate
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v1' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      BASE_SHA: c1806ef4d1a6fc5bf859a39162e47c1e58290081
+      SOURCE_SHA: b41f2534dcc150e640c4ad3b719389eb8f1dfd97
+      TARGET_BRANCH: gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v2-clean
+    steps:
+      - name: Checkout repository history
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable source, base, and absent target
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$BASE_SHA"
+          test "$EVENT_HEAD_REF" = "gpt/014-hostinger/surface-contract-generated-evidence-current-main-20260804-v1"
+          test "$(git rev-parse "$BASE_SHA")" = "$BASE_SHA"
+          test "$(git rev-parse "$SOURCE_SHA")" = "$SOURCE_SHA"
+          git merge-base --is-ancestor "$BASE_SHA" "$SOURCE_SHA"
+          test -z "$(git ls-remote --heads origin "$TARGET_BRANCH")"
+
+      - name: Build clean one-commit candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/expected-files.txt" <<'EOF'
+          Updating Registry Patch Index.md
+          deployment_parity_checklist.md
+          docs/ai-docs-agent-governance.md
+          docs/auto-docs-agent/README.md
+          docs/change-documentation-governance.md
+          docs/surface-contract-discovery-status.json
+          docs/surface-contract-discovery-status.md
+          docs/surface-contract-gap-queue.json
+          docs/surface-contract-gap-queue.md
+          docs/surface-contract-gap-trends.json
+          docs/surface-contract-gap-trends.md
+          docs/surface-contract-gap-triage.json
+          docs/surface-contract-gap-triage.md
+          docs/surface-contract-governance-compact.json
+          docs/surface-contract-governance-compact.md
+          docs/surface-contract-governance-dashboard.json
+          docs/surface-contract-governance-dashboard.md
+          docs/surface-contract-safety-attestations.json
+          EOF
+          sed -i 's/^          //' "$RUNNER_TEMP/expected-files.txt"
+          sort -o "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/expected-files.txt"
+
+          git switch --detach "$BASE_SHA"
+          while IFS= read -r file; do
+            git checkout "$SOURCE_SHA" -- "$file"
+          done < "$RUNNER_TEMP/expected-files.txt"
+
+          git diff --cached --name-only | sort > "$RUNNER_TEMP/staged-files.txt"
+          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/staged-files.txt"
+          git diff --cached --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'docs(spec-014): refresh generated surface-contract evidence'
+
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git rev-list --count "${BASE_SHA}..${final_sha}")" = "1"
+          git diff --name-only "$BASE_SHA" "$final_sha" | sort > "$RUNNER_TEMP/final-files.txt"
+          diff -u "$RUNNER_TEMP/expected-files.txt" "$RUNNER_TEMP/final-files.txt"
+          test -z "$(git diff --name-only "$BASE_SHA" "$final_sha" -- '.github/workflows/**' 'http-generic-api/migrations/**' 'http-generic-api/openapi*.yaml' 'http-generic-api/routes/**' 'http-generic-api/src/**')"
+
+          printf '%s\n' "$final_sha" > "$RUNNER_TEMP/final-head-sha.txt"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+      - name: Write bounded clean-candidate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg base_sha "$BASE_SHA" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg target_branch "$TARGET_BRANCH" \
+            --arg final_sha "$(cat "$RUNNER_TEMP/final-head-sha.txt")" \
+            --argjson changed_files "$(wc -l < "$RUNNER_TEMP/final-files.txt")" \
+            '{ok:true,base_sha:$base_sha,source_sha:$source_sha,target_branch:$target_branch,final_sha:$final_sha,commit_count:1,changed_files:$changed_files,workflow_files_in_candidate:false,migration_files_in_candidate:false,runtime_files_in_candidate:false,openapi_files_in_candidate:false,force_push:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/clean-candidate-evidence.json"
+
+      - name: Upload clean-candidate evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-surface-clean-candidate-builder-20260804-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/expected-files.txt
+            ${{ runner.temp }}/staged-files.txt
+            ${{ runner.temp }}/final-files.txt
+            ${{ runner.temp }}/final-head-sha.txt
+            ${{ runner.temp }}/clean-candidate-evidence.json
+          if-no-files-found: error
+          retention-days: 14
