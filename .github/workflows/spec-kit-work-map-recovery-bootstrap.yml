@@ -51,8 +51,16 @@ jobs:
       COMMENT_COMMAND: ${{ github.event.comment.body || '' }}
       COMMAND_ACTOR: ${{ github.actor }}
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
-      REPORT_DIR: ${{ runner.temp }}/spec-kit-work-map-recovery-bootstrap
     steps:
+      - name: Initialize bounded report directory after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="${RUNNER_TEMP}/spec-kit-work-map-recovery-bootstrap"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
       - name: Resolve exact authorized target
         id: target
         shell: bash
@@ -60,8 +68,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          rm -rf "${REPORT_DIR}"
-          mkdir -p "${REPORT_DIR}"
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             if [[ "${MANUAL_CONFIRMATION}" != "ACTIVATE_SPEC_KIT_WORK_MAP_RECOVERY" ]]; then
