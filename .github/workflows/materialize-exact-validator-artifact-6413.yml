@@ -1,0 +1,66 @@
+name: Materialize Exact Validator Artifact 6413
+
+on:
+  pull_request:
+    branches:
+      - gpt/bootstrap-validator-6413-20260805
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  materialize-validator-artifact:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/validate-final-review-and-policy-base-35c61761'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout validator branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Materialize exact validator from pinned source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin 5262d5027da0d935ef9eaccb9400d470351e67df
+          mkdir -p exact-validator
+          git show 5262d5027da0d935ef9eaccb9400d470351e67df:.github/workflows/exact-final-review-and-policy-validation-6394.yml > exact-validator/exact-final-review-and-policy-validation-6413.yml
+          node - <<'NODE'
+          const fs = require('fs');
+          const target = 'exact-validator/exact-final-review-and-policy-validation-6413.yml';
+          let text = fs.readFileSync(target, 'utf8');
+          const replacements = [
+            ['6394', '6413'],
+            ['gpt/validate-final-review-and-policy-base-146e070d', 'gpt/validate-final-review-and-policy-base-35c61761'],
+            ['146e070d57627d50eaf8fc0e7fb06568b40fc704', '35c617610623e46709495a7f1928e7def8c9c251'],
+            ['9a94e185891da6e86b74e06e59d3187dbcef96d5', '38f58820bac2e51c9d0e201a1c09d47db21c1e97'],
+            ['gpt/fix-final-review-identity-current-main-v8-20260805', 'gpt/fix-final-review-eligibility-current-main-v9-20260805'],
+            ['f822dea0c91347b3921cbb05302654ac7a5ba728', '99d6a8fdef80334c9aff45bb7855cc09482c1d7c'],
+            ['598d135ea7402799e53827fc503196e3348cca40', 'b03423a143bc04b57488885ddad2646d966ef64a'],
+            ['78f5a3aed14a20700b1bdcfe453c04323c36e5ed', '49cbc8fc7b5b0f5d3030a111d4d69926d771432e'],
+            ['605803d617342bdf71b18978a53a1a4636225183', 'c36b62f8d60312f37ec659cfe90a16043d69a373'],
+            ['a2d1b319719e4b082074279b5424d8aa4f87f791', 'cb0cae221ad7c3b30a1bef48052578ef74f8075c']
+          ];
+          for (const [from, to] of replacements) {
+            if (!text.includes(from)) throw new Error(`missing pinned token: ${from}`);
+            text = text.split(from).join(to);
+          }
+          fs.writeFileSync(target, text);
+          NODE
+          node -e "const fs=require('fs'); const y=fs.readFileSync('exact-validator/exact-final-review-and-policy-validation-6413.yml','utf8'); for (const token of ['TARGET_PR_NUMBER: \'6413\'','EXPECTED_MAIN_SHA: 35c617610623e46709495a7f1928e7def8c9c251','EXPECTED_HEAD_SHA: 38f58820bac2e51c9d0e201a1c09d47db21c1e97','99d6a8fdef80334c9aff45bb7855cc09482c1d7c','b03423a143bc04b57488885ddad2646d966ef64a','49cbc8fc7b5b0f5d3030a111d4d69926d771432e','c36b62f8d60312f37ec659cfe90a16043d69a373','cb0cae221ad7c3b30a1bef48052578ef74f8075c']) if(!y.includes(token)) throw new Error('validator token missing: '+token);"
+          sha256sum exact-validator/exact-final-review-and-policy-validation-6413.yml | tee exact-validator/SHA256SUMS
+
+      - name: Upload exact validator artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-validator-workflow-6413-${{ github.run_id }}
+          path: exact-validator
+          if-no-files-found: error
+          retention-days: 7
