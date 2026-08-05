@@ -17,7 +17,10 @@
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
       "http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs",
       "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
-      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs"
+      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs"
     ]
   },
   "merge_contract": {
@@ -41,6 +44,7 @@
             "Require the storage control-plane pull-request guard to retain contents: read and its control-plane validation job.",
             "Require the R7 workflow to remain owner-bound, public-HTTPS-GET-only, exact-SHA-bound, and conversation-read-only.",
             "Allow bounded post-integration maintenance only when the target is main, every affected multi-PR contract is implemented with all required workstreams integrated, and one changed implemented single-PR contract covers every changed runtime file.",
+            "Independently derive and revalidate the unique changed single-PR maintenance contract inside phase evaluation, and suppress only stale unchanged-contract findings for implemented multi-PR contracts whose required workstreams remain integrated.",
             "Reject under-scoped maintenance contracts, non-main targets, reopened parallel delivery, pull-request write permissions, repository content mutation, protected-ref mutation, provider credentials, deployment actions, SQL, Migration Apply, database mutation, or secret inclusion.",
             "Preserve the retained R7 artifact identity and keep issue 6215 open as the runtime control record until deployment parity is separately authorized and proven."
           ],
@@ -49,6 +53,7 @@
             "The completed single-use evidence collector is not restored.",
             "The permanent R7 readback remains exact-command, owner-bound, bounded, scrubbed, and public-GET-only.",
             "Post-integration maintenance fails closed unless one changed implemented single-PR contract covers every changed runtime file and every affected multi-PR workstream remains integrated.",
+            "Phase evaluation independently revalidates the unique changed maintenance contract and removes no finding unless runtime coverage, main targeting, implemented status, secret exclusion, and integrated parallel work all hold.",
             "Post-integration maintenance is rejected when it targets a branch other than main or when parallel delivery is reopened.",
             "The retained surfaces perform no repository, runtime, database, provider, deployment, credential, or external business mutation.",
             "Regression coverage fails if write authority, the removed one-time collector, or an unbounded maintenance bypass returns."
@@ -67,6 +72,13 @@
               "working_directory": ".",
               "path": "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
               "args": []
+            },
+            {
+              "id": "e2e-single-pr-maintenance-evaluator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -76,7 +88,10 @@
             ".github/workflows/hostinger-production-runtime-readback-r7.yml",
             "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
             "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
-            "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs"
+            "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+            "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs"
           ]
         }
       ]
