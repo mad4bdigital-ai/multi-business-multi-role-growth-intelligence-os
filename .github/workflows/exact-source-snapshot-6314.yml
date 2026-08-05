@@ -44,6 +44,8 @@ jobs:
             snapshot/specs/014-governed-hostinger-storage-orchestration
           git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-phase-governance.mjs" > snapshot/http-generic-api/scripts/e2e-phase-governance.mjs
           git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-parallel-pr-gate.mjs" > snapshot/http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-parallel-work-governance.mjs" > snapshot/http-generic-api/scripts/e2e-parallel-work-governance.mjs
+          git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/bounded-diagnostic-evidence.mjs" > snapshot/http-generic-api/scripts/bounded-diagnostic-evidence.mjs
           git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs" > snapshot/http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs
           git show "${GOVERNED_CANDIDATE}:.github/workflows/e2e-phase-governance.yml" > snapshot/.github/workflows/e2e-phase-governance.yml
           git show "${GOVERNED_CANDIDATE}:.specify/e2e-phase-governance.json" > snapshot/.specify/e2e-phase-governance.json
