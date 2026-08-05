@@ -92,17 +92,19 @@ jobs:
                   block.append(line[content_indent:] if len(line) >= content_indent else '')
               script = '\n'.join(block) + '\n'
               if step_name == 'Patch workflow, executor, contract, and existing regression':
-                  original = """    count = text.count(old)
-    if count != 1:
-        raise SystemExit(f'{path}: expected one anchor, found {count}: {old[:100]!r}')
-    p.write_text(text.replace(old, new, 1))
-"""
-                  hardened = """    count = text.count(old)
-    duplicate_state_anchor = "    stage,\\n    main_sha: mainSha,\\n"
-    if count < 1 or (count > 1 and old != duplicate_state_anchor):
-        raise SystemExit(f'{path}: expected one anchor, found {count}: {old[:100]!r}')
-    p.write_text(text.replace(old, new, 1))
-"""
+                  original = (
+                      "    count = text.count(old)\n"
+                      "    if count != 1:\n"
+                      "        raise SystemExit(f'{path}: expected one anchor, found {count}: {old[:100]!r}')\n"
+                      "    p.write_text(text.replace(old, new, 1))\n"
+                  )
+                  hardened = (
+                      "    count = text.count(old)\n"
+                      "    duplicate_state_anchor = \"    stage,\\n    main_sha: mainSha,\\n\"\n"
+                      "    if count < 1 or (count > 1 and old != duplicate_state_anchor):\n"
+                      "        raise SystemExit(f'{path}: expected one anchor, found {count}: {old[:100]!r}')\n"
+                      "    p.write_text(text.replace(old, new, 1))\n"
+                  )
                   if script.count(original) != 1:
                       raise SystemExit('Embedded replace_once helper shape changed unexpectedly')
                   script = script.replace(original, hardened, 1)
