@@ -1,0 +1,91 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-runner-pinning",
+  "title": "Pin the governed generated-artifact refresh chain to an explicit hosted runner",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+      ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+      ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+      ".changes/e2e/governed-generated-artifact-refresh-runner-pinning.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove the mutable ubuntu-latest dependency from every load-bearing stage of the governed generated-artifact refresh request, decision, writer, and verification chain.",
+      "e2e_journeys": [
+        {
+          "id": "explicit-runner-generated-refresh-chain",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted request, dispatch, writer, and verification workflows",
+          "entrypoint": "An eligible exact-head generated-artifact refresh request enters the read-only pull_request_target evaluator.",
+          "terminal_outcome": "Every load-bearing stage requests ubuntu-24.04 explicitly, preserves the existing authorization and exact-head contracts, and delegates repository mutation only to the governed writer.",
+          "steps": [
+            "Evaluate the same-repository exact-head request on ubuntu-24.04.",
+            "Consume the run-bound request artifact in the trusted dispatcher on ubuntu-24.04.",
+            "Execute the V2 decision dispatcher on ubuntu-24.04.",
+            "Run the registered generated-artifact writer on ubuntu-24.04.",
+            "Run the read-only post-write verification on ubuntu-24.04."
+          ],
+          "assertions": [
+            "No load-bearing workflow in the governed refresh chain uses ubuntu-latest.",
+            "The request stage remains read-only and performs no candidate checkout or API mutation.",
+            "Dispatchers remain exact-head bound and reject protected branches before mutation.",
+            "Only the governed writer retains contents:write authority.",
+            "No Production, provider, credential, database, migration, protected-ref, force-push, or external-send authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-runner-pinning-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe one exact-head request traverse request, dispatcher, writer, and verification with concrete run IDs."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Confirm stale heads, drafts, forks, missing labels, invalid branches, and protected refs continue to fail closed."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository automation patch performs no provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The patch grants no Production, migration, database, provider, credential, or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
