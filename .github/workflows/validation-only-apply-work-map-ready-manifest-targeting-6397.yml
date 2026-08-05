@@ -61,52 +61,52 @@ jobs:
           node <<'NODE'
           const fs = require("node:fs");
 
-          function replaceExactlyOnce(source, oldValue, newValue, label) {
-            const first = source.indexOf(oldValue);
-            if (first < 0 || source.indexOf(oldValue, first + oldValue.length) >= 0) {
-              throw new Error(`${label}: expected exactly one canonical match`);
+          function replaceBoundedRange(source, startMarker, endMarker, replacement, label) {
+            const start = source.indexOf(startMarker);
+            if (start < 0 || source.indexOf(startMarker, start + startMarker.length) >= 0) {
+              throw new Error(`${label}: expected exactly one start marker`);
             }
-            return source.replace(oldValue, newValue);
+            const end = source.indexOf(endMarker, start + startMarker.length);
+            if (end < 0 || source.indexOf(endMarker, end + endMarker.length) >= 0) {
+              throw new Error(`${label}: expected exactly one end marker after start`);
+            }
+            return `${source.slice(0, start)}${replacement}${source.slice(end)}`;
           }
 
           const gatePath = "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs";
           let gate = fs.readFileSync(gatePath, "utf8");
-          const oldTargeting = `  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));
-          const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
-          const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
-          const targets = options.all
-            ? manifestFeatures
-            : unique([
-              ...newFeatures,
-              ...optedInChanged,
-              ...(policyChanged ? manifestFeatures : []),
-            ]).sort();`;
-          const newTargeting = `  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));
-          const readyManifestFeatures = manifestFeatures.filter((feature) => {
-            try {
-              const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));
-              return manifest.review_state === "ready_for_implementation";
-            } catch {
-              return false;
-            }
-          });
-          const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
-          const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
-          const targets = options.all
-            ? manifestFeatures
-            : unique([
-              ...newFeatures,
-              ...optedInChanged,
-              ...(policyChanged ? readyManifestFeatures : []),
-            ]).sort();`;
-          gate = replaceExactlyOnce(gate, oldTargeting, newTargeting, "ready-manifest targeting");
+          const targetingStart = "  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));";
+          const targetingEnd = "\n\n  const runtimeChanged =";
+          const targetingReplacement = [
+            "  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));",
+            "  const registryRefreshFeatures = manifestFeatures.filter((feature) => {",
+            "    try {",
+            "      const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));",
+            "      return manifest.review_state === \"ready_for_implementation\" || !policy.review_states.includes(manifest.review_state);",
+            "    } catch {",
+            "      return true;",
+            "    }",
+            "  });",
+            "  const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));",
+            "  const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));",
+            "  const targets = options.all",
+            "    ? manifestFeatures",
+            "    : unique([",
+            "      ...newFeatures,",
+            "      ...optedInChanged,",
+            "      ...(policyChanged ? registryRefreshFeatures : []),",
+            "    ]).sort();",
+          ].join("\n");
+          gate = replaceBoundedRange(gate, targetingStart, targetingEnd, targetingReplacement, "registry refresh targeting");
           fs.writeFileSync(gatePath, gate);
 
           const testPath = "http-generic-api/test-spec-kit-work-map-governance-gate.mjs";
           let test = fs.readFileSync(testPath, "utf8");
-          const testMarker = `
-          console.log("spec kit Work Map governance tests passed");
-          `;
+          const testMarker = 'console.log("spec kit Work Map governance tests passed");';
+          const markerIndex = test.lastIndexOf(testMarker);
+          if (markerIndex < 0 || test.indexOf(testMarker) !== markerIndex) {
+            throw new Error("ready/draft targeting regression: expected exactly one terminal marker");
+          }
           const regression = `
           {
             const { root, policy } = fixture();
@@ -149,17 +149,13 @@ jobs:
             assert(changedDraft.findings.some((row) => row.feature === "002-draft"));
           }
           `;
-          test = replaceExactlyOnce(test, testMarker, `${regression}${testMarker}`, "ready/draft targeting regression");
+          test = `${test.slice(0, markerIndex)}${regression}\n${test.slice(markerIndex)}`;
           fs.writeFileSync(testPath, test);
 
-          const registry = {
+          const registryBindings = {
             fingerprint: process.env.REGISTRY_FINGERPRINT,
             index_source_hash: process.env.INDEX_SOURCE_HASH,
             coverage_source_hash: process.env.COVERAGE_SOURCE_HASH,
-            map_count: 19,
-            domain_count: 16,
-            uncategorized_count: 0,
-            taxonomy_gap_cluster_count: 0,
           };
           for (const manifestPath of [
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
@@ -170,12 +166,15 @@ jobs:
             if (parsed.review_state !== "ready_for_implementation") {
               throw new Error(`${manifestPath}: only ready manifests may receive registry refresh`);
             }
-            for (const [field, value] of Object.entries(registry)) {
-              const rendered = typeof value === "string" ? `"${value}"` : String(value);
-              const pattern = new RegExp(`("${field}"\\s*:\\s*)("[^"]*"|[0-9]+)`);
-              const matches = source.match(new RegExp(pattern.source, "g")) || [];
+            for (const [field, value] of Object.entries(registryBindings)) {
+              const pattern = new RegExp(`(\"${field}\"\\s*:\\s*)\"[^\"]*\"`, "g");
+              const matches = [...source.matchAll(pattern)];
               if (matches.length !== 1) throw new Error(`${manifestPath}: expected one ${field} binding`);
-              source = source.replace(pattern, `$1${rendered}`);
+              source = source.replace(pattern, (_match, prefix) => `${prefix}"${value}"`);
+            }
+            const refreshed = JSON.parse(source);
+            for (const [field, value] of Object.entries(registryBindings)) {
+              if (refreshed.registry?.[field] !== value) throw new Error(`${manifestPath}: ${field} readback mismatch`);
             }
             fs.writeFileSync(manifestPath, source);
           }
@@ -205,7 +204,7 @@ jobs:
               }
             }
           }
-          fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\\n`);
+          fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\n`);
           NODE
 
       - name: Verify exact five-file mutation and contracts
@@ -254,7 +253,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n \
-            --arg contract "mad4b.validation-only-ready-manifest-targeting-updater.v1" \
+            --arg contract "mad4b.validation-only-ready-manifest-targeting-updater.v2" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             '{contract:$contract,expected_head_sha:$expected_head_sha,result_head_sha:$result_head_sha,changed_files:[".changes/e2e/work-map-integration-post-allocation-repair-root.json","http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs","http-generic-api/test-spec-kit-work-map-governance-gate.mjs","specs/014-governed-hostinger-storage-orchestration/work-map-integration.json","specs/014-retail-commerce-operations-growth-os/work-map-integration.json"],force_push:false,protected_ref_mutation:false,runtime_contact:false,deployment:false,database_access:false,provider_action:false,migration_apply:false,secrets_included:false}' \
