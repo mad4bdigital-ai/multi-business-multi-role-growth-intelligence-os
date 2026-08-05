@@ -1,0 +1,97 @@
+name: One-shot clean-tree CI Production ratchet fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-clean-tree-ci-production-ratchet-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/apply-ci-production-ratchet-clean-tree-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+      EXPECTED_HEAD_REF: gpt/apply-ci-production-ratchet-clean-tree-146e070d-20260805
+      LAUNCHER_PATH: .github/workflows/one-shot-clean-tree-ci-production-ratchet-fix.yml
+      HELPER_PATH: http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact launcher identity
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$EXPECTED_BASE_SHA"
+          test "$EVENT_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD "$EXPECTED_BASE_SHA")" = "$EXPECTED_BASE_SHA"
+
+      - name: Apply deterministic four-file patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python "$HELPER_PATH"
+
+      - name: Remove temporary machinery before validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+          test ! -e "$LAUNCHER_PATH"
+          test ! -e "$HELPER_PATH"
+
+      - name: Validate final clean tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check "$EXPECTED_BASE_SHA" --
+          ACTUAL="$(git diff --name-only "$EXPECTED_BASE_SHA" -- | sort)"
+          EXPECTED="$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          test "$(git diff --diff-filter=A --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+          test "$(git diff --diff-filter=D --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+
+      - name: Commit and publish exact source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          ACTUAL="$(git diff --cached --name-only | sort)"
+          EXPECTED="$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs \
+            .github/workflows/one-shot-clean-tree-ci-production-ratchet-fix.yml \
+            http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          git commit -m "fix(ci): evaluate governed promotions from phase base"
+          git push origin "HEAD:$EXPECTED_HEAD_REF"
