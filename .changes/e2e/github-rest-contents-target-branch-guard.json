@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-rest-contents-target-branch-guard",
+  "title": "Fail-closed GitHub Contents target branch binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/routes/adminCliRoutes.js",
+      "http-generic-api/test-github-rest-fallback-hardening.mjs",
+      ".changes/e2e/github-rest-contents-target-branch-guard.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent a missing or stale requested work branch from falling back to the repository default branch during guarded GitHub Contents API writes.",
+      "e2e_journeys": [
+        {
+          "id": "reject-default-branch-contents-fallback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed repository administrator",
+          "entrypoint": "Admin CLI GitHub REST fallback contents PUT",
+          "terminal_outcome": "The mutation executes only against an existing governed non-protected branch at the exact expected head and returns same-cycle branch readback evidence.",
+          "steps": [
+            "Parse the guarded Contents API PUT request.",
+            "Require an explicit branch and expected_branch_sha.",
+            "Resolve the repository default branch and reject protected/default targets.",
+            "Read the requested branch ref and reject missing or stale identity.",
+            "Strip governance-only fields before the provider request.",
+            "Verify the resulting branch head equals the returned commit SHA."
+          ],
+          "assertions": [
+            "Omitted branch input cannot select the default branch.",
+            "A missing requested ref cannot fall back to main.",
+            "Protected and default branches are rejected.",
+            "Concurrent branch movement blocks before mutation.",
+            "Successful writes include exact same-cycle branch readback.",
+            "No Production, provider, credential, database, migration, deployment, force-push, or external-send authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "github-rest-contents-target-branch-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-rest-fallback-hardening.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/routes/adminCliRoutes.js",
+            "http-generic-api/test-github-rest-fallback-hardening.mjs",
+            ".changes/e2e/github-rest-contents-target-branch-guard.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe governed non-protected Contents writes using exact branch identity."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise branch deletion, movement, and malformed provider readback races."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the guard on a disposable repository branch without protected-ref mutation."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require the guard and server-side main protection before protected delivery."
+    }
+  ]
+}
