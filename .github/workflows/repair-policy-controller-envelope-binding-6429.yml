@@ -30,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python .github/scripts/repair_policy_controller_envelope_binding_6429.py
+          python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py
 
       - name: Validate focused repair
         shell: bash
