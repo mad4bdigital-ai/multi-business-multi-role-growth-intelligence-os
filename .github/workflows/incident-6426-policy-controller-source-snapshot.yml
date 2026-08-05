@@ -1,0 +1,72 @@
+name: Incident 6426 Policy Controller Source Snapshot
+
+on:
+  push:
+    branches:
+      - gpt/incident-6426/policy-controller-source-snapshot-93430fd5-20260805
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: gpt/incident-6426/policy-controller-source-snapshot-93430fd5-20260805
+      EXPECTED_MAIN_SHA: 93430fd5e709f49d7a47e2830382b6578a7a22e6
+    steps:
+      - name: Checkout exact source tree
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" HEAD)" = ".github/workflows/incident-6426-policy-controller-source-snapshot.yml"
+
+      - name: Build bounded source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/policy-controller-source/http-generic-api/routes"
+          cp http-generic-api/routes/gptToolsRoutes.js "$RUNNER_TEMP/policy-controller-source/http-generic-api/routes/"
+          cp http-generic-api/repositoryAutomationControlPlane.js "$RUNNER_TEMP/policy-controller-source/http-generic-api/"
+          cp http-generic-api/test-repository-automation-control-plane.mjs "$RUNNER_TEMP/policy-controller-source/http-generic-api/"
+          cp http-generic-api/githubAppAuth.js "$RUNNER_TEMP/policy-controller-source/http-generic-api/"
+          cp http-generic-api/githubRepositoryLifecycle.js "$RUNNER_TEMP/policy-controller-source/http-generic-api/"
+          cp http-generic-api/test-github-repository-lifecycle.mjs "$RUNNER_TEMP/policy-controller-source/http-generic-api/"
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"]) / "policy-controller-source"
+          files = []
+          for path in sorted(p for p in root.rglob("*") if p.is_file()):
+              data = path.read_bytes()
+              files.append({
+                "path": str(path.relative_to(root)),
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest()
+              })
+          (root / "snapshot-manifest.json").write_text(json.dumps({
+            "contract": "mad4b.repository-policy-controller-source-snapshot.v1",
+            "source_main_sha": os.environ["EXPECTED_MAIN_SHA"],
+            "files": files,
+            "live_policy_apply": False,
+            "protected_ref_mutation": False,
+            "force_push": False,
+            "secrets_included": False
+          }, indent=2) + "\n")
+          PY
+
+      - name: Upload bounded source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-policy-controller-source-${{ github.run_id }}
+          path: ${{ runner.temp }}/policy-controller-source
+          if-no-files-found: error
+          retention-days: 14
