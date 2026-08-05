@@ -1,0 +1,86 @@
+name: Validation-only Work Map Governance Failure Collector 92147429780
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-work-map-governance-failure-92147429780.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    name: Collect immutable governance failure evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_JOB_ID: "92147429780"
+      EXPECTED_RUN_ID: "30955495825"
+      EXPECTED_HEAD_SHA: "43f99f2571508adcc5202c2464745ae8ed3f2ead"
+      EXPECTED_JOB_NAME: "Work Map Integration Gate"
+    steps:
+      - name: Initialize bounded evidence directory
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/work-map-governance-failure-92147429780"
+          echo "EVIDENCE_ROOT=${evidence_root}" >> "${GITHUB_ENV}"
+          mkdir -p "${evidence_root}"
+
+      - name: Validate immutable job and run identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${EXPECTED_JOB_ID}" > "${EVIDENCE_ROOT}/job.json"
+          jq -e --argjson job_id "${EXPECTED_JOB_ID}" '.id == $job_id' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e --argjson run_id "${EXPECTED_RUN_ID}" '.run_id == $run_id' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e --arg name "${EXPECTED_JOB_NAME}" '.name == $name' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e '.status == "completed" and .conclusion == "failure"' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${EXPECTED_RUN_ID}" > "${EVIDENCE_ROOT}/run.json"
+          jq -e --arg head_sha "${EXPECTED_HEAD_SHA}" '.head_sha == $head_sha' "${EVIDENCE_ROOT}/run.json" >/dev/null
+          jq -e '.event == "workflow_dispatch" and .status == "completed" and .conclusion == "failure"' "${EVIDENCE_ROOT}/run.json" >/dev/null
+
+      - name: Download and isolate failed governance step
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${EXPECTED_JOB_ID}/logs" > "${EVIDENCE_ROOT}/job.log"
+          test -s "${EVIDENCE_ROOT}/job.log"
+
+          awk '
+            /Require complete Spec Kit Work Map integration/ { capture=1 }
+            capture { print }
+            capture && /##\[endgroup\]/ { exit }
+          ' "${EVIDENCE_ROOT}/job.log" > "${EVIDENCE_ROOT}/failed-step.log"
+
+          if [[ ! -s "${EVIDENCE_ROOT}/failed-step.log" ]]; then
+            grep -n -E -C 25 'spec-kit-work-map-governance-gate|Work Map integration|Error:|##\[error\]|Process completed with exit code' \
+              "${EVIDENCE_ROOT}/job.log" > "${EVIDENCE_ROOT}/failed-step.log" || true
+          fi
+          test -s "${EVIDENCE_ROOT}/failed-step.log"
+
+      - name: Publish bounded checksummed evidence
+        run: |
+          set -euo pipefail
+          sha256sum "${EVIDENCE_ROOT}/job.json" "${EVIDENCE_ROOT}/run.json" \
+            "${EVIDENCE_ROOT}/job.log" "${EVIDENCE_ROOT}/failed-step.log" \
+            > "${EVIDENCE_ROOT}/SHA256SUMS.txt"
+          jq -n \
+            --arg contract "mad4b.validation-only-work-map-governance-failure.v1" \
+            --arg job_id "${EXPECTED_JOB_ID}" \
+            --arg run_id "${EXPECTED_RUN_ID}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            '{contract:$contract,job_id:($job_id|tonumber),run_id:($run_id|tonumber),expected_head_sha:$expected_head_sha,repository_mutation:false,runtime_contact:false,deployment:false,database_access:false,provider_action:false,migration_apply:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
+            > "${EVIDENCE_ROOT}/result.json"
+
+      - name: Upload immutable failure evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-governance-failure-92147429780
+          path: ${{ runner.temp }}/work-map-governance-failure-92147429780
+          if-no-files-found: error
+          retention-days: 14
