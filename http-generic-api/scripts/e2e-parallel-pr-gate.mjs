@@ -71,6 +71,53 @@ function writeOutputs(file, outputs) {
   fs.appendFileSync(file, `${lines.join("\n")}\n`);
 }
 
+function normalize(value) {
+  return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, policy, parallelSummaries, baseRef }) {
+  if (baseRef !== "main" || !runtimeFiles.length || !parallelSummaries.length) return null;
+
+  const allParallelContractsIntegrated = parallelSummaries.every((summary) => {
+    const contract = readJson(path.join(root, summary.contract_path));
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const workstreams = new Map((contract.parallel_work?.workstreams || []).map((row) => [row.id, row]));
+    const requiredWorkstreams = contract.parallel_work?.integration?.required_workstreams || [];
+    return currentPhase?.status === "implemented"
+      && requiredWorkstreams.length > 0
+      && requiredWorkstreams.every((id) => workstreams.get(id)?.status === "integrated");
+  });
+  if (!allParallelContractsIntegrated) return null;
+
+  const contractRoot = normalize(policy.non_spec_contract_root || ".changes/e2e").replace(/\/+$/, "");
+  const candidates = changedFiles
+    .filter((file) => file.startsWith(`${contractRoot}/`) && file.endsWith(".json"))
+    .sort();
+
+  const matches = [];
+  for (const contractPath of candidates) {
+    const absolute = path.join(root, contractPath);
+    if (!fs.existsSync(absolute)) continue;
+    const contract = readJson(absolute);
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const scope = contract.scope?.include || [];
+    if (
+      contract.delivery_mode === "single_pr"
+      && currentPhase?.status === "implemented"
+      && contract.secrets_included === false
+      && Array.isArray(scope)
+      && runtimeFiles.every((file) => scope.some((pattern) => matchesPattern(file, pattern)))
+    ) {
+      matches.push({
+        feature_key: contract.feature_key || null,
+        contract_path: contractPath,
+        runtime_files: runtimeFiles
+      });
+    }
+  }
+  return matches.length === 1 ? matches[0] : null;
+}
+
 function resolveCanonicalMainRef(root) {
   for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
     try {
@@ -203,27 +250,27 @@ function main() {
   });
 
   const promotion = classifyProductionPromotion({
-  root: options.root,
-  headRef: options.headRef,
-  baseRef: options.baseRef,
-  headSha: options.head,
-  baseSha: options.base
-});
-const productionPromotion = promotion.allowed;
-const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
-if (productionPromotion && !phaseEvaluationBase) {
-  addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
-    head_sha: options.head,
-    promotion_identity: promotion.identity
+    root: options.root,
+    headRef: options.headRef,
+    baseRef: options.baseRef,
+    headSha: options.head,
+    baseSha: options.base
   });
-}
-if (options.baseRef === "Production" && !productionPromotion) {
-  addFinding(report, "production_promotion_identity_invalid", {
-    head_ref: options.headRef || null,
-    head_sha: options.head || null,
-    base_sha: options.base || null
-  });
-}
+  const productionPromotion = promotion.allowed;
+  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+  if (productionPromotion && !phaseEvaluationBase) {
+    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+      head_sha: options.head,
+      promotion_identity: promotion.identity
+    });
+  }
+  if (options.baseRef === "Production" && !productionPromotion) {
+    addFinding(report, "production_promotion_identity_invalid", {
+      head_ref: options.headRef || null,
+      head_sha: options.head || null,
+      base_sha: options.base || null
+    });
+  }
 
   const active = [];
   const integrations = [];
@@ -264,6 +311,7 @@ if (options.baseRef === "Production" && !productionPromotion) {
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
+  let singlePrMaintenanceContract = null;
   if (defaultBranchSync) {
     mode = "default_branch_sync";
   } else if (!productionPromotion && active.length === 1) {
@@ -276,17 +324,31 @@ if (options.baseRef === "Production" && !productionPromotion) {
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
   } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
-    const runtimeChanged = report.changed_files.some((file) => {
-      const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
-      return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
+    const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
+    const runtimeFiles = report.changed_files.filter((file) =>
+      policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
+    );
+    singlePrMaintenanceContract = resolveSinglePrMaintenanceContract({
+      root: options.root,
+      changedFiles: report.changed_files,
+      runtimeFiles,
+      policy,
+      parallelSummaries: report.contracts,
+      baseRef: options.baseRef
     });
-    if (runtimeChanged) addFinding(report, "parallel_work_pr_branch_not_declared", { head_ref: options.headRef, contracts: report.contracts.map((row) => row.feature_key) });
+    if (runtimeFiles.length && !singlePrMaintenanceContract) {
+      addFinding(report, "parallel_work_pr_branch_not_declared", {
+        head_ref: options.headRef,
+        contracts: report.contracts.map((row) => row.feature_key)
+      });
+    }
   }
 
   report.pr_mode = mode;
   report.feature_key = featureKey || null;
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
+  report.single_pr_maintenance_contract = singlePrMaintenanceContract;
   report.base_ref = options.baseRef || null;
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
