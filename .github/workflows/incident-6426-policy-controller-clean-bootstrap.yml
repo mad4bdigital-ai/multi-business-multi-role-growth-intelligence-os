@@ -1,0 +1,128 @@
+name: Incident 6426 Repository Policy Controller Clean Bootstrap
+
+on:
+  push:
+    branches:
+      - gpt/incident-6426/repository-policy-controller-clean-bootstrap-5f4b41aa-20260805
+
+permissions:
+  contents: write
+
+concurrency:
+  group: incident-6426-repository-policy-controller-clean-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: gpt/incident-6426/repository-policy-controller-clean-bootstrap-5f4b41aa-20260805
+      EXPECTED_MAIN_SHA: 5f4b41aaefd8633aae07c1418ab955f8c4ed49d1
+      PATCH_SCRIPT: .github/incident-6426/apply-repository-policy-controller.py
+      WORKFLOW_PATH: .github/workflows/incident-6426-policy-controller-clean-bootstrap.yml
+      REPORT_NAME: repository-policy-controller-clean-bootstrap-report.json
+    steps:
+      - name: Checkout exact bootstrap head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable bootstrap identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
+          test "$(git rev-parse HEAD^^)" = "$EXPECTED_MAIN_SHA"
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_MAIN_SHA" HEAD | sort)
+          expected=("$PATCH_SCRIPT" "$WORKFLOW_PATH")
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${changed[*]}" = "${expected_sorted[*]}"
+          python - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          expected = "f5fd9093676843c1ee9bd59a624a9adecbb12dc47e4bf1dc97784c00a8df1043"
+          actual = hashlib.sha256(Path(os.environ["PATCH_SCRIPT"]).read_bytes()).hexdigest()
+          if actual != expected:
+              raise SystemExit(f"patch script identity mismatch: {actual}")
+          PY
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Apply exact bounded patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python "$PATCH_SCRIPT"
+
+      - name: Run focused repository policy validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/repositoryAutomationControlPlane.js
+          node --check http-generic-api/routes/gptToolsRoutes.js
+          node --check http-generic-api/test-github-repository-policy-controller.mjs
+          node --check http-generic-api/test-repository-automation-control-plane.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          node http-generic-api/test-repository-automation-control-plane.mjs
+          node -e 'JSON.parse(require("node:fs").readFileSync(".changes/e2e/github-repository-main-policy-controller.json", "utf8"))'
+
+      - name: Enforce exact result and self-remove bootstrap files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "$PATCH_SCRIPT" "$WORKFLOW_PATH"
+          git add -A
+          python - <<'PY'
+          import json, os, subprocess
+          from pathlib import Path
+          expected = sorted([
+            ".changes/e2e/github-repository-main-policy-controller.json",
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/repositoryAutomationControlPlane.js",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/test-repository-automation-control-plane.mjs"
+          ])
+          actual = sorted(filter(None, subprocess.check_output(["git", "diff", "--cached", "--name-only", os.environ["EXPECTED_MAIN_SHA"]], text=True).splitlines()))
+          if actual != expected:
+              raise SystemExit(f"unexpected final inventory: {actual}")
+          report_path = Path(os.environ["RUNNER_TEMP"]) / os.environ["REPORT_NAME"]
+          report = json.loads(report_path.read_text())
+          report.update({
+            "status": "passed",
+            "result_files": actual,
+            "result_file_count": len(actual),
+            "focused_controller_tests": "passed",
+            "control_plane_tests": "passed",
+            "e2e_contract_json": "passed",
+            "bootstrap_files_absent": True,
+            "live_policy_apply": False,
+            "protected_ref_mutation": False,
+            "force_push": False,
+            "secrets_included": False
+          })
+          report_path.write_text(json.dumps(report, indent=2) + "\n")
+          PY
+
+      - name: Commit and push bounded result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(github): add governed main policy controller"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
+
+      - name: Upload canonical bootstrap report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-policy-controller-clean-bootstrap-${{ github.run_id }}
+          path: ${{ runner.temp }}/repository-policy-controller-clean-bootstrap-report.json
+          if-no-files-found: warn
+          retention-days: 14
