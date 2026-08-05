@@ -23,7 +23,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Re-read bounded exact-head review decisions, then perform a final open/Draft/head/base identity readback immediately before merge and expose only the final validated approval evidence in merge audit output.",
+      "objective": "Re-read bounded exact-head review decisions, then perform a final open/Draft/head/base identity readback immediately before merge and expose only the final validated approval evidence in merge audit output and require every counted reviewer to have resolved eligible collaborator permission.",
       "e2e_journeys": [
         {
           "id": "final-review-state-is-revalidated-before-merge",
@@ -47,7 +47,9 @@
             "Unchanged final approval evidence remains bound to expected_head_sha.",
             "Initial or final unbounded review evidence blocks merge.",
             "All final review-state failures report validation_phase=final_pre_merge_review_readback and do not call the merge endpoint.",
-            "State, Draft, head, or base drift after final review evidence fails with validation_phase=final_pre_merge_identity_readback and does not call the merge endpoint."
+            "State, Draft, head, or base drift after final review evidence fails with validation_phase=final_pre_merge_identity_readback and does not call the merge endpoint.",
+            "Only exact-head reviewers with resolved collaborator permission write, maintain, or admin count toward approval quorum or active changes-requested decisions.",
+            "Outside, read-only, triage-only, unresolved, bot, author, dismissed, or stale-head review evidence cannot satisfy or block the governed quorum."
           ],
           "tests": [
             {

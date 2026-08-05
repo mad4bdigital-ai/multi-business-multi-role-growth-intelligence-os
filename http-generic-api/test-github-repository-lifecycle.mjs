@@ -31,6 +31,11 @@ function response(status, payload = {}) {
 function queuedFetch(entries, calls = []) {
   return async (url, options = {}) => {
     calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });
+    const permissionMatch = String(url).match(/\/collaborators\/([^/]+)\/permission(?:\?|$)/);
+    if (permissionMatch) {
+      const login = decodeURIComponent(permissionMatch[1]).toLowerCase();
+      return response(200, { permission: "write", user: { login } });
+    }
     const next = entries.shift();
     assert(next, `Unexpected GitHub request: ${options.method || "GET"} ${url}`);
     return response(next.status, next.payload);

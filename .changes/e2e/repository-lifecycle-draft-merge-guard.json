@@ -21,7 +21,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Fail closed unless repository finalization proves an open non-Draft pull request, unchanged exact head and base identities, complete exact-head human approval evidence, and a separately authorized Ready state immediately before the merge request.",
+      "objective": "Fail closed unless repository finalization proves an open non-Draft pull request, unchanged exact head and base identities, complete exact-head human approval evidence, and a separately authorized Ready state immediately before the merge request and require every counted reviewer to have resolved eligible collaborator permission.",
       "e2e_journeys": [
         {
           "id": "draft-pr-fails-before-merge-endpoint",
@@ -46,7 +46,9 @@
             "Only latest exact-head APPROVED reviews from non-bot non-author humans count toward quorum.",
             "Active exact-head CHANGES_REQUESTED blocks finalization.",
             "The merge request remains bound to expected_head_sha and cannot be reached by a stale base identity.",
-            "Automatic finalization plans do not mark a Draft pull request Ready in the same operation."
+            "Automatic finalization plans do not mark a Draft pull request Ready in the same operation.",
+            "Only exact-head reviewers with resolved collaborator permission write, maintain, or admin count toward approval quorum or active changes-requested decisions.",
+            "Outside, read-only, triage-only, unresolved, bot, author, dismissed, or stale-head review evidence cannot satisfy or block the governed quorum."
           ],
           "tests": [
             {

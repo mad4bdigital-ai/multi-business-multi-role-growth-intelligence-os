@@ -47,6 +47,64 @@ function boundedRequiredApprovals(value = 1) {
   return Math.max(1, Math.min(10, Math.floor(parsed)));
 }
 
+const ELIGIBLE_REVIEWER_PERMISSIONS = Object.freeze(["write", "maintain", "admin"]);
+const ELIGIBLE_REVIEWER_PERMISSION_SET = new Set(ELIGIBLE_REVIEWER_PERMISSIONS);
+const KNOWN_REVIEWER_PERMISSION_SET = new Set(["none", "read", "triage", ...ELIGIBLE_REVIEWER_PERMISSIONS]);
+
+function normalizeReviewerPermission(value = "") {
+  return String(value || "").trim().toLowerCase();
+}
+
+async function resolveGithubReviewerPermissions({
+  owner,
+  repo,
+  reviews = [],
+  expectedHeadSha = "",
+  authorLogin = "",
+  token,
+  fetchImpl,
+} = {}) {
+  const expected = normalizeSha(expectedHeadSha);
+  const author = String(authorLogin || "").trim().toLowerCase();
+  const reviewerLogins = new Set();
+  for (const review of (Array.isArray(reviews) ? reviews : [])) {
+    const state = String(review?.state || "").trim().toUpperCase();
+    if (!["APPROVED", "CHANGES_REQUESTED"].includes(state)) continue;
+    if (normalizeSha(review?.commit_id || review?.commitId) !== expected) continue;
+    const login = String(review?.user?.login || "").trim().toLowerCase();
+    const userType = String(review?.user?.type || "").trim().toLowerCase();
+    if (!login || userType !== "user" || login.endsWith("[bot]") || (author && login === author)) continue;
+    reviewerLogins.add(login);
+  }
+
+  const permissions = {};
+  for (const login of [...reviewerLogins].sort()) {
+    const readback = await githubLifecycleRequest({
+      owner,
+      repo,
+      apiPath: `/collaborators/${encodeURIComponent(login)}/permission`,
+      token,
+      fetchImpl,
+      allowNotFound: true,
+    });
+    if (readback.status === 404) {
+      permissions[login] = "none";
+      continue;
+    }
+    const permission = normalizeReviewerPermission(readback.payload?.permission);
+    if (!KNOWN_REVIEWER_PERMISSION_SET.has(permission)) {
+      throw lifecycleError(409, "github_pr_finalize_reviewer_permission_unresolved", "Reviewer collaborator permission could not be resolved.", {
+        reviewer_login: login,
+        permission: permission || null,
+        upstream_status: readback.status,
+        secrets_included: false,
+      });
+    }
+    permissions[login] = permission;
+  }
+  return permissions;
+}
+
 function reviewOrder(review = {}, index = 0) {
   const timestamp = Date.parse(review?.submitted_at || review?.submittedAt || "") || 0;
   return { timestamp, id: Number(review?.id || 0), index };
@@ -65,6 +123,7 @@ export function summarizeGithubPullRequestApprovals(reviews = [], {
   expectedHeadSha = "",
   authorLogin = "",
   requiredApprovals = 1,
+  reviewerPermissions = {},
 } = {}) {
   const expected = normalizeSha(expectedHeadSha);
   const author = String(authorLogin || "").trim().toLowerCase();
@@ -77,6 +136,8 @@ export function summarizeGithubPullRequestApprovals(reviews = [], {
     author: 0,
     stale_head: 0,
     dismissed: 0,
+    unresolved_reviewer_permission: 0,
+    ineligible_reviewer: 0,
   };
 
   for (const [index, review] of (Array.isArray(reviews) ? reviews : []).entries()) {
@@ -115,11 +176,21 @@ export function summarizeGithubPullRequestApprovals(reviews = [], {
       ignored.stale_head += 1;
       continue;
     }
+    const reviewerPermission = normalizeReviewerPermission(reviewerPermissions?.[login]);
+    if (!reviewerPermission) {
+      ignored.unresolved_reviewer_permission += 1;
+      continue;
+    }
+    if (!ELIGIBLE_REVIEWER_PERMISSION_SET.has(reviewerPermission)) {
+      ignored.ineligible_reviewer += 1;
+      continue;
+    }
     const projection = {
       login,
       review_id: Number(review?.id || 0) || null,
       commit_id: expected,
       submitted_at: review?.submitted_at || review?.submittedAt || null,
+      reviewer_permission: reviewerPermission,
     };
     if (state === "APPROVED") approvedReviewers.push(projection);
     if (state === "CHANGES_REQUESTED") changesRequestedReviewers.push(projection);
@@ -137,6 +208,7 @@ export function summarizeGithubPullRequestApprovals(reviews = [], {
     review_count: Array.isArray(reviews) ? reviews.length : 0,
     ignored,
     expected_head_sha: expected || null,
+    eligible_reviewer_permissions: [...ELIGIBLE_REVIEWER_PERMISSIONS],
     secrets_included: false,
   };
 }
@@ -585,10 +657,20 @@ export async function finalizeGithubPullRequest(options = {}) {
       secrets_included: false,
     });
   }
+  const reviewerPermissions = await resolveGithubReviewerPermissions({
+    owner,
+    repo,
+    reviews,
+    expectedHeadSha,
+    authorLogin: pr?.user?.login,
+    token,
+    fetchImpl: options.fetchImpl,
+  });
   const approvalEvidence = summarizeGithubPullRequestApprovals(reviews, {
     expectedHeadSha,
     authorLogin: pr?.user?.login,
     requiredApprovals: options.required_approvals || options.requiredApprovals || 1,
+    reviewerPermissions,
   });
   if (approvalEvidence.has_changes_requested) {
     throw lifecycleError(409, "github_pr_finalize_changes_requested", "Exact-head review evidence contains an active changes-requested decision.", approvalEvidence);
@@ -644,10 +726,20 @@ export async function finalizeGithubPullRequest(options = {}) {
       secrets_included: false,
     });
   }
+  const finalReviewerPermissions = await resolveGithubReviewerPermissions({
+    owner,
+    repo,
+    reviews: finalReviews,
+    expectedHeadSha,
+    authorLogin: postApprovalPr?.user?.login || pr?.user?.login,
+    token,
+    fetchImpl: options.fetchImpl,
+  });
   const finalApprovalEvidence = summarizeGithubPullRequestApprovals(finalReviews, {
     expectedHeadSha,
     authorLogin: postApprovalPr?.user?.login || pr?.user?.login,
     requiredApprovals: options.required_approvals || options.requiredApprovals || 1,
+    reviewerPermissions: finalReviewerPermissions,
   });
   if (finalApprovalEvidence.has_changes_requested) {
     throw lifecycleError(409, "github_pr_finalize_changes_requested", "Final exact-head review evidence contains an active changes-requested decision.", {

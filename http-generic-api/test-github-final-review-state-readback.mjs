@@ -15,9 +15,20 @@ function response(status, payload = {}) {
   return { ok: status >= 200 && status < 300, status, async json() { return payload; } };
 }
 
-function queuedFetch(entries, calls = []) {
+function queuedFetch(entries, calls = [], reviewerPermissions = {}) {
+  const permissionQueues = new Map(Object.entries(reviewerPermissions).map(([login, value]) => [login.toLowerCase(), Array.isArray(value) ? [...value] : value]));
   return async (url, options = {}) => {
     calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });
+    const permissionMatch = String(url).match(/\/collaborators\/([^/]+)\/permission(?:\?|$)/);
+    if (permissionMatch) {
+      const login = decodeURIComponent(permissionMatch[1]).toLowerCase();
+      const configured = permissionQueues.get(login);
+      const specification = Array.isArray(configured) ? configured.shift() : configured;
+      if (specification && typeof specification === "object") {
+        return response(specification.status ?? 200, specification.payload ?? { permission: specification.permission ?? "write", user: { login } });
+      }
+      return response(200, { permission: specification === undefined ? "write" : String(specification), user: { login } });
+    }
     const next = entries.shift();
     assert(next, `Unexpected GitHub request: ${options.method || "GET"} ${url}`);
     return response(next.status, next.payload);
@@ -50,6 +61,7 @@ function review(id, state, login, commitId = HEAD_SHA, submittedAt = "2026-08-04
 }
 
 function options(pullNumber, calls, entries, extra = {}) {
+  const { reviewer_permissions: reviewerPermissions = {}, ...finalizeOptions } = extra;
   return {
     owner: OWNER,
     repo: REPO,
@@ -60,8 +72,8 @@ function options(pullNumber, calls, entries, extra = {}) {
     expected_base_sha: BASE_SHA,
     confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),
     delete_branch: false,
-    fetchImpl: queuedFetch(entries, calls),
-    ...extra,
+    fetchImpl: queuedFetch(entries, calls, reviewerPermissions),
+    ...finalizeOptions,
   };
 }
 
@@ -207,6 +219,54 @@ function mergeReached(calls) {
     (error) => error.code === "github_pr_finalize_final_identity_mismatch"
       && error.details?.validation_phase === "final_pre_merge_identity_readback"
       && error.details?.is_draft === true,
+  );
+  assert.equal(mergeReached(calls), false);
+}
+
+{
+  const pullNumber = 58727;
+  const calls = [];
+  await assert.rejects(
+    () => finalizeGithubPullRequest(options(pullNumber, calls, [
+      ...gate(pullNumber),
+      pr(pullNumber),
+      { status: 200, payload: [review(70, "APPROVED", "outside-reviewer")] },
+    ], { reviewer_permissions: { "outside-reviewer": "read" } })),
+    (error) => error.code === "github_pr_finalize_approval_required"
+      && error.details?.ignored?.ineligible_reviewer === 1
+      && error.details?.exact_head_approval_count === 0,
+  );
+  assert.equal(mergeReached(calls), false);
+}
+
+{
+  const pullNumber = 58728;
+  const calls = [];
+  await assert.rejects(
+    () => finalizeGithubPullRequest(options(pullNumber, calls, [
+      ...gate(pullNumber),
+      pr(pullNumber),
+      { status: 200, payload: [review(80, "APPROVED", "eligible-reviewer")] },
+      pr(pullNumber),
+      { status: 200, payload: [review(81, "APPROVED", "eligible-reviewer", HEAD_SHA, "2026-08-04T00:18:00Z")] },
+    ], { reviewer_permissions: { "eligible-reviewer": ["write", "read"] } })),
+    (error) => error.code === "github_pr_finalize_approval_required"
+      && error.details?.validation_phase === "final_pre_merge_review_readback"
+      && error.details?.ignored?.ineligible_reviewer === 1,
+  );
+  assert.equal(mergeReached(calls), false);
+}
+
+{
+  const pullNumber = 58729;
+  const calls = [];
+  await assert.rejects(
+    () => finalizeGithubPullRequest(options(pullNumber, calls, [
+      ...gate(pullNumber),
+      pr(pullNumber),
+      { status: 200, payload: [review(90, "APPROVED", "unknown-reviewer")] },
+    ], { reviewer_permissions: { "unknown-reviewer": "unknown" } })),
+    (error) => error.code === "github_pr_finalize_reviewer_permission_unresolved",
   );
   assert.equal(mergeReached(calls), false);
 }
