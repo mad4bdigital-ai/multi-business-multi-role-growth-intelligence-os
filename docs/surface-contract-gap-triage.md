@@ -6,8 +6,8 @@
 
 - Triaged items: 3
 - Gate candidates: 0
-- New-gap gate: pass
-- Blocking new items: 0
+- New-gap gate: fail
+- Blocking new items: 1
 
 ## Class counts
 

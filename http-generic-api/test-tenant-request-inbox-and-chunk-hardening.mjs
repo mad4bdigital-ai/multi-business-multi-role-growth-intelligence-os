@@ -216,7 +216,7 @@ const inboxService = fs.readFileSync(new URL("./tenantRequestInboxService.js", i
 assert.match(inboxService, /const \[membership\] = rows;/u, "membership scope resolution must bind the verified query result without a second unproven first-candidate lookup");
 assert.doesNotMatch(inboxService, /role:\s*rows\[0\]\.role/u, "membership role projection must not select rows[0] directly");
 
-const migration = fs.readFileSync(new URL("./migrations/1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql", import.meta.url), "utf8");
+const migration = fs.readFileSync(new URL("./migrations/1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql", import.meta.url), "utf8");
 assert.match(migration, /ADD COLUMN ticket_id CHAR\(36\)/u);
 // Match the SQL contract literally: a regex here would interpret its character class and quantifier instead of checking the migration text.
 assert.ok(

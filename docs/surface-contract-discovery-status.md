@@ -97,7 +97,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
-| `1041_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 334 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
+| `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 335 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260728_governed_response_chunk_ownership.sql` | medium_review | 318 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
 
 
