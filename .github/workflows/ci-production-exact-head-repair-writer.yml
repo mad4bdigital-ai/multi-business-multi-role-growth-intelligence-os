@@ -23,6 +23,7 @@ jobs:
       EXPECTED_MAIN_SHA: 35c617610623e46709495a7f1928e7def8c9c251
       BRANCH_NAME: gpt/ci-production-promotion-exact-head-checkout-20260805
       WRITER_PATH: .github/workflows/ci-production-exact-head-repair-writer.yml
+      E2E_CONTRACT_PATH: .changes/e2e/ci-canonical-exact-head-checkout.json
     steps:
       - name: Checkout exact writer registration head
         uses: actions/checkout@v5
@@ -36,7 +37,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..HEAD")" -eq 4
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..HEAD")" -eq 5
           remote_main="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
           remote_branch="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
           test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
@@ -52,6 +53,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import json
           import re
 
           expression = "$" + "{{ github.event.pull_request.head.sha || github.sha }}"
@@ -111,6 +113,94 @@ jobs:
               '  exact_checkout_count: exactCheckoutCount,\n  canonical_exact_checkout_count: canonicalExactCheckoutCount,\n  canonical_deployment_sha_exact: true,'
           )
           test_path.write_text(test, encoding='utf-8')
+
+          contract_path = Path('.changes/e2e/ci-canonical-exact-head-checkout.json')
+          if contract_path.exists():
+              raise SystemExit(f'E2E contract already exists: {contract_path}')
+          contract = {
+              "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+              "schema_version": 1,
+              "feature_key": "ci-canonical-exact-head-checkout",
+              "title": "Canonical CI exact pull-request head identity",
+              "delivery_mode": "single_pr",
+              "current_phase": "mvp",
+              "scope": {
+                  "include": [
+                      ".changes/e2e/ci-canonical-exact-head-checkout.json",
+                      ".github/workflows/ci.yml",
+                      "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+                  ]
+              },
+              "merge_contract": {"minimum_phase": "mvp"},
+              "phases": [
+                  {
+                      "id": "mvp",
+                      "status": "implemented",
+                      "objective": "Bind every canonical CI checkout and deployment-evidence identity to the exact pull-request head so governed Production candidates are never evaluated through GitHub's synthetic merge commit.",
+                      "e2e_journeys": [
+                          {
+                              "id": "canonical-ci-evaluates-exact-pull-request-head",
+                              "end_to_end": True,
+                              "level": "synthetic_runtime",
+                              "actor": "GitHub Actions pull-request runner and repository reviewer",
+                              "entrypoint": "A same-repository pull request targeting main or Production triggers .github/workflows/ci.yml.",
+                              "terminal_outcome": "All four canonical CI jobs check out the exact pull-request head, deployment evidence records that same identity, and the regression test rejects any return to a synthetic merge checkout without granting write or runtime authority.",
+                              "steps": [
+                                  "Resolve the pull-request head SHA, with github.sha retained only for non-pull-request events.",
+                                  "Checkout that exact identity with complete history in Syntax, Unit and Integration, Architecture Drift, and Execution Resolver jobs.",
+                                  "Run the existing Production promotion classifier and Context Kernel scope logic against the checked-out candidate.",
+                                  "Bind DEPLOYMENT_COMMIT_SHA to the same exact identity before producing read-only deployment evidence.",
+                                  "Execute the CI recovery self-test to prove four canonical exact-head checkout blocks and one exact deployment identity binding."
+                              ],
+                              "assertions": [
+                                  "Canonical CI contains exactly four exact-head checkout blocks.",
+                                  "Canonical deployment evidence is bound to the exact pull-request head.",
+                                  "Recovery retains its two exact-head checkout blocks.",
+                                  "No synthetic merge identity is introduced as candidate evidence.",
+                                  "No contents write, protected-ref mutation, deployment, provider call, database action, migration, credential access, external send, or force push is introduced.",
+                                  "secrets_included is false."
+                              ],
+                              "tests": [
+                                  {
+                                      "id": "canonical-ci-exact-head-regression",
+                                      "runner": "node",
+                                      "working_directory": "http-generic-api",
+                                      "path": "scripts/ci-pull-request-recovery-self-test.mjs",
+                                      "args": []
+                                  }
+                              ],
+                              "evidence_paths": [
+                                  ".changes/e2e/ci-canonical-exact-head-checkout.json",
+                                  ".github/workflows/ci.yml",
+                                  "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+                              ]
+                          }
+                      ]
+                  },
+                  {
+                      "id": "operational",
+                      "status": "planned",
+                      "objective": "Expose the verified exact checkout identity as a typed field across canonical CI progress reports."
+                  },
+                  {
+                      "id": "resilient",
+                      "status": "planned",
+                      "objective": "Prove exact identity preservation across pull-request synchronize, rerun, push, and workflow-dispatch event families."
+                  },
+                  {
+                      "id": "canary",
+                      "status": "not_applicable",
+                      "objective": "This CI identity correction has no provider or runtime canary authority."
+                  },
+                  {
+                      "id": "production",
+                      "status": "not_applicable",
+                      "objective": "This CI identity correction grants no Production merge or deployment authority."
+                  }
+              ],
+              "secrets_included": False
+          }
+          contract_path.write_text(json.dumps(contract, indent=2) + "\n", encoding='utf-8')
           PY
 
           literal_expression='$'
@@ -118,20 +208,22 @@ jobs:
           test "$(grep -F -c "ref: ${literal_expression}" .github/workflows/ci.yml)" -eq 4
           test "$(grep -F -c "DEPLOYMENT_COMMIT_SHA: \"${literal_expression}\"" .github/workflows/ci.yml)" -eq 1
           node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          node -e 'JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))' "${E2E_CONTRACT_PATH}"
           git diff --check
 
-      - name: Retire writer and create exact two-file candidate
+      - name: Retire writer and create exact three-file candidate
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm "${WRITER_PATH}"
-          git add .github/workflows/ci.yml http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git add "${E2E_CONTRACT_PATH}" .github/workflows/ci.yml http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
           git commit -m "fix(ci): pin canonical CI to exact pull request head"
           final_sha="$(git rev-parse HEAD)"
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
           expected=(
+            ".changes/e2e/ci-canonical-exact-head-checkout.json"
             ".github/workflows/ci.yml"
             "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
           )
@@ -165,7 +257,7 @@ jobs:
           {
             "base_main": "${EXPECTED_MAIN_SHA}",
             "candidate": "${FINAL_SHA}",
-            "effective_changed_files": 2,
+            "effective_changed_files": 3,
             "canonical_exact_checkout_count": 4,
             "recovery_exact_checkout_count": 2,
             "protected_ref_write": false,
