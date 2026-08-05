@@ -33,6 +33,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .artifacts/policy-controller-repair
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/scripts/repair_policy_controller_envelope_binding_6429.py')
+          text = path.read_text()
+          start = text.index('envelope_test_marker = dedent(')
+          end = text.index('\nenvelope_test = dedent(', start)
+          replacement = 'envelope_test_marker = "  {\\n    const mock = createGithubFetch({ classicStatus: 403 });\\n"'
+          path.write_text(text[:start] + replacement + text[end:])
+          PY
           python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py 2>&1 | tee .artifacts/policy-controller-repair/apply.log
 
       - name: Upload repair diagnostic
