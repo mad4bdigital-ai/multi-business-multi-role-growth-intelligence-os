@@ -1,0 +1,76 @@
+name: One-shot CI Production ratchet phase-base fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-ci-production-ratchet-phase-base-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/apply-ci-production-ratchet-phase-base-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify bounded launcher identity
+        shell: bash
+        env:
+          EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$EXPECTED_BASE_SHA"
+          test "$EXPECTED_HEAD_REF" = "gpt/apply-ci-production-ratchet-phase-base-146e070d-20260805"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD "$EXPECTED_BASE_SHA")" = "$EXPECTED_BASE_SHA"
+
+      - name: Apply and verify bounded source correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+
+      - name: Commit source fix and remove temporary machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/one-shot-ci-production-ratchet-phase-base-fix.yml \
+            http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs \
+            .github/workflows/one-shot-ci-production-ratchet-phase-base-fix.yml \
+            http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+          git diff --cached --check
+          git commit -m "fix(ci): evaluate governed promotions from phase base"
+          git push origin HEAD:gpt/apply-ci-production-ratchet-phase-base-146e070d-20260805
