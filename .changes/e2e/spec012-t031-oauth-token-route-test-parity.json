@@ -8,12 +8,15 @@
   "scope": {
     "include": [
       ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json",
+      "http-generic-api/routes/index.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
       "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
       "http-generic-api/test-auth-oauth-routes.mjs",
       "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
       "docs/work-maps/README.md",
-      "docs/work-maps/repository-automation-map.md"
+      "docs/work-maps/repository-automation-map.md",
+      "http-generic-api/frontend-operation-governance.generated.json"
     ]
   },
   "merge_contract": {
@@ -70,12 +73,15 @@
           ],
           "evidence_paths": [
             ".changes/e2e/spec012-t031-oauth-token-route-test-parity.json",
+            "http-generic-api/routes/index.js",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
             "http-generic-api/tenantGptOAuthTokenExchangeBindingGuard.js",
             "http-generic-api/test-auth-oauth-routes.mjs",
             "http-generic-api/test-spec012-t031-oauth-token-route-wiring.mjs",
             "docs/work-maps/README.md",
-            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/repository-automation-map.md",
+            "http-generic-api/frontend-operation-governance.generated.json"
           ]
         }
       ]
