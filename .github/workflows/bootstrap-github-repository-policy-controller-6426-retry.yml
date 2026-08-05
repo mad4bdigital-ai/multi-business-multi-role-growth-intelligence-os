@@ -1,4 +1,4 @@
-name: Diagnose GitHub Repository Policy Controller Bootstrap 6426
+name: Capture GitHub Repository Policy Controller Payload 6426
 
 on:
   pull_request:
@@ -11,17 +11,17 @@ permissions:
   contents: read
 
 concurrency:
-  group: diagnose-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
+  group: capture-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  diagnose:
+  capture:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - name: Checkout exact work-branch head
         uses: actions/checkout@v5
@@ -39,161 +39,66 @@ jobs:
           test "$(git rev-parse FETCH_HEAD)" = "5f4b41aaefd8633aae07c1418ab955f8c4ed49d1"
           git merge-base --is-ancestor FETCH_HEAD HEAD
 
-      - name: Diagnose and decode bounded payload
+      - name: Capture bounded payload without decoding
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import ast
-          import base64
           import json
           import pathlib
           import re
-          import tarfile
 
           source = pathlib.Path('.github/workflows/bootstrap-github-repository-policy-controller-6426.yml')
-          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
-          encoded_path = pathlib.Path('/tmp/github-policy-controller.b64')
-          report_path = pathlib.Path('/tmp/payload-diagnostic.json')
+          parts = []
+          seen = set()
+          for line_number, line in enumerate(source.read_text().splitlines(), start=1):
+              match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
+              if not match:
+                  continue
+              index = int(match.group(1))
+              if index in seen:
+                  raise SystemExit(f'duplicate payload index: {index}')
+              seen.add(index)
+              value = ast.literal_eval(match.group(2))
+              if not isinstance(value, str) or re.search(r'[^A-Za-z0-9+/=]', value):
+                  raise SystemExit(f'invalid payload part: {index}')
+              parts.append((index, value, line_number))
+          parts.sort(key=lambda item: item[0])
+          observed = [index for index, _, _ in parts]
+          expected = list(range(7))
+          if observed != expected:
+              raise SystemExit(f'payload indexes mismatch: {observed}')
+          payload = ''.join(value for _, value, _ in parts)
+          pathlib.Path('/tmp/github-policy-controller.b64').write_text(payload)
           report = {
-              'schema_version': 'github-policy-controller-payload-diagnostic-v1',
-              'source': str(source),
-              'expected_indexes': list(range(7)),
+              'schema_version': 'github-policy-controller-payload-capture-v1',
+              'expected_indexes': expected,
+              'observed_indexes': observed,
+              'line_numbers': [line_number for _, _, line_number in parts],
+              'part_lengths': [len(value) for _, value, _ in parts],
+              'encoded_bytes': len(payload),
+              'encoded_modulo_4': len(payload) % 4,
+              'payload_sha256': __import__('hashlib').sha256(payload.encode()).hexdigest(),
               'secrets_included': False,
           }
-          failure = None
-          try:
-              text = source.read_text()
-              parts = []
-              seen = set()
-              for line_number, line in enumerate(text.splitlines(), start=1):
-                  match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
-                  if not match:
-                      continue
-                  index = int(match.group(1))
-                  if index in seen:
-                      raise ValueError(f'duplicate payload index: {index}')
-                  seen.add(index)
-                  raw = match.group(2)
-                  value = ast.literal_eval(raw)
-                  if not isinstance(value, str):
-                      raise TypeError(f'payload part {index} is not a string')
-                  invalid = sorted(set(re.sub(r'[A-Za-z0-9+/=]', '', value)))
-                  if invalid:
-                      raise ValueError(f'payload part {index} has invalid base64 characters')
-                  parts.append((index, value, line_number))
-              parts.sort(key=lambda item: item[0])
-              observed = [index for index, _, _ in parts]
-              lengths = [len(value) for _, value, _ in parts]
-              report.update({
-                  'observed_indexes': observed,
-                  'line_numbers': [line_number for _, _, line_number in parts],
-                  'part_lengths': lengths,
-                  'encoded_bytes': sum(lengths),
-                  'encoded_modulo_4': sum(lengths) % 4,
-              })
-              if observed != report['expected_indexes']:
-                  raise ValueError(f'payload indexes mismatch: {observed}')
-              payload = ''.join(value for _, value, _ in parts)
-              encoded_path.write_text(payload)
-              decoded = base64.b64decode(payload, validate=True)
-              archive.write_bytes(decoded)
-              report.update({
-                  'decode_ok': True,
-                  'archive_bytes': len(decoded),
-                  'gzip_magic_ok': decoded[:2] == b'\x1f\x8b',
-              })
-              with tarfile.open(archive, 'r:gz') as bundle:
-                  members = bundle.getmembers()
-                  report['archive_members'] = [member.name for member in members]
-                  report['archive_member_count'] = len(members)
-          except Exception as exc:
-              report['decode_ok'] = False
-              report['error_type'] = type(exc).__name__
-              report['error_message'] = str(exc)
-              failure = exc
-          finally:
-              report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
-              print(report_path.read_text())
-          if failure is not None:
-              raise failure
+          pathlib.Path('/tmp/payload-capture.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, sort_keys=True))
           PY
 
-      - name: Upload payload diagnostic
-        if: always()
+      - name: Upload bounded payload capture
         uses: actions/upload-artifact@v4
         with:
-          name: github-policy-controller-payload-diagnostic-${{ github.run_id }}
-          path: /tmp/payload-diagnostic.json
+          name: github-policy-controller-payload-capture-${{ github.run_id }}
+          path: |
+            /tmp/github-policy-controller.b64
+            /tmp/payload-capture.json
           if-no-files-found: error
           retention-days: 7
 
-      - name: Extract bounded payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import pathlib
-          import tarfile
-
-          root = pathlib.Path.cwd().resolve()
-          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
-          with tarfile.open(archive, 'r:gz') as bundle:
-              for member in bundle.getmembers():
-                  target = (root / member.name).resolve()
-                  if root not in target.parents and target != root:
-                      raise SystemExit(f'unsafe archive path: {member.name}')
-              bundle.extractall(root)
-          PY
-          git status --short
-
-      - name: Verify exact materialized paths
-        shell: bash
-        run: |
-          set -euo pipefail
-          git status --porcelain | sed -E 's/^...//' | sort > /tmp/materialized-paths.txt
-          cat > /tmp/expected-paths.txt <<'EOF'
-          .changes/e2e/github-repository-policy-controller.json
-          http-generic-api/githubRepositoryPolicyController.js
-          http-generic-api/migrations/20260805_github_repository_policy_controller.sql
-          http-generic-api/repositoryAutomationPolicyFacade.js
-          http-generic-api/routes/repositoryAutomationRoutes.js
-          http-generic-api/test-github-repository-policy-controller.mjs
-          http-generic-api/test-repository-automation-policy-facade.mjs
-          EOF
-          diff -u /tmp/expected-paths.txt /tmp/materialized-paths.txt
-
-      - name: Verify diff formatting
-        run: git diff --check
-
-      - name: Verify JavaScript syntax
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/githubRepositoryPolicyController.js
-          node --check http-generic-api/repositoryAutomationPolicyFacade.js
-          node --check http-generic-api/routes/repositoryAutomationRoutes.js
-          node --check http-generic-api/test-github-repository-policy-controller.mjs
-          node --check http-generic-api/test-repository-automation-policy-facade.mjs
-
-      - name: Verify E2E JSON
-        run: python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
-
-      - name: Install dependencies
-        working-directory: http-generic-api
-        run: npm ci --ignore-scripts
-
-      - name: Run controller regression
-        working-directory: http-generic-api
-        run: node test-github-repository-policy-controller.mjs
-
-      - name: Run facade regression
-        working-directory: http-generic-api
-        run: node test-repository-automation-policy-facade.mjs
-
-      - name: Verify read-only diagnostic worktree
+      - name: Verify read-only worktree
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          git status --porcelain | sed -E 's/^...//' | sort | diff -u /tmp/expected-paths.txt -
+          test -z "$(git status --porcelain)"
