@@ -1,4 +1,4 @@
-name: Capture GitHub Repository Policy Controller Payload 6426
+name: Recover GitHub Repository Policy Controller Payload 6426
 
 on:
   pull_request:
@@ -11,11 +11,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: capture-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
+  group: recover-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  capture:
+  recover:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
@@ -38,21 +38,29 @@ jobs:
           git fetch --no-tags origin main
           test "$(git rev-parse FETCH_HEAD)" = "5f4b41aaefd8633aae07c1418ab955f8c4ed49d1"
           git merge-base --is-ancestor FETCH_HEAD HEAD
+          test "$(git rev-parse f415b33da5a154c571689f8dea4a4a04b87f162f^{commit})" = "f415b33da5a154c571689f8dea4a4a04b87f162f"
 
-      - name: Capture bounded payload without decoding
+      - name: Recover and verify original bounded payload
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import ast
+          import base64
+          import hashlib
+          import io
           import json
           import pathlib
           import re
+          import subprocess
+          import tarfile
 
-          source = pathlib.Path('.github/workflows/bootstrap-github-repository-policy-controller-6426.yml')
+          source_commit = 'f415b33da5a154c571689f8dea4a4a04b87f162f'
+          source_path = '.github/workflows/bootstrap-github-repository-policy-controller-6426.yml'
+          text = subprocess.check_output(['git', 'show', f'{source_commit}:{source_path}'], text=True)
           parts = []
           seen = set()
-          for line_number, line in enumerate(source.read_text().splitlines(), start=1):
+          for line_number, line in enumerate(text.splitlines(), start=1):
               match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
               if not match:
                   continue
@@ -70,29 +78,49 @@ jobs:
           if observed != expected:
               raise SystemExit(f'payload indexes mismatch: {observed}')
           payload = ''.join(value for _, value, _ in parts)
-          pathlib.Path('/tmp/github-policy-controller.b64').write_text(payload)
+          decoded = base64.b64decode(payload, validate=True)
+          expected_members = [
+              '.changes/e2e/github-repository-policy-controller.json',
+              'http-generic-api/githubRepositoryPolicyController.js',
+              'http-generic-api/migrations/20260805_github_repository_policy_controller.sql',
+              'http-generic-api/repositoryAutomationPolicyFacade.js',
+              'http-generic-api/routes/repositoryAutomationRoutes.js',
+              'http-generic-api/test-github-repository-policy-controller.mjs',
+              'http-generic-api/test-repository-automation-policy-facade.mjs',
+          ]
+          with tarfile.open(fileobj=io.BytesIO(decoded), mode='r:gz') as bundle:
+              members = sorted(member.name for member in bundle.getmembers() if member.isfile())
+          if members != sorted(expected_members):
+              raise SystemExit(f'archive member mismatch: {members}')
+          pathlib.Path('/tmp/github-policy-controller-original.b64').write_text(payload)
+          pathlib.Path('/tmp/github-policy-controller-original.tar.gz').write_bytes(decoded)
           report = {
-              'schema_version': 'github-policy-controller-payload-capture-v1',
-              'expected_indexes': expected,
+              'schema_version': 'github-policy-controller-original-payload-v1',
+              'source_commit': source_commit,
+              'source_path': source_path,
+              'source_blob_sha': 'ff14d88cb5cd8077f8dbc2df56b61984b26f6426',
               'observed_indexes': observed,
-              'line_numbers': [line_number for _, _, line_number in parts],
               'part_lengths': [len(value) for _, value, _ in parts],
               'encoded_bytes': len(payload),
               'encoded_modulo_4': len(payload) % 4,
-              'payload_sha256': __import__('hashlib').sha256(payload.encode()).hexdigest(),
+              'payload_sha256': hashlib.sha256(payload.encode()).hexdigest(),
+              'archive_sha256': hashlib.sha256(decoded).hexdigest(),
+              'archive_bytes': len(decoded),
+              'archive_members': members,
               'secrets_included': False,
           }
-          pathlib.Path('/tmp/payload-capture.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          pathlib.Path('/tmp/original-payload-report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
           print(json.dumps(report, sort_keys=True))
           PY
 
-      - name: Upload bounded payload capture
+      - name: Upload verified original payload
         uses: actions/upload-artifact@v4
         with:
-          name: github-policy-controller-payload-capture-${{ github.run_id }}
+          name: github-policy-controller-original-payload-${{ github.run_id }}
           path: |
-            /tmp/github-policy-controller.b64
-            /tmp/payload-capture.json
+            /tmp/github-policy-controller-original.b64
+            /tmp/github-policy-controller-original.tar.gz
+            /tmp/original-payload-report.json
           if-no-files-found: error
           retention-days: 7
 
