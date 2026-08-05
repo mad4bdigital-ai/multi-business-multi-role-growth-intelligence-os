@@ -9,6 +9,7 @@
     "include": [
       "http-generic-api/routes/adminCliRoutes.js",
       "http-generic-api/test-github-rest-fallback-hardening.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       ".changes/e2e/github-rest-contents-target-branch-guard.json"
     ]
   },
@@ -56,6 +57,7 @@
           "evidence_paths": [
             "http-generic-api/routes/adminCliRoutes.js",
             "http-generic-api/test-github-rest-fallback-hardening.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             ".changes/e2e/github-rest-contents-target-branch-guard.json"
           ]
         }
