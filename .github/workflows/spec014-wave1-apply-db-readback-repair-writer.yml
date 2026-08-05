@@ -1,0 +1,93 @@
+name: Spec 014 Wave 1 Apply DB Readback Repair Writer
+
+on:
+  push:
+    branches:
+      - fix/spec014-wave1-apply-db-readback-action-20260805
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+
+      - name: Verify immutable repair identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "fix/spec014-wave1-apply-db-readback-action-20260805"
+          test "$(git rev-parse HEAD^)" = "b4bda4a281cd21aacc1faa2a314541d58f94790f"
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "b4bda4a281cd21aacc1faa2a314541d58f94790f"
+
+      - name: Apply bounded DB readback repair and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const runnerPath = '.github/ops/spec014-wave1-apply.mjs';
+          const testPath = 'http-generic-api/test-spec014-wave1-apply-contract.mjs';
+
+          let runner = fs.readFileSync(runnerPath, 'utf8');
+          const oldDbCall = "      action: 'query',\n      query,\n      params,";
+          const newDbCall = "      action: 'run',\n      sql: query,\n      params,";
+          const count = runner.split(oldDbCall).length - 1;
+          if (count !== 1) throw new Error(`Expected one legacy DB action block, found ${count}`);
+          runner = runner.replace(oldDbCall, newDbCall);
+          fs.writeFileSync(runnerPath, runner);
+
+          let test = fs.readFileSync(testPath, 'utf8');
+          const marker = "assert.match(runner, /governed_migration_authorization_registry/);\n";
+          const insertion = `${marker}assert.match(runner, /tool: 'db'[\\s\\S]*action: 'run'[\\s\\S]*sql: query/);\nassert.doesNotMatch(runner, /action: 'query'/);\n`;
+          const markerCount = test.split(marker).length - 1;
+          if (markerCount !== 1) throw new Error(`Expected one DB regression marker, found ${markerCount}`);
+          if (test.includes("assert.doesNotMatch(runner, /action: 'query'/);")) {
+            throw new Error('DB action regression already exists unexpectedly');
+          }
+          test = test.replace(marker, insertion);
+          fs.writeFileSync(testPath, test);
+          NODE
+
+          node --check .github/ops/spec014-wave1-apply.mjs
+          node http-generic-api/test-spec014-wave1-apply-contract.mjs
+          grep -F "action: 'run'" .github/ops/spec014-wave1-apply.mjs
+          grep -F "sql: query" .github/ops/spec014-wave1-apply.mjs
+          if grep -Fq "action: 'query'" .github/ops/spec014-wave1-apply.mjs; then
+            echo "Legacy DB action remains" >&2
+            exit 1
+          fi
+
+      - name: Retire writer and publish final two-file repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/spec014-wave1-apply-db-readback-repair-writer.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/ops/spec014-wave1-apply.mjs http-generic-api/test-spec014-wave1-apply-contract.mjs
+          git commit -m "fix(spec014): use supported DB readback action before Apply"
+
+          mapfile -t changed < <(git diff --name-only origin/main...HEAD | sort)
+          expected=(
+            ".github/ops/spec014-wave1-apply.mjs"
+            "http-generic-api/test-spec014-wave1-apply-contract.mjs"
+          )
+          if [ "${#changed[@]}" -ne "${#expected[@]}" ]; then
+            printf 'Unexpected final diff:\n%s\n' "${changed[*]}" >&2
+            exit 1
+          fi
+          for i in "${!expected[@]}"; do
+            test "${changed[$i]}" = "${expected[$i]}"
+          done
+
+          remote_head="$(git ls-remote origin "refs/heads/$GITHUB_REF_NAME" | awk '{print $1}')"
+          test "$remote_head" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/$GITHUB_REF_NAME"
