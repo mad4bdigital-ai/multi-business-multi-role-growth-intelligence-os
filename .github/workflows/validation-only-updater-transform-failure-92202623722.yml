@@ -1,0 +1,86 @@
+name: Validation-only Updater Transform Failure Collector 92202623722
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-updater-transform-failure-92202623722.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  collect:
+    name: Collect immutable updater transform failure evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EXPECTED_JOB_ID: "92202623722"
+      EXPECTED_RUN_ID: "30973490300"
+      EXPECTED_HEAD_SHA: "65d264f240132115bc37a886e8d832ab5ee16f3a"
+      EXPECTED_JOB_NAME: "Apply exact-head bounded governance repair"
+    steps:
+      - name: Initialize bounded evidence directory
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/updater-transform-failure-92202623722"
+          echo "EVIDENCE_ROOT=${evidence_root}" >> "${GITHUB_ENV}"
+          mkdir -p "${evidence_root}"
+
+      - name: Validate immutable job and run identity
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${EXPECTED_JOB_ID}" > "${EVIDENCE_ROOT}/job.json"
+          jq -e --argjson job_id "${EXPECTED_JOB_ID}" '.id == $job_id' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e --argjson run_id "${EXPECTED_RUN_ID}" '.run_id == $run_id' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e --arg name "${EXPECTED_JOB_NAME}" '.name == $name' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          jq -e '.status == "completed" and .conclusion == "failure"' "${EVIDENCE_ROOT}/job.json" >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${EXPECTED_RUN_ID}" > "${EVIDENCE_ROOT}/run.json"
+          jq -e --arg head_sha "${EXPECTED_HEAD_SHA}" '.head_sha == $head_sha' "${EVIDENCE_ROOT}/run.json" >/dev/null
+          jq -e '.status == "completed" and .conclusion == "failure"' "${EVIDENCE_ROOT}/run.json" >/dev/null
+
+      - name: Download and isolate failed transformation step
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/actions/jobs/${EXPECTED_JOB_ID}/logs" > "${EVIDENCE_ROOT}/job.log"
+          test -s "${EVIDENCE_ROOT}/job.log"
+
+          awk '
+            /Apply deterministic governance repair/ { capture=1 }
+            capture { print }
+            capture && /##\[endgroup\]/ { exit }
+          ' "${EVIDENCE_ROOT}/job.log" > "${EVIDENCE_ROOT}/failed-step.log"
+
+          if [[ ! -s "${EVIDENCE_ROOT}/failed-step.log" ]]; then
+            grep -n -E -C 30 'Apply deterministic governance repair|expected exactly one canonical match|Error:|##\[error\]|Process completed with exit code' \
+              "${EVIDENCE_ROOT}/job.log" > "${EVIDENCE_ROOT}/failed-step.log" || true
+          fi
+          test -s "${EVIDENCE_ROOT}/failed-step.log"
+
+      - name: Publish bounded checksummed evidence
+        run: |
+          set -euo pipefail
+          sha256sum "${EVIDENCE_ROOT}/job.json" "${EVIDENCE_ROOT}/run.json" \
+            "${EVIDENCE_ROOT}/job.log" "${EVIDENCE_ROOT}/failed-step.log" \
+            > "${EVIDENCE_ROOT}/SHA256SUMS.txt"
+          jq -n \
+            --arg contract "mad4b.validation-only-updater-transform-failure.v1" \
+            --arg job_id "${EXPECTED_JOB_ID}" \
+            --arg run_id "${EXPECTED_RUN_ID}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            '{contract:$contract,job_id:($job_id|tonumber),run_id:($run_id|tonumber),expected_head_sha:$expected_head_sha,repository_mutation:false,runtime_contact:false,deployment:false,database_access:false,provider_action:false,migration_apply:false,protected_ref_mutation:false,force_push:false,secrets_included:false}' \
+            > "${EVIDENCE_ROOT}/result.json"
+
+      - name: Upload immutable failure evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: updater-transform-failure-92202623722
+          path: ${{ runner.temp }}/updater-transform-failure-92202623722
+          if-no-files-found: error
+          retention-days: 14
