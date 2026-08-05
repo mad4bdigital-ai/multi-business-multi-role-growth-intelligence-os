@@ -49,6 +49,7 @@
             "HTTP 403 or unknown protection state blocks apply.",
             "Stale expected main SHA blocks before mutation.",
             "Missing or invalid capability envelope blocks before network mutation.",
+            "Plan output includes capability_authorization bound to the exact repository URI, current main SHA, policy fingerprint, binding hash, and secrets_included=false.",
             "Typed confirmation is mandatory and is never invented by repository automation.",
             "Any bypass actor blocks apply, including the finalizer App.",
             "Review count below one, disabled stale dismissal or conversation resolution, missing exact checks, direct pushes, auto-merge, or merge queue are rejected.",
