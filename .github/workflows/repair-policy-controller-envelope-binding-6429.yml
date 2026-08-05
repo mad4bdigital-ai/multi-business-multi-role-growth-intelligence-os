@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           test "$(git branch --show-current)" = "gpt/github-main-policy-controller-20260805"
-          test "$(git rev-parse origin/main)" = "4c683e825320b02d49235fabc610e2cd8d8afb89"
+          test "$(git rev-parse origin/main)" = "797f1a456e987f99aeac2fe3727343e361447cf1"
 
       - name: Apply bounded repair
         shell: bash
