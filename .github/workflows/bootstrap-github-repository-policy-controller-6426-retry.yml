@@ -1,4 +1,4 @@
-name: Diagnose Original GitHub Repository Policy Payload 6426
+name: Finalize GitHub Repository Policy Controller 6426
 
 on:
   pull_request:
@@ -8,20 +8,21 @@ on:
       - ".github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: diagnose-original-github-policy-payload-6426-${{ github.event.pull_request.number }}
+  group: finalize-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  diagnose:
+  finalize:
     if: >-
+      github.event.pull_request.number == 6429 &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
       github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04-arm
-    timeout-minutes: 15
+    timeout-minutes: 35
     steps:
       - name: Checkout exact work-branch head
         uses: actions/checkout@v5
@@ -29,19 +30,23 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Verify exact branch and base boundary
+      - name: Verify immutable branch and baseline
         shell: bash
         run: |
           set -euo pipefail
           test "${GITHUB_HEAD_REF}" = "gpt/github-main-policy-controller-20260805"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git fetch --no-tags origin main
-          test "$(git rev-parse FETCH_HEAD)" = "5f4b41aaefd8633aae07c1418ab955f8c4ed49d1"
+          test "$(git rev-parse FETCH_HEAD)" = "d24274c667859e02f558b9161cd2318cc8961efd"
           git merge-base --is-ancestor FETCH_HEAD HEAD
-          test "$(git rev-parse f415b33da5a154c571689f8dea4a4a04b87f162f^{commit})" = "f415b33da5a154c571689f8dea4a4a04b87f162f"
+          git diff --name-only FETCH_HEAD...HEAD | sort > /tmp/pre-finalizer-paths.txt
+          cat > /tmp/expected-pre-finalizer-paths.txt <<'EOF'
+          .github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml
+          .github/workflows/bootstrap-github-repository-policy-controller-6426.yml
+          EOF
+          diff -u /tmp/expected-pre-finalizer-paths.txt /tmp/pre-finalizer-paths.txt
 
-      - name: Diagnose original bounded payload
-        id: diagnose
+      - name: Recover checksum-bound seven-file archive
         shell: bash
         run: |
           set -euo pipefail
@@ -50,7 +55,6 @@ jobs:
           import base64
           import hashlib
           import io
-          import json
           import pathlib
           import re
           import subprocess
@@ -58,7 +62,34 @@ jobs:
 
           source_commit = 'f415b33da5a154c571689f8dea4a4a04b87f162f'
           source_path = '.github/workflows/bootstrap-github-repository-policy-controller-6426.yml'
-          expected_members = sorted([
+          source_blob_sha = subprocess.check_output(
+              ['git', 'rev-parse', f'{source_commit}:{source_path}'], text=True
+          ).strip()
+          if source_blob_sha != 'ff14d88cb5cd8077f8dbc2df56b61984b26f6426':
+              raise SystemExit(f'original source blob mismatch: {source_blob_sha}')
+          text = subprocess.check_output(['git', 'show', f'{source_commit}:{source_path}'], text=True)
+          parts = []
+          for line in text.splitlines():
+              match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
+              if match:
+                  parts.append((int(match.group(1)), ast.literal_eval(match.group(2))))
+          parts.sort(key=lambda item: item[0])
+          if [index for index, _ in parts] != list(range(7)):
+              raise SystemExit('original payload indexes are not exactly 0..6')
+          corrupted = ''.join(value for _, value in parts)
+          if hashlib.sha256(corrupted.encode()).hexdigest() != 'b9028aeaa76534b029853d6c28f72ca396ab0f27854dd5c6cea298709db6931c':
+              raise SystemExit('original corrupted payload checksum mismatch')
+          if len(corrupted) != 27131:
+              raise SystemExit(f'original corrupted payload length mismatch: {len(corrupted)}')
+
+          corrected = corrupted[:17280] + 'R' + corrupted[17280:]
+          if hashlib.sha256(corrected.encode()).hexdigest() != '575ed433c9d60444d233646fa8e0fd67f67688bea5872beb1c0512302e87e2fd':
+              raise SystemExit('corrected payload checksum mismatch')
+          archive = base64.b64decode(corrected, validate=True)
+          if hashlib.sha256(archive).hexdigest() != '12efacd46549db68743b9b59f31919ef432cff98338ea82bd737e3f8f5887f5f':
+              raise SystemExit('recovered archive checksum mismatch')
+
+          expected = sorted([
               '.changes/e2e/github-repository-policy-controller.json',
               'http-generic-api/githubRepositoryPolicyController.js',
               'http-generic-api/migrations/20260805_github_repository_policy_controller.sql',
@@ -67,123 +98,88 @@ jobs:
               'http-generic-api/test-github-repository-policy-controller.mjs',
               'http-generic-api/test-repository-automation-policy-facade.mjs',
           ])
-          report = {
-              'schema_version': 'github-policy-controller-original-payload-diagnostic-v2',
-              'source_commit': source_commit,
-              'source_path': source_path,
-              'source_blob_sha': 'ff14d88cb5cd8077f8dbc2df56b61984b26f6426',
-              'expected_members': expected_members,
-              'parse_ok': False,
-              'decode_ok': False,
-              'tar_ok': False,
-              'members_match': False,
+          root = pathlib.Path.cwd().resolve()
+          with tarfile.open(fileobj=io.BytesIO(archive), mode='r:gz') as bundle:
+              file_members = [member for member in bundle.getmembers() if member.isfile()]
+              normalized = sorted(member.name.removeprefix('./') for member in file_members)
+              if normalized != expected:
+                  raise SystemExit(f'recovered archive path mismatch: {normalized}')
+              for member in bundle.getmembers():
+                  target = (root / member.name).resolve()
+                  if target != root and root not in target.parents:
+                      raise SystemExit(f'unsafe archive member: {member.name}')
+              bundle.extractall(root, filter='data')
+          print({
+              'ok': True,
+              'source_blob_sha': source_blob_sha,
+              'corrected_payload_sha256': hashlib.sha256(corrected.encode()).hexdigest(),
+              'archive_sha256': hashlib.sha256(archive).hexdigest(),
+              'permanent_path_count': len(expected),
               'secrets_included': False,
-          }
-          payload = None
-          decoded = None
-          try:
-              text = subprocess.check_output(['git', 'show', f'{source_commit}:{source_path}'], text=True)
-              report['source_text_bytes'] = len(text.encode())
-              parts = []
-              seen = set()
-              for line_number, line in enumerate(text.splitlines(), start=1):
-                  match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
-                  if not match:
-                      continue
-                  index = int(match.group(1))
-                  if index in seen:
-                      raise ValueError(f'duplicate payload index: {index}')
-                  seen.add(index)
-                  raw = match.group(2)
-                  value = ast.literal_eval(raw)
-                  if not isinstance(value, str):
-                      raise TypeError(f'payload part {index} is not a string')
-                  invalid_count = len(re.findall(r'[^A-Za-z0-9+/=]', value))
-                  parts.append({
-                      'index': index,
-                      'line_number': line_number,
-                      'length': len(value),
-                      'invalid_base64_character_count': invalid_count,
-                      'value': value,
-                  })
-              parts.sort(key=lambda item: item['index'])
-              report['observed_indexes'] = [item['index'] for item in parts]
-              report['line_numbers'] = [item['line_number'] for item in parts]
-              report['part_lengths'] = [item['length'] for item in parts]
-              report['invalid_base64_character_counts'] = [item['invalid_base64_character_count'] for item in parts]
-              report['part_count'] = len(parts)
-              if not parts:
-                  raise ValueError('no payload parts found')
-              if report['observed_indexes'] != list(range(len(parts))):
-                  raise ValueError(f'payload indexes are not contiguous: {report["observed_indexes"]}')
-              if any(item['invalid_base64_character_count'] for item in parts):
-                  raise ValueError('payload contains invalid base64 characters')
-              payload = ''.join(item['value'] for item in parts)
-              report['encoded_bytes'] = len(payload)
-              report['encoded_modulo_4'] = len(payload) % 4
-              report['payload_sha256'] = hashlib.sha256(payload.encode()).hexdigest()
-              pathlib.Path('/tmp/original-payload.b64').write_text(payload)
-              report['parse_ok'] = True
-              try:
-                  decoded = base64.b64decode(payload, validate=True)
-                  report['decode_ok'] = True
-                  report['archive_bytes'] = len(decoded)
-                  report['archive_sha256'] = hashlib.sha256(decoded).hexdigest()
-                  report['gzip_magic_ok'] = decoded[:2] == b'\x1f\x8b'
-                  pathlib.Path('/tmp/original-payload.tar.gz').write_bytes(decoded)
-              except Exception as exc:
-                  report['decode_error_type'] = type(exc).__name__
-                  report['decode_error_message'] = str(exc)
-              if decoded is not None:
-                  try:
-                      with tarfile.open(fileobj=io.BytesIO(decoded), mode='r:gz') as bundle:
-                          members = sorted(member.name for member in bundle.getmembers() if member.isfile())
-                          report['archive_members'] = members
-                          report['archive_member_count'] = len(members)
-                          report['tar_ok'] = True
-                          report['members_match'] = members == expected_members
-                  except Exception as exc:
-                      report['tar_error_type'] = type(exc).__name__
-                      report['tar_error_message'] = str(exc)
-          except Exception as exc:
-              report['parse_error_type'] = type(exc).__name__
-              report['parse_error_message'] = str(exc)
-          finally:
-              pathlib.Path('/tmp/original-payload-diagnostic.json').write_text(
-                  json.dumps(report, indent=2, sort_keys=True) + '\n'
-              )
-              print(json.dumps(report, indent=2, sort_keys=True))
+          })
           PY
 
-      - name: Upload original payload diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: github-policy-controller-original-payload-diagnostic-${{ github.run_id }}
-          path: |
-            /tmp/original-payload-diagnostic.json
-            /tmp/original-payload.b64
-            /tmp/original-payload.tar.gz
-          if-no-files-found: warn
-          retention-days: 7
-
-      - name: Classify original payload result
+      - name: Verify recovered source syntax and contracts
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import json
-          report = json.load(open('/tmp/original-payload-diagnostic.json'))
-          assert report.get('parse_ok') is True, report
-          assert report.get('decode_ok') is True, report
-          assert report.get('tar_ok') is True, report
-          assert report.get('members_match') is True, report
-          PY
+          git diff --check
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/repositoryAutomationPolicyFacade.js
+          node --check http-generic-api/routes/repositoryAutomationRoutes.js
+          node --check http-generic-api/test-github-repository-policy-controller.mjs
+          node --check http-generic-api/test-repository-automation-policy-facade.mjs
+          python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
 
-      - name: Verify read-only worktree
-        if: always()
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run policy-controller regression
+        working-directory: http-generic-api
+        run: node test-github-repository-policy-controller.mjs
+
+      - name: Run repository-policy facade regression
+        working-directory: http-generic-api
+        run: node test-repository-automation-policy-facade.mjs
+
+      - name: Retire both temporary bootstrap workflows
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          test -z "$(git status --porcelain)"
+          rm -f \
+            .github/workflows/bootstrap-github-repository-policy-controller-6426.yml \
+            .github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml
+          git add -A
+
+      - name: Verify exact permanent seven-file result
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/expected-final-paths.txt <<'EOF'
+          .changes/e2e/github-repository-policy-controller.json
+          http-generic-api/githubRepositoryPolicyController.js
+          http-generic-api/migrations/20260805_github_repository_policy_controller.sql
+          http-generic-api/repositoryAutomationPolicyFacade.js
+          http-generic-api/routes/repositoryAutomationRoutes.js
+          http-generic-api/test-github-repository-policy-controller.mjs
+          http-generic-api/test-repository-automation-policy-facade.mjs
+          EOF
+          git diff --cached --name-only origin/main | sort > /tmp/final-paths.txt
+          diff -u /tmp/expected-final-paths.txt /tmp/final-paths.txt
+          test ! -e .github/workflows/bootstrap-github-repository-policy-controller-6426.yml
+          test ! -e .github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml
+          git diff --cached --check
+
+      - name: Commit and push exact recovered candidate
+        shell: bash
+        env:
+          EXPECTED_REMOTE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${GITHUB_HEAD_REF}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_REMOTE_HEAD}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(github): add governed main policy controller"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
