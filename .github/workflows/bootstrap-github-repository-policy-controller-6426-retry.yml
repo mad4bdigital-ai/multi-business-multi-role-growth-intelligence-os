@@ -1,4 +1,4 @@
-name: Recover GitHub Repository Policy Controller Payload 6426
+name: Diagnose Original GitHub Repository Policy Payload 6426
 
 on:
   pull_request:
@@ -11,11 +11,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: recover-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
+  group: diagnose-original-github-policy-payload-6426-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
-  recover:
+  diagnose:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
@@ -40,7 +40,8 @@ jobs:
           git merge-base --is-ancestor FETCH_HEAD HEAD
           test "$(git rev-parse f415b33da5a154c571689f8dea4a4a04b87f162f^{commit})" = "f415b33da5a154c571689f8dea4a4a04b87f162f"
 
-      - name: Recover and verify original bounded payload
+      - name: Diagnose original bounded payload
+        id: diagnose
         shell: bash
         run: |
           set -euo pipefail
@@ -57,29 +58,7 @@ jobs:
 
           source_commit = 'f415b33da5a154c571689f8dea4a4a04b87f162f'
           source_path = '.github/workflows/bootstrap-github-repository-policy-controller-6426.yml'
-          text = subprocess.check_output(['git', 'show', f'{source_commit}:{source_path}'], text=True)
-          parts = []
-          seen = set()
-          for line_number, line in enumerate(text.splitlines(), start=1):
-              match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
-              if not match:
-                  continue
-              index = int(match.group(1))
-              if index in seen:
-                  raise SystemExit(f'duplicate payload index: {index}')
-              seen.add(index)
-              value = ast.literal_eval(match.group(2))
-              if not isinstance(value, str) or re.search(r'[^A-Za-z0-9+/=]', value):
-                  raise SystemExit(f'invalid payload part: {index}')
-              parts.append((index, value, line_number))
-          parts.sort(key=lambda item: item[0])
-          observed = [index for index, _, _ in parts]
-          expected = list(range(7))
-          if observed != expected:
-              raise SystemExit(f'payload indexes mismatch: {observed}')
-          payload = ''.join(value for _, value, _ in parts)
-          decoded = base64.b64decode(payload, validate=True)
-          expected_members = [
+          expected_members = sorted([
               '.changes/e2e/github-repository-policy-controller.json',
               'http-generic-api/githubRepositoryPolicyController.js',
               'http-generic-api/migrations/20260805_github_repository_policy_controller.sql',
@@ -87,44 +66,122 @@ jobs:
               'http-generic-api/routes/repositoryAutomationRoutes.js',
               'http-generic-api/test-github-repository-policy-controller.mjs',
               'http-generic-api/test-repository-automation-policy-facade.mjs',
-          ]
-          with tarfile.open(fileobj=io.BytesIO(decoded), mode='r:gz') as bundle:
-              members = sorted(member.name for member in bundle.getmembers() if member.isfile())
-          if members != sorted(expected_members):
-              raise SystemExit(f'archive member mismatch: {members}')
-          pathlib.Path('/tmp/github-policy-controller-original.b64').write_text(payload)
-          pathlib.Path('/tmp/github-policy-controller-original.tar.gz').write_bytes(decoded)
+          ])
           report = {
-              'schema_version': 'github-policy-controller-original-payload-v1',
+              'schema_version': 'github-policy-controller-original-payload-diagnostic-v2',
               'source_commit': source_commit,
               'source_path': source_path,
               'source_blob_sha': 'ff14d88cb5cd8077f8dbc2df56b61984b26f6426',
-              'observed_indexes': observed,
-              'part_lengths': [len(value) for _, value, _ in parts],
-              'encoded_bytes': len(payload),
-              'encoded_modulo_4': len(payload) % 4,
-              'payload_sha256': hashlib.sha256(payload.encode()).hexdigest(),
-              'archive_sha256': hashlib.sha256(decoded).hexdigest(),
-              'archive_bytes': len(decoded),
-              'archive_members': members,
+              'expected_members': expected_members,
+              'parse_ok': False,
+              'decode_ok': False,
+              'tar_ok': False,
+              'members_match': False,
               'secrets_included': False,
           }
-          pathlib.Path('/tmp/original-payload-report.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
-          print(json.dumps(report, sort_keys=True))
+          payload = None
+          decoded = None
+          try:
+              text = subprocess.check_output(['git', 'show', f'{source_commit}:{source_path}'], text=True)
+              report['source_text_bytes'] = len(text.encode())
+              parts = []
+              seen = set()
+              for line_number, line in enumerate(text.splitlines(), start=1):
+                  match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
+                  if not match:
+                      continue
+                  index = int(match.group(1))
+                  if index in seen:
+                      raise ValueError(f'duplicate payload index: {index}')
+                  seen.add(index)
+                  raw = match.group(2)
+                  value = ast.literal_eval(raw)
+                  if not isinstance(value, str):
+                      raise TypeError(f'payload part {index} is not a string')
+                  invalid_count = len(re.findall(r'[^A-Za-z0-9+/=]', value))
+                  parts.append({
+                      'index': index,
+                      'line_number': line_number,
+                      'length': len(value),
+                      'invalid_base64_character_count': invalid_count,
+                      'value': value,
+                  })
+              parts.sort(key=lambda item: item['index'])
+              report['observed_indexes'] = [item['index'] for item in parts]
+              report['line_numbers'] = [item['line_number'] for item in parts]
+              report['part_lengths'] = [item['length'] for item in parts]
+              report['invalid_base64_character_counts'] = [item['invalid_base64_character_count'] for item in parts]
+              report['part_count'] = len(parts)
+              if not parts:
+                  raise ValueError('no payload parts found')
+              if report['observed_indexes'] != list(range(len(parts))):
+                  raise ValueError(f'payload indexes are not contiguous: {report["observed_indexes"]}')
+              if any(item['invalid_base64_character_count'] for item in parts):
+                  raise ValueError('payload contains invalid base64 characters')
+              payload = ''.join(item['value'] for item in parts)
+              report['encoded_bytes'] = len(payload)
+              report['encoded_modulo_4'] = len(payload) % 4
+              report['payload_sha256'] = hashlib.sha256(payload.encode()).hexdigest()
+              pathlib.Path('/tmp/original-payload.b64').write_text(payload)
+              report['parse_ok'] = True
+              try:
+                  decoded = base64.b64decode(payload, validate=True)
+                  report['decode_ok'] = True
+                  report['archive_bytes'] = len(decoded)
+                  report['archive_sha256'] = hashlib.sha256(decoded).hexdigest()
+                  report['gzip_magic_ok'] = decoded[:2] == b'\x1f\x8b'
+                  pathlib.Path('/tmp/original-payload.tar.gz').write_bytes(decoded)
+              except Exception as exc:
+                  report['decode_error_type'] = type(exc).__name__
+                  report['decode_error_message'] = str(exc)
+              if decoded is not None:
+                  try:
+                      with tarfile.open(fileobj=io.BytesIO(decoded), mode='r:gz') as bundle:
+                          members = sorted(member.name for member in bundle.getmembers() if member.isfile())
+                          report['archive_members'] = members
+                          report['archive_member_count'] = len(members)
+                          report['tar_ok'] = True
+                          report['members_match'] = members == expected_members
+                  except Exception as exc:
+                      report['tar_error_type'] = type(exc).__name__
+                      report['tar_error_message'] = str(exc)
+          except Exception as exc:
+              report['parse_error_type'] = type(exc).__name__
+              report['parse_error_message'] = str(exc)
+          finally:
+              pathlib.Path('/tmp/original-payload-diagnostic.json').write_text(
+                  json.dumps(report, indent=2, sort_keys=True) + '\n'
+              )
+              print(json.dumps(report, indent=2, sort_keys=True))
           PY
 
-      - name: Upload verified original payload
+      - name: Upload original payload diagnostic
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: github-policy-controller-original-payload-${{ github.run_id }}
+          name: github-policy-controller-original-payload-diagnostic-${{ github.run_id }}
           path: |
-            /tmp/github-policy-controller-original.b64
-            /tmp/github-policy-controller-original.tar.gz
-            /tmp/original-payload-report.json
-          if-no-files-found: error
+            /tmp/original-payload-diagnostic.json
+            /tmp/original-payload.b64
+            /tmp/original-payload.tar.gz
+          if-no-files-found: warn
           retention-days: 7
 
+      - name: Classify original payload result
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          report = json.load(open('/tmp/original-payload-diagnostic.json'))
+          assert report.get('parse_ok') is True, report
+          assert report.get('decode_ok') is True, report
+          assert report.get('tar_ok') is True, report
+          assert report.get('members_match') is True, report
+          PY
+
       - name: Verify read-only worktree
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
