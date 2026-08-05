@@ -9,6 +9,7 @@ import { buildDiagnosticStream, redactDiagnosticOutput } from "./bounded-diagnos
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 export const REPO_ROOT = path.resolve(HERE, "..", "..");
 const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
+const E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);
 
 function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
@@ -80,6 +81,14 @@ function specKeyFromFile(file, policy) {
 
 function contractPathForSpec(feature, policy) {
   return normalize(path.posix.join(policy.spec_root, feature, policy.spec_contract_file));
+}
+
+function isE2EOwnershipNeutralSpecArtifact(file, policy) {
+  const feature = specKeyFromFile(file, policy);
+  if (!feature) return false;
+  const prefix = `${normalize(policy.spec_root)}/${feature}/`;
+  const relative = normalize(file).slice(prefix.length);
+  return E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS.has(relative);
 }
 
 function classifyChanges(changedFiles, policy) {
@@ -267,7 +276,7 @@ function validateContract(contract, contractPath, context) {
 
 function discoverContractPaths(policy, changedFiles) {
   const paths = new Set();
-  const changedSpecs = new Set(changedFiles.map((file) => specKeyFromFile(file, policy)).filter(Boolean));
+  const changedSpecs = new Set(changedFiles.filter((file) => !isE2EOwnershipNeutralSpecArtifact(file, policy)).map((file) => specKeyFromFile(file, policy)).filter(Boolean));
   for (const feature of changedSpecs) paths.add(contractPathForSpec(feature, policy));
   for (const file of changedFiles) {
     if (file.endsWith(`/${policy.spec_contract_file}`) || file === policy.spec_contract_file) paths.add(file);
