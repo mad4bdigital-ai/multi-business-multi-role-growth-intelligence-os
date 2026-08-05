@@ -1,0 +1,106 @@
+name: Spec 014 Wave 1 Approval Note Patcher
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-wave1-approval-note-patcher-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Apply bounded shell-safe approval note patch
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.id == 271942579 &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.ref == 'fix/spec014-wave1-approval-safe-decision-note-20260805'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      TARGET_BRANCH: fix/spec014-wave1-approval-safe-decision-note-20260805
+      PATCHER_PATH: .github/workflows/spec014-wave1-approval-note-patcher.yml
+      RUNNER_PATH: .github/ops/spec014-wave1-runtime-readiness.mjs
+      TEST_PATH: http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify exact bounded patch target
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git branch --show-current)" = "${TARGET_BRANCH}"
+          mapfile -t changed < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...${EXPECTED_HEAD_SHA}")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${PATCHER_PATH}"
+
+      - name: Apply exact source and regression patch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const runnerPath = process.env.RUNNER_PATH;
+          const testPath = process.env.TEST_PATH;
+          const patcherPath = process.env.PATCHER_PATH;
+          const unsafeNote = '--decision-note=Approve checksum-bound Spec 014 Wave 1 authorization-bootstrap envelope for runtime readiness only; migration SQL and provider dispatch are not executed.';
+          const safeNote = '--decision-note=Approve checksum-bound Spec 014 Wave 1 authorization-bootstrap envelope for runtime readiness only. Migration SQL and provider dispatch are not executed.';
+
+          let runner = fs.readFileSync(runnerPath, 'utf8');
+          const unsafeCount = runner.split(unsafeNote).length - 1;
+          if (unsafeCount !== 1) throw new Error(`expected one unsafe approval note, got ${unsafeCount}`);
+          runner = runner.replace(unsafeNote, safeNote);
+          if (runner.includes(unsafeNote) || !runner.includes(safeNote)) {
+            throw new Error('approval decision note replacement did not converge');
+          }
+          fs.writeFileSync(runnerPath, runner, 'utf8');
+
+          let test = fs.readFileSync(testPath, 'utf8');
+          const marker = "assert.match(runner, /capability_resolution_envelope_approve/);\n";
+          const regression = `${marker}const approvalDecisionNote = runner.match(\n  /'--decision-note=([^'\\n]+)'/,\n)?.[1];\nassert.ok(approvalDecisionNote, 'Runner is missing the approval decision note.');\nassert.doesNotMatch(\n  approvalDecisionNote,\n  /[;&|\`$<>\\\\!{}()\\n\\r]/,\n  'Approval decision note must remain safe for /admin/control extra_args.',\n);\n`;
+          const markerCount = test.split(marker).length - 1;
+          if (markerCount !== 1) throw new Error(`expected one regression insertion marker, got ${markerCount}`);
+          if (test.includes('Approval decision note must remain safe for /admin/control extra_args.')) {
+            throw new Error('approval note regression already exists');
+          }
+          test = test.replace(marker, regression);
+          fs.writeFileSync(testPath, test, 'utf8');
+
+          fs.unlinkSync(patcherPath);
+          NODE
+
+      - name: Validate bounded patch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check "${RUNNER_PATH}"
+          node "${TEST_PATH}"
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          test "${#changed[@]}" -eq 3
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${PATCHER_PATH}"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${RUNNER_PATH}"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${TEST_PATH}"
+
+      - name: Commit bounded patch without force
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -- "${PATCHER_PATH}" "${RUNNER_PATH}" "${TEST_PATH}"
+          git commit -m "fix(spec014): make Wave 1 approval note shell-safe"
+          git push origin "HEAD:${TARGET_BRANCH}"
