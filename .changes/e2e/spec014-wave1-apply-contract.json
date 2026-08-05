@@ -56,7 +56,7 @@
             "The execution envelope requires explicit apply authorization under governed_migration_execute_apply_v1 and external_write_allowed=false.",
             "The executor contains exactly one mode=apply request and never retries Apply after an unsuccessful or ambiguous response.",
             "An ambiguous Apply response records apply_sent=true, retry_permitted=false, and requires exact readback before any future operator decision.",
-            "Success requires exact Apply ledger metadata and all four foundation tables.",
+            "Success requires exact Apply ledger metadata and all four foundation tables, including readback rows that expose the canonical information_schema TABLE_NAME field.",
             "No provider call, credential payload read, external business write, deployment, restart, Production ref mutation, or secret evidence occurs during contract validation."
           ],
           "tests": [

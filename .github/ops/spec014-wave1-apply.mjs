@@ -504,7 +504,13 @@ function exactTables(readback) {
   const found = new Set(
     rows
       .filter((row) => typeof row === 'string' || row?.found !== false)
-      .map((row) => String(typeof row === 'string' ? row : row.table || row.table_name || row.name || ''))
+      .map((row) =>
+        String(
+          typeof row === 'string'
+            ? row
+            : row.table || row.table_name || row.TABLE_NAME || row.name || '',
+        ),
+      )
       .filter(Boolean),
   );
   const missing = readback?.expectations?.missing?.tables || [];
