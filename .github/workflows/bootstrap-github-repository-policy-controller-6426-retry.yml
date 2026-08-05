@@ -1,23 +1,25 @@
-name: Bootstrap GitHub Repository Policy Controller 6426 Retry
+name: Diagnose GitHub Repository Policy Controller Bootstrap 6426
 
 on:
   pull_request:
     branches: [main]
+    types: [synchronize]
     paths:
       - ".github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: bootstrap-github-repository-policy-controller-6426-retry-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  group: diagnose-github-repository-policy-controller-6426-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
-  materialize:
+  diagnose:
     if: >-
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805'
+      github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
+      github.event.pull_request.base.ref == 'main'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 30
     steps:
@@ -26,7 +28,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          token: ${{ github.token }}
 
       - name: Verify exact branch and base boundary
         shell: bash
@@ -37,7 +38,7 @@ jobs:
           git fetch --no-tags origin main
           test "$(git rev-parse FETCH_HEAD)" = "93430fd5e709f49d7a47e2830382b6578a7a22e6"
 
-      - name: Recover and materialize bounded payload
+      - name: Parse bounded payload
         shell: bash
         run: |
           set -euo pipefail
@@ -45,20 +46,46 @@ jobs:
           import base64
           import pathlib
           import re
-          import tarfile
 
-          root = pathlib.Path.cwd().resolve()
-          source = root / '.github/workflows/bootstrap-github-repository-policy-controller-6426.yml'
+          source = pathlib.Path('.github/workflows/bootstrap-github-repository-policy-controller-6426.yml')
           text = source.read_text()
           matches = re.findall(r"^\s+PAYLOAD_(\d+): '([^']*)'\s*$", text, re.MULTILINE)
           parts = sorted((int(index), value) for index, value in matches)
-          expected = list(range(7))
           observed = [index for index, _ in parts]
+          expected = list(range(7))
+          print({'expected_parts': expected, 'observed_parts': observed, 'encoded_bytes': sum(len(value) for _, value in parts)})
           if observed != expected:
               raise SystemExit(f'payload parts mismatch: expected={expected} observed={observed}')
+          payload = ''.join(value for _, value in parts)
+          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
+          archive.write_bytes(base64.b64decode(payload, validate=True))
+          print({'archive': str(archive), 'archive_bytes': archive.stat().st_size})
+          PY
+
+      - name: Inspect archive members
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib
+          import tarfile
 
           archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
-          archive.write_bytes(base64.b64decode(''.join(value for _, value in parts), validate=True))
+          with tarfile.open(archive, 'r:gz') as bundle:
+              members = bundle.getmembers()
+              print({'member_count': len(members), 'members': [member.name for member in members]})
+          PY
+
+      - name: Extract bounded payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import pathlib
+          import tarfile
+
+          root = pathlib.Path.cwd().resolve()
+          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
           with tarfile.open(archive, 'r:gz') as bundle:
               for member in bundle.getmembers():
                   target = (root / member.name).resolve()
@@ -66,37 +93,61 @@ jobs:
                       raise SystemExit(f'unsafe archive path: {member.name}')
               bundle.extractall(root)
           PY
-          git diff --check
-          node --check http-generic-api/githubRepositoryPolicyController.js
-          node --check http-generic-api/repositoryAutomationPolicyFacade.js
-          node --check http-generic-api/routes/repositoryAutomationRoutes.js
-          node --check http-generic-api/test-github-repository-policy-controller.mjs
-          node --check http-generic-api/test-repository-automation-policy-facade.mjs
-          python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
+          git status --short
+
+      - name: Verify exact materialized paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain | sed -E 's/^...//' | sort > /tmp/materialized-paths.txt
+          cat /tmp/materialized-paths.txt
+          cat > /tmp/expected-paths.txt <<'EOF'
+          .changes/e2e/github-repository-policy-controller.json
+          http-generic-api/githubRepositoryPolicyController.js
+          http-generic-api/migrations/20260805_github_repository_policy_controller.sql
+          http-generic-api/repositoryAutomationPolicyFacade.js
+          http-generic-api/routes/repositoryAutomationRoutes.js
+          http-generic-api/test-github-repository-policy-controller.mjs
+          http-generic-api/test-repository-automation-policy-facade.mjs
+          EOF
+          diff -u /tmp/expected-paths.txt /tmp/materialized-paths.txt
+
+      - name: Verify diff formatting
+        run: git diff --check
+
+      - name: Verify controller syntax
+        run: node --check http-generic-api/githubRepositoryPolicyController.js
+
+      - name: Verify facade syntax
+        run: node --check http-generic-api/repositoryAutomationPolicyFacade.js
+
+      - name: Verify route syntax
+        run: node --check http-generic-api/routes/repositoryAutomationRoutes.js
+
+      - name: Verify controller test syntax
+        run: node --check http-generic-api/test-github-repository-policy-controller.mjs
+
+      - name: Verify facade test syntax
+        run: node --check http-generic-api/test-repository-automation-policy-facade.mjs
+
+      - name: Verify E2E JSON
+        run: python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
 
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci --ignore-scripts
 
-      - name: Run focused fail-closed regressions
+      - name: Run controller regression
         working-directory: http-generic-api
-        run: |
-          node test-github-repository-policy-controller.mjs
-          node test-repository-automation-policy-facade.mjs
+        run: node test-github-repository-policy-controller.mjs
 
-      - name: Commit and push without force
+      - name: Run facade regression
+        working-directory: http-generic-api
+        run: node test-repository-automation-policy-facade.mjs
+
+      - name: Verify read-only diagnostic worktree
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .changes/e2e/github-repository-policy-controller.json \
-            http-generic-api/githubRepositoryPolicyController.js \
-            http-generic-api/repositoryAutomationPolicyFacade.js \
-            http-generic-api/routes/repositoryAutomationRoutes.js \
-            http-generic-api/migrations/20260805_github_repository_policy_controller.sql \
-            http-generic-api/test-github-repository-policy-controller.mjs \
-            http-generic-api/test-repository-automation-policy-facade.mjs
-          git diff --cached --quiet && { echo 'No implementation changes materialized' >&2; exit 1; }
-          git commit -m "feat(github): add governed main policy controller"
-          git push origin HEAD:gpt/github-main-policy-controller-20260805
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git status --porcelain | sed -E 's/^...//' | sort | diff -u /tmp/expected-paths.txt -
