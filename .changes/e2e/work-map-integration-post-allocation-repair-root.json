@@ -9,7 +9,11 @@
     "include": [
       ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
       ".github/workflows/spec-kit-work-map-integration.yml",
-      "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+      "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
     ]
   },
   "merge_contract": {
@@ -48,11 +52,22 @@
               "working_directory": "http-generic-api",
               "path": "test-spec-kit-work-map-integration-registration.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/spec-kit-work-map-integration.yml",
-            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
           ]
         }
       ]
@@ -88,12 +103,23 @@
               "working_directory": "http-generic-api",
               "path": "test-spec-kit-work-map-integration-registration.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
             ".github/workflows/spec-kit-work-map-integration.yml",
-            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
           ]
         }
       ]
@@ -129,12 +155,23 @@
               "working_directory": "http-generic-api",
               "path": "test-spec-kit-work-map-integration-registration.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
             ".github/workflows/spec-kit-work-map-integration.yml",
-            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs"
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
           ]
         }
       ]
