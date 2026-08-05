@@ -1,0 +1,79 @@
+name: One-shot CI Production ratchet artifact builder
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: one-shot-ci-production-ratchet-artifact-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/build-ci-production-ratchet-artifact-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify bounded source identity
+        shell: bash
+        env:
+          EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$EXPECTED_BASE_SHA"
+          test "$EXPECTED_HEAD_REF" = "gpt/build-ci-production-ratchet-artifact-146e070d-20260805"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD "$EXPECTED_BASE_SHA")" = "$EXPECTED_BASE_SHA"
+
+      - name: Apply and test bounded source correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check
+          test "$(git diff --name-only | sort)" = "$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+
+      - name: Package exact patched files
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/ci-production-ratchet-patched"
+          mkdir -p "$OUT"
+          cp --parents \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs \
+            "$OUT"
+          find "$OUT" -type f -print0 | sort -z | xargs -0 sha256sum
+
+      - name: Upload exact patched files
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-production-ratchet-patched-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/ci-production-ratchet-patched
+          if-no-files-found: error
+          retention-days: 7
