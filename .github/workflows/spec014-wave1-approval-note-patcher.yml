@@ -26,6 +26,7 @@ jobs:
     timeout-minutes: 10
     env:
       EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
       TARGET_BRANCH: fix/spec014-wave1-approval-safe-decision-note-20260805
       PATCHER_PATH: .github/workflows/spec014-wave1-approval-note-patcher.yml
       RUNNER_PATH: .github/ops/spec014-wave1-runtime-readiness.mjs
@@ -42,7 +43,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
-          test "$(git branch --show-current)" = "${TARGET_BRANCH}"
+          test "${EVENT_HEAD_REF}" = "${TARGET_BRANCH}"
           mapfile -t changed < <(git diff --name-only "${{ github.event.pull_request.base.sha }}...${EXPECTED_HEAD_SHA}")
           test "${#changed[@]}" -eq 1
           test "${changed[0]}" = "${PATCHER_PATH}"
