@@ -17,6 +17,21 @@ assert.doesNotMatch(
   "Recovery must not emit test reports under an unverified event-level GITHUB_SHA.",
 );
 
+assert.match(
+  ciWorkflow,
+  /PULL_REQUEST_HEAD_SHA: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/u,
+  "Canonical CI must expose the pull-request source-head SHA to the Production classifier.",
+);
+assert.match(ciWorkflow, /CANDIDATE_SHA="\$\{PULL_REQUEST_HEAD_SHA:-\}"/u);
+assert.match(ciWorkflow, /git cat-file -e "\$\{CANDIDATE_SHA\}\^\{commit\}"/u);
+assert.match(ciWorkflow, /--head "\$CANDIDATE_SHA"/u);
+assert.match(ciWorkflow, /git diff --name-only "\$BASE_SHA" "\$CANDIDATE_SHA"/u);
+assert.doesNotMatch(
+  ciWorkflow,
+  /--head "\$\(git rev-parse HEAD\)"/u,
+  "Production classification must not use the synthetic pull-request merge checkout as candidate identity.",
+);
+
 const pullRequestOnlyCancellation = /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u;
 for (const [name, workflow] of [
   ["CI", ciWorkflow],
@@ -37,4 +52,4 @@ for (const [name, workflow] of [
 assert.match(ciWorkflow, /\n  push:\n/u, "CI push verification must remain enabled.");
 assert.match(recoveryWorkflow, /group: ci-pr-recovery-\$\{\{ github\.event\.pull_request\.number \|\| github\.ref \}\}/u);
 
-console.log("CI exact checkout provenance and PR stale-run cancellation tests passed");
+console.log("CI exact checkout provenance, Production source-head classification, and PR stale-run cancellation tests passed");
