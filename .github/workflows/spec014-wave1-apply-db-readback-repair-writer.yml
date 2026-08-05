@@ -16,16 +16,16 @@ jobs:
       - name: Checkout exact repair branch
         uses: actions/checkout@v5
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Verify immutable repair identity
         shell: bash
         run: |
           set -euo pipefail
           test "$GITHUB_REF_NAME" = "fix/spec014-wave1-apply-db-readback-action-20260805"
-          test "$(git rev-parse HEAD^)" = "b4bda4a281cd21aacc1faa2a314541d58f94790f"
           git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "b4bda4a281cd21aacc1faa2a314541d58f94790f"
+          test "$(git rev-parse origin/main)" = "81525a9e0a16ed86a6ab96b849ff26ad3405bd04"
+          git merge-base --is-ancestor 81525a9e0a16ed86a6ab96b849ff26ad3405bd04 HEAD
 
       - name: Apply bounded DB readback repair and regression
         shell: bash
