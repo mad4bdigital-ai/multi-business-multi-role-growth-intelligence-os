@@ -1,0 +1,102 @@
+name: Bootstrap GitHub Repository Policy Controller 6426 Retry
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/bootstrap-github-repository-policy-controller-6426-retry.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-github-repository-policy-controller-6426-retry-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact work-branch head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Verify exact branch and base boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_HEAD_REF}" = "gpt/github-main-policy-controller-20260805"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags origin main
+          test "$(git rev-parse FETCH_HEAD)" = "93430fd5e709f49d7a47e2830382b6578a7a22e6"
+
+      - name: Recover and materialize bounded payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import pathlib
+          import re
+          import tarfile
+
+          root = pathlib.Path.cwd().resolve()
+          source = root / '.github/workflows/bootstrap-github-repository-policy-controller-6426.yml'
+          text = source.read_text()
+          matches = re.findall(r"^\s+PAYLOAD_(\d+): '([^']*)'\s*$", text, re.MULTILINE)
+          parts = sorted((int(index), value) for index, value in matches)
+          expected = list(range(7))
+          observed = [index for index, _ in parts]
+          if observed != expected:
+              raise SystemExit(f'payload parts mismatch: expected={expected} observed={observed}')
+
+          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
+          archive.write_bytes(base64.b64decode(''.join(value for _, value in parts), validate=True))
+          with tarfile.open(archive, 'r:gz') as bundle:
+              for member in bundle.getmembers():
+                  target = (root / member.name).resolve()
+                  if root not in target.parents and target != root:
+                      raise SystemExit(f'unsafe archive path: {member.name}')
+              bundle.extractall(root)
+          PY
+          git diff --check
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/repositoryAutomationPolicyFacade.js
+          node --check http-generic-api/routes/repositoryAutomationRoutes.js
+          node --check http-generic-api/test-github-repository-policy-controller.mjs
+          node --check http-generic-api/test-repository-automation-policy-facade.mjs
+          python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run focused fail-closed regressions
+        working-directory: http-generic-api
+        run: |
+          node test-github-repository-policy-controller.mjs
+          node test-repository-automation-policy-facade.mjs
+
+      - name: Commit and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .changes/e2e/github-repository-policy-controller.json \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/repositoryAutomationPolicyFacade.js \
+            http-generic-api/routes/repositoryAutomationRoutes.js \
+            http-generic-api/migrations/20260805_github_repository_policy_controller.sql \
+            http-generic-api/test-github-repository-policy-controller.mjs \
+            http-generic-api/test-repository-automation-policy-facade.mjs
+          git diff --cached --quiet && { echo 'No implementation changes materialized' >&2; exit 1; }
+          git commit -m "feat(github): add governed main policy controller"
+          git push origin HEAD:gpt/github-main-policy-controller-20260805
