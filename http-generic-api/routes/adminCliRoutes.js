@@ -1085,6 +1085,135 @@ function githubContentsMutationAllowed(apiTarget = "", method = "GET") {
   return String(method || "").toUpperCase() === "PUT" && String(apiTarget || "").startsWith("/contents/");
 }
 
+export function assertGithubContentsMutationIntent(fieldValues = {}, defaultBranch = "") {
+  const branch = String(fieldValues?.branch || "").trim();
+  if (!branch) {
+    const err = new Error("GitHub contents write fallback requires an explicit branch field; default-branch fallback is forbidden.");
+    err.status = 400;
+    err.code = "github_rest_contents_branch_required";
+    throw err;
+  }
+
+  const normalizedBranch = branch.toLowerCase();
+  const protectedBranches = new Set(["main", "master", "production", "prod", "staging", "release"]);
+  const normalizedDefaultBranch = String(defaultBranch || "").trim().toLowerCase();
+  if (normalizedDefaultBranch) protectedBranches.add(normalizedDefaultBranch);
+  if (protectedBranches.has(normalizedBranch)) {
+    const err = new Error("GitHub contents write fallback refuses protected or default branches.");
+    err.status = 403;
+    err.code = "github_rest_contents_protected_branch";
+    err.details = { branch, default_branch: defaultBranch || null, secrets_included: false };
+    throw err;
+  }
+  if (!/^(gpt|chore|fix|feature|docs|hotfix|cert)\//.test(branch)) {
+    const err = new Error("GitHub contents write fallback requires a governed non-protected branch prefix.");
+    err.status = 403;
+    err.code = "github_rest_contents_branch_prefix_blocked";
+    err.details = {
+      branch,
+      allowed_prefixes: ["gpt/", "chore/", "fix/", "feature/", "docs/", "hotfix/", "cert/"],
+      secrets_included: false,
+    };
+    throw err;
+  }
+
+  const expectedBranchSha = String(fieldValues?.expected_branch_sha || "").trim();
+  if (!/^[0-9a-f]{40}$/i.test(expectedBranchSha)) {
+    const err = new Error("GitHub contents write fallback requires expected_branch_sha bound to the existing target ref.");
+    err.status = 400;
+    err.code = "github_rest_contents_expected_head_required";
+    err.details = { branch, secrets_included: false };
+    throw err;
+  }
+
+  const body = { ...fieldValues, branch };
+  delete body.expected_branch_sha;
+  return { branch, expected_branch_sha: expectedBranchSha.toLowerCase(), body, secrets_included: false };
+}
+
+async function prepareGithubContentsMutation({ owner, repo, token, fieldValues = {} }) {
+  const repository = await githubRestJson({ owner, repo, apiPath: "", token });
+  const intent = assertGithubContentsMutationIntent(fieldValues, repository?.default_branch || "");
+  let branchRef;
+  try {
+    branchRef = await githubRestJson({
+      owner,
+      repo,
+      apiPath: `/git/ref/heads/${encodeGithubRefPath(intent.branch)}`,
+      token,
+    });
+  } catch (error) {
+    if (Number(error?.details?.status) === 404) {
+      const err = new Error("GitHub contents write target branch does not exist; default-branch fallback is forbidden.");
+      err.status = 409;
+      err.code = "github_rest_contents_branch_not_found";
+      err.details = { branch: intent.branch, secrets_included: false };
+      throw err;
+    }
+    throw error;
+  }
+
+  const observedBranchSha = String(branchRef?.object?.sha || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/i.test(observedBranchSha)) {
+    const err = new Error("GitHub contents write target branch readback was malformed.");
+    err.status = 502;
+    err.code = "github_rest_contents_branch_ref_malformed";
+    err.details = { branch: intent.branch, secrets_included: false };
+    throw err;
+  }
+  if (observedBranchSha !== intent.expected_branch_sha) {
+    const err = new Error("GitHub contents write target branch moved before mutation.");
+    err.status = 409;
+    err.code = "github_rest_contents_stale_branch";
+    err.details = {
+      branch: intent.branch,
+      expected_branch_sha: intent.expected_branch_sha,
+      observed_branch_sha: observedBranchSha,
+      secrets_included: false,
+    };
+    throw err;
+  }
+  return { ...intent, observed_branch_sha: observedBranchSha };
+}
+
+async function readbackGithubContentsMutation({ owner, repo, token, contentsMutation, payload }) {
+  const committedSha = String(payload?.commit?.sha || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{40}$/i.test(committedSha)) {
+    const err = new Error("GitHub contents write response did not include a valid commit SHA.");
+    err.status = 502;
+    err.code = "github_rest_contents_commit_sha_missing";
+    err.details = { branch: contentsMutation.branch, secrets_included: false };
+    throw err;
+  }
+  const branchRef = await githubRestJson({
+    owner,
+    repo,
+    apiPath: `/git/ref/heads/${encodeGithubRefPath(contentsMutation.branch)}`,
+    token,
+  });
+  const observedBranchSha = String(branchRef?.object?.sha || "").trim().toLowerCase();
+  if (observedBranchSha !== committedSha) {
+    const err = new Error("GitHub contents write completed without exact branch-head readback.");
+    err.status = 502;
+    err.code = "github_rest_contents_branch_readback_failed";
+    err.details = {
+      branch: contentsMutation.branch,
+      commit_sha: committedSha,
+      observed_branch_sha: observedBranchSha || null,
+      secrets_included: false,
+    };
+    throw err;
+  }
+  return {
+    branch: contentsMutation.branch,
+    previous_branch_sha: contentsMutation.observed_branch_sha,
+    commit_sha: committedSha,
+    observed_branch_sha: observedBranchSha,
+    readback_verified: true,
+    secrets_included: false,
+  };
+}
+
 function githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {
   return String(method || "").toUpperCase() === "PATCH" && String(apiTarget || "").startsWith("/git/refs/heads/");
 }
@@ -1451,6 +1580,9 @@ async function executeGitHubRestFallbackCore(args = []) {
     const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
     const allowedPullClose = githubPullCloseAllowed(apiTarget, method);
     if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
+    const contentsMutation = allowedContentsMutation
+    ? await prepareGithubContentsMutation({ owner, repo, token, fieldValues })
+    : null;
     const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;
     const pullClose = allowedPullClose ? assertGithubPullCloseAllowed(apiTarget, fieldValues) : null;
     const allowedMutation = (["POST", "PUT", "PATCH"].includes(method) || allowedContentsMutation) && (
@@ -1476,7 +1608,15 @@ async function executeGitHubRestFallbackCore(args = []) {
       apiPath: apiTarget,
       token,
       method,
-      body: pullClose ? pullClose.body : allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,
+      body: pullClose
+    ? pullClose.body
+    : contentsMutation
+      ? contentsMutation.body
+      : allowedBranchRefUpdate
+        ? branchRefUpdate.body
+        : allowedMutation
+          ? fieldValues
+          : null,
     });
     let pullCloseReadback = null;
     if (pullClose) {
@@ -1489,7 +1629,16 @@ async function executeGitHubRestFallbackCore(args = []) {
         throw err;
       }
     }
-    const output = pullClose
+    const contentsMutationReadback = contentsMutation
+    ? await readbackGithubContentsMutation({ owner, repo, token, contentsMutation, payload })
+    : null;
+  const output = contentsMutation
+    ? {
+        content_write: true,
+        path: githubContentsPathFromApiTarget(apiTarget),
+        ...contentsMutationReadback,
+      }
+    : pullClose
       ? {
           pull_number: Number(pullClose.pullNumber),
           state: pullCloseReadback.state,
