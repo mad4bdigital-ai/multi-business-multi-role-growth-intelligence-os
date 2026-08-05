@@ -36,6 +36,14 @@ assert.doesNotMatch(
   runner,
   /const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT'/,
 );
+assert.match(
+  runner,
+  /APPLY_CONFIRM = 'APPLY_20260728_GOVERNED_RESPONSE_CHUNK_OWNERSHIP'/,
+);
+assert.doesNotMatch(
+  runner,
+  /const APPLY_CONFIRM = 'APPLY_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT'/,
+);
 assert.match(runner, /splitMigrationSqlStatements/);
 assert.match(runner, /verifyProductionMigrationBlob/);
 assert.match(runner, /readback_first/);
