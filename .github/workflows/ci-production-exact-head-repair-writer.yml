@@ -1,0 +1,188 @@
+name: CI Production Exact-Head Repair Writer
+
+on:
+  push:
+    branches:
+      - gpt/ci-production-promotion-exact-head-checkout-20260805
+    paths:
+      - .github/workflows/ci-production-exact-head-repair-writer.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ci-production-exact-head-repair-writer
+  cancel-in-progress: false
+
+jobs:
+  repair-validate-retire-push:
+    if: github.ref_name == 'gpt/ci-production-promotion-exact-head-checkout-20260805'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      EXPECTED_MAIN_SHA: 35c617610623e46709495a7f1928e7def8c9c251
+      BRANCH_NAME: gpt/ci-production-promotion-exact-head-checkout-20260805
+      WRITER_PATH: .github/workflows/ci-production-exact-head-repair-writer.yml
+    steps:
+      - name: Checkout exact writer registration head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable branch and bounded registration scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${GITHUB_SHA}"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | sort)
+          test "${#files[@]}" -eq 1
+          test "${files[0]}" = "${WRITER_PATH}"
+          test -z "$(git status --porcelain=v1)"
+
+      - name: Patch canonical CI exact-head identity and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          expression = "$" + "{{ github.event.pull_request.head.sha || github.sha }}"
+
+          ci_path = Path('.github/workflows/ci.yml')
+          ci = ci_path.read_text(encoding='utf-8')
+          checkout = "      - uses: actions/checkout@v5\n"
+          replacement = (
+              "      - uses: actions/checkout@v5\n"
+              "        with:\n"
+              f"          ref: {expression}\n"
+              "          fetch-depth: 0\n"
+          )
+          count = ci.count(checkout)
+          if count != 4:
+              raise SystemExit(f'expected four canonical checkout steps, found {count}')
+          ci = ci.replace(checkout, replacement)
+
+          old_deployment = '          DEPLOYMENT_COMMIT_SHA: "' + "$" + '{{ github.sha }}"\n'
+          new_deployment = f'          DEPLOYMENT_COMMIT_SHA: "{expression}"\n'
+          if ci.count(old_deployment) != 1:
+              raise SystemExit('canonical deployment SHA binding not found exactly once')
+          ci = ci.replace(old_deployment, new_deployment)
+          ci_path.write_text(ci, encoding='utf-8')
+
+          test_path = Path('http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs')
+          test = test_path.read_text(encoding='utf-8')
+          recovery_anchor = (
+              'const exactCheckoutCount = recovery.split("ref: ' + expression + '").length - 1;\n'
+              'assert.equal(exactCheckoutCount, 2, `expected two exact candidate checkouts, got ${exactCheckoutCount}`);\n'
+          )
+          if test.count(recovery_anchor) != 1:
+              raise SystemExit('recovery exact-checkout assertion anchor not found exactly once')
+          canonical_assertions = (
+              recovery_anchor
+              + '\n'
+              + 'const canonicalExactCheckoutCount = canonical.split("ref: ' + expression + '").length - 1;\n'
+              + 'assert.equal(canonicalExactCheckoutCount, 4, `expected four canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);\n'
+              + 'assert(canonical.includes(\'DEPLOYMENT_COMMIT_SHA: "' + expression + '"\'), "canonical deployment evidence must bind to the exact pull-request head");\n'
+          )
+          test = test.replace(recovery_anchor, canonical_assertions)
+          if test.count('  tests: requiredRecoveryTokens.length + 8,') != 1:
+              raise SystemExit('test count anchor not found exactly once')
+          test = test.replace('  tests: requiredRecoveryTokens.length + 8,', '  tests: requiredRecoveryTokens.length + 10,')
+          if test.count('  exact_checkout_count: exactCheckoutCount,') != 1:
+              raise SystemExit('summary anchor not found exactly once')
+          test = test.replace(
+              '  exact_checkout_count: exactCheckoutCount,',
+              '  exact_checkout_count: exactCheckoutCount,\n  canonical_exact_checkout_count: canonicalExactCheckoutCount,\n  canonical_deployment_sha_exact: true,'
+          )
+          test_path.write_text(test, encoding='utf-8')
+          PY
+
+          test "$(grep -c 'ref: \${{ github.event.pull_request.head.sha || github.sha }}' .github/workflows/ci.yml)" -eq 4
+          grep -F 'DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"' .github/workflows/ci.yml
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check
+
+      - name: Retire writer and create exact two-file candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm "${WRITER_PATH}"
+          git add .github/workflows/ci.yml http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git commit -m "fix(ci): pin canonical CI to exact pull request head"
+          final_sha="$(git rev-parse HEAD)"
+          mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...${final_sha}" | sort)
+          expected=(
+            ".github/workflows/ci.yml"
+            "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+          )
+          test "${#files[@]}" -eq "${#expected[@]}"
+          diff -u <(printf '%s\n' "${expected[@]}") <(printf '%s\n' "${files[@]}")
+          git diff --check "${EXPECTED_MAIN_SHA}...${final_sha}"
+          test -z "$(git status --porcelain=v1)"
+          echo "FINAL_SHA=${final_sha}" >> "${GITHUB_ENV}"
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate focused contract, E2E coverage, and complete manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | tee evidence/ci-pull-request-recovery-self-test.log
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${FINAL_SHA}" \
+            --report-file evidence/e2e-phase-evaluation.json
+          (cd http-generic-api && npm test) | tee evidence/http-generic-api-manifest.log
+
+      - name: Record bounded non-effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > evidence/non-effects.json <<JSON
+          {
+            "base_main": "${EXPECTED_MAIN_SHA}",
+            "candidate": "${FINAL_SHA}",
+            "effective_changed_files": 2,
+            "canonical_exact_checkout_count": 4,
+            "recovery_exact_checkout_count": 2,
+            "protected_ref_write": false,
+            "production_merge": false,
+            "deployment": false,
+            "provider_action": false,
+            "database_mutation": false,
+            "migration_apply": false,
+            "credential_access": false,
+            "force_push": false,
+            "secrets_included": false
+          }
+          JSON
+
+      - name: Push fast-forward exact validated head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${BRANCH_NAME}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git rev-parse origin/${BRANCH_NAME})" = "${GITHUB_SHA}"
+          git push origin "HEAD:${BRANCH_NAME}"
+          remote_sha="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
+          test "${remote_sha}" = "${FINAL_SHA}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-production-exact-head-repair-${{ github.run_id }}
+          path: evidence/
+          if-no-files-found: warn
+          retention-days: 14
