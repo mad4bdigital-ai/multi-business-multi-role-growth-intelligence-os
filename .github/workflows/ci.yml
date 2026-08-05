@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - name: Guard schema/docs coverage for runtime changes
@@ -81,6 +82,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
       - uses: actions/setup-node@v6
@@ -164,7 +166,7 @@ jobs:
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
           DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
-          DEPLOYMENT_COMMIT_SHA: "${{ github.sha }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment
@@ -197,6 +199,9 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -228,6 +233,9 @@ jobs:
     needs: syntax
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:

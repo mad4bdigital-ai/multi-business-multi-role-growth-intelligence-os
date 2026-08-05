@@ -64,14 +64,20 @@ for (const token of [
 const exactCheckoutCount = recovery.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
 assert.equal(exactCheckoutCount, 2, `expected two exact candidate checkouts, got ${exactCheckoutCount}`);
 
+const canonicalExactCheckoutCount = canonical.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
+assert.equal(canonicalExactCheckoutCount, 4, `expected four canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
+assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
+
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);
 assert(testJobNeedsSyntax, "Unit & Integration Tests must depend on Syntax Check");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: requiredRecoveryTokens.length + 8,
+  tests: requiredRecoveryTokens.length + 10,
   workflow: ".github/workflows/ci-pull-request-recovery.yml",
   exact_checkout_count: exactCheckoutCount,
+  canonical_exact_checkout_count: canonicalExactCheckoutCount,
+  canonical_deployment_sha_exact: true,
   canonical_workflow_unchanged: false,
   production_promotion_phase_base: true,
   pull_request_target: false,
