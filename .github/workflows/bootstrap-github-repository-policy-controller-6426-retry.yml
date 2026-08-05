@@ -36,45 +36,97 @@ jobs:
           test "${GITHUB_HEAD_REF}" = "gpt/github-main-policy-controller-20260805"
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
           git fetch --no-tags origin main
-          test "$(git rev-parse FETCH_HEAD)" = "93430fd5e709f49d7a47e2830382b6578a7a22e6"
+          test "$(git rev-parse FETCH_HEAD)" = "5f4b41aaefd8633aae07c1418ab955f8c4ed49d1"
+          git merge-base --is-ancestor FETCH_HEAD HEAD
 
-      - name: Parse bounded payload
+      - name: Diagnose and decode bounded payload
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
+          import ast
           import base64
+          import json
           import pathlib
           import re
-
-          source = pathlib.Path('.github/workflows/bootstrap-github-repository-policy-controller-6426.yml')
-          text = source.read_text()
-          matches = re.findall(r"^\s+PAYLOAD_(\d+): '([^']*)'\s*$", text, re.MULTILINE)
-          parts = sorted((int(index), value) for index, value in matches)
-          observed = [index for index, _ in parts]
-          expected = list(range(7))
-          print({'expected_parts': expected, 'observed_parts': observed, 'encoded_bytes': sum(len(value) for _, value in parts)})
-          if observed != expected:
-              raise SystemExit(f'payload parts mismatch: expected={expected} observed={observed}')
-          payload = ''.join(value for _, value in parts)
-          archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
-          archive.write_bytes(base64.b64decode(payload, validate=True))
-          print({'archive': str(archive), 'archive_bytes': archive.stat().st_size})
-          PY
-
-      - name: Inspect archive members
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import pathlib
           import tarfile
 
+          source = pathlib.Path('.github/workflows/bootstrap-github-repository-policy-controller-6426.yml')
           archive = pathlib.Path('/tmp/github-policy-controller.tar.gz')
-          with tarfile.open(archive, 'r:gz') as bundle:
-              members = bundle.getmembers()
-              print({'member_count': len(members), 'members': [member.name for member in members]})
+          encoded_path = pathlib.Path('/tmp/github-policy-controller.b64')
+          report_path = pathlib.Path('/tmp/payload-diagnostic.json')
+          report = {
+              'schema_version': 'github-policy-controller-payload-diagnostic-v1',
+              'source': str(source),
+              'expected_indexes': list(range(7)),
+              'secrets_included': False,
+          }
+          failure = None
+          try:
+              text = source.read_text()
+              parts = []
+              seen = set()
+              for line_number, line in enumerate(text.splitlines(), start=1):
+                  match = re.match(r'^\s*PAYLOAD_(\d+):\s*(.+?)\s*$', line)
+                  if not match:
+                      continue
+                  index = int(match.group(1))
+                  if index in seen:
+                      raise ValueError(f'duplicate payload index: {index}')
+                  seen.add(index)
+                  raw = match.group(2)
+                  value = ast.literal_eval(raw)
+                  if not isinstance(value, str):
+                      raise TypeError(f'payload part {index} is not a string')
+                  invalid = sorted(set(re.sub(r'[A-Za-z0-9+/=]', '', value)))
+                  if invalid:
+                      raise ValueError(f'payload part {index} has invalid base64 characters')
+                  parts.append((index, value, line_number))
+              parts.sort(key=lambda item: item[0])
+              observed = [index for index, _, _ in parts]
+              lengths = [len(value) for _, value, _ in parts]
+              report.update({
+                  'observed_indexes': observed,
+                  'line_numbers': [line_number for _, _, line_number in parts],
+                  'part_lengths': lengths,
+                  'encoded_bytes': sum(lengths),
+                  'encoded_modulo_4': sum(lengths) % 4,
+              })
+              if observed != report['expected_indexes']:
+                  raise ValueError(f'payload indexes mismatch: {observed}')
+              payload = ''.join(value for _, value, _ in parts)
+              encoded_path.write_text(payload)
+              decoded = base64.b64decode(payload, validate=True)
+              archive.write_bytes(decoded)
+              report.update({
+                  'decode_ok': True,
+                  'archive_bytes': len(decoded),
+                  'gzip_magic_ok': decoded[:2] == b'\x1f\x8b',
+              })
+              with tarfile.open(archive, 'r:gz') as bundle:
+                  members = bundle.getmembers()
+                  report['archive_members'] = [member.name for member in members]
+                  report['archive_member_count'] = len(members)
+          except Exception as exc:
+              report['decode_ok'] = False
+              report['error_type'] = type(exc).__name__
+              report['error_message'] = str(exc)
+              failure = exc
+          finally:
+              report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+              print(report_path.read_text())
+          if failure is not None:
+              raise failure
           PY
+
+      - name: Upload payload diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-policy-controller-payload-diagnostic-${{ github.run_id }}
+          path: /tmp/payload-diagnostic.json
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Extract bounded payload
         shell: bash
@@ -100,7 +152,6 @@ jobs:
         run: |
           set -euo pipefail
           git status --porcelain | sed -E 's/^...//' | sort > /tmp/materialized-paths.txt
-          cat /tmp/materialized-paths.txt
           cat > /tmp/expected-paths.txt <<'EOF'
           .changes/e2e/github-repository-policy-controller.json
           http-generic-api/githubRepositoryPolicyController.js
@@ -115,20 +166,15 @@ jobs:
       - name: Verify diff formatting
         run: git diff --check
 
-      - name: Verify controller syntax
-        run: node --check http-generic-api/githubRepositoryPolicyController.js
-
-      - name: Verify facade syntax
-        run: node --check http-generic-api/repositoryAutomationPolicyFacade.js
-
-      - name: Verify route syntax
-        run: node --check http-generic-api/routes/repositoryAutomationRoutes.js
-
-      - name: Verify controller test syntax
-        run: node --check http-generic-api/test-github-repository-policy-controller.mjs
-
-      - name: Verify facade test syntax
-        run: node --check http-generic-api/test-repository-automation-policy-facade.mjs
+      - name: Verify JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/repositoryAutomationPolicyFacade.js
+          node --check http-generic-api/routes/repositoryAutomationRoutes.js
+          node --check http-generic-api/test-github-repository-policy-controller.mjs
+          node --check http-generic-api/test-repository-automation-policy-facade.mjs
 
       - name: Verify E2E JSON
         run: python -m json.tool .changes/e2e/github-repository-policy-controller.json >/dev/null
