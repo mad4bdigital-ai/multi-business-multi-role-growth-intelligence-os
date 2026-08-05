@@ -1,0 +1,75 @@
+name: Incident 6426 Policy Controller Snippet Diagnostic R10
+
+on:
+  push:
+    branches:
+      - gpt/incident-6426/repository-policy-controller-snippet-diagnostic-r10-93430fd5-20260805
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: gpt/incident-6426/repository-policy-controller-snippet-diagnostic-r10-93430fd5-20260805
+      EXPECTED_MAIN_SHA: 93430fd5e709f49d7a47e2830382b6578a7a22e6
+      SOURCE_BRANCH: gpt/incident-6426/repository-policy-controller-93430fd5-20260805
+      SOURCE_COMMIT: 17a323211d5123d594cf83a5613023f815acae0b
+      SOURCE_WORKFLOW: .github/workflows/incident-6426-policy-controller-bootstrap.yml
+      EXPECTED_DECODED_SHA256: d3b795a4f317d5b7aea2e358292e2f5cc3625e19375719f52a1a0a7642381514
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Extract bounded syntax context
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/incident-6426-bootstrap-source"
+          test "$(git rev-parse refs/remotes/origin/incident-6426-bootstrap-source)" = "$SOURCE_COMMIT"
+          python - <<'PY'
+          import base64, hashlib, json, os, subprocess
+          from pathlib import Path
+          raw = subprocess.check_output(["git", "show", f"{os.environ['SOURCE_COMMIT']}:{os.environ['SOURCE_WORKFLOW']}"], text=True)
+          prefix = "          PATCH_SCRIPT_B64: "
+          matches = [line[len(prefix):].strip() for line in raw.splitlines() if line.startswith(prefix)]
+          if len(matches) != 1:
+              raise SystemExit(f"expected one payload, got {len(matches)}")
+          encoded = "".join(matches[0].split())
+          decoded = base64.b64decode(encoded + ("=" * ((-len(encoded)) % 4)), validate=False)
+          decoded_sha = hashlib.sha256(decoded).hexdigest()
+          if decoded_sha != os.environ["EXPECTED_DECODED_SHA256"]:
+              raise SystemExit(f"decoded identity mismatch: {decoded_sha}")
+          text = decoded.decode("utf-8")
+          lines = text.splitlines()
+          context = []
+          for line_number in range(29, 40):
+              value = lines[line_number - 1] if line_number <= len(lines) else None
+              context.append({"line": line_number, "text": value})
+          report = {
+            "contract": "mad4b.repository-policy-controller-snippet-diagnostic-r10.v1",
+            "decoded_sha256": decoded_sha,
+            "decoded_lines": len(lines),
+            "syntax_context": context,
+            "live_policy_apply": False,
+            "protected_ref_mutation": False,
+            "force_push": False,
+            "secrets_included": False
+          }
+          Path(os.environ["RUNNER_TEMP"], "syntax-context.json").write_text(json.dumps(report, indent=2) + "\n")
+          PY
+
+      - name: Upload bounded syntax context
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-policy-controller-snippet-diagnostic-r10-${{ github.run_id }}
+          path: ${{ runner.temp }}/syntax-context.json
+          if-no-files-found: error
+          retention-days: 14
