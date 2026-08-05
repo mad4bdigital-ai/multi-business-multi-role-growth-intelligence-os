@@ -1,0 +1,68 @@
+name: Spec 014 Final Work Map Binding Refresh Validation 6314
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  refresh-validation:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chore/spec014-wave1-runtime-evidence-cleanup-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact cleanup head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Refresh deterministic Spec 014 binding
+        id: refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/spec014-binding-refresh"
+          mkdir -p "$evidence/specs/014-governed-hostinger-storage-orchestration"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "$evidence/refresh-report.json"
+          cp specs/014-governed-hostinger-storage-orchestration/work-map-integration.json "$evidence/specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          cp specs/014-governed-hostinger-storage-orchestration/tasks.md "$evidence/specs/014-governed-hostinger-storage-orchestration/tasks.md"
+          git diff --name-only > "$evidence/changed-files.txt"
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = "specs/014-governed-hostinger-storage-orchestration/tasks.md specs/014-governed-hostinger-storage-orchestration/work-map-integration.json " || \
+            test "$(git diff --name-only | sort | tr '\n' ' ')" = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json "
+
+      - name: Validate refreshed exact-head binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="${RUNNER_TEMP}/spec014-binding-refresh"
+          REPORT_PATH="$evidence/final-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "$evidence/final-readback-stdout.json"
+          jq -e '.ok == true and .repository_mutation == false and .provider_dispatch == false and .live_database_access == false and .migration_apply == false and .secrets_included == false' "$evidence/final-readback.json" >/dev/null
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/spec014-wave1-readback-pr-write-separation.json','utf8'))"
+
+      - name: Upload deterministic refresh proposal
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-binding-refresh-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-binding-refresh/
+          if-no-files-found: error
+          retention-days: 14
