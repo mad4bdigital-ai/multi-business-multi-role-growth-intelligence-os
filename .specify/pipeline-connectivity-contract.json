@@ -130,9 +130,15 @@
         "contents": "read"
       },
       "required_triggers": [
-        "workflow_dispatch",
+        "workflow_dispatch"
+      ],
+      "forbidden_triggers": [
+        "pull_request",
         "pull_request_target",
-        "issue_comment"
+        "issue_comment",
+        "push",
+        "schedule",
+        "workflow_run"
       ],
       "required_commands": [
         "Resolve and validate exact same-repository target",

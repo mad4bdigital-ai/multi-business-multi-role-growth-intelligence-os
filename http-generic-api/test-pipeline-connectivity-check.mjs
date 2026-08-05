@@ -283,9 +283,10 @@ jobs:
   assert.ok(bridgeContract, "Work Map recovery bridge must remain registered");
   assert.ok(writerContract, "Work Map writer must remain registered");
   assert.equal(bridgeContract.workflow, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml");
+  assert.deepEqual(bridgeContract.required_triggers, ["workflow_dispatch"]);
   assert.deepEqual(
-    bridgeContract.required_triggers.sort(),
-    ["issue_comment", "pull_request_target", "workflow_dispatch"].sort(),
+    bridgeContract.forbidden_triggers.sort(),
+    ["issue_comment", "pull_request", "pull_request_target", "push", "schedule", "workflow_run"].sort(),
   );
   assert.deepEqual(writerContract.required_triggers, ["workflow_dispatch"]);
   assert.ok(writerContract.forbidden_triggers.includes("pull_request"));

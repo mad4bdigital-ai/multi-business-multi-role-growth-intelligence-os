@@ -64,9 +64,9 @@ jobs:
           test "$(gh api "/repos/${REPOSITORY}/issues/${CONTROL_ISSUE}" --jq '.state')" = open
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${TOOLING_SHA}"
           test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')" = "${EXPECTED_SHA}"
-          test -e .github/workflows/production-runtime-parity-comment-bridge.yml
-          test -e http-generic-api/scripts/production-runtime-parity-evidence.mjs
-          test -e http-generic-api/scripts/test-production-runtime-parity-evidence.mjs
+          test -f .github/workflows/production-runtime-parity-comment-bridge.yml
+          test -f http-generic-api/scripts/production-runtime-parity-evidence.mjs
+          test -f http-generic-api/scripts/test-production-runtime-parity-evidence.mjs
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6

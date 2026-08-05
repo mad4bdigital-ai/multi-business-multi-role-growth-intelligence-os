@@ -24,8 +24,15 @@ const requiredRecoveryTokens = [
   "Verify exact candidate checkout",
   "test \"$(git rev-parse HEAD)\" = \"$EXPECTED_SHA\"",
   "node scripts/user-jwt-auth-governance.mjs",
+  "PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}",
+  "PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}",
+  "\"$PULL_REQUEST_BASE_REF\" == \"Production\"",
+  "node http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+  "phase_evaluation_base",
+  "git diff --name-only \"$BASE_SHA\" HEAD",
   "node scripts/context-kernel-hardcoding-scan.mjs --fail-on=runtime",
-  "run: npm test",
+  "Run tests with exact checked-out identity",
+  "GITHUB_SHA=\"$actual_sha\" npm test",
   "node test-server-startup-smoke.mjs",
   "node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence"
 ];
@@ -43,18 +50,36 @@ assert(canonical.includes("pull_request:\n    branches: [main, Production]"), "c
 assert(canonical.includes("name: Syntax Check"), "canonical Syntax Check job missing");
 assert(canonical.includes("name: Unit & Integration Tests"), "canonical Unit & Integration Tests job missing");
 
+for (const token of [
+  "PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}",
+  "PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}",
+  "\"$PULL_REQUEST_BASE_REF\" == \"Production\"",
+  "node http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+  "phase_evaluation_base",
+  "git diff --name-only \"$BASE_SHA\" HEAD"
+]) {
+  assert(canonical.includes(token), "canonical CI missing production ratchet token: " + token);
+}
+
 const exactCheckoutCount = recovery.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
 assert.equal(exactCheckoutCount, 2, `expected two exact candidate checkouts, got ${exactCheckoutCount}`);
+
+const canonicalExactCheckoutCount = canonical.split("ref: ${{ github.event.pull_request.head.sha || github.sha }}").length - 1;
+assert.equal(canonicalExactCheckoutCount, 4, `expected four canonical exact candidate checkouts, got ${canonicalExactCheckoutCount}`);
+assert(canonical.includes('DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"'), "canonical deployment evidence must bind to the exact pull-request head");
 
 const testJobNeedsSyntax = /test:\n\s+name: Unit & Integration Tests[\s\S]*?needs: syntax/.test(recovery);
 assert(testJobNeedsSyntax, "Unit & Integration Tests must depend on Syntax Check");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: requiredRecoveryTokens.length + 8,
+  tests: requiredRecoveryTokens.length + 10,
   workflow: ".github/workflows/ci-pull-request-recovery.yml",
   exact_checkout_count: exactCheckoutCount,
-  canonical_workflow_unchanged: true,
+  canonical_exact_checkout_count: canonicalExactCheckoutCount,
+  canonical_deployment_sha_exact: true,
+  canonical_workflow_unchanged: false,
+  production_promotion_phase_base: true,
   pull_request_target: false,
   write_permissions: false,
   secrets_included: false
