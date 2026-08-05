@@ -1,0 +1,239 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+: "${EXPECTED_BRANCH:?}"
+: "${EXPECTED_MAIN:?}"
+: "${EXPECTED_PRELAUNCH:?}"
+: "${EVENT_HEAD:?}"
+: "${TEMP_WORKFLOW:?}"
+: "${TEMP_SCRIPT:?}"
+: "${TEMP_TRIGGER:?}"
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "${repo_root}"
+
+test "${GITHUB_HEAD_REF}" = "${EXPECTED_BRANCH}"
+test "$(git rev-parse HEAD)" = "${EVENT_HEAD}"
+test "$(git rev-parse HEAD^^)" = "${EXPECTED_PRELAUNCH}"
+test "$(git diff --name-only HEAD^^..HEAD^)" = "${TEMP_WORKFLOW}"
+test "$(git diff --name-only HEAD^..HEAD)" = "${TEMP_TRIGGER}"
+
+git fetch --no-tags origin main "${EXPECTED_BRANCH}"
+test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${EVENT_HEAD}"
+
+python3 - <<'PY'
+import subprocess
+expected = {
+    '.changes/e2e/production-runtime-parity-comment-bridge.json',
+    '.github/scripts/runtime-parity-ownership-repair-v6.sh',
+    '.github/workflows/production-runtime-parity-comment-bridge.yml',
+    '.github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml',
+    '.runtime-parity-ownership-repair-v6.trigger',
+    'docs/work-maps/README.md',
+    'docs/work-maps/repository-automation-map.md',
+    'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
+    'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+}
+actual = set(subprocess.check_output(
+    ['git', 'diff', '--name-only', 'origin/main...HEAD'], text=True
+).splitlines())
+if actual != expected:
+    raise SystemExit(f'initial scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
+PY
+
+git config user.name github-actions[bot]
+git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+set +e
+git merge --no-edit origin/main
+merge_status=$?
+set -e
+if [[ "${merge_status}" -ne 0 ]]; then
+  mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+  test "${#conflicts[@]}" = 1
+  test "${conflicts[0]}" = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+  git checkout --theirs -- "${conflicts[0]}"
+  git add "${conflicts[0]}"
+  git commit --no-edit
+fi
+git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
+
+rm -f -- "${TEMP_WORKFLOW}" "${TEMP_SCRIPT}" "${TEMP_TRIGGER}"
+
+node http-generic-api/scripts/platform-work-map-generator.mjs --write
+node http-generic-api/scripts/platform-work-map-generator.mjs --check
+node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+test -z "$(git diff --name-only -- specs/014-governed-hostinger-storage-orchestration/tasks.md)"
+
+python3 - <<'PY'
+from pathlib import Path
+
+def replace_once(path, old, new, label):
+    text = path.read_text()
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f'{label}: expected one target, found {count}')
+    path.write_text(text.replace(old, new, 1))
+
+helper = '''function isGeneratedSpecIntegrationPath(file, policy) {
+  const feature = specKeyFromFile(file, policy);
+  if (!feature) return false;
+  return normalize(file) === normalize(path.posix.join(policy.spec_root, feature, "work-map-integration.json"));
+}
+
+'''
+
+parallel = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
+replace_once(
+    parallel,
+    'function discoverContractPaths(changedFiles, policy) {',
+    helper + 'function discoverContractPaths(changedFiles, policy) {',
+    'parallel helper insertion'
+)
+replace_once(
+    parallel,
+    '  for (const file of changedFiles) {\n    const feature = specKeyFromFile(file, policy);',
+    '  for (const file of changedFiles) {\n    if (isGeneratedSpecIntegrationPath(file, policy)) continue;\n    const feature = specKeyFromFile(file, policy);',
+    'parallel ownership discovery'
+)
+
+phase = Path('http-generic-api/scripts/e2e-phase-governance.mjs')
+replace_once(
+    phase,
+    'function discoverContractPaths(policy, changedFiles) {',
+    helper + 'function discoverContractPaths(policy, changedFiles) {',
+    'phase helper insertion'
+)
+replace_once(
+    phase,
+    '  const changedSpecs = new Set(changedFiles.map((file) => specKeyFromFile(file, policy)).filter(Boolean));',
+    '''  const changedSpecs = new Set(
+    changedFiles
+      .filter((file) => !isGeneratedSpecIntegrationPath(file, policy))
+      .map((file) => specKeyFromFile(file, policy))
+      .filter(Boolean)
+  );''',
+    'phase ownership discovery'
+)
+
+parallel_test = Path('http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs')
+parallel_old = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false }));\n'
+parallel_new = r'''{
+  const root = tempRepo();
+  const generatedBinding = "specs/001-example/work-map-integration.json";
+  write(root, generatedBinding, "{}\n");
+  const report = evaluateParallelWork({
+    root,
+    policy,
+    changedFiles: [generatedBinding],
+    headRef: "gpt/unrelated-runtime-change",
+    head: "HEAD"
+  });
+  assert.equal(report.ok, true, JSON.stringify(report.findings));
+  assert.equal(report.contracts.length, 0);
+}
+
+{
+  const generatedBinding = "specs/001-example/work-map-integration.json";
+  const report = evaluate(
+    baseContract(),
+    [generatedBinding, "specs/001-example/spec.md"],
+    "gpt/unrelated-runtime-change"
+  );
+  assert.equal(report.ok, false);
+  assert(report.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
+}
+
+console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_parallel_work_governance", secrets_included: false }));
+'''
+replace_once(parallel_test, parallel_old, parallel_new, 'parallel regression insertion')
+
+phase_test = Path('http-generic-api/scripts/e2e-phase-governance-self-test.mjs')
+phase_old = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_phase_governance", secrets_included: false }));\n'
+phase_new = r'''{
+  const root = tempRepo();
+  const independentContract = ".changes/e2e/001-example.json";
+  const generatedBinding = "specs/001-example/work-map-integration.json";
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\n`);
+  write(root, generatedBinding, "{}\n");
+  const result = evaluateRepository({ root, policy, changedFiles: [independentContract, generatedBinding] });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.equal(result.report.contracts.length, 1);
+  assert.equal(result.report.contracts[0].contract_path, independentContract);
+}
+
+{
+  const root = tempRepo();
+  const independentContract = ".changes/e2e/001-example.json";
+  const generatedBinding = "specs/001-example/work-map-integration.json";
+  const specContract = "specs/001-example/e2e-phases.json";
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\n`);
+  write(root, generatedBinding, "{}\n");
+  write(root, specContract, `${JSON.stringify(contract(), null, 2)}\n`);
+  write(root, "specs/001-example/spec.md", "# Real spec change\n");
+  const result = evaluateRepository({
+    root,
+    policy,
+    changedFiles: [independentContract, generatedBinding, "specs/001-example/spec.md"]
+  });
+  assert.equal(result.report.ok, false);
+  assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
+}
+
+console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));
+'''
+replace_once(phase_test, phase_old, phase_new, 'phase regression insertion')
+PY
+
+pushd http-generic-api >/dev/null
+node --check scripts/e2e-parallel-work-governance.mjs
+node --check scripts/e2e-phase-governance.mjs
+node --check scripts/e2e-parallel-work-governance-self-test.mjs
+node --check scripts/e2e-phase-governance-self-test.mjs
+node scripts/e2e-parallel-work-governance-self-test.mjs
+node scripts/e2e-phase-governance-self-test.mjs
+node scripts/e2e-parallel-pr-flow-self-test.mjs
+node scripts/test-production-runtime-parity-comment-bridge.mjs
+npm ci
+node scripts/test-manifest.mjs
+popd >/dev/null
+
+git fetch --no-tags origin main "${EXPECTED_BRANCH}"
+test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${EVENT_HEAD}"
+
+python3 - <<'PY'
+import subprocess
+expected = {
+    '.changes/e2e/production-runtime-parity-comment-bridge.json',
+    '.github/workflows/production-runtime-parity-comment-bridge.yml',
+    'docs/work-maps/README.md',
+    'docs/work-maps/repository-automation-map.md',
+    'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs',
+    'http-generic-api/scripts/e2e-parallel-work-governance.mjs',
+    'http-generic-api/scripts/e2e-phase-governance-self-test.mjs',
+    'http-generic-api/scripts/e2e-phase-governance.mjs',
+    'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
+    'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+}
+actual = set(subprocess.check_output(['git', 'diff', '--name-only', 'origin/main'], text=True).splitlines())
+if actual != expected:
+    raise SystemExit(f'final scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
+for target in (
+    'http-generic-api/scripts/e2e-parallel-work-governance.mjs',
+    'http-generic-api/scripts/e2e-phase-governance.mjs',
+):
+    text = open(target, encoding='utf-8').read()
+    if text.count('function isGeneratedSpecIntegrationPath') != 1:
+        raise SystemExit(f'helper multiplicity mismatch: {target}')
+PY
+
+git add -A
+git diff --cached --quiet && { echo 'No synchronized permanent patch staged.' >&2; exit 1; }
+git commit -m "fix(ci): synchronize and neutralize generated spec binding ownership"
+git fetch --no-tags origin main "${EXPECTED_BRANCH}"
+test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${EVENT_HEAD}"
+git push origin "HEAD:${EXPECTED_BRANCH}"
