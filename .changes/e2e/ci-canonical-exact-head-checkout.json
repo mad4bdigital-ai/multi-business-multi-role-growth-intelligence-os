@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "ci-canonical-exact-head-checkout",
+  "title": "Canonical CI exact pull-request head identity",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/ci-canonical-exact-head-checkout.json",
+      ".github/workflows/ci.yml",
+      "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind every canonical CI checkout and deployment-evidence identity to the exact pull-request head so governed Production candidates are never evaluated through GitHub's synthetic merge commit.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-ci-evaluates-exact-pull-request-head",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions pull-request runner and repository reviewer",
+          "entrypoint": "A same-repository pull request targeting main or Production triggers .github/workflows/ci.yml.",
+          "terminal_outcome": "All four canonical CI jobs check out the exact pull-request head, deployment evidence records that same identity, and the regression test rejects any return to a synthetic merge checkout without granting write or runtime authority.",
+          "steps": [
+            "Resolve the pull-request head SHA, with github.sha retained only for non-pull-request events.",
+            "Checkout that exact identity with complete history in Syntax, Unit and Integration, Architecture Drift, and Execution Resolver jobs.",
+            "Run the existing Production promotion classifier and Context Kernel scope logic against the checked-out candidate.",
+            "Bind DEPLOYMENT_COMMIT_SHA to the same exact identity before producing read-only deployment evidence.",
+            "Execute the CI recovery self-test to prove four canonical exact-head checkout blocks and one exact deployment identity binding."
+          ],
+          "assertions": [
+            "Canonical CI contains exactly four exact-head checkout blocks.",
+            "Canonical deployment evidence is bound to the exact pull-request head.",
+            "Recovery retains its two exact-head checkout blocks.",
+            "No synthetic merge identity is introduced as candidate evidence.",
+            "No contents write, protected-ref mutation, deployment, provider call, database action, migration, credential access, external send, or force push is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "canonical-ci-exact-head-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/ci-pull-request-recovery-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/ci-canonical-exact-head-checkout.json",
+            ".github/workflows/ci.yml",
+            "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose the verified exact checkout identity as a typed field across canonical CI progress reports."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove exact identity preservation across pull-request synchronize, rerun, push, and workflow-dispatch event families."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This CI identity correction has no provider or runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This CI identity correction grants no Production merge or deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
