@@ -97,6 +97,17 @@ jobs:
           git fetch origin main
           test "$(git rev-parse origin/main)" = "${BASE_SHA}"
 
+      - name: Build two-parent tree from live main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name mad4bdigital-ai
+          git config user.email mad4bdigital-ai@users.noreply.github.com
+          git merge -s ours --no-commit origin/main
+          test -f .git/MERGE_HEAD
+          git read-tree --reset -u origin/main
+          test -f .git/MERGE_HEAD
+
       - name: Apply bounded current-main remediation
         shell: bash
         run: |
@@ -149,33 +160,20 @@ jobs:
               f'  group: frontend-surface-dispatch-{expression}\n'
               '  cancel-in-progress: true\n\njobs:\n')
 
-          lifecycle = Path('.github/workflows/repository-tool-lifecycle-governance.yml')
-          text = lifecycle.read_text()
-          if text.count('permissions:\n  contents: write\n') != 1:
-              raise SystemExit('lifecycle_permission_anchor_mismatch')
-          text = text.replace('permissions:\n  contents: write\n', 'permissions:\n  contents: read\n', 1)
-          if text.count('    runs-on: ubuntu-latest\n') != 1:
-              raise SystemExit('lifecycle_runner_anchor_mismatch')
-          text = text.replace('    runs-on: ubuntu-latest\n', '    runs-on: ubuntu-24.04\n', 1)
-          start_marker = '  # BEGIN TEMP CLEAN CURRENT-MAIN WRITER\n'
-          end_marker = '  # END TEMP CLEAN CURRENT-MAIN WRITER\n'
-          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
-              raise SystemExit('temporary_writer_marker_mismatch')
-          start = text.index(start_marker)
-          end = text.index(end_marker) + len(end_marker)
-          lifecycle.write_text(text[:start].rstrip() + '\n')
+          lifecycle = '.github/workflows/repository-tool-lifecycle-governance.yml'
+          replace_exact(lifecycle, '    runs-on: ubuntu-latest\n', '    runs-on: ubuntu-24.04\n')
           PY
 
       - name: Validate exact five-file scope
         shell: bash
         run: |
           set -Eeuo pipefail
-          git diff --check
+          git diff --check origin/main
           python3 - <<'PY'
           import subprocess
           from pathlib import Path
           changed = sorted(filter(None, subprocess.check_output(
-              ['git', 'diff', '--name-only'], text=True
+              ['git', 'diff', '--name-only', 'origin/main'], text=True
           ).splitlines()))
           expected = sorted([
               '.github/workflows/ci.yml',
@@ -205,18 +203,18 @@ jobs:
           (cd http-generic-api && node test-frontend-dispatch-workflow-baseline.mjs)
           (cd http-generic-api && node test-tenant-ssh-cli-approval-request.mjs)
 
-      - name: Create clean current-main commit
+      - name: Create clean current-main merge commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name mad4bdigital-ai
-          git config user.email mad4bdigital-ai@users.noreply.github.com
           git add -A
           git commit -m 'ci: pin required checks on current main'
+          test "$(git rev-list --parents -n 1 HEAD | wc -w | tr -d ' ')" -eq 3
           mkdir -p /tmp/clean-current-main-ci
           git rev-parse HEAD > /tmp/clean-current-main-ci/commit-sha.txt
           git rev-parse 'HEAD^{tree}' > /tmp/clean-current-main-ci/tree-sha.txt
-          git rev-parse HEAD^ > /tmp/clean-current-main-ci/parent-sha.txt
+          git rev-parse HEAD^1 > /tmp/clean-current-main-ci/first-parent-sha.txt
+          git rev-parse HEAD^2 > /tmp/clean-current-main-ci/main-parent-sha.txt
           git show --stat --oneline HEAD > /tmp/clean-current-main-ci/summary.txt
 
       - name: Verify committed scope and live-main stability
