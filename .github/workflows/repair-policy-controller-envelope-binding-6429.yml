@@ -28,16 +28,12 @@ jobs:
 
       - name: Apply bounded repair
         id: apply
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p .artifacts/policy-controller-repair
-          set +e
-          python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py > .artifacts/policy-controller-repair/apply.log 2>&1
-          code=$?
-          set -e
-          cat .artifacts/policy-controller-repair/apply.log
-          printf 'exit_code=%s\n' "$code" >> "$GITHUB_OUTPUT"
+          python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py 2>&1 | tee .artifacts/policy-controller-repair/apply.log
 
       - name: Upload repair diagnostic
         if: always()
@@ -49,7 +45,7 @@ jobs:
           retention-days: 7
 
       - name: Stop on repair failure
-        if: steps.apply.outputs.exit_code != '0'
+        if: steps.apply.outcome == 'failure'
         shell: bash
         run: exit 1
 
