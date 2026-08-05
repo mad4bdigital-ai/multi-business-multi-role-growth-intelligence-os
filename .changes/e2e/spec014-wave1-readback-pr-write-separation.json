@@ -2,15 +2,16 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "spec014-wave1-readback-pr-write-separation",
-  "title": "Spec 014 Wave 1 readback and pull-request write separation",
+  "title": "Spec 014 Wave 1 readback lifecycle separation and retirement",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/spec014-wave1-readback-pr-write-separation.json",
       ".github/workflows/hostinger-storage-control-plane-guard.yml",
-      ".github/workflows/spec014-wave1-runtime-evidence-readback.yml",
-      "http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs"
+      ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
     ]
   },
   "merge_contract": {
@@ -20,43 +21,44 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep pull-request validation read-only while preserving the owner/member-controlled issue-comment readback command as the only write-capable evidence entrypoint.",
+      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation and the permanent owner-bound R7 runtime readback contract.",
       "e2e_journeys": [
         {
-          "id": "separate-read-only-pr-guard-from-issue-comment-readback",
+          "id": "retire-single-use-readback-and-retain-r7-boundary",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Repository governance reviewer validating Spec 014 workflow lifecycle boundaries",
-          "entrypoint": "A change to the storage control-plane guard, Wave 1 evidence readback workflow, or their executable contract test",
-          "terminal_outcome": "The executable contract proves that pull-request workflows contain no write permission or branch-specific collector, while the exact authorized issue-comment command remains the sole evidence readback trigger.",
+          "actor": "Repository governance reviewer validating Spec 014 evidence lifecycle boundaries",
+          "entrypoint": "A change to the storage control-plane guard, permanent R7 readback surface, or this lifecycle contract",
+          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, and future public runtime verification is available only through the bounded owner-bound R7 workflow.",
           "steps": [
-            "Load both workflow definitions and the readback script through the executable contract test.",
+            "Load the retained storage control-plane guard and permanent R7 workflow through executable contract coverage.",
             "Require the storage control-plane pull-request guard to retain contents: read and its control-plane validation job.",
-            "Reject any issues: write, contents: write, pull-requests: write, branch-specific trigger path, or embedded readback collector in the pull-request guard.",
-            "Require the Wave 1 readback workflow to accept only the exact governed issue-comment command from an authorized repository association.",
-            "Reject any pull_request fallback, hard-coded work-branch name, runtime mutation, SQL, Migration Apply, provider call, credential payload access, or secret inclusion."
+            "Require the R7 workflow to remain owner-bound, public-HTTPS-GET-only, exact-SHA-bound, and conversation-read-only.",
+            "Reject pull-request write permissions, repository content mutation, protected-ref mutation, provider credentials, deployment actions, SQL, Migration Apply, database mutation, or secret inclusion.",
+            "Preserve the retained R7 artifact identity and keep issue 6215 open as the runtime control record until deployment parity is separately authorized and proven."
           ],
           "assertions": [
             "Pull-request validation remains read-only.",
-            "The permanent workflows do not embed a work-branch name.",
-            "The readback command remains exact, association-gated, and bound to issue 6215.",
-            "The readback script performs no runtime, database, provider, deployment, credential, or external business mutation.",
-            "Regression coverage fails if the removed PR fallback or collector job returns."
+            "The completed single-use evidence collector is not restored.",
+            "The permanent R7 readback remains exact-command, owner-bound, bounded, scrubbed, and public-GET-only.",
+            "The retained surfaces perform no repository, runtime, database, provider, deployment, credential, or external business mutation.",
+            "Regression coverage fails if write authority or the removed one-time collector returns."
           ],
           "tests": [
             {
-              "id": "spec014-wave1-readback-lifecycle-contract",
+              "id": "hostinger-production-runtime-readback-r7-lifecycle-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "test-spec014-wave1-runtime-evidence-readback-contract.mjs",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/spec014-wave1-readback-pr-write-separation.json",
             ".github/workflows/hostinger-storage-control-plane-guard.yml",
-            ".github/workflows/spec014-wave1-runtime-evidence-readback.yml",
-            "http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs"
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
           ]
         }
       ]
@@ -64,22 +66,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Publish typed readback-command audit evidence without reintroducing pull-request write authority."
+      "objective": "Keep the retained R7 evidence path and storage control-plane pull-request guard aligned as future repository changes occur."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove lifecycle separation across reruns, issue-comment retries, and future control-plane guard changes."
+      "objective": "Prove lifecycle separation across R7 reruns, malformed commands, protected-ref movement, and future control-plane guard changes without restoring one-time write authority."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This governance-only correction performs no provider or runtime canary."
+      "objective": "This repository-governance cleanup performs no provider or runtime canary."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This correction performs no Production ref update, deployment, restart, SQL, Migration Apply, database mutation, or provider action."
+      "objective": "This cleanup performs no Production ref update, deployment, restart, SQL, Migration Apply, database mutation, provider action, or external business send."
     }
   ],
   "secrets_included": false
