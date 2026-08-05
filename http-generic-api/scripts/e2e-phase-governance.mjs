@@ -11,6 +11,8 @@ import {
 
 export { REPO_ROOT, matchesPattern, executePhaseTests };
 
+const E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);
+
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
@@ -21,6 +23,45 @@ function normalize(value) {
 
 function currentPhase(contract) {
   return (contract.phases || []).find((phase) => phase.id === contract.current_phase) || null;
+}
+
+function ownershipNeutralSpecContractPaths(changedFiles, policy) {
+  const specRoot = normalize(policy.spec_root).replace(/\/+$/, "");
+  const prefix = `${specRoot}/`;
+  const filesByFeature = new Map();
+
+  for (const rawFile of changedFiles) {
+    const file = normalize(rawFile);
+    if (!file.startsWith(prefix)) continue;
+    const [feature, ...relativeParts] = file.slice(prefix.length).split("/");
+    if (!feature || !relativeParts.length) continue;
+    if (!filesByFeature.has(feature)) filesByFeature.set(feature, []);
+    filesByFeature.get(feature).push(relativeParts.join("/"));
+  }
+
+  const contractPaths = new Set();
+  for (const [feature, relativeFiles] of filesByFeature) {
+    if (
+      relativeFiles.length > 0
+      && relativeFiles.every((file) => E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS.has(file))
+    ) {
+      contractPaths.add(normalize(path.posix.join(specRoot, feature, policy.spec_contract_file)));
+    }
+  }
+  return contractPaths;
+}
+
+function applyOwnershipNeutralSpecArtifactException(evaluation) {
+  const { report, policy } = evaluation;
+  const neutralContractPaths = ownershipNeutralSpecContractPaths(report.changed_files, policy);
+  if (!neutralContractPaths.size) return evaluation;
+
+  report.findings = report.findings.filter((finding) =>
+    finding.code !== "missing_spec_e2e_phase_contract"
+    || !neutralContractPaths.has(normalize(finding.contract_path))
+  );
+  report.ok = report.findings.length === 0;
+  return evaluation;
 }
 
 function maintenanceCandidate({ root, policy, changedFiles, runtimeFiles }) {
@@ -89,7 +130,8 @@ function applySinglePrMaintenanceException(evaluation, options) {
 }
 
 export function evaluateRepository(options = {}) {
-  return applySinglePrMaintenanceException(evaluateCoreRepository(options), options);
+  const ownershipAware = applyOwnershipNeutralSpecArtifactException(evaluateCoreRepository(options));
+  return applySinglePrMaintenanceException(ownershipAware, options);
 }
 
 function writeAtomic(file, data) {
