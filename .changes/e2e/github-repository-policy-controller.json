@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-controller",
+  "title": "Governed GitHub main policy controller",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-controller.json",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/repositoryAutomationPolicyFacade.js",
+      "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-repository-automation-policy-facade.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose an Admin-only repository-automation controller that reads the current main policy, produces an exact deterministic no-bypass Ruleset plan, and fails closed before any apply unless current-main CAS, finalizer App identity, capability envelope, typed confirmation, exact checks, and same-cycle readback are all proven.",
+      "e2e_journeys": [
+        {
+          "id": "main-policy-readback-plan-and-fail-closed-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_admin",
+          "entrypoint": "POST /admin/repository-automation/policy-controller",
+          "terminal_outcome": "Readback and plan remain non-mutating; a mocked exact apply creates or updates one no-bypass main Ruleset only after all authorization and CAS preconditions pass, proves the same policy fingerprint in same-cycle readback, and rolls back when postconditions do not match.",
+          "steps": [
+            "Read repository metadata, main identity, active rules, Rulesets, Classic Branch Protection, collaborator permissions, auto-merge posture, and configured finalizer App identity.",
+            "Report zero or inaccessible protection state as incomplete without mutation.",
+            "Build one deterministic main Ruleset requiring pull requests, one approval, stale-review dismissal, conversation resolution, newest-push approval, six canonical checks, strict status checks, non-fast-forward protection, and zero bypass actors.",
+            "Require Admin caller, valid capability envelope, exact expected main SHA, exact policy fingerprint, and typed confirmation before mutation.",
+            "Create or update only the managed Ruleset and perform immediate bounded readback.",
+            "Rollback or fail closed when the observed policy fingerprint, main identity, no-bypass posture, or server policy gate is incomplete."
+          ],
+          "assertions": [
+            "Zero rules and an unprotected main report server_policy_gate_complete=false without mutation.",
+            "HTTP 403 or unknown protection state blocks apply.",
+            "Stale expected main SHA blocks before mutation.",
+            "Missing or invalid capability envelope blocks before network mutation.",
+            "Typed confirmation is mandatory and is never invented by repository automation.",
+            "Any bypass actor blocks apply, including the finalizer App.",
+            "Review count below one, disabled stale dismissal or conversation resolution, missing exact checks, direct pushes, auto-merge, or merge queue are rejected.",
+            "The exact plan applies once under mocked GitHub responses and same-cycle readback matches the desired fingerprint.",
+            "Post-readback mismatch triggers rollback evidence and fails closed.",
+            "No token, private key, capability secret, provider credential, or raw authorization value appears in response or audit evidence.",
+            "The implementation journey performs no live GitHub policy mutation."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-policy-controller-fail-closed-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-automation-policy-facade-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-policy-facade.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/github-repository-policy-controller.json",
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/repositoryAutomationPolicyFacade.js",
+            "http-generic-api/routes/repositoryAutomationRoutes.js",
+            "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+            "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/test-repository-automation-policy-facade.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After separate authorization, execute one bounded live readback and policy apply against current main, then publish canonical Artifact evidence with server_policy_gate_complete=true."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove transport ambiguity recovery, update rollback, ruleset drift handling, and equivalent controls across supported merge paths."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository policy administration has no Tenant or provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This implementation grants no Production, Hostinger, deployment, provider, database, migration apply, credential disclosure, protected-ref content write, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
