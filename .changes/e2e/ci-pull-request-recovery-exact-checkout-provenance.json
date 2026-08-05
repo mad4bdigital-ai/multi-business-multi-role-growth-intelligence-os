@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-pull-request-recovery-exact-checkout-provenance",
-  "title": "CI exact checkout provenance and pull-request stale-run cancellation",
+  "title": "CI exact checkout provenance and Production source-head classification",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -21,20 +21,23 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out and cancel only superseded pull-request CI runs so obsolete heads cannot serialize ahead of the current candidate while push and workflow-dispatch verification remain non-cancellable.",
+      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out, classify Production promotion candidates from the pull-request source-head SHA instead of GitHub's synthetic merge SHA, and cancel only superseded pull-request CI runs while push and workflow-dispatch verification remain non-cancellable.",
       "e2e_journeys": [
         {
           "id": "checked-out-head-sha-stamps-recovery-test-evidence",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "CI evidence publisher and repository reviewer",
-          "entrypoint": "CI and CI Pull Request Recovery concurrency plus the Recovery Unit & Integration Tests job",
-          "terminal_outcome": "The test suite starts only after the checked-out SHA matches the selected candidate; structured progress reports expose that same checked-out SHA; and a newer pull-request synchronization cancels obsolete PR runs without making push or workflow-dispatch runs cancellable.",
+          "entrypoint": "CI and CI Pull Request Recovery concurrency plus the Production Context Kernel scope and Recovery Unit & Integration Tests jobs",
+          "terminal_outcome": "Recovery evidence is bound to the exact checked-out candidate, canonical CI retains synthetic merge testing while its Production classifier and ratchet diff use the validated pull-request source-head SHA, and newer pull-request synchronization cancels obsolete PR runs without making push or workflow-dispatch runs cancellable.",
           "steps": [
-            "Checkout the selected pull-request head SHA or explicit workflow-dispatch SHA.",
+            "Checkout the selected pull-request head SHA or explicit workflow-dispatch SHA in Recovery.",
             "Resolve git rev-parse HEAD immediately before the Recovery test suite.",
-            "Reject any mismatch between the checked-out SHA and the selected candidate SHA.",
-            "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
+            "Reject any mismatch between the Recovery checkout and selected candidate SHA.",
+            "Run npm test with process-local GITHUB_SHA bound to the verified Recovery checkout SHA.",
+            "Keep canonical CI tests on GitHub's merge checkout while reading pull_request.head.sha as the only Production candidate identity.",
+            "Reject a missing, malformed, or unavailable Production source-head commit before classification.",
+            "Run the Production promotion classifier and Context Kernel diff against the validated source-head SHA rather than the synthetic merge SHA.",
             "Use the pull-request event predicate as the only cancel-in-progress authority for CI and Recovery.",
             "Keep push and workflow-dispatch verification outside cancellation authority.",
             "Use the registered currentness probe only to activate read-only generated-artifact evaluation and governed Recovery delegation.",
@@ -42,7 +45,10 @@
           ],
           "assertions": [
             "Recovery reports cannot inherit a different event-level GITHUB_SHA after exact-head checkout.",
-            "A candidate identity mismatch fails before npm test.",
+            "A Recovery candidate identity mismatch fails before npm test.",
+            "The canonical Production classifier never receives the synthetic pull-request merge SHA as candidate identity.",
+            "The Context Kernel changed-file set for a Production promotion is computed from the classifier-selected phase base to the validated source-head SHA.",
+            "A missing, malformed, or unavailable Production source-head SHA fails closed.",
             "Superseded pull-request runs are cancellable in both CI workflows.",
             "Push and workflow-dispatch runs are not unconditionally cancellable.",
             "The currentness probe grants no repository-content write authority.",
@@ -71,12 +77,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Publish the verified checkout identity and superseded-run cancellation reason as explicit typed fields across all CI evidence families."
+      "objective": "Publish the verified checkout and source-head identities plus superseded-run cancellation reason as explicit typed fields across all CI evidence families."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove identity preservation and current-head selection across reruns, workflow dispatch, pull-request synchronize events, and cancelled/restarted jobs."
+      "objective": "Prove identity preservation and current-head selection across reruns, workflow dispatch, pull-request synchronize events, synthetic merge changes, and cancelled or restarted jobs."
     },
     {
       "id": "canary",
