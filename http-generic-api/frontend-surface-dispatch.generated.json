@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "cc8ea21c8a8db6700f5e4570d0568451d17be30d4e6bdbd3880631763ccb5f8a",
+    "source_digest": "8ee7b83e8de43054a088ebe099a27adf098e6bb566f88ac1e6a9f4a382671dcb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "6542267333ae38753aaf76cb7d20c10591daec602b2aeab9f10372d292e68687",
+        "sha256": "a634e5b1022300d314f49c08182f3c895f0fcb84c98811efceb4475de8c0cb13",
         "present": true
       },
       {
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "8c9d4093b30da9151540c619f87c6dc61322184ed632c944544aa6fbdf2e2bdb",
+        "sha256": "ac131920047bcf184d39d5276fd1a808f2b25bc49fdc53d29f03ca7485183a7a",
         "present": true
       },
       {
@@ -776,7 +776,7 @@
       },
       {
         "file": "routes/repositoryAutomationRoutes.js",
-        "sha256": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+        "sha256": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
         "present": true
       },
       {
@@ -1089,21 +1089,21 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1050,
-    "openapi_documented_count": 1034,
+    "operation_count": 1051,
+    "openapi_documented_count": 1035,
     "openapi_canonical_documented_count": 719,
-    "openapi_generated_index_count": 315,
+    "openapi_generated_index_count": 316,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 315,
+    "openapi_detail_gap_count": 316,
     "auth_parity_counts": {
-      "equivalent": 1034,
+      "equivalent": 1035,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 634,
-    "unresolved_operation_class_count": 574,
+    "non_get_candidate_count": 635,
+    "unresolved_operation_class_count": 575,
     "classified_mutation_count": 11,
     "governed_mutation_operation_count": 11,
     "embedded_ui_family_count": 7,
@@ -1111,7 +1111,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1047,
+    "untested_operation_count": 1048,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -28040,7 +28040,7 @@
       "family_key": "repository-automation",
       "label": "repository automation",
       "source_file": "routes/repositoryAutomationRoutes.js",
-      "source_digest": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+      "source_digest": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
       "mount_prefix": "/",
       "mount_order": 16509,
       "split_from_mixed_scope_file": false,
@@ -28184,6 +28184,80 @@
           "openapi_canonical_documented": true,
           "openapi_exempt": false,
           "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "unresolved",
+            "classification_source": "fail_closed",
+            "mutation_candidate": true,
+            "governed": false,
+            "controls": null,
+            "blockers": [
+              "operation_classification_gap"
+            ],
+            "rule_id": null
+          },
+          "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "POST",
+          "path": "/admin/repository-automation/policy-controller",
+          "signature": "POST /admin/repository-automation/policy-controller",
+          "source_file": "routes/repositoryAutomationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "router.use:requireAdminPrincipal",
+              "router.use:requireBackendApiKey",
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
           "evidence_candidate": false,
           "embedded_ui": false,
           "embedded_ui_evidence": [],
@@ -28464,7 +28538,9 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "POST /admin/repository-automation/policy-controller"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /admin/repository-automation/status"
@@ -28473,6 +28549,7 @@
       "untested_operations": [
         "POST /admin/repository-automation/plan",
         "POST /admin/repository-automation/run",
+        "POST /admin/repository-automation/policy-controller",
         "POST /admin/repository-automation/status",
         "POST /admin/repository-automation/hygiene-scan",
         "POST /admin/repository-automation/reconciliation-lease"
@@ -28487,6 +28564,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/repository-reconciliation-lease-control.yaml",
@@ -28514,6 +28592,12 @@
           ]
         },
         {
+          "signature": "POST /admin/repository-automation/policy-controller",
+          "blockers": [
+            "operation_classification_gap"
+          ]
+        },
+        {
           "signature": "POST /admin/repository-automation/status",
           "blockers": [
             "operation_classification_gap"
@@ -28527,7 +28611,7 @@
         }
       ],
       "risk": {
-        "score": 13,
+        "score": 14,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -93620,6 +93704,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -93638,6 +93723,7 @@
         "openapi.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/repository-reconciliation-lease-control.yaml",
