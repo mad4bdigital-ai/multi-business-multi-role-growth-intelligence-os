@@ -1,0 +1,133 @@
+name: Diagnose clean-tree CI Production ratchet validation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-clean-tree-ci-production-ratchet-validation
+  cancel-in-progress: false
+
+env:
+  EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+  EXPECTED_HEAD_REF: gpt/diagnose-ci-production-ratchet-clean-tree-146e070d-20260805
+  LAUNCHER_PATH: .github/workflows/diagnose-clean-tree-ci-production-ratchet-validation.yml
+  HELPER_PATH: http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+
+jobs:
+  self-test:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/diagnose-ci-production-ratchet-clean-tree-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Prepare clean patched tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python "$HELPER_PATH"
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+      - name: Run recovery self-test only
+        run: node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+
+  diff-check:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/diagnose-ci-production-ratchet-clean-tree-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare clean patched tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python "$HELPER_PATH"
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+      - name: Run diff check only
+        shell: bash
+        run: git diff --check "$EXPECTED_BASE_SHA" --
+
+  file-set:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/diagnose-ci-production-ratchet-clean-tree-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare clean patched tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python "$HELPER_PATH"
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+      - name: Verify exact final file set only
+        shell: bash
+        run: |
+          set -euo pipefail
+          ACTUAL="$(git diff --name-only "$EXPECTED_BASE_SHA" -- | sort)"
+          EXPECTED="$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+
+  no-add-delete:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/diagnose-ci-production-ratchet-clean-tree-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Prepare clean patched tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python "$HELPER_PATH"
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+      - name: Verify no final additions or deletions only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git diff --diff-filter=A --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+          test "$(git diff --diff-filter=D --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
