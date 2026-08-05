@@ -15,12 +15,15 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 controller = CONTROLLER_PATH.read_text()
 tests = TEST_PATH.read_text()
 
+if "export function buildGithubRepositoryPolicyCapabilityBinding" in controller:
+    raise SystemExit("capability binding helper already exists")
+
 unique_marker = dedent("""\
 function uniqueStrings(values = []) {
   return [...new Set((Array.isArray(values) ? values : []).map((value) => compact(value, 255)).filter(Boolean))];
 }
 """)
-unique_replacement = unique_marker + dedent("""\
+helper = dedent("""\
 
 export function buildGithubRepositoryPolicyCapabilityBinding({
   target = {},
@@ -54,37 +57,26 @@ export function buildGithubRepositoryPolicyCapabilityBinding({
   };
 }
 """)
-if "export function buildGithubRepositoryPolicyCapabilityBinding" in controller:
-    raise SystemExit("capability binding helper already exists")
-controller = replace_once(controller, unique_marker, unique_replacement, "insert capability binding helper")
+controller = replace_once(controller, unique_marker, unique_marker + helper, "insert capability binding helper")
 
-plan_marker = dedent("""\
-  const policyFingerprint = githubRepositoryPolicyFingerprint({
-    target,
-    expected_main_sha: currentMainSha,
-    desired_ruleset: desiredRuleset,
-  });
-  return {
-""")
-plan_replacement = dedent("""\
-  const policyFingerprint = githubRepositoryPolicyFingerprint({
-    target,
-    expected_main_sha: currentMainSha,
-    desired_ruleset: desiredRuleset,
-  });
+plan_start = controller.index("export function buildGithubRepositoryPolicyPlan")
+policy_start = controller.index("  const policyFingerprint = githubRepositoryPolicyFingerprint({", plan_start)
+return_start = controller.index("\n  return {", policy_start)
+capability_block = dedent("""\
   const capabilityAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
     target,
     expected_main_sha: currentMainSha,
     expected_policy_fingerprint: policyFingerprint,
   });
-  return {
 """)
-controller = replace_once(controller, plan_marker, plan_replacement, "add plan authorization binding")
-controller = replace_once(
-    controller,
-    '    policy_fingerprint: policyFingerprint,\n    operation: existingManagedRuleset ? "update_ruleset" : "create_ruleset",\n',
-    '    policy_fingerprint: policyFingerprint,\n    capability_authorization: capabilityAuthorization,\n    operation: existingManagedRuleset ? "update_ruleset" : "create_ruleset",\n',
-    "expose plan authorization binding",
+controller = controller[: return_start + 1] + capability_block + controller[return_start + 1 :]
+
+plan_return_marker = "    policy_fingerprint: policyFingerprint,\n"
+plan_return_index = controller.index(plan_return_marker, return_start)
+controller = (
+    controller[: plan_return_index + len(plan_return_marker)]
+    + "    capability_authorization: capabilityAuthorization,\n"
+    + controller[plan_return_index + len(plan_return_marker) :]
 )
 
 start = controller.index("async function authorizeApply(args, deps, target) {")
@@ -245,8 +237,8 @@ envelope_test = dedent("""\
     assert.equal(resolverOptions.expectedCapabilitySha256, expectedPolicyFingerprint);
   }
 
-""") + envelope_test_marker
-tests = replace_once(tests, envelope_test_marker, envelope_test, "add exact envelope binding regression")
+""")
+tests = replace_once(tests, envelope_test_marker, envelope_test + envelope_test_marker, "add exact envelope binding regression")
 tests = replace_once(
     tests,
     "    invalid_envelope_blocks_before_network: true,\n    typed_confirmation_required: true,\n",
