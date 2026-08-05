@@ -34,11 +34,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main "${BRANCH_NAME}"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse origin/${BRANCH_NAME})" = "${GITHUB_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..HEAD")" -eq 2
+          remote_main="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
+          remote_branch="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
+          test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${remote_branch}" = "${GITHUB_SHA}"
           mapfile -t files < <(git diff --name-only "${EXPECTED_MAIN_SHA}...HEAD" | sort)
           test "${#files[@]}" -eq 1
           test "${files[0]}" = "${WRITER_PATH}"
@@ -171,9 +173,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags origin main "${BRANCH_NAME}"
-          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git rev-parse origin/${BRANCH_NAME})" = "${GITHUB_SHA}"
+          remote_main="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
+          remote_branch="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
+          test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
+          test "${remote_branch}" = "${GITHUB_SHA}"
           git push origin "HEAD:${BRANCH_NAME}"
           remote_sha="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
           test "${remote_sha}" = "${FINAL_SHA}"
