@@ -371,7 +371,7 @@ async function createReadyAuthorizationEnvelope() {
       [
         `--envelope-id=${envelope.envelope_id}`,
         '--approved-by=github_actions',
-        '--decision-note=Approve checksum-bound Spec 014 Wave 1 authorization-bootstrap envelope for runtime readiness only; migration SQL and provider dispatch are not executed.',
+        '--decision-note=Approve checksum-bound Spec 014 Wave 1 authorization-bootstrap envelope for runtime readiness only. Migration SQL and provider dispatch are not executed.',
         '--ttl-minutes=45',
       ],
       'spec014_wave1_authorization_envelope_approve',

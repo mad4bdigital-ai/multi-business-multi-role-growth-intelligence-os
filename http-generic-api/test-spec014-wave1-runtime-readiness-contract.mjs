@@ -74,6 +74,15 @@ for (const table of [
 assert.match(runner, /governed_migration_schema_readback/);
 assert.match(runner, /capability_resolution_envelope_create/);
 assert.match(runner, /capability_resolution_envelope_approve/);
+const approvalDecisionNote = runner.match(
+  /'--decision-note=([^'\n]+)'/,
+)?.[1];
+assert.ok(approvalDecisionNote, 'Runner is missing the approval decision note.');
+assert.doesNotMatch(
+  approvalDecisionNote,
+  /[;&|`$<>\\!{}()\n\r]/,
+  'Approval decision note must remain safe for /admin/control extra_args.',
+);
 assert.match(runner, /governed_migration_authorization_bootstrap/);
 assert.match(runner, /name: 'governed_migration_execute'/);
 assert.match(runner, /mode: 'dry_run'/);

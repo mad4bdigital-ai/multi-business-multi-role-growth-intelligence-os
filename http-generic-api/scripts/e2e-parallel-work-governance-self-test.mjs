@@ -155,4 +155,70 @@ function evaluate(contract, changedFiles, headRef = "gpt/001-example/contracts-a
   assert.equal(report.ok, true, JSON.stringify(report.findings));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false }));
+
+{
+  const root = tempRepo();
+  const bridgeContract = {
+    schema_version: 1,
+    feature_key: "generated-binding-bridge",
+    title: "Generated binding bridge",
+    delivery_mode: "single_pr",
+    current_phase: "mvp",
+    scope: { include: ["http-generic-api/example/runtime/**"] },
+    merge_contract: { minimum_phase: "mvp" },
+    phases: [{ id: "mvp", status: "implemented", objective: "Validate a generated binding without parallel ownership." }]
+  };
+  write(root, ".changes/e2e/generated-binding-bridge.json", `${JSON.stringify(bridgeContract, null, 2)}\n`);
+  write(root, "specs/001-example/work-map-integration.json", "{}\n");
+  write(root, "http-generic-api/example/runtime/service.mjs");
+  const neutral = evaluateParallelWork({
+    root,
+    policy,
+    changedFiles: [
+      ".changes/e2e/generated-binding-bridge.json",
+      "specs/001-example/work-map-integration.json",
+      "http-generic-api/example/runtime/service.mjs"
+    ],
+    headRef: "gpt/generated-binding-bridge",
+    head: "HEAD"
+  });
+  assert.equal(neutral.ok, true, JSON.stringify(neutral.findings));
+  assert.equal(neutral.contracts.length, 0);
+}
+
+{
+  const root = tempRepo();
+  const bridgeContract = {
+    schema_version: 1,
+    feature_key: "generated-binding-bridge",
+    title: "Generated binding bridge",
+    delivery_mode: "single_pr",
+    current_phase: "mvp",
+    scope: { include: ["http-generic-api/example/runtime/**"] },
+    merge_contract: { minimum_phase: "mvp" },
+    phases: [{ id: "mvp", status: "implemented", objective: "Validate a generated binding without parallel ownership." }]
+  };
+  write(root, ".changes/e2e/generated-binding-bridge.json", `${JSON.stringify(bridgeContract, null, 2)}\n`);
+  write(root, "specs/001-example/e2e-phases.json", `${JSON.stringify(baseContract(), null, 2)}\n`);
+  write(root, "specs/001-example/work-map-integration.json", "{}\n");
+  write(root, "specs/001-example/spec.md", "# Real Spec change\n");
+  write(root, "http-generic-api/example/runtime/service.mjs");
+  const realSpec = evaluateParallelWork({
+    root,
+    policy,
+    changedFiles: [
+      ".changes/e2e/generated-binding-bridge.json",
+      "specs/001-example/work-map-integration.json",
+      "specs/001-example/spec.md",
+      "http-generic-api/example/runtime/service.mjs"
+    ],
+    headRef: "gpt/generated-binding-bridge",
+    head: "HEAD"
+  });
+  assert.equal(realSpec.ok, true, JSON.stringify(realSpec.findings));
+  assert.equal(realSpec.contracts.length, 1);
+  assert.equal(realSpec.contracts[0].feature_key, "001-example");
+  assert.equal(realSpec.contracts[0].active_workstream, null);
+}
+
+console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_parallel_work_governance", secrets_included: false }));
