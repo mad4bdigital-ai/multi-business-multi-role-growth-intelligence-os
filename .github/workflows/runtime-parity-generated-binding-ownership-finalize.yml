@@ -1,0 +1,117 @@
+name: Runtime Parity Generated Binding Ownership Finalization
+
+on:
+  push:
+    branches:
+      - gpt/add-runtime-parity-comment-bridge-v2-20260804
+
+permissions:
+  contents: write
+
+concurrency:
+  group: runtime-parity-generated-binding-ownership-finalization
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      EXPECTED_PARENT: ff047d4f13fb11338852b4d282f699e50c9f4933
+      EXPECTED_MAIN: 5f4b41aaefd8633aae07c1418ab955f8c4ed49d1
+      TARGET_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
+      REPAIR_SCRIPT: .github/scripts/runtime-parity-generated-binding-ownership-finalize.py
+      WORKFLOW_PATH: .github/workflows/runtime-parity-generated-binding-ownership-finalize.yml
+    steps:
+      - name: Checkout exact writer head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable writer identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$TARGET_BRANCH"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_PARENT"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          mapfile -t actual < <(git diff --name-only "$EXPECTED_PARENT"...HEAD | sort)
+          expected=(
+            .changes/e2e/production-runtime-parity-comment-bridge.json
+            .github/scripts/runtime-parity-generated-binding-ownership-finalize.py
+            .github/workflows/runtime-parity-generated-binding-ownership-finalize.yml
+          )
+          printf '%s\n' "${expected[@]}" | sort > /tmp/expected-writer-files
+          printf '%s\n' "${actual[@]}" > /tmp/actual-writer-files
+          diff -u /tmp/expected-writer-files /tmp/actual-writer-files
+
+      - name: Apply bounded ownership classifier repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 "$REPAIR_SCRIPT"
+          rm -f "$REPAIR_SCRIPT" "$WORKFLOW_PATH"
+          git diff --check
+
+      - name: Run focused ownership regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+
+      - name: Install governed dependencies
+        working-directory: http-generic-api
+        shell: bash
+        run: npm ci
+
+      - name: Run full Unit and Integration manifest
+        working-directory: http-generic-api
+        shell: bash
+        run: npm test
+
+      - name: Verify final permanent scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$REPAIR_SCRIPT"
+          test ! -e "$WORKFLOW_PATH"
+          mapfile -t actual < <(git diff --name-only origin/main | sort)
+          expected=(
+            .changes/e2e/production-runtime-parity-comment-bridge.json
+            .github/workflows/production-runtime-parity-comment-bridge.yml
+            docs/work-maps/README.md
+            docs/work-maps/repository-automation-map.md
+            http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+            http-generic-api/scripts/e2e-parallel-work-governance.mjs
+            http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+            http-generic-api/scripts/e2e-phase-governance.mjs
+            http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          )
+          printf '%s\n' "${expected[@]}" | sort > /tmp/expected-final-files
+          printf '%s\n' "${actual[@]}" > /tmp/actual-final-files
+          diff -u /tmp/expected-final-files /tmp/actual-final-files
+          grep -F 'PARALLEL_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"])' http-generic-api/scripts/e2e-parallel-work-governance.mjs
+          grep -F 'E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"])' http-generic-api/scripts/e2e-phase-governance.mjs
+          grep -F 'tests: 9, gate: "e2e_parallel_work_governance"' http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
+          grep -F 'tests: 9, gate: "e2e_phase_governance"' http-generic-api/scripts/e2e-phase-governance-self-test.mjs
+
+      - name: Commit and fast-forward target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | cut -f1)" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/main | cut -f1)" = "$EXPECTED_MAIN"
+          git config user.name MAD4B
+          git config user.email mad4b.digital@gmail.com
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(e2e): neutralize generated Work Map ownership"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
