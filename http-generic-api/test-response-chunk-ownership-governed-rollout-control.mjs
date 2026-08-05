@@ -28,6 +28,14 @@ assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-runt
 
 assert.match(runner, /MIGRATION_BLOB_SHA = '930b29dbf9f3d360ef6f76b52427585c31fa37a0'/);
 assert.match(runner, /SOURCE_MERGE_SHA = 'd21c26fbb94a857b4727b583df74e2aab54303cc'/);
+assert.match(
+  runner,
+  /AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_20260728_GOVERNED_RESPONSE_CHUNK_OWNERSHIP'/,
+);
+assert.doesNotMatch(
+  runner,
+  /const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT'/,
+);
 assert.match(runner, /splitMigrationSqlStatements/);
 assert.match(runner, /verifyProductionMigrationBlob/);
 assert.match(runner, /readback_first/);
