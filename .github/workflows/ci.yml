@@ -98,6 +98,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PULL_REQUEST_HEAD_REF: ${{ github.event.pull_request.head.ref }}
           PULL_REQUEST_BASE_REF: ${{ github.event.pull_request.base.ref }}
           PUSH_BEFORE_SHA: ${{ github.event.before }}
@@ -108,10 +109,16 @@ jobs:
           CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
           DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
           if [[ "$EVENT_NAME" == "pull_request" && "$PULL_REQUEST_BASE_REF" == "Production" ]]; then
+            CANDIDATE_SHA="${PULL_REQUEST_HEAD_SHA:-}"
+            if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "Invalid or missing pull-request source-head SHA" >&2
+              exit 1
+            fi
+            git cat-file -e "${CANDIDATE_SHA}^{commit}"
             PROMOTION_REPORT="$RUNNER_TEMP/context-kernel-production-promotion.json"
-            node http-generic-api/scripts/e2e-parallel-pr-gate.mjs         --base "$PULL_REQUEST_BASE_SHA"         --head "$(git rev-parse HEAD)"         --head-ref "$PULL_REQUEST_HEAD_REF"         --base-ref "$PULL_REQUEST_BASE_REF"         --report-file "$PROMOTION_REPORT"
+            node http-generic-api/scripts/e2e-parallel-pr-gate.mjs         --base "$PULL_REQUEST_BASE_SHA"         --head "$CANDIDATE_SHA"         --head-ref "$PULL_REQUEST_HEAD_REF"         --base-ref "$PULL_REQUEST_BASE_REF"         --report-file "$PROMOTION_REPORT"
             BASE_SHA="$(node -e 'const fs=require("fs"); const report=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const base=report.phase_evaluation_base; if(!/^[0-9a-f]{40}$/.test(base || "")) process.exit(1); process.stdout.write(base);' "$PROMOTION_REPORT")"
-            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+            git diff --name-only "$BASE_SHA" "$CANDIDATE_SHA" > "$CHANGED_FILES"
           elif [[ "$EVENT_NAME" == "pull_request" && -n "${PULL_REQUEST_BASE_SHA:-}" ]]; then
             BASE_SHA="$PULL_REQUEST_BASE_SHA"
             git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
