@@ -58,4 +58,5 @@ jobs:
           name: exact-source-snapshot-6314-${{ github.run_id }}
           path: snapshot
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 1
