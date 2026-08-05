@@ -1,0 +1,195 @@
+name: Patch Reviewer Eligibility 6394
+
+on:
+  pull_request:
+    branches:
+      - gpt/patch-reviewer-eligibility-validator-20260805
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch-and-test:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - name: Checkout work branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Apply bounded reviewer eligibility patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/patch-reviewer-eligibility.mjs" <<'NODE'
+          import fs from "node:fs";
+
+          function replaceOnce(text, search, replacement, label) {
+            const next = text.replace(search, replacement);
+            if (next === text) throw new Error(`replacement failed: ${label}`);
+            return next;
+          }
+
+          const lifecyclePath = "http-generic-api/githubRepositoryLifecycle.js";
+          let lifecycle = fs.readFileSync(lifecyclePath, "utf8");
+          if (!lifecycle.includes("resolveGithubReviewerPermissions")) {
+            lifecycle = replaceOnce(
+              lifecycle,
+              `function boundedRequiredApprovals(value = 1) {\n  const parsed = Number(value);\n  if (!Number.isFinite(parsed)) return 1;\n  return Math.max(1, Math.min(10, Math.floor(parsed)));\n}\n\nfunction reviewOrder`,
+              `function boundedRequiredApprovals(value = 1) {\n  const parsed = Number(value);\n  if (!Number.isFinite(parsed)) return 1;\n  return Math.max(1, Math.min(10, Math.floor(parsed)));\n}\n\nconst ELIGIBLE_REVIEWER_PERMISSIONS = Object.freeze(["write", "maintain", "admin"]);\nconst ELIGIBLE_REVIEWER_PERMISSION_SET = new Set(ELIGIBLE_REVIEWER_PERMISSIONS);\nconst KNOWN_REVIEWER_PERMISSION_SET = new Set(["none", "read", "triage", ...ELIGIBLE_REVIEWER_PERMISSIONS]);\n\nfunction normalizeReviewerPermission(value = "") {\n  return String(value || "").trim().toLowerCase();\n}\n\nasync function resolveGithubReviewerPermissions({\n  owner,\n  repo,\n  reviews = [],\n  expectedHeadSha = "",\n  authorLogin = "",\n  token,\n  fetchImpl,\n} = {}) {\n  const expected = normalizeSha(expectedHeadSha);\n  const author = String(authorLogin || "").trim().toLowerCase();\n  const reviewerLogins = new Set();\n  for (const review of (Array.isArray(reviews) ? reviews : [])) {\n    const state = String(review?.state || "").trim().toUpperCase();\n    if (!["APPROVED", "CHANGES_REQUESTED"].includes(state)) continue;\n    if (normalizeSha(review?.commit_id || review?.commitId) !== expected) continue;\n    const login = String(review?.user?.login || "").trim().toLowerCase();\n    const userType = String(review?.user?.type || "").trim().toLowerCase();\n    if (!login || userType !== "user" || login.endsWith("[bot]") || (author && login === author)) continue;\n    reviewerLogins.add(login);\n  }\n\n  const permissions = {};\n  for (const login of [...reviewerLogins].sort()) {\n    const readback = await githubLifecycleRequest({\n      owner,\n      repo,\n      apiPath: \`/collaborators/\${encodeURIComponent(login)}/permission\`,\n      token,\n      fetchImpl,\n      allowNotFound: true,\n    });\n    if (readback.status === 404) {\n      permissions[login] = "none";\n      continue;\n    }\n    const permission = normalizeReviewerPermission(readback.payload?.permission);\n    if (!KNOWN_REVIEWER_PERMISSION_SET.has(permission)) {\n      throw lifecycleError(409, "github_pr_finalize_reviewer_permission_unresolved", "Reviewer collaborator permission could not be resolved.", {\n        reviewer_login: login,\n        permission: permission || null,\n        upstream_status: readback.status,\n        secrets_included: false,\n      });\n    }\n    permissions[login] = permission;\n  }\n  return permissions;\n}\n\nfunction reviewOrder`,
+              "insert reviewer permission resolver",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `  requiredApprovals = 1,\n} = {}) {`,
+              `  requiredApprovals = 1,\n  reviewerPermissions = {},\n} = {}) {`,
+              "add reviewerPermissions option",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `    stale_head: 0,\n    dismissed: 0,`,
+              `    stale_head: 0,\n    dismissed: 0,\n    unresolved_reviewer_permission: 0,\n    ineligible_reviewer: 0,`,
+              "add reviewer eligibility counters",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `    if (normalizeSha(review?.commit_id || review?.commitId) !== expected) {\n      ignored.stale_head += 1;\n      continue;\n    }\n    const projection = {`,
+              `    if (normalizeSha(review?.commit_id || review?.commitId) !== expected) {\n      ignored.stale_head += 1;\n      continue;\n    }\n    const reviewerPermission = normalizeReviewerPermission(reviewerPermissions?.[login]);\n    if (!reviewerPermission) {\n      ignored.unresolved_reviewer_permission += 1;\n      continue;\n    }\n    if (!ELIGIBLE_REVIEWER_PERMISSION_SET.has(reviewerPermission)) {\n      ignored.ineligible_reviewer += 1;\n      continue;\n    }\n    const projection = {`,
+              "enforce eligible reviewer permission",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `      submitted_at: review?.submitted_at || review?.submittedAt || null,\n    };`,
+              `      submitted_at: review?.submitted_at || review?.submittedAt || null,\n      reviewer_permission: reviewerPermission,\n    };`,
+              "project reviewer permission",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `    expected_head_sha: expected || null,\n    secrets_included: false,`,
+              `    expected_head_sha: expected || null,\n    eligible_reviewer_permissions: [...ELIGIBLE_REVIEWER_PERMISSIONS],\n    secrets_included: false,`,
+              "publish eligible permissions",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `  const approvalEvidence = summarizeGithubPullRequestApprovals(reviews, {\n    expectedHeadSha,\n    authorLogin: pr?.user?.login,\n    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,\n  });`,
+              `  const reviewerPermissions = await resolveGithubReviewerPermissions({\n    owner,\n    repo,\n    reviews,\n    expectedHeadSha,\n    authorLogin: pr?.user?.login,\n    token,\n    fetchImpl: options.fetchImpl,\n  });\n  const approvalEvidence = summarizeGithubPullRequestApprovals(reviews, {\n    expectedHeadSha,\n    authorLogin: pr?.user?.login,\n    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,\n    reviewerPermissions,\n  });`,
+              "resolve initial reviewer permissions",
+            );
+
+            lifecycle = replaceOnce(
+              lifecycle,
+              `  const finalApprovalEvidence = summarizeGithubPullRequestApprovals(finalReviews, {\n    expectedHeadSha,\n    authorLogin: postApprovalPr?.user?.login || pr?.user?.login,\n    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,\n  });`,
+              `  const finalReviewerPermissions = await resolveGithubReviewerPermissions({\n    owner,\n    repo,\n    reviews: finalReviews,\n    expectedHeadSha,\n    authorLogin: postApprovalPr?.user?.login || pr?.user?.login,\n    token,\n    fetchImpl: options.fetchImpl,\n  });\n  const finalApprovalEvidence = summarizeGithubPullRequestApprovals(finalReviews, {\n    expectedHeadSha,\n    authorLogin: postApprovalPr?.user?.login || pr?.user?.login,\n    requiredApprovals: options.required_approvals || options.requiredApprovals || 1,\n    reviewerPermissions: finalReviewerPermissions,\n  });`,
+              "resolve final reviewer permissions",
+            );
+
+            fs.writeFileSync(lifecyclePath, lifecycle);
+          }
+
+          const finalTestPath = "http-generic-api/test-github-final-review-state-readback.mjs";
+          let finalTest = fs.readFileSync(finalTestPath, "utf8");
+          if (!finalTest.includes("reviewer_permissions")) {
+            finalTest = replaceOnce(
+              finalTest,
+              `function queuedFetch(entries, calls = []) {\n  return async (url, options = {}) => {\n    calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });\n    const next = entries.shift();\n    assert(next, \`Unexpected GitHub request: \${options.method || "GET"} \${url}\`);\n    return response(next.status, next.payload);\n  };\n}`,
+              `function queuedFetch(entries, calls = [], reviewerPermissions = {}) {\n  const permissionQueues = new Map(Object.entries(reviewerPermissions).map(([login, value]) => [login.toLowerCase(), Array.isArray(value) ? [...value] : value]));\n  return async (url, options = {}) => {\n    calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });\n    const permissionMatch = String(url).match(/\\/collaborators\\/([^/]+)\\/permission(?:\\?|$)/);\n    if (permissionMatch) {\n      const login = decodeURIComponent(permissionMatch[1]).toLowerCase();\n      const configured = permissionQueues.get(login);\n      const specification = Array.isArray(configured) ? configured.shift() : configured;\n      if (specification && typeof specification === "object") {\n        return response(specification.status ?? 200, specification.payload ?? { permission: specification.permission ?? "write", user: { login } });\n      }\n      return response(200, { permission: specification === undefined ? "write" : String(specification), user: { login } });\n    }\n    const next = entries.shift();\n    assert(next, \`Unexpected GitHub request: \${options.method || "GET"} \${url}\`);\n    return response(next.status, next.payload);\n  };\n}`,
+              "test permission-aware fetch",
+            );
+
+            finalTest = replaceOnce(
+              finalTest,
+              `function options(pullNumber, calls, entries, extra = {}) {\n  return {\n    owner: OWNER,\n    repo: REPO,\n    default_branch: "main",\n    token: "test-token",\n    pull_number: pullNumber,\n    expected_head_sha: HEAD_SHA,\n    expected_base_sha: BASE_SHA,\n    confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),\n    delete_branch: false,\n    fetchImpl: queuedFetch(entries, calls),\n    ...extra,\n  };\n}`,
+              `function options(pullNumber, calls, entries, extra = {}) {\n  const { reviewer_permissions: reviewerPermissions = {}, ...finalizeOptions } = extra;\n  return {\n    owner: OWNER,\n    repo: REPO,\n    default_branch: "main",\n    token: "test-token",\n    pull_number: pullNumber,\n    expected_head_sha: HEAD_SHA,\n    expected_base_sha: BASE_SHA,\n    confirm: githubPullRequestFinalizeConfirmation(pullNumber, HEAD_SHA),\n    delete_branch: false,\n    fetchImpl: queuedFetch(entries, calls, reviewerPermissions),\n    ...finalizeOptions,\n  };\n}`,
+              "test options permission injection",
+            );
+
+            finalTest = replaceOnce(
+              finalTest,
+              `console.log("github final review-state readback tests passed");`,
+              `{\n  const pullNumber = 58727;\n  const calls = [];\n  await assert.rejects(\n    () => finalizeGithubPullRequest(options(pullNumber, calls, [\n      ...gate(pullNumber),\n      pr(pullNumber),\n      { status: 200, payload: [review(70, "APPROVED", "outside-reviewer")] },\n    ], { reviewer_permissions: { "outside-reviewer": "read" } })),\n    (error) => error.code === "github_pr_finalize_approval_required"\n      && error.details?.ignored?.ineligible_reviewer === 1\n      && error.details?.exact_head_approval_count === 0,\n  );\n  assert.equal(mergeReached(calls), false);\n}\n\n{\n  const pullNumber = 58728;\n  const calls = [];\n  await assert.rejects(\n    () => finalizeGithubPullRequest(options(pullNumber, calls, [\n      ...gate(pullNumber),\n      pr(pullNumber),\n      { status: 200, payload: [review(80, "APPROVED", "eligible-reviewer")] },\n      pr(pullNumber),\n      { status: 200, payload: [review(81, "APPROVED", "eligible-reviewer", HEAD_SHA, "2026-08-04T00:18:00Z")] },\n    ], { reviewer_permissions: { "eligible-reviewer": ["write", "read"] } })),\n    (error) => error.code === "github_pr_finalize_approval_required"\n      && error.details?.validation_phase === "final_pre_merge_review_readback"\n      && error.details?.ignored?.ineligible_reviewer === 1,\n  );\n  assert.equal(mergeReached(calls), false);\n}\n\n{\n  const pullNumber = 58729;\n  const calls = [];\n  await assert.rejects(\n    () => finalizeGithubPullRequest(options(pullNumber, calls, [\n      ...gate(pullNumber),\n      pr(pullNumber),\n      { status: 200, payload: [review(90, "APPROVED", "unknown-reviewer")] },\n    ], { reviewer_permissions: { "unknown-reviewer": "unknown" } })),\n    (error) => error.code === "github_pr_finalize_reviewer_permission_unresolved",\n  );\n  assert.equal(mergeReached(calls), false);\n}\n\nconsole.log("github final review-state readback tests passed");`,
+              "append reviewer eligibility regressions",
+            );
+
+            fs.writeFileSync(finalTestPath, finalTest);
+          }
+
+          const lifecycleTestPath = "http-generic-api/test-github-repository-lifecycle.mjs";
+          let lifecycleTest = fs.readFileSync(lifecycleTestPath, "utf8");
+          if (!lifecycleTest.includes("permissionMatch")) {
+            lifecycleTest = replaceOnce(
+              lifecycleTest,
+              `function queuedFetch(entries, calls = []) {\n  return async (url, options = {}) => {\n    calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });\n    const next = entries.shift();\n    assert(next, \`Unexpected GitHub request: \${options.method || "GET"} \${url}\`);\n    return response(next.status, next.payload);\n  };\n}`,
+              `function queuedFetch(entries, calls = []) {\n  return async (url, options = {}) => {\n    calls.push({ url: String(url), method: options.method || "GET", body: options.body ? JSON.parse(options.body) : null });\n    const permissionMatch = String(url).match(/\\/collaborators\\/([^/]+)\\/permission(?:\\?|$)/);\n    if (permissionMatch) {\n      const login = decodeURIComponent(permissionMatch[1]).toLowerCase();\n      return response(200, { permission: "write", user: { login } });\n    }\n    const next = entries.shift();\n    assert(next, \`Unexpected GitHub request: \${options.method || "GET"} \${url}\`);\n    return response(next.status, next.payload);\n  };\n}`,
+              "lifecycle suite permission-aware fetch",
+            );
+            fs.writeFileSync(lifecycleTestPath, lifecycleTest);
+          }
+
+          for (const contractPath of [
+            ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+            ".changes/e2e/repository-lifecycle-final-review-state-readback.json",
+          ]) {
+            const contract = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+            const mvp = contract.phases.find((phase) => phase.id === "mvp");
+            const journey = mvp?.e2e_journeys?.[0];
+            if (mvp && !mvp.objective.includes("eligible collaborator")) {
+              mvp.objective = `${mvp.objective.replace(/\.$/, "")} and require every counted reviewer to have resolved eligible collaborator permission.`;
+            }
+            if (journey && !journey.assertions.some((assertion) => assertion.includes("write, maintain, or admin"))) {
+              journey.assertions.push("Only exact-head reviewers with resolved collaborator permission write, maintain, or admin count toward approval quorum or active changes-requested decisions.");
+              journey.assertions.push("Outside, read-only, triage-only, unresolved, bot, author, dismissed, or stale-head review evidence cannot satisfy or block the governed quorum.");
+            }
+            fs.writeFileSync(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
+          }
+          NODE
+          node "$RUNNER_TEMP/patch-reviewer-eligibility.mjs"
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run focused reviewer eligibility regressions
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check githubRepositoryLifecycle.js
+          node test-github-final-review-state-readback.mjs
+          node test-github-repository-lifecycle.mjs
+          node test-repository-automation-control-plane.mjs
+
+      - name: Commit patch to work branch
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/repository-lifecycle-draft-merge-guard.json \
+            .changes/e2e/repository-lifecycle-final-review-state-readback.json \
+            http-generic-api/githubRepositoryLifecycle.js \
+            http-generic-api/test-github-final-review-state-readback.mjs \
+            http-generic-api/test-github-repository-lifecycle.mjs
+          if git diff --cached --quiet; then
+            echo "Reviewer eligibility patch already applied; no commit required."
+            exit 0
+          fi
+          git commit -m "fix(github): require eligible collaborator approvals"
+          git push origin "HEAD:${HEAD_REF}"
