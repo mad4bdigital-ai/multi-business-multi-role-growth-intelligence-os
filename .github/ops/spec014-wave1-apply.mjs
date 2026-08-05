@@ -267,8 +267,8 @@ async function adminDbFixed(query, params = []) {
     '/admin/control',
     {
       tool: 'db',
-      action: 'query',
-      query,
+      action: 'run',
+      sql: query,
       params,
       read_only: true,
       max_rows: 20,
