@@ -1,0 +1,271 @@
+name: Validation-only Apply Work Map Ready Manifest Targeting 6397
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-apply-work-map-ready-manifest-targeting-6397.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    name: Apply exact-head bounded governance repair
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_PR: "6397"
+      TARGET_BRANCH: "fix/work-map-integration-post-allocation-root-20260805"
+      EXPECTED_HEAD_SHA: "43f99f2571508adcc5202c2464745ae8ed3f2ead"
+      EXPECTED_BASE_SHA: "146e070d57627d50eaf8fc0e7fb06568b40fc704"
+      REGISTRY_FINGERPRINT: "3a5d6c6bca7849807a0999a3cf1558b3e6ddd0d824113d5cb04eabb514f19d94"
+      INDEX_SOURCE_HASH: "95954d6ca995ae3921916d37873eb8aa24edf321a746976a3be73ba9344c98e0"
+      COVERAGE_SOURCE_HASH: "e12cbc5ae9c4a743221ae6d33004741f492cd91c4ae2cbc82c05b7c3fd60537b"
+    steps:
+      - name: Initialize bounded evidence directory
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/work-map-ready-manifest-targeting-6397"
+          echo "EVIDENCE_ROOT=${evidence_root}" >> "${GITHUB_ENV}"
+          mkdir -p "${evidence_root}"
+
+      - name: Validate exact target pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" > "${EVIDENCE_ROOT}/target-pr.json"
+          jq -e --arg branch "${TARGET_BRANCH}" --arg head "${EXPECTED_HEAD_SHA}" --arg base "${EXPECTED_BASE_SHA}" '
+            .state == "open" and
+            .draft == false and
+            .head.repo.full_name == env.GITHUB_REPOSITORY and
+            .head.ref == $branch and
+            .head.sha == $head and
+            .base.ref == "main" and
+            .base.sha == $base
+          ' "${EVIDENCE_ROOT}/target-pr.json" >/dev/null
+
+      - name: Checkout exact authorized candidate head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply deterministic governance repair
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          function replaceExactlyOnce(source, oldValue, newValue, label) {
+            const first = source.indexOf(oldValue);
+            if (first < 0 || source.indexOf(oldValue, first + oldValue.length) >= 0) {
+              throw new Error(`${label}: expected exactly one canonical match`);
+            }
+            return source.replace(oldValue, newValue);
+          }
+
+          const gatePath = "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs";
+          let gate = fs.readFileSync(gatePath, "utf8");
+          const oldTargeting = `  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));
+          const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
+          const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
+          const targets = options.all
+            ? manifestFeatures
+            : unique([
+              ...newFeatures,
+              ...optedInChanged,
+              ...(policyChanged ? manifestFeatures : []),
+            ]).sort();`;
+          const newTargeting = `  const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));
+          const readyManifestFeatures = manifestFeatures.filter((feature) => {
+            try {
+              const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));
+              return manifest.review_state === "ready_for_implementation";
+            } catch {
+              return false;
+            }
+          });
+          const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
+          const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
+          const targets = options.all
+            ? manifestFeatures
+            : unique([
+              ...newFeatures,
+              ...optedInChanged,
+              ...(policyChanged ? readyManifestFeatures : []),
+            ]).sort();`;
+          gate = replaceExactlyOnce(gate, oldTargeting, newTargeting, "ready-manifest targeting");
+          fs.writeFileSync(gatePath, gate);
+
+          const testPath = "http-generic-api/test-spec-kit-work-map-governance-gate.mjs";
+          let test = fs.readFileSync(testPath, "utf8");
+          const testMarker = `
+          console.log("spec kit Work Map governance tests passed");
+          `;
+          const regression = `
+          {
+            const { root, policy } = fixture();
+            const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+            const readyManifest = finalize(buildScaffoldManifest("001-example", {
+              root,
+              policy,
+              registry: effectiveRegistry,
+              owner: "platform-architecture",
+            }));
+            write(root, "specs/001-example/work-map-integration.json", JSON.stringify(readyManifest));
+            write(root, "specs/002-draft/spec.md", "# Draft feature\\n");
+            const draftManifest = buildScaffoldManifest("002-draft", {
+              root,
+              policy,
+              registry: effectiveRegistry,
+              owner: "platform-architecture",
+            });
+            write(root, "specs/002-draft/work-map-integration.json", JSON.stringify(draftManifest));
+
+            const registryRefresh = validateGovernedRepository({
+              root,
+              policy,
+              changedFiles: ["docs/work-maps/README.md", "runtime/example.js"],
+              newFeatures: [],
+              implementationChanged: true,
+            });
+            assert.equal(registryRefresh.ok, true, JSON.stringify(registryRefresh.findings));
+            assert.deepEqual(registryRefresh.integration.targets, ["001-example"]);
+
+            const changedDraft = validateGovernedRepository({
+              root,
+              policy,
+              changedFiles: ["specs/002-draft/spec.md", "runtime/example.js"],
+              newFeatures: [],
+              implementationChanged: true,
+            });
+            assert.equal(changedDraft.ok, false);
+            assert.deepEqual(changedDraft.integration.targets, ["002-draft"]);
+            assert(changedDraft.findings.some((row) => row.feature === "002-draft"));
+          }
+          `;
+          test = replaceExactlyOnce(test, testMarker, `${regression}${testMarker}`, "ready/draft targeting regression");
+          fs.writeFileSync(testPath, test);
+
+          const registry = {
+            fingerprint: process.env.REGISTRY_FINGERPRINT,
+            index_source_hash: process.env.INDEX_SOURCE_HASH,
+            coverage_source_hash: process.env.COVERAGE_SOURCE_HASH,
+            map_count: 19,
+            domain_count: 16,
+            uncategorized_count: 0,
+            taxonomy_gap_cluster_count: 0,
+          };
+          for (const manifestPath of [
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+          ]) {
+            let source = fs.readFileSync(manifestPath, "utf8");
+            const parsed = JSON.parse(source);
+            if (parsed.review_state !== "ready_for_implementation") {
+              throw new Error(`${manifestPath}: only ready manifests may receive registry refresh`);
+            }
+            for (const [field, value] of Object.entries(registry)) {
+              const rendered = typeof value === "string" ? `"${value}"` : String(value);
+              const pattern = new RegExp(`("${field}"\\s*:\\s*)("[^"]*"|[0-9]+)`);
+              const matches = source.match(new RegExp(pattern.source, "g")) || [];
+              if (matches.length !== 1) throw new Error(`${manifestPath}: expected one ${field} binding`);
+              source = source.replace(pattern, `$1${rendered}`);
+            }
+            fs.writeFileSync(manifestPath, source);
+          }
+
+          const e2ePath = ".changes/e2e/work-map-integration-post-allocation-repair-root.json";
+          const e2e = JSON.parse(fs.readFileSync(e2ePath, "utf8"));
+          const governedPaths = [
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+          ];
+          e2e.scope ||= {};
+          e2e.scope.include = [...new Set([...(e2e.scope.include || []), ...governedPaths])].sort();
+          for (const phase of e2e.phases || []) {
+            for (const journey of phase.e2e_journeys || []) {
+              journey.evidence_paths = [...new Set([...(journey.evidence_paths || []), ...governedPaths])].sort();
+              journey.tests ||= [];
+              if (!journey.tests.some((row) => row.id === "work-map-ready-manifest-targeting")) {
+                journey.tests.push({
+                  id: "work-map-ready-manifest-targeting",
+                  runner: "node",
+                  working_directory: "http-generic-api",
+                  path: "test-spec-kit-work-map-governance-gate.mjs",
+                  args: [],
+                });
+              }
+            }
+          }
+          fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\\n`);
+          NODE
+
+      - name: Verify exact five-file mutation and contracts
+        run: |
+          set -euo pipefail
+          cat > "${EVIDENCE_ROOT}/expected-files.txt" <<'EOF'
+          .changes/e2e/work-map-integration-post-allocation-repair-root.json
+          http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          EOF
+          git diff --name-only | sort > "${EVIDENCE_ROOT}/actual-files.txt"
+          diff -u "${EVIDENCE_ROOT}/expected-files.txt" "${EVIDENCE_ROOT}/actual-files.txt"
+          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          git diff --check
+
+      - name: Commit and push exact-head repair
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            .changes/e2e/work-map-integration-post-allocation-repair-root.json \
+            http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs \
+            http-generic-api/test-spec-kit-work-map-governance-gate.mjs \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git commit -m "fix(work-maps): scope registry refresh to ready manifests"
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${result_head}"
+          echo "RESULT_HEAD_SHA=${result_head}" >> "${GITHUB_ENV}"
+
+      - name: Publish bounded mutation evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg contract "mad4b.validation-only-ready-manifest-targeting-updater.v1" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
+            '{contract:$contract,expected_head_sha:$expected_head_sha,result_head_sha:$result_head_sha,changed_files:[".changes/e2e/work-map-integration-post-allocation-repair-root.json","http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs","http-generic-api/test-spec-kit-work-map-governance-gate.mjs","specs/014-governed-hostinger-storage-orchestration/work-map-integration.json","specs/014-retail-commerce-operations-growth-os/work-map-integration.json"],force_push:false,protected_ref_mutation:false,runtime_contact:false,deployment:false,database_access:false,provider_action:false,migration_apply:false,secrets_included:false}' \
+            > "${EVIDENCE_ROOT}/result.json"
+          sha256sum "${EVIDENCE_ROOT}"/* > "${EVIDENCE_ROOT}/SHA256SUMS.txt" || true
+
+      - name: Upload bounded updater evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-ready-manifest-targeting-updater-6397
+          path: ${{ runner.temp }}/work-map-ready-manifest-targeting-6397
+          if-no-files-found: error
+          retention-days: 14
