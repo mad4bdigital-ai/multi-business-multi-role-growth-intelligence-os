@@ -32,7 +32,7 @@ jobs:
        (github.event.issue.pull_request &&
         startsWith(github.event.comment.body, '/refresh-generated-artifacts ') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || 'UNRESOLVED' }}

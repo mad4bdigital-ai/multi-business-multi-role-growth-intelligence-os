@@ -11,6 +11,7 @@ const VALID_STATUSES = new Set(["planned", "in_progress", "blocked", "ready_for_
 const READY_STATUSES = new Set(["ready_for_integration", "integrated"]);
 const VALID_OWNER_TYPES = new Set(["human", "ai_agent", "mixed", "unassigned"]);
 const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+const PARALLEL_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);
 
 function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
@@ -55,11 +56,21 @@ function specKeyFromFile(file, policy) {
   return normalized.slice(prefix.length).split("/")[0] || null;
 }
 
+function isParallelOwnershipNeutralSpecArtifact(file, policy) {
+  const feature = specKeyFromFile(file, policy);
+  if (!feature) return false;
+  const prefix = `${normalize(policy.spec_root)}/${feature}/`;
+  const relative = normalize(file).slice(prefix.length);
+  return PARALLEL_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS.has(relative);
+}
+
 function discoverContractPaths(changedFiles, policy) {
   const paths = new Set();
   for (const file of changedFiles) {
     const feature = specKeyFromFile(file, policy);
-    if (feature) paths.add(normalize(path.posix.join(policy.spec_root, feature, policy.spec_contract_file)));
+    if (feature && !isParallelOwnershipNeutralSpecArtifact(file, policy)) {
+      paths.add(normalize(path.posix.join(policy.spec_root, feature, policy.spec_contract_file)));
+    }
     if (file.endsWith(`/${policy.spec_contract_file}`)) paths.add(file);
     if (file.startsWith(`${normalize(policy.non_spec_contract_root)}/`) && file.endsWith(".json")) paths.add(file);
   }

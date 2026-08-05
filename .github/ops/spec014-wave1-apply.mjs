@@ -11,7 +11,7 @@ const REPOSITORY = String(
 ).trim();
 const CONTROL_ISSUE = Number(process.env.CONTROL_ISSUE || 6215);
 const EVIDENCE_DIR = String(
-  process.env.EVIDENCE_DIR || '.artifacts/spec014-wave1-runtime-readiness',
+  process.env.EVIDENCE_DIR || '.artifacts/spec014-wave1-apply',
 ).trim();
 
 const MIGRATION = '20260802_01_spec014_hostinger_storage_foundation.sql';
@@ -22,11 +22,14 @@ const STATEMENT_COUNT = 4;
 const SOURCE_PR = 4564;
 const SOURCE_MERGE_SHA = '7a96920eff2579321707d193a1d030e6454891b1';
 const REPOSITORY_READINESS_MERGE_SHA = '0f83d8faf1abf8b0bf149f08c10f652d2a3ed3fa';
-const AUTH_CONFIRM =
-  'AUTHORIZE_GOVERNED_MIGRATION_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION';
-const RESOURCE_URI = `db-migration://growth_intelligence_platform/${MIGRATION}`;
+const RUNTIME_READINESS_MERGE_SHA = '4c683e825320b02d49235fabc610e2cd8d8afb89';
+const APPLY_CONFIRM = 'APPLY_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION';
 const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+const RESOURCE_URI = `db-migration://growth_intelligence_platform/${MIGRATION}`;
+const APPLY_POLICY_KEY = 'governed_migration_execute_apply_v1';
+const AUTHORIZATION_POLICY_KEY = 'governed_migration_runner_authorization_v1';
+const AUTHORIZATION_SOURCE = 'governed_admin_bootstrap_tool';
 const EXPECTED_TABLES = Object.freeze([
   'storage_provider_accounts',
   'storage_targets',
@@ -35,25 +38,24 @@ const EXPECTED_TABLES = Object.freeze([
 ]);
 
 let stage = 'program_start';
-let productionSha = null;
 let mainSha = null;
-let authorizationEnvelopeId = null;
-let authorizationCreated = false;
+let productionSha = null;
+let executionEnvelopeId = null;
+let applySent = false;
+let applyAttempt = null;
+let finalReadback = null;
 
 const sensitiveKey =
   /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
 const SAFE_EVIDENCE_KEYS = new Set([
   'apply_authorized',
   'apply_sent',
-  'authorization_bootstrap',
-  'authorization_created',
-  'business_data_mutation_executed',
+  'authorization_status',
+  'authorization_source',
   'credential_payload_accessed',
   'external_business_write_executed',
-  'managed_control_plane_write_executed',
   'migration_apply_executed',
   'provider_call_executed',
-  'repository_mutation_performed',
   'secrets_included',
 ]);
 
@@ -114,14 +116,22 @@ function gitBlobSha(content) {
     .digest('hex');
 }
 
+function sha256(value) {
+  return createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
+}
+
 async function writeJson(name, value) {
   await fs.mkdir(EVIDENCE_DIR, { recursive: true });
-  await fs.writeFile(`${EVIDENCE_DIR}/${name}`, `${JSON.stringify(sanitize(value), null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    `${EVIDENCE_DIR}/${name}`,
+    `${JSON.stringify(sanitize(value), null, 2)}\n`,
+    'utf8',
+  );
 }
 
 async function writeState(extra = {}) {
   await writeJson('state.json', {
-    contract: 'spec014_wave1_runtime_readiness_state.v1',
+    contract: 'spec014_wave1_apply_state.v1',
     stage,
     main_sha: mainSha,
     production_sha: productionSha,
@@ -129,14 +139,18 @@ async function writeState(extra = {}) {
     migration_blob_sha: MIGRATION_BLOB_SHA,
     migration_checksum_sha256: CHECKSUM,
     statement_count: STATEMENT_COUNT,
-    authorization_envelope_id: authorizationEnvelopeId,
-    authorization_created: authorizationCreated,
-    apply_authorized: false,
-    apply_sent: false,
-    migration_apply_executed: false,
+    execution_envelope_id: executionEnvelopeId,
+    apply_sent: applySent,
+    apply_transport_ok: applyAttempt?.transport_ok ?? null,
+    apply_http_status: applyAttempt?.status ?? null,
+    exact_apply_ledger_verified: Boolean(finalReadback),
+    apply_retried: false,
     provider_call_executed: false,
     credential_payload_accessed: false,
     external_business_write_executed: false,
+    production_ref_mutation_executed: false,
+    deployment_executed: false,
+    restart_executed: false,
     secrets_included: false,
     ...extra,
   });
@@ -226,6 +240,51 @@ function requireSuccess(result, label) {
   return result.payload;
 }
 
+function shellInvocation(alias, extraArgs) {
+  return {
+    tool: 'shell',
+    action: 'run',
+    alias,
+    authority_context: {
+      resource_type: 'shell_alias',
+      resource_uri: `shell://${alias}`,
+      operation_mode: alias,
+      required: true,
+    },
+    extra_args: extraArgs,
+  };
+}
+
+async function adminShell(alias, extraArgs, label) {
+  return requireSuccess(
+    await requestRaw('/admin/control', shellInvocation(alias, extraArgs)),
+    label,
+  );
+}
+
+async function adminDbFixed(query, params = []) {
+  const result = await requestRaw(
+    '/admin/control',
+    {
+      tool: 'db',
+      action: 'query',
+      query,
+      params,
+      read_only: true,
+      max_rows: 20,
+      authority_context: {
+        resource_type: 'database_query',
+        resource_uri: 'db://growth_intelligence_platform/read_only_fixed_query',
+        operation_mode: 'read_only',
+        required: true,
+      },
+    },
+    120_000,
+  );
+  const payload = requireSuccess(result, 'admin_db_fixed_query');
+  return findObject(payload, (candidate) => Array.isArray(candidate.rows)) || payload;
+}
+
 async function currentRefSha(branch) {
   const ref = await githubJson(`/repos/${REPOSITORY}/git/ref/heads/${branch}`);
   const sha = String(ref?.object?.sha || '').toLowerCase();
@@ -246,7 +305,13 @@ async function assertContains(ancestor, descendant, label) {
   };
 }
 
-async function waitForRuntimeParity() {
+async function verifyRepositoryAndRuntimeParity() {
+  mainSha = await currentRefSha('main');
+  const mainContains = {
+    repository_readiness: await assertContains(REPOSITORY_READINESS_MERGE_SHA, mainSha, 'main'),
+    runtime_readiness: await assertContains(RUNTIME_READINESS_MERGE_SHA, mainSha, 'main'),
+  };
+
   for (let convergence = 1; convergence <= 2; convergence += 1) {
     const targetSha = await currentRefSha('Production');
     const sourceCompare = await assertContains(SOURCE_MERGE_SHA, targetSha, 'Production');
@@ -273,7 +338,9 @@ async function waitForRuntimeParity() {
         if (latest !== targetSha) break;
         productionSha = targetSha;
         return {
+          main_sha: mainSha,
           production_sha: targetSha,
+          main_contains: mainContains,
           source_compare: sourceCompare,
           migration_blob_sha: MIGRATION_BLOB_SHA,
           health_http: health.status,
@@ -292,49 +359,25 @@ async function waitForRuntimeParity() {
   );
 }
 
-function shellInvocation(alias, extraArgs) {
-  return {
-    tool: 'shell',
-    action: 'run',
-    alias,
-    authority_context: {
-      resource_type: 'shell_alias',
-      resource_uri: `shell://${alias}`,
-      operation_mode: alias,
-      required: true,
-    },
-    extra_args: extraArgs,
-  };
-}
-
-async function adminShell(alias, extraArgs, label) {
-  return requireSuccess(
-    await requestRaw('/admin/control', shellInvocation(alias, extraArgs)),
-    label,
+function envelopeBindingSha(capabilityKey, operationIntent) {
+  return sha256(
+    JSON.stringify({
+      schema_version: 'governed_migration_envelope_binding.v1',
+      app_key: 'platform_orchestration',
+      capability_key: capabilityKey,
+      operation_intent: operationIntent,
+      resource_uri: RESOURCE_URI,
+      migration_file: MIGRATION,
+      migration_checksum_sha256: CHECKSUM,
+      statement_count: STATEMENT_COUNT,
+      production_sha: productionSha,
+    }),
   );
 }
 
-function envelopeBindingSha(capabilityKey, operationIntent) {
-  return createHash('sha256')
-    .update(
-      JSON.stringify({
-        schema_version: 'governed_migration_envelope_binding.v1',
-        app_key: 'platform_orchestration',
-        capability_key: capabilityKey,
-        operation_intent: operationIntent,
-        resource_uri: RESOURCE_URI,
-        migration_file: MIGRATION,
-        migration_checksum_sha256: CHECKSUM,
-        statement_count: STATEMENT_COUNT,
-        production_sha: productionSha,
-      }),
-    )
-    .digest('hex');
-}
-
-async function createReadyAuthorizationEnvelope() {
-  const capabilityKey = 'governed_migration_authorization_bootstrap';
-  const operationIntent = 'governed_migration_authorization_bootstrap';
+async function createReadyExecutionEnvelope() {
+  const capabilityKey = 'governed_migration_execute';
+  const operationIntent = 'governed_migration_execute';
   const bindingSha = envelopeBindingSha(capabilityKey, operationIntent);
   const createdPayload = await adminShell(
     'capability_resolution_envelope_create',
@@ -347,23 +390,23 @@ async function createReadyAuthorizationEnvelope() {
       `--operation-intent=${operationIntent}`,
       '--runtime-surface=auth_host',
       '--requested-source-tier=platform_managed_fallback',
-      '--requested-by=github_actions_spec014_wave1_runtime_readiness',
+      '--requested-by=github_actions_spec014_wave1_apply',
       '--ttl-minutes=45',
       '--explain',
       `--resource-uri=${RESOURCE_URI}`,
       `--expected-commit-sha=${productionSha}`,
       `--binding-sha256=${bindingSha}`,
     ],
-    'spec014_wave1_authorization_envelope_create',
+    'spec014_wave1_execution_envelope_create',
   );
   let envelope = findObjectWithKey(createdPayload, 'envelope_id');
-  assert.ok(envelope?.envelope_id, 'Capability envelope creation returned no envelope_id');
+  assert.ok(envelope?.envelope_id, 'Execution envelope creation returned no envelope_id');
   assert.notEqual(
     envelope.envelope_status,
     'blocked',
-    `Capability envelope blocked: ${envelope.decision || 'unknown'}`,
+    `Execution envelope blocked: ${envelope.decision || 'unknown'}`,
   );
-  assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
+  assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Execution envelope has blocking gaps');
 
   if (envelope.approval_required === true || envelope.envelope_status === 'ready_requires_approval') {
     const approvedPayload = await adminShell(
@@ -371,10 +414,10 @@ async function createReadyAuthorizationEnvelope() {
       [
         `--envelope-id=${envelope.envelope_id}`,
         '--approved-by=github_actions',
-        '--decision-note=Approve checksum-bound Spec 014 Wave 1 authorization-bootstrap envelope for runtime readiness only. Migration SQL and provider dispatch are not executed.',
+        '--decision-note=Approve one exact checksum-bound Spec 014 Wave 1 Apply attempt after explicit operator confirmation, exact Production parity, pre-existing readiness authorization, same-cycle dry-run, and zero-risk preflight.',
         '--ttl-minutes=45',
       ],
-      'spec014_wave1_authorization_envelope_approve',
+      'spec014_wave1_execution_envelope_approve',
     );
     const approved = findObjectWithKey(approvedPayload, 'envelope_id');
     if (approved) {
@@ -389,12 +432,35 @@ async function createReadyAuthorizationEnvelope() {
 
   assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Envelope is not ready_for_dispatch');
   assert.equal(envelope.dispatch_allowed, true, 'Envelope dispatch_allowed is not true');
-  authorizationEnvelopeId = envelope.envelope_id;
-  authorizationCreated = true;
+
+  const authorizationPayload = requireSuccess(
+    await requestRaw('/gpt/tools/call', {
+      name: 'capability_resolution_envelope_apply_authorize',
+      tool_args: {
+        envelope_id: envelope.envelope_id,
+        authorized_by: 'github_actions',
+        decision_note:
+          'Authorize one exact Spec 014 Wave 1 Apply attempt only. Provider calls and external writes remain forbidden. Same-cycle dry-run and exact readback are mandatory.',
+        ttl_minutes: 45,
+      },
+    }),
+    'spec014_wave1_execution_envelope_apply_authorize',
+  );
+  const authorization =
+    findObjectWithKey(authorizationPayload, 'apply_allowed') || authorizationPayload;
+  assert.equal(authorization?.apply_allowed, true, 'Execution envelope was not apply-authorized');
+  assert.equal(authorization?.policy_key, APPLY_POLICY_KEY, 'Unexpected Apply policy');
+  assert.equal(
+    authorization?.external_write_allowed,
+    false,
+    'Execution envelope must not allow external writes',
+  );
+
+  executionEnvelopeId = envelope.envelope_id;
   return {
     envelope,
+    apply_authorization: authorization,
     binding_sha256: bindingSha,
-    apply_authorized: false,
     secrets_included: false,
   };
 }
@@ -433,61 +499,65 @@ function exactApplyLedger(readback) {
   );
 }
 
-async function bootstrapAuthorization(envelopeId) {
-  const baseArgs = {
-    migration: MIGRATION,
-    expected_checksum_sha256: CHECKSUM,
-    expected_statement_count: STATEMENT_COUNT,
-    pull_request: SOURCE_PR,
-    merge_sha: SOURCE_MERGE_SHA,
-    confirm: AUTH_CONFIRM,
-    capability_envelope_id: envelopeId,
-    decision_note:
-      'Authorize reviewed additive Spec 014 Wave 1 migration after exact Production parity and checksum validation. This readiness action records authorization but does not execute migration SQL.',
-  };
-
-  const first = await requestRaw(
-    '/gpt/tools/call',
-    {
-      name: 'governed_migration_authorization_bootstrap',
-      tool_args: baseArgs,
-    },
-    300_000,
+function exactTables(readback) {
+  const rows = readback?.schema?.tables || readback?.tables || [];
+  const found = new Set(
+    rows
+      .filter((row) => typeof row === 'string' || row?.found !== false)
+      .map((row) => String(typeof row === 'string' ? row : row.table || row.table_name || row.name || ''))
+      .filter(Boolean),
   );
-  if (first.transport_ok && first.http_ok && first.payload?.ok !== false) {
-    return requireSuccess(first, 'spec014_wave1_authorization_bootstrap');
-  }
+  const missing = readback?.expectations?.missing?.tables || [];
+  return EXPECTED_TABLES.every((name) => found.has(name)) && missing.length === 0;
+}
 
-  const errorObject = findObjectWithKey(first.payload, 'code') || first.payload?.error || {};
-  const code = String(errorObject?.code || first.payload?.error?.code || '');
-  const details = errorObject?.details || first.payload?.error?.details || {};
-  const recorded = String(
-    details?.recorded_checksum_sha256 || details?.current_checksum_sha256 || '',
-  ).toLowerCase();
-  assert.equal(
-    code,
-    'governed_migration_authorization_previous_checksum_required',
-    `Authorization bootstrap failed unexpectedly: ${code || 'unknown'}`,
+async function readExactAuthorizationRecord() {
+  const result = await adminDbFixed(
+    `SELECT migration_file, authorization_status, authorization_source, policy_key,
+            requires_preflight, requires_confirmation, allow_record_only, allow_apply,
+            metadata_json, created_at, updated_at
+       FROM governed_migration_authorization_registry
+      WHERE migration_file = ?
+      LIMIT 2`,
+    [MIGRATION],
   );
-  assert.match(recorded, /^[0-9a-f]{64}$/, 'Bootstrap exposed no valid recorded checksum');
-  assert.notEqual(recorded, CHECKSUM, 'Recorded checksum unexpectedly equals target checksum');
-  await writeJson('authorization-rotation-discovery.json', {
-    code,
-    recorded_checksum_sha256: recorded,
+  const rows = result?.rows || [];
+  assert.equal(rows.length, 1, 'Wave 1 requires exactly one governed authorization row');
+  const row = rows[0];
+  const metadata = parsedValue(row.metadata_json) || {};
+  assert.equal(row.migration_file, MIGRATION);
+  assert.equal(row.authorization_status, 'authorized');
+  assert.equal(row.authorization_source, AUTHORIZATION_SOURCE);
+  assert.equal(row.policy_key, AUTHORIZATION_POLICY_KEY);
+  assert.equal(Number(row.requires_preflight || 0), 1);
+  assert.equal(Number(row.requires_confirmation || 0), 1);
+  assert.equal(Number(row.allow_record_only || 0), 0);
+  assert.equal(Number(row.allow_apply || 0), 1);
+  assert.equal(String(metadata.migration_checksum_sha256 || '').toLowerCase(), CHECKSUM);
+  assert.equal(Number(metadata.expected_statement_count), STATEMENT_COUNT);
+  assert.equal(metadata.preflight_status, 'pass');
+  assert.equal(Number(metadata.preflight_risk_count || 0), 0);
+  assert.equal(Number(metadata.destructive_operations || 0), 0);
+  assert.equal(metadata.provider_write, false);
+  assert.equal(metadata.external_send, false);
+  assert.equal(metadata.migration_sql_executed, false);
+  assert.equal(Number(metadata.pull_request), SOURCE_PR);
+  assert.equal(String(metadata.merge_sha || '').toLowerCase(), SOURCE_MERGE_SHA);
+  assert.equal(metadata.secrets_included, false);
+  return {
+    migration_file: row.migration_file,
+    authorization_status: row.authorization_status,
+    authorization_source: row.authorization_source,
+    policy_key: row.policy_key,
+    allow_apply: Number(row.allow_apply || 0),
+    migration_checksum_sha256: String(metadata.migration_checksum_sha256 || '').toLowerCase(),
+    expected_statement_count: Number(metadata.expected_statement_count),
+    pull_request: Number(metadata.pull_request),
+    merge_sha: String(metadata.merge_sha || '').toLowerCase(),
+    created_at: row.created_at || null,
+    updated_at: row.updated_at || null,
     secrets_included: false,
-  });
-
-  return requireSuccess(
-    await requestRaw(
-      '/gpt/tools/call',
-      {
-        name: 'governed_migration_authorization_bootstrap',
-        tool_args: { ...baseArgs, previous_checksum_sha256: recorded },
-      },
-      300_000,
-    ),
-    'spec014_wave1_authorization_rotation',
-  );
+  };
 }
 
 async function dryRun() {
@@ -505,7 +575,7 @@ async function dryRun() {
       },
       300_000,
     ),
-    'spec014_wave1_dry_run',
+    'spec014_wave1_same_cycle_dry_run',
   );
   const result = findObjectWithKey(payload, 'applies_sql') || payload;
   assert.equal(result?.applies_sql, false, 'Dry-run must report applies_sql=false');
@@ -521,6 +591,18 @@ async function dryRun() {
   return { payload, result };
 }
 
+async function verifyFinalState() {
+  const readbackAttempt = await exactReadback();
+  await writeJson('final-readback-transport.json', readbackAttempt.result);
+  const readback = readbackAttempt.readback;
+  assert.ok(readback, 'Wave 1 final readback returned no readback_status');
+  assert.ok(exactApplyLedger(readback), 'Wave 1 exact Apply ledger verification failed');
+  assert.ok(exactTables(readback), 'Wave 1 expected table readback failed');
+  finalReadback = readback;
+  await writeJson('final-readback.json', readback);
+  return readback;
+}
+
 async function verifyLocalContract() {
   assert.equal(BASE, 'https://auth.mad4b.com', 'Runtime base URL must remain canonical auth host');
   assert.ok(KEY, 'BACKEND_API_KEY is required');
@@ -529,44 +611,35 @@ async function verifyLocalContract() {
   assert.equal(CONTROL_ISSUE, 6215);
   const sql = await fs.readFile(MIGRATION_PATH, 'utf8');
   assert.equal(gitBlobSha(sql), MIGRATION_BLOB_SHA, 'Pinned Wave 1 Git blob changed');
-  assert.equal(
-    createHash('sha256').update(sql, 'utf8').digest('hex'),
-    CHECKSUM,
-    'Pinned Wave 1 checksum changed',
-  );
+  assert.equal(sha256(sql), CHECKSUM, 'Pinned Wave 1 checksum changed');
   assert.equal(
     splitMigrationSqlStatements(sql).length,
     STATEMENT_COUNT,
     'Pinned Wave 1 statement count changed',
   );
-  const derivedConfirmation = `AUTHORIZE_GOVERNED_MIGRATION_${MIGRATION.replace(/\.sql$/i, '')
+  const derivedApply = `APPLY_${MIGRATION.replace(/\.sql$/i, '')
     .replace(/[^A-Za-z0-9]+/g, '_')
     .toUpperCase()}`;
-  assert.equal(
-    AUTH_CONFIRM,
-    derivedConfirmation,
-    'Runtime authorization confirmation is not derived from exact migration filename',
-  );
+  assert.equal(APPLY_CONFIRM, derivedApply, 'Apply confirmation is not filename-derived');
 }
 
 async function main() {
   await fs.mkdir(EVIDENCE_DIR, { recursive: true });
   await verifyLocalContract();
-  mainSha = await currentRefSha('main');
-  const mainCompare = await assertContains(REPOSITORY_READINESS_MERGE_SHA, mainSha, 'main');
-  await writeState({ local_contract_verified: true, main_compare: mainCompare });
+  await writeState({ local_contract_verified: true });
 
-  stage = 'runtime_parity';
-  const runtime = await waitForRuntimeParity();
-  await writeJson('runtime-parity.json', runtime);
+  stage = 'repository_and_runtime_parity';
+  const parity = await verifyRepositoryAndRuntimeParity();
+  await writeJson('runtime-parity.json', parity);
   await writeState();
 
   stage = 'readback_first';
   const initial = await exactReadback();
   await writeJson('initial-readback.json', initial.result);
-  if (exactApplyLedger(initial.readback)) {
+  if (exactApplyLedger(initial.readback) && exactTables(initial.readback)) {
+    finalReadback = initial.readback;
     const summary = {
-      contract: 'spec014_wave1_runtime_readiness.v1',
+      contract: 'spec014_wave1_apply.v1',
       result: 'already_applied',
       main_sha: mainSha,
       production_sha: productionSha,
@@ -574,16 +647,16 @@ async function main() {
       migration_blob_sha: MIGRATION_BLOB_SHA,
       migration_checksum_sha256: CHECKSUM,
       statement_count: STATEMENT_COUNT,
-      runtime_parity: 'pass',
-      authorization_created: false,
-      authorization_bootstrap: 'not_required',
-      dry_run: 'not_required',
-      apply_authorized: false,
-      apply_sent: false,
-      migration_apply_executed: false,
+      apply_sent_by_this_run: false,
+      apply_retried: false,
+      exact_apply_ledger_verified: true,
+      expected_tables_verified: true,
       provider_call_executed: false,
       credential_payload_accessed: false,
       external_business_write_executed: false,
+      production_ref_mutation_executed: false,
+      deployment_executed: false,
+      restart_executed: false,
       secrets_included: false,
     };
     await writeJson('summary.json', summary);
@@ -592,24 +665,65 @@ async function main() {
     return;
   }
 
-  stage = 'authorization_envelope';
-  const envelope = await createReadyAuthorizationEnvelope();
-  await writeJson('authorization-envelope.json', envelope);
-  await writeState();
+  stage = 'readiness_authorization_readback';
+  const authorization = await readExactAuthorizationRecord();
+  await writeJson('readiness-authorization.json', authorization);
+  await writeState({ readiness_authorization_verified: true });
 
-  stage = 'authorization_bootstrap';
-  const authorization = await bootstrapAuthorization(authorizationEnvelopeId);
-  await writeJson('authorization-bootstrap.json', authorization);
-  await writeState({ authorization_bootstrap_verified: true });
-
-  stage = 'governed_dry_run';
+  stage = 'same_cycle_dry_run';
   const dryRunResult = await dryRun();
   await writeJson('dry-run.json', dryRunResult.payload);
   await writeState({ dry_run_verified: true });
 
-  stage = 'readiness_complete';
+  stage = 'execution_envelope';
+  const executionEnvelope = await createReadyExecutionEnvelope();
+  await writeJson('execution-envelope.json', executionEnvelope);
+  await writeState({ execution_envelope_apply_authorized: true });
+
+  stage = 'single_apply_attempt';
+  applySent = true;
+  await writeState();
+  applyAttempt = await requestRaw(
+    '/gpt/tools/call',
+    {
+      name: 'governed_migration_execute',
+      tool_args: {
+        migration: MIGRATION,
+        mode: 'apply',
+        confirm: APPLY_CONFIRM,
+        expected_checksum_sha256: CHECKSUM,
+        expected_statement_count: STATEMENT_COUNT,
+        capability_envelope_id: executionEnvelopeId,
+      },
+    },
+    600_000,
+  );
+  await writeJson('apply-transport.json', applyAttempt);
+  await writeState();
+
+  if (!applyAttempt.transport_ok || !applyAttempt.http_ok || applyAttempt.payload?.ok === false) {
+    const error = new Error(
+      'Wave 1 Apply response was unsuccessful or ambiguous. No retry is permitted before exact readback.',
+    );
+    error.code = 'spec014_wave1_apply_response_ambiguous';
+    error.details = {
+      transport_ok: applyAttempt.transport_ok,
+      http_status: applyAttempt.status,
+      retry_permitted: false,
+      next_step:
+        'Perform exact governed migration ledger and schema readback before considering any new Apply attempt.',
+      secrets_included: false,
+    };
+    throw error;
+  }
+
+  stage = 'final_readback';
+  await verifyFinalState();
+  await writeState({ final_readback_verified: true });
+
+  stage = 'apply_complete';
   const summary = {
-    contract: 'spec014_wave1_runtime_readiness.v1',
+    contract: 'spec014_wave1_apply.v1',
     result: 'pass',
     main_sha: mainSha,
     production_sha: productionSha,
@@ -619,19 +733,19 @@ async function main() {
     statement_count: STATEMENT_COUNT,
     source_pr: SOURCE_PR,
     source_merge_sha: SOURCE_MERGE_SHA,
-    repository_readiness_merge_sha: REPOSITORY_READINESS_MERGE_SHA,
-    runtime_parity: 'pass',
-    authorization_created: true,
-    authorization_bootstrap: 'pass',
-    dry_run: 'pass',
-    apply_authorized: false,
-    apply_sent: false,
-    migration_apply_executed: false,
-    managed_control_plane_write_executed: true,
-    business_data_mutation_executed: false,
+    readiness_authorization: 'verified',
+    same_cycle_dry_run: 'pass',
+    execution_envelope_apply_authorized: true,
+    apply_sent_by_this_run: true,
+    apply_retried: false,
+    exact_apply_ledger_verified: true,
+    expected_tables_verified: true,
     provider_call_executed: false,
     credential_payload_accessed: false,
     external_business_write_executed: false,
+    production_ref_mutation_executed: false,
+    deployment_executed: false,
+    restart_executed: false,
     secrets_included: false,
   };
   await writeJson('summary.json', summary);
@@ -641,7 +755,7 @@ async function main() {
 
 main().catch(async (error) => {
   const failure = {
-    contract: 'spec014_wave1_runtime_readiness_failure.v1',
+    contract: 'spec014_wave1_apply_failure.v1',
     ok: false,
     stage,
     main_sha: mainSha,
@@ -651,18 +765,20 @@ main().catch(async (error) => {
     migration_checksum_sha256: CHECKSUM,
     statement_count: STATEMENT_COUNT,
     error: {
-      code: String(error?.code || 'spec014_wave1_runtime_readiness_failed'),
+      code: String(error?.code || 'spec014_wave1_apply_failed'),
       message: String(error?.message || error || 'Unknown failure').slice(0, 1000),
       details: sanitize(error?.details || undefined),
     },
-    runtime_contacted: stage !== 'program_start',
-    authorization_created: authorizationCreated,
-    apply_authorized: false,
-    apply_sent: false,
-    migration_apply_executed: false,
+    execution_envelope_id: executionEnvelopeId,
+    apply_sent: applySent,
+    apply_retried: false,
+    exact_apply_ledger_verified: Boolean(finalReadback),
     provider_call_executed: false,
     credential_payload_accessed: false,
     external_business_write_executed: false,
+    production_ref_mutation_executed: false,
+    deployment_executed: false,
+    restart_executed: false,
     secrets_included: false,
   };
   try {
