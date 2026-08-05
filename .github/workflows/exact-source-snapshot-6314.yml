@@ -16,28 +16,31 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 1
+          fetch-depth: 0
           persist-credentials: false
 
-      - name: Bind snapshot to expected head
+      - name: Bind snapshot to governed candidate lineage
         shell: bash
         env:
-          EXPECTED_HEAD: 81d2d7bb275e16f16ee8bb98d656df0e329554ec
+          GOVERNED_CANDIDATE: 81d2d7bb275e16f16ee8bb98d656df0e329554ec
           ACTUAL_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          test "${ACTUAL_HEAD}" = "${EXPECTED_HEAD}"
-          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          test "$(git rev-parse HEAD)" = "${ACTUAL_HEAD}"
+          git merge-base --is-ancestor "${GOVERNED_CANDIDATE}" "${ACTUAL_HEAD}"
+          test "$(git diff --name-only "${GOVERNED_CANDIDATE}...${ACTUAL_HEAD}" | sort)" = ".github/workflows/exact-source-snapshot-6314.yml"
 
-      - name: Collect exact source files
+      - name: Collect governed candidate source files
         shell: bash
+        env:
+          GOVERNED_CANDIDATE: 81d2d7bb275e16f16ee8bb98d656df0e329554ec
         run: |
           set -euo pipefail
           mkdir -p snapshot/http-generic-api/scripts snapshot/.changes/e2e
-          cp http-generic-api/scripts/e2e-phase-governance.mjs snapshot/http-generic-api/scripts/
-          cp http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs snapshot/http-generic-api/scripts/
-          cp .changes/e2e/spec014-wave1-readback-pr-write-separation.json snapshot/.changes/e2e/
-          printf '%s\n' "81d2d7bb275e16f16ee8bb98d656df0e329554ec" > snapshot/expected-head.txt
+          git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-phase-governance.mjs" > snapshot/http-generic-api/scripts/e2e-phase-governance.mjs
+          git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs" > snapshot/http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs
+          git show "${GOVERNED_CANDIDATE}:.changes/e2e/spec014-wave1-readback-pr-write-separation.json" > snapshot/.changes/e2e/spec014-wave1-readback-pr-write-separation.json
+          printf '%s\n' "${GOVERNED_CANDIDATE}" > snapshot/expected-head.txt
           find snapshot -type f -print0 | sort -z | xargs -0 sha256sum > snapshot/sha256sums.txt
 
       - name: Upload exact source snapshot
