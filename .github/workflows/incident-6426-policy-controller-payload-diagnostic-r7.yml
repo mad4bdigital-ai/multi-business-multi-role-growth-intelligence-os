@@ -1,0 +1,81 @@
+name: Incident 6426 Policy Controller Payload Diagnostic R7
+
+on:
+  push:
+    branches:
+      - gpt/incident-6426/repository-policy-controller-payload-diagnostic-r7-93430fd5-20260805
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: gpt/incident-6426/repository-policy-controller-payload-diagnostic-r7-93430fd5-20260805
+      EXPECTED_MAIN_SHA: 93430fd5e709f49d7a47e2830382b6578a7a22e6
+      SOURCE_BRANCH: gpt/incident-6426/repository-policy-controller-93430fd5-20260805
+      SOURCE_COMMIT: 17a323211d5123d594cf83a5613023f815acae0b
+      SOURCE_WORKFLOW: .github/workflows/incident-6426-policy-controller-bootstrap.yml
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Diagnose encoded payload without exposing content
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "$EXPECTED_BRANCH"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_MAIN_SHA"
+          git fetch --no-tags origin "refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/incident-6426-bootstrap-source"
+          test "$(git rev-parse refs/remotes/origin/incident-6426-bootstrap-source)" = "$SOURCE_COMMIT"
+          python - <<'PY'
+          import base64, hashlib, json, os, re, subprocess
+          from pathlib import Path
+          raw = subprocess.check_output(["git", "show", f"{os.environ['SOURCE_COMMIT']}:{os.environ['SOURCE_WORKFLOW']}"], text=True)
+          prefix = "          PATCH_SCRIPT_B64: "
+          matches = [line[len(prefix):].strip() for line in raw.splitlines() if line.startswith(prefix)]
+          report = {
+            "contract": "mad4b.repository-policy-controller-payload-diagnostic-r7.v1",
+            "match_count": len(matches),
+            "source_commit": os.environ["SOURCE_COMMIT"],
+            "live_policy_apply": False,
+            "protected_ref_mutation": False,
+            "force_push": False,
+            "secrets_included": False
+          }
+          if len(matches) == 1:
+              encoded = "".join(matches[0].split())
+              invalid_count = sum(1 for ch in encoded if ch not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=")
+              padding = (-len(encoded)) % 4
+              report.update({
+                "encoded_bytes": len(encoded.encode()),
+                "encoded_mod4": len(encoded) % 4,
+                "padding_added": padding,
+                "invalid_character_count": invalid_count,
+                "encoded_sha256": hashlib.sha256(encoded.encode()).hexdigest()
+              })
+              try:
+                  decoded = base64.b64decode(encoded + ("=" * padding), validate=False)
+                  report.update({"base64_decode": "passed", "decoded_bytes": len(decoded), "decoded_sha256": hashlib.sha256(decoded).hexdigest()})
+                  try:
+                      text = decoded.decode("utf-8")
+                      report.update({"utf8_decode": "passed", "decoded_lines": len(text.splitlines())})
+                  except Exception as exc:
+                      report.update({"utf8_decode": "failed", "utf8_error_type": type(exc).__name__})
+              except Exception as exc:
+                  report.update({"base64_decode": "failed", "base64_error_type": type(exc).__name__})
+          Path(os.environ["RUNNER_TEMP"], "payload-diagnostic.json").write_text(json.dumps(report, indent=2) + "\n")
+          PY
+
+      - name: Upload diagnostic report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-policy-controller-payload-diagnostic-r7-${{ github.run_id }}
+          path: ${{ runner.temp }}/payload-diagnostic.json
+          if-no-files-found: warn
+          retention-days: 14
