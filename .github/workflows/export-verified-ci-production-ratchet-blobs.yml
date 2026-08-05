@@ -1,0 +1,85 @@
+name: Export verified CI Production ratchet blobs
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/export-ci-production-ratchet-blobs-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+      EXPECTED_HEAD_REF: gpt/export-ci-production-ratchet-blobs-146e070d-20260805
+      LAUNCHER_PATH: .github/workflows/export-verified-ci-production-ratchet-blobs.yml
+      HELPER_PATH: http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Apply and validate exact clean source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "$EXPECTED_BASE_SHA"
+          test "${{ github.event.pull_request.head.ref }}" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          python "$HELPER_PATH"
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs')
+          text = path.read_text()
+          old = '  "run: npm test",\n'
+          new = (
+              '  "Run tests with exact checked-out identity",\n'
+              '  "GITHUB_SHA=\\"$actual_sha\\" npm test",\n'
+          )
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one stale npm test token, got {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check "$EXPECTED_BASE_SHA" --
+          ACTUAL="$(git diff --name-only "$EXPECTED_BASE_SHA" -- | sort)"
+          EXPECTED="$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          test "$(git diff --diff-filter=A --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+          test "$(git diff --diff-filter=D --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+
+      - name: Create unreferenced verified blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for FILE in \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          do
+            REQUEST="$RUNNER_TEMP/blob-request.json"
+            jq -n --rawfile content "$FILE" '{content:$content,encoding:"utf-8"}' > "$REQUEST"
+            SHA="$(gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$REQUEST" --jq '.sha')"
+            test "$SHA" = "$(git hash-object "$FILE")"
+            echo "::notice file=$FILE,title=Verified patched blob::$SHA"
+          done
