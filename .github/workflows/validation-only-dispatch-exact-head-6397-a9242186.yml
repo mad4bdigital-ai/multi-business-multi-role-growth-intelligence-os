@@ -1,0 +1,139 @@
+name: Validation-only Dispatch Exact-head Checks 6397 a9242186
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-dispatch-exact-head-6397-a9242186.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  dispatch:
+    name: Dispatch exact-head CI and Work Map integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TARGET_PR: "6397"
+      TARGET_BRANCH: "fix/work-map-integration-post-allocation-root-20260805"
+      EXPECTED_HEAD_SHA: "a924218665130afd4ffeaa3f24e5857a6f042e0f"
+      EXPECTED_BASE_SHA: "146e070d57627d50eaf8fc0e7fb06568b40fc704"
+      CI_WORKFLOW_ID: "263500856"
+      INTEGRATION_WORKFLOW_ID: "324182937"
+    steps:
+      - name: Initialize bounded dispatch evidence
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/exact-head-dispatch-6397-a9242186"
+          echo "EVIDENCE_ROOT=${evidence_root}" >> "${GITHUB_ENV}"
+          mkdir -p "${evidence_root}"
+
+      - name: Validate exact open pull request and freshness
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" > "${EVIDENCE_ROOT}/target-pr.json"
+          jq -e --arg branch "${TARGET_BRANCH}" --arg head "${EXPECTED_HEAD_SHA}" --arg base "${EXPECTED_BASE_SHA}" '
+            .state == "open" and
+            .draft == false and
+            .head.repo.full_name == env.GITHUB_REPOSITORY and
+            .head.ref == $branch and
+            .head.sha == $head and
+            .base.ref == "main" and
+            .base.sha == $base
+          ' "${EVIDENCE_ROOT}/target-pr.json" >/dev/null
+
+          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${EXPECTED_HEAD_SHA}" > "${EVIDENCE_ROOT}/compare.json"
+          jq -e '.behind_by == 0' "${EVIDENCE_ROOT}/compare.json" >/dev/null
+
+      - name: Capture existing exact-branch dispatch runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for workflow_id in "${CI_WORKFLOW_ID}" "${INTEGRATION_WORKFLOW_ID}"; do
+            gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs" \
+              -f event=workflow_dispatch \
+              -f branch="${TARGET_BRANCH}" \
+              -f per_page=50 \
+              | jq '[.workflow_runs[].id]' > "${EVIDENCE_ROOT}/before-${workflow_id}.json"
+          done
+
+      - name: Dispatch exact target branch checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${CI_WORKFLOW_ID}/dispatches" \
+            -f ref="${TARGET_BRANCH}"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${INTEGRATION_WORKFLOW_ID}/dispatches" \
+            -f ref="${TARGET_BRANCH}"
+
+      - name: Observe newly delegated exact-head runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          observe_run() {
+            local workflow_id="$1"
+            local label="$2"
+            local before_file="${EVIDENCE_ROOT}/before-${workflow_id}.json"
+            local runs_file="${EVIDENCE_ROOT}/runs-${workflow_id}.json"
+            local run_id=""
+
+            for _attempt in $(seq 1 30); do
+              gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_id}/runs" \
+                -f event=workflow_dispatch \
+                -f branch="${TARGET_BRANCH}" \
+                -f per_page=50 > "${runs_file}"
+              run_id="$(jq -r \
+                --arg head "${EXPECTED_HEAD_SHA}" \
+                --slurpfile before "${before_file}" \
+                '[.workflow_runs[] | select(.event == "workflow_dispatch" and .head_sha == $head) | select((.id as $id | ($before[0] | index($id))) == null)][0].id // empty' \
+                "${runs_file}")"
+              if [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]; then
+                break
+              fi
+              sleep 2
+            done
+
+            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+            gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${run_id}" > "${EVIDENCE_ROOT}/${label}-run.json"
+            jq -e --arg head "${EXPECTED_HEAD_SHA}" --arg branch "${TARGET_BRANCH}" '
+              .event == "workflow_dispatch" and .head_sha == $head and .head_branch == $branch
+            ' "${EVIDENCE_ROOT}/${label}-run.json" >/dev/null
+            printf '%s' "${run_id}"
+          }
+
+          ci_run_id="$(observe_run "${CI_WORKFLOW_ID}" ci)"
+          integration_run_id="$(observe_run "${INTEGRATION_WORKFLOW_ID}" integration)"
+          echo "CI_RUN_ID=${ci_run_id}" >> "${GITHUB_ENV}"
+          echo "INTEGRATION_RUN_ID=${integration_run_id}" >> "${GITHUB_ENV}"
+
+      - name: Publish bounded dispatch evidence
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg contract "mad4b.validation-only-exact-head-dispatch.v1" \
+            --arg target_pr "${TARGET_PR}" \
+            --arg target_branch "${TARGET_BRANCH}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg ci_run_id "${CI_RUN_ID}" \
+            --arg integration_run_id "${INTEGRATION_RUN_ID}" \
+            '{contract:$contract,target_pr:($target_pr|tonumber),target_branch:$target_branch,expected_head_sha:$expected_head_sha,ci_run_id:($ci_run_id|tonumber),integration_run_id:($integration_run_id|tonumber),repository_content_mutation:false,protected_ref_mutation:false,force_push:false,runtime_contact:false,deployment:false,database_access:false,provider_action:false,migration_apply:false,secrets_included:false}' \
+            > "${EVIDENCE_ROOT}/result.json"
+          sha256sum "${EVIDENCE_ROOT}"/* > "${EVIDENCE_ROOT}/SHA256SUMS.txt" || true
+
+      - name: Upload bounded dispatch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-head-dispatch-6397-a9242186
+          path: ${{ runner.temp }}/exact-head-dispatch-6397-a9242186
+          if-no-files-found: error
+          retention-days: 14
