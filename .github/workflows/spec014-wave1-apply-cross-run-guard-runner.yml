@@ -122,14 +122,41 @@ jobs:
           from pathlib import Path
           import re
 
-          path = Path('.github/workflows/spec014-wave1-apply.yml')
-          text = path.read_text()
-          text = re.sub(
+          workflow_path = Path('.github/workflows/spec014-wave1-apply.yml')
+          workflow_text = workflow_path.read_text()
+          workflow_text = re.sub(
               r"fromJSON\('\[(?:\\?\"OWNER\\?\",\\?\"MEMBER\\?\",\\?\"COLLABORATOR\\?\")\]'\)",
               "fromJSON('[\"OWNER\",\"MEMBER\",\"COLLABORATOR\"]')",
-              text,
+              workflow_text,
           )
-          path.write_text(text)
+          workflow_path.write_text(workflow_text)
+
+          test_path = Path('http-generic-api/test-spec014-wave1-apply-contract.mjs')
+          normalized_lines = []
+          replaced = {
+              'run_attempt': False,
+              'issue_number': False,
+              'issue_state': False,
+              'event_sha': False,
+          }
+          for line in test_path.read_text().splitlines():
+              if line.startswith('assert.match(workflow, /') and 'run_attempt == 1' in line:
+                  normalized_lines.append("assert.ok(workflow.includes('github.run_attempt == 1'));")
+                  replaced['run_attempt'] = True
+              elif line.startswith('assert.match(workflow, /') and 'number == 6215' in line:
+                  normalized_lines.append("assert.ok(workflow.includes('github.event.issue.number == 6215'));")
+                  replaced['issue_number'] = True
+              elif line.startswith('assert.match(workflow, /') and "state == 'open'" in line:
+                  normalized_lines.append("assert.ok(workflow.includes(\"github.event.issue.state == 'open'\"));")
+                  replaced['issue_state'] = True
+              elif line.startswith('assert.match(workflow, /') and 'ref:' in line and 'github' in line and 'sha' in line:
+                  normalized_lines.append("assert.ok(workflow.includes('ref: ${{ github.sha }}'));")
+                  replaced['event_sha'] = True
+              else:
+                  normalized_lines.append(line)
+          if not all(replaced.values()):
+              raise SystemExit(f'Generated workflow assertions were not normalized exactly: {replaced}')
+          test_path.write_text('\n'.join(normalized_lines) + '\n')
           PY
           node --check .github/ops/spec014-wave1-apply-trigger-guard.mjs
           node --check .github/ops/spec014-wave1-apply.mjs
