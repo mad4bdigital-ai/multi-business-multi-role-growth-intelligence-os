@@ -1,0 +1,288 @@
+name: Hostinger Production Runtime Readback R7
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hostinger-production-runtime-readback-r7-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Verify exact protected Production runtime through public GET
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.id == 271942579 &&
+      startsWith(github.event.comment.body, 'RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7 expected_production_sha=')
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_TOKEN: RUN_HOSTINGER_PRODUCTION_RUNTIME_READBACK_R7
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+    steps:
+      - name: Resolve immutable trigger identity
+        id: trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          if [[ ! "${EVENT_COMMENT_BODY}" =~ ^${TRIGGER_TOKEN}[[:space:]]expected_production_sha=([0-9a-f]{40})$ ]]; then
+            echo "Invalid R7 trigger format." >&2
+            exit 1
+          fi
+          echo "expected_production_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Initialize bounded report directory after runner allocation
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/hostinger-production-runtime-readback-r7"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
+      - name: Checkout exact trusted default-branch tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify trusted tooling and protected Production ref
+        id: identity
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          remote_main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          remote_production_sha="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          [[ "${remote_main_sha}" =~ ^[0-9a-f]{40}$ ]]
+          test "${remote_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+          git fetch --no-tags origin "${remote_main_sha}"
+          git merge-base --is-ancestor "${GITHUB_SHA}" "${remote_main_sha}"
+          echo "tooling_sha=${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "observed_main_sha=${remote_main_sha}" >> "${GITHUB_OUTPUT}"
+          echo "observed_production_sha=${remote_production_sha}" >> "${GITHUB_OUTPUT}"
+
+      - name: Collect bounded public runtime evidence
+        id: collect
+        continue-on-error: true
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+
+          fetch_endpoint() {
+            local name="$1" url="$2" raw="${REPORT_DIR}/${1}.raw" safe="${REPORT_DIR}/${1}.json"
+            local status rc
+            set +e
+            status="$(curl --silent --show-error --location --retry 3 --retry-delay 2 --retry-all-errors --max-time 25 \
+              --proto '=https' --tlsv1.2 --header 'accept: application/json' \
+              --output "${raw}" --write-out '%{http_code}' "${url}")"
+            rc=$?
+            set -e
+            [[ "${status}" =~ ^[0-9]{3}$ ]] || status=000
+            printf '%s\n' "${status}" > "${REPORT_DIR}/${name}.http-status"
+            printf '%s\n' "${rc}" > "${REPORT_DIR}/${name}.curl-exit"
+            if [[ -s "${raw}" ]] && [[ "$(wc -c < "${raw}")" -le 65536 ]] && jq empty "${raw}" >/dev/null 2>&1; then
+              jq 'walk(if type == "object" then with_entries(if (.key | test("authorization|cookie|password|secret|token|api[_-]?key|private[_-]?key|credential"; "i")) then .value = "[REDACTED]" else . end) else . end)' "${raw}" > "${safe}"
+            else
+              jq -n --arg url "${url}" --arg status "${status}" --argjson curl_exit "${rc}" \
+                '{ok:false,url:$url,http_status:($status|tonumber? // 0),curl_exit:$curl_exit,error:"bounded_json_response_unavailable",secrets_included:false}' > "${safe}"
+            fi
+            rm -f "${raw}"
+          }
+
+          fetch_endpoint health https://auth.mad4b.com/health
+          fetch_endpoint version https://auth.mad4b.com/version
+          fetch_endpoint deployment-info https://auth.mad4b.com/deployment-info
+          fetch_endpoint connector-agent-version https://auth.mad4b.com/connector-agent/version
+
+          node --input-type=module - "${REPORT_DIR}" "${EXPECTED_PRODUCTION_SHA}" <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const [directory, expectedSha] = process.argv.slice(2);
+          const readJson = (name) => JSON.parse(fs.readFileSync(path.join(directory, `${name}.json`), 'utf8'));
+          const readStatus = (name) => Number(fs.readFileSync(path.join(directory, `${name}.http-status`), 'utf8').trim() || 0);
+          const collectShas = (value, found = new Set()) => {
+            if (Array.isArray(value)) for (const entry of value) collectShas(entry, found);
+            else if (value && typeof value === 'object') for (const entry of Object.values(value)) collectShas(entry, found);
+            else if (typeof value === 'string' && /^[0-9a-f]{40}$/i.test(value.trim())) found.add(value.trim().toLowerCase());
+            return [...found];
+          };
+
+          const health = readJson('health');
+          const version = readJson('version');
+          const deployment = readJson('deployment-info');
+          const connector = readJson('connector-agent-version');
+          const statuses = {
+            health: readStatus('health'),
+            version: readStatus('version'),
+            deployment_info: readStatus('deployment-info'),
+            connector_agent_version: readStatus('connector-agent-version'),
+          };
+          const manifest = deployment?.deployment && typeof deployment.deployment === 'object' ? deployment.deployment : {};
+          const runtimeSha = String(deployment?.commit_sha || deployment?.commit || manifest?.commit_sha || manifest?.commit || '').toLowerCase();
+          const runtimeBranch = String(deployment?.branch || manifest?.branch || '');
+          const versionShas = collectShas(version);
+          const allHttpSuccess = Object.values(statuses).every((status) => status === 200);
+          const versionShaExact = versionShas.includes(expectedSha);
+          const deploymentShaExact = runtimeSha === expectedSha;
+          const branchExact = runtimeBranch === 'Production';
+          const productionCurrent = allHttpSuccess && versionShaExact && deploymentShaExact && branchExact;
+          const classification = productionCurrent
+            ? 'production_current'
+            : versionShaExact && deploymentShaExact && !branchExact
+              ? 'runtime_sha_current_branch_provenance_mismatch'
+              : !versionShaExact || !deploymentShaExact
+                ? 'runtime_activation_pending_or_sha_mismatch'
+                : 'runtime_parity_incomplete';
+
+          const report = {
+            contract: 'mad4b.hostinger-production-runtime-readback-r7.v1',
+            generated_at: new Date().toISOString(),
+            expected_production_sha: expectedSha,
+            expected_branch: 'Production',
+            trigger_comment_id: process.env.EVENT_COMMENT_ID || null,
+            statuses,
+            observations: {
+              health_ok: health?.ok ?? null,
+              connector_agent_ok: connector?.ok ?? null,
+              version_shas: versionShas,
+              deployment_commit_sha: runtimeSha || null,
+              deployment_branch: runtimeBranch || null,
+              deployment_branch_source: String(deployment?.branch_source || manifest?.branch_source || '') || null,
+              deployed_at: String(deployment?.deployed_at || manifest?.deployed_at || '') || null,
+            },
+            checks: { all_http_success: allHttpSuccess, version_sha_exact: versionShaExact, deployment_sha_exact: deploymentShaExact, branch_exact: branchExact },
+            classification,
+            production_current: productionCurrent,
+            public_get_only: true,
+            repository_content_mutation_performed: false,
+            repository_issue_comment_authorized: false,
+            repository_issue_comment_performed: false,
+            workflow_summary_performed: false,
+            provider_credential_accessed: false,
+            provider_mutation_performed: false,
+            build_creation_performed: false,
+            deployment_performed: false,
+            release_activation_performed: false,
+            restart_performed: false,
+            sql_execution_performed: false,
+            migration_apply_performed: false,
+            database_mutation_performed: false,
+            external_business_send_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(directory, 'summary.json'), `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Re-read protected Production after public evidence
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Publish bounded read-only runtime decision
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+          TOOLING_SHA: ${{ steps.identity.outputs.tooling_sha }}
+          OBSERVED_MAIN_SHA: ${{ steps.identity.outputs.observed_main_sha }}
+          OBSERVED_PRODUCTION_SHA: ${{ steps.identity.outputs.observed_production_sha }}
+          COLLECT_OUTCOME: ${{ steps.collect.outcome }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+          summary="${REPORT_DIR}/summary.json"
+          if [[ ! -s "${summary}" ]]; then
+            jq -n --arg expected "${EXPECTED_PRODUCTION_SHA}" --arg trigger_comment_id "${EVENT_COMMENT_ID}" \
+              '{contract:"mad4b.hostinger-production-runtime-readback-r7.v1",expected_production_sha:$expected,expected_branch:"Production",trigger_comment_id:$trigger_comment_id,classification:"runtime_evidence_unavailable",production_current:false,public_get_only:true,repository_content_mutation_performed:false,repository_issue_comment_authorized:false,repository_issue_comment_performed:false,workflow_summary_performed:false,provider_credential_accessed:false,provider_mutation_performed:false,build_creation_performed:false,deployment_performed:false,release_activation_performed:false,restart_performed:false,sql_execution_performed:false,migration_apply_performed:false,database_mutation_performed:false,external_business_send_performed:false,secrets_included:false}' \
+              > "${summary}"
+          fi
+          classification="$(jq -r '.classification' "${summary}")"
+          production_current="$(jq -r '.production_current' "${summary}")"
+          health_status="$(jq -r '.statuses.health // 0' "${summary}")"
+          version_status="$(jq -r '.statuses.version // 0' "${summary}")"
+          deployment_status="$(jq -r '.statuses.deployment_info // 0' "${summary}")"
+          connector_status="$(jq -r '.statuses.connector_agent_version // 0' "${summary}")"
+          runtime_sha="$(jq -r '.observations.deployment_commit_sha // "unverified"' "${summary}")"
+          runtime_branch="$(jq -r '.observations.deployment_branch // "unverified"' "${summary}")"
+          {
+            echo "# Hostinger Production Runtime Readback R7"
+            echo
+            echo "- Run: \`${GITHUB_RUN_ID}\`"
+            echo "- Trigger comment: \`${EVENT_COMMENT_ID}\`"
+            echo "- Tooling SHA: \`${TOOLING_SHA:-unresolved}\`"
+            echo "- Observed main SHA: \`${OBSERVED_MAIN_SHA:-unresolved}\`"
+            echo "- Expected Production SHA: \`${EXPECTED_PRODUCTION_SHA}\`"
+            echo "- Observed Production SHA: \`${OBSERVED_PRODUCTION_SHA:-unresolved}\`"
+            echo "- Classification: \`${classification}\`"
+            echo "- Production current: \`${production_current}\`"
+            echo "- Runtime SHA: \`${runtime_sha}\`"
+            echo "- Runtime branch: \`${runtime_branch}\`"
+            echo "- HTTP health/version/deployment/connector: \`${health_status}/${version_status}/${deployment_status}/${connector_status}\`"
+            echo "- Collect outcome: \`${COLLECT_OUTCOME}\`"
+            echo "- Repository mutation: \`false\`"
+            echo "- Provider mutation: \`false\`"
+            echo "- Deployment: \`false\`"
+            echo "- SQL / Migration Apply: \`false / false\`"
+            echo "- Secrets included: \`false\`"
+          } >> "${GITHUB_STEP_SUMMARY}"
+          jq '.workflow_summary_performed = true' "${summary}" > "${summary}.next"
+          mv "${summary}.next" "${summary}"
+
+      - name: Upload bounded runtime evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hostinger-production-runtime-readback-r7-${{ github.run_id }}
+          path: ${{ runner.temp }}/hostinger-production-runtime-readback-r7/*
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce exact current Production runtime
+        if: always()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${{ steps.collect.outcome }}" = "success"
+          jq -e '
+            .contract == "mad4b.hostinger-production-runtime-readback-r7.v1" and
+            .production_current == true and
+            .classification == "production_current" and
+            .public_get_only == true and
+            .repository_content_mutation_performed == false and
+            .repository_issue_comment_authorized == false and
+            .repository_issue_comment_performed == false and
+            .workflow_summary_performed == true and
+            .provider_credential_accessed == false and
+            .provider_mutation_performed == false and
+            .build_creation_performed == false and
+            .deployment_performed == false and
+            .release_activation_performed == false and
+            .restart_performed == false and
+            .sql_execution_performed == false and
+            .migration_apply_performed == false and
+            .database_mutation_performed == false and
+            .external_business_send_performed == false and
+            .secrets_included == false
+          ' "${REPORT_DIR}/summary.json" >/dev/null

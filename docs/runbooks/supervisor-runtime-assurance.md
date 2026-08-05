@@ -11,14 +11,17 @@ This runbook covers supervisor runtime readiness, behavioral certification, post
 - Provider calls, credential payload reads, deploys, publishes, spend, and external runtime writes are forbidden.
 - Live readiness and rollback certification run only through governed Admin tools.
 - A resolved operational alert may be reopened only with fresh evidence.
+- Pull-request assurance is read-only and cannot create, update, comment on, or close GitHub issues.
 - Generated Work Maps have one remote branch writer: `.github/workflows/spec-kit-work-map-autofix.yml`.
 - Docs Agent and the Work Map Integration Gate may generate local previews or repair artifacts, but they must not commit or push Work Maps.
 
 ## Automated assurance
 
-`.github/workflows/supervisor-runtime-assurance.yml` runs every day at 04:23 UTC and on relevant pull requests or pushes.
+`.github/workflows/supervisor-runtime-assurance.yml` runs read-only validation on relevant pull requests, pushes to `main`, and explicit manual checks.
 
-It runs:
+`.github/workflows/supervisor-runtime-assurance-alert.yml` runs every day at 04:23 UTC and may also be manually dispatched. It owns the separate issue-alert lifecycle and has no pull-request trigger.
+
+Both assurance surfaces run:
 
 1. `supervisor-runtime-readiness.mjs` in static mode.
 2. `supervisor-behavioral-certification.mjs` in dry-run mode.
@@ -26,7 +29,7 @@ It runs:
 4. JSON contract validation.
 5. Evidence artifact upload with 14-day retention.
 
-Scheduled or manually dispatched failures open or update a GitHub issue labeled `supervisor-runtime-assurance`. A later successful run comments on and closes the open issue.
+Only the scheduled or manually dispatched alert workflow may open, update, or close a GitHub issue labeled `supervisor-runtime-assurance`. A later successful alert run comments on and closes the open issue. Pull-request validation remains `contents: read` only.
 
 ## Generated documentation controls
 
@@ -65,6 +68,8 @@ The writer must:
 - publish a bounded `mad4b.spec-kit-work-map-autofix.v2` diagnostic artifact and a `WORK_MAP_AUTOFIX_V2` pull-request report.
 
 The workflow has no pull-request event trigger and does not use a body marker as authorization. The exact branch and SHA are explicit dispatch inputs, and stale or mismatched identity fails closed before generation or push.
+
+The Work Map recovery bridge is `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`. It is separate from the read-only E2E Contract Reference Integrity workflow. The bridge validates a same-repository, zero-behind pull request, consumes its one-time recovery authorization, and delegates to the sole writer without directly mutating Work Map content.
 
 The Work Map Integration Gate remains read-only. When maps are stale, it produces an exact-head repair candidate artifact, records the tested SHA and source hash, and then fails closed. That artifact is evidence for the governed writer; it is not itself a branch mutation.
 
@@ -145,5 +150,6 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Dry-run failure: inspect the certification contract before any live attempt.
 - Apply authorization failure: inspect capability registration, policy matching, expiry, and blocking gaps; never bypass the policy.
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
+- Pull-request assurance with issue-write authority: treat as a repository lifecycle violation and block merge.
 - Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
 - Work Map Autofix without an exact same-repository pull-request branch and `expected_head_sha`, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.

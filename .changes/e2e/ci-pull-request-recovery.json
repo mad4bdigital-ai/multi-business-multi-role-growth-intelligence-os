@@ -2,12 +2,13 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-pull-request-recovery",
-  "title": "Exact-head CI pull request recovery",
+  "title": "Exact-head CI recovery and Production promotion ratchet parity",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/ci-pull-request-recovery.json",
+      ".github/workflows/ci.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
       "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
     ]
@@ -19,7 +20,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Restore exact-head pull-request execution of the canonical Syntax Check and Unit & Integration Tests while the existing CI workflow registration incident remains under investigation.",
+      "objective": "Keep canonical CI and exact-head recovery fail-closed while evaluating governed Production promotions against the classifier-approved first-parent phase base and ordinary pull requests against their declared base SHA.",
       "e2e_journeys": [
         {
           "id": "run-exact-head-ci-recovery-without-privileged-dispatch",
@@ -27,22 +28,22 @@
           "level": "synthetic_runtime",
           "actor": "GitHub Actions pull-request runner",
           "entrypoint": "A same-repository pull request targets main or Production and triggers .github/workflows/ci-pull-request-recovery.yml.",
-          "terminal_outcome": "The workflow checks out the exact pull-request head SHA, completes Syntax Check before Unit & Integration Tests, and exposes no write, deployment, credential, provider, migration, database, or external-send authority.",
+          "terminal_outcome": "Both workflows check out the exact candidate, classify pull requests targeting Production through the canonical promotion gate, evaluate Context Kernel changes against phase_evaluation_base, and retain ordinary pull-request base semantics without write, deployment, credential, provider, migration, database, or external-send authority.",
           "steps": [
-            "Trigger only for opened, reopened, synchronize, or ready_for_review pull-request events targeting main or Production, with optional manual diagnostic dispatch.",
-            "Reject cross-repository pull-request execution at the job boundary.",
-            "Checkout the exact pull-request head SHA twice and verify git rev-parse HEAD before executing tests.",
-            "Run the same canonical syntax, generated-output, authentication, architecture, Spec Kit, and JavaScript checks used by CI.",
-            "Run npm installation, context-kernel ratchet, complete unit and integration tests, runtime startup evidence, governance contracts, and stale-evidence rejection.",
-            "Publish only bounded unit/integration progress artifacts and preserve read-only repository permissions."
+            "Trigger canonical CI and recovery for pull requests targeting main or Production.",
+            "For a Production-targeted pull request, invoke the canonical E2E promotion classifier with the exact head, head ref, base ref, and base SHA.",
+            "Fail closed unless the classifier emits a 40-character phase_evaluation_base for an allowed Production promotion identity.",
+            "Diff the Context Kernel ratchet against phase_evaluation_base for governed promotions and against the declared pull-request base SHA for ordinary pull requests.",
+            "Run the unchanged runtime hardcoding scanner, tests, runtime evidence, governance contracts, and stale-evidence rejection.",
+            "Preserve read-only workflow permissions and bounded test-progress artifacts."
           ],
           "assertions": [
-            "The workflow uses pull_request rather than pull_request_target.",
-            "Repository permissions are contents: read only.",
-            "Both jobs bind checkout and deployment evidence to github.event.pull_request.head.sha or the manual-dispatch SHA.",
-            "Unit & Integration Tests require Syntax Check success.",
-            "The recovery workflow contains no actions write, contents write, deployments write, id-token write, secret reference, workflow dispatch command, provider call, deployment, SQL, migration Apply, database mutation, or external send.",
-            "The canonical .github/workflows/ci.yml remains unchanged and still declares its existing pull-request trigger.",
+            "Production promotion identity is not inferred from branch text alone.",
+            "The canonical e2e-parallel-pr-gate remains the authority for phase_evaluation_base.",
+            "Invalid Production candidates fail before the Context Kernel scanner rather than falling back to the Production base.",
+            "Ordinary pull requests still use github.event.pull_request.base.sha with three-dot diff semantics.",
+            "Both canonical CI and recovery use the same scope-selection logic and unchanged runtime scanner.",
+            "The workflows contain no write, deployment, credential, provider, SQL, Migration Apply, database mutation, or external-send authority.",
             "secrets_included is false."
           ],
           "tests": [
@@ -56,6 +57,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/ci-pull-request-recovery.json",
+            ".github/workflows/ci.yml",
             ".github/workflows/ci-pull-request-recovery.yml",
             "http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs"
           ]

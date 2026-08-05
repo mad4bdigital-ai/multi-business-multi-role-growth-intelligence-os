@@ -1,0 +1,51 @@
+name: Spec 014 Wave 1 Runtime Readiness Contract Guard
+
+on:
+  pull_request:
+    paths:
+      - '.changes/e2e/spec014-wave1-runtime-readiness.json'
+      - '.github/ops/spec014-wave1-runtime-readiness.mjs'
+      - '.github/workflows/spec014-wave1-runtime-readiness.yml'
+      - '.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml'
+      - 'http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs'
+      - 'http-generic-api/scripts/test-manifest.mjs'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check runner syntax
+        run: node --check .github/ops/spec014-wave1-runtime-readiness.mjs
+
+      - name: Execute boundary regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs \
+            > "$RUNNER_TEMP/spec014-wave1-runtime-readiness-contract.json"
+          cat "$RUNNER_TEMP/spec014-wave1-runtime-readiness-contract.json"
+
+      - name: Upload structured contract evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-wave1-runtime-readiness-contract-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-wave1-runtime-readiness-contract.json
+          if-no-files-found: error
+          retention-days: 30

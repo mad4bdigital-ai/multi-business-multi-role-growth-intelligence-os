@@ -11,6 +11,7 @@ const GUARD_TOOL_KEY = "repository-tool-lifecycle-guard";
 const GUARD_ENTRYPOINT = `${TOOL_ROOT}/repository-tool-lifecycle-guard.mjs`;
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const WORK_BRANCH_PATTERN = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
+const WORK_BRANCH_CONTEXT_PATTERN = /(?:branches?|refs?\/heads|ref|head|base|target[_-]?branch|source[_-]?branch|destination[_-]?branch|git\s+(?:checkout|switch|push)|--ref\b)/iu;
 const REQUIRED_PROTECTED_BRANCHES = Object.freeze(["main", "Production"]);
 const REQUIRED_RULE_KEYS = Object.freeze([
   "one_off_automation_must_not_merge",
@@ -67,6 +68,7 @@ function ruleEnabled(policy, key) {
 function containsBranchSpecificLiteral(content) {
   const lines = content.split(/\r?\n/u);
   let pathFilterIndent = null;
+  let branchFilterIndent = null;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -81,7 +83,25 @@ function containsBranchSpecificLiteral(content) {
       if (indentation > pathFilterIndent) continue;
       pathFilterIndent = null;
     }
-    if (WORK_BRANCH_PATTERN.test(line)) return true;
+
+    if (/^(?:branches|branches-ignore):/u.test(trimmed)) {
+      if (WORK_BRANCH_PATTERN.test(line)) return true;
+      branchFilterIndent = indentation;
+      continue;
+    }
+    if (branchFilterIndent !== null) {
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      if (indentation > branchFilterIndent) {
+        if (WORK_BRANCH_PATTERN.test(line)) return true;
+        continue;
+      }
+      branchFilterIndent = null;
+    }
+
+    if (
+      WORK_BRANCH_PATTERN.test(line)
+      && WORK_BRANCH_CONTEXT_PATTERN.test(line)
+    ) return true;
   }
   return false;
 }
