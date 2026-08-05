@@ -3,6 +3,7 @@ import {
   GITHUB_REPOSITORY_POLICY_CONFIRMATION,
   GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS,
   GITHUB_REPOSITORY_POLICY_RULESET_NAME,
+  buildGithubRepositoryPolicyCapabilityBinding,
   buildGithubRepositoryPolicyPlan,
   readGithubRepositoryPolicy,
   runGithubRepositoryPolicyController,
@@ -127,7 +128,7 @@ function createGithubFetch({
   return { fetchImpl, state };
 }
 
-function controllerDeps(fetchImpl, authorizeApply = async () => ({ ok: true, envelope_id: "env-policy-1" })) {
+function controllerDeps(fetchImpl, authorizeApply = async () => ({ ok: true, envelope_id: "env-policy-1", apply_allowed: true })) {
   return {
     token: "test-installation-token",
     fetchImpl,
@@ -224,6 +225,60 @@ try {
     );
     assert.equal(fetchCalls, 0);
   }
+
+{
+  let resolverOptions = null;
+  let fetchCalls = 0;
+  let markCalls = 0;
+  const expectedPolicyFingerprint = "c".repeat(64);
+  const expectedAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
+    target: { owner: OWNER, repo: REPO, default_branch: "main" },
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: expectedPolicyFingerprint,
+  });
+  await expectCode(
+    runGithubRepositoryPolicyController({
+      mode: "apply",
+      owner: OWNER,
+      repo: REPO,
+      expected_main_sha: MAIN_SHA,
+      expected_policy_fingerprint: expectedPolicyFingerprint,
+      confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+      capability_envelope_id: "env-policy-no-apply",
+    }, {
+      token: "test-installation-token",
+      fetchImpl: async () => { fetchCalls += 1; throw new Error("network should not be reached"); },
+      auth: { caller_type: "admin", tenant_id: "tenant-1", user_id: "admin-1" },
+      resolveCapabilityExecutionEnvelope: async (options) => {
+        resolverOptions = options;
+        return {
+          ok: true,
+          envelope_id: "env-policy-no-apply",
+          app_key: "github",
+          capability_key: "repository_policy_controller",
+          operation_intent: "github_repository_policy_apply",
+          resource_uri: expectedAuthorization.resource_uri,
+          expected_commit_sha: expectedAuthorization.expected_commit_sha,
+          binding_sha256: expectedAuthorization.binding_sha256,
+          capability_sha256: expectedAuthorization.capability_sha256,
+          apply_allowed: false,
+          secrets_included: false,
+        };
+      },
+      markCapabilityEnvelopeReferenced: async () => { markCalls += 1; },
+    }),
+    "capability_resolution_envelope_apply_not_allowed"
+  );
+  assert.equal(fetchCalls, 0);
+  assert.equal(markCalls, 0);
+  assert.deepEqual(resolverOptions.acceptedAppKeys, ["github"]);
+  assert.deepEqual(resolverOptions.acceptedCapabilityKeys, ["repository_policy_controller"]);
+  assert.equal(resolverOptions.expectedResourceUri, expectedAuthorization.resource_uri);
+  assert.equal(resolverOptions.expectedCommitSha, MAIN_SHA);
+  assert.equal(resolverOptions.requireCommitHint, true);
+  assert.equal(resolverOptions.expectedBindingSha256, expectedAuthorization.binding_sha256);
+  assert.equal(resolverOptions.expectedCapabilitySha256, expectedPolicyFingerprint);
+}
 
   {
     const mock = createGithubFetch({ classicStatus: 403 });
@@ -352,6 +407,8 @@ try {
     inaccessible_policy_blocks_apply: true,
     stale_sha_blocks_apply: true,
     invalid_envelope_blocks_before_network: true,
+    exact_envelope_binding_required: true,
+    apply_allowed_required: true,
     typed_confirmation_required: true,
     bypass_actor_blocks_apply: true,
     exact_plan_applies_once: true,

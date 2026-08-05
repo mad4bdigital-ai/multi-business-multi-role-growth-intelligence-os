@@ -72,6 +72,38 @@ function uniqueStrings(values = []) {
   return [...new Set((Array.isArray(values) ? values : []).map((value) => compact(value, 255)).filter(Boolean))];
 }
 
+export function buildGithubRepositoryPolicyCapabilityBinding({
+  target = {},
+  expected_main_sha = "",
+  expected_policy_fingerprint = "",
+} = {}) {
+  const owner = compact(target.owner || "", 191);
+  const repo = compact(target.repo || "", 191);
+  const branch = compact(target.default_branch || "main", 191) || "main";
+  const expectedMainSha = compact(expected_main_sha, 40).toLowerCase();
+  const expectedPolicyFingerprint = compact(expected_policy_fingerprint, 64).toLowerCase();
+  if (!owner || !repo || branch !== "main" || !SHA_PATTERN.test(expectedMainSha) || !FINGERPRINT_PATTERN.test(expectedPolicyFingerprint)) {
+    return null;
+  }
+  const resourceUri = `github://${owner}/${repo}/branch/${branch}`;
+  const bindingSha256 = githubRepositoryPolicyFingerprint({
+    contract: GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION,
+    capability_key: "repository_policy_controller",
+    operation_intent: "github_repository_policy_apply",
+    resource_uri: resourceUri,
+    expected_main_sha: expectedMainSha,
+    expected_policy_fingerprint: expectedPolicyFingerprint,
+  });
+  return {
+    resource_uri: resourceUri,
+    expected_commit_sha: expectedMainSha,
+    expected_policy_fingerprint: expectedPolicyFingerprint,
+    binding_sha256: bindingSha256,
+    capability_sha256: expectedPolicyFingerprint,
+    secrets_included: false,
+  };
+}
+
 function assertSecretFree(value, path = "input", depth = 0) {
   if (value === null || value === undefined || depth > 12) return;
   if (typeof value === "string") {
@@ -521,6 +553,11 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
     expected_main_sha: currentMainSha,
     desired_ruleset: desiredRuleset,
   });
+const capabilityAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
+  target,
+  expected_main_sha: currentMainSha,
+  expected_policy_fingerprint: policyFingerprint,
+});
   return {
     contract: GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION,
     mode: "plan",
@@ -529,6 +566,7 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
     desired_ruleset: desiredRuleset,
     desired_ruleset_fingerprint: githubRepositoryPolicyFingerprint(desiredRuleset),
     policy_fingerprint: policyFingerprint,
+    capability_authorization: capabilityAuthorization,
     operation: existingManagedRuleset ? "update_ruleset" : "create_ruleset",
     existing_ruleset_id: existingManagedRuleset?.id || null,
     preconditions: {
@@ -555,29 +593,84 @@ function assertAdminCaller(auth = {}) {
 }
 
 async function authorizeApply(args, deps, target) {
-  if (typeof deps.authorizeApply === "function") {
-    const result = await deps.authorizeApply({ args, target, auth: deps.auth || {} });
-    if (!result?.ok) throw controllerError(403, "github_repository_policy_capability_envelope_invalid", "Policy apply requires a valid capability envelope.");
-    return result;
+  const authorization = buildGithubRepositoryPolicyCapabilityBinding({
+    target,
+    expected_main_sha: args.expected_main_sha,
+    expected_policy_fingerprint: args.expected_policy_fingerprint || args.policy_fingerprint,
+  });
+  if (!authorization) {
+    throw controllerError(400, "github_repository_policy_capability_binding_invalid", "Policy apply requires a complete repository, main SHA, and policy fingerprint binding.");
   }
-  const pool = deps.pool || getPool();
-  const resolved = await resolveCapabilityExecutionEnvelope({
+
+  if (typeof deps.authorizeApply === "function") {
+    const result = await deps.authorizeApply({ args, target, authorization, auth: deps.auth || {} });
+    if (!result?.ok) throw controllerError(403, "github_repository_policy_capability_envelope_invalid", "Policy apply requires a valid capability envelope.");
+    if (result.apply_allowed !== true) {
+      throw capabilityEnvelopeError({
+        ok: false,
+        status: "capability_resolution_envelope_apply_not_allowed",
+        envelope_id: result.envelope_id || null,
+        secrets_included: false,
+      }, "GitHub main policy apply requires an apply-authorized capability resolution envelope.");
+    }
+    return { ...result, authorization, secrets_included: false };
+  }
+
+  const pool = deps.pool || (typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : getPool());
+  const acceptedIntents = [
+    "github_repository_policy_apply",
+    "repository_policy_controller",
+    "github_main_review_policy",
+  ];
+  const resolver = deps.resolveCapabilityExecutionEnvelope || resolveCapabilityExecutionEnvelope;
+  const marker = deps.markCapabilityEnvelopeReferenced || markCapabilityEnvelopeReferenced;
+  const resolved = await resolver({
     pool,
     source: args,
-    acceptedAppKeys: ["github", "platform_orchestration"],
-    acceptedIntents: ["github_repository_policy_apply", "repository_policy_controller", "github_main_review_policy", "repo_mutation"],
+    acceptedAppKeys: ["github"],
+    acceptedIntents,
+    acceptedCapabilityKeys: ["repository_policy_controller"],
     expectedTenantId: deps.auth?.tenant_id || PLATFORM_TENANT_ID,
     expectedUserId: deps.auth?.user_id || deps.auth?.admin_id || "",
+    expectedResourceUri: authorization.resource_uri,
+    expectedCommitSha: authorization.expected_commit_sha,
+    requireCommitHint: true,
+    expectedBindingSha256: authorization.binding_sha256,
+    expectedCapabilitySha256: authorization.capability_sha256,
   });
   if (!resolved.ok) {
     throw capabilityEnvelopeError(resolved, "GitHub main policy apply requires a valid capability resolution envelope.");
   }
-  await markCapabilityEnvelopeReferenced({
+  if (resolved.apply_allowed !== true) {
+    throw capabilityEnvelopeError({
+      ok: false,
+      status: "capability_resolution_envelope_apply_not_allowed",
+      envelope_id: resolved.envelope_id,
+      secrets_included: false,
+    }, "GitHub main policy apply requires an apply-authorized capability resolution envelope.");
+  }
+  if (
+    resolved.app_key !== "github"
+    || resolved.capability_key !== "repository_policy_controller"
+    || !acceptedIntents.includes(String(resolved.operation_intent || "").trim().toLowerCase())
+    || resolved.resource_uri !== authorization.resource_uri
+    || resolved.expected_commit_sha !== authorization.expected_commit_sha
+    || resolved.binding_sha256 !== authorization.binding_sha256
+    || resolved.capability_sha256 !== authorization.capability_sha256
+  ) {
+    throw capabilityEnvelopeError({
+      ok: false,
+      status: "capability_resolution_envelope_policy_binding_mismatch",
+      envelope_id: resolved.envelope_id,
+      secrets_included: false,
+    }, "GitHub main policy apply requires an envelope bound to the exact repository, main SHA, and policy fingerprint.");
+  }
+  await marker({
     pool,
     envelopeId: resolved.envelope_id,
-    executionRef: `github_repository_policy_apply:${target.owner}/${target.repo}:${target.default_branch}:${args.expected_main_sha}`,
+    executionRef: `github_repository_policy_apply:${target.owner}/${target.repo}:${target.default_branch}:${authorization.expected_commit_sha}:${authorization.expected_policy_fingerprint}`,
   });
-  return { ...resolved, secrets_included: false };
+  return { ...resolved, authorization, secrets_included: false };
 }
 
 function validateApplyInputs(args, preReadback, plan) {
