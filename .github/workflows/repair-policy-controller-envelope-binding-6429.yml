@@ -34,23 +34,9 @@ jobs:
           set -euo pipefail
           mkdir -p .artifacts/policy-controller-repair
           {
-            python3 - <<'PY'
-          from pathlib import Path
-          path = Path('.github/scripts/repair_policy_controller_envelope_binding_6429.py')
-          text = path.read_text()
-          start = text.index('envelope_test_marker = dedent(')
-          end = text.index('\nenvelope_test = dedent(', start)
-          replacement = 'envelope_test_marker = "  {\\n    const mock = createGithubFetch({ classicStatus: 403 });\\n"'
-          text = text[:start] + replacement + text[end:]
-          old_pool = '''  const pool = deps.pool || getPool();
-          const acceptedIntents = ['''
-          new_pool = '''  const pool = deps.pool || (typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : getPool());
-          const acceptedIntents = ['''
-          if text.count(old_pool) != 1:
-              raise SystemExit(f'lazy pool marker: expected one match, found {text.count(old_pool)}')
-          text = text.replace(old_pool, new_pool, 1)
-          path.write_text(text)
-          PY
+            python3 -c 'from pathlib import Path; p=Path(".github/scripts/repair_policy_controller_envelope_binding_6429.py"); t=p.read_text(); start=t.index("envelope_test_marker = dedent("); end=t.index("\nenvelope_test = dedent(", start); replacement="envelope_test_marker = \"  {\\n    const mock = createGithubFetch({ classicStatus: 403 });\\n\""; p.write_text(t[:start] + replacement + t[end:])'
+            sed -i 's/  const pool = deps.pool || getPool();/  const pool = deps.pool || (typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : getPool());/' .github/scripts/repair_policy_controller_envelope_binding_6429.py
+            grep -Fq 'typeof deps.resolveCapabilityExecutionEnvelope === "function" ? null : getPool()' .github/scripts/repair_policy_controller_envelope_binding_6429.py
             python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py
           } 2>&1 | tee .artifacts/policy-controller-repair/apply.log
 
