@@ -1,0 +1,68 @@
+name: Spec 014 Final Work Map Binding Refresh Apply 6314
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  exact-apply:
+    if: >-
+      github.event.pull_request.number == 6329 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'chore/spec014-wave1-runtime-evidence-cleanup-20260804' &&
+      github.event.pull_request.base.ref == 'gpt/validate-spec014-wave1-evidence-cleanup-6314-v1' &&
+      github.event.pull_request.head.sha == 'f494f50124804f0b01a34e367b1c35a6215714b5'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact authorized cleanup head
+        uses: actions/checkout@v5
+        with:
+          ref: f494f50124804f0b01a34e367b1c35a6215714b5
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact branch currentness
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 'f494f50124804f0b01a34e367b1c35a6215714b5'
+          git fetch --no-tags origin main
+          test "$(git rev-list --count HEAD..origin/main)" = '0'
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Apply deterministic manifest refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "${RUNNER_TEMP}/refresh-report.json"
+          test "$(git diff --name-only | sort | tr '\n' ' ')" = 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json '
+          test "$(git hash-object specs/014-governed-hostinger-storage-orchestration/work-map-integration.json)" = '35703160b317c843df86e18aa5b9880f82a13d20'
+          jq -e '.ok == true and .repository_mutation_scope == "candidate_branch_only" and .provider_dispatch == false and .live_database_access == false and .migration_apply == false and .secrets_included == false' "${RUNNER_TEMP}/refresh-report.json" >/dev/null
+
+      - name: Validate refreshed exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_PATH="${RUNNER_TEMP}/final-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          jq -e '.ok == true and .findings == [] and .repository_mutation == false and .provider_dispatch == false and .live_database_access == false and .migration_apply == false and .secrets_included == false' "${RUNNER_TEMP}/final-readback.json" >/dev/null
+          node http-generic-api/test-hostinger-production-runtime-readback-r7.mjs
+
+      - name: Commit exact manifest-only refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json '
+          git commit -m 'fix(spec-014): refresh final Work Map registry binding'
+          git push origin HEAD:chore/spec014-wave1-runtime-evidence-cleanup-20260804
