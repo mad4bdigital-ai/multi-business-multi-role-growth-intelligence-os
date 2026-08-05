@@ -1,0 +1,111 @@
+name: Refresh GitHub Policy Controller Frontend Evidence 6429
+
+on:
+  pull_request:
+    branches: [main]
+    types: [synchronize]
+    paths:
+      - ".github/workflows/refresh-github-policy-controller-generated-artifacts-6429.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-github-policy-controller-frontend-evidence-6429-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: >-
+      github.event.pull_request.number == 6429 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/github-main-policy-controller-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    env:
+      PRODUCT_HEAD: 789b292a1c5c59cb759bf120ecce754df417752a
+      PRODUCT_BASE: d24274c667859e02f558b9161cd2318cc8961efd
+    steps:
+      - name: Checkout exact refresh trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify immutable trigger and baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "${PRODUCT_HEAD}"
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          git diff --name-only HEAD^..HEAD | sort > /tmp/trigger-paths.txt
+          printf '%s\n' '.github/workflows/refresh-github-policy-controller-generated-artifacts-6429.yml' > /tmp/expected-trigger-paths.txt
+          diff -u /tmp/expected-trigger-paths.txt /tmp/trigger-paths.txt
+          git fetch --no-tags origin main
+          test "$(git rev-parse FETCH_HEAD)" = "${PRODUCT_BASE}"
+          git merge-base --is-ancestor FETCH_HEAD HEAD
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run canonical Frontend generator
+        working-directory: http-generic-api
+        env:
+          CANONICAL_BASELINE_REF: main
+          TARGET_REF: main
+        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+
+      - name: Verify canonical generator contracts
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-frontend-dispatch-workflow-baseline.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-openapi-route-coverage.mjs
+          npm run openapi:auth:check
+
+      - name: Verify exact generated write set and blobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --porcelain | sed -E 's/^...//' | sort > /tmp/generated-paths.txt
+          cat > /tmp/expected-generated-paths.txt <<'EOF'
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          EOF
+          diff -u /tmp/expected-generated-paths.txt /tmp/generated-paths.txt
+          test "$(git hash-object http-generic-api/frontend-operation-governance.generated.json)" = "0d10b9aa49524b19117c71dafeeef240f7aa0d80"
+          test "$(git hash-object http-generic-api/frontend-surface-dispatch.generated.json)" = "7dce30b80f55303ab7c0a08036f49bdd01c226be"
+          test "$(git hash-object http-generic-api/openapi/frontend-runtime-routes.generated.yaml)" = "d653fe0f2c3f6cd33fc4f71142f53b66987edd69"
+          git diff --check
+
+      - name: Commit and push bounded generated evidence
+        shell: bash
+        env:
+          EXPECTED_REMOTE_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${GITHUB_HEAD_REF}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_REMOTE_HEAD}"
+          git add \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          git diff --cached --name-only | sort | diff -u /tmp/expected-generated-paths.txt -
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(github): refresh policy controller frontend evidence"
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
