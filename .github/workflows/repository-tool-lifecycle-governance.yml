@@ -164,14 +164,18 @@ jobs:
           replace_exact(lifecycle, '    runs-on: ubuntu-latest\n', '    runs-on: ubuntu-24.04\n')
           PY
 
-      - name: Validate exact five-file scope
+      - name: Check current-main diff hygiene
         shell: bash
         run: |
           set -Eeuo pipefail
           git diff --check origin/main
+
+      - name: Print and assert exact five-file scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           python3 - <<'PY'
           import subprocess
-          from pathlib import Path
           changed = sorted(filter(None, subprocess.check_output(
               ['git', 'diff', '--name-only', 'origin/main'], text=True
           ).splitlines()))
@@ -184,14 +188,42 @@ jobs:
           ])
           print('\n'.join(changed))
           assert changed == expected, f'unexpected_scope:{changed}'
-          ci = Path('.github/workflows/ci.yml').read_text()
-          assert "cancel-in-progress: ${{ github.event_name == 'pull_request' }}" in ci
+          PY
+
+      - name: Assert preserved CI concurrency expression
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          expression = '$' + "{{ github.event_name == 'pull_request' }}"
+          expected = f'cancel-in-progress: {expression}'
+          text = Path('.github/workflows/ci.yml').read_text()
+          assert expected in text, f'missing_ci_concurrency:{expected}'
+          PY
+
+      - name: Assert dynamic Frontend concurrency expression
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
           expression = '$' + '{{ github.event.pull_request.number || github.ref }}'
-          frontend = Path('.github/workflows/frontend-surface-dispatch.yml').read_text()
-          assert f'group: frontend-surface-dispatch-{expression}' in frontend
-          lifecycle = Path('.github/workflows/repository-tool-lifecycle-governance.yml').read_text()
-          assert 'TEMP CLEAN CURRENT-MAIN WRITER' not in lifecycle
-          assert 'permissions:\n  contents: read\n' in lifecycle
+          expected = f'group: frontend-surface-dispatch-{expression}'
+          text = Path('.github/workflows/frontend-surface-dispatch.yml').read_text()
+          assert text.count(expected) == 1, f'frontend_concurrency_count:{text.count(expected)}'
+          PY
+
+      - name: Assert temporary writer removal and read-only authority
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/repository-tool-lifecycle-governance.yml').read_text()
+          assert 'TEMP CLEAN CURRENT-MAIN WRITER' not in text
+          assert 'permissions:\n  contents: read\n' in text
+          assert 'permissions:\n  contents: write\n' not in text
           PY
 
       - name: Validate focused contracts
