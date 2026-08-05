@@ -1,4 +1,4 @@
-name: Runtime Parity Generated Binding Ownership Repair V6
+name: Runtime Parity Generated Binding Ownership Repair V7
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: runtime-parity-generated-binding-ownership-repair-v6-pr-5985
+  group: runtime-parity-generated-binding-ownership-repair-v7-pr-5985
   cancel-in-progress: true
 
 jobs:
@@ -22,14 +22,14 @@ jobs:
     env:
       EXPECTED_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
       EXPECTED_MAIN: 93430fd5e709f49d7a47e2830382b6578a7a22e6
-      EXPECTED_PRELAUNCH: 81c48864c69acd2b85b1fe6ad7ca6dfa1b3d0006
+      EXPECTED_PRELAUNCH: ed749fbab2610f9096a4fb0e50ddb2a74b857211
       EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
       TEMP_WORKFLOW: .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
       TEMP_SCRIPT: .github/scripts/runtime-parity-ownership-repair-v6.sh
       TEMP_TRIGGER: .runtime-parity-ownership-repair-v6.trigger
 
     steps:
-      - name: Checkout exact trigger head
+      - name: Checkout exact helper-merge head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
