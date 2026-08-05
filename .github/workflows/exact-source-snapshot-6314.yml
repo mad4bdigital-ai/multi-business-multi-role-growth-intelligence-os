@@ -1,0 +1,49 @@
+name: Exact Source Snapshot 6314
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    if: github.event.pull_request.number == 6314
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Bind snapshot to expected head
+        shell: bash
+        env:
+          EXPECTED_HEAD: 81d2d7bb275e16f16ee8bb98d656df0e329554ec
+          ACTUAL_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "${ACTUAL_HEAD}" = "${EXPECTED_HEAD}"
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+
+      - name: Collect exact source files
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p snapshot/http-generic-api/scripts snapshot/.changes/e2e
+          cp http-generic-api/scripts/e2e-phase-governance.mjs snapshot/http-generic-api/scripts/
+          cp http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs snapshot/http-generic-api/scripts/
+          cp .changes/e2e/spec014-wave1-readback-pr-write-separation.json snapshot/.changes/e2e/
+          printf '%s\n' "81d2d7bb275e16f16ee8bb98d656df0e329554ec" > snapshot/expected-head.txt
+          find snapshot -type f -print0 | sort -z | xargs -0 sha256sum > snapshot/sha256sums.txt
+
+      - name: Upload exact source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-source-snapshot-6314-${{ github.run_id }}
+          path: snapshot
+          if-no-files-found: error
+          retention-days: 1
