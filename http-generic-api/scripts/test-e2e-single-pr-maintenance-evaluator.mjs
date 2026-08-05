@@ -76,7 +76,7 @@ parallel.parallel_work = {
     depends_on: [],
     deliverables: ["Integrated runtime"],
     integration_points: ["example-v1"],
-    required_tests: [{ id: "pass", runner": "node", working_directory: ".", path: "pass.mjs", args: [] }],
+    required_tests: [{ id: "pass", runner: "node", working_directory: ".", path: "pass.mjs", args: [] }],
     commit_evidence: { head_sha: evidenceSha, commits: [evidenceSha] }
   }],
   declared_overlaps: [],

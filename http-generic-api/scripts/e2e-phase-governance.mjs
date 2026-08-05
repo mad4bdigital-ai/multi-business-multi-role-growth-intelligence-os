@@ -39,7 +39,10 @@ function maintenanceCandidate({ root, policy, changedFiles, runtimeFiles }) {
       && runtimeFiles.every((file) => scope.some((pattern) => matchesPattern(file, pattern)))
     ) candidates.push({ contractPath, contract });
   }
-  return candidates.length === 1 ? candidates[0] : null;
+  if (candidates.length === 0) return { status: "missing", candidate: null };
+  if (candidates.length > 1) return { status: "ambiguous", candidate: null };
+  const [candidate] = candidates;
+  return { status: "unique", candidate };
 }
 
 function integratedParallelContract(root, contractPath) {
@@ -59,13 +62,14 @@ function applySinglePrMaintenanceException(evaluation, options) {
   const stale = report.findings.filter((finding) => finding.code === "e2e_phase_contract_not_changed_with_feature");
   if (baseRef !== "main" || !report.runtime_files.length || !stale.length) return evaluation;
 
-  const candidate = maintenanceCandidate({
+  const resolution = maintenanceCandidate({
     root,
     policy,
     changedFiles: report.changed_files,
     runtimeFiles: report.runtime_files
   });
-  if (!candidate) return evaluation;
+  if (resolution.status !== "unique" || !resolution.candidate) return evaluation;
+  const candidate = resolution.candidate;
 
   const stalePaths = [...new Set(stale.map((finding) => finding.contract_path).filter(Boolean))].sort();
   if (!stalePaths.length || !stalePaths.every((contractPath) => integratedParallelContract(root, contractPath))) return evaluation;
