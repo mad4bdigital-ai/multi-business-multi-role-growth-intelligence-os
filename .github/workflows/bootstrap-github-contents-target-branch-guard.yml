@@ -30,8 +30,31 @@ jobs:
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "gpt/fix-contents-target-branch-guard-20260805"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          test "$(git rev-parse HEAD^)" = "b1af7dfdd11e4ca8716c169b605004d8117e9320"
+          test "$(git rev-parse HEAD^)" = "57c78c5d95094f0b76ed6a524fb8e2816be872ea"
           test "$(git diff --name-only HEAD^ HEAD)" = ".github/workflows/bootstrap-github-contents-target-branch-guard.yml"
+
+      - name: Publish semantic anchor inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "${GITHUB_STEP_SUMMARY}"
+          from pathlib import Path
+          route = Path('http-generic-api/routes/adminCliRoutes.js').read_text(encoding='utf-8')
+          test = Path('http-generic-api/test-github-rest-fallback-hardening.mjs').read_text(encoding='utf-8')
+          markers = {
+              'helper_boundary': '\n\nfunction githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {',
+              'prepare_boundary': '    const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;',
+              'provider_body': '      body: pullClose ? pullClose.body : allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,',
+              'output_boundary': '    const output = pullClose',
+          }
+          print('## Bootstrap semantic anchor inventory')
+          for name, marker in markers.items():
+              print(f'- {name}: {route.count(marker)}')
+          test_marker = "assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');"
+          print(f'- test_boundary: {test.count(test_marker)}')
+          print('- logs_consulted: false')
+          print('- secrets_included: false')
+          PY
 
       - name: Apply fail-closed target branch patch
         shell: bash
@@ -40,21 +63,23 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import json
-          import re
 
           route_path = Path('http-generic-api/routes/adminCliRoutes.js')
           test_path = Path('http-generic-api/test-github-rest-fallback-hardening.mjs')
           contract_path = Path('.changes/e2e/github-rest-contents-target-branch-guard.json')
 
-          def sub_once(text, pattern, replacement, label, flags=0):
-              updated, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+          def require_once(text, marker, label):
+              count = text.count(marker)
               if count != 1:
                   raise SystemExit(f'{label}: expected exactly one anchor, found {count}')
-              return updated
 
           route = route_path.read_text(encoding='utf-8')
 
-          helper = r'''export function assertGithubContentsMutationIntent(fieldValues = {}, defaultBranch = "") {
+          helper_boundary = '\n\nfunction githubBranchRefUpdateAllowed(apiTarget = "", method = "GET") {'
+          require_once(route, helper_boundary, 'helper boundary')
+          helper = '''
+
+          export function assertGithubContentsMutationIntent(fieldValues = {}, defaultBranch = "") {
             const branch = String(fieldValues?.branch || "").trim();
             if (!branch) {
               const err = new Error("GitHub contents write fallback requires an explicit branch field; default-branch fallback is forbidden.");
@@ -182,103 +207,60 @@ jobs:
               secrets_included: false,
             };
           }'''
+          route = route.replace(helper_boundary, helper + helper_boundary, 1)
 
-          route = sub_once(
-              route,
-              r'(function githubContentsMutationAllowed\(apiTarget = "", method = "GET"\) \{[\s\S]*?\n\})\n\nfunction githubBranchRefUpdateAllowed',
-              lambda match: match.group(1) + '\n\n' + helper + '\n\nfunction githubBranchRefUpdateAllowed',
-              'insert contents target guard',
-          )
+          prepare_boundary = '    const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;'
+          require_once(route, prepare_boundary, 'prepare boundary')
+          prepare_code = '''    const contentsMutation = allowedContentsMutation
+              ? await prepareGithubContentsMutation({ owner, repo, token, fieldValues })
+              : null;
+          '''
+          route = route.replace(prepare_boundary, prepare_code + prepare_boundary, 1)
 
-          route = sub_once(
-              route,
-              r'(?m)^    const allowedContentsMutation = githubContentsMutationAllowed\(apiTarget, method\);\n    const allowedBranchRefUpdate = githubBranchRefUpdateAllowed\(apiTarget, method\);\n    const allowedPullClose = githubPullCloseAllowed\(apiTarget, method\);\n    if \(allowedContentsMutation\) assertGithubContentsWritePathAllowed\(apiTarget\);\n    const branchRefUpdate = allowedBranchRefUpdate \? assertGithubBranchRefUpdateAllowed\(apiTarget, fieldValues\) : null;$',
-              '''    const allowedContentsMutation = githubContentsMutationAllowed(apiTarget, method);
-              const allowedBranchRefUpdate = githubBranchRefUpdateAllowed(apiTarget, method);
-              const allowedPullClose = githubPullCloseAllowed(apiTarget, method);
-              if (allowedContentsMutation) assertGithubContentsWritePathAllowed(apiTarget);
-              const contentsMutation = allowedContentsMutation
-                ? await prepareGithubContentsMutation({ owner, repo, token, fieldValues })
-                : null;
-              const branchRefUpdate = allowedBranchRefUpdate ? assertGithubBranchRefUpdateAllowed(apiTarget, fieldValues) : null;''',
-              'prepare contents target',
-          )
+          provider_body = '      body: pullClose ? pullClose.body : allowedBranchRefUpdate ? branchRefUpdate.body : allowedMutation ? fieldValues : null,'
+          require_once(route, provider_body, 'provider body')
+          bounded_body = '''      body: pullClose
+              ? pullClose.body
+              : contentsMutation
+                ? contentsMutation.body
+                : allowedBranchRefUpdate
+                  ? branchRefUpdate.body
+                  : allowedMutation
+                    ? fieldValues
+                    : null,'''
+          route = route.replace(provider_body, bounded_body, 1)
 
-          route = sub_once(
-              route,
-              r'(?m)^      body: pullClose \? pullClose\.body : allowedBranchRefUpdate \? branchRefUpdate\.body : allowedMutation \? fieldValues : null,$',
-              '''      body: pullClose
-                ? pullClose.body
-                : contentsMutation
-                  ? contentsMutation.body
-                  : allowedBranchRefUpdate
-                    ? branchRefUpdate.body
-                    : allowedMutation
-                      ? fieldValues
-                      : null,''',
-              'strip governance fields from payload',
-          )
-
-          route = sub_once(
-              route,
-              r'(?m)^    const output = pullClose$',
-              '''    const contentsMutationReadback = contentsMutation
+          output_boundary = '    const output = pullClose\n'
+          require_once(route, output_boundary, 'output boundary')
+          bounded_output = '''    const contentsMutationReadback = contentsMutation
               ? await readbackGithubContentsMutation({ owner, repo, token, contentsMutation, payload })
               : null;
-              const output = pullClose''',
-              'contents write readback',
-          )
-
-          route = sub_once(
-              route,
-              r'''      : allowedBranchRefUpdate
-                \? \{
-                    ref_updated: true,
-                    branch: branchRefUpdate\.branch,
-                    ref: payload\.ref \|\| null,
-                    sha: payload\.object\?\.sha \|\| null,
-                    force: true,
-                    secrets_included: false,
-                  \}
-                : payload;''',
-              '''      : contentsMutation
-                ? {
-                    content_write: true,
-                    path: githubContentsPathFromApiTarget(apiTarget),
-                    ...contentsMutationReadback,
-                  }
-                : allowedBranchRefUpdate
-                  ? {
-                      ref_updated: true,
-                      branch: branchRefUpdate.branch,
-                      ref: payload.ref || null,
-                      sha: payload.object?.sha || null,
-                      force: true,
-                      secrets_included: false,
-                    }
-                  : payload;''',
-              'contents write bounded output',
-          )
+            const output = contentsMutation
+              ? {
+                  content_write: true,
+                  path: githubContentsPathFromApiTarget(apiTarget),
+                  ...contentsMutationReadback,
+                }
+              : pullClose
+          '''
+          route = route.replace(output_boundary, bounded_output, 1)
           route_path.write_text(route, encoding='utf-8')
 
           test = test_path.read_text(encoding='utf-8')
-          test = sub_once(
-              test,
-              r'''assert\(adminCliRoutes\.includes\('github_rest_contents_workflow_blocked'\), 'GitHub REST fallback must block workflow file mutation through contents writes'\);\n''',
-              '''assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');
-              assert(adminCliRoutes.includes('assertGithubContentsMutationIntent'), 'GitHub contents writes must validate explicit target intent');
-              assert(adminCliRoutes.includes('github_rest_contents_branch_required'), 'GitHub contents writes must reject an omitted branch instead of using the default branch');
-              assert(adminCliRoutes.includes('github_rest_contents_protected_branch'), 'GitHub contents writes must reject protected and default branches');
-              assert(adminCliRoutes.includes('github_rest_contents_branch_prefix_blocked'), 'GitHub contents writes must require a governed work-branch prefix');
-              assert(adminCliRoutes.includes('github_rest_contents_expected_head_required'), 'GitHub contents writes must require an expected target head');
-              assert(adminCliRoutes.includes('github_rest_contents_branch_not_found'), 'GitHub contents writes must fail closed when the requested branch does not exist');
-              assert(adminCliRoutes.includes('github_rest_contents_stale_branch'), 'GitHub contents writes must reject target-ref movement before mutation');
-              assert(adminCliRoutes.includes('delete body.expected_branch_sha'), 'Expected-head governance fields must not be sent to the GitHub contents endpoint');
-              assert(adminCliRoutes.includes('github_rest_contents_branch_readback_failed'), 'GitHub contents writes must verify the exact resulting branch head');
-              assert(adminCliRoutes.includes('content_write: true'), 'GitHub contents writes must return bounded mutation evidence');
-              ''',
-              'extend contents fallback regression',
-          )
+          test_boundary = "assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');"
+          require_once(test, test_boundary, 'test boundary')
+          test_additions = '''
+          assert(adminCliRoutes.includes('assertGithubContentsMutationIntent'), 'GitHub contents writes must validate explicit target intent');
+          assert(adminCliRoutes.includes('github_rest_contents_branch_required'), 'GitHub contents writes must reject an omitted branch instead of using the default branch');
+          assert(adminCliRoutes.includes('github_rest_contents_protected_branch'), 'GitHub contents writes must reject protected and default branches');
+          assert(adminCliRoutes.includes('github_rest_contents_branch_prefix_blocked'), 'GitHub contents writes must require a governed work-branch prefix');
+          assert(adminCliRoutes.includes('github_rest_contents_expected_head_required'), 'GitHub contents writes must require an expected target head');
+          assert(adminCliRoutes.includes('github_rest_contents_branch_not_found'), 'GitHub contents writes must fail closed when the requested branch does not exist');
+          assert(adminCliRoutes.includes('github_rest_contents_stale_branch'), 'GitHub contents writes must reject target-ref movement before mutation');
+          assert(adminCliRoutes.includes('delete body.expected_branch_sha'), 'Expected-head governance fields must not be sent to the GitHub contents endpoint');
+          assert(adminCliRoutes.includes('github_rest_contents_branch_readback_failed'), 'GitHub contents writes must verify the exact resulting branch head');
+          assert(adminCliRoutes.includes('content_write: true'), 'GitHub contents writes must return bounded mutation evidence');'''
+          test = test.replace(test_boundary, test_boundary + test_additions, 1)
           test_path.write_text(test, encoding='utf-8')
 
           contract = {
@@ -368,7 +350,8 @@ jobs:
             echo '- syntax: passed'
             echo '- focused regression: passed'
             echo '- E2E contract JSON: passed'
-            echo '- secrets included: false'
+            echo '- logs_consulted: false'
+            echo '- secrets_included: false'
           } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Remove bootstrap and publish bounded patch
