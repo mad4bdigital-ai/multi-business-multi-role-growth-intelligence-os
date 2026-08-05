@@ -100,6 +100,7 @@ assert.match(runner, /restart_executed: false/);
 assert.match(runner, /secrets_included: false/);
 assert.match(runner, /exactApplyLedger/);
 assert.match(runner, /exactTables/);
+assert.match(runner, /row\.TABLE_NAME/);
 assert.match(runner, /final_readback/);
 
 const mainBody = runner.slice(runner.indexOf('async function main()'));
