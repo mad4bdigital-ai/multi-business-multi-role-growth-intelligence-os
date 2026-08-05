@@ -1,0 +1,106 @@
+name: One-shot current-contract CI Production ratchet fix
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-current-contract-ci-production-ratchet-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/apply-ci-production-ratchet-current-contract-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    env:
+      EXPECTED_BASE_SHA: 146e070d57627d50eaf8fc0e7fb06568b40fc704
+      EXPECTED_HEAD_REF: gpt/apply-ci-production-ratchet-current-contract-146e070d-20260805
+      LAUNCHER_PATH: .github/workflows/one-shot-current-contract-ci-production-ratchet-fix.yml
+      HELPER_PATH: http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact launcher identity
+        shell: bash
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$EXPECTED_BASE_SHA"
+          test "$EVENT_HEAD_REF" = "$EXPECTED_HEAD_REF"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE_SHA"
+          test "$(git merge-base HEAD "$EXPECTED_BASE_SHA")" = "$EXPECTED_BASE_SHA"
+
+      - name: Apply deterministic workflow and contract patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python "$HELPER_PATH"
+
+      - name: Reconcile recovery self-test with current exact-head contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs')
+          text = path.read_text()
+          old = '  "run: npm test",\n'
+          new = (
+              '  "Run tests with exact checked-out identity",\n'
+              '  "GITHUB_SHA=\\"$actual_sha\\" npm test",\n'
+          )
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one stale npm test token, got {text.count(old)}')
+          path.write_text(text.replace(old, new))
+          PY
+
+      - name: Remove temporary machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "$LAUNCHER_PATH" "$HELPER_PATH"
+          test ! -e "$LAUNCHER_PATH"
+          test ! -e "$HELPER_PATH"
+
+      - name: Validate final clean source tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
+          git diff --check "$EXPECTED_BASE_SHA" --
+          ACTUAL="$(git diff --name-only "$EXPECTED_BASE_SHA" -- | sort)"
+          EXPECTED="$(printf '%s\n' \
+            .changes/e2e/ci-pull-request-recovery.json \
+            .github/workflows/ci-pull-request-recovery.yml \
+            .github/workflows/ci.yml \
+            http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs | sort)"
+          test "$ACTUAL" = "$EXPECTED"
+          test "$(git diff --diff-filter=A --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+          test "$(git diff --diff-filter=D --name-only "$EXPECTED_BASE_SHA" -- | wc -l)" -eq 0
+
+      - name: Commit and push bounded source fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "fix(ci): evaluate governed promotions from phase base"
+          git push origin "HEAD:$EXPECTED_HEAD_REF"
