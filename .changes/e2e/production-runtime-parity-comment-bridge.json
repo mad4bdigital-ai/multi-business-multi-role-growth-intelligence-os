@@ -10,6 +10,7 @@
       ".changes/e2e/production-runtime-parity-comment-bridge.json",
       ".github/workflows/production-runtime-parity-comment-bridge.yml",
       "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+      "http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs",
       "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
       "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
       "http-generic-api/scripts/e2e-phase-governance.mjs",
@@ -63,6 +64,7 @@
           "evidence_paths": [
             ".github/workflows/production-runtime-parity-comment-bridge.yml",
             "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+            "http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs",
             "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
             "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
             "http-generic-api/scripts/e2e-phase-governance.mjs",
