@@ -36,10 +36,19 @@ jobs:
           GOVERNED_CANDIDATE: 81d2d7bb275e16f16ee8bb98d656df0e329554ec
         run: |
           set -euo pipefail
-          mkdir -p snapshot/http-generic-api/scripts snapshot/.changes/e2e
+          mkdir -p \
+            snapshot/.changes/e2e \
+            snapshot/.github/workflows \
+            snapshot/.specify \
+            snapshot/http-generic-api/scripts \
+            snapshot/specs/014-governed-hostinger-storage-orchestration
           git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-phase-governance.mjs" > snapshot/http-generic-api/scripts/e2e-phase-governance.mjs
+          git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/e2e-parallel-pr-gate.mjs" > snapshot/http-generic-api/scripts/e2e-parallel-pr-gate.mjs
           git show "${GOVERNED_CANDIDATE}:http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs" > snapshot/http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs
+          git show "${GOVERNED_CANDIDATE}:.github/workflows/e2e-phase-governance.yml" > snapshot/.github/workflows/e2e-phase-governance.yml
+          git show "${GOVERNED_CANDIDATE}:.specify/e2e-phase-governance.json" > snapshot/.specify/e2e-phase-governance.json
           git show "${GOVERNED_CANDIDATE}:.changes/e2e/spec014-wave1-readback-pr-write-separation.json" > snapshot/.changes/e2e/spec014-wave1-readback-pr-write-separation.json
+          git show "${GOVERNED_CANDIDATE}:specs/014-governed-hostinger-storage-orchestration/e2e-phases.json" > snapshot/specs/014-governed-hostinger-storage-orchestration/e2e-phases.json
           printf '%s\n' "${GOVERNED_CANDIDATE}" > snapshot/expected-head.txt
           find snapshot -type f -print0 | sort -z | xargs -0 sha256sum > snapshot/sha256sums.txt
 
