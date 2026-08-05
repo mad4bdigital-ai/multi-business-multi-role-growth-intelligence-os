@@ -36,7 +36,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
-          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..HEAD")" -eq 3
+          test "$(git rev-list --count "${EXPECTED_MAIN_SHA}..HEAD")" -eq 4
           remote_main="$(git ls-remote --heads origin refs/heads/main | awk '{print $1}')"
           remote_branch="$(git ls-remote --heads origin "refs/heads/${BRANCH_NAME}" | awk '{print $1}')"
           test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
@@ -77,10 +77,12 @@ jobs:
           if ci.count(old_deployment) != 1:
               raise SystemExit('canonical deployment SHA binding not found exactly once')
           ci = ci.replace(old_deployment, new_deployment)
-          if ci.count(f"ref: {expression}") != 4:
-              raise SystemExit('canonical exact checkout count is not four after rebuild')
-          if ci.count(new_deployment) != 1:
-              raise SystemExit('canonical deployment SHA was not rebound exactly once')
+          exact_checkout_count = ci.count(checkout_replacement)
+          if exact_checkout_count != 4:
+              raise SystemExit(f'canonical exact checkout blocks after rebuild: {exact_checkout_count}, expected 4')
+          deployment_count = ci.count(new_deployment)
+          if deployment_count != 1:
+              raise SystemExit(f'canonical deployment SHA bindings after rebuild: {deployment_count}, expected 1')
           ci_path.write_text(ci, encoding='utf-8')
 
           test_path = Path('http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs')
@@ -111,8 +113,10 @@ jobs:
           test_path.write_text(test, encoding='utf-8')
           PY
 
-          test "$(grep -F -c 'ref: ${{ github.event.pull_request.head.sha || github.sha }}' .github/workflows/ci.yml)" -eq 4
-          test "$(grep -F -c 'DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"' .github/workflows/ci.yml)" -eq 1
+          literal_expression='$'
+          literal_expression+='{{ github.event.pull_request.head.sha || github.sha }}'
+          test "$(grep -F -c "ref: ${literal_expression}" .github/workflows/ci.yml)" -eq 4
+          test "$(grep -F -c "DEPLOYMENT_COMMIT_SHA: \"${literal_expression}\"" .github/workflows/ci.yml)" -eq 1
           node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs
           git diff --check
 
