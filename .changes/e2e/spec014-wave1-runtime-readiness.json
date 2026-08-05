@@ -39,6 +39,7 @@
             "Perform governed schema and ledger readback before creating any new authorization evidence.",
             "If the exact apply ledger already exists, report already_applied without creating authorization or dry-run evidence.",
             "Otherwise create and approve only a checksum- and Production-bound capability envelope for governed_migration_authorization_bootstrap.",
+            "Require the capability approval decision note to contain no shell metacharacters rejected by the /admin/control extra_args boundary.",
             "Bootstrap the exact authorization for checksum 9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053, four statements, PR #4564, and its merge SHA.",
             "Execute governed_migration_execute in dry_run mode and require applies_sql=false, exact checksum and statement count, preflight pass, and zero risk.",
             "Upload sanitized evidence without repository writes, provider calls, credential payload reads, business-data mutation, Apply authorization, Apply execution, deployment, or Production mutation."
@@ -48,6 +49,7 @@
             "The workflow never exposes an Apply job and has no push, pull_request, workflow_dispatch, or automatic runtime trigger.",
             "Readback occurs before capability-envelope or authorization creation.",
             "The implementation contains no mode=apply request and no capability_resolution_envelope_apply_authorize call.",
+            "The approval decision note is shell-safe for /admin/control extra_args, and the executable contract test rejects semicolons and other prohibited shell metacharacters.",
             "The dry-run must report mode=dry_run, applies_sql=false, exact checksum, four statements, preflight pass, and zero risks.",
             "Managed control-plane authorization evidence may be written only after the explicit operator comment; migration SQL, business data, providers, external systems, and Production refs remain unmodified.",
             "Artifacts report apply_authorized=false, apply_sent=false, migration_apply_executed=false, provider_call_executed=false, credential_payload_accessed=false, external_business_write_executed=false, and secrets_included=false."
