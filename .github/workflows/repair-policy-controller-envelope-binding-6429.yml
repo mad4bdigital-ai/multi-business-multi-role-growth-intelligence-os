@@ -44,6 +44,21 @@ jobs:
           PY
           python3 .github/scripts/repair_policy_controller_envelope_binding_6429.py 2>&1 | tee .artifacts/policy-controller-repair/apply.log
 
+      - name: Validate focused repair
+        id: validate
+        if: steps.apply.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            node --check http-generic-api/githubRepositoryPolicyController.js
+            node --check http-generic-api/test-github-repository-policy-controller.mjs
+            node http-generic-api/test-github-repository-policy-controller.mjs
+            node http-generic-api/test-repository-automation-policy-facade.mjs
+            git diff --check
+          } 2>&1 | tee .artifacts/policy-controller-repair/validation.log
+
       - name: Upload repair diagnostic
         if: always()
         uses: actions/upload-artifact@v4
@@ -58,15 +73,10 @@ jobs:
         shell: bash
         run: exit 1
 
-      - name: Validate focused repair
+      - name: Stop on validation failure
+        if: steps.validate.outcome == 'failure'
         shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/githubRepositoryPolicyController.js
-          node --check http-generic-api/test-github-repository-policy-controller.mjs
-          node http-generic-api/test-github-repository-policy-controller.mjs
-          node http-generic-api/test-repository-automation-policy-facade.mjs
-          git diff --check
+        run: exit 1
 
       - name: Commit repair and remove temporary files
         shell: bash
