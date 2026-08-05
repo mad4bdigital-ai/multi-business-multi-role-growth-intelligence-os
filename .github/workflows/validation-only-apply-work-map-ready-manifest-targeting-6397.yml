@@ -67,12 +67,18 @@ jobs:
           const bindings = {
             fingerprint: process.env.REGISTRY_FINGERPRINT,
             index_source_hash: process.env.INDEX_SOURCE_HASH,
-            coverage_source_hash: proces.env.COVERAGE_SOURCE_HASH,
+            coverage_source_hash: process.env.COVERAGE_SOURCE_HASH,
           };
           const manifestPaths = [
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
             "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
           ];
+
+          for (const [field, value] of Object.entries(bindings)) {
+            if (!/^[0-9a-f]{64}$/.test(value || "")) {
+              throw new Error(`invalid ${field} binding`);
+            }
+          }
 
           for (const manifestPath of manifestPaths) {
             const original = fs.readFileSync(manifestPath, "utf8");
@@ -80,20 +86,21 @@ jobs:
             if (parsed.review_state !== "ready_for_implementation") {
               throw new Error(`${manifestPath}: only ready_for_implementation manifests may be refreshed`);
             }
-
-            let updated = original;
-            for (const [field, value] of Object.entries(bindings)) {
-              const pattern = new RegExp(`(\\"${field}\"\\s*:\\s*)\\"[^\\"]*\\"`, "g");
-              const matches = [...updated.matchAll(pattern)];
-              if (matches.length !== 1) {
-                throw new Error(`${manifestPath}: expected exactly one ${field} binding`);
-              }
-              updated = updated.replace(pattern, (_match, prefix) => `${prefix}"${value}"`);
+            if (!parsed.registry || typeof parsed.registry !== "object" || Array.isArray(parsed.registry)) {
+              throw new Error(`${manifestPath}: registry object is required`);
             }
 
+            for (const [field, value] of Object.entries(bindings)) {
+              if (!Object.prototype.hasOwnProperty.call(parsed.registry, field)) {
+                throw new Error(`${manifestPath}: missing registry.${field}`);
+              }
+              parsed.registry[field] = value;
+            }
+
+            const updated = `${JSON.stringify(parsed, null, 2)}\n`;
             const readback = JSON.parse(updated);
             for (const [field, value] of Object.entries(bindings)) {
-              if (readback.registry?.[field] !== value) {
+              if (readback.registry[field] !== value) {
                 throw new Error(`${manifestPath}: ${field} readback mismatch`);
               }
             }
@@ -114,7 +121,8 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/scripts/spec014-final-worËmap-readback.mjs
+          REPORT_PATH="${EVIDENCE_ROOT}/final-work-map-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
           git diff --check
 
@@ -142,7 +150,7 @@ jobs:
         run: |
           set -euo pipefail
           jq -n \
-            --arg contract "mad4b.validation-only-manifest-binding-updater.v3" \
+            --arg contract "mad4b.validation-only-manifest-binding-updater.v4" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             --arg fingerprint "${REGISTRY_FINGERPRINT}" \
