@@ -1,0 +1,50 @@
+name: Diagnose CI Production ratchet self-test assertion
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'gpt/diagnose-ci-ratchet-assertion-146e070d-20260805' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Prepare exact patched clean tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.pull_request.base.sha }}" = "146e070d57627d50eaf8fc0e7fb06568b40fc704"
+          test "$(git rev-parse HEAD^)" = "146e070d57627d50eaf8fc0e7fb06568b40fc704"
+          python http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+          rm -f \
+            .github/workflows/diagnose-ci-production-ratchet-self-test-assertion.yml \
+            http-generic-api/scripts/one-shot-ci-production-ratchet-base-fix.py
+
+      - name: Surface exact self-test assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          ERR="$RUNNER_TEMP/recovery-self-test.err"
+          if node http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs 2>"$ERR"; then
+            exit 0
+          fi
+          MESSAGE="$(tr '\n' ' ' < "$ERR" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' | cut -c1-4000)"
+          echo "::error file=http-generic-api/scripts/ci-pull-request-recovery-self-test.mjs,title=Exact recovery self-test assertion::$MESSAGE"
+          exit 1
