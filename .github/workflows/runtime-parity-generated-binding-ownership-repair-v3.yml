@@ -1,4 +1,4 @@
-name: Runtime Parity Generated Binding Ownership Repair V4
+name: Runtime Parity Generated Binding Ownership Repair V5
 
 on:
   pull_request:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: runtime-parity-generated-binding-ownership-repair-v4-pr-5985
+  group: runtime-parity-generated-binding-ownership-repair-v5-pr-5985
   cancel-in-progress: true
 
 jobs:
@@ -21,9 +21,8 @@ jobs:
     timeout-minutes: 120
     env:
       EXPECTED_BRANCH: gpt/add-runtime-parity-comment-bridge-v2-20260804
-      EXPECTED_PARENT: b1f53cbdb342344aee796ff483c9a95ba27d6e59
-      EXPECTED_MAIN: 30b48a17bae1921d796e7e49b1f72a9ab5a871ff
-      WRITER_PATH: .github/workflows/runtime-parity-generated-binding-ownership-repair-v3.yml
+      EXPECTED_PARENT: e290b094002af845ef15222ea7aba5af30da7e4a
+      EXPECTED_MAIN: 93430fd5e709f49d7a47e2830382b6578a7a22e6
 
     steps:
       - name: Checkout exact repair request
@@ -63,19 +62,43 @@ jobs:
               raise SystemExit(f'initial scope mismatch: expected={sorted(expected)} actual={sorted(actual)}')
           PY
 
+      - name: Merge pinned main and resolve generated binding deterministically
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          set +e
+          git merge --no-edit origin/main
+          merge_status=$?
+          set -e
+          if [[ "${merge_status}" -ne 0 ]]; then
+            mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+            test "${#conflicts[@]}" = 1
+            test "${conflicts[0]}" = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+            git checkout --theirs -- "${conflicts[0]}"
+            git add "${conflicts[0]}"
+            git commit --no-edit
+          fi
+          git merge-base --is-ancestor "${EXPECTED_MAIN}" HEAD
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          test -z "$(git diff --name-only -- specs/014-governed-hostinger-storage-orchestration/tasks.md)"
+
       - name: Patch generated binding ownership and regressions
         shell: bash
         run: |
           set -Eeuo pipefail
           python3 - <<'PY'
-          import re
           from pathlib import Path
 
-          def regex_once(text, pattern, replacement, label):
-              updated, count = re.subn(pattern, replacement, text, count=1)
+          def replace_once(path, old, new, label):
+              text = path.read_text()
+              count = text.count(old)
               if count != 1:
                   raise SystemExit(f'{label}: expected one target, found {count}')
-              return updated
+              path.write_text(text.replace(old, new, 1))
 
           helper = '''function isGeneratedSpecIntegrationPath(file, policy) {
             const feature = specKeyFromFile(file, policy);
@@ -85,37 +108,30 @@ jobs:
 
           '''
 
-          parallel_path = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
-          parallel = parallel_path.read_text()
-          if 'function isGeneratedSpecIntegrationPath' in parallel:
-              raise SystemExit('parallel helper already present')
-          parallel = regex_once(
+          parallel = Path('http-generic-api/scripts/e2e-parallel-work-governance.mjs')
+          replace_once(
               parallel,
-              r'(?=function discoverContractPaths\(changedFiles, policy\) \{)',
-              helper,
+              'function discoverContractPaths(changedFiles, policy) {',
+              helper + 'function discoverContractPaths(changedFiles, policy) {',
               'parallel helper insertion'
           )
-          parallel = regex_once(
+          replace_once(
               parallel,
-              r'(for \(const file of changedFiles\) \{\n)(\s*)(const feature = specKeyFromFile\(file, policy\);)',
-              r'\1\2if (isGeneratedSpecIntegrationPath(file, policy)) continue;\n\2\3',
+              '  for (const file of changedFiles) {\n    const feature = specKeyFromFile(file, policy);',
+              '  for (const file of changedFiles) {\n    if (isGeneratedSpecIntegrationPath(file, policy)) continue;\n    const feature = specKeyFromFile(file, policy);',
               'parallel ownership discovery'
           )
-          parallel_path.write_text(parallel)
 
-          phase_path = Path('http-generic-api/scripts/e2e-phase-governance.mjs')
-          phase = phase_path.read_text()
-          if 'function isGeneratedSpecIntegrationPath' in phase:
-              raise SystemExit('phase helper already present')
-          phase = regex_once(
+          phase = Path('http-generic-api/scripts/e2e-phase-governance.mjs')
+          replace_once(
               phase,
-              r'(?=function discoverContractPaths\(policy, changedFiles\) \{)',
-              helper,
+              'function discoverContractPaths(policy, changedFiles) {',
+              helper + 'function discoverContractPaths(policy, changedFiles) {',
               'phase helper insertion'
           )
-          phase = regex_once(
+          replace_once(
               phase,
-              r'  const changedSpecs = new Set\(changedFiles\.map\(\(file\) => specKeyFromFile\(file, policy\)\)\.filter\(Boolean\)\);',
+              '  const changedSpecs = new Set(changedFiles.map((file) => specKeyFromFile(file, policy)).filter(Boolean));',
               '''  const changedSpecs = new Set(
             changedFiles
               .filter((file) => !isGeneratedSpecIntegrationPath(file, policy))
@@ -124,14 +140,13 @@ jobs:
           );''',
               'phase ownership discovery'
           )
-          phase_path.write_text(phase)
 
-          parallel_test_path = Path('http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs')
-          parallel_test = parallel_test_path.read_text()
-          parallel_regressions = '''{
+          parallel_test = Path('http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs')
+          parallel_old = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false }));\n'
+          parallel_new = r'''{
             const root = tempRepo();
             const generatedBinding = "specs/001-example/work-map-integration.json";
-            write(root, generatedBinding, "{}\\n");
+            write(root, generatedBinding, "{}\n");
             const report = evaluateParallelWork({
               root,
               policy,
@@ -145,29 +160,28 @@ jobs:
 
           {
             const generatedBinding = "specs/001-example/work-map-integration.json";
-            const report = evaluate(baseContract(), [generatedBinding, "specs/001-example/spec.md"]);
-            assert.equal(report.ok, true, JSON.stringify(report.findings));
-            assert.equal(report.contracts[0].active_workstream, "contracts");
+            const report = evaluate(
+              baseContract(),
+              [generatedBinding, "specs/001-example/spec.md"],
+              "gpt/unrelated-runtime-change"
+            );
+            assert.equal(report.ok, false);
+            assert(report.findings.some((row) => row.code === "parallel_work_pr_branch_not_declared"));
           }
 
-          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_parallel_work_governance", secrets_included: false }));'''
-          parallel_test = regex_once(
-              parallel_test,
-              r'console\.log\(JSON\.stringify\(\{ ok: true, tests: 7, gate: "e2e_parallel_work_governance", secrets_included: false \}\)\);\s*$',
-              parallel_regressions,
-              'parallel regression insertion'
-          )
-          parallel_test_path.write_text(parallel_test + '\n')
+          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_parallel_work_governance", secrets_included: false }));
+          '''
+          replace_once(parallel_test, parallel_old, parallel_new, 'parallel regression insertion')
 
-          phase_test_path = Path('http-generic-api/scripts/e2e-phase-governance-self-test.mjs')
-          phase_test = phase_test_path.read_text()
-          phase_regressions = '''{
+          phase_test = Path('http-generic-api/scripts/e2e-phase-governance-self-test.mjs')
+          phase_old = 'console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_phase_governance", secrets_included: false }));\n'
+          phase_new = r'''{
             const root = tempRepo();
             const independentContract = ".changes/e2e/001-example.json";
             const generatedBinding = "specs/001-example/work-map-integration.json";
-            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\\n");
-            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\\n`);
-            write(root, generatedBinding, "{}\\n");
+            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\n`);
+            write(root, generatedBinding, "{}\n");
             const result = evaluateRepository({ root, policy, changedFiles: [independentContract, generatedBinding] });
             assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
             assert.equal(result.report.contracts.length, 1);
@@ -178,27 +192,24 @@ jobs:
             const root = tempRepo();
             const independentContract = ".changes/e2e/001-example.json";
             const generatedBinding = "specs/001-example/work-map-integration.json";
-            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\\n");
-            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\\n`);
-            write(root, generatedBinding, "{}\\n");
-            write(root, "specs/001-example/spec.md", "# Real spec change\\n");
+            const specContract = "specs/001-example/e2e-phases.json";
+            write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+            write(root, independentContract, `${JSON.stringify(contract(), null, 2)}\n`);
+            write(root, generatedBinding, "{}\n");
+            write(root, specContract, `${JSON.stringify(contract(), null, 2)}\n`);
+            write(root, "specs/001-example/spec.md", "# Real spec change\n");
             const result = evaluateRepository({
               root,
               policy,
               changedFiles: [independentContract, generatedBinding, "specs/001-example/spec.md"]
             });
             assert.equal(result.report.ok, false);
-            assert(result.report.findings.some((row) => row.code === "missing_spec_e2e_phase_contract"));
+            assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
           }
 
-          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));'''
-          phase_test = regex_once(
-              phase_test,
-              r'console\.log\(JSON\.stringify\(\{ ok: true, tests: 7, gate: "e2e_phase_governance", secrets_included: false \}\)\);\s*$',
-              phase_regressions,
-              'phase regression insertion'
-          )
-          phase_test_path.write_text(phase_test + '\n')
+          console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));
+          '''
+          replace_once(phase_test, phase_old, phase_new, 'phase regression insertion')
           PY
 
       - name: Run focused governance and bridge tests
@@ -223,26 +234,31 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/test-manifest.mjs
 
-      - name: Verify bounded permanent patch
+      - name: Verify bounded final tree
         shell: bash
+        env:
+          EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -Eeuo pipefail
           git fetch --no-tags origin main "${EXPECTED_BRANCH}"
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
-          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${EVENT_HEAD}"
           python3 - <<'PY'
           import subprocess
-          expected_worktree = {
+          required = {
               'http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs',
               'http-generic-api/scripts/e2e-parallel-work-governance.mjs',
               'http-generic-api/scripts/e2e-phase-governance-self-test.mjs',
               'http-generic-api/scripts/e2e-phase-governance.mjs',
           }
-          actual_worktree = set(subprocess.check_output(
-              ['git', 'diff', '--name-only'], text=True
-          ).splitlines())
-          if actual_worktree != expected_worktree:
-              raise SystemExit(f'worktree scope mismatch: expected={sorted(expected_worktree)} actual={sorted(actual_worktree)}')
+          allowed = required | {
+              'docs/work-maps/README.md',
+              'docs/work-maps/repository-automation-map.md',
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+          }
+          actual_worktree = set(subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines())
+          if not required.issubset(actual_worktree) or not actual_worktree.issubset(allowed):
+              raise SystemExit(f'worktree scope mismatch: required={sorted(required)} allowed={sorted(allowed)} actual={sorted(actual_worktree)}')
           expected_final = {
               '.changes/e2e/production-runtime-parity-comment-bridge.json',
               '.github/workflows/production-runtime-parity-comment-bridge.yml',
@@ -256,24 +272,23 @@ jobs:
               'http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs',
               'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
           }
-          actual_final = set(subprocess.check_output(
-              ['git', 'diff', '--name-only', 'origin/main'], text=True
-          ).splitlines())
+          actual_final = set(subprocess.check_output(['git', 'diff', '--name-only', 'origin/main'], text=True).splitlines())
           if actual_final != expected_final:
               raise SystemExit(f'final scope mismatch: expected={sorted(expected_final)} actual={sorted(actual_final)}')
           PY
           test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-parallel-work-governance.mjs)" = 1
           test "$(grep -c 'function isGeneratedSpecIntegrationPath' http-generic-api/scripts/e2e-phase-governance.mjs)" = 1
 
-      - name: Commit and fast-forward permanent patch only
+      - name: Commit and fast-forward synchronized permanent patch
         shell: bash
         env:
           EVENT_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
           set -Eeuo pipefail
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs \
             http-generic-api/scripts/e2e-parallel-work-governance.mjs \
             http-generic-api/scripts/e2e-phase-governance-self-test.mjs \
