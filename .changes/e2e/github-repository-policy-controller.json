@@ -8,10 +8,13 @@
   "scope": {
     "include": [
       ".changes/e2e/github-repository-policy-controller.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/repositoryAutomationPolicyFacade.js",
       "http-generic-api/routes/repositoryAutomationRoutes.js",
-      "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "http-generic-api/test-repository-automation-policy-facade.mjs"
     ]
@@ -38,6 +41,7 @@
             "Build one deterministic main Ruleset requiring pull requests, one approval, stale-review dismissal, conversation resolution, newest-push approval, six canonical checks, strict status checks, non-fast-forward protection, and zero bypass actors.",
             "Require Admin caller, valid capability envelope, exact expected main SHA, exact policy fingerprint, and typed confirmation before mutation.",
             "Create or update only the managed Ruleset and perform immediate bounded readback.",
+            "Regenerate operation governance, Frontend dispatch, and runtime-route OpenAPI evidence from the synchronized repository authority.",
             "Rollback or fail closed when the observed policy fingerprint, main identity, no-bypass posture, or server policy gate is incomplete."
           ],
           "assertions": [
@@ -50,6 +54,7 @@
             "Review count below one, disabled stale dismissal or conversation resolution, missing exact checks, direct pushes, auto-merge, or merge queue are rejected.",
             "The exact plan applies once under mocked GitHub responses and same-cycle readback matches the desired fingerprint.",
             "Post-readback mismatch triggers rollback evidence and fails closed.",
+            "Committed Frontend operation-governance, dispatch, and runtime-route artifacts match the canonical generator output for the synchronized main baseline.",
             "No token, private key, capability secret, provider credential, or raw authorization value appears in response or audit evidence.",
             "The implementation journey performs no live GitHub policy mutation."
           ],
@@ -67,14 +72,24 @@
               "working_directory": "http-generic-api",
               "path": "test-repository-automation-policy-facade.mjs",
               "args": []
+            },
+            {
+              "id": "frontend-dispatch-deterministic-evidence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-surface-dispatch.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/github-repository-policy-controller.json",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/repositoryAutomationPolicyFacade.js",
             "http-generic-api/routes/repositoryAutomationRoutes.js",
-            "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
             "http-generic-api/test-github-repository-policy-controller.mjs",
             "http-generic-api/test-repository-automation-policy-facade.mjs"
           ]
