@@ -13,7 +13,7 @@ concurrency:
 jobs:
   syntax:
     name: Syntax Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
         with:
@@ -77,7 +77,7 @@ jobs:
 
   test:
     name: Unit & Integration Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: syntax
     steps:
       - uses: actions/checkout@v5
@@ -195,7 +195,7 @@ jobs:
 
   execution-resolver-gate:
     name: Execution Resolver Gate
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: syntax
     steps:
       - uses: actions/checkout@v5
@@ -229,7 +229,7 @@ jobs:
 
   architecture-drift:
     name: Architecture Drift Detection
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: syntax
     steps:
       - uses: actions/checkout@v5
