@@ -1,0 +1,91 @@
+name: Activate Spec 014 terminal-lock Work Map writer
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  write-generated-maps:
+    if: >-
+      github.event.pull_request.number == 6454 &&
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.head.ref == 'fix/spec014-wave1-apply-cross-run-guard-20260805' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.id == 271942579
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      TARGET_BRANCH: fix/spec014-wave1-apply-cross-run-guard-20260805
+      EXPECTED_MAIN_SHA: 52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5
+      SELF_PATH: .github/workflows/spec014-wave1-terminal-lock-work-map-writer.yml
+    steps:
+      - name: Checkout exact temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Verify bounded temporary authority
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EVENT_HEAD_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "${EVENT_HEAD_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          actual="$(git diff --name-only "${EXPECTED_MAIN_SHA}"...HEAD | sort)"
+          expected="$(printf '%s\n' \
+            '.changes/e2e/spec014-wave1-apply-terminal-lock.json' \
+            '.github/workflows/spec014-wave1-apply.yml' \
+            'http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs' \
+            "${SELF_PATH}" | sort)"
+          test "${actual}" = "${expected}"
+          node http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/spec014-wave1-apply-terminal-lock.json','utf8'))"
+
+      - name: Generate final exact-head Work Maps
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -f "${SELF_PATH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          working="$(git diff --name-only | sort)"
+          expected_working="$(printf '%s\n' \
+            "${SELF_PATH}" \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' | sort)"
+          test "${working}" = "${expected_working}"
+          node http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs
+          node -e "JSON.parse(require('fs').readFileSync('.changes/e2e/spec014-wave1-apply-terminal-lock.json','utf8'))"
+          git diff --check
+          final="$(git diff --name-only "${EXPECTED_MAIN_SHA}" | sort)"
+          expected_final="$(printf '%s\n' \
+            '.changes/e2e/spec014-wave1-apply-terminal-lock.json' \
+            '.github/workflows/spec014-wave1-apply.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' \
+            'http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs' | sort)"
+          test "${final}" = "${expected_final}"
+
+      - name: Commit and push final generated tree
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "${EVENT_HEAD_SHA}"
+          test "$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'docs(work-maps): refresh Spec 014 terminal-lock maps'
+          git push origin "HEAD:${TARGET_BRANCH}"
