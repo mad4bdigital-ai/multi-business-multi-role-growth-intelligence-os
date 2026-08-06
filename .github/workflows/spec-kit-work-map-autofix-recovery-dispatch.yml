@@ -8,6 +8,10 @@ on:
         description: Open same-repository pull request targeting main
         required: true
         type: string
+      expected_head_sha:
+        description: Exact current pull-request head SHA authorized for recovery
+        required: true
+        type: string
       confirmation:
         description: Type RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX
         required: true
@@ -26,15 +30,16 @@ concurrency:
 jobs:
   dispatch:
     name: Re-enable and dispatch sole governed Work Map writer
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
       REQUESTED_PR_NUMBER: ${{ inputs.pr_number }}
+      REQUESTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
       MANUAL_CONFIRMATION: ${{ inputs.confirmation }}
       COMMAND_ACTOR: ${{ github.actor }}
       AUTHORIZATION_MARKER: '<!-- work-map-autofix:authorized -->'
     steps:
-      - name: Initialize bounded recovery report directory after runner allocation
+      - name: Initialize bounded report directory after runner allocation
         shell: bash
         run: |
           set -euo pipefail
@@ -50,11 +55,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ "${MANUAL_CONFIRMATION}" != "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX" ]]; then
-            echo "Recovery requires exact typed confirmation."
-            exit 1
-          fi
+          test "${MANUAL_CONFIRMATION}" = "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"
           [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${REQUESTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
 
           pr_file="${REPORT_DIR}/pull-request.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" > "${pr_file}"
@@ -64,7 +67,7 @@ jobs:
           base_ref="$(jq -r '.base.ref' "${pr_file}")"
           head_repo="$(jq -r '.head.repo.full_name' "${pr_file}")"
           target_branch="$(jq -r '.head.ref' "${pr_file}")"
-          expected_head_sha="$(jq -r '.head.sha' "${pr_file}")"
+          current_head_sha="$(jq -r '.head.sha' "${pr_file}")"
           body="$(jq -r '.body // ""' "${pr_file}")"
 
           test "${state}" = "open"
@@ -73,20 +76,17 @@ jobs:
           test "${head_repo}" = "${GITHUB_REPOSITORY}"
           [[ "${target_branch}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "${target_branch}" != "main" && "${target_branch}" != "Production" ]]
-          [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
+          test "${current_head_sha}" = "${REQUESTED_HEAD_SHA}"
           grep -Fq "${AUTHORIZATION_MARKER}" <<<"${body}"
 
           compare_file="${REPORT_DIR}/main-comparison.json"
-          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" > "${compare_file}"
+          gh api "repos/${GITHUB_REPOSITORY}/compare/main...${REQUESTED_HEAD_SHA}" > "${compare_file}"
           behind_by="$(jq -r '.behind_by' "${compare_file}")"
-          if [[ "${behind_by}" != "0" ]]; then
-            echo "Target branch is behind main by ${behind_by} commit(s); refusing stale recovery dispatch."
-            exit 1
-          fi
+          test "${behind_by}" = "0"
 
           echo "pr_number=${REQUESTED_PR_NUMBER}" >> "$GITHUB_OUTPUT"
           echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
-          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${REQUESTED_HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "behind_by=${behind_by}" >> "$GITHUB_OUTPUT"
 
       - name: Re-enable governed Work Map workflows and verify active state
@@ -102,10 +102,7 @@ jobs:
               gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
             fi
             readback_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
-            if [[ "${readback_state}" != "active" ]]; then
-              echo "Workflow ${workflow} did not become active; readback=${readback_state}."
-              exit 1
-            fi
+            test "${readback_state}" = "active"
           done
           echo "writer_state=active" >> "$GITHUB_OUTPUT"
           echo "integration_state=active" >> "$GITHUB_OUTPUT"
@@ -169,10 +166,7 @@ jobs:
             fi
             sleep 2
           done
-          if [[ ! "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]; then
-            echo "The Work Map writer dispatch was accepted but no delegated run was observed."
-            exit 1
-          fi
+          [[ "${delegated_run_id}" =~ ^[1-9][0-9]*$ ]]
           echo "run_id=${delegated_run_id}" >> "$GITHUB_OUTPUT"
 
       - name: Publish structured recovery evidence on target PR
@@ -195,7 +189,7 @@ jobs:
             outcome="blocked"
           fi
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-autofix-recovery.v1" \
+            --arg contract "mad4b.spec-kit-work-map-autofix-recovery.v2" \
             --arg outcome "${outcome}" \
             --arg source_event "${GITHUB_EVENT_NAME}" \
             --arg actor "${COMMAND_ACTOR}" \
@@ -220,6 +214,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: spec-kit-work-map-autofix-recovery-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/
+          path: ${{ runner.temp }}/spec-kit-work-map-autofix-recovery/
           if-no-files-found: warn
           retention-days: 30

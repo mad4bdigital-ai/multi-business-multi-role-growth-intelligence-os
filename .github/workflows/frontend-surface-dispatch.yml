@@ -38,9 +38,13 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: frontend-surface-dispatch-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dispatch-plan:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     defaults:
       run:

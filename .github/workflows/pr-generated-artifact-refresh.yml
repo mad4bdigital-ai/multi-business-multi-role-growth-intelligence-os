@@ -70,23 +70,15 @@ jobs:
         startsWith(github.event.pull_request.head.ref, 'cert/')))
     permissions:
       contents: read
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       EVENT_NAME: ${{ github.event_name }}
       CI_SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha }}
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
+      REPORT_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
+      REPORT_MARKDOWN_PATH: ${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
     steps:
-      - name: Initialize bounded refresh report paths after runner allocation
-        shell: bash
-        run: |
-          set -euo pipefail
-          report_dir="${RUNNER_TEMP}/pr-generated-artifact-refresh"
-          rm -rf "${report_dir}"
-          mkdir -p "${report_dir}"
-          echo "REPORT_PATH=${report_dir}/pr-generated-artifact-refresh-summary.json" >> "${GITHUB_ENV}"
-          echo "REPORT_MARKDOWN_PATH=${report_dir}/pr-generated-artifact-refresh-summary.md" >> "${GITHUB_ENV}"
-
       - name: Validate exact candidate inputs
         shell: bash
         run: |
