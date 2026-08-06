@@ -176,8 +176,8 @@ function assertStrictApplyAuthority(input = {}) {
   if (authority.confirm !== GITHUB_REPOSITORY_POLICY_CONFIRMATION) {
     throw facadeError(400, "github_repository_policy_confirmation_invalid", `confirm must equal ${GITHUB_REPOSITORY_POLICY_CONFIRMATION}.`);
   }
-  if (!authority.capability_envelope_id) {
-    throw facadeError(403, "github_repository_policy_capability_envelope_invalid", "Policy apply requires a capability resolution envelope.");
+  if (!authority.capability_envelope_id || authority.capability_envelope_id.length > 64) {
+    throw facadeError(403, "github_repository_policy_capability_envelope_invalid", "Policy apply requires a valid capability resolution envelope ID of at most 64 characters.");
   }
 }
 
