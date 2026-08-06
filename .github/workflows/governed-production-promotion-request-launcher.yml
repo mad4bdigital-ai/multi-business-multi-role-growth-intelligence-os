@@ -29,8 +29,16 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       REQUEST_PR: ${{ github.event.pull_request.number }}
-      EVIDENCE_PATH: ${{ runner.temp }}/governed-production-promotion-convergence.json
     steps:
+      - name: Initialize bounded convergence evidence path
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/governed-production-promotion"
+          rm -rf "${evidence_dir}"
+          mkdir -p "${evidence_dir}"
+          echo "EVIDENCE_PATH=${evidence_dir}/governed-production-promotion-convergence.json" >> "${GITHUB_ENV}"
+
       - name: Build, validate, and converge protected refs
         id: converge
         shell: bash
