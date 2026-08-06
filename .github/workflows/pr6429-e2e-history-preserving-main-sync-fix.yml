@@ -18,6 +18,7 @@ jobs:
     timeout-minutes: 20
     env:
       WORK_BRANCH: gpt/fix/e2e-history-preserving-main-sync-20260806
+      BASE_BRANCH: gpt/github-main-policy-controller-20260805
       WORKFLOW_PATH: .github/workflows/pr6429-e2e-history-preserving-main-sync-fix.yml
       BASE_SHA: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
     steps:
@@ -39,6 +40,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
           git merge-base --is-ancestor "${BASE_SHA}" HEAD
           case "$(node --version)" in v22.*) ;; *) exit 1 ;; esac
 
@@ -53,33 +55,47 @@ jobs:
           gate_path = Path('http-generic-api/scripts/e2e-parallel-pr-gate.mjs')
           gate = gate_path.read_text()
 
-          marker = '''function resolveParents(root, headSha) {
-            if (!/^[0-9a-f]{40}$/.test(headSha)) return [];
-            try {
-              const value = execFileSync("git", ["show", "-s", "--format=%P", headSha], {
-                cwd: root,
-                encoding: "utf8",
-                stdio: ["ignore", "pipe", "ignore"]
-              }).trim();
-              if (!value) return [];
-              const parents = value.split(/\\s+/);
-              return parents.every((parent) => /^[0-9a-f]{40}$/.test(parent)) ? parents : [];
-            } catch {
-              return [];
-            }
-          }
-          '''
-          addition = marker + '''
+          insertion_anchor = '\nfunction classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {'
+          if gate.count(insertion_anchor) != 1:
+            raise SystemExit(f'classifier insertion anchor count={gate.count(insertion_anchor)}')
+
+          classifier = r'''
+
+          const DEFAULT_BRANCH_SYNC_GENERATED_RESOLUTION_PATTERNS = [
+            /^docs\/work-maps\/[^/]+\.md$/,
+            /^http-generic-api\/frontend-(?:operation-governance|surface-dispatch)\.generated\.json$/,
+            /^specs\/[^/]+\/work-map-integration\.json$/
+          ];
+
           function changedFilesForRange(root, range) {
             try {
               return execFileSync("git", ["diff", "--name-only", range], {
                 cwd: root,
                 encoding: "utf8",
                 stdio: ["ignore", "pipe", "ignore"]
-              }).split(/\\r?\\n/).map(normalize).filter(Boolean);
+              }).split(/\r?\n/).map(normalize).filter(Boolean);
             } catch {
               return [];
             }
+          }
+
+          function resolveBlob(root, ref, file) {
+            if (!ref || !file) return null;
+            try {
+              const value = execFileSync("git", ["rev-parse", "--verify", `${ref}:${file}`], {
+                cwd: root,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"]
+              }).trim();
+              return /^[0-9a-f]{40}$/.test(value) ? value : null;
+            } catch {
+              return null;
+            }
+          }
+
+          function isGeneratedReconciliationPath(file) {
+            const normalized = normalize(file);
+            return DEFAULT_BRANCH_SYNC_GENERATED_RESOLUTION_PATTERNS.some((pattern) => pattern.test(normalized));
           }
 
           function classifyDefaultBranchSynchronization({ root, headRef, baseRef, headSha, baseSha, changedFiles }) {
@@ -87,7 +103,7 @@ jobs:
               return { allowed: true, identity: "protected_main" };
             }
             if (
-              !/^gpt\\/reconcile\\/[A-Za-z0-9._/-]+$/.test(headRef || "") ||
+              !/^gpt\/reconcile\/[A-Za-z0-9._/-]+$/.test(headRef || "") ||
               !baseRef ||
               baseRef === "main" ||
               baseRef === "Production" ||
@@ -108,36 +124,44 @@ jobs:
               !isAncestor(root, baseSha, headSha) ||
               !isAncestor(root, mainSha, headSha)
             ) {
-              return { allowed: false, identity: null };
+              return { allowed: false, identity: null, main_sha: mainSha };
             }
 
+            const normalizedChangedFiles = [...new Set((changedFiles || []).map(normalize).filter(Boolean))].sort();
             const mainDelta = new Set(changedFilesForRange(root, `${baseSha}...${mainSha}`));
-            const unexpectedFiles = (changedFiles || []).filter((file) => !mainDelta.has(normalize(file)));
-            if (!mainDelta.size || unexpectedFiles.length) {
+            const unexpectedFiles = normalizedChangedFiles.filter((file) => !mainDelta.has(file));
+            const novelResolutionFiles = normalizedChangedFiles.filter((file) => {
+              const headBlob = resolveBlob(root, headSha, file);
+              const mainBlob = resolveBlob(root, mainSha, file);
+              const firstParentBlob = resolveBlob(root, parents[0], file);
+              return headBlob !== mainBlob && headBlob !== firstParentBlob;
+            });
+            const unsafeResolutionFiles = novelResolutionFiles.filter((file) => !isGeneratedReconciliationPath(file));
+            if (!mainDelta.size || unexpectedFiles.length || unsafeResolutionFiles.length) {
               return {
                 allowed: false,
                 identity: null,
                 main_sha: mainSha,
-                unexpected_files: unexpectedFiles
+                unexpected_files: unexpectedFiles,
+                unsafe_resolution_files: unsafeResolutionFiles
               };
             }
             return {
               allowed: true,
               identity: "history_preserving_feature_branch_main_sync",
               main_sha: mainSha,
-              synchronized_file_count: (changedFiles || []).length
+              synchronized_file_count: normalizedChangedFiles.length,
+              generated_resolution_files: novelResolutionFiles
             };
           }
           '''
-          if gate.count(marker) != 1:
-            raise SystemExit('resolveParents marker count mismatch')
-          gate = gate.replace(marker, addition, 1)
+          gate = gate.replace(insertion_anchor, classifier + insertion_anchor, 1)
 
-          old = '''  const defaultBranchSync = options.headRef === "main"
+          old_sync = '''  const defaultBranchSync = options.headRef === "main"
             && Boolean(options.baseRef)
             && options.baseRef !== "Production";
           '''
-          new = '''  const defaultBranchSynchronization = classifyDefaultBranchSynchronization({
+          new_sync = '''  const defaultBranchSynchronization = classifyDefaultBranchSynchronization({
             root: options.root,
             headRef: options.headRef,
             baseRef: options.baseRef,
@@ -147,37 +171,38 @@ jobs:
           });
           const defaultBranchSync = defaultBranchSynchronization.allowed;
           '''
-          if gate.count(old) != 1:
-            raise SystemExit('defaultBranchSync marker count mismatch')
-          gate = gate.replace(old, new, 1)
+          if gate.count(old_sync) != 1:
+            raise SystemExit(f'default sync anchor count={gate.count(old_sync)}')
+          gate = gate.replace(old_sync, new_sync, 1)
 
-          old_report = '''  report.phase_evaluation_base = phaseEvaluationBase;
-          writeAtomic(options.reportFile, report);
-          '''
-          new_report = '''  report.phase_evaluation_base = phaseEvaluationBase;
+          report_anchor = '  report.phase_evaluation_base = phaseEvaluationBase;\n  writeAtomic(options.reportFile, report);'
+          report_replacement = '''  report.phase_evaluation_base = phaseEvaluationBase;
           report.default_branch_sync_identity = defaultBranchSynchronization.identity;
           report.default_branch_sync_main_sha = defaultBranchSynchronization.main_sha || null;
-          writeAtomic(options.reportFile, report);
+          report.default_branch_sync_unexpected_files = defaultBranchSynchronization.unexpected_files || [];
+          report.default_branch_sync_unsafe_resolution_files = defaultBranchSynchronization.unsafe_resolution_files || [];
+          report.default_branch_sync_generated_resolution_files = defaultBranchSynchronization.generated_resolution_files || [];
+          writeAtomic(options.reportFile, report);'''
+          if gate.count(report_anchor) != 1:
+            raise SystemExit(f'report anchor count={gate.count(report_anchor)}')
+          gate = gate.replace(report_anchor, report_replacement, 1)
+
+          output_anchor = '    phase_evaluation_base: phaseEvaluationBase || ""\n'
+          output_replacement = '''    phase_evaluation_base: phaseEvaluationBase || "",
+            default_branch_sync_identity: defaultBranchSynchronization.identity || "",
+            default_branch_sync_main_sha: defaultBranchSynchronization.main_sha || ""
           '''
-          if gate.count(old_report) != 1:
-            raise SystemExit('report marker count mismatch')
-          gate = gate.replace(old_report, new_report, 1)
+          if gate.count(output_anchor) != 1:
+            raise SystemExit(f'output anchor count={gate.count(output_anchor)}')
+          gate = gate.replace(output_anchor, output_replacement, 1)
           gate_path.write_text(gate)
 
           test_path = Path('http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs')
           test = test_path.read_text()
-          marker = '''const undeclared = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/undeclared-feature", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
-          assert.notEqual(undeclared.status, 0, JSON.stringify({ status: undeclared.status, stdout: undeclared.stdout, stderr: undeclared.stderr }));
-          const undeclaredReport = JSON.parse(undeclared.stdout);
-          assert(undeclaredReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
-
-          console.log(JSON.stringify({ ok: true, tests: 11, default_branch_sync: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));
-          '''
-          replacement = '''const undeclared = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", headSha, "--head-ref", "gpt/undeclared-feature", "--base-ref", "main"], { cwd: root, encoding: "utf8" });
-          assert.notEqual(undeclared.status, 0, JSON.stringify({ status: undeclared.status, stdout: undeclared.stdout, stderr: undeclared.stderr }));
-          const undeclaredReport = JSON.parse(undeclared.stdout);
-          assert(undeclaredReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
-
+          console_anchor = 'console.log(JSON.stringify({ ok: true, tests: 11, default_branch_sync: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));'
+          if test.count(console_anchor) != 1:
+            raise SystemExit(f'self-test console anchor count={test.count(console_anchor)}')
+          scenarios = r'''
           run("git", ["checkout", "-b", "feature-target", baseSha], root);
           run("git", ["merge", "--no-ff", "--no-edit", headSha], root);
           const reconciliationSha = run("git", ["rev-parse", "HEAD"], root).trim();
@@ -186,24 +211,36 @@ jobs:
           assert.equal(reconciliationReport.pr_mode, "default_branch_sync");
           assert.equal(reconciliationReport.default_branch_sync_identity, "history_preserving_feature_branch_main_sync");
           assert.equal(reconciliationReport.default_branch_sync_main_sha, headSha);
+          assert.deepEqual(reconciliationReport.default_branch_sync_unsafe_resolution_files, []);
 
           run("git", ["checkout", "-b", "feature-target-with-extra", baseSha], root);
           run("git", ["merge", "--no-ff", "--no-commit", headSha], root);
-          fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "unrelated-reconciliation-extra.mjs"), "export const unrelated = true;\\n");
+          fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "unrelated-reconciliation-extra.mjs"), "export const unrelated = true;\n");
           run("git", ["add", "."], root);
           run("git", ["commit", "-m", "unsafe reconciliation with unrelated file"], root);
-          const unsafeSha = run("git", ["rev-parse", "HEAD"], root).trim();
-          const unsafe = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", unsafeSha, "--head-ref", "gpt/reconcile/feature-target-unsafe", "--base-ref", "gpt/feature-target"], { cwd: root, encoding: "utf8" });
-          assert.notEqual(unsafe.status, 0, JSON.stringify({ status: unsafe.status, stdout: unsafe.stdout, stderr: unsafe.stderr }));
-          const unsafeReport = JSON.parse(unsafe.stdout);
-          assert.equal(unsafeReport.pr_mode, "standard");
-          assert(unsafeReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
+          const unsafeExtraSha = run("git", ["rev-parse", "HEAD"], root).trim();
+          const unsafeExtra = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", unsafeExtraSha, "--head-ref", "gpt/reconcile/feature-target-unsafe-extra", "--base-ref", "gpt/feature-target"], { cwd: root, encoding: "utf8" });
+          assert.notEqual(unsafeExtra.status, 0, JSON.stringify({ status: unsafeExtra.status, stdout: unsafeExtra.stdout, stderr: unsafeExtra.stderr }));
+          const unsafeExtraReport = JSON.parse(unsafeExtra.stdout);
+          assert.equal(unsafeExtraReport.pr_mode, "standard");
+          assert(unsafeExtraReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
 
-          console.log(JSON.stringify({ ok: true, tests: 19, default_branch_sync: true, history_preserving_feature_branch_sync: true, unrelated_file_rejected: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));
+          run("git", ["checkout", "-b", "feature-target-with-tamper", baseSha], root);
+          run("git", ["merge", "--no-ff", "--no-commit", headSha], root);
+          fs.writeFileSync(path.join(root, gatePath), "export const version = 3;\n");
+          run("git", ["add", "."], root);
+          run("git", ["commit", "-m", "unsafe reconciliation with non-generated conflict resolution"], root);
+          const unsafeTamperSha = run("git", ["rev-parse", "HEAD"], root).trim();
+          const unsafeTamper = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", unsafeTamperSha, "--head-ref", "gpt/reconcile/feature-target-unsafe-tamper", "--base-ref", "gpt/feature-target"], { cwd: root, encoding: "utf8" });
+          assert.notEqual(unsafeTamper.status, 0, JSON.stringify({ status: unsafeTamper.status, stdout: unsafeTamper.stdout, stderr: unsafeTamper.stderr }));
+          const unsafeTamperReport = JSON.parse(unsafeTamper.stdout);
+          assert.equal(unsafeTamperReport.pr_mode, "standard");
+          assert.deepEqual(unsafeTamperReport.default_branch_sync_unsafe_resolution_files, [gatePath]);
+          assert(unsafeTamperReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
+
+          console.log(JSON.stringify({ ok: true, tests: 25, default_branch_sync: true, history_preserving_feature_branch_sync: true, unrelated_file_rejected: true, non_generated_conflict_resolution_rejected: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));
           '''
-          if test.count(marker) != 1:
-            raise SystemExit('self-test marker count mismatch')
-          test_path.write_text(test.replace(marker, replacement, 1))
+          test_path.write_text(test.replace(console_anchor, scenarios, 1))
 
           contract = {
             "$schema": "../../.specify/schemas/e2e-phases.schema.json",
@@ -223,20 +260,21 @@ jobs:
             "phases": [{
               "id": "mvp",
               "status": "implemented",
-              "objective": "Classify a non-protected feature-branch reconciliation as default-branch synchronization only when its merge is bound to current main and every PR-visible changed file belongs to the exact main delta.",
+              "objective": "Classify a non-protected feature-branch reconciliation as default-branch synchronization only when it is a current-main merge and its complete PR delta contains no unrelated path or ungoverned conflict resolution.",
               "e2e_journeys": [{
                 "id": "history-preserving-feature-branch-main-sync-classification",
                 "end_to_end": True,
                 "level": "synthetic_runtime",
                 "actor": "Repository governance runner",
                 "entrypoint": "A gpt/reconcile helper PR targets a governed non-protected feature branch.",
-                "terminal_outcome": "The helper is classified as bounded default-branch synchronization only when current-main parent topology and the main-delta file subset both pass; unrelated files fail closed.",
+                "terminal_outcome": "The helper is classified as bounded default-branch synchronization only when current-main parent topology, the main-delta file subset, and generated-conflict-resolution constraints all pass.",
                 "steps": [
                   "Resolve the canonical current main commit and candidate merge parents.",
                   "Require the candidate second parent to equal current main and the PR base to be an ancestor of the first parent.",
-                  "Compute the main delta from the PR base and compare every PR-visible changed path against it.",
-                  "Classify the candidate as default-branch synchronization only when no unrelated path remains.",
-                  "Reject undeclared or extra-file reconciliation candidates before phase execution is skipped."
+                  "Compute the exact base-to-main delta and compare every PR-visible changed path against it.",
+                  "Compare candidate blobs with main and first-parent blobs to identify novel conflict resolutions.",
+                  "Allow novel resolutions only on registered generated Work Map, frontend-governance, and Spec binding artifacts.",
+                  "Reject unrelated paths and non-generated conflict-resolution tampering before phase execution is skipped."
                 ],
                 "assertions": [
                   "Production and main remain forbidden helper targets.",
@@ -244,7 +282,8 @@ jobs:
                   "The merge has exactly two parents and its second parent is the canonical current main commit.",
                   "The PR base is an ancestor of the merge first parent and final head.",
                   "Every changed file is present in the exact base-to-main delta.",
-                  "An unrelated runtime file keeps the candidate in standard mode and fails closed."
+                  "A candidate blob differing from both main and the feature first parent is accepted only on bounded generated-artifact paths.",
+                  "An unrelated file or non-generated conflict resolution keeps the candidate in standard mode and fails closed."
                 ],
                 "tests": [{
                   "id": "e2e-history-preserving-main-sync-classifier-regression",
@@ -272,20 +311,7 @@ jobs:
             http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
             http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
 
-      - name: Run bounded regression and phase contract checks
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
-          node --check http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
-          node http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
-          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs
-          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${BASE_SHA}" --head HEAD \
-            --report-file "${RUNNER_TEMP}/e2e-history-preserving-sync-phase.json"
-
-      - name: Enforce exact final scope and commit
+      - name: Enforce staged scope and create local candidate
         shell: bash
         run: |
           set -euo pipefail
@@ -293,6 +319,7 @@ jobs:
           actual="$(mktemp)"
           cat > "${expected}" <<'EOF'
           .changes/e2e/e2e-history-preserving-feature-branch-main-sync.json
+          .github/workflows/pr6429-e2e-history-preserving-main-sync-fix.yml
           http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
           http-generic-api/scripts/e2e-parallel-pr-gate.mjs
           EOF
@@ -303,26 +330,54 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m "fix(ci): classify bounded feature-branch main reconciliation"
-          final_sha="$(git rev-parse HEAD)"
-          git merge-base --is-ancestor "${BASE_SHA}" "${final_sha}"
+
+          cat > "${expected}" <<'EOF'
+          .changes/e2e/e2e-history-preserving-feature-branch-main-sync.json
+          http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
+          http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          EOF
+          sed -i 's/^          //' "${expected}"
+          git diff --name-only "${BASE_SHA}...HEAD" | sort > "${actual}"
+          diff -u "${expected}" "${actual}"
           test ! -e "${WORKFLOW_PATH}"
+
+      - name: Run bounded regression and phase contract checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/e2e-history-preserving-main-sync-fix"
+          mkdir -p "${evidence_root}"
+          node --check http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+          node --check http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs
+          node http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs \
+            | tee "${evidence_root}/classification-self-test.json"
+          node http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs \
+            | tee "${evidence_root}/parallel-work-self-test.json"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs \
+            | tee "${evidence_root}/parallel-pr-flow-self-test.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${BASE_SHA}" --head HEAD \
+            --report-file "${evidence_root}/phase-governance.json"
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
+            --root . --base "${BASE_SHA}" --head HEAD \
+            --head-ref "${WORK_BRANCH}" --base-ref "${BASE_BRANCH}" \
+            --report-file "${evidence_root}/parallel-pr-gate.json"
 
       - name: Push without force after exact remote readback
         shell: bash
         run: |
           set -euo pipefail
-          remote_before="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          test "${remote_before}" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
           git push origin "HEAD:refs/heads/${WORK_BRANCH}"
           final_sha="$(git rev-parse HEAD)"
-          remote_after="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          test "${remote_after}" = "${final_sha}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${final_sha}"
 
       - name: Upload bounded evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-history-preserving-main-sync-fix-${{ github.sha }}
-          path: ${{ runner.temp }}/e2e-history-preserving-sync-phase.json
+          path: ${{ runner.temp }}/e2e-history-preserving-main-sync-fix
           if-no-files-found: warn
           retention-days: 14
