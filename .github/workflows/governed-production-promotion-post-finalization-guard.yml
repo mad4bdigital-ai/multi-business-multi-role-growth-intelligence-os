@@ -170,7 +170,7 @@ jobs:
           fi
           gh pr reopen "$REQUEST_PR" --repo "$REPOSITORY"
 
-      - name: Close superseded Production and validation surfaces
+      - name: Publish authoritative stable release marker
         if: steps.readback.outputs.stable == 'true'
         shell: bash
         env:
@@ -181,28 +181,6 @@ jobs:
         run: |
           set -Eeuo pipefail
           FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
-
-          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,headRefName,baseRefName \
-            --jq '.[] | select(.baseRefName == "Production" and (.headRefName | startswith("release/production-"))) | [.number, .headRefName] | @tsv' |
-          while IFS=$'\t' read -r pr_number head_branch; do
-            [[ -n "$pr_number" ]] || continue
-            if [[ "$pr_number" == "$RELEASE_PR" ]]; then
-              continue
-            fi
-            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_PRODUCTION_CANDIDATE authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
-            gh pr close "$pr_number" --repo "$REPOSITORY" || true
-          done
-
-          gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("gpt/validate-production-candidate-")) | [.number, .headRefName] | @tsv' |
-          while IFS=$'\t' read -r pr_number head_branch; do
-            [[ -n "$pr_number" ]] || continue
-            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_EXACT_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
-            gh pr close "$pr_number" --repo "$REPOSITORY" || true
-          done
-
           gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$FINAL_MARKER single_release_surface=true final_freshness_readback=true"
 
       - name: Publish post-finalization summary

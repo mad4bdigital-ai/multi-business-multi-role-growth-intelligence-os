@@ -35,3 +35,14 @@ For the nine repaired workflows, the regression also requires a bounded post-all
 ## Safety boundary
 
 This registration repair performs no Production mutation, Hostinger/provider request, deployment, restart, credential read, SQL, Migration Apply, database mutation, protected-ref update, force push, issue-comment activation, or external business write. Provider-capable workflows remain inert unless their existing exact authorization contracts are separately satisfied.
+
+## Lifecycle convergence
+
+The repository lifecycle guard identified four incident-specific push bridges with hard-coded pull-request or branch identity. They are retired rather than converted into reusable mutation surfaces:
+
+- `hostinger-nodejs-completed-build-log-evidence-push-r3b.yml`
+- `hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml`
+- `response-chunk-ownership-governed-rollout-push.yml`
+- `ueacp-live-authority-evidence-one-shot.yml`
+
+The retained Production promotion launcher is manual-only. It requires typed authorization, an exact trusted workflow SHA, an exact request-PR head SHA, and explicit non-protected branch prefixes. The post-finalization guard no longer searches or closes PRs through hard-coded work-branch namespaces; it acts only on the exact release PR bound in validated convergence evidence.

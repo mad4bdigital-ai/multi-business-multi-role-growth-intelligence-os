@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
@@ -16,10 +16,13 @@ const repairedWorkflowPaths = [
   '.github/workflows/governed-migration-dependency-gate.yml',
   '.github/workflows/governed-production-promotion-post-finalization-guard.yml',
   '.github/workflows/governed-production-promotion-request-launcher.yml',
-  '.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml',
-  '.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml',
   '.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml',
   '.github/workflows/hostinger-production-release-evidence-r5.yml',
+];
+
+const retiredWorkflowPaths = [
+  '.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml',
+  '.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml',
   '.github/workflows/response-chunk-ownership-governed-rollout-push.yml',
   '.github/workflows/ueacp-live-authority-evidence-one-shot.yml',
 ];
@@ -67,6 +70,14 @@ assert.deepEqual(
   `runner context must not be evaluated outside runner-backed steps: ${JSON.stringify(findings)}`,
 );
 
+for (const workflowPath of retiredWorkflowPaths) {
+  assert.equal(
+    existsSync(resolve(repositoryRoot, workflowPath)),
+    false,
+    `${workflowPath} is an incident-specific mutating bridge and must remain retired`,
+  );
+}
+
 for (const workflowPath of repairedWorkflowPaths) {
   const source = readFileSync(resolve(repositoryRoot, workflowPath), 'utf8');
   assert.match(
@@ -80,6 +91,7 @@ console.log(JSON.stringify({
   contract: 'mad4b.pre-allocation-runner-context-regression.v2',
   workflow_count: workflowPaths.length,
   repaired_workflow_count: repairedWorkflowPaths.length,
+  retired_workflow_count: retiredWorkflowPaths.length,
   pre_allocation_runner_context_findings: findings.length,
   secrets_included: false,
 }));

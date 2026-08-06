@@ -1,9 +1,36 @@
 name: Governed Production Promotion Request Launcher
 
 on:
-  pull_request_target:
-    branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      request_pr:
+        description: Open same-repository request PR targeting main
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact trusted workflow head SHA
+        required: true
+        type: string
+      expected_request_head_sha:
+        description: Exact request PR head SHA
+        required: true
+        type: string
+      release_branch_prefix:
+        description: Non-protected branch prefix for the Production candidate
+        required: true
+        type: string
+      validation_branch_prefix:
+        description: Non-protected branch prefix for exact candidate validation
+        required: true
+        type: string
+      validation_base_branch_prefix:
+        description: Governed non-protected validation base prefix
+        required: true
+        type: string
+      confirmation:
+        description: Type AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST
+        required: true
+        type: string
 
 permissions:
   actions: write
@@ -18,18 +45,56 @@ concurrency:
 jobs:
   converge-source-pinned-candidate:
     name: Converge current source-pinned Production candidate
-    if: >-
-      github.event.pull_request.base.ref == 'main' &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'gpt/request-production-promotion-') &&
-      github.event.pull_request.title == 'ops: request governed Production synchronization'
+    if: github.event_name == 'workflow_dispatch' && inputs.confirmation == 'AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST'
     runs-on: ubuntu-latest
     timeout-minutes: 240
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      REQUEST_PR: ${{ github.event.pull_request.number }}
+      REQUEST_PR: ${{ inputs.request_pr }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      EXPECTED_REQUEST_HEAD_SHA: ${{ inputs.expected_request_head_sha }}
+      CURRENT_HEAD_SHA: ${{ github.sha }}
+      RELEASE_BRANCH_PREFIX: ${{ inputs.release_branch_prefix }}
+      VALIDATION_BRANCH_PREFIX: ${{ inputs.validation_branch_prefix }}
+      VALIDATION_BASE_BRANCH_PREFIX: ${{ inputs.validation_base_branch_prefix }}
     steps:
+      - name: Validate governed dispatch identity and exact heads
+        shell: bash
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -Eeuo pipefail
+          reject() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          [[ "$CONFIRMATION" == "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST" ]] || reject "typed confirmation mismatch"
+          [[ "$REQUEST_PR" =~ ^[1-9][0-9]*$ ]] || reject "request_pr must be a positive integer"
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_head_sha must be an exact lowercase SHA"
+          [[ "$EXPECTED_REQUEST_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || reject "expected_request_head_sha must be an exact lowercase SHA"
+          [[ "$CURRENT_HEAD_SHA" == "$EXPECTED_HEAD_SHA" ]] || reject "expected head mismatch: current workflow head is not authorized"
+          [[ "$GITHUB_REF_NAME" == "main" ]] || reject "launcher must be dispatched from trusted main"
+
+          for prefix in "$RELEASE_BRANCH_PREFIX" "$VALIDATION_BRANCH_PREFIX" "$VALIDATION_BASE_BRANCH_PREFIX"; do
+            [[ -n "$prefix" ]] || reject "branch prefix must not be empty"
+            git check-ref-format --branch "${prefix}-probe" >/dev/null 2>&1 || reject "invalid branch prefix"
+            case "$prefix" in
+              main|main/*|Production|Production/*)
+                reject "branch prefix must reject main and Production"
+                ;;
+            esac
+          done
+
+          request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"
+          gh pr view "$REQUEST_PR" --repo "$REPOSITORY"             --json state,title,headRefOid,headRepositoryOwner,baseRefName             > "$request_file"
+          [[ "$(jq -r '.state' "$request_file")" == "OPEN" ]] || reject "request PR is not open"
+          [[ "$(jq -r '.baseRefName' "$request_file")" == "main" ]] || reject "request PR must target main"
+          [[ "$(jq -r '.headRepositoryOwner.login' "$request_file")" == "$GITHUB_REPOSITORY_OWNER" ]] || reject "request PR must belong to this repository owner"
+          [[ "$(jq -r '.headRefOid' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR expected head SHA mismatch"
+          [[ "$(jq -r '.title' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"
+
       - name: Initialize bounded convergence evidence path
         shell: bash
         run: |
@@ -169,9 +234,9 @@ jobs:
             MAIN_SHORT="${MAIN_SHA:0:12}"
             PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
             ATTEMPT_SUFFIX="a${attempt}-${GITHUB_RUN_ID}"
-            RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
-            VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
-            VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            RELEASE_BRANCH="${RELEASE_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BRANCH="${VALIDATION_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BASE_BRANCH="${VALIDATION_BASE_BRANCH_PREFIX}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
 
             echo "main=$MAIN_SHA Production=$PRODUCTION_SHA"
             echo "release_branch=$RELEASE_BRANCH"
