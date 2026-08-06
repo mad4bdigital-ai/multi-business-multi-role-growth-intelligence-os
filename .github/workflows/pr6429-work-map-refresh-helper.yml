@@ -25,43 +25,75 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Generate and validate exact-head Work Maps
+      - name: Prepare final tree and generate exact-head Work Maps
         shell: bash
         run: |
           set -euo pipefail
+          helper='.github/workflows/pr6429-work-map-refresh-helper.yml'
+          test -f "${helper}"
+          rm "${helper}"
+          test ! -e "${helper}"
+
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          unexpected="$(git diff --name-only | grep -v '^docs/work-maps/' | grep -v '^.github/workflows/pr6429-work-map-refresh-helper.yml$' || true)"
-          if [[ -n "${unexpected}" ]]; then
-            echo "Unexpected generated paths:"
-            printf '%s\n' "${unexpected}"
-            exit 1
-          fi
-          changed="$(git diff --name-only -- docs/work-maps | sort)"
-          expected=$'docs/work-maps/README.md\ndocs/work-maps/data-model-domain-map.md\ndocs/work-maps/work-map-coverage-matrix.md'
+
+          changed="$(git diff --name-only | LC_ALL=C sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/pr6429-work-map-refresh-helper.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/data-model-domain-map.md' \
+            'docs/work-maps/work-map-coverage-matrix.md' | LC_ALL=C sort)"
           if [[ "${changed}" != "${expected}" ]]; then
-            echo "Unexpected Work Map change set:"
+            echo 'Unexpected final-tree change set:'
             printf '%s\n' "${changed}"
             exit 1
           fi
 
-      - name: Run Work Map validation
+          map_changed="$(git diff --name-only -- docs/work-maps | LC_ALL=C sort)"
+          map_expected="$(printf '%s\n' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/data-model-domain-map.md' \
+            'docs/work-maps/work-map-coverage-matrix.md' | LC_ALL=C sort)"
+          if [[ "${map_changed}" != "${map_expected}" ]]; then
+            echo 'Unexpected Work Map change set:'
+            printf '%s\n' "${map_changed}"
+            exit 1
+          fi
+
+      - name: Run Work Map validation on final tree
         shell: bash
         run: |
           set -euo pipefail
+          test ! -e .github/workflows/pr6429-work-map-refresh-helper.yml
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Commit generated maps and remove helper
+      - name: Commit exact generated maps and helper deletion atomically
         shell: bash
         run: |
           set -euo pipefail
-          rm .github/workflows/pr6429-work-map-refresh-helper.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- docs/work-maps/README.md docs/work-maps/data-model-domain-map.md docs/work-maps/work-map-coverage-matrix.md
-          git add -u -- .github/workflows
+          git add -A -- \
+            .github/workflows/pr6429-work-map-refresh-helper.yml \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
+
+          staged="$(git diff --cached --name-only | LC_ALL=C sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/pr6429-work-map-refresh-helper.yml' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/data-model-domain-map.md' \
+            'docs/work-maps/work-map-coverage-matrix.md' | LC_ALL=C sort)"
+          if [[ "${staged}" != "${expected}" ]]; then
+            echo 'Unexpected staged change set:'
+            printf '%s\n' "${staged}"
+            exit 1
+          fi
+
           git diff --cached --check
           git commit -m "docs(work-maps): refresh PR 6429 exact-head maps"
           git push origin HEAD:gpt/generated/pr6429-work-map-refresh-20260806
