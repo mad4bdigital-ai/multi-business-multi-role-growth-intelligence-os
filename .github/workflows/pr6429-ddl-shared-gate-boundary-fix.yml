@@ -23,6 +23,7 @@ jobs:
       WORKFLOW_PATH: .github/workflows/pr6429-ddl-shared-gate-boundary-fix.yml
       PATCH_SCRIPT: .github/scripts/pr6429-ddl-shared-gate-boundary-fix.cjs
       BOOTSTRAP_SCRIPT: .github/scripts/pr6429-ddl-shared-gate-boundary-bootstrap.cjs
+      TEST_REBUILD_SCRIPT: .github/scripts/pr6429-ddl-shared-gate-test-rebuild.cjs
     steps:
       - name: Checkout exact helper head
         uses: actions/checkout@v5
@@ -52,41 +53,25 @@ jobs:
           set -euo pipefail
           evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
           mkdir -p "${evidence_root}"
+
           node "${BOOTSTRAP_SCRIPT}" | tee "${evidence_root}/bootstrap.json"
           node --check "${PATCH_SCRIPT}"
           PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" \
             node "${PATCH_SCRIPT}"
 
-          test_path='http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs'
-          git show "${BASE_SHA}:${test_path}" > "${test_path}"
-          node <<'NODE'
-          const fs = require('node:fs');
-          const testPath = 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs';
-          let source = fs.readFileSync(testPath, 'utf8');
-          const anchor = `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature'", 'feature allowlist evidence');`;
-          const replacement = [
-            `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature' and boundary_mode == 'contract_local'", 'contract-local feature allowlist evidence');`,
-            `requireFragment("'shared_gate_dependency_validated': candidate_mode == 'feature' and boundary_mode == 'shared_gate_dependency'", 'shared gate dependency evidence');`,
-            "requireFragment('BOUNDARY_MODE: ${{ steps.boundary.outputs.boundary_mode }}', 'boundary mode output binding');",
-            `requireFragment("boundary_mode='shared_gate_dependency'", 'shared gate dependency classification');`,
-            `requireFragment("boundary_mode='contract_local'", 'contract-local classification');`,
-            `requireFragment("shared_gate='^http-generic-api/scripts/e2e-parallel-pr-gate\\\\.mjs$'", 'shared gate exact-match pattern');`
-          ].join('\n');
-          const count = source.split(anchor).length - 1;
-          if (count !== 1) throw new Error(`feature evidence anchor count=${count}`);
-          source = source.replace(anchor, replacement);
-          fs.writeFileSync(testPath, source);
-          NODE
-          node --check "${test_path}"
+          BASE_SHA="${BASE_SHA}" node "${TEST_REBUILD_SCRIPT}" \
+            | tee "${evidence_root}/test-rebuild.json"
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
 
-          rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}"
+          rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}" "${TEST_REBUILD_SCRIPT}"
           git add -A -- \
             "${WORKFLOW_PATH}" \
             "${PATCH_SCRIPT}" \
             "${BOOTSTRAP_SCRIPT}" \
+            "${TEST_REBUILD_SCRIPT}" \
             .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
             .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
-            "${test_path}"
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
 
       - name: Create exact three-file candidate
         shell: bash
@@ -98,6 +83,7 @@ jobs:
           .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json
           .github/scripts/pr6429-ddl-shared-gate-boundary-bootstrap.cjs
           .github/scripts/pr6429-ddl-shared-gate-boundary-fix.cjs
+          .github/scripts/pr6429-ddl-shared-gate-test-rebuild.cjs
           .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
           .github/workflows/pr6429-ddl-shared-gate-boundary-fix.yml
           http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
@@ -109,6 +95,7 @@ jobs:
           test ! -e "${WORKFLOW_PATH}"
           test ! -e "${PATCH_SCRIPT}"
           test ! -e "${BOOTSTRAP_SCRIPT}"
+          test ! -e "${TEST_REBUILD_SCRIPT}"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
