@@ -1,0 +1,340 @@
+name: Repair Certified Release Governance 6473 V2
+
+on:
+  push:
+    branches:
+      - "fix/certified-release-cut-runner-context-20260806"
+    paths:
+      - ".changes/e2e/repair-certified-release-governance-6473-v2.trigger"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repair-certified-release-governance-6473-v2
+  cancel-in-progress: false
+
+jobs:
+  build-repair-candidate:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable branch and main bindings
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: a55e30d340cd63917939f8264e2d5c9af8c7bd8b
+          REQUIRED_ANCESTOR_SHA: f3fdccb45b5f9621197d603bd212ac7182fca956
+          WORK_BRANCH: fix/certified-release-cut-runner-context-20260806
+        run: |
+          set -Eeuo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]]
+          git fetch --no-tags origin \
+            "+refs/heads/${WORK_BRANCH}:refs/remotes/origin/${WORK_BRANCH}" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          [[ "$(git rev-parse refs/remotes/origin/${WORK_BRANCH})" == "$GITHUB_SHA" ]]
+          [[ "$(git rev-parse refs/remotes/origin/main)" == "$EXPECTED_MAIN_SHA" ]]
+          git merge-base --is-ancestor "$REQUIRED_ANCESTOR_SHA" "$GITHUB_SHA"
+
+      - name: Build source and governance repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -f \
+            .github/workflows/repair-certified-release-governance-6473.yml \
+            .github/workflows/repair-certified-release-governance-6473-v2.yml \
+            .changes/e2e/repair-certified-release-governance-6473.trigger \
+            .changes/e2e/repair-certified-release-governance-6473-v2.trigger
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
+          source = workflow_path.read_text().splitlines(keepends=True)
+          removable_steps = {
+              'Record certified validation start',
+              'Record direct ARM CI start',
+              'Record certified validation success',
+              'Record certified validation failure',
+          }
+          output = []
+          index = 0
+          inserted_selector = False
+          while index < len(source):
+              line = source[index]
+              stripped = line.strip()
+
+              if line == '    branches:\n' and output and output[-1].strip() == 'pull_request_target:':
+                  index += 1
+                  while index < len(source) and (not source[index].strip() or len(source[index]) - len(source[index].lstrip()) > 4):
+                      if source[index].strip().startswith('types:'):
+                          break
+                      index += 1
+                  continue
+
+              if stripped == 'issues: write':
+                  index += 1
+                  continue
+
+              if stripped.startswith('- name: '):
+                  step_name = stripped[len('- name: '):]
+                  if step_name in removable_steps:
+                      current_indent = len(line) - len(line.lstrip())
+                      index += 1
+                      while index < len(source):
+                          next_line = source[index]
+                          next_stripped = next_line.strip()
+                          next_indent = len(next_line) - len(next_line.lstrip())
+                          if next_stripped.startswith('- name: ') and next_indent == current_indent:
+                              break
+                          if next_stripped and next_indent < current_indent:
+                              break
+                          index += 1
+                      continue
+
+              if 'gpt/validate-certified-release-' in line:
+                  index += 1
+                  continue
+
+              if stripped.startswith('GH_TOKEN:') or stripped.startswith('VALIDATION_PR:'):
+                  index += 1
+                  continue
+
+              output.append(line)
+              if line == '    name: Validate certified immutable release cut\n':
+                  output.append("    if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\n")
+                  inserted_selector = True
+              index += 1
+
+          workflow = ''.join(output)
+          if not inserted_selector:
+              raise SystemExit('eligibility selector insertion point missing')
+          for forbidden in ('issues: write', 'gh pr comment', 'gpt/validate-certified-release-base-', 'gpt/validate-certified-release-candidate-'):
+              if forbidden in workflow:
+                  raise SystemExit(f'forbidden workflow literal remains: {forbidden}')
+          if workflow.count("if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')") != 1:
+              raise SystemExit('eligibility selector count mismatch')
+          workflow_path.write_text(workflow)
+
+          registration = """import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+
+          const workflowUrl = new URL('../.github/workflows/production-certified-release-cut-validation.yml', import.meta.url);
+          const workflow = fs.readFileSync(workflowUrl, 'utf8');
+          const finalizeIndex = workflow.indexOf('  finalize:');
+          assert.notEqual(finalizeIndex, -1, 'finalize job must exist');
+          const finalize = workflow.slice(finalizeIndex);
+          const envIndex = finalize.indexOf('    env:');
+          const stepsIndex = finalize.indexOf('    steps:');
+          assert.ok(envIndex >= 0 && stepsIndex > envIndex, 'finalize env must precede steps');
+          const jobEnv = finalize.slice(envIndex, stepsIndex);
+
+          assert.equal(jobEnv.includes('runner.'), false, 'job-level env must not use runner context');
+          assert.ok(finalize.includes('- name: Initialize runner-local evidence paths'));
+          assert.ok(finalize.includes('echo \"EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json\" >> \"$GITHUB_ENV\"'));
+          assert.ok(finalize.includes('echo \"CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json\" >> \"$GITHUB_ENV\"'));
+          assert.ok(workflow.includes('pull_request_target:'));
+          assert.ok(workflow.includes("if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"));
+          assert.match(workflow, /permissions:\n  contents: read/);
+          assert.doesNotMatch(workflow, /^\\s*[A-Za-z][A-Za-z-]*:\\s*write\\s*$/m);
+          assert.doesNotMatch(workflow, /gh pr comment/);
+          assert.doesNotMatch(workflow, /gpt\\/validate-certified-release-(?:base|candidate)-/);
+          assert.ok(finalize.includes('name: Publish certified release-cut evidence'));
+          assert.ok(finalize.includes('- name: Require successful direct ARM CI gates'));
+
+          console.log('production certified release-cut registration contract: pass');
+          """
+          Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs').write_text(registration)
+
+          convergence_path = Path('http-generic-api/test-production-promotion-convergence-workflows.mjs')
+          convergence = convergence_path.read_text()
+          remove_fragments = (
+              '/issues: write/',
+              '/gpt\\/validate-certified-release-base-\\*/',
+              '/gpt\\/validate-certified-release-candidate-/',
+              '/CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started/',
+              '/CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched/',
+              '/CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded/',
+              '/CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed/',
+          )
+          convergence_lines = []
+          selector_inserted = False
+          for line in convergence.splitlines(keepends=True):
+              if any(fragment in line for fragment in remove_fragments):
+                  continue
+              convergence_lines.append(line)
+              if line.strip() == '/pull_request_target:/,':
+                  convergence_lines.append('  /contents: read/,\n')
+                  convergence_lines.append("  /if: startsWith\\(github\\.event\\.pull_request\\.title, 'test\\(release\\): certify immutable Production candidate '\\)/,\n")
+                  selector_inserted = True
+          convergence = ''.join(convergence_lines)
+          if not selector_inserted:
+              raise SystemExit('convergence selector insertion point missing')
+
+          old_assertion = re.compile(
+              r'assert\\.doesNotMatch\\(\\n'
+              r'  certifiedJobHeader,\\n'
+              r'  /\\^    if:/m,\\n'
+              r'  "certified release-cut validation must not use a job-level eligibility condition",\\n'
+              r'\\);\\n'
+          )
+          replacement = """assert.match(
+            certifiedJobHeader,
+            /if: startsWith\\(github\\.event\\.pull_request\\.title, 'test\\(release\\): certify immutable Production candidate '\\)/,
+            "certified release-cut validation must use a branch-independent governed eligibility selector",
+          );
+          assert.doesNotMatch(certifiedReleaseCut, /issues:\\s*write/);
+          assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
+          assert.doesNotMatch(certifiedReleaseCut, /gpt\\/validate-certified-release-(?:base|candidate)-/);
+          """
+          convergence, replaced = old_assertion.subn(replacement, convergence)
+          if replaced != 1:
+              raise SystemExit(f'convergence eligibility assertion replacements={replaced}')
+          convergence_path.write_text(convergence)
+
+          e2e = {
+            "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+            "schema_version": 1,
+            "feature_key": "production-certified-release-cut-registration-context",
+            "title": "Production certified release-cut registration and lifecycle governance repair",
+            "delivery_mode": "single_pr",
+            "current_phase": "mvp",
+            "scope": {
+              "include": [
+                ".changes/e2e/production-certified-release-cut-registration-context.json",
+                ".github/workflows/production-certified-release-cut-validation.yml",
+                "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+                "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+              ]
+            },
+            "merge_contract": {"minimum_phase": "mvp"},
+            "phases": [
+              {
+                "id": "mvp",
+                "status": "implemented",
+                "objective": "Restore workflow registration at runner runtime while making the validation surface branch-independent and read-only.",
+                "e2e_journeys": [
+                  {
+                    "id": "register-and-run-certified-release-cut-validation",
+                    "end_to_end": True,
+                    "level": "synthetic_runtime",
+                    "actor": "GitHub Actions workflow registrar and certified release validator",
+                    "entrypoint": "A trusted same-repository pull request uses the governed certified-release title selector.",
+                    "terminal_outcome": "The workflow registers jobs, resolves evidence paths at runner runtime, validates dynamic head/base refs, and publishes artifacts without repository writes.",
+                    "steps": [
+                      "Select the evidence-only validation surface by governed pull-request title rather than branch literals.",
+                      "Validate the same-repository event and dynamic immutable head/base SHAs.",
+                      "Allocate the finalize runner and export evidence paths through GITHUB_ENV from RUNNER_TEMP.",
+                      "Run direct ARM validation and upload immutable evidence without comments or repository mutation."
+                    ],
+                    "assertions": [
+                      "No finalize job-level environment value references runner context.",
+                      "Both evidence paths are initialized in a runtime step.",
+                      "No work-branch name is embedded in the permanent workflow.",
+                      "The pull_request_target workflow has read-only permissions and contains no PR comment mutation.",
+                      "The direct ARM validation and immutable ancestry contracts remain enforced.",
+                      "No deployment, migration, provider call, credential payload read, or Production mutation is introduced.",
+                      "secrets_included is false."
+                    ],
+                    "tests": [
+                      {"id": "production-certified-release-cut-registration-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-production-certified-release-cut-validation-registration.mjs", "args": []},
+                      {"id": "production-promotion-convergence-workflow-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-production-promotion-convergence-workflows.mjs", "args": []}
+                    ],
+                    "evidence_paths": [
+                      ".github/workflows/production-certified-release-cut-validation.yml",
+                      "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+                      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+                    ]
+                  }
+                ]
+              },
+              {"id": "operational", "status": "planned", "objective": "Observe branch-independent registration and exact-head evidence publication across Draft and Ready validation cycles."},
+              {"id": "resilient", "status": "planned", "objective": "Keep registration fail-closed without reintroducing write permissions, branch literals, or job-level runner context."},
+              {"id": "canary", "status": "planned", "objective": "Prove a bounded same-repository validation cycle on the repaired read-only workflow."},
+              {"id": "production", "status": "planned", "objective": "Use the repaired validator only through the governed certified-release evidence path."}
+            ],
+            "secrets_included": False
+          }
+          Path('.changes/e2e/production-certified-release-cut-registration-context.json').write_text(json.dumps(e2e, indent=2) + '\n')
+          PY
+
+      - name: Validate source contracts and lifecycle policy
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --check http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          node --check http-generic-api/test-production-promotion-convergence-workflows.mjs
+          node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+          cat > "$RUNNER_TEMP/changed-files.txt" <<'EOF'
+          M	.github/workflows/production-certified-release-cut-validation.yml
+          M	.changes/e2e/production-certified-release-cut-registration-context.json
+          M	http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          M	http-generic-api/test-production-promotion-convergence-workflows.mjs
+          EOF
+          CANDIDATE_SHA="$GITHUB_SHA" BASE_SHA="a55e30d340cd63917939f8264e2d5c9af8c7bd8b" \
+            node http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs \
+              --changed-files "$RUNNER_TEMP/changed-files.txt" \
+              --output-dir "$RUNNER_TEMP/lifecycle"
+
+      - name: Generate current work maps from final source tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git diff --check
+          git diff --name-only | sort > "$RUNNER_TEMP/final-changed-files.txt"
+          cat "$RUNNER_TEMP/final-changed-files.txt"
+          python - <<'PY'
+          from pathlib import Path
+          allowed = {
+              '.github/workflows/production-certified-release-cut-validation.yml',
+              '.changes/e2e/production-certified-release-cut-registration-context.json',
+              'http-generic-api/test-production-certified-release-cut-validation-registration.mjs',
+              'http-generic-api/test-production-promotion-convergence-workflows.mjs',
+              'docs/work-maps/README.md',
+              'docs/work-maps/repository-automation-map.md',
+          }
+          actual = set(Path('/home/runner/work/_temp/final-changed-files.txt').read_text().splitlines())
+          unexpected = sorted(actual - allowed)
+          required = {
+              '.github/workflows/production-certified-release-cut-validation.yml',
+              '.changes/e2e/production-certified-release-cut-registration-context.json',
+              'http-generic-api/test-production-certified-release-cut-validation-registration.mjs',
+              'http-generic-api/test-production-promotion-convergence-workflows.mjs',
+          }
+          missing = sorted(required - actual)
+          if unexpected or missing:
+              raise SystemExit(f'unexpected={unexpected} missing={missing} actual={sorted(actual)}')
+          PY
+
+      - name: Build review artifact
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          OUT="$RUNNER_TEMP/candidate"
+          mkdir -p "$OUT"
+          while IFS= read -r path; do
+            mkdir -p "$OUT/$(dirname "$path")"
+            cp "$path" "$OUT/$path"
+          done < "$RUNNER_TEMP/final-changed-files.txt"
+          cp "$RUNNER_TEMP/final-changed-files.txt" "$OUT/changed-files.txt"
+          cp "$RUNNER_TEMP/lifecycle/repository-tool-lifecycle-report.json" "$OUT/repository-tool-lifecycle-report.json"
+          cp "$RUNNER_TEMP/lifecycle/repository-tool-lifecycle-report.md" "$OUT/repository-tool-lifecycle-report.md"
+          jq -n --arg source_sha "$GITHUB_SHA" --arg main_sha "a55e30d340cd63917939f8264e2d5c9af8c7bd8b" --arg run_id "$GITHUB_RUN_ID" --slurpfile lifecycle "$RUNNER_TEMP/lifecycle/repository-tool-lifecycle-report.json" '{contract:"mad4b.certified-release-governance-repair-candidate.v1",source_sha:$source_sha,main_sha:$main_sha,run_id:$run_id,lifecycle:$lifecycle[0],remote_write_executed:false,secrets_included:false}' > "$OUT/manifest.json"
+
+      - name: Upload governed repair candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-release-governance-repair-6473-v2-${{ github.sha }}
+          path: ${{ runner.temp }}/candidate
+          if-no-files-found: error
+          retention-days: 14
