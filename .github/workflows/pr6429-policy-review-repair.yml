@@ -1,0 +1,503 @@
+name: PR 6429 Policy Review Repair
+
+on:
+  push:
+    branches:
+      - gpt/github-main-policy-controller-20260805
+    paths:
+      - .github/workflows/pr6429-policy-review-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact work branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/github-main-policy-controller-20260805
+          fetch-depth: 0
+
+      - name: Apply bounded fail-closed review repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new, label):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one match, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          controller = "http-generic-api/githubRepositoryPolicyController.js"
+          tests = "http-generic-api/test-github-repository-policy-controller.mjs"
+
+          replace_once(
+              controller,
+              '''function matchesMainCondition(detail = {}, defaultBranch = "main") {
+            const include = uniqueStrings(detail.conditions?.ref_name?.include || []);
+            return include.includes("~DEFAULT_BRANCH") || include.includes(`refs/heads/${defaultBranch}`) || include.includes(defaultBranch);
+          }
+          ''',
+              '''function exactMainRefPattern(pattern, defaultBranch = "main") {
+            const normalized = compact(pattern || "", 255);
+            return ["~ALL", "~DEFAULT_BRANCH", `refs/heads/${defaultBranch}`, defaultBranch].includes(normalized);
+          }
+
+          function matchesMainCondition(detail = {}, defaultBranch = "main") {
+            const refName = detail.conditions?.ref_name || {};
+            const include = uniqueStrings(refName.include || []);
+            const exclude = uniqueStrings(refName.exclude || []);
+            const included = include.some((pattern) => exactMainRefPattern(pattern, defaultBranch));
+            const excluded = exclude.some((pattern) => exactMainRefPattern(pattern, defaultBranch));
+            return included && !excluded;
+          }
+          ''',
+              "match main include and exclude",
+          )
+
+          replace_once(
+              controller,
+              'function evaluateRuleset(detail = {}, checks, finalizerAppId) {',
+              'function evaluateRuleset(detail = {}, checks, finalizerAppId, target = {}) {',
+              "extend ruleset evaluator target",
+          )
+          replace_once(
+              controller,
+              '''  const matchingFinalizerBypassActors = bypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
+            return {
+          ''',
+              '''  const matchingFinalizerBypassActors = bypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
+            const sourceType = compact(detail.source_type || "", 64) || null;
+            const source = compact(detail.source || "", 255) || null;
+            const repositorySource = target.owner && target.repo ? `${target.owner}/${target.repo}` : null;
+            return {
+          ''',
+              "capture ruleset source",
+          )
+          replace_once(
+              controller,
+              '''    enforcement: detail.enforcement || null,
+              applies_to_main: matchesMainCondition(detail),
+          ''',
+              '''    enforcement: detail.enforcement || null,
+              source_type: sourceType,
+              source,
+              repository_owned: sourceType === "Repository" && source === repositorySource,
+              applies_to_main: matchesMainCondition(detail, target.default_branch || "main"),
+          ''',
+              "bind ruleset source and main condition",
+          )
+
+          replace_once(
+              controller,
+              '''  const rulesetDetails = rulesetsIndex.ok
+                ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetsIndex.payload, token, fetchImpl })
+                : [];
+          ''',
+              '''  const rulesetIndexEntries = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload)
+                ? rulesetsIndex.payload
+                : [];
+              const rulesetDetails = rulesetsIndex.ok
+                ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetIndexEntries, token, fetchImpl })
+                : [];
+              const rulesetDetailsReadable = rulesetsIndex.ok
+                && rulesetDetails.length === rulesetIndexEntries.length
+                && rulesetDetails.every((item) => item.status === 200 && item.detail);
+          ''',
+              "require complete ruleset detail readback",
+          )
+          replace_once(
+              controller,
+              '''  const evaluatedRulesets = rulesetDetails
+                .filter((item) => item.status === 200 && item.detail)
+                .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId));
+              const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
+              const managedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+          ''',
+              '''  const evaluatedRulesets = rulesetDetails
+                .filter((item) => item.status === 200 && item.detail)
+                .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId, target));
+              const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
+              const managedMainRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+              const repositoryManagedRulesets = managedMainRulesets.filter((item) => item.repository_owned);
+              const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+          ''',
+              "separate managed and repository owned rulesets",
+          )
+
+          replace_once(
+              controller,
+              '''  const missingChecks = checks.filter((check) => !observedChecks.includes(check));
+              const branchKnownUnprotected = branch.ok && branch.payload?.protected === false;
+              const classicKnownAbsent = classicProtection.status === 404;
+              const protectionReadable = [200, 404].includes(classicProtection.status)
+                && activeRules.ok
+                && rulesetsIndex.ok
+                && branch.ok;
+              const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+              const directPushBlocked = protectionReadable
+                && pullRequestRequired
+                && allBypassActors.length === 0
+                && !branchKnownUnprotected;
+              const autoMergeAllowed = repository.ok ? bool(repository.payload?.allow_auto_merge) : null;
+          ''',
+              '''  const missingChecks = checks.filter((check) => !observedChecks.includes(check));
+              const branchProtectionFlagKnown = branch.ok && typeof branch.payload?.protected === "boolean";
+              const branchProtected = branchProtectionFlagKnown ? branch.payload.protected : null;
+              const protectionReadable = [200, 404].includes(classicProtection.status)
+                && activeRules.ok
+                && rulesetsIndex.ok
+                && rulesetDetailsReadable
+                && branchProtectionFlagKnown;
+              const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+              const directPushBlocked = protectionReadable
+                && branchProtected === true
+                && pullRequestRequired
+                && allBypassActors.length === 0;
+              const autoMergeAllowed = repository.ok && typeof repository.payload?.allow_auto_merge === "boolean"
+                ? repository.payload.allow_auto_merge
+                : null;
+          ''',
+              "fail closed on unknown branch and repository flags",
+          )
+
+          replace_once(
+              controller,
+              '''  const proof = {
+                policy_state_readable: protectionReadable,
+          ''',
+              '''  const proof = {
+                policy_state_readable: protectionReadable,
+                ruleset_details_readable: rulesetDetailsReadable,
+                branch_protection_flag_known: branchProtectionFlagKnown,
+          ''',
+              "expose readback completeness proof",
+          )
+          replace_once(
+              controller,
+              '''  if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+          ''',
+              '''  if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+              if (!proof.ruleset_details_readable) findings.push("ruleset_detail_readback_incomplete");
+              if (!proof.branch_protection_flag_known) findings.push("branch_protection_flag_unknown");
+          ''',
+              "record readback completeness findings",
+          )
+          replace_once(
+              controller,
+              '''    branch_protected: branch.ok ? Boolean(branch.payload?.protected) : null,
+          ''',
+              '''    branch_protected: branchProtected,
+          ''',
+              "preserve unknown branch protection",
+          )
+          replace_once(
+              controller,
+              '''    ruleset_index_count: rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload) ? rulesetsIndex.payload.length : null,
+              ruleset_details: evaluatedRulesets,
+              managed_ruleset_count: managedRulesets.length,
+          ''',
+              '''    ruleset_index_count: rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload) ? rulesetsIndex.payload.length : null,
+              ruleset_detail_readable_count: rulesetDetails.filter((item) => item.status === 200 && item.detail).length,
+              ruleset_details: evaluatedRulesets,
+              managed_ruleset_count: managedMainRulesets.length,
+              repository_managed_ruleset_count: repositoryManagedRulesets.length,
+              active_managed_ruleset_count: activeManagedRulesets.length,
+          ''',
+              "report all managed ruleset counts",
+          )
+
+          replace_once(
+              controller,
+              '''  const managedRulesets = (readback?.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+              const existingManagedRuleset = managedRulesets.length === 1 ? managedRulesets[0] : null;
+          ''',
+              '''  const managedRulesets = (readback?.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+              const repositoryManagedRulesets = managedRulesets.filter((item) => item.repository_owned === true);
+              const existingManagedRuleset = managedRulesets.length === 1 && repositoryManagedRulesets.length === 1
+                ? repositoryManagedRulesets[0]
+                : null;
+              const managedRulesetBlocked = managedRulesets.length > 1
+                || (managedRulesets.length === 1 && repositoryManagedRulesets.length !== 1);
+          ''',
+              "resolve only repository owned managed ruleset",
+          )
+          replace_once(
+              controller,
+              '''    operation: existingManagedRuleset ? "update_ruleset" : "create_ruleset",
+          ''',
+              '''    operation: managedRulesetBlocked ? "blocked" : existingManagedRuleset ? "update_ruleset" : "create_ruleset",
+          ''',
+              "block ambiguous or inherited managed operation",
+          )
+          replace_once(
+              controller,
+              '''      managed_ruleset_ambiguity_absent: managedRulesets.length <= 1,
+              repository_auto_merge_disabled: readback?.proof?.auto_merge_disabled === true,
+          ''',
+              '''      managed_ruleset_ambiguity_absent: managedRulesets.length <= 1,
+              managed_ruleset_repository_owned: managedRulesets.length === 0 || (managedRulesets.length === 1 && repositoryManagedRulesets.length === 1),
+              repository_auto_merge_disabled: readback?.proof?.auto_merge_disabled === true,
+          ''',
+              "add repository ownership precondition",
+          )
+
+          replace_once(
+              controller,
+              '''  if (preReadback.managed_ruleset_count > 1) {
+                throw controllerError(409, "github_repository_policy_managed_ruleset_ambiguous", "More than one managed main policy Ruleset exists.");
+              }
+          ''',
+              '''  if (!plan.preconditions.managed_ruleset_ambiguity_absent || preReadback.managed_ruleset_count > 1) {
+                throw controllerError(409, "github_repository_policy_managed_ruleset_ambiguous", "More than one managed main policy Ruleset exists.");
+              }
+              if (!plan.preconditions.managed_ruleset_repository_owned) {
+                throw controllerError(409, "github_repository_policy_managed_ruleset_not_repository_owned", "The matching managed Ruleset is inherited and cannot be mutated by the repository controller.");
+              }
+          ''',
+              "validate managed ruleset ambiguity and ownership",
+          )
+          replace_once(
+              controller,
+              '''  const previousRuleset = (preReadback.ruleset_details || []).find((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main) || null;
+          ''',
+              '''  const previousRuleset = (preReadback.ruleset_details || []).find((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main && item.repository_owned === true) || null;
+          ''',
+              "restrict mutable previous ruleset",
+          )
+          replace_once(
+              controller,
+              '''  const managed = (postReadback.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+              const expectedRulesetFingerprint = plan.desired_ruleset_fingerprint;
+              const postconditions = {
+                main_sha_unchanged: postReadback.main_sha === preReadback.main_sha,
+                one_managed_ruleset: managed.length === 1,
+                ruleset_fingerprint_matches: managed.length === 1 && managed[0].policy_fingerprint === expectedRulesetFingerprint,
+          ''',
+              '''  const managed = (postReadback.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+              const repositoryManaged = managed.filter((item) => item.repository_owned === true);
+              const expectedRulesetFingerprint = plan.desired_ruleset_fingerprint;
+              const postconditions = {
+                main_sha_unchanged: postReadback.main_sha === preReadback.main_sha,
+                one_managed_ruleset: managed.length === 1 && repositoryManaged.length === 1,
+                ruleset_fingerprint_matches: repositoryManaged.length === 1 && repositoryManaged[0].policy_fingerprint === expectedRulesetFingerprint,
+          ''',
+              "require repository owned post readback",
+          )
+
+          replace_once(
+              tests,
+              'function desiredRuleset({ bypassActors = [], reviewCount = 1, missingCheck = null } = {}) {',
+              '''function desiredRuleset({
+            bypassActors = [],
+            reviewCount = 1,
+            missingCheck = null,
+            conditions = { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+            sourceType = "Repository",
+            source = `${OWNER}/${REPO}`,
+          } = {}) {''',
+              "extend desired ruleset fixture",
+          )
+          replace_once(
+              tests,
+              '''    enforcement: "active",
+                bypass_actors: bypassActors,
+                conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+          ''',
+              '''    enforcement: "active",
+                source_type: sourceType,
+                source,
+                bypass_actors: bypassActors,
+                conditions,
+          ''',
+              "add ruleset source fixture",
+          )
+          replace_once(
+              tests,
+              '''  repositoryAutoMerge = false,
+            } = {}) {
+          ''',
+              '''  repositoryAutoMerge = false,
+              repositoryAutoMergePresent = true,
+              rulesetDetailStatus = 200,
+            } = {}) {
+          ''',
+              "extend GitHub mock options",
+          )
+          replace_once(
+              tests,
+              '      return response(200, { allow_auto_merge: repositoryAutoMerge });',
+              '      return response(200, repositoryAutoMergePresent ? { allow_auto_merge: repositoryAutoMerge } : {});',
+              "mock unknown auto merge",
+          )
+          replace_once(
+              tests,
+              '''    if (path === `/repos/${OWNER}/${REPO}/rulesets/42` && method === "GET") {
+                if (!state.ruleset) return response(404, { message: "Not Found" });
+                return response(200, state.postReadbackRuleset || state.ruleset);
+              }
+          ''',
+              '''    if (path === `/repos/${OWNER}/${REPO}/rulesets/42` && method === "GET") {
+                if (!state.ruleset) return response(404, { message: "Not Found" });
+                if (rulesetDetailStatus !== 200) return response(rulesetDetailStatus, { message: "Ruleset detail unavailable" });
+                return response(200, state.postReadbackRuleset || state.ruleset);
+              }
+          ''',
+              "mock ruleset detail failure",
+          )
+          replace_once(
+              tests,
+              '''      state.ruleset = { id: 42, ...body };
+                state.mutations.push({ method, path, body });
+                return response(201, state.ruleset);
+          ''',
+              '''      state.ruleset = { id: 42, source_type: "Repository", source: `${OWNER}/${REPO}`, ...body };
+                state.mutations.push({ method, path, body });
+                return response(201, state.ruleset);
+          ''',
+              "preserve repository source on create",
+          )
+          replace_once(
+              tests,
+              '''      state.ruleset = { id: 42, ...body };
+                state.mutations.push({ method, path, body });
+                return response(200, state.ruleset);
+          ''',
+              '''      state.ruleset = { id: 42, source_type: "Repository", source: `${OWNER}/${REPO}`, ...body };
+                state.mutations.push({ method, path, body });
+                return response(200, state.ruleset);
+          ''',
+              "preserve repository source on update",
+          )
+
+          regression = '''
+            {
+              const excluded = desiredRuleset({
+                conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: ["~DEFAULT_BRANCH"] } },
+              });
+              const mock = createGithubFetch({ initialRuleset: excluded });
+              const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+              assert.equal(readback.ruleset_details[0].applies_to_main, false);
+              assert.equal(readback.managed_ruleset_count, 0);
+              assert.equal(readback.proof.server_policy_gate_complete, false);
+            }
+
+            {
+              const mock = createGithubFetch({
+                initialRuleset: desiredRuleset(),
+                repositoryAutoMergePresent: false,
+              });
+              const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+              assert.equal(readback.repository_auto_merge_allowed, null);
+              assert.equal(readback.proof.auto_merge_disabled, false);
+              assert.equal(readback.proof.server_policy_gate_complete, false);
+            }
+
+            {
+              const mock = createGithubFetch({
+                initialRuleset: desiredRuleset(),
+                rulesetDetailStatus: 403,
+              });
+              const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+              assert.equal(readback.proof.ruleset_details_readable, false);
+              assert.equal(readback.proof.policy_state_readable, false);
+              assert.ok(readback.findings.includes("ruleset_detail_readback_incomplete"));
+              assert.equal(readback.proof.server_policy_gate_complete, false);
+            }
+
+            {
+              const inherited = desiredRuleset({ sourceType: "Organization", source: OWNER });
+              const mock = createGithubFetch({ initialRuleset: inherited });
+              const planResult = await runGithubRepositoryPolicyController(
+                { mode: "plan", owner: OWNER, repo: REPO },
+                controllerDeps(mock.fetchImpl)
+              );
+              assert.equal(planResult.readback.ruleset_details[0].repository_owned, false);
+              assert.equal(planResult.operation, "blocked");
+              assert.equal(planResult.preconditions.managed_ruleset_repository_owned, false);
+              await expectCode(
+                runGithubRepositoryPolicyController({
+                  mode: "apply",
+                  owner: OWNER,
+                  repo: REPO,
+                  expected_main_sha: MAIN_SHA,
+                  expected_policy_fingerprint: planResult.policy_fingerprint,
+                  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+                  capability_envelope_id: "env-policy-1",
+                }, controllerDeps(mock.fetchImpl)),
+                "github_repository_policy_managed_ruleset_not_repository_owned"
+              );
+              assert.equal(mock.state.mutations.length, 0);
+            }
+
+            {
+              const mock = createGithubFetch({ initialRuleset: desiredRuleset() });
+              const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+              const duplicate = { ...readback.ruleset_details[0], id: 43, enforcement: "evaluate" };
+              const duplicateReadback = {
+                ...readback,
+                ruleset_details: [...readback.ruleset_details, duplicate],
+                managed_ruleset_count: 2,
+                repository_managed_ruleset_count: 2,
+              };
+              const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, duplicateReadback);
+              assert.equal(plan.operation, "blocked");
+              assert.equal(plan.preconditions.managed_ruleset_ambiguity_absent, false);
+            }
+
+          '''
+          replace_once(
+              tests,
+              '  console.log(JSON.stringify({\n',
+              regression + '  console.log(JSON.stringify({\n',
+              "add fail closed regression coverage",
+          )
+          replace_once(
+              tests,
+              '''    postcondition_mismatch_rolls_back: true,
+                secrets_included: false,
+          ''',
+              '''    postcondition_mismatch_rolls_back: true,
+                excluded_main_ruleset_rejected: true,
+                unknown_repository_flags_rejected: true,
+                incomplete_ruleset_detail_readback_rejected: true,
+                inherited_managed_ruleset_rejected: true,
+                duplicate_managed_ruleset_rejected: true,
+                secrets_included: false,
+          ''',
+              "report new regression coverage",
+          )
+          PY
+
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate focused policy controller repair
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-github-repository-policy-controller.mjs
+          node test-repository-automation-policy-facade.mjs
+          node test-frontend-surface-dispatch.mjs
+
+      - name: Commit bounded repair and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/pr6429-policy-review-repair.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add http-generic-api/githubRepositoryPolicyController.js \
+                  http-generic-api/test-github-repository-policy-controller.mjs \
+                  .github/workflows/pr6429-policy-review-repair.yml
+          git diff --cached --check
+          git commit -m "fix(github): fail closed on ambiguous repository policy state"
+          git push origin HEAD:gpt/github-main-policy-controller-20260805
