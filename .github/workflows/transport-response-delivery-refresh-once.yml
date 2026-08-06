@@ -86,23 +86,12 @@ jobs:
               raise SystemExit("readLocalConnectorResponse marker mismatch")
           service = service.replace(function_marker, helper + function_marker, 1)
 
-          old_block = '''  if (payload.ok === false) {
-            const payloadCode = String(payload?.error?.code || "").trim();
-            const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
-            throw localConnectorError(
-              payloadCode || "connector_operation_failed",
-              payloadMessage,
-              status >= 400 ? status : 400,
-              {
-                operation,
-                reason: payloadCode || "operation_failed",
-                retryable: false,
-                upstream_status: status || null,
-                request_id: requestId,
-              },
-            );
-          }
-          '''
+          block_start_marker = "  if (payload.ok === false) {"
+          block_end_marker = "\n\n  return payload;"
+          if service.count(block_start_marker) != 1:
+              raise SystemExit("payload failure block start mismatch")
+          block_start = service.index(block_start_marker)
+          block_end = service.index(block_end_marker, block_start)
           new_block = '''  if (payload.ok === false) {
             const payloadCode = String(payload?.error?.code || "").trim();
             const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
@@ -121,11 +110,8 @@ jobs:
                 response_excerpt: redactConnectorExcerpt(responseText),
               },
             );
-          }
-          '''
-          if service.count(old_block) != 1:
-              raise SystemExit("payload failure block mismatch")
-          service = service.replace(old_block, new_block, 1)
+          }'''
+          service = service[:block_start] + new_block + service[block_end:]
           service_path.write_text(service, encoding="utf-8")
 
           test_path = Path("http-generic-api/test-local-connector-transport-errors.mjs")
