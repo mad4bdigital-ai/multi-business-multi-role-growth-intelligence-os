@@ -5,13 +5,17 @@ on:
     branches:
       - gpt/diagnostic/pr6429-blob-seed-20260806
 
+concurrency:
+  group: pr6429-reconciliation-blob-seed
+  cancel-in-progress: true
+
 permissions:
   actions: read
   contents: write
 
 jobs:
   seed:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     timeout-minutes: 10
     env:
       SOURCE_RUN_ID: "31115306868"
