@@ -60,6 +60,7 @@
             "The implementation journey performs no live GitHub policy mutation.",
             "Rulesets that explicitly or by pattern exclude main are never counted as applying to main.",
             "Missing branch protection booleans, missing repository auto-merge state, malformed indexes, or unreadable Ruleset details keep server_policy_gate_complete=false.",
+            "Every Ruleset index entry must expose a valid numeric ID and a successful detail readback before no-bypass posture can be proven.",
             "Managed Ruleset ambiguity counts active and inactive matching Rulesets before any apply."
           ],
           "tests": [
