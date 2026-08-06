@@ -1,4 +1,4 @@
-name: Repair Certified Release Runner Context
+name: Materialize Certified Release Repair Blobs
 
 on:
   push:
@@ -6,28 +6,32 @@ on:
       - fix/certified-release-cut-runner-context-20260806
 
 permissions:
-  contents: read
+  actions: read
+  contents: write
 
 concurrency:
   group: repair-certified-release-runner-context
   cancel-in-progress: false
 
 jobs:
-  repair:
+  materialize:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
+      GH_TOKEN: ${{ github.token }}
       EXPECTED_MAIN_SHA: a55e30d340cd63917939f8264e2d5c9af8c7bd8b
       TARGET_BRANCH: fix/certified-release-cut-runner-context-20260806
+      SOURCE_RUN_ID: "31080487142"
+      SOURCE_ARTIFACT: certified-release-runner-context-payload-31080487142
     steps:
-      - name: Checkout exact repair branch
+      - name: Checkout exact materialization head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify immutable repair binding
+      - name: Verify immutable branch and main binding
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -37,164 +41,109 @@ jobs:
           [[ "$(git rev-parse refs/remotes/origin/main)" == "$EXPECTED_MAIN_SHA" ]]
           [[ "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" == "$GITHUB_SHA" ]]
 
-      - name: Apply bounded registration-safe repair
+      - name: Download validated source payload
         shell: bash
         run: |
           set -Eeuo pipefail
-          python3 <<'PY'
-          import json
-          from pathlib import Path
+          mkdir -p payload
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$SOURCE_ARTIFACT" \
+            --dir payload
 
-          workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
-          test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
-          declaration_path = Path('.changes/e2e/production-certified-release-cut-registration-context.json')
+      - name: Verify payload hashes and contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          printf '%s  %s\n' \
+            '5a4c067e26aa60b36f0721578524e622af8b811691d0c1093bcd6dc116e65f5a' \
+            'payload/.github/workflows/production-certified-release-cut-validation.yml' \
+            'a4769b3e5b1b6272c9c1af91024664cb6bf8abf3c615a21d86d6254db9bb3dbb' \
+            'payload/http-generic-api/test-production-certified-release-cut-validation-registration.mjs' \
+            'a944d18ecf811df8120f555f9043ac725ae4f74a0177962745e67f430467ee57' \
+            'payload/.changes/e2e/production-certified-release-cut-registration-context.json' \
+            | sha256sum --check --strict
 
-          source = workflow_path.read_text()
-          lines = source.splitlines()
-          evidence_lines = [line for line in lines if line.strip().startswith('EVIDENCE_PATH:') and 'runner.temp' in line]
-          summary_lines = [line for line in lines if line.strip().startswith('CI_SUMMARY_PATH:') and 'runner.temp' in line]
-          if len(evidence_lines) != 1 or len(summary_lines) != 1:
-              raise SystemExit(f'expected one unsafe binding each; evidence={len(evidence_lines)} summary={len(summary_lines)}')
+          node --check payload/http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          node payload/http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          python3 -m json.tool payload/.changes/e2e/production-certified-release-cut-registration-context.json >/dev/null
+          ! grep -Eq '^      (EVIDENCE_PATH|CI_SUMMARY_PATH):.*runner\.temp' \
+            payload/.github/workflows/production-certified-release-cut-validation.yml
+          grep -Fq 'Initialize runner-local evidence paths' \
+            payload/.github/workflows/production-certified-release-cut-validation.yml
 
-          lines = [line for line in lines if line not in evidence_lines and line not in summary_lines]
-          finalize_index = lines.index('  finalize:')
-          steps_index = next(index for index in range(finalize_index + 1, len(lines)) if lines[index] == '    steps:')
-          initialization = [
-              '      - name: Initialize runner-local evidence paths',
-              '        shell: bash',
-              '        run: |',
-              '          set -Eeuo pipefail',
-              '          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"',
-              '          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"',
-              ''
-          ]
-          lines[steps_index + 1:steps_index + 1] = initialization
-          workflow_path.write_text('\n'.join(lines) + '\n')
-
-          test_path.write_text("""import assert from 'node:assert/strict';
-          import fs from 'node:fs';
-
-          const workflowUrl = new URL('../.github/workflows/production-certified-release-cut-validation.yml', import.meta.url);
-          const workflow = fs.readFileSync(workflowUrl, 'utf8');
-          const finalizeIndex = workflow.indexOf('  finalize:');
-          assert.notEqual(finalizeIndex, -1, 'finalize job must exist');
-          const finalize = workflow.slice(finalizeIndex);
-          const envIndex = finalize.indexOf('    env:');
-          const stepsIndex = finalize.indexOf('    steps:');
-          assert.ok(envIndex >= 0 && stepsIndex > envIndex, 'finalize env must precede steps');
-          const jobEnv = finalize.slice(envIndex, stepsIndex);
-
-          assert.equal(jobEnv.includes('runner.'), false, 'job-level env must not use runner context');
-          assert.ok(finalize.includes('- name: Initialize runner-local evidence paths'));
-          assert.ok(finalize.includes('echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"'));
-          assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));
-          assert.ok(workflow.includes('pull_request_target:'));
-          assert.ok(finalize.includes('name: Publish certified release-cut evidence'));
-          assert.ok(finalize.includes('- name: Require successful direct ARM CI gates'));
-
-          console.log('production certified release-cut registration contract: pass');
-          """.replace('          ', ''))
-
-          declaration = {
-              '$schema': '../../.specify/schemas/e2e-phases.schema.json',
-              'schema_version': 1,
-              'feature_key': 'production-certified-release-cut-registration-context',
-              'title': 'Production certified release-cut registration context repair',
-              'delivery_mode': 'single_pr',
-              'current_phase': 'mvp',
-              'scope': {'include': [str(declaration_path), str(workflow_path), str(test_path)]},
-              'merge_contract': {'minimum_phase': 'mvp'},
-              'phases': [
-                  {
-                      'id': 'mvp',
-                      'status': 'implemented',
-                      'objective': 'Restore workflow registration by resolving runner-local evidence paths only after runner allocation.',
-                      'e2e_journeys': [
-                          {
-                              'id': 'register-and-run-certified-release-cut-validation',
-                              'end_to_end': True,
-                              'level': 'synthetic_runtime',
-                              'actor': 'GitHub Actions workflow registrar and certified release validator',
-                              'entrypoint': 'A trusted same-repository validation pull request targets a governed certified-release base branch.',
-                              'terminal_outcome': 'The workflow registers jobs, initializes evidence paths from RUNNER_TEMP at step runtime, and preserves the immutable validation contract.',
-                              'steps': [
-                                  'Parse the workflow without evaluating runner context at job scope.',
-                                  'Allocate the finalize runner.',
-                                  'Export evidence paths through GITHUB_ENV from RUNNER_TEMP.',
-                                  'Run the unchanged validation, evidence, and no-mutation checks.'
-                              ],
-                              'assertions': [
-                                  'No finalize job-level environment value references runner context.',
-                                  'Both evidence paths are initialized in a runtime step.',
-                                  'The pull_request_target selector and direct ARM validation jobs remain unchanged.',
-                                  'No deployment, migration, provider call, credential payload read, or Production mutation is introduced.',
-                                  'secrets_included is false.'
-                              ],
-                              'tests': [
-                                  {
-                                      'id': 'production-certified-release-cut-registration-contract',
-                                      'runner': 'node',
-                                      'working_directory': 'http-generic-api',
-                                      'path': 'test-production-certified-release-cut-validation-registration.mjs',
-                                      'args': []
-                                  }
-                              ],
-                              'evidence_paths': [str(workflow_path), str(test_path)]
-                          }
-                      ]
-                  },
-                  {'id': 'operational', 'status': 'planned', 'objective': 'Observe registration and exact-head evidence publication across Draft and Ready validation cycles.'},
-                  {'id': 'resilient', 'status': 'planned', 'objective': 'Keep registration fail-closed without reintroducing job-level runner context.'},
-                  {'id': 'canary', 'status': 'planned', 'objective': 'Prove a bounded same-repository validation cycle on the repaired workflow.'},
-                  {'id': 'production', 'status': 'planned', 'objective': 'Use the repaired validator only through the existing governed certified-release path.'}
-              ],
-              'secrets_included': False
+      - name: Create detached Git blobs
+        id: blobs
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          create_blob() {
+            local path="$1"
+            jq -n --arg content "$(base64 -w0 "$path")" \
+              '{content: $content, encoding: "base64"}' \
+              | gh api --method POST \
+                  "repos/${GITHUB_REPOSITORY}/git/blobs" \
+                  --input - \
+                  --jq '.sha'
           }
-          declaration_path.write_text(json.dumps(declaration, indent=2) + '\n')
-          print('bounded source rewrite: pass')
-          PY
 
-          node --check http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-          node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-          python3 -m json.tool .changes/e2e/production-certified-release-cut-registration-context.json >/dev/null
-          git diff --check
-          echo 'bounded generated files validation: pass'
+          WORKFLOW_BLOB="$(create_blob payload/.github/workflows/production-certified-release-cut-validation.yml)"
+          TEST_BLOB="$(create_blob payload/http-generic-api/test-production-certified-release-cut-validation-registration.mjs)"
+          DECLARATION_BLOB="$(create_blob payload/.changes/e2e/production-certified-release-cut-registration-context.json)"
 
-      - name: Stage exact final scope and remove temporary files
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git rm .github/workflows/repair-certified-release-runner-context.yml
-          git rm .github/ops/certified-release-runner-context.trigger
-          git add \
-            .github/workflows/production-certified-release-cut-validation.yml \
-            http-generic-api/test-production-certified-release-cut-validation-registration.mjs \
-            .changes/e2e/production-certified-release-cut-registration-context.json
+          for sha in "$WORKFLOW_BLOB" "$TEST_BLOB" "$DECLARATION_BLOB"; do
+            [[ "$sha" =~ ^[0-9a-f]{40}$ ]]
+          done
 
-          EXPECTED="$(printf '%s\n' \
-            '.changes/e2e/production-certified-release-cut-registration-context.json' \
-            '.github/workflows/production-certified-release-cut-validation.yml' \
-            'http-generic-api/test-production-certified-release-cut-validation-registration.mjs' | sort)"
-          ACTUAL="$(git diff --cached --name-only "$EXPECTED_MAIN_SHA" | sort)"
-          printf 'Expected final scope:\n%s\nActual final scope:\n%s\n' "$EXPECTED" "$ACTUAL"
-          [[ "$ACTUAL" == "$EXPECTED" ]]
-          git diff --cached --check
+          {
+            echo "workflow_blob=$WORKFLOW_BLOB"
+            echo "test_blob=$TEST_BLOB"
+            echo "declaration_blob=$DECLARATION_BLOB"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Export validated repair payload
+          jq -n \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
+            --arg source_digest 'sha256:b8ca8b9c10b6d2265618d300b9c3045b1968bbfc8b5a27fe19e62a8d1064db4a' \
+            --arg expected_main_sha "$EXPECTED_MAIN_SHA" \
+            --arg expected_parent_sha "$GITHUB_SHA" \
+            --arg workflow_blob "$WORKFLOW_BLOB" \
+            --arg test_blob "$TEST_BLOB" \
+            --arg declaration_blob "$DECLARATION_BLOB" \
+            '{
+              repository: $repository,
+              source_run_id: $source_run_id,
+              source_artifact: $source_artifact,
+              source_digest: $source_digest,
+              expected_main_sha: $expected_main_sha,
+              expected_parent_sha: $expected_parent_sha,
+              blobs: [
+                {path: ".github/workflows/production-certified-release-cut-validation.yml", sha: $workflow_blob},
+                {path: "http-generic-api/test-production-certified-release-cut-validation-registration.mjs", sha: $test_blob},
+                {path: ".changes/e2e/production-certified-release-cut-registration-context.json", sha: $declaration_blob}
+              ],
+              delete_paths: [
+                ".github/workflows/repair-certified-release-runner-context.yml",
+                ".github/ops/certified-release-runner-context.trigger"
+              ],
+              ref_updated: false,
+              production_mutated: false,
+              secrets_included: false
+            }' > certified-release-repair-blob-manifest.json
+
+      - name: Upload detached blob manifest
         uses: actions/upload-artifact@v4
         with:
-          name: certified-release-runner-context-payload-${{ github.run_id }}
-          path: |
-            .github/workflows/production-certified-release-cut-validation.yml
-            http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-            .changes/e2e/production-certified-release-cut-registration-context.json
+          name: certified-release-repair-blob-manifest-${{ github.run_id }}
+          path: certified-release-repair-blob-manifest.json
           if-no-files-found: error
           retention-days: 7
 
-      - name: Verify connector handoff boundary
+      - name: Verify no ref mutation occurred
         shell: bash
         run: |
           set -Eeuo pipefail
           git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           [[ "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" == "$GITHUB_SHA" ]]
-          echo 'validated payload exported; branch mutation deferred to governed GitHub connector'
+          echo 'detached blobs created; no branch ref was updated by this workflow'
