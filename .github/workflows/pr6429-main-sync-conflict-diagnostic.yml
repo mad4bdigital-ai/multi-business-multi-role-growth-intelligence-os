@@ -1,6 +1,6 @@
 name: PR 6429 governed main reconciliation
 
-# trigger: capture-current-main-v5
+# trigger: capture-current-main-v6
 on:
   push:
     branches:
@@ -36,7 +36,7 @@ jobs:
           remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
           captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
           test "${remote_branch_head}" = "${expected_branch_head}"
-          test "${captured_main_head}" =~ ^[0-9a-f]{40}$
+          [[ "${captured_main_head}" =~ ^[0-9a-f]{40}$ ]]
           printf '%s\n' "${captured_main_head}" > /tmp/pr6429-pinned-main-sha
           git fetch --no-tags origin "${captured_main_head}"
 
