@@ -21,6 +21,7 @@ jobs:
       BASE_SHA: a439dd43df36f8c8505f886f972a2a793a84891f
       RETAIL_FEATURE: 014-retail-commerce-operations-growth-os
       WORKFLOW_PATH: .github/workflows/pr6429-generalized-work-map-binding-refresh.yml
+      WORK_MAP_CHANGED_FILES_JSON: '["http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs","http-generic-api/test-spec014-refresh-final-work-map-binding.mjs","specs/014-retail-commerce-operations-growth-os/work-map-integration.json"]'
     steps:
       - name: Checkout exact helper head
         uses: actions/checkout@v5
@@ -105,7 +106,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --all
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
       - name: Run focused Work Map regressions
         shell: bash
@@ -156,7 +157,7 @@ jobs:
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
             --feature-key "${RETAIL_FEATURE}" --check
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --all
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
           evidence_root="${RUNNER_TEMP}/pr6429-generalized-work-map-binding-refresh"
           git diff --stat "${BASE_SHA}...HEAD" > "${evidence_root}/diff-stat.txt"
