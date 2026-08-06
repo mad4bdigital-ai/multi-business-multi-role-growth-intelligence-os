@@ -1,0 +1,185 @@
+name: PR 6429 Main Reconciliation Candidate
+
+on:
+  push:
+    branches:
+      - gpt/diagnostic/pr6429-main-conflicts-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CANDIDATE_SHA: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
+      MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Merge exact main and resolve generated surfaces canonically
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$RUNNER_TEMP/pr6429-main-reconciliation-candidate"
+          rm -rf "$OUT"
+          mkdir -p "$OUT/new-blobs"
+
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git fetch --no-tags origin "$MAIN_SHA"
+          test "$(git rev-parse "$MAIN_SHA")" = "$MAIN_SHA"
+          git branch -f main "$MAIN_SHA"
+
+          set +e
+          git -c user.name=github-actions -c user.email=github-actions@github.com merge --no-commit --no-ff "$MAIN_SHA" > "$OUT/merge-output.txt" 2>&1
+          MERGE_STATUS=$?
+          set -e
+          test "$MERGE_STATUS" -eq 1
+
+          git diff --name-only --diff-filter=U | sort > "$OUT/conflict-files.txt"
+          cat > "$OUT/expected-conflict-files.txt" <<'FILES'
+          docs/work-maps/README.md
+          docs/work-maps/data-model-domain-map.md
+          docs/work-maps/work-map-coverage-matrix.md
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          FILES
+          diff -u "$OUT/expected-conflict-files.txt" "$OUT/conflict-files.txt"
+
+          while IFS= read -r file; do
+            git checkout --ours -- "$file"
+            git add "$file"
+          done < "$OUT/conflict-files.txt"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          npm ci --prefix http-generic-api
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+
+          (
+            cd http-generic-api
+            node scripts/openapi-precise-contract-registry-sync.mjs --write
+            node scripts/openapi-autofill-missing-routes.mjs --write
+            npm run frontend:dispatch:generate -- --baseline-ref=main
+            node scripts/generate-custom-gpt-schemas.mjs --write
+            node test-openapi-autofill-missing-routes.mjs
+            node test-frontend-operation-governance-generator.mjs
+            node test-frontend-surface-dispatch.mjs
+            node test-frontend-auth-openapi-parity.mjs
+            node test-openapi-route-coverage.mjs
+            npm run openapi:auth:check
+            npm run schemas:guard
+            node test-spec014-refresh-final-work-map-binding.mjs
+            node test-work-map-schema-classification.mjs
+            node test-work-map-schema-classification-contract.mjs
+            node test-work-map-autofix-diagnostics.mjs
+            node test-spec-kit-work-map-governance-gate.mjs
+          )
+
+          git add -A
+          git diff --cached --check
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "Merge main c6b933e2 into PR 6429 candidate"
+          RESOLVED_SHA="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^1)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^2)" = "$MAIN_SHA"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci
+          node http-generic-api/scripts/interruption-readiness.mjs --ci --target "$MAIN_SHA" --skip-worktree
+
+          export OUT RESOLVED_SHA
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const { execFileSync } = require('node:child_process');
+          const out = process.env.OUT;
+          const resolved = process.env.RESOLVED_SHA;
+          const candidate = process.env.CANDIDATE_SHA;
+          const main = process.env.MAIN_SHA;
+          const run = (args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
+          const entries = run(['diff', '--name-status', '-z', candidate, resolved]).split('\0').filter(Boolean);
+          const changes = [];
+          for (let i = 0; i < entries.length;) {
+            const status = entries[i++];
+            if (status.startsWith('R') || status.startsWith('C')) throw new Error(`Unexpected rename/copy status: ${status}`);
+            const file = entries[i++];
+            if (status === 'D') {
+              changes.push({ path: file, status, mode: null, type: 'blob', sha: null, source: 'delete' });
+              continue;
+            }
+            const line = run(['ls-tree', resolved, '--', file]);
+            const match = line.match(/^(\d+)\s+(\w+)\s+([0-9a-f]{40})\t/);
+            if (!match) throw new Error(`Unable to resolve tree entry for ${file}`);
+            const [, mode, type, sha] = match;
+            const parentSha = (ref) => {
+              try {
+                const value = run(['rev-parse', `${ref}:${file}`]);
+                return /^[0-9a-f]{40}$/.test(value) ? value : null;
+              } catch { return null; }
+            };
+            const candidateBlob = parentSha(candidate);
+            const mainBlob = parentSha(main);
+            let source = 'new';
+            if (sha === candidateBlob) source = 'candidate';
+            else if (sha === mainBlob) source = 'main';
+            if (source === 'new') {
+              const destination = path.join(out, 'new-blobs', file);
+              fs.mkdirSync(path.dirname(destination), { recursive: true });
+              fs.copyFileSync(file, destination);
+            }
+            changes.push({ path: file, status, mode, type, sha, source, candidate_blob_sha: candidateBlob, main_blob_sha: mainBlob });
+          }
+          const manifest = {
+            contract: 'mad4b.pr6429-main-reconciliation-candidate.v1',
+            candidate_sha: candidate,
+            main_sha: main,
+            local_resolved_commit_sha: resolved,
+            parents: [run(['rev-parse', `${resolved}^1`]), run(['rev-parse', `${resolved}^2`])],
+            tree_sha: run(['rev-parse', `${resolved}^{tree}`]),
+            changes,
+            new_blob_count: changes.filter((item) => item.source === 'new').length,
+            remote_write_executed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(out, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+          fs.writeFileSync(path.join(out, 'resolved-commit.txt'), `${resolved}\n`);
+          fs.writeFileSync(path.join(out, 'resolved-tree.txt'), `${manifest.tree_sha}\n`);
+          NODE
+
+          git show --stat --oneline --decorate HEAD > "$OUT/merge-stat.txt"
+          git diff --name-status "$CANDIDATE_SHA" HEAD > "$OUT/changes-vs-candidate.txt"
+          git diff --name-status "$MAIN_SHA" HEAD > "$OUT/changes-vs-main.txt"
+          git status --porcelain > "$OUT/final-status.txt"
+          test ! -s "$OUT/final-status.txt"
+
+      - name: Upload governed reconciliation candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-main-reconciliation-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr6429-main-reconciliation-candidate
+          if-no-files-found: error
+          retention-days: 7
