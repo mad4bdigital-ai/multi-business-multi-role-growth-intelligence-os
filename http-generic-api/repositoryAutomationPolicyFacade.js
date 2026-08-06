@@ -152,6 +152,17 @@ function authorityInput(input = {}) {
   };
 }
 
+function assertAdminApplyCaller(input = {}, deps = {}) {
+  const mode = compact(input.mode || "", 32).toLowerCase();
+  if (mode !== "apply") return;
+  const auth = deps.auth || {};
+  const callerType = compact(auth.caller_type || auth.callerType || "", 64).toLowerCase();
+  const role = compact(auth.role || auth.admin_role || "", 64).toLowerCase();
+  if (callerType !== "admin" && !["admin", "platform_admin", "super_admin"].includes(role) && auth.is_admin !== true) {
+    throw facadeError(403, "github_repository_policy_admin_required", "Policy apply requires an authenticated Admin caller.");
+  }
+}
+
 function assertStrictApplyAuthority(input = {}) {
   const mode = compact(input.mode || "", 32).toLowerCase();
   if (mode !== "apply") return;
@@ -169,6 +180,7 @@ function assertStrictApplyAuthority(input = {}) {
 
 export async function runGithubRepositoryPolicyController(input = {}, deps = {}) {
   assertSecretFree(input);
+  assertAdminApplyCaller(input, deps);
   assertStrictApplyAuthority(input);
   return runBaseGithubRepositoryPolicyController(input, deps);
 }
@@ -322,6 +334,7 @@ async function persistReceipt(pool, runId, output, status = "completed") {
 export async function runRepositoryAutomation(input = {}, deps = {}) {
   if (!isRepositoryPolicy(input)) return runBaseAutomation(input, deps);
   assertSecretFree(input);
+  assertAdminApplyCaller(input, deps);
   assertStrictApplyAuthority(input);
   const plan = buildRepositoryAutomationPlan(input);
   if (plan.mode !== "apply") {
