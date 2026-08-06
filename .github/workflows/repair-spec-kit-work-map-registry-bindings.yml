@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   repair:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     env:
       EXPECTED_BRANCH: fix/certified-release-registration-clean-20260806
