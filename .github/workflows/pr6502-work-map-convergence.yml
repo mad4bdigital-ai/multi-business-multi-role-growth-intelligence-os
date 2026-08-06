@@ -18,7 +18,7 @@ concurrency:
 jobs:
   converge:
     name: Regenerate final-tree maps and remove one-shot workflow
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 6a2b51cb03aedd13f56b7370aa9562a793541ac1
+      AUTHORIZED_PARENT_SHA: 5368d923f95a6ed3ab8b0d7659b4facea4775959
       ONE_SHOT_PATH: .github/workflows/pr6502-work-map-convergence.yml
     steps:
       - name: Checkout exact one-shot commit without marketplace actions
