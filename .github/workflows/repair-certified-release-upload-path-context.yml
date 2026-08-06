@@ -85,8 +85,8 @@ jobs:
           TEST_BLOB="$(jq -Rs '{content: ., encoding: "utf-8"}' < http-generic-api/test-production-certified-release-cut-validation-registration.mjs | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
           [[ "$WORKFLOW_BLOB" =~ ^[0-9a-f]{40}$ ]]
           [[ "$TEST_BLOB" =~ ^[0-9a-f]{40}$ ]]
-          echo "WORKFLOW_BLOB=$WORKFLOW_BLOB"
-          echo "TEST_BLOB=$TEST_BLOB"
+          echo "workflow_blob=$WORKFLOW_BLOB" >> "$GITHUB_OUTPUT"
+          echo "test_blob=$TEST_BLOB" >> "$GITHUB_OUTPUT"
           printf '{"source_head":"%s","workflow_blob":"%s","test_blob":"%s","secrets_included":false}\n' "$GITHUB_SHA" "$WORKFLOW_BLOB" "$TEST_BLOB" > "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
           cat "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
 
@@ -97,3 +97,42 @@ jobs:
           path: ${{ runner.temp }}/certified-release-upload-path-blob-manifest.json
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish one clean bounded repair commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW_BLOB: ${{ steps.blobs.outputs.workflow_blob }}
+          TEST_BLOB: ${{ steps.blobs.outputs.test_blob }}
+        run: |
+          set -Eeuo pipefail
+          CURRENT_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
+          test "$CURRENT_HEAD" = "$GITHUB_SHA"
+          BASE_TREE="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${GITHUB_SHA}" --jq .tree.sha)"
+
+          jq -n \
+            --arg base_tree "$BASE_TREE" \
+            --arg workflow_blob "$WORKFLOW_BLOB" \
+            --arg test_blob "$TEST_BLOB" \
+            '{
+              base_tree: $base_tree,
+              tree: [
+                {path: ".github/workflows/production-certified-release-cut-validation.yml", mode: "100644", type: "blob", sha: $workflow_blob},
+                {path: "http-generic-api/test-production-certified-release-cut-validation-registration.mjs", mode: "100644", type: "blob", sha: $test_blob},
+                {path: ".github/workflows/repair-certified-release-upload-path-context.yml", mode: "100644", type: "blob", sha: null},
+                {path: ".github/ops/certified-release-upload-path-context.trigger", mode: "100644", type: "blob", sha: null}
+              ]
+            }' > "$RUNNER_TEMP/repair-tree.json"
+          TREE_SHA="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input "$RUNNER_TEMP/repair-tree.json" --jq .sha)"
+
+          jq -n \
+            --arg message 'fix(ci): use runner context for certified release artifact paths' \
+            --arg tree "$TREE_SHA" \
+            --arg parent "$GITHUB_SHA" \
+            '{message: $message, tree: $tree, parents: [$parent]}' > "$RUNNER_TEMP/repair-commit.json"
+          COMMIT_SHA="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input "$RUNNER_TEMP/repair-commit.json" --jq .sha)"
+          [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          jq -n --arg sha "$COMMIT_SHA" '{sha: $sha, force: false}' > "$RUNNER_TEMP/repair-ref.json"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/heads/${GITHUB_REF_NAME}" --input "$RUNNER_TEMP/repair-ref.json" >/dev/null
+          echo "CLEAN_REPAIR_COMMIT=$COMMIT_SHA"
