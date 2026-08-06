@@ -28,7 +28,6 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4191'
-      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-push
     steps:
       - name: Checkout exact trusted main push
         uses: actions/checkout@v5
