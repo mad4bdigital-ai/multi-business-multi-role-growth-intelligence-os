@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     env:
       TARGET_BRANCH: fix/retire-production-runtime-parity-bridge-6441-20260806
-      PINNED_MAIN_SHA: fa225f7146498cd570d6126a9d228fbbf9edbb3e
+      PINNED_MAIN_SHA: c77c8f8faf13d650b458b2826088b1d75c3fe18f
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
     steps:
@@ -88,6 +88,9 @@ jobs:
 
           rm -f docs/work-maps/README.md docs/work-maps/repository-automation-map.md
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          git add -- \
+            docs/work-maps/README.md \
+            docs/work-maps/repository-automation-map.md
           test -z "$(git diff --name-only --diff-filter=U)"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
