@@ -1,6 +1,6 @@
 name: PR 6429 governed main reconciliation
 
-# trigger: execute-pinned-main-421c1ce-v4
+# trigger: capture-current-main-v5
 on:
   push:
     branches:
@@ -15,12 +15,11 @@ concurrency:
 
 jobs:
   reconcile:
-    name: Merge pinned main and regenerate conflicts
+    name: Merge captured main and regenerate conflicts
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       WORK_BRANCH: gpt/reconcile/pr6429-main-20260806
-      PINNED_MAIN_SHA: 421c1ce515aaac3d12ece384c85b6a8fc13216d2
       WORKFLOW_PATH: .github/workflows/pr6429-main-sync-conflict-diagnostic.yml
     steps:
       - name: Checkout reconciliation branch
@@ -29,21 +28,23 @@ jobs:
           fetch-depth: 0
           ref: gpt/reconcile/pr6429-main-20260806
 
-      - name: Verify immutable bindings
+      - name: Capture immutable branch and main bindings
         shell: bash
         run: |
           set -euo pipefail
           expected_branch_head='${{ github.sha }}'
           remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          remote_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
           test "${remote_branch_head}" = "${expected_branch_head}"
-          test "${remote_main_head}" = "${PINNED_MAIN_SHA}"
-          git fetch --no-tags origin "${PINNED_MAIN_SHA}"
+          test "${captured_main_head}" =~ ^[0-9a-f]{40}$
+          printf '%s\n' "${captured_main_head}" > /tmp/pr6429-pinned-main-sha
+          git fetch --no-tags origin "${captured_main_head}"
 
-      - name: Merge pinned main and resolve generated conflicts only
+      - name: Merge captured main and resolve generated conflicts only
         shell: bash
         run: |
           set -euo pipefail
+          PINNED_MAIN_SHA="$(cat /tmp/pr6429-pinned-main-sha)"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
@@ -182,8 +183,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          PINNED_MAIN_SHA="$(cat /tmp/pr6429-pinned-main-sha)"
           pre_push_remote="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          current_main="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
           test "${pre_push_remote}" = '${{ github.sha }}'
+          test "${current_main}" = "${PINNED_MAIN_SHA}"
 
           mkdir -p /tmp/pr6429-reconciliation-evidence
           {
@@ -193,6 +197,7 @@ jobs:
             echo 'resolution=regenerated_from_final_merged_tree'
             echo 'work_map_validation=official_autofix_contracts_plus_two-pass_idempotency'
             echo 'focused_tests=canonical_pr6429_e2e_contract_tests'
+            echo 'main_rechecked_before_push=true'
             echo 'force_push=false'
           } >> /tmp/pr6429-reconciliation-evidence/bindings.txt
           git diff --cached --name-only | sort > /tmp/pr6429-reconciliation-evidence/staged-paths.txt
