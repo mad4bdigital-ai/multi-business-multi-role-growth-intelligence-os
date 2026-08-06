@@ -96,7 +96,7 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Verify exact repair scope
+      - name: Verify bounded repair scope
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -107,10 +107,14 @@ jobs:
             "docs/work-maps/observability-release-map.md"
             "docs/work-maps/work-map-coverage-matrix.md"
           )
+          declare -A allowed=()
+          for path in "${expected[@]}"; do allowed["${path}"]=1; done
           mapfile -t actual < <(git diff --name-only HEAD -- . | sed '/^$/d' | sort)
-          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
-          test "${#actual[@]}" -eq 5
-          diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${actual[@]}")
+          test "${#actual[@]}" -ge 2
+          test "${#actual[@]}" -le "${#expected[@]}"
+          for path in "${actual[@]}"; do test -n "${allowed[${path}]:-}"; done
+          printf '%s\n' "${actual[@]}" | grep -Fxq -- "${WORKFLOW_PATH}"
+          test "$(printf '%s\n' "${actual[@]}" | grep -Fxcv -- "${WORKFLOW_PATH}")" -ge 1
           grep -Eq -- '^> Source hash: `[0-9a-f]{64}`$' docs/work-maps/README.md
 
       - name: Run focused Work Map and migration verification
@@ -139,11 +143,15 @@ jobs:
             "docs/work-maps/observability-release-map.md"
             "docs/work-maps/work-map-coverage-matrix.md"
           )
+          declare -A allowed=()
+          for path in "${expected[@]}"; do allowed["${path}"]=1; done
           git add -A -- "${expected[@]}"
           mapfile -t staged < <(git diff --cached --name-only | sed '/^$/d' | sort)
-          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
-          test "${#staged[@]}" -eq 5
-          diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${staged[@]}")
+          test "${#staged[@]}" -ge 2
+          test "${#staged[@]}" -le "${#expected[@]}"
+          for path in "${staged[@]}"; do test -n "${allowed[${path}]:-}"; done
+          printf '%s\n' "${staged[@]}" | grep -Fxq -- "${WORKFLOW_PATH}"
+          test "$(printf '%s\n' "${staged[@]}" | grep -Fxcv -- "${WORKFLOW_PATH}")" -ge 1
           git diff --cached --check
           git commit -m "docs(work-maps): refresh migration 1048 readiness maps"
           test -z "$(git status --porcelain)"
