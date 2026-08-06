@@ -105,14 +105,14 @@ jobs:
           git diff --cached --name-only | sort > "${actual_names}"
           diff -u "${expected_names}" "${actual_names}"
 
-          test "$(git diff --cached --name-status -- "${workflow}")" = "D${workflow}"
+          test "$(git diff --cached --name-status -- "${workflow}")" = "$(printf 'D\t%s' "${workflow}")"
           for path in \
             'docs/work-maps/README.md' \
             'docs/work-maps/data-model-domain-map.md' \
             'docs/work-maps/observability-release-map.md' \
             'docs/work-maps/work-map-coverage-matrix.md'
           do
-            test "$(git diff --cached --name-status -- "${path}")" = "M${path}"
+            test "$(git diff --cached --name-status -- "${path}")" = "$(printf 'M\t%s' "${path}")"
           done
 
           git config user.name 'github-actions[bot]'
