@@ -325,9 +325,33 @@ function buildDesiredRuleset(checks) {
   });
 }
 
+function refPatternMatchesMain(pattern = "", defaultBranch = "main") {
+  const value = compact(pattern, 255);
+  if (!value) return false;
+  const branchRef = `refs/heads/${defaultBranch}`;
+  if (["~DEFAULT_BRANCH", "~ALL", defaultBranch, branchRef].includes(value)) return true;
+  if (!value.includes("*") && !value.includes("?")) return false;
+  const wildcardSafe = value
+    .replace(/\*\*/g, "\u0000")
+    .replace(/\*/g, "\u0001")
+    .replace(/\?/g, "\u0002");
+  const escaped = wildcardSafe.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const source = escaped
+    .replace(/\u0000/g, ".*")
+    .replace(/\u0001/g, "[^/]*")
+    .replace(/\u0002/g, "[^/]");
+  try {
+    return new RegExp(`^${source}$`).test(branchRef);
+  } catch {
+    return false;
+  }
+}
+
 function matchesMainCondition(detail = {}, defaultBranch = "main") {
   const include = uniqueStrings(detail.conditions?.ref_name?.include || []);
-  return include.includes("~DEFAULT_BRANCH") || include.includes(`refs/heads/${defaultBranch}`) || include.includes(defaultBranch);
+  const exclude = uniqueStrings(detail.conditions?.ref_name?.exclude || []);
+  return include.some((pattern) => refPatternMatchesMain(pattern, defaultBranch))
+    && !exclude.some((pattern) => refPatternMatchesMain(pattern, defaultBranch));
 }
 
 function evaluateRuleset(detail = {}, checks, finalizerAppId) {
@@ -406,10 +430,17 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     githubRequest({ apiPath: `${base}/collaborators?affiliation=direct&per_page=100`, token, fetchImpl }),
   ]);
 
-  const rulesetDetails = rulesetsIndex.ok
-    ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetsIndex.payload, token, fetchImpl })
-    : [];
-  const collaboratorPermissions = collaborators.ok
+  const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);
+const rulesetIndex = rulesetsIndexReadable ? rulesetsIndex.payload : [];
+const rulesetDetails = rulesetsIndexReadable
+  ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetIndex, token, fetchImpl })
+  : [];
+const indexedRulesetIds = rulesetIndex.map((item) => Number(item?.id || 0)).filter(Boolean);
+const rulesetDetailsReadable = rulesetsIndexReadable
+  && indexedRulesetIds.length === rulesetIndex.length
+  && rulesetDetails.length === indexedRulesetIds.length
+  && rulesetDetails.every((item) => item.status === 200 && item.detail);
+const collaboratorPermissions = collaborators.ok
     ? await readCollaboratorPermissions({ owner: target.owner, repo: target.repo, collaborators: collaborators.payload, token, fetchImpl })
     : [];
 
@@ -421,7 +452,8 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     .filter((item) => item.status === 200 && item.detail)
     .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId));
   const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
-  const managedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+const managedRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
   const allBypassActors = mainRulesets.flatMap((item) => item.bypass_actors.map((actor) => ({ ...actor, ruleset_id: item.id, ruleset_name: item.name })));
   const matchingFinalizerBypassActors = allBypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
 
@@ -450,21 +482,28 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     ...activeStatusRules.flatMap((item) => (item?.parameters?.required_status_checks || []).map((entry) => entry?.context)),
   ]).sort();
   const missingChecks = checks.filter((check) => !observedChecks.includes(check));
-  const branchKnownUnprotected = branch.ok && branch.payload?.protected === false;
-  const classicKnownAbsent = classicProtection.status === 404;
-  const protectionReadable = [200, 404].includes(classicProtection.status)
-    && activeRules.ok
-    && rulesetsIndex.ok
-    && branch.ok;
-  const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
-  const directPushBlocked = protectionReadable
-    && pullRequestRequired
-    && allBypassActors.length === 0
-    && !branchKnownUnprotected;
-  const autoMergeAllowed = repository.ok ? bool(repository.payload?.allow_auto_merge) : null;
+  const branchReadable = branch.ok
+  && SHA_PATTERN.test(String(branch.payload?.commit?.sha || ""))
+  && typeof branch.payload?.protected === "boolean";
+const activeRulesReadable = activeRules.ok && Array.isArray(activeRules.payload);
+const classicProtectionReadable = classicProtection.status === 404
+  || (classicProtection.status === 200 && classicProtection.payload && typeof classicProtection.payload === "object");
+const repositoryAutoMergeReadable = repository.ok && typeof repository.payload?.allow_auto_merge === "boolean";
+const protectionReadable = classicProtectionReadable
+  && activeRulesReadable
+  && rulesetsIndexReadable
+  && rulesetDetailsReadable
+  && branchReadable;
+const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+const directPushBlocked = protectionReadable
+  && branch.payload.protected === true
+  && pullRequestRequired
+  && allBypassActors.length === 0;
+const autoMergeAllowed = repositoryAutoMergeReadable ? repository.payload.allow_auto_merge : null;
 
   const proof = {
     policy_state_readable: protectionReadable,
+    ruleset_details_readable: rulesetDetailsReadable,
     required_reviews_proven: requiredReviewCount >= 1,
     required_approving_review_count: requiredReviewCount || null,
     dismiss_stale_reviews_proven: dismissStale,
@@ -474,7 +513,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     missing_required_status_checks: missingChecks,
     direct_push_block_proven: directPushBlocked,
     finalizer_app_identity_resolved: finalizerAppId !== null,
-    finalizer_not_bypass_proven: finalizerAppId !== null && matchingFinalizerBypassActors.length === 0,
+    finalizer_not_bypass_proven: finalizerAppId !== null && rulesetDetailsReadable && matchingFinalizerBypassActors.length === 0,
     merge_queue_disabled_or_equivalent: !mergeQueueObserved,
     auto_merge_disabled: autoMergeAllowed === false,
   };
@@ -484,6 +523,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
 
   const findings = [];
   if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+  if (!proof.ruleset_details_readable) findings.push("ruleset_details_unreadable");
   if (!proof.required_reviews_proven) findings.push("required_review_missing");
   if (!proof.dismiss_stale_reviews_proven) findings.push("stale_review_dismissal_missing");
   if (!proof.required_review_thread_resolution_proven) findings.push("review_thread_resolution_missing");
@@ -499,7 +539,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     contract: GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION,
     mode: "readback",
     target,
-    main_sha: branch.ok ? branch.payload?.commit?.sha || null : null,
+    main_sha: branchReadable ? branch.payload.commit.sha : null,
     api_status: {
       repository: repository.status,
       branch: branch.status,
@@ -507,13 +547,15 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
       rulesets_index: rulesetsIndex.status,
       classic_branch_protection: classicProtection.status,
       collaborators: collaborators.status,
+      ruleset_details: rulesetDetails.map((item) => ({ id: item.id, status: item.status })),
     },
-    branch_protected: branch.ok ? Boolean(branch.payload?.protected) : null,
+    branch_protected: branchReadable ? branch.payload.protected : null,
     repository_auto_merge_allowed: autoMergeAllowed,
     active_rule_count: activeRuleList.length,
-    ruleset_index_count: rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload) ? rulesetsIndex.payload.length : null,
-    ruleset_details: evaluatedRulesets,
-    managed_ruleset_count: managedRulesets.length,
+    ruleset_index_count: rulesetsIndexReadable ? rulesetIndex.length : null,
+ruleset_details: evaluatedRulesets,
+managed_ruleset_count: managedRulesets.length,
+active_managed_ruleset_count: activeManagedRulesets.length,
     bypass_actors: allBypassActors,
     direct_collaborators: collaboratorPermissions,
     finalizer_identity: {

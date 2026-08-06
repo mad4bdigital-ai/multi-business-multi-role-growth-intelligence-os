@@ -57,7 +57,10 @@
             "Post-readback mismatch triggers rollback evidence and fails closed.",
             "Committed Frontend operation-governance, dispatch, and runtime-route artifacts match the canonical generator output for the synchronized main baseline.",
             "No token, private key, capability secret, provider credential, or raw authorization value appears in response or audit evidence.",
-            "The implementation journey performs no live GitHub policy mutation."
+            "The implementation journey performs no live GitHub policy mutation.",
+            "Rulesets that explicitly or by pattern exclude main are never counted as applying to main.",
+            "Missing branch protection booleans, missing repository auto-merge state, malformed indexes, or unreadable Ruleset details keep server_policy_gate_complete=false.",
+            "Managed Ruleset ambiguity counts active and inactive matching Rulesets before any apply."
           ],
           "tests": [
             {
