@@ -74,6 +74,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked API dependencies
+        shell: bash
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
 
       - name: Regenerate canonical Work Maps
         shell: bash
