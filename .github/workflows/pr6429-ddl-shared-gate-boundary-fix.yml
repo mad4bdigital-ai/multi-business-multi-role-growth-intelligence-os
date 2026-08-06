@@ -6,7 +6,7 @@ on:
       - gpt/fix/ddl-shared-gate-boundary-20260806
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: pr6429-ddl-shared-gate-boundary-fix
@@ -129,15 +129,45 @@ jobs:
             --head-ref "${WORK_BRANCH}" --base-ref "${BASE_BRANCH}" \
             --report-file "${evidence_root}/parallel-pr-gate.json"
 
-      - name: Push without force after immutable readback
+      - name: Package exact candidate after immutable readback
         shell: bash
         run: |
           set -euo pipefail
           test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
           test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
-          git push origin "HEAD:refs/heads/${WORK_BRANCH}"
-          final_sha="$(git rev-parse HEAD)"
-          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${final_sha}"
+
+          evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
+          bundle_root="${evidence_root}/final-files"
+          mkdir -p \
+            "${bundle_root}/.changes/e2e" \
+            "${bundle_root}/.github/workflows" \
+            "${bundle_root}/http-generic-api"
+          cp .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
+            "${bundle_root}/.changes/e2e/"
+          cp .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
+            "${bundle_root}/.github/workflows/"
+          cp http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
+            "${bundle_root}/http-generic-api/"
+
+          candidate_sha="$(git rev-parse HEAD)"
+          {
+            printf '{\n'
+            printf '  "ok": true,\n'
+            printf '  "source_sha": "%s",\n' "${GITHUB_SHA}"
+            printf '  "base_sha": "%s",\n' "${BASE_SHA}"
+            printf '  "candidate_sha": "%s",\n' "${candidate_sha}"
+            printf '  "pushed": false,\n'
+            printf '  "apply_mode": "github_contents_api",\n'
+            printf '  "files": [\n'
+            printf '    ".changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json",\n'
+            printf '    ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",\n'
+            printf '    "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"\n'
+            printf '  ],\n'
+            printf '  "secrets_included": false\n'
+            printf '}\n'
+          } > "${evidence_root}/candidate-bundle.json"
+          find "${bundle_root}" -type f -print0 | sort -z | xargs -0 sha256sum \
+            > "${evidence_root}/candidate-sha256.txt"
 
       - name: Upload bounded evidence
         if: always()
