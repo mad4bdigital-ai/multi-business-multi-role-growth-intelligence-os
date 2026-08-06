@@ -1,6 +1,8 @@
-attempt=1
+attempt=2
 pin_main_at_job_start=true
+recheck_main_before_blob_creation=true
 static_workspace_upload_paths=true
+focused_registration_contract=true
 publish_ref=false
 force_push=false
 production_mutation=false
