@@ -1,3 +1,33 @@
+import { DATA_SOURCE_MODE, findRows as findDataSourceRows } from "./dataSource.js";
+
+export function selectExistingJsonAssetRow(rows = [], assetKey = "") {
+  const normalizedAssetKey = String(assetKey || "").trim();
+  if (!normalizedAssetKey || !Array.isArray(rows)) return null;
+
+  for (let index = rows.length - 1; index >= 0; index -= 1) {
+    const row = rows[index];
+    if (!row || typeof row !== "object") continue;
+
+    const existingAssetKey = String(row.asset_key ?? row["asset_key"] ?? "").trim();
+    const transportStatus = String(
+      row.transport_status ?? row["transport_status"] ?? ""
+    ).trim();
+    const activeStatus = String(
+      row.active_status ?? row["active_status"] ?? ""
+    ).trim().toUpperCase();
+
+    if (
+      existingAssetKey === normalizedAssetKey &&
+      ["TRUE", "1", "YES", "ACTIVE"].includes(activeStatus) &&
+      transportStatus !== ""
+    ) {
+      return row;
+    }
+  }
+
+  return null;
+}
+
 export async function persistOversizedArtifact(input = {}, deps = {}) {
   const {
     getGoogleClients,
@@ -64,6 +94,8 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     classifyAssetHome,
     persistOversizedArtifactImpl,
     findExistingJsonAssetByAssetKey,
+    dataSourceMode = DATA_SOURCE_MODE,
+    findJsonAssetRows = findDataSourceRows,
     toJsonAssetRegistryRow,
     executionEntryTypes,
     executionClasses,
@@ -166,10 +198,20 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
 
   if (shouldPersistJsonAsset) {
     const nextAssetKey = `${String(input.endpoint_key || "unknown_endpoint").trim()}__${execution_trace_id}`;
+    const normalizedDataSourceMode = String(dataSourceMode || "sql").trim().toLowerCase();
     let existingAssetRow = null;
 
     try {
-      existingAssetRow = await findExistingJsonAssetByAssetKey(nextAssetKey);
+      if (normalizedDataSourceMode === "sheets") {
+        existingAssetRow = await findExistingJsonAssetByAssetKey(nextAssetKey);
+      } else {
+        const rows = await findJsonAssetRows(
+          jsonAssetRegistrySheet || "JSON Asset Registry",
+          "asset_key",
+          nextAssetKey
+        );
+        existingAssetRow = selectExistingJsonAssetRow(rows, nextAssetKey);
+      }
     } catch (err) {
       console.warn("[sinkOrchestration] findExistingJsonAssetByAssetKey failed — continuing:", err.message);
     }
@@ -272,7 +314,6 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     artifact_pointer: artifactPointer,
     artifact_json_asset_id: artifactJsonAssetId,
 
-    // governed logic evidence
     used_logic_id: input.used_logic_id ?? input.logic_id ?? "",
     used_logic_name: input.used_logic_name ?? input.logic_name ?? "",
     resolved_logic_doc_id: input.resolved_logic_doc_id ?? "",
@@ -282,14 +323,12 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     logic_rollback_status: input.logic_rollback_status ?? "",
     logic_association_status: input.logic_association_status ?? "not_associated",
 
-    // governed engine evidence
     used_engine_names: normalizedUsedEngineNames,
     used_engine_registry_refs: normalizedUsedEngineRegistryRefs,
     used_engine_file_ids: normalizedUsedEngineFileIds,
     engine_resolution_status: input.engine_resolution_status ?? "",
     engine_association_status: input.engine_association_status ?? "not_associated",
 
-    // execution context evidence
     user_input: input.user_input ?? "",
     matched_aliases: input.matched_aliases ?? "",
     route_keys: input.route_keys ?? "",
@@ -301,7 +340,6 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     score_after: input.score_after ?? "",
     performance_delta: input.performance_delta ?? "",
 
-    // execution state evidence
     route_status: input.route_status ?? "",
     route_source: input.route_source ?? "",
     matched_row_id: input.matched_row_id ?? "",
@@ -310,7 +348,6 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     failure_reason: input.failure_reason ?? "",
     recovery_action: input.recovery_action ?? "",
 
-    // auth + classification evidence
     credential_resolution_status: input.credential_resolution_status ?? "",
     runtime_capability_class: input.runtime_capability_class ?? "",
     primary_executor: input.primary_executor ?? "",
@@ -359,7 +396,6 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
     }
   }
 
-  // Non-blocking growth loop trigger evaluation (GAP 24)
   const growthLoopResult = { triggered: false, trigger_keys: [] };
   try {
     if (typeof deps?.evaluateGrowthLoopTriggers === "function") {
