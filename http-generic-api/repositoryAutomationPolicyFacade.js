@@ -208,6 +208,7 @@ export function buildRepositoryAutomationPlan(input = {}) {
     expected_policy_fingerprint_valid: FINGERPRINT_PATTERN.test(authority.expected_policy_fingerprint),
     capability_envelope_ref_sha256: authority.capability_envelope_id ? sha256(authority.capability_envelope_id) : null,
     capability_envelope_present: authority.capability_envelope_id.length > 0,
+    capability_envelope_id_valid: authority.capability_envelope_id.length > 0 && authority.capability_envelope_id.length <= 64,
     typed_confirmation_sha256: sha256(authority.confirm),
     typed_confirmation_matches: authority.confirm === GITHUB_REPOSITORY_POLICY_CONFIRMATION,
     secrets_included: false,
