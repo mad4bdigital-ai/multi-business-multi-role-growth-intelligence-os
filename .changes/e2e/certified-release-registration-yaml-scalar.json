@@ -9,7 +9,8 @@
     "include": [
       ".changes/e2e/certified-release-registration-yaml-scalar.json",
       ".github/workflows/production-certified-release-cut-validation.yml",
-      "http-generic-api/test-production-certified-release-cut-validation-registration.mjs"
+      "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
     ]
   },
   "merge_contract": {
@@ -27,17 +28,19 @@
           "level": "synthetic_runtime",
           "actor": "GitHub Actions workflow registrar and repository reviewer",
           "entrypoint": "The certified release-cut workflow is loaded from the pull-request candidate tree.",
-          "terminal_outcome": "Both title-gated jobs use complete quoted YAML scalars, the registration contract rejects the unsafe unquoted form, and no write or Production authority is introduced.",
+          "terminal_outcome": "Both title-gated jobs use complete quoted YAML scalars, the registration and convergence contracts reject the unsafe unquoted form, and no write or Production authority is introduced.",
           "steps": [
             "Load the candidate workflow and locate the validation and finalize job conditions.",
             "Verify that each startsWith title condition is wrapped as one quoted YAML scalar.",
+            "Run both the focused registration contract and the composed Production promotion convergence contract.",
             "Reject an unquoted condition containing the release title prefix and colon-space sequence.",
             "Confirm the workflow remains pull_request_target based with contents read permission and no PR comment write path."
           ],
           "assertions": [
             "The certified-release-cut-ci condition is quoted as a complete YAML scalar.",
             "The finalize condition is quoted as a complete YAML scalar.",
-            "The regression contract rejects both unsafe unquoted title-condition forms.",
+            "The focused registration contract rejects both unsafe unquoted title-condition forms.",
+            "The canonical Production promotion convergence contract requires the same quoted governed eligibility selector.",
             "The workflow retains read-only contents permission and does not introduce write, deployment, migration, provider, credential, runtime, or secret authority.",
             "secrets_included is false."
           ],
@@ -48,12 +51,20 @@
               "working_directory": "http-generic-api",
               "path": "test-production-certified-release-cut-validation-registration.mjs",
               "args": []
+            },
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/certified-release-registration-yaml-scalar.json",
             ".github/workflows/production-certified-release-cut-validation.yml",
-            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs"
+            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
           ]
         }
       ]
