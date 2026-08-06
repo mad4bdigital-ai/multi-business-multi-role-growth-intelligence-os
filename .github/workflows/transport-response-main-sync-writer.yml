@@ -1,4 +1,4 @@
-name: Transport Response Main Sync Writer
+name: Transport Response Main Sync Diagnostic
 
 on:
   push:
@@ -8,14 +8,14 @@ on:
       - .github/workflows/transport-response-main-sync-writer.yml
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: transport-response-main-sync-writer
+  group: transport-response-main-sync-diagnostic
   cancel-in-progress: false
 
 jobs:
-  sync:
+  diagnose:
     if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref == 'refs/heads/fix/transport-response-schema-promotion-readiness-20260806'
     runs-on: ubuntu-24.04
     steps:
@@ -24,27 +24,21 @@ jobs:
         with:
           ref: fix/transport-response-schema-promotion-readiness-20260806
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Verify pinned inputs and remove writer
+      - name: Verify pinned inputs
         shell: bash
         env:
-          EXPECTED_PR_HEAD: dbe15418f3ef4edf0336db181fa8ab1360726b73
+          EXPECTED_CONTENT_HEAD: dbe15418f3ef4edf0336db181fa8ab1360726b73
           EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
         run: |
           set -Eeuo pipefail
           workflow='.github/workflows/transport-response-main-sync-writer.yml'
           git fetch origin main
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git diff --name-only "${EXPECTED_PR_HEAD}" HEAD)" = "${workflow}"
-          git rm "${workflow}"
-          git diff --quiet "${EXPECTED_PR_HEAD}" -- .
-          test "$(git diff --cached --name-status -- "${workflow}")" = "$(printf 'D\t%s' "${workflow}")"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'chore(ci): remove temporary transport main sync writer'
+          test "$(git diff --name-only "${EXPECTED_CONTENT_HEAD}" HEAD)" = "${workflow}"
 
-      - name: Merge pinned main and resolve generated-map overlap
+      - name: Merge pinned main locally
         shell: bash
         env:
           EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
@@ -54,10 +48,8 @@ jobs:
           git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
           merge_rc=$?
           set -e
-
           mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
           if (( merge_rc != 0 )); then
-            test "${#conflicts[@]}" -gt 0
             test "${#conflicts[@]}" = '1'
             test "${conflicts[0]}" = 'docs/work-maps/README.md'
             git checkout --theirs -- docs/work-maps/README.md
@@ -65,7 +57,6 @@ jobs:
           else
             test "${#conflicts[@]}" = '0'
           fi
-
           test -f .git/MERGE_HEAD
           test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
           test -z "$(git diff --name-only --diff-filter=U)"
@@ -89,42 +80,43 @@ jobs:
           node --check http-generic-api/scripts/platform-work-map-generator.mjs
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          git add -A -- docs/work-maps
 
-      - name: Run focused repository-readiness checks
+      - name: Check pipeline connectivity
         shell: bash
-        run: |
-          set -Eeuo pipefail
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/test-platform-work-map-generator.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-          node http-generic-api/test-work-map-schema-classification.mjs
-          node http-generic-api/test-work-map-schema-classification-contract.mjs
-          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
-          node http-generic-api/test-transport-response-chunk-schema-recovery.mjs
-          node http-generic-api/scripts/surface-contract-discovery.mjs --check
+        run: node http-generic-api/scripts/pipeline-connectivity-check.mjs
 
-      - name: Commit and push bounded main synchronization
+      - name: Check Work Map schema contract
         shell: bash
-        env:
-          EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
-        run: |
-          set -Eeuo pipefail
-          test -f .git/MERGE_HEAD
-          test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
-          test -z "$(git diff --name-only --diff-filter=U)"
-          test -z "$(git diff --name-only)"
-          git diff --cached --check
-          git commit -m 'chore(sync): merge main into migration 1048 readiness'
+        run: node http-generic-api/scripts/work-map-schema-classification-contract.mjs
 
-          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF-1}')" = '2'
-          test "$(git rev-parse HEAD^2)" = "${EXPECTED_MAIN_SHA}"
-          test ! -e .github/workflows/transport-response-main-sync-writer.yml
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/surface-contract-discovery.mjs --check
+      - name: Check Work Map schema classification
+        shell: bash
+        run: node http-generic-api/scripts/work-map-schema-classification.mjs
 
-          unexpected="$(git diff --name-only "${EXPECTED_MAIN_SHA}" HEAD | grep -Ev '^(\.changes/e2e/transport-response-schema-promotion-readiness\.json|Updating Registry Patch Index\.md|deployment_parity_checklist\.md|docs/ai-docs-agent-governance\.md|docs/auto-docs-agent/README\.md|docs/change-documentation-governance\.md|docs/surface-contract-(discovery-status|gap-queue)\.(json|md)|docs/work-maps/[^/]+\.md|http-generic-api/migrations/1048_transport_response_chunk_schema_recovery\.sql)$' || true)"
-          test -z "${unexpected}"
-          git push origin HEAD:fix/transport-response-schema-promotion-readiness-20260806
+      - name: Test Work Map generator
+        shell: bash
+        run: node http-generic-api/test-platform-work-map-generator.mjs
+
+      - name: Test pipeline connectivity
+        shell: bash
+        run: node http-generic-api/test-pipeline-connectivity-check.mjs
+
+      - name: Test Work Map schema classification
+        shell: bash
+        run: node http-generic-api/test-work-map-schema-classification.mjs
+
+      - name: Test Work Map schema contract
+        shell: bash
+        run: node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Test Spec Kit Work Map governance
+        shell: bash
+        run: node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+
+      - name: Test migration 1048 regression
+        shell: bash
+        run: node http-generic-api/test-transport-response-chunk-schema-recovery.mjs
+
+      - name: Check Surface Contract outputs
+        shell: bash
+        run: node http-generic-api/scripts/surface-contract-discovery.mjs --check
