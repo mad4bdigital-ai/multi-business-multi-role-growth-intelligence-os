@@ -9,6 +9,7 @@ import { evaluateRepository } from "./e2e-phase-governance.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const POLICY = path.resolve(HERE, "..", "..", ".specify", "e2e-phase-governance.json");
+const policy = JSON.parse(fs.readFileSync(POLICY, "utf8"));
 const run = (args, cwd) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 const journey = {
   id: "maintenance",
@@ -103,6 +104,17 @@ run(["add", "."], root);
 run(["commit", "-m", "covered maintenance"], root);
 const coveredSha = run(["rev-parse", "HEAD"], root);
 
+const ownershipNeutralBindingOnly = evaluateRepository({
+  root,
+  policy,
+  changedFiles: ["specs/001-example/work-map-integration.json"]
+}).report;
+assert.equal(ownershipNeutralBindingOnly.ok, true, JSON.stringify(ownershipNeutralBindingOnly.findings));
+assert.equal(
+  ownershipNeutralBindingOnly.findings.some((finding) => finding.code === "e2e_phase_contract_not_changed_with_feature"),
+  false
+);
+
 const covered = evaluate(root, baseSha, coveredSha);
 assert.equal(covered.ok, true, JSON.stringify(covered.findings));
 assert.equal(covered.single_pr_maintenance_contract?.contract_path, ".changes/e2e/001-example-maintenance.json");
@@ -148,8 +160,9 @@ assert(reopened.findings.some((finding) => finding.code === "e2e_phase_contract_
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 10,
+  tests: 11,
   contract: "single_pr_maintenance_evaluator_exception",
+  ownership_neutral_work_map_binding_refresh: true,
   independently_revalidated: true,
   fail_closed_for_non_main_under_scope_ambiguity_and_reopened_parallel_delivery: true,
   secrets_included: false
