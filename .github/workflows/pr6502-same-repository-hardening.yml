@@ -12,13 +12,13 @@ permissions:
   issues: write
 
 concurrency:
-  group: pr-6502-same-repository-hardening-${{ github.sha }}
-  cancel-in-progress: false
+  group: pr-6502-same-repository-hardening
+  cancel-in-progress: true
 
 jobs:
   harden:
     name: Harden launcher identity and generate final-tree maps
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 32385bbf440c32faafc2bdfca8d7d75cc55de9d1
+      AUTHORIZED_PARENT_SHA: fd569fab9d935f89f5d25c8b0f4c4b74dc028d82
       ONE_SHOT_PATH: .github/workflows/pr6502-same-repository-hardening.yml
       LAUNCHER_PATH: .github/workflows/governed-production-promotion-request-launcher.yml
       TEST_PATH: http-generic-api/test-production-promotion-convergence-workflows.mjs
@@ -78,7 +78,7 @@ jobs:
           const testPath = process.env.TEST_PATH;
           let launcher = fs.readFileSync(launcherPath, "utf8");
           const blockStart = '          request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"\n';
-          const blockEnd = '          [[ "$(jq -r \' .title\' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"\n'.replace("' .title'", "'.title'");
+          const blockEnd = '          [[ "$(jq -r \'.title\' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"\n';
           const start = launcher.indexOf(blockStart);
           const endStart = launcher.indexOf(blockEnd, start);
           if (start < 0 || endStart < 0 || launcher.indexOf(blockStart, start + 1) !== -1) {
