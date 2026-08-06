@@ -35,14 +35,25 @@ for (const relativePath of r7Paths) {
 }
 
 const workflowRoot = path.join(root, ".github/workflows");
-const liveWorkflowText = fs.readdirSync(workflowRoot)
+const liveWorkflows = fs.readdirSync(workflowRoot)
   .filter((name) => name.endsWith(".yml") || name.endsWith(".yaml"))
   .sort()
-  .map((name) => fs.readFileSync(path.join(workflowRoot, name), "utf8"))
-  .join("\n");
+  .map((name) => ({
+    name,
+    text: fs.readFileSync(path.join(workflowRoot, name), "utf8"),
+  }));
+const retiredBridgeMarkerPattern = /RUN_PRODUCTION_RUNTIME_PARITY\b|production-runtime-parity-comment-bridge/u;
+const closedControlIssueBindingPattern = /github\.event\.issue\.number\s*==\s*4953/u;
+for (const workflow of liveWorkflows) {
+  assert.equal(
+    retiredBridgeMarkerPattern.test(workflow.text) && closedControlIssueBindingPattern.test(workflow.text),
+    false,
+    `live workflow must not retain the retired bridge bound to closed control issue #4953: ${workflow.name}`,
+  );
+}
+const liveWorkflowText = liveWorkflows.map((workflow) => workflow.text).join("\n");
 assert.doesNotMatch(liveWorkflowText, /RUN_PRODUCTION_RUNTIME_PARITY\b/u);
 assert.doesNotMatch(liveWorkflowText, /production-runtime-parity-comment-bridge/u);
-assert.doesNotMatch(liveWorkflowText, /github\.event\.issue\.number\s*==\s*4953/u);
 
 const r7Workflow = fs.readFileSync(path.join(root, r7Paths[0]), "utf8");
 assert.match(r7Workflow, /^  issue_comment:\n    types: \[created\]$/mu);
