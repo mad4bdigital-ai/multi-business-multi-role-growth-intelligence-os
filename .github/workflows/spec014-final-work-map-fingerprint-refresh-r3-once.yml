@@ -1,4 +1,5 @@
 name: Spec 014 Final Work Map Fingerprint Refresh R3 Once
+# Initialized after workflow registration.
 
 on:
   push:
