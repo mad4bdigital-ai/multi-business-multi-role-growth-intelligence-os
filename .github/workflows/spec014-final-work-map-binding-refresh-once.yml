@@ -24,7 +24,6 @@ jobs:
       WORKFLOW_PATH: .github/workflows/spec014-final-work-map-binding-refresh-once.yml
       MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
       TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
-      REPORT_DIR: ${{ runner.temp }}/spec014-final-work-map-binding-refresh
     steps:
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -42,6 +41,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          report_dir="${RUNNER_TEMP}/spec014-final-work-map-binding-refresh"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
           test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
           test "${TARGET_BRANCH}" != "main"
           test "${TARGET_BRANCH}" != "Production"
@@ -54,9 +57,7 @@ jobs:
           test -f "${TASKS_PATH}"
           node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
           node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
-          rm -rf "${REPORT_DIR}"
-          mkdir -p "${REPORT_DIR}"
-          printf '%s\n' "${GITHUB_SHA}" > "${REPORT_DIR}/expected-head.txt"
+          printf '%s\n' "${GITHUB_SHA}" > "${report_dir}/expected-head.txt"
 
       - name: Run official deterministic binding generator
         shell: bash
@@ -124,6 +125,8 @@ jobs:
         if: always()
         shell: bash
         run: |
+          report_dir="${REPORT_DIR:-${RUNNER_TEMP}/spec014-final-work-map-binding-refresh}"
+          mkdir -p "${report_dir}"
           {
             echo "# Spec 014 Final Work Map Binding Refresh"
             echo
@@ -136,7 +139,7 @@ jobs:
             echo "- Force push: \`false\`"
             echo "- Runtime/provider/database/deployment access: \`false\`"
             echo "- Secrets included: \`false\`"
-          } | tee "${REPORT_DIR}/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          } | tee "${report_dir}/summary.md" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload bounded refresh evidence
         if: always()
