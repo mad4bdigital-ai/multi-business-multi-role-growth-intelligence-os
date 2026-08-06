@@ -41,41 +41,43 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
+          python3 <<'PY'
+          import json
+          from pathlib import Path
 
-          const workflowPath = '.github/workflows/production-certified-release-cut-validation.yml';
-          const testPath = 'http-generic-api/test-production-certified-release-cut-validation-registration.mjs';
-          const declarationPath = '.changes/e2e/production-certified-release-cut-registration-context.json';
-          let source = fs.readFileSync(workflowPath, 'utf8');
+          workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
+          test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
+          declaration_path = Path('.changes/e2e/production-certified-release-cut-registration-context.json')
 
-          const badEvidence = /^      EVIDENCE_PATH: \$\{\{\s*runner\.temp\s*\}\}\/certified-production-release-cut\.json\n/m;
-          const badSummary = /^      CI_SUMMARY_PATH: \$\{\{\s*runner\.temp\s*\}\}\/certified-release-ci\.json\n/m;
-          if (!badEvidence.test(source) || !badSummary.test(source)) {
-            throw new Error('expected job-level runner.temp bindings were not found exactly once');
-          }
-          source = source.replace(badEvidence, '').replace(badSummary, '');
+          source = workflow_path.read_text()
+          lines = source.splitlines()
+          evidence_lines = [line for line in lines if line.strip().startswith('EVIDENCE_PATH:') and 'runner.temp' in line]
+          summary_lines = [line for line in lines if line.strip().startswith('CI_SUMMARY_PATH:') and 'runner.temp' in line]
+          if len(evidence_lines) != 1 or len(summary_lines) != 1:
+              raise SystemExit(f'expected one unsafe binding each; evidence={len(evidence_lines)} summary={len(summary_lines)}')
 
-          const anchor = '    steps:\n      - name: Require successful direct ARM CI gates\n';
-          if (!source.includes(anchor)) {
-            throw new Error('finalize steps anchor was not found');
-          }
-          const initialization = [
-            '    steps:',
-            '      - name: Initialize runner-local evidence paths',
-            '        shell: bash',
-            '        run: |',
-            '          set -Eeuo pipefail',
-            '          echo "EVIDENCE_PATH=\${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"',
-            '          echo "CI_SUMMARY_PATH=\${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"',
-            '',
-            '      - name: Require successful direct ARM CI gates',
-            ''
-          ].join('\n');
-          source = source.replace(anchor, initialization);
-          fs.writeFileSync(workflowPath, source);
+          lines = [
+              line for line in lines
+              if line not in evidence_lines and line not in summary_lines
+          ]
+          finalize_index = lines.index('  finalize:')
+          steps_index = next(
+              index for index in range(finalize_index + 1, len(lines))
+              if lines[index] == '    steps:'
+          )
+          initialization = [
+              '      - name: Initialize runner-local evidence paths',
+              '        shell: bash',
+              '        run: |',
+              '          set -Eeuo pipefail',
+              '          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"',
+              '          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"',
+              ''
+          ]
+          lines[steps_index + 1:steps_index + 1] = initialization
+          workflow_path.write_text('\n'.join(lines) + '\n')
 
-          const testSource = `import assert from 'node:assert/strict';
+          test_path.write_text("""import assert from 'node:assert/strict';
           import fs from 'node:fs';
 
           const workflowUrl = new URL('../.github/workflows/production-certified-release-cut-validation.yml', import.meta.url);
@@ -85,78 +87,90 @@ jobs:
           const finalize = workflow.slice(finalizeIndex);
           const envIndex = finalize.indexOf('\n    env:\n');
           const stepsIndex = finalize.indexOf('\n    steps:\n');
-          assert.ok(envIndex >= 0 && stepsIndex > envIndex, 'finalize job env and steps must be ordered');
+          assert.ok(envIndex >= 0 && stepsIndex > envIndex, 'finalize env must precede steps');
           const jobEnv = finalize.slice(envIndex, stepsIndex);
 
-          assert.doesNotMatch(jobEnv, /\\$\\{\\{\\s*runner\\./, 'job-level env must not use runner context');
-          assert.match(finalize, /- name: Initialize runner-local evidence paths/);
-          assert.match(finalize, /EVIDENCE_PATH=\\$\\{RUNNER_TEMP\\}\\/certified-production-release-cut\\.json/);
-          assert.match(finalize, /CI_SUMMARY_PATH=\\$\\{RUNNER_TEMP\\}\\/certified-release-ci\\.json/);
-          assert.match(finalize, />> "\\$GITHUB_ENV"/);
-          assert.match(workflow, /pull_request_target:/);
-          assert.match(workflow, /name: Publish certified release-cut evidence/);
+          assert.equal(jobEnv.includes('runner.'), false, 'job-level env must not use runner context');
+          assert.ok(finalize.includes('- name: Initialize runner-local evidence paths'));
+          assert.ok(finalize.includes('echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"'));
+          assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));
+          assert.ok(workflow.includes('pull_request_target:'));
+          assert.ok(finalize.includes('name: Publish certified release-cut evidence'));
+          assert.ok(finalize.includes('- name: Require successful direct ARM CI gates'));
 
           console.log('production certified release-cut registration contract: pass');
-          `;
-          fs.writeFileSync(testPath, testSource.replace(/^          /gm, ''));
+          """.replace('          ', ''))
 
-          const declaration = {
-            '$schema': '../../.specify/schemas/e2e-phases.schema.json',
-            schema_version: 1,
-            feature_key: 'production-certified-release-cut-registration-context',
-            title: 'Production certified release-cut registration context repair',
-            delivery_mode: 'single_pr',
-            current_phase: 'mvp',
-            scope: {
-              include: [declarationPath, workflowPath, testPath]
-            },
-            merge_contract: { minimum_phase: 'mvp' },
-            phases: [
-              {
-                id: 'mvp',
-                status: 'implemented',
-                objective: 'Restore GitHub workflow registration by resolving runner-local evidence paths only after the runner starts.',
-                e2e_journeys: [
+          declaration = {
+              '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+              'schema_version': 1,
+              'feature_key': 'production-certified-release-cut-registration-context',
+              'title': 'Production certified release-cut registration context repair',
+              'delivery_mode': 'single_pr',
+              'current_phase': 'mvp',
+              'scope': {
+                  'include': [
+                      str(declaration_path),
+                      str(workflow_path),
+                      str(test_path)
+                  ]
+              },
+              'merge_contract': {'minimum_phase': 'mvp'},
+              'phases': [
                   {
-                    id: 'register-and-run-certified-release-cut-validation',
-                    end_to_end: true,
-                    level: 'synthetic_runtime',
-                    actor: 'GitHub Actions workflow registrar and certified release validator',
-                    entrypoint: 'A trusted same-repository validation PR targets a governed certified-release base branch.',
-                    terminal_outcome: 'The workflow registers jobs, initializes evidence paths from RUNNER_TEMP at step runtime, and preserves the existing immutable validation contract.',
-                    steps: [
-                      'Parse the workflow without evaluating runner context at job scope.',
-                      'Allocate the finalize runner.',
-                      'Export evidence file paths through GITHUB_ENV from RUNNER_TEMP.',
-                      'Run the unchanged validation, evidence, and no-mutation checks.'
-                    ],
-                    assertions: [
-                      'No finalize job-level environment value references runner context.',
-                      'Both evidence paths are initialized in a runtime step.',
-                      'The pull_request_target selector, direct ARM validation jobs, and immutable readback behavior remain unchanged.',
-                      'No deployment, migration, provider call, credential payload read, or Production mutation is introduced.'
-                    ],
-                    tests: [
-                      {
-                        id: 'production-certified-release-cut-registration-contract',
-                        runner: 'node',
-                        working_directory: 'http-generic-api',
-                        path: 'test-production-certified-release-cut-validation-registration.mjs',
-                        args: []
-                      }
-                    ],
-                    evidence_paths: [workflowPath, testPath]
-                  }
-                ]
-              }
-            ],
-            secrets_included: false
-          };
-          fs.writeFileSync(declarationPath, `${JSON.stringify(declaration, null, 2)}\n`);
-          NODE
+                      'id': 'mvp',
+                      'status': 'implemented',
+                      'objective': 'Restore workflow registration by resolving runner-local evidence paths only after runner allocation.',
+                      'e2e_journeys': [
+                          {
+                              'id': 'register-and-run-certified-release-cut-validation',
+                              'end_to_end': True,
+                              'level': 'synthetic_runtime',
+                              'actor': 'GitHub Actions workflow registrar and certified release validator',
+                              'entrypoint': 'A trusted same-repository validation pull request targets a governed certified-release base branch.',
+                              'terminal_outcome': 'The workflow registers jobs, initializes evidence paths from RUNNER_TEMP at step runtime, and preserves the immutable validation contract.',
+                              'steps': [
+                                  'Parse the workflow without evaluating runner context at job scope.',
+                                  'Allocate the finalize runner.',
+                                  'Export evidence paths through GITHUB_ENV from RUNNER_TEMP.',
+                                  'Run the unchanged validation, evidence, and no-mutation checks.'
+                              ],
+                              'assertions': [
+                                  'No finalize job-level environment value references runner context.',
+                                  'Both evidence paths are initialized in a runtime step.',
+                                  'The pull_request_target selector and direct ARM validation jobs remain unchanged.',
+                                  'No deployment, migration, provider call, credential payload read, or Production mutation is introduced.',
+                                  'secrets_included is false.'
+                              ],
+                              'tests': [
+                                  {
+                                      'id': 'production-certified-release-cut-registration-contract',
+                                      'runner': 'node',
+                                      'working_directory': 'http-generic-api',
+                                      'path': 'test-production-certified-release-cut-validation-registration.mjs',
+                                      'args': []
+                                  }
+                              ],
+                              'evidence_paths': [str(workflow_path), str(test_path)]
+                          }
+                      ]
+                  },
+                  {'id': 'operational', 'status': 'planned', 'objective': 'Observe registration and exact-head evidence publication across Draft and Ready validation cycles.'},
+                  {'id': 'resilient', 'status': 'planned', 'objective': 'Keep registration fail-closed without reintroducing job-level runner context.'},
+                  {'id': 'canary', 'status': 'planned', 'objective': 'Prove a bounded same-repository validation cycle on the repaired workflow.'},
+                  {'id': 'production', 'status': 'planned', 'objective': 'Use the repaired validator only through the existing governed certified-release path.'}
+              ],
+              'secrets_included': False
+          }
+          declaration_path.write_text(json.dumps(declaration, indent=2) + '\n')
+          print('bounded source rewrite: pass')
+          PY
 
+          node --check http-generic-api/test-production-certified-release-cut-validation-registration.mjs
           node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          python3 -m json.tool .changes/e2e/production-certified-release-cut-registration-context.json >/dev/null
           git diff --check
+          echo 'bounded generated files validation: pass'
 
       - name: Commit exact final scope and remove writer
         shell: bash
