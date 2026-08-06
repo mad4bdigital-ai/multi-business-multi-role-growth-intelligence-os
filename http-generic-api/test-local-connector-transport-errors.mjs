@@ -74,6 +74,34 @@ await assert.rejects(
 await assert.rejects(
   () => readLocalConnectorResponse(fakeResponse({
     status: 200,
+    headers: { "x-request-id": "req-credential-envelope" },
+    body: JSON.stringify({
+      ok: false,
+      error: {
+        code: "UNAUTHORIZED",
+        message: "Missing or invalid connector credential",
+      },
+      debug: "token=super-secret-value",
+    }),
+  }), { operation: "connectorPowerShell" }),
+  (error) => {
+    assert.equal(error.code, "connector_credential_invalid");
+    assert.equal(error.http_status, 401);
+    assert.equal(error.retryable, false);
+    assert.equal(error.details.reason, "credential_invalid");
+    assert.equal(error.details.upstream_status, 200);
+    assert.equal(error.details.request_id, "req-credential-envelope");
+    assert.equal(error.details.operation, "connectorPowerShell");
+    assert.equal(error.details.content_type, "application/json");
+    assert.equal(error.details.secrets_included, false);
+    assert.doesNotMatch(JSON.stringify(error.details), /super-secret-value/);
+    return true;
+  },
+);
+
+await assert.rejects(
+  () => readLocalConnectorResponse(fakeResponse({
+    status: 200,
     contentType: "text/plain",
     body: "not-json",
   })),
