@@ -10,6 +10,8 @@
       ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
       ".github/workflows/pr-generated-artifact-refresh.yml",
       "docs/governance/pr-generated-artifact-refresh-runner-context.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
     ]
   },
