@@ -29,7 +29,7 @@ if (featureEvidenceCount !== 1) {
 source = source.replace(featureEvidenceAnchor, featureEvidenceReplacement);
 
 const featureBoundaryAnchor = `requireFragment('if [[ "\${candidate_mode}" == "feature" ]]', 'feature-only diff allowlist enforcement');`;
-const featureBoundaryReplacement = `requireFragment('if [[ "\${candidate_mode}" == "feature" ]]; then', 'feature boundary mode classification');`;
+const featureBoundaryReplacement = `requireFragment('contract_local_changes=', 'contract-local feature boundary detection');`;
 const featureBoundaryCount = source.split(featureBoundaryAnchor).length - 1;
 if (featureBoundaryCount !== 1) {
   throw new Error(`Feature boundary assertion anchor expected once, found ${featureBoundaryCount}.`);
