@@ -48,6 +48,7 @@ assert.equal(dryPlan.live_apply_authorized, false);
 assert.equal(dryPlan.repository_content_mutation_allowed, false);
 assert.equal(dryPlan.force_push_allowed, false);
 assert.equal(dryPlan.secrets_included, false);
+assert.equal(dryPlan.apply_binding, undefined);
 
 const routeSource = readFileSync(new URL("./routes/repositoryAutomationRoutes.js", import.meta.url), "utf8");
 const migrationSource = readFileSync(new URL("./migrations/20260805_github_repository_policy_controller.sql", import.meta.url), "utf8");
@@ -69,6 +70,51 @@ assert.equal(dryRun.status, "dry_run_complete");
 assert.equal(dryRun.mutations_executed, false);
 
 const policyPlan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+const applyPlanEnvelopeOne = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: MAIN_SHA,
+  expected_policy_fingerprint: policyPlan.policy_fingerprint,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "env-policy-1",
+});
+const applyPlanEnvelopeTwo = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: MAIN_SHA,
+  expected_policy_fingerprint: policyPlan.policy_fingerprint,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "env-policy-2",
+});
+const applyPlanMovedMain = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: "b".repeat(40),
+  expected_policy_fingerprint: policyPlan.policy_fingerprint,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "env-policy-1",
+});
+assert.equal(applyPlanEnvelopeOne.apply_binding.expected_main_sha, MAIN_SHA);
+assert.equal(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint, policyPlan.policy_fingerprint);
+assert.equal(applyPlanEnvelopeOne.apply_binding.typed_confirmation_matches, true);
+assert.match(applyPlanEnvelopeOne.apply_binding.capability_envelope_ref_sha256, /^[a-f0-9]{64}$/);
+assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanEnvelopeTwo.plan_sha256);
+assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanMovedMain.plan_sha256);
+assert.notEqual(
+  applyPlanEnvelopeOne.apply_binding.capability_envelope_ref_sha256,
+  applyPlanEnvelopeTwo.apply_binding.capability_envelope_ref_sha256
+);
+assert.equal(JSON.stringify(applyPlanEnvelopeOne).includes("env-policy-1"), false);
+
 const calls = [];
 const policyController = async (args) => {
   calls.push(args.mode);
@@ -158,6 +204,8 @@ console.log(JSON.stringify({
   capability_registered: true,
   three_steps_registered: true,
   persisted_surface_compatible: true,
+  apply_idempotency_bound_to_main_policy_and_envelope: true,
+  capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
   typed_confirmation_not_invented: true,
   existing_control_plane_delegation_preserved: true,
