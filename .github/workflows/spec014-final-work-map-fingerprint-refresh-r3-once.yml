@@ -1,5 +1,5 @@
 name: Spec 014 Final Work Map Fingerprint Refresh R3 Once
-# Compute bindings from the final tree after self-removal.
+# Canonical Work Map and classification fingerprints are now separated.
 
 on:
   push:
@@ -102,7 +102,13 @@ jobs:
             taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length
           };
           fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-          console.log(JSON.stringify({ ok: true, fingerprint: manifest.registry.fingerprint, changed_files: [process.env.RETAIL_MANIFEST], secrets_included: false }, null, 2));
+          console.log(JSON.stringify({
+            ok: true,
+            fingerprint: manifest.registry.fingerprint,
+            schema_classification_fingerprint: effectiveRegistry.schema_classification_fingerprint,
+            changed_files: [process.env.RETAIL_MANIFEST],
+            secrets_included: false
+          }, null, 2));
           NODE
           node --check "${RUNNER_TEMP}/refresh-retail-binding.mjs"
 
@@ -128,6 +134,7 @@ jobs:
           done < <(git diff --name-only)
           git diff --check
           node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/integration-gate.json"
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs > "${REPORT_DIR}/fingerprint-separation-regression.txt"
 
       - name: Commit final tree and push fast-forward
         id: publish
