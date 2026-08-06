@@ -28,7 +28,13 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Verify immutable helper binding
+      - name: Set up repository Node contract
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          check-latest: false
+
+      - name: Verify immutable helper and runtime binding
         shell: bash
         run: |
           set -euo pipefail
@@ -36,6 +42,13 @@ jobs:
           remote_sha="$(git ls-remote origin "refs/heads/${HELPER_BRANCH}" | awk '{print $1}')"
           test "${remote_sha}" = "${GITHUB_SHA}"
           test "$(git merge-base "${BASE_SHA}" HEAD)" = "${BASE_SHA}"
+          node_version="$(node --version)"
+          case "${node_version}" in
+            v22.*) ;;
+            *) echo "Expected Node 22 from .nvmrc, got ${node_version}" >&2; exit 1 ;;
+          esac
+          command -v node
+          node --version
 
       - name: Remove temporary workflow before fingerprinting
         shell: bash
@@ -69,21 +82,39 @@ jobs:
             --feature-key "${RETAIL_FEATURE}" --check
           node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs
 
-      - name: Enforce complete Work Map governance
+      - name: Check generated Work Map parity
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Check Work Map pipeline connectivity
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
+
+      - name: Check schema classification contracts
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
+
+      - name: Enforce Work Map governance gate
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --all
-          (
-            cd http-generic-api
-            node test-work-map-schema-classification.mjs
-            node test-work-map-schema-classification-contract.mjs
-            node test-spec-kit-work-map-governance-gate.mjs
-          )
+
+      - name: Run focused Work Map regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          node test-work-map-schema-classification.mjs
+          node test-work-map-schema-classification-contract.mjs
+          node test-spec-kit-work-map-governance-gate.mjs
 
       - name: Enforce bounded final scope
         shell: bash
@@ -146,6 +177,7 @@ jobs:
             base_sha: process.env.BASE_SHA,
             final_sha: finalSha,
             feature_key: process.env.RETAIL_FEATURE,
+            node_version: process.version,
             changed_files: changedFiles,
             changed_file_count: changedFiles.length,
             force_push: false,
