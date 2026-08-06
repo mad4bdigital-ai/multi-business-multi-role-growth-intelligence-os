@@ -122,6 +122,25 @@ export function classifyLocalConnectorHttpFailure(status) {
   };
 }
 
+function classifyLocalConnectorEnvelopeFailure(code, message) {
+  const normalizedCode = String(code || "").trim().toUpperCase();
+  const normalizedMessage = String(message || "").trim();
+
+  if (
+    ["UNAUTHORIZED", "AUTHENTICATION_FAILED", "INVALID_CREDENTIAL", "INVALID_CREDENTIALS"].includes(normalizedCode) ||
+    /missing or invalid connector credential|invalid connector credential/iu.test(normalizedMessage)
+  ) {
+    return classifyLocalConnectorHttpFailure(401);
+  }
+  if (["FORBIDDEN", "PERMISSION_DENIED", "SCOPE_DENIED"].includes(normalizedCode)) {
+    return classifyLocalConnectorHttpFailure(403);
+  }
+  if (["TIMEOUT", "REQUEST_TIMEOUT", "GATEWAY_TIMEOUT", "TIMED_OUT", "DEADLINE_EXCEEDED"].includes(normalizedCode)) {
+    return classifyLocalConnectorHttpFailure(504);
+  }
+  return null;
+}
+
 export async function readLocalConnectorResponse(response, { operation = "local_connector_call" } = {}) {
   const status = Number(response?.status || 0);
   const contentType = responseHeader(response, "content-type").toLowerCase();
@@ -178,21 +197,24 @@ export async function readLocalConnectorResponse(response, { operation = "local_
   }
 
   if (payload.ok === false) {
-    const payloadCode = String(payload?.error?.code || "").trim();
-    const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
-    throw localConnectorError(
-      payloadCode || "connector_operation_failed",
-      payloadMessage,
-      status >= 400 ? status : 400,
-      {
-        operation,
-        reason: payloadCode || "operation_failed",
-        retryable: false,
-        upstream_status: status || null,
-        request_id: requestId,
-      },
-    );
-  }
+      const payloadCode = String(payload?.error?.code || "").trim();
+      const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
+      const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
+      throw localConnectorError(
+        classification?.code || payloadCode || "connector_operation_failed",
+        payloadMessage,
+        classification?.http_status || (status >= 400 ? status : 400),
+        {
+          operation,
+          reason: classification?.reason || payloadCode || "operation_failed",
+          retryable: Boolean(classification?.retryable),
+          upstream_status: status || null,
+          request_id: requestId,
+          content_type: contentType || null,
+          response_excerpt: redactConnectorExcerpt(responseText),
+        },
+      );
+    }
 
   return payload;
 }
