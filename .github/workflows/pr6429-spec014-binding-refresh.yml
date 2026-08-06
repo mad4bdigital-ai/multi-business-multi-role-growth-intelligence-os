@@ -1,6 +1,6 @@
 name: PR 6429 Spec 014 binding refresh
 
-# trigger: arm-v2
+# trigger: arm-v3
 on:
   push:
     branches:
@@ -62,14 +62,19 @@ jobs:
           printf '%s\n' "${changed[@]}" > "${RUNNER_TEMP}/pr6429-spec014-binding-refresh/unstaged-paths.txt"
           test "${#changed[@]}" -ge 1
           printf '%s\n' "${changed[@]}" | grep -Fxq "${MANIFEST_PATH}"
-          unexpected="$(printf '%s\n' "${changed[@]}" | grep -v -E '^(.github/workflows/pr6429-spec014-binding-refresh.yml|specs/014-governed-hostinger-storage-orchestration/(work-map-integration.json|tasks.md))$' || true)"
+          unexpected="$(printf '%s\n' "${changed[@]}" | grep -v -E '^specs/014-governed-hostinger-storage-orchestration/(work-map-integration.json|tasks.md)$' || true)"
           if [[ -n "${unexpected}" ]]; then
             printf 'Unexpected path(s):\n%s\n' "${unexpected}" >&2
             exit 1
           fi
           git diff --check
-          git add -A -- "${WORKFLOW_PATH}" "${MANIFEST_PATH}" "${TASKS_PATH}"
+          git add -- "${MANIFEST_PATH}"
+          if ! git diff --quiet -- "${TASKS_PATH}"; then
+            git add -- "${TASKS_PATH}"
+          fi
           git diff --cached --name-only | sort > "${RUNNER_TEMP}/pr6429-spec014-binding-refresh/staged-paths.txt"
+          grep -Fxq "${WORKFLOW_PATH}" "${RUNNER_TEMP}/pr6429-spec014-binding-refresh/staged-paths.txt"
+          grep -Fxq "${MANIFEST_PATH}" "${RUNNER_TEMP}/pr6429-spec014-binding-refresh/staged-paths.txt"
 
       - name: Commit candidate and prove final readback
         shell: bash
