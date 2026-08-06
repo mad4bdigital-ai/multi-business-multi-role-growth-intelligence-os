@@ -110,6 +110,7 @@ assert.equal(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint, pol
 assert.equal(applyPlanEnvelopeOne.apply_binding.expected_main_sha_valid, true);
 assert.equal(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint_valid, true);
 assert.equal(applyPlanEnvelopeOne.apply_binding.capability_envelope_present, true);
+assert.equal(applyPlanEnvelopeOne.apply_binding.capability_envelope_id_valid, true);
 assert.equal(applyPlanEnvelopeOne.apply_binding.typed_confirmation_matches, true);
 assert.match(applyPlanEnvelopeOne.apply_binding.expected_main_sha_input_sha256, /^[a-f0-9]{64}$/);
 assert.match(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint_input_sha256, /^[a-f0-9]{64}$/);
@@ -145,12 +146,26 @@ const applyPlanOverlongFingerprint = buildRepositoryAutomationPlan({
   confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
   capability_envelope_id: "env-policy-1",
 });
+const applyPlanOverlongEnvelope = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: MAIN_SHA,
+  expected_policy_fingerprint: policyPlan.policy_fingerprint,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "e".repeat(65),
+});
 assert.equal(applyPlanOverlongMain.apply_binding.expected_main_sha, null);
 assert.equal(applyPlanOverlongMain.apply_binding.expected_main_sha_valid, false);
 assert.equal(applyPlanOverlongFingerprint.apply_binding.expected_policy_fingerprint, null);
 assert.equal(applyPlanOverlongFingerprint.apply_binding.expected_policy_fingerprint_valid, false);
+assert.equal(applyPlanOverlongEnvelope.apply_binding.capability_envelope_present, true);
+assert.equal(applyPlanOverlongEnvelope.apply_binding.capability_envelope_id_valid, false);
 assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanOverlongMain.plan_sha256);
 assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanOverlongFingerprint.plan_sha256);
+assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanOverlongEnvelope.plan_sha256);
 
 await assert.rejects(
   runGithubRepositoryPolicyController({
@@ -426,6 +441,7 @@ console.log(JSON.stringify({
   invalid_apply_rejected_before_provider_readback: true,
   missing_capability_envelope_rejected_before_provider_readback: true,
   overlong_capability_envelope_rejected_without_truncation: true,
+  capability_envelope_binding_validity_exposed: true,
   admin_rejected_before_authority_validation: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
