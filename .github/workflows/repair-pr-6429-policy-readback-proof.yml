@@ -1,0 +1,419 @@
+name: Repair PR 6429 Policy Readback Proof
+
+on:
+  push:
+    branches:
+      - gpt/github-main-policy-controller-20260805
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-pr-6429-policy-readback-proof
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact work branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/github-main-policy-controller-20260805
+          fetch-depth: 0
+
+      - name: Apply bounded fail-closed readback repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+
+          controller_path = Path('http-generic-api/githubRepositoryPolicyController.js')
+          test_path = Path('http-generic-api/test-github-repository-policy-controller.mjs')
+          manifest_path = Path('.changes/e2e/github-repository-policy-controller.json')
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one match, found {count}')
+              return text.replace(old, new, 1)
+
+          controller = controller_path.read_text()
+          controller = replace_once(
+              controller,
+              '''function matchesMainCondition(detail = {}, defaultBranch = "main") {
+            const include = uniqueStrings(detail.conditions?.ref_name?.include || []);
+            return include.includes("~DEFAULT_BRANCH") || include.includes(`refs/heads/${defaultBranch}`) || include.includes(defaultBranch);
+          }
+          ''',
+              '''function refPatternMatchesMain(pattern = "", defaultBranch = "main") {
+            const value = compact(pattern, 255);
+            if (!value) return false;
+            const branchRef = `refs/heads/${defaultBranch}`;
+            if (["~DEFAULT_BRANCH", "~ALL", defaultBranch, branchRef].includes(value)) return true;
+            if (!value.includes("*") && !value.includes("?")) return false;
+            const escaped = value.replace(/[.+^${}()|[\\]\\\\]/g, "\\\\$&");
+            const source = escaped
+              .replace(/\\*\\*/g, "\\u0000")
+              .replace(/\\*/g, "[^/]*")
+              .replace(/\\?/g, "[^/]")
+              .replace(/\\u0000/g, ".*");
+            try {
+              return new RegExp(`^${source}$`).test(branchRef);
+            } catch {
+              return false;
+            }
+          }
+
+          function matchesMainCondition(detail = {}, defaultBranch = "main") {
+            const include = uniqueStrings(detail.conditions?.ref_name?.include || []);
+            const exclude = uniqueStrings(detail.conditions?.ref_name?.exclude || []);
+            return include.some((pattern) => refPatternMatchesMain(pattern, defaultBranch))
+              && !exclude.some((pattern) => refPatternMatchesMain(pattern, defaultBranch));
+          }
+          ''',
+              'replace main condition matcher',
+          )
+
+          controller = replace_once(
+              controller,
+              '''  const rulesetDetails = rulesetsIndex.ok
+            ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetsIndex.payload, token, fetchImpl })
+            : [];
+          ''',
+              '''  const rulesetIndex = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload)
+            ? rulesetsIndex.payload
+            : [];
+          const rulesetDetails = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload)
+            ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetIndex, token, fetchImpl })
+            : [];
+          const indexedRulesetIds = rulesetIndex.map((item) => Number(item?.id || 0)).filter(Boolean);
+          const rulesetDetailsReadable = rulesetsIndex.ok
+            && Array.isArray(rulesetsIndex.payload)
+            && rulesetDetails.length === indexedRulesetIds.length
+            && rulesetDetails.every((item) => item.status === 200 && item.detail);
+          ''',
+              'replace ruleset detail readback',
+          )
+
+          controller = replace_once(
+              controller,
+              '''  const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
+            const managedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+          ''',
+              '''  const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
+            const managedRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+            const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+          ''',
+              'replace managed ruleset counting',
+          )
+
+          controller = replace_once(
+              controller,
+              '''  const branchKnownUnprotected = branch.ok && branch.payload?.protected === false;
+            const classicKnownAbsent = classicProtection.status === 404;
+            const protectionReadable = [200, 404].includes(classicProtection.status)
+              && activeRules.ok
+              && rulesetsIndex.ok
+              && branch.ok;
+            const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+            const directPushBlocked = protectionReadable
+              && pullRequestRequired
+              && allBypassActors.length === 0
+              && !branchKnownUnprotected;
+            const autoMergeAllowed = repository.ok ? bool(repository.payload?.allow_auto_merge) : null;
+          ''',
+              '''  const branchReadable = branch.ok
+            && SHA_PATTERN.test(String(branch.payload?.commit?.sha || ""))
+            && typeof branch.payload?.protected === "boolean";
+          const activeRulesReadable = activeRules.ok && Array.isArray(activeRules.payload);
+          const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);
+          const classicProtectionReadable = classicProtection.status === 404
+            || (classicProtection.status === 200 && classicProtection.payload && typeof classicProtection.payload === "object");
+          const repositoryAutoMergeReadable = repository.ok && typeof repository.payload?.allow_auto_merge === "boolean";
+          const protectionReadable = classicProtectionReadable
+            && activeRulesReadable
+            && rulesetsIndexReadable
+            && rulesetDetailsReadable
+            && branchReadable;
+          const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+          const directPushBlocked = protectionReadable
+            && branch.payload.protected === true
+            && pullRequestRequired
+            && allBypassActors.length === 0;
+          const autoMergeAllowed = repositoryAutoMergeReadable ? repository.payload.allow_auto_merge : null;
+          ''',
+              'replace policy readability proof',
+          )
+
+          controller = replace_once(
+              controller,
+              '''  const proof = {
+            policy_state_readable: protectionReadable,
+            required_reviews_proven: requiredReviewCount >= 1,
+          ''',
+              '''  const proof = {
+            policy_state_readable: protectionReadable,
+            ruleset_details_readable: rulesetDetailsReadable,
+            required_reviews_proven: requiredReviewCount >= 1,
+          ''',
+              'add ruleset detail proof',
+          )
+
+          controller = replace_once(
+              controller,
+              '''    finalizer_not_bypass_proven: finalizerAppId !== null && matchingFinalizerBypassActors.length === 0,
+          ''',
+              '''    finalizer_not_bypass_proven: finalizerAppId !== null && rulesetDetailsReadable && matchingFinalizerBypassActors.length === 0,
+          ''',
+              'bind bypass proof to readable details',
+          )
+
+          controller = replace_once(
+              controller,
+              '''  if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+          ''',
+              '''  if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+            if (!proof.ruleset_details_readable) findings.push("ruleset_details_unreadable");
+          ''',
+              'add ruleset detail finding',
+          )
+
+          controller = replace_once(
+              controller,
+              '''    main_sha: branch.ok ? branch.payload?.commit?.sha || null : null,
+          ''',
+              '''    main_sha: branchReadable ? branch.payload.commit.sha : null,
+          ''',
+              'fail closed main sha',
+          )
+
+          controller = replace_once(
+              controller,
+              '''      collaborators: collaborators.status,
+            },
+            branch_protected: branch.ok ? Boolean(branch.payload?.protected) : null,
+          ''',
+              '''      collaborators: collaborators.status,
+              ruleset_details: rulesetDetails.map((item) => ({ id: item.id, status: item.status })),
+            },
+            branch_protected: branchReadable ? branch.payload.protected : null,
+          ''',
+              'report strict branch and ruleset status',
+          )
+
+          controller = replace_once(
+              controller,
+              '''    ruleset_index_count: rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload) ? rulesetsIndex.payload.length : null,
+            ruleset_details: evaluatedRulesets,
+            managed_ruleset_count: managedRulesets.length,
+          ''',
+              '''    ruleset_index_count: rulesetsIndexReadable ? rulesetIndex.length : null,
+            ruleset_details: evaluatedRulesets,
+            managed_ruleset_count: managedRulesets.length,
+            active_managed_ruleset_count: activeManagedRulesets.length,
+          ''',
+              'report all managed rulesets',
+          )
+
+          controller_path.write_text(controller)
+
+          tests = test_path.read_text()
+          tests = replace_once(
+              tests,
+              '''function desiredRuleset({ bypassActors = [], reviewCount = 1, missingCheck = null } = {}) {
+          ''',
+              '''function desiredRuleset({
+            bypassActors = [],
+            reviewCount = 1,
+            missingCheck = null,
+            includeRefs = ["~DEFAULT_BRANCH"],
+            excludeRefs = [],
+          } = {}) {
+          ''',
+              'extend desired ruleset helper',
+          )
+          tests = replace_once(
+              tests,
+              '''    conditions: { ref_name: { include: ["~DEFAULT_BRANCH"], exclude: [] } },
+          ''',
+              '''    conditions: { ref_name: { include: includeRefs, exclude: excludeRefs } },
+          ''',
+              'bind desired conditions',
+          )
+          tests = replace_once(
+              tests,
+              '''  repositoryAutoMerge = false,
+          } = {}) {
+          ''',
+              '''  repositoryAutoMerge = false,
+            repositoryPayload = undefined,
+            branchPayload = undefined,
+            rulesetDetailStatus = 200,
+          } = {}) {
+          ''',
+              'extend github mock options',
+          )
+          tests = replace_once(
+              tests,
+              '''      return response(200, { allow_auto_merge: repositoryAutoMerge });
+          ''',
+              '''      return response(200, repositoryPayload === undefined ? { allow_auto_merge: repositoryAutoMerge } : repositoryPayload);
+          ''',
+              'mock repository payload',
+          )
+          tests = replace_once(
+              tests,
+              '''      return response(200, { name: "main", commit: { sha: MAIN_SHA }, protected: Boolean(state.ruleset) });
+          ''',
+              '''      return response(200, branchPayload === undefined
+                ? { name: "main", commit: { sha: MAIN_SHA }, protected: Boolean(state.ruleset) }
+                : branchPayload);
+          ''',
+              'mock branch payload',
+          )
+          tests = replace_once(
+              tests,
+              '''      if (!state.ruleset) return response(404, { message: "Not Found" });
+                return response(200, state.postReadbackRuleset || state.ruleset);
+          ''',
+              '''      if (!state.ruleset) return response(404, { message: "Not Found" });
+                if (rulesetDetailStatus !== 200) return response(rulesetDetailStatus, { message: "Ruleset detail unavailable" });
+                return response(200, state.postReadbackRuleset || state.ruleset);
+          ''',
+              'mock ruleset detail status',
+          )
+
+          anchor = '''  {
+            const mock = createGithubFetch();
+            const readback = await readGithubRepositoryPolicy(
+              { owner: OWNER, repo: REPO, default_branch: "main" },
+              controllerDeps(mock.fetchImpl)
+            );
+            assert.equal(readback.main_sha, MAIN_SHA);
+            assert.equal(readback.branch_protected, false);
+            assert.equal(readback.proof.policy_state_readable, true);
+            assert.equal(readback.proof.server_policy_gate_complete, false);
+            assert.ok(readback.findings.includes("required_review_missing"));
+            assert.ok(readback.findings.includes("direct_push_block_unproven"));
+            assert.equal(mock.state.mutations.length, 0);
+            assert.equal(readback.secrets_included, false);
+          }
+          '''
+          additions = anchor + '''
+
+          {
+            const excludedRuleset = desiredRuleset({ excludeRefs: ["~DEFAULT_BRANCH"] });
+            const mock = createGithubFetch({ initialRuleset: excludedRuleset });
+            const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+            assert.equal(readback.ruleset_details[0].applies_to_main, false);
+            assert.equal(readback.managed_ruleset_count, 0);
+            const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+            assert.equal(plan.operation, "create_ruleset");
+          }
+
+          {
+            const mock = createGithubFetch({
+              initialRuleset: desiredRuleset(),
+              repositoryPayload: {},
+            });
+            const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+            assert.equal(readback.repository_auto_merge_allowed, null);
+            assert.equal(readback.proof.auto_merge_disabled, false);
+            assert.ok(readback.findings.includes("repository_auto_merge_not_disabled"));
+            assert.equal(readback.proof.server_policy_gate_complete, false);
+          }
+
+          {
+            const mock = createGithubFetch({
+              initialRuleset: desiredRuleset(),
+              rulesetDetailStatus: 403,
+            });
+            const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+            assert.equal(readback.proof.ruleset_details_readable, false);
+            assert.equal(readback.proof.policy_state_readable, false);
+            assert.equal(readback.proof.finalizer_not_bypass_proven, false);
+            assert.ok(readback.findings.includes("ruleset_details_unreadable"));
+            assert.equal(readback.proof.server_policy_gate_complete, false);
+          }
+
+          {
+            const mock = createGithubFetch({
+              initialRuleset: desiredRuleset(),
+              branchPayload: { name: "main", commit: { sha: MAIN_SHA } },
+            });
+            const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+            assert.equal(readback.main_sha, null);
+            assert.equal(readback.branch_protected, null);
+            assert.equal(readback.proof.policy_state_readable, false);
+            assert.equal(readback.proof.direct_push_block_proven, false);
+            assert.equal(readback.proof.server_policy_gate_complete, false);
+          }
+
+          {
+            const first = { ...desiredRuleset(), id: 41, enforcement: "disabled" };
+            const second = { ...desiredRuleset(), id: 42, enforcement: "evaluate" };
+            const rulesets = new Map([[41, first], [42, second]]);
+            const fetchImpl = async (url, options = {}) => {
+              const method = String(options.method || "GET").toUpperCase();
+              const path = new URL(url).pathname;
+              if (path === `/repos/${OWNER}/${REPO}` && method === "GET") return response(200, { allow_auto_merge: false });
+              if (path === `/repos/${OWNER}/${REPO}/branches/main` && method === "GET") return response(200, { name: "main", commit: { sha: MAIN_SHA }, protected: true });
+              if (path === `/repos/${OWNER}/${REPO}/rules/branches/main` && method === "GET") return response(200, []);
+              if (path === `/repos/${OWNER}/${REPO}/rulesets` && method === "GET") return response(200, [{ id: 41 }, { id: 42 }]);
+              if (path === `/repos/${OWNER}/${REPO}/branches/main/protection` && method === "GET") return response(404, { message: "Branch not protected" });
+              if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") return response(200, []);
+              const match = path.match(/\\/rulesets\\/(41|42)$/);
+              if (match && method === "GET") return response(200, rulesets.get(Number(match[1])));
+              throw new Error(`Unhandled GitHub ambiguity mock request: ${method} ${path}`);
+            };
+            const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(fetchImpl));
+            assert.equal(readback.managed_ruleset_count, 2);
+            assert.equal(readback.active_managed_ruleset_count, 0);
+            const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+            assert.equal(plan.preconditions.managed_ruleset_ambiguity_absent, false);
+          }
+          '''
+          tests = replace_once(tests, anchor, additions, 'insert fail-closed readback regressions')
+          test_path.write_text(tests)
+
+          manifest = json.loads(manifest_path.read_text())
+          assertions = manifest['phases'][0]['e2e_journeys'][0]['assertions']
+          new_assertions = [
+              'Rulesets that explicitly or by pattern exclude main are never counted as applying to main.',
+              'Missing branch protection booleans, missing repository auto-merge state, malformed indexes, or unreadable Ruleset details keep server_policy_gate_complete=false.',
+              'Managed Ruleset ambiguity counts active and inactive matching Rulesets before any apply.',
+          ]
+          for item in new_assertions:
+              if item not in assertions:
+                  assertions.append(item)
+          manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
+          PY
+
+      - name: Install focused test dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Validate focused repair
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node --check githubRepositoryPolicyController.js
+          node test-github-repository-policy-controller.mjs
+          node test-repository-automation-policy-facade.mjs
+
+      - name: Commit bounded repair and remove bootstrap workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/repair-pr-6429-policy-readback-proof.yml
+          git add .changes/e2e/github-repository-policy-controller.json \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/test-github-repository-policy-controller.mjs
+          git diff --cached --check
+          git commit -m "fix(github): fail closed on ambiguous policy readback"
+          git push origin HEAD:gpt/github-main-policy-controller-20260805
