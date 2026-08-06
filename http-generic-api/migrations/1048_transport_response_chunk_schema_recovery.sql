@@ -3,6 +3,12 @@
 -- from tenant inbox or unrelated application migrations.
 -- Safety: additive and idempotent. No provider calls, credential reads, external sends,
 -- destructive DDL, data backfill, or secret-bearing payloads. secrets_included=false.
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
+-- secrets_included_false
 
 CREATE TABLE IF NOT EXISTS governed_tool_response_chunks (
   chunk_id VARCHAR(64) NOT NULL,
