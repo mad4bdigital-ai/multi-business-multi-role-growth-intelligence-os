@@ -1,0 +1,125 @@
+name: PR 6502 Complete Four Context Repairs Once
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+    paths:
+      - .github/workflows/pr6502-complete-four-context-repairs-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+          fetch-depth: 1
+
+      - name: Apply exact bounded replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          expression = "$" + "{{ runner.temp }}"
+
+          def replace_once(file_name, before, after):
+              path = Path(file_name)
+              text = path.read_text()
+              if text.count(before) != 1:
+                  raise SystemExit(f"{file_name}: expected exactly one target")
+              path.write_text(text.replace(before, after, 1))
+
+          repairs = [
+              (
+                  ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+                  f"      EVIDENCE_DIR: {expression}/production-promotion-post-finalization\n",
+                  "",
+                  "      - name: Initialize bounded post-finalization evidence directory\n"
+                  "        shell: bash\n"
+                  "        run: |\n"
+                  "          set -euo pipefail\n"
+                  "          evidence_dir=\"${RUNNER_TEMP}/production-promotion-post-finalization\"\n"
+                  "          rm -rf \"${evidence_dir}\"\n"
+                  "          mkdir -p \"${evidence_dir}\"\n"
+                  "          echo \"EVIDENCE_DIR=${evidence_dir}\" >> \"${GITHUB_ENV}\"\n\n",
+              ),
+              (
+                  ".github/workflows/governed-production-promotion-request-launcher.yml",
+                  f"      EVIDENCE_PATH: {expression}/governed-production-promotion-convergence.json\n",
+                  "",
+                  "      - name: Initialize bounded convergence evidence path\n"
+                  "        shell: bash\n"
+                  "        run: |\n"
+                  "          set -euo pipefail\n"
+                  "          evidence_dir=\"${RUNNER_TEMP}/governed-production-promotion\"\n"
+                  "          rm -rf \"${evidence_dir}\"\n"
+                  "          mkdir -p \"${evidence_dir}\"\n"
+                  "          echo \"EVIDENCE_PATH=${evidence_dir}/governed-production-promotion-convergence.json\" >> \"${GITHUB_ENV}\"\n\n",
+              ),
+              (
+                  ".github/workflows/hostinger-production-release-evidence-r5.yml",
+                  f"      EVIDENCE_DIR: {expression}/hostinger-production-release-evidence-r5\n",
+                  "",
+                  "      - name: Initialize bounded R5 evidence directory\n"
+                  "        shell: bash\n"
+                  "        run: |\n"
+                  "          set -euo pipefail\n"
+                  "          evidence_dir=\"${RUNNER_TEMP}/hostinger-production-release-evidence-r5\"\n"
+                  "          rm -rf \"${evidence_dir}\"\n"
+                  "          mkdir -p \"${evidence_dir}\"\n"
+                  "          echo \"EVIDENCE_DIR=${evidence_dir}\" >> \"${GITHUB_ENV}\"\n\n",
+              ),
+          ]
+
+          for file_name, old_binding, replacement, initializer in repairs:
+              replace_once(file_name, old_binding, replacement)
+              replace_once(file_name, "    steps:\n", "    steps:\n" + initializer)
+
+          ueacp = ".github/workflows/ueacp-live-authority-evidence-one-shot.yml"
+          for name, suffix in [
+              ("AUTHORIZATION_PATH", "ueacp-live-authorization.json"),
+              ("IDENTITY_PATH", "ueacp-live-identity.json"),
+              ("CENSUS_PATH", "ueacp-live-census.json"),
+              ("EVIDENCE_PATH", "ueacp-live-evidence-packet.json"),
+          ]:
+              replace_once(ueacp, f"      {name}: {expression}/{suffix}\n", "")
+
+          ueacp_initializer = (
+              "      - name: Initialize bounded UEACP evidence paths\n"
+              "        shell: bash\n"
+              "        run: |\n"
+              "          set -euo pipefail\n"
+              "          evidence_dir=\"${RUNNER_TEMP}/ueacp-live-authority-evidence\"\n"
+              "          rm -rf \"${evidence_dir}\"\n"
+              "          mkdir -p \"${evidence_dir}\"\n"
+              "          {\n"
+              "            echo \"AUTHORIZATION_PATH=${evidence_dir}/ueacp-live-authorization.json\"\n"
+              "            echo \"IDENTITY_PATH=${evidence_dir}/ueacp-live-identity.json\"\n"
+              "            echo \"CENSUS_PATH=${evidence_dir}/ueacp-live-census.json\"\n"
+              "            echo \"EVIDENCE_PATH=${evidence_dir}/ueacp-live-evidence-packet.json\"\n"
+              "          } >> \"${GITHUB_ENV}\"\n\n"
+          )
+          replace_once(ueacp, "    steps:\n", "    steps:\n" + ueacp_initializer)
+          PY
+
+      - name: Commit exact result and remove one-shot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/pr6502-complete-four-context-repairs-once.yml
+          git config user.name "mad4bdigital-ai"
+          git config user.email "mad4b.digital@gmail.com"
+          git add \
+            .github/workflows/governed-production-promotion-post-finalization-guard.yml \
+            .github/workflows/governed-production-promotion-request-launcher.yml \
+            .github/workflows/hostinger-production-release-evidence-r5.yml \
+            .github/workflows/ueacp-live-authority-evidence-one-shot.yml \
+            .github/workflows/pr6502-complete-four-context-repairs-once.yml
+          git commit -m "fix(ci): complete remaining runner context repairs"
+          git push origin HEAD:fix/push-workflow-runner-context-registration-main-ba10f269-20260806
