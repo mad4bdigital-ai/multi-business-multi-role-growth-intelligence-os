@@ -1,0 +1,48 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "transport-response-schema-promotion-readiness",
+  "title": "Transport Response Schema Promotion Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "requires_new_secrets": false,
+  "secrets_included": false,
+  "scope": [
+    "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+    ".changes/e2e/transport-response-schema-promotion-readiness.json"
+  ],
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "journeys": [
+        {
+          "id": "migration-readiness-contract",
+          "description": "Validate the Migration 1048 recovery definition and safety markers without applying the migration.",
+          "tests": [
+            {
+              "id": "migration-1048-static-readiness",
+              "type": "ci",
+              "command": "node --input-type=module -e \"import fs from 'node:fs';const p='http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql';const s=fs.readFileSync(p,'utf8');const required=['-- no_provider_call','-- no_credential_payload_read','-- no_raw_secrets','-- no_external_send','-- no_external_write','-- secrets_included_false','CREATE TABLE IF NOT EXISTS governed_tool_response_chunks','owner_tenant_id VARCHAR(64)','owner_user_id VARCHAR(64)','owner_workspace_id VARCHAR(64)','owner_principal_type VARCHAR(64)','owner_principal_id VARCHAR(191)','source_surface VARCHAR(64)','idx_governed_chunk_owner_user_expiry','idx_governed_chunk_principal_expiry','CREATE OR REPLACE VIEW v_governed_response_chunk_transport_schema_readiness','16 AS required_column_count','0 AS secrets_included'];const missing=required.filter((value)=>!s.includes(value));if(missing.length){console.error(JSON.stringify({status:'fail',migration:p,missing}));process.exit(1)}console.log(JSON.stringify({status:'pass',migration:p,checks:required.length,applied:false}))\"",
+              "requires_secrets": false
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "rollback": [],
+  "excluded_surface_classes": [
+    "DocumentationOnly",
+    "SensitiveOperations",
+    "SecretManagement",
+    "SecretsRequired"
+  ],
+  "evidence": {
+    "ci_required": true,
+    "e2e_required": true,
+    "observability_required": false,
+    "no_new_secrets_attested": true,
+    "secret_inventory_verified": false
+  }
+}
