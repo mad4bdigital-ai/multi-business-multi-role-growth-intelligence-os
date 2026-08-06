@@ -97,7 +97,6 @@ jobs:
           remaining="$(git diff --name-only --diff-filter=U || true)"
           test -z "${remaining}"
           test "${merge_status}" -eq 0 || git rev-parse --verify MERGE_HEAD
-
           git rm .github/workflows/transport-main-reconcile-once.yml
 
       - name: Setup Node
@@ -122,15 +121,62 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Verify merged transport scope
+      - name: Test connector transport envelopes
+        id: connector_transport
+        continue-on-error: true
         working-directory: http-generic-api
+        run: node test-local-connector-transport-errors.mjs
+
+      - name: Test response chunk schema recovery
+        id: chunk_schema
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: node test-transport-response-chunk-schema-recovery.mjs
+
+      - name: Test merged main sink regression
+        id: sink_regression
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: node test-sink-orchestration-json-asset-lookup-failure.mjs
+
+      - name: Test frontend operation governance
+        id: frontend_governance
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: node test-frontend-operation-governance-generator.mjs
+
+      - name: Test frontend surface dispatch
+        id: frontend_dispatch
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: node test-frontend-surface-dispatch.mjs
+
+      - name: Test OpenAPI route coverage
+        id: openapi_coverage
+        continue-on-error: true
+        working-directory: http-generic-api
+        run: node test-openapi-route-coverage.mjs
+
+      - name: Gate isolated verification outcomes
+        shell: bash
+        env:
+          CONNECTOR_TRANSPORT: ${{ steps.connector_transport.outcome }}
+          CHUNK_SCHEMA: ${{ steps.chunk_schema.outcome }}
+          SINK_REGRESSION: ${{ steps.sink_regression.outcome }}
+          FRONTEND_GOVERNANCE: ${{ steps.frontend_governance.outcome }}
+          FRONTEND_DISPATCH: ${{ steps.frontend_dispatch.outcome }}
+          OPENAPI_COVERAGE: ${{ steps.openapi_coverage.outcome }}
         run: |
-          node test-local-connector-transport-errors.mjs
-          node test-transport-response-chunk-schema-recovery.mjs
-          node test-sink-orchestration-json-asset-lookup-failure.mjs
-          node test-frontend-operation-governance-generator.mjs
-          node test-frontend-surface-dispatch.mjs
-          node test-openapi-route-coverage.mjs
+          set -euo pipefail
+          printf 'connector_transport=%s\nchunk_schema=%s\nsink_regression=%s\nfrontend_governance=%s\nfrontend_dispatch=%s\nopenapi_coverage=%s\n' \
+            "${CONNECTOR_TRANSPORT}" "${CHUNK_SCHEMA}" "${SINK_REGRESSION}" \
+            "${FRONTEND_GOVERNANCE}" "${FRONTEND_DISPATCH}" "${OPENAPI_COVERAGE}"
+          test "${CONNECTOR_TRANSPORT}" = success
+          test "${CHUNK_SCHEMA}" = success
+          test "${SINK_REGRESSION}" = success
+          test "${FRONTEND_GOVERNANCE}" = success
+          test "${FRONTEND_DISPATCH}" = success
+          test "${OPENAPI_COVERAGE}" = success
 
       - name: Commit merge and push without force
         shell: bash
