@@ -1,0 +1,148 @@
+name: Spec 014 Final Work Map Binding Refresh Once
+
+on:
+  push:
+    branches:
+      - chore/spec014-wave1-runtime-evidence-cleanup-20260804
+    paths:
+      - .github/workflows/spec014-final-work-map-binding-refresh-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-final-work-map-binding-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh exact-head Spec 014 Work Map binding
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: chore/spec014-wave1-runtime-evidence-cleanup-20260804
+      WORKFLOW_PATH: .github/workflows/spec014-final-work-map-binding-refresh-once.yml
+      MANIFEST_PATH: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      REPORT_DIR: ${{ runner.temp }}/spec014-final-work-map-binding-refresh
+    steps:
+      - name: Checkout exact triggering head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate exact candidate and initialize evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "${TARGET_BRANCH}" != "main"
+          test "${TARGET_BRANCH}" != "Production"
+          [[ "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          test -f "${WORKFLOW_PATH}"
+          test -f "${MANIFEST_PATH}"
+          test -f "${TASKS_PATH}"
+          node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          rm -rf "${REPORT_DIR}"
+          mkdir -p "${REPORT_DIR}"
+          printf '%s\n' "${GITHUB_SHA}" > "${REPORT_DIR}/expected-head.txt"
+
+      - name: Run official deterministic binding generator
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            | tee "${REPORT_DIR}/generator-first.json"
+          first_diff_hash="$(git diff --binary -- "${MANIFEST_PATH}" "${TASKS_PATH}" | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            | tee "${REPORT_DIR}/generator-second.json"
+          second_diff_hash="$(git diff --binary -- "${MANIFEST_PATH}" "${TASKS_PATH}" | sha256sum | awk '{print $1}')"
+          test "${first_diff_hash}" = "${second_diff_hash}"
+          printf '%s\n' "${first_diff_hash}" > "${REPORT_DIR}/deterministic-diff-sha256.txt"
+
+      - name: Enforce bounded write set and pre-commit readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(git diff --name-only | grep -Ev "^(${MANIFEST_PATH}|${TASKS_PATH})$" || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Unexpected generator write set:" >&2
+            printf '%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          test -n "$(git diff --name-only -- "${MANIFEST_PATH}")"
+          git diff --check
+          REPORT_PATH="${REPORT_DIR}/precommit-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${REPORT_DIR}/precommit-readback.stdout.json"
+
+      - name: Remove one-time workflow and commit bounded result
+        id: publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "${WORKFLOW_PATH}"
+          git add -- "${MANIFEST_PATH}" "${TASKS_PATH}"
+          changed="$(git diff --cached --name-only)"
+          unexpected="$(printf '%s\n' "${changed}" | grep -Ev "^(${WORKFLOW_PATH}|${MANIFEST_PATH}|${TASKS_PATH})$" || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Unexpected staged write set:" >&2
+            printf '%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          printf '%s\n' "${changed}" > "${REPORT_DIR}/staged-files.txt"
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(spec014): refresh final Work Map registry binding"
+          result_head="$(git rev-parse HEAD)"
+          [[ "${result_head}" =~ ^[0-9a-f]{40}$ ]]
+          REPORT_PATH="${REPORT_DIR}/postcommit-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${REPORT_DIR}/postcommit-readback.stdout.json"
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          pushed_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${pushed_head}" = "${result_head}"
+          test ! -e "${WORKFLOW_PATH}"
+          printf '%s\n' "${result_head}" > "${REPORT_DIR}/result-head.txt"
+          echo "result_head=${result_head}" >> "$GITHUB_OUTPUT"
+
+      - name: Write bounded execution summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Spec 014 Final Work Map Binding Refresh"
+            echo
+            echo "- Trigger head: \`${GITHUB_SHA}\`"
+            echo "- Result head: \`${{ steps.publish.outputs.result_head || 'unresolved' }}\`"
+            echo "- Target branch: \`${TARGET_BRANCH}\`"
+            echo "- Official generator: \`spec014-refresh-final-work-map-binding.mjs\`"
+            echo "- Official readback: \`spec014-final-work-map-readback.mjs\`"
+            echo "- Protected branch mutation: \`false\`"
+            echo "- Force push: \`false\`"
+            echo "- Runtime/provider/database/deployment access: \`false\`"
+            echo "- Secrets included: \`false\`"
+          } | tee "${REPORT_DIR}/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload bounded refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-binding-refresh-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec014-final-work-map-binding-refresh/
+          if-no-files-found: warn
+          retention-days: 30
