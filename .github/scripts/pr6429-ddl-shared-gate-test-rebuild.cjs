@@ -19,7 +19,7 @@ const replacement = [
   `requireFragment('BOUNDARY_MODE: \${{ steps.boundary.outputs.boundary_mode }}', 'boundary mode output binding');`,
   `requireFragment("boundary_mode='shared_gate_dependency'", 'shared gate dependency classification');`,
   `requireFragment("boundary_mode='contract_local'", 'contract-local classification');`,
-  `requireFragment("shared_gate='^http-generic-api/scripts/e2e-parallel-pr-gate\\\\.mjs$'", 'shared gate exact-match pattern');`,
+  `requireFragment("shared_gate='^http-generic-api/scripts/e2e-parallel-pr-gate", 'shared gate exact-match pattern prefix');`,
 ].join('\n');
 
 const count = source.split(anchor).length - 1;
