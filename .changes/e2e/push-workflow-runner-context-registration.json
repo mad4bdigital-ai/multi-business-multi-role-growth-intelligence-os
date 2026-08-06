@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "push-workflow-runner-context-registration",
+  "title": "Push and reusable workflow runner-context registration repair",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/push-workflow-runner-context-registration.json",
+      ".github/workflows/response-chunk-ownership-governed-rollout-push.yml",
+      ".github/workflows/governed-migration-dependency-gate.yml",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml",
+      ".github/workflows/hostinger-production-release-evidence-r5.yml",
+      ".github/workflows/production-certified-release-cut-validation.yml",
+      ".github/workflows/ueacp-live-authority-evidence-one-shot.yml",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+      ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
+      "docs/governance/push-workflow-runner-context-registration.md",
+      "http-generic-api/test-push-workflow-runner-context-registration.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore GitHub Actions registration for the ten workflows that failed before runner allocation.",
+      "e2e_journeys": [
+        {
+          "id": "register-push-and-reusable-workflows-after-runner-allocation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions planner and repository governance reviewer",
+          "entrypoint": "Static workflow definitions and the focused registration regression",
+          "terminal_outcome": "Every affected workflow can be planned without evaluating runner.temp in job-level environment context.",
+          "steps": [
+            "Load each affected workflow definition.",
+            "Inspect job-level environment bindings.",
+            "Reject runner.temp before runner allocation.",
+            "Require a bounded post-allocation RUNNER_TEMP initialization or stable repository-relative artifact path."
+          ],
+          "assertions": [
+            "No affected workflow evaluates runner.temp in jobs.<job>.env.",
+            "Existing triggers, immutable bindings, permissions, and authorization gates remain unchanged.",
+            "No provider, deployment, migration, database, or Production action is executed by the regression."
+          ],
+          "tests": [
+            {
+              "id": "push-workflow-runner-context-registration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-push-workflow-runner-context-registration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/governance/push-workflow-runner-context-registration.md",
+            "http-generic-api/test-push-workflow-runner-context-registration.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve bounded evidence paths and all existing exact trigger and authorization boundaries."
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed if job-level runner.temp is reintroduced in any affected workflow."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No provider or Production canary is authorized by this registration-only repair."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}
