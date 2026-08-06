@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   repair:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-slim
     timeout-minutes: 15
     env:
       EXPECTED_BRANCH: fix/certified-release-registration-clean-20260806
@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          node --version
 
           node <<'NODE'
           const fs = require('node:fs');
