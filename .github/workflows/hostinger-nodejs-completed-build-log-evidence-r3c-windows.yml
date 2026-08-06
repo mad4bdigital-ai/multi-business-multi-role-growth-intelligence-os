@@ -39,7 +39,7 @@ jobs:
       MARKER_PATH: .github/hostinger-runtime-recovery/triggers/completed-build-log-evidence-r3c-windows-f5c1ae88.txt
       TRIGGER_TOKEN: RUN_HOSTINGER_COMPLETED_BUILD_LOG_EVIDENCE_R3C_WINDOWS_F5C1AE88_V1
       BINDING_ID: f5c1ae8840b4d4452f2908bb0f23051880bb6896:019fc51c-3947-7255-aa4d-f55cb8df7658:94321b273e70f96180c0f058adbb291b035fd237:R3C_WINDOWS_V1
-      REPORT_DIR: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence
+      REPORT_DIR: ${{ github.workspace }}/.artifacts/hostinger-nodejs-completed-build-log-evidence
     steps:
       - name: Checkout exact trusted push
         uses: actions/checkout@v5
