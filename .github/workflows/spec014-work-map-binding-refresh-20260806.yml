@@ -27,7 +27,7 @@ jobs:
       - name: Verify immutable authority boundary
         shell: bash
         env:
-          EXPECTED_PARENT: c95f7743a3931d16b8a8b9dc23db836efbeeebe4
+          EXPECTED_PARENT: ef75aa1e7ad52fce47391241025e18d5b697798f
           EXPECTED_MAIN: 52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5
           EXPECTED_BRANCH: fix/spec014-wave1-apply-cross-run-guard-20260805
           WRITER_PATH: .github/workflows/spec014-work-map-binding-refresh-20260806.yml
@@ -70,7 +70,14 @@ jobs:
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           )
           mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
-          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+          actual_text="$(printf '%s\n' "${changed[@]}")"
+          expected_text="$(printf '%s\n' "${expected_sorted[@]}")"
+          if [[ "$actual_text" != "$expected_text" ]]; then
+            actual_csv="$(printf '%s,' "${changed[@]}")"
+            expected_csv="$(printf '%s,' "${expected_sorted[@]}")"
+            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Unexpected generated diff::actual=${actual_csv%,}; expected=${expected_csv%,}"
+            exit 1
+          fi
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
           node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
