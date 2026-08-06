@@ -27,6 +27,7 @@ jobs:
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
       RETIREMENT_TOMBSTONE: .changes/e2e/production-runtime-parity-comment-bridge.json
+      RETIRED_BRIDGE_WORKFLOW: .github/workflows/production-runtime-parity-comment-bridge.yml
       RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
     steps:
       - name: Checkout exact triggering head
@@ -101,6 +102,7 @@ jobs:
 
           allowed=(
             ".changes/e2e/production-runtime-parity-comment-bridge.json"
+            ".github/workflows/production-runtime-parity-comment-bridge.yml"
             ".github/workflows/pr6463-bounded-main-reconciliation.yml"
             "docs/work-maps/README.md"
             "docs/work-maps/repository-automation-map.md"
@@ -143,6 +145,14 @@ jobs:
           if git ls-files -u -- "${RETIREMENT_TOMBSTONE}" | grep -q .; then
             git checkout --ours -- "${RETIREMENT_TOMBSTONE}"
             git add -- "${RETIREMENT_TOMBSTONE}"
+          fi
+
+      - name: Preserve intentional bridge-workflow deletion
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files -u -- "${RETIRED_BRIDGE_WORKFLOW}" | grep -q .; then
+            git rm --force -- "${RETIRED_BRIDGE_WORKFLOW}"
           fi
 
       - name: Preserve intentional bridge-test deletion
