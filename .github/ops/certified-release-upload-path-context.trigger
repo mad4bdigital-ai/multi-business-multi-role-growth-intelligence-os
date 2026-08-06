@@ -1,6 +1,8 @@
 source_main_sha=runtime_pinned
 scope=.github/workflows/production-certified-release-cut-validation.yml,http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-attempt=6
+attempt=7
+focused_registration_contract=true
+unrelated_main_convergence_failure=response-chunk-ownership-governed-rollout.yml_missing
 pin_main_at_job_start=true
 recheck_main_before_ref_update=true
 finalize_clean_merge_commit=true
