@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_BRANCH: fix/retire-production-runtime-parity-bridge-6441-20260806
-      PINNED_MAIN_SHA: 840a3b605ade9279bf110e95dfc58d614345d516
+      PINNED_MAIN_SHA: faa7cd34117c7e0e18d1b55dad7968afb944378f
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
       RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
@@ -46,20 +46,29 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          actual_head="$(git rev-parse HEAD)"
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
-          test "${remote_head}" = "${GITHUB_SHA}"
-
           pr_file="${RUNNER_TEMP}/pr6463.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "${pr_file}"
-          test "$(jq -r '.state' "${pr_file}")" = "open"
-          test "$(jq -r '.draft' "${pr_file}")" = "true"
-          test "$(jq -r '.base.ref' "${pr_file}")" = "main"
-          test "$(jq -r '.head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
-          test "$(jq -r '.head.sha' "${pr_file}")" = "${GITHUB_SHA}"
-
+          pr_state="$(jq -r '.state' "${pr_file}")"
+          pr_draft="$(jq -r '.draft' "${pr_file}")"
+          pr_base="$(jq -r '.base.ref' "${pr_file}")"
+          pr_head_ref="$(jq -r '.head.ref' "${pr_file}")"
+          pr_head_sha="$(jq -r '.head.sha' "${pr_file}")"
           git fetch --no-tags origin main
-          test "$(git rev-parse origin/main)" = "${PINNED_MAIN_SHA}"
+          actual_main="$(git rev-parse origin/main)"
+
+          printf 'triggering_head=%s\nactual_head=%s\nremote_head=%s\npr_head=%s\npr_state=%s\npr_draft=%s\npr_base=%s\npr_head_ref=%s\npinned_main=%s\nactual_main=%s\n' \
+            "${GITHUB_SHA}" "${actual_head}" "${remote_head}" "${pr_head_sha}" "${pr_state}" "${pr_draft}" "${pr_base}" "${pr_head_ref}" "${PINNED_MAIN_SHA}" "${actual_main}"
+
+          test "${actual_head}" = "${GITHUB_SHA}"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          test "${pr_state}" = "open"
+          test "${pr_draft}" = "true"
+          test "${pr_base}" = "main"
+          test "${pr_head_ref}" = "${TARGET_BRANCH}"
+          test "${pr_head_sha}" = "${GITHUB_SHA}"
+          test "${actual_main}" = "${PINNED_MAIN_SHA}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -159,6 +168,7 @@ jobs:
 
       - name: Publish diagnostic evidence
         if: always()
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           MERGE_EXIT: ${{ steps.merge.outputs.merge_exit }}
@@ -166,4 +176,6 @@ jobs:
         run: |
           set -euo pipefail
           body="PR6463_BOUNDED_DIAGNOSTIC outcome=${{ job.status }} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} merge_exit=${MERGE_EXIT:-unresolved} protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
+          if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null; then
+            echo "::warning::Unable to publish diagnostic comment"
+          fi
