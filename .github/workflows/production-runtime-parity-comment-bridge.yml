@@ -29,7 +29,6 @@ jobs:
       CONTROL_ISSUE: '4953'
       EXPECTED_BRANCH: Production
       AUTH_URL: https://auth.mad4b.com/version
-      REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-comment-bridge
       TRIGGER_BODY: ${{ github.event.comment.body }}
 
     steps:
@@ -84,6 +83,7 @@ jobs:
         working-directory: http-generic-api
         env:
           EXPECTED_SHA: ${{ steps.trigger.outputs.expected_sha }}
+          REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-comment-bridge
         run: |
           set -Eeuo pipefail
           node scripts/production-runtime-parity-evidence.mjs \
@@ -95,6 +95,8 @@ jobs:
       - name: Print bounded parity summary
         if: always()
         shell: bash
+        env:
+          REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-comment-bridge
         run: |
           set -Eeuo pipefail
           REPORT="${REPORT_DIR}/production-runtime-parity-evidence.json"
@@ -109,7 +111,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: production-runtime-parity-comment-${{ github.run_id }}
-          path: ${{ env.REPORT_DIR }}/*
+          path: ${{ runner.temp }}/production-runtime-parity-comment-bridge/*
           if-no-files-found: error
           retention-days: 30
 
@@ -120,6 +122,7 @@ jobs:
           PARITY_STEP_OUTCOME: ${{ steps.parity.outcome }}
           EXPECTED_SHA: ${{ steps.trigger.outputs.expected_sha }}
           TOOLING_SHA: ${{ steps.trigger.outputs.tooling_sha }}
+          REPORT_DIR: ${{ runner.temp }}/production-runtime-parity-comment-bridge
         run: |
           set -Eeuo pipefail
           test "${PARITY_STEP_OUTCOME}" = success
