@@ -1,5 +1,7 @@
 # Deployment Parity Checklist
 
+> Transport response-chunk schema recovery: `1048_transport_response_chunk_schema_recovery.sql` additively and idempotently creates or reconciles the sixteen runtime-required `governed_tool_response_chunks` columns, bounded owner/expiry indexes, and `v_governed_response_chunk_transport_schema_readiness`. It performs no provider call, credential payload read, raw-secret access, external send/write, deployment, runtime mutation, or destructive data operation and declares `secrets_included=false`. Repository merge is not migration-Apply authority; completion requires a separately authorized checksum-bound preflight/Apply and same-cycle readback proving `required_column_count=16`, `present_column_count=16`, and `readiness_status=ready` before Production runtime promotion.
+
 ## Brand-scoped user skill activation parity
 
 Migration `20260728_brand_scoped_user_skill_activation.sql` is parity-complete only when a separately authorized governed migration run records the reviewed checksum and statement count, schema readback confirms `brand_skill_policies`, `user_brand_skill_grants`, generated `active_scope_hash`, and `v_effective_user_brand_skill_grants`, and runtime readback confirms baseline `agent_skill_grants` remain required with no automatic policy seeding or skill activation. The migration performs no provider call, credential payload read, raw-secret access, external send/write, deployment, or restart; `secrets_included=false`. Repository merge and documentation do not authorize apply.
