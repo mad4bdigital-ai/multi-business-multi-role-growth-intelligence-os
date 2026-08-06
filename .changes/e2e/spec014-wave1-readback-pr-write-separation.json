@@ -12,6 +12,7 @@
       ".github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml",
       ".github/workflows/spec014-wave1-runtime-evidence-readback.yml",
       ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
       ".changes/e2e/hostinger-production-runtime-readback-r7.json",
       ".github/workflows/hostinger-production-runtime-readback-r7.yml",
       "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
@@ -33,7 +34,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation, the permanent owner-bound R7 runtime readback contract, fail-closed governance for bounded post-integration maintenance, and exact base/head Work Map changed-file resolution.",
+      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation, the permanent owner-bound R7 runtime readback contract, fail-closed governance for bounded post-integration maintenance, exact base/head Work Map changed-file resolution, and structured no-secret Work Map governance diagnostics.",
       "e2e_journeys": [
         {
           "id": "retire-single-use-readback-and-retain-r7-boundary",
@@ -41,7 +42,7 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer validating Spec 014 evidence lifecycle boundaries",
           "entrypoint": "A change to the storage control-plane guard, permanent R7 readback surface, lifecycle contract, post-integration maintenance gate, or exact Work Map changed-file resolver",
-          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, future public runtime verification is available only through the bounded owner-bound R7 workflow, a maintenance branch can target main only when one changed implemented single-PR contract covers every changed runtime file after all affected parallel workstreams are integrated, and Work Map governance evaluates the immutable base/head file set without historical fallback.",
+          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, future public runtime verification is available only through the bounded owner-bound R7 workflow, a maintenance branch can target main only when one changed implemented single-PR contract covers every changed runtime file after all affected parallel workstreams are integrated, and Work Map governance evaluates the immutable base/head file set while publishing bounded structured findings without historical fallback or secret exposure.",
           "steps": [
             "Load the retained storage control-plane guard and permanent R7 workflow through executable contract coverage.",
             "Require the storage control-plane pull-request guard to retain contents: read and its control-plane validation job.",
@@ -49,6 +50,7 @@
             "Allow bounded post-integration maintenance only when the target is main, every affected multi-PR contract is implemented with all required workstreams integrated, and one changed implemented single-PR contract covers every changed runtime file.",
             "Independently derive and revalidate the unique changed single-PR maintenance contract inside phase evaluation, and suppress only stale unchanged-contract findings for implemented multi-PR contracts whose required workstreams remain integrated.",
             "Resolve Work Map changed files from the immutable pull-request base and head SHAs, and reject unavailable or moved identities without falling back to HEAD~1.",
+            "Persist a bounded Work Map governance diagnostic artifact containing exact head identity, exit status, and scrubbed gate output before failing closed.",
             "Reject under-scoped maintenance contracts, non-main targets, reopened parallel delivery, pull-request write permissions, repository content mutation, protected-ref mutation, provider credentials, deployment actions, SQL, Migration Apply, database mutation, or secret inclusion.",
             "Preserve the retained R7 artifact identity and keep issue 6215 open as the runtime control record until deployment parity is separately authorized and proven."
           ],
@@ -59,9 +61,10 @@
             "Post-integration maintenance fails closed unless one changed implemented single-PR contract covers every changed runtime file and every affected multi-PR workstream remains integrated.",
             "Phase evaluation independently revalidates the unique changed maintenance contract and removes no finding unless runtime coverage, main targeting, implemented status, secret exclusion, and integrated parallel work all hold.",
             "Work Map integration resolves the exact base/head changed-file set and never falls back to historical first-parent scope.",
+            "A failing Work Map gate uploads a bounded structured artifact before the workflow fails closed, without adding repository write authority or secrets.",
             "Post-integration maintenance is rejected when it targets a branch other than main or when parallel delivery is reopened.",
             "The retained surfaces perform no repository, runtime, database, provider, deployment, credential, or external business mutation.",
-            "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, or heuristic changed-file fallback returns."
+            "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, heuristic changed-file fallback, or unstructured-only failure evidence returns."
           ],
           "tests": [
             {
@@ -96,6 +99,7 @@
           "evidence_paths": [
             ".changes/e2e/spec014-wave1-readback-pr-write-separation.json",
             ".github/workflows/hostinger-storage-control-plane-guard.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
             ".changes/e2e/hostinger-production-runtime-readback-r7.json",
             ".github/workflows/hostinger-production-runtime-readback-r7.yml",
             "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
@@ -114,7 +118,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Keep the retained R7 evidence path, storage control-plane pull-request guard, bounded post-integration maintenance classification, and exact Work Map changed-file resolution aligned as future repository changes occur."
+      "objective": "Keep the retained R7 evidence path, storage control-plane pull-request guard, bounded post-integration maintenance classification, exact Work Map changed-file resolution, and structured Work Map diagnostics aligned as future repository changes occur."
     },
     {
       "id": "resilient",
