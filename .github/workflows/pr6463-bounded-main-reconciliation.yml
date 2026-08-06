@@ -152,7 +152,12 @@ jobs:
           set -euo pipefail
           rm -f docs/work-maps/README.md docs/work-maps/repository-automation-map.md
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          git add -- \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/observability-release-map.md \
+            docs/work-maps/repository-automation-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
 
       - name: Refresh opted-in Spec Kit registry bindings
         shell: bash
@@ -254,7 +259,10 @@ jobs:
           set -euo pipefail
           git add -- \
             docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/observability-release-map.md \
             docs/work-maps/repository-automation-map.md \
+            docs/work-maps/work-map-coverage-matrix.md \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           git status --short
@@ -285,7 +293,10 @@ jobs:
             ".changes/e2e/production-runtime-parity-comment-bridge.json"
             ".github/workflows/production-runtime-parity-comment-bridge.yml"
             "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
             "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
             "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs"
             "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs"
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
@@ -353,7 +364,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          body="PR6463_BOUNDED_RECONCILIATION outcome=${{ job.status }} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} merge_exit=${MERGE_EXIT:-unresolved} protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
+          body="PR6463_BOUNDED_RECONCILIATION outcome=${{ job.status }} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} merge_exit=${MERGE_EXIT:-unresolved} generated_work_maps=README.md,data-model-domain-map.md,observability-release-map.md,repository-automation-map.md,work-map-coverage-matrix.md protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
           if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null; then
             echo "::warning::Unable to publish reconciliation comment"
           fi
