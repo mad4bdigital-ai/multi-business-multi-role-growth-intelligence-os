@@ -86,6 +86,7 @@ await assert.rejects(
   }), { operation: "connectorPowerShell" }),
   (error) => {
     assert.equal(error.code, "connector_credential_invalid");
+    assert.equal(error.status, 401);
     assert.equal(error.http_status, 401);
     assert.equal(error.retryable, false);
     assert.equal(error.details.reason, "credential_invalid");
@@ -95,6 +96,50 @@ await assert.rejects(
     assert.equal(error.details.content_type, "application/json");
     assert.equal(error.details.secrets_included, false);
     assert.doesNotMatch(JSON.stringify(error.details), /super-secret-value/);
+    return true;
+  },
+);
+
+await assert.rejects(
+  () => readLocalConnectorResponse(fakeResponse({
+    status: 200,
+    body: JSON.stringify({
+      ok: false,
+      error: {
+        code: "SCOPE_DENIED",
+        message: "Connector scope denied",
+      },
+    }),
+  }), { operation: "connectorGithub" }),
+  (error) => {
+    assert.equal(error.code, "connector_scope_denied");
+    assert.equal(error.status, 403);
+    assert.equal(error.http_status, 403);
+    assert.equal(error.retryable, false);
+    assert.equal(error.details.reason, "scope_denied");
+    assert.equal(error.details.upstream_status, 200);
+    return true;
+  },
+);
+
+await assert.rejects(
+  () => readLocalConnectorResponse(fakeResponse({
+    status: 200,
+    body: JSON.stringify({
+      ok: false,
+      error: {
+        code: "DEADLINE_EXCEEDED",
+        message: "Connector request timed out",
+      },
+    }),
+  }), { operation: "connectorBrowser" }),
+  (error) => {
+    assert.equal(error.code, "connector_timeout");
+    assert.equal(error.status, 504);
+    assert.equal(error.http_status, 504);
+    assert.equal(error.retryable, true);
+    assert.equal(error.details.reason, "timeout");
+    assert.equal(error.details.upstream_status, 200);
     return true;
   },
 );
