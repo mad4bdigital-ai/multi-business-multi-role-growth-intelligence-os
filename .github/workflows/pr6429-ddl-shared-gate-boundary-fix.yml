@@ -56,6 +56,29 @@ jobs:
           node --check "${PATCH_SCRIPT}"
           PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" \
             node "${PATCH_SCRIPT}"
+
+          test_path='http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs'
+          git show "${BASE_SHA}:${test_path}" > "${test_path}"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const testPath = 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs';
+          let source = fs.readFileSync(testPath, 'utf8');
+          const anchor = `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature'", 'feature allowlist evidence');`;
+          const replacement = [
+            `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature' and boundary_mode == 'contract_local'", 'contract-local feature allowlist evidence');`,
+            `requireFragment("'shared_gate_dependency_validated': candidate_mode == 'feature' and boundary_mode == 'shared_gate_dependency'", 'shared gate dependency evidence');`,
+            "requireFragment('BOUNDARY_MODE: ${{ steps.boundary.outputs.boundary_mode }}', 'boundary mode output binding');",
+            `requireFragment("boundary_mode='shared_gate_dependency'", 'shared gate dependency classification');`,
+            `requireFragment("boundary_mode='contract_local'", 'contract-local classification');`,
+            `requireFragment("shared_gate='^http-generic-api/scripts/e2e-parallel-pr-gate\\\\.mjs$'", 'shared gate exact-match pattern');`
+          ].join('\n');
+          const count = source.split(anchor).length - 1;
+          if (count !== 1) throw new Error(`feature evidence anchor count=${count}`);
+          source = source.replace(anchor, replacement);
+          fs.writeFileSync(testPath, source);
+          NODE
+          node --check "${test_path}"
+
           rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}"
           git add -A -- \
             "${WORKFLOW_PATH}" \
@@ -63,7 +86,7 @@ jobs:
             "${BOOTSTRAP_SCRIPT}" \
             .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
             .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
-            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+            "${test_path}"
 
       - name: Create exact three-file candidate
         shell: bash
@@ -106,6 +129,7 @@ jobs:
         run: |
           set -euo pipefail
           evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
+          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
           node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
             | tee "${evidence_root}/workflow-test.json"
           node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs \
