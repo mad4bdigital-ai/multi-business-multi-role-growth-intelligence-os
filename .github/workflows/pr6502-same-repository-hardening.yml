@@ -18,7 +18,7 @@ concurrency:
 jobs:
   harden:
     name: Harden launcher identity and generate final-tree maps
-    runs-on: ubuntu-24.04-arm
+    runs-on: macos-14
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 327e25e81ad2cf34c667adf21249992ca7dc9b32
+      AUTHORIZED_PARENT_SHA: 52c58b84b47ec15461ce6d9893328167c219a91c
       ONE_SHOT_PATH: .github/workflows/pr6502-same-repository-hardening.yml
       LAUNCHER_PATH: .github/workflows/governed-production-promotion-request-launcher.yml
       TEST_PATH: http-generic-api/test-production-promotion-convergence-workflows.mjs
@@ -125,9 +125,10 @@ jobs:
           node http-generic-api/test-push-workflow-runner-context-registration.mjs
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
-          mapfile -t changed_paths < <(git diff --name-only | sort)
-          printf '%s\n' "${changed_paths[@]}"
-          for path in "${changed_paths[@]}"; do
+          changed_paths="$(git diff --name-only | sort)"
+          printf '%s\n' "${changed_paths}"
+          while IFS= read -r path; do
+            test -z "${path}" && continue
             case "${path}" in
               "${ONE_SHOT_PATH}"|"${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
                 ;;
@@ -136,11 +137,11 @@ jobs:
                 exit 1
                 ;;
             esac
-          done
+          done <<< "${changed_paths}"
 
-          first_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          first_docs_hash="$(git diff --binary -- docs/work-maps | shasum -a 256 | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          second_docs_hash="$(git diff --binary -- docs/work-maps | shasum -a 256 | awk '{print $1}')"
           test "${first_docs_hash}" = "${second_docs_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
@@ -157,13 +158,15 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${LAUNCHER_PATH}" "${TEST_PATH}" docs/work-maps/README.md docs/work-maps/repository-automation-map.md
 
-          mapfile -t staged < <(git diff --cached --name-only | sort)
-          printf '%s\n' "${staged[@]}"
-          test "${#staged[@]}" -ge 2
-          test "${#staged[@]}" -le 4
-          printf '%s\n' "${staged[@]}" | grep -Fxq "${LAUNCHER_PATH}"
-          printf '%s\n' "${staged[@]}" | grep -Fxq "${TEST_PATH}"
-          for path in "${staged[@]}"; do
+          staged="$(git diff --cached --name-only | sort)"
+          printf '%s\n' "${staged}"
+          staged_count="$(printf '%s\n' "${staged}" | sed '/^$/d' | wc -l | tr -d ' ')"
+          test "${staged_count}" -ge 2
+          test "${staged_count}" -le 4
+          printf '%s\n' "${staged}" | grep -Fxq "${LAUNCHER_PATH}"
+          printf '%s\n' "${staged}" | grep -Fxq "${TEST_PATH}"
+          while IFS= read -r path; do
+            test -z "${path}" && continue
             case "${path}" in
               "${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
                 ;;
@@ -172,7 +175,7 @@ jobs:
                 exit 1
                 ;;
             esac
-          done
+          done <<< "${staged}"
 
           live_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
           test "$(jq -r '.head.sha' <<<"${live_pr}")" = "${GITHUB_SHA}"
