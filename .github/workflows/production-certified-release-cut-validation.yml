@@ -2,13 +2,10 @@ name: Certified Production Release Cut Validation
 
 on:
   pull_request_target:
-    branches:
-      - "gpt/validate-certified-release-base-*"
     types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: certified-production-release-cut-${{ github.event.pull_request.number }}
@@ -17,6 +14,7 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
+    if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     outputs:
@@ -27,9 +25,7 @@ jobs:
       main_sha_initial: ${{ steps.verify.outputs.main_sha_initial }}
       production_sha: ${{ steps.verify.outputs.production_sha }}
     env:
-      GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
-      VALIDATION_PR: ${{ github.event.pull_request.number }}
     steps:
       - name: Validate trusted same-repository validation surface
         shell: bash
@@ -47,23 +43,12 @@ jobs:
             echo "::error::certified validation requires a same-repository head"
             exit 1
           }
-          [[ "$HEAD_REF" == gpt/validate-certified-release-candidate-* ]]
-          [[ "$BASE_REF" == gpt/validate-certified-release-base-* ]]
           for value in "$HEAD_SHA" "$BASE_SHA"; do
             [[ "$value" =~ ^[0-9a-f]{40}$ ]] || {
               echo "::error::validation refs must resolve to lowercase 40-character SHAs"
               exit 1
             }
           done
-
-      - name: Record certified validation start
-        shell: bash
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-        run: |
-          set -Eeuo pipefail
-          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started source_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -134,15 +119,6 @@ jobs:
             echo "main_sha_initial=$CURRENT_MAIN_SHA"
             echo "production_sha=$CURRENT_PRODUCTION_SHA"
           } >> "$GITHUB_OUTPUT"
-
-      - name: Record direct ARM CI start
-        shell: bash
-        env:
-          HEAD_SHA: ${{ steps.verify.outputs.head_sha }}
-          BASE_SHA: ${{ steps.verify.outputs.base_sha }}
-        run: |
-          set -Eeuo pipefail
-          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
 
   syntax:
     name: Syntax Check
@@ -442,7 +418,7 @@ jobs:
 
   finalize:
     name: Publish certified release-cut evidence
-    if: always()
+    if: always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
     needs:
       - certified-release-cut-ci
       - syntax
@@ -452,11 +428,6 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     env:
-      GH_TOKEN: ${{ github.token }}
-      REPOSITORY: ${{ github.repository }}
-      VALIDATION_PR: ${{ github.event.pull_request.number }}
-      EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
-      CI_SUMMARY_PATH: ${{ runner.temp }}/certified-release-ci.json
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -469,6 +440,13 @@ jobs:
       EXECUTION_RESULT: ${{ needs.execution-resolver-gate.result }}
       ARCHITECTURE_RESULT: ${{ needs.architecture-drift.result }}
     steps:
+      - name: Initialize runner-local evidence paths
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"
+          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"
+
       - name: Require successful direct ARM CI gates
         shell: bash
         run: |
@@ -585,14 +563,3 @@ jobs:
             ${{ env.CI_SUMMARY_PATH }}
           if-no-files-found: error
           retention-days: 30
-
-      - name: Record certified validation success
-        shell: bash
-        run: |
-          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} evidence_schema=certified_production_release_cut.v1 runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
-
-      - name: Record certified validation failure
-        if: failure()
-        shell: bash
-        run: |
-          gh pr comment "$VALIDATION_PR" --repo "$REPOSITORY" --body "CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed source_run_id=${GITHUB_RUN_ID} ci_run_id=${GITHUB_RUN_ID} candidate_sha=${HEAD_SHA} certified_cut_sha=${BASE_SHA} runner_pool=ubuntu-24.04-arm execution_mode=direct_arm merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false" || true
