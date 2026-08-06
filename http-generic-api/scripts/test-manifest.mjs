@@ -105,6 +105,7 @@ const staticDiscoveryCommands = [
   "node test-tenant-tool-schema-strictness.mjs",
   "node test-test-manifest-runner.mjs",
   "node test-ticket-external-delivery-completion-certification.mjs",
+  "node test-transport-response-chunk-schema-recovery.mjs",
   "node test-user-dashboard-dynamic-tabs-bridge.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
 ];
