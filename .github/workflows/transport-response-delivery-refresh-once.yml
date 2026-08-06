@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(git status --porcelain | sed -E 's/^.. //' | grep -Ev '^(\.github/workflows/transport-response-delivery-refresh-once\.yml|docs/work-maps/|http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          unexpected="$(git status --porcelain | sed -E 's/^.. //' | grep -Ev '^(\.github/workflows/transport-response-delivery-refresh-once\.yml|docs/work-maps/|http-generic-api/frontend-operation-governance\.generated\.(json|md|yaml)|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/frontend-registry-closure-report\.(json|md)|http-generic-api/skill-inventory\.generated\.md|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${unexpected}" ]]; then
             echo "Unexpected generated mutation paths:" >&2
             printf '%s\n' "${unexpected}" >&2
@@ -93,7 +93,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/workflows/transport-response-delivery-refresh-once.yml docs/work-maps \
             http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-operation-governance.generated.md \
+            http-generic-api/frontend-operation-governance.generated.yaml \
             http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/frontend-registry-closure-report.json \
+            http-generic-api/frontend-registry-closure-report.md \
+            http-generic-api/skill-inventory.generated.md \
             http-generic-api/openapi/frontend-runtime-routes.generated.yaml
           git diff --cached --quiet && { echo "No generated changes to publish."; exit 0; }
           git commit -m "chore(transport): refresh governed generated evidence"
