@@ -75,7 +75,7 @@ jobs:
           set -e
 
           unmerged="$(git diff --name-only --diff-filter=U | sort)"
-          unexpected_unmerged="$(printf '%s\n' "${unmerged}" | grep -v -E '^(docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md)?$' || true)"
+          unexpected_unmerged="$(printf '%s\n' "${unmerged}" | grep -v -E '^(\.github/workflows/pr6463-bounded-main-reconciliation\.yml|docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md)?$' || true)"
           if [[ -n "${unexpected_unmerged}" ]]; then
             echo "Unexpected merge conflicts:"
             printf '%s\n' "${unexpected_unmerged}"
@@ -84,6 +84,11 @@ jobs:
           if [[ "${merge_exit}" -ne 0 && -z "${unmerged}" ]]; then
             echo "Merge failed without an approved conflict set."
             exit 1
+          fi
+
+          if printf '%s\n' "${unmerged}" | grep -Fxq "${TEMP_WORKFLOW}"; then
+            git checkout --ours -- "${TEMP_WORKFLOW}"
+            git add -- "${TEMP_WORKFLOW}"
           fi
 
           rm -f docs/work-maps/README.md docs/work-maps/repository-automation-map.md
@@ -235,5 +240,5 @@ jobs:
         run: |
           set -euo pipefail
           outcome="${{ job.status }}"
-          body="PR6463_BOUNDED_RECONCILIATION outcome=${outcome} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} allowed_conflicts=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
+          body="PR6463_BOUNDED_RECONCILIATION outcome=${outcome} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} allowed_conflicts=.github/workflows/pr6463-bounded-main-reconciliation.yml,docs/work-maps/README.md,docs/work-maps/repository-automation-map.md protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
