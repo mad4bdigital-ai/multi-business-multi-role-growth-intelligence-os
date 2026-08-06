@@ -1,5 +1,6 @@
 name: PR 6429 main sync conflict diagnostic
 
+# trigger: exact-main-sync-diagnostic-v1
 on:
   push:
     branches:
