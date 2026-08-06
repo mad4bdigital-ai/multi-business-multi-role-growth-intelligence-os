@@ -1,9 +1,0 @@
-attempt=2
-pin_main_at_job_start=true
-quote_colon_bearing_if_values=true
-focused_registration_regression=true
-actionlint_shellcheck_disabled=true
-publish_ref=false
-force_push=false
-production_mutation=false
-secrets_included=false

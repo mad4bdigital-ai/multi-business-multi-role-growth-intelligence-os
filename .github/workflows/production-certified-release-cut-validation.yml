@@ -14,7 +14,7 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
-    if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
+    if: "startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     outputs:
@@ -418,7 +418,7 @@ jobs:
 
   finalize:
     name: Publish certified release-cut evidence
-    if: always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
+    if: "always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"
     needs:
       - certified-release-cut-ci
       - syntax
@@ -444,8 +444,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "EVIDENCE_PATH=${GITHUB_WORKSPACE}/certified-production-release-cut.json" >> "$GITHUB_ENV"
-          echo "CI_SUMMARY_PATH=${GITHUB_WORKSPACE}/certified-release-ci.json" >> "$GITHUB_ENV"
+          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"
+          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"
 
       - name: Require successful direct ARM CI gates
         shell: bash
@@ -559,7 +559,7 @@ jobs:
         with:
           name: certified-production-release-cut-${{ github.event.pull_request.head.sha }}
           path: |
-            certified-production-release-cut.json
-            certified-release-ci.json
+            ${{ env.EVIDENCE_PATH }}
+            ${{ env.CI_SUMMARY_PATH }}
           if-no-files-found: error
           retention-days: 30
