@@ -1,7 +1,8 @@
-source_main_sha=840a3b605ade9279bf110e95dfc58d614345d516
+source_main_sha=runtime_pinned
 scope=.github/workflows/production-certified-release-cut-validation.yml,http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-attempt=5
-synchronize_with_current_main=true
+attempt=6
+pin_main_at_job_start=true
+recheck_main_before_ref_update=true
 finalize_clean_merge_commit=true
 force_push=false
 production_mutation=false
