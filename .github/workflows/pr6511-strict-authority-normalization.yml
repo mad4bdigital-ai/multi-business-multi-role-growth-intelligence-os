@@ -1,0 +1,86 @@
+name: PR 6511 Strict Authority Normalization
+
+on:
+  push:
+    branches:
+      - gpt/exec/pr6511-strict-authority-normalization-20260806
+
+concurrency:
+  group: pr6511-strict-authority-normalization
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Verify immutable helper base
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e d0e8e0399ff5cf8c441c5259e32af779f0bfd532^{commit}
+          test "$(git merge-base d0e8e0399ff5cf8c441c5259e32af779f0bfd532 HEAD)" = "d0e8e0399ff5cf8c441c5259e32af779f0bfd532"
+
+      - name: Apply strict authority normalization patch
+        run: node scripts/pr6511-strict-authority-normalization.mjs
+
+      - name: Validate JavaScript syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/repositoryAutomationPolicyFacade.js
+          node --check http-generic-api/test-repository-automation-policy-facade.mjs
+
+      - name: Install focused test dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run focused policy facade regression
+        working-directory: http-generic-api
+        run: node test-repository-automation-policy-facade.mjs
+
+      - name: Enforce bounded permanent scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          mapfile -t changed < <(git diff --name-only d0e8e0399ff5cf8c441c5259e32af779f0bfd532 -- \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/repositoryAutomationPolicyFacade.js \
+            http-generic-api/test-repository-automation-policy-facade.mjs | sort)
+          expected=(
+            http-generic-api/githubRepositoryPolicyController.js
+            http-generic-api/repositoryAutomationPolicyFacade.js
+            http-generic-api/test-repository-automation-policy-facade.mjs
+          )
+          test "${#changed[@]}" -eq 3
+          test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}")"
+
+      - name: Commit verified permanent patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/repositoryAutomationPolicyFacade.js \
+            http-generic-api/test-repository-automation-policy-facade.mjs
+          git diff --cached --check
+          git commit -m "fix(repository-policy): reject truncated authority bindings"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
