@@ -431,16 +431,16 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
   ]);
 
   const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);
-const rulesetIndex = rulesetsIndexReadable ? rulesetsIndex.payload : [];
-const rulesetDetails = rulesetsIndexReadable
-  ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetIndex, token, fetchImpl })
-  : [];
-const indexedRulesetIds = rulesetIndex.map((item) => Number(item?.id || 0)).filter(Boolean);
-const rulesetDetailsReadable = rulesetsIndexReadable
-  && indexedRulesetIds.length === rulesetIndex.length
-  && rulesetDetails.length === indexedRulesetIds.length
-  && rulesetDetails.every((item) => item.status === 200 && item.detail);
-const collaboratorPermissions = collaborators.ok
+  const rulesetIndex = rulesetsIndexReadable ? rulesetsIndex.payload : [];
+  const rulesetDetails = rulesetsIndexReadable
+    ? await readRulesetDetails({ owner: target.owner, repo: target.repo, index: rulesetIndex, token, fetchImpl })
+    : [];
+  const indexedRulesetIds = rulesetIndex.map((item) => Number(item?.id || 0)).filter(Boolean);
+  const rulesetDetailsReadable = rulesetsIndexReadable
+    && indexedRulesetIds.length === rulesetIndex.length
+    && rulesetDetails.length === indexedRulesetIds.length
+    && rulesetDetails.every((item) => item.status === 200 && item.detail);
+  const collaboratorPermissions = collaborators.ok
     ? await readCollaboratorPermissions({ owner: target.owner, repo: target.repo, collaborators: collaborators.payload, token, fetchImpl })
     : [];
 
@@ -452,8 +452,8 @@ const collaboratorPermissions = collaborators.ok
     .filter((item) => item.status === 200 && item.detail)
     .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId));
   const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
-const managedRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
-const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
+  const managedRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+  const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
   const allBypassActors = mainRulesets.flatMap((item) => item.bypass_actors.map((actor) => ({ ...actor, ruleset_id: item.id, ruleset_name: item.name })));
   const matchingFinalizerBypassActors = allBypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
 
@@ -483,23 +483,23 @@ const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB
   ]).sort();
   const missingChecks = checks.filter((check) => !observedChecks.includes(check));
   const branchReadable = branch.ok
-  && SHA_PATTERN.test(String(branch.payload?.commit?.sha || ""))
-  && typeof branch.payload?.protected === "boolean";
-const activeRulesReadable = activeRules.ok && Array.isArray(activeRules.payload);
-const classicProtectionReadable = classicProtection.status === 404
-  || (classicProtection.status === 200 && classicProtection.payload && typeof classicProtection.payload === "object");
-const repositoryAutoMergeReadable = repository.ok && typeof repository.payload?.allow_auto_merge === "boolean";
-const protectionReadable = classicProtectionReadable
-  && activeRulesReadable
-  && rulesetsIndexReadable
-  && rulesetDetailsReadable
-  && branchReadable;
-const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
-const directPushBlocked = protectionReadable
-  && branch.payload.protected === true
-  && pullRequestRequired
-  && allBypassActors.length === 0;
-const autoMergeAllowed = repositoryAutoMergeReadable ? repository.payload.allow_auto_merge : null;
+    && SHA_PATTERN.test(String(branch.payload?.commit?.sha || ""))
+    && typeof branch.payload?.protected === "boolean";
+  const activeRulesReadable = activeRules.ok && Array.isArray(activeRules.payload);
+  const classicProtectionReadable = classicProtection.status === 404
+    || (classicProtection.status === 200 && classicProtection.payload && typeof classicProtection.payload === "object");
+  const repositoryAutoMergeReadable = repository.ok && typeof repository.payload?.allow_auto_merge === "boolean";
+  const protectionReadable = classicProtectionReadable
+    && activeRulesReadable
+    && rulesetsIndexReadable
+    && rulesetDetailsReadable
+    && branchReadable;
+  const pullRequestRequired = requiredReviewCount >= 1 || activePullRequestRules.length > 0 || mainRulesets.some((item) => item.pull_request.present);
+  const directPushBlocked = protectionReadable
+    && branch.payload.protected === true
+    && pullRequestRequired
+    && allBypassActors.length === 0;
+  const autoMergeAllowed = repositoryAutoMergeReadable ? repository.payload.allow_auto_merge : null;
 
   const proof = {
     policy_state_readable: protectionReadable,
@@ -553,9 +553,9 @@ const autoMergeAllowed = repositoryAutoMergeReadable ? repository.payload.allow_
     repository_auto_merge_allowed: autoMergeAllowed,
     active_rule_count: activeRuleList.length,
     ruleset_index_count: rulesetsIndexReadable ? rulesetIndex.length : null,
-ruleset_details: evaluatedRulesets,
-managed_ruleset_count: managedRulesets.length,
-active_managed_ruleset_count: activeManagedRulesets.length,
+    ruleset_details: evaluatedRulesets,
+    managed_ruleset_count: managedRulesets.length,
+    active_managed_ruleset_count: activeManagedRulesets.length,
     bypass_actors: allBypassActors,
     direct_collaborators: collaboratorPermissions,
     finalizer_identity: {
