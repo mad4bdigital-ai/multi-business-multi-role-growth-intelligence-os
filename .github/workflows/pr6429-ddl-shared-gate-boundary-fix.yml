@@ -37,70 +37,33 @@ jobs:
           node-version-file: .nvmrc
           check-latest: false
 
-      - name: Verify immutable helper binding
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
-          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
-          git merge-base --is-ancestor "${BASE_SHA}" HEAD
-          case "$(node --version)" in v22.*) ;; *) exit 1 ;; esac
-
-      - name: Apply deterministic DDL boundary patch
+      - name: Build, validate, and archive exact candidate
         shell: bash
         run: |
           set -euo pipefail
           evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
           mkdir -p "${evidence_root}"
 
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
+          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          case "$(node --version)" in v22.*) ;; *) exit 1 ;; esac
+
           node "${BOOTSTRAP_SCRIPT}" | tee "${evidence_root}/bootstrap.json"
           node --check "${PATCH_SCRIPT}"
-          PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" \
-            node "${PATCH_SCRIPT}"
-
-          BASE_SHA="${BASE_SHA}" node "${TEST_REBUILD_SCRIPT}" \
-            | tee "${evidence_root}/test-rebuild.json"
+          PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" node "${PATCH_SCRIPT}"
+          BASE_SHA="${BASE_SHA}" node "${TEST_REBUILD_SCRIPT}" | tee "${evidence_root}/test-rebuild.json"
           node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
 
           rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}" "${TEST_REBUILD_SCRIPT}"
-          git add -A -- \
-            "${WORKFLOW_PATH}" \
-            "${PATCH_SCRIPT}" \
-            "${BOOTSTRAP_SCRIPT}" \
-            "${TEST_REBUILD_SCRIPT}" \
-            .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
-            .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
-            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
-
-      - name: Create exact three-file candidate
-        shell: bash
-        run: |
-          set -euo pipefail
-          expected="$(mktemp)"
-          actual="$(mktemp)"
-          cat > "${expected}" <<'EOF'
-          .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json
-          .github/scripts/pr6429-ddl-shared-gate-boundary-bootstrap.cjs
-          .github/scripts/pr6429-ddl-shared-gate-boundary-fix.cjs
-          .github/scripts/pr6429-ddl-shared-gate-test-rebuild.cjs
-          .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
-          .github/workflows/pr6429-ddl-shared-gate-boundary-fix.yml
-          http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
-          EOF
-          sed -i 's/^          //' "${expected}"
-          sort -o "${expected}" "${expected}"
-          git diff --cached --name-only | sort > "${actual}"
-          diff -u "${expected}" "${actual}"
-          test ! -e "${WORKFLOW_PATH}"
-          test ! -e "${PATCH_SCRIPT}"
-          test ! -e "${BOOTSTRAP_SCRIPT}"
-          test ! -e "${TEST_REBUILD_SCRIPT}"
-
+          git add -A
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m "fix(ci): distinguish shared E2E gate dependency scope"
 
+          expected="$(mktemp)"
+          actual="$(mktemp)"
           cat > "${expected}" <<'EOF'
           .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json
           .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
@@ -111,63 +74,26 @@ jobs:
           git diff --name-only "${BASE_SHA}...HEAD" | sort > "${actual}"
           diff -u "${expected}" "${actual}"
 
-      - name: Run DDL and E2E contract regressions
-        shell: bash
-        run: |
-          set -euo pipefail
-          evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
-          node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
-          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
-            | tee "${evidence_root}/workflow-test.json"
-          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs \
-            | tee "${evidence_root}/ddl-parity-test.json"
-          node http-generic-api/scripts/e2e-phase-governance.mjs check \
-            --base "${BASE_SHA}" --head HEAD \
-            --report-file "${evidence_root}/phase-governance.json"
-          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
-            --root . --base "${BASE_SHA}" --head HEAD \
-            --head-ref "${WORK_BRANCH}" --base-ref "${BASE_BRANCH}" \
-            --report-file "${evidence_root}/parallel-pr-gate.json"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs | tee "${evidence_root}/workflow-test.json"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs | tee "${evidence_root}/ddl-parity-test.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check --base "${BASE_SHA}" --head HEAD --report-file "${evidence_root}/phase-governance.json"
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs --root . --base "${BASE_SHA}" --head HEAD --head-ref "${WORK_BRANCH}" --base-ref "${BASE_BRANCH}" --report-file "${evidence_root}/parallel-pr-gate.json"
 
-      - name: Package exact candidate after immutable readback
-        shell: bash
-        run: |
-          set -euo pipefail
           test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
           test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
 
-          evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
-          bundle_root="${evidence_root}/final-files"
-          mkdir -p \
-            "${bundle_root}/.changes/e2e" \
-            "${bundle_root}/.github/workflows" \
-            "${bundle_root}/http-generic-api"
-          cp .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
-            "${bundle_root}/.changes/e2e/"
-          cp .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
-            "${bundle_root}/.github/workflows/"
-          cp http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
-            "${bundle_root}/http-generic-api/"
-
-          candidate_sha="$(git rev-parse HEAD)"
-          {
-            printf '{\n'
-            printf '  "ok": true,\n'
-            printf '  "source_sha": "%s",\n' "${GITHUB_SHA}"
-            printf '  "base_sha": "%s",\n' "${BASE_SHA}"
-            printf '  "candidate_sha": "%s",\n' "${candidate_sha}"
-            printf '  "pushed": false,\n'
-            printf '  "apply_mode": "github_contents_api",\n'
-            printf '  "files": [\n'
-            printf '    ".changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json",\n'
-            printf '    ".github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml",\n'
-            printf '    "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"\n'
-            printf '  ],\n'
-            printf '  "secrets_included": false\n'
-            printf '}\n'
-          } > "${evidence_root}/candidate-bundle.json"
-          find "${bundle_root}" -type f -print0 | sort -z | xargs -0 sha256sum \
-            > "${evidence_root}/candidate-sha256.txt"
+          tar -czf "${evidence_root}/candidate-files.tar.gz" \
+            .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
+            .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+          sha256sum "${evidence_root}/candidate-files.tar.gz" > "${evidence_root}/candidate-archive-sha256.txt"
+          sha256sum \
+            .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
+            .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
+            > "${evidence_root}/candidate-file-sha256.txt"
+          printf '{"ok":true,"source_sha":"%s","base_sha":"%s","candidate_sha":"%s","pushed":false,"apply_mode":"github_contents_api","secrets_included":false}\n' \
+            "${GITHUB_SHA}" "${BASE_SHA}" "$(git rev-parse HEAD)" > "${evidence_root}/candidate-bundle.json"
 
       - name: Upload bounded evidence
         if: always()
