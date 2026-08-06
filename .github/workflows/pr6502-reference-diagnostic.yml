@@ -1,0 +1,192 @@
+name: PR 6502 Reference Diagnostic
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6502-reference-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.head_commit.message == 'chore(ci): diagnose PR 6502 final reference tree'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      BASE_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+      REGISTRY_FINGERPRINT: 8addd56e625f8f29346eadcd351b688611550e421dcb564eaf8e0e1318f1bd18
+      INDEX_SOURCE_HASH: 50e0b3d3df269e276ea6ca6b3036d5630282156f5bafef2104acbe181ed1b5e1
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify bounded branch and exact remote head
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${GITHUB_REF_NAME}" == "fix/push-workflow-runner-context-registration-main-ba10f269-20260806" ]]
+          [[ "${GITHUB_REF_NAME}" != "main" ]]
+          [[ "${GITHUB_REF_NAME}" != "Production" ]]
+          [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')" == "${GITHUB_SHA}" ]]
+          git cat-file -e "${BASE_SHA}^{commit}"
+
+      - name: Reproduce exact final tree as a local commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PYEXTRACT'
+          from pathlib import Path
+          import textwrap
+
+          source = Path('.github/workflows/pr6502-reference-convergence.yml').read_text(encoding='utf-8').splitlines(keepends=True)
+          start = next(i for i, line in enumerate(source) if "python3 - <<'PY'" in line)
+          end = next(i for i in range(start + 1, len(source)) if source[i].strip() == 'PY')
+          script = textwrap.dedent(''.join(source[start + 1:end]))
+          target = Path('/tmp/pr6502-reference-render.py')
+          target.write_text(script, encoding='utf-8')
+          PYEXTRACT
+          python3 /tmp/pr6502-reference-render.py
+          rm -f \
+            .github/workflows/pr6502-reference-convergence.yml \
+            .github/workflows/pr6502-reference-diagnostic.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test(ci): reproduce exact PR 6502 final reference tree"
+          echo "LOCAL_FINAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Run each governance check and capture diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          output_dir="${RUNNER_TEMP}/pr6502-reference-diagnostic"
+          repair_dir="${RUNNER_TEMP}/pr6502-work-map-repair"
+          mkdir -p "${output_dir}" "${repair_dir}"
+          : > "${output_dir}/statuses.ndjson"
+
+          run_check() {
+            local name="$1"
+            shift
+            set +e
+            "$@" > "${output_dir}/${name}.log" 2>&1
+            local code=$?
+            set -e
+            jq -cn --arg name "$name" --argjson exit_code "$code" \
+              '{name:$name,exit_code:$exit_code}' >> "${output_dir}/statuses.ndjson"
+          }
+
+          set -e
+          run_check test-e2e-contract-reference-integrity \
+            node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          run_check test-e2e-contract-git-index-integrity \
+            node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          run_check e2e-contract-reference-integrity \
+            node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+              --base-sha "${BASE_SHA}" \
+              --head-sha "${LOCAL_FINAL_SHA}" \
+              --report-file "${output_dir}/e2e-contract-reference-integrity.json"
+          run_check e2e-contract-git-index-integrity \
+            node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+              --report-file "${output_dir}/e2e-contract-reference-integrity.json"
+          run_check platform-work-map-generator \
+            node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          run_check spec-kit-work-map-governance-gate \
+            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs \
+              --ci \
+              --changed \
+              --base-sha "${BASE_SHA}" \
+              --head-sha "${LOCAL_FINAL_SHA}" \
+              --repair-output-dir "${repair_dir}"
+          run_check runner-context-regression \
+            node http-generic-api/test-push-workflow-runner-context-registration.mjs
+
+          jq -s '.' "${output_dir}/statuses.ndjson" > "${output_dir}/statuses.json"
+          cp -R "${repair_dir}" "${output_dir}/repair-output"
+          printf '%s\n' "${GITHUB_SHA}" > "${output_dir}/expected-parent-sha.txt"
+          printf '%s\n' "${LOCAL_FINAL_SHA}" > "${output_dir}/local-final-sha.txt"
+          git rev-parse HEAD^{tree} > "${output_dir}/local-final-tree-sha.txt"
+
+      - name: Upload complete diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-reference-diagnostic-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-reference-diagnostic
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Enforce all governance checks
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          status_file="${RUNNER_TEMP}/pr6502-reference-diagnostic/statuses.json"
+          jq . "$status_file"
+          jq -e 'all(.[]; .exit_code == 0)' "$status_file" > /dev/null
+
+      - name: Create immutable Git blobs without updating a ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="${RUNNER_TEMP}/pr6502-reference-git-objects"
+          diagnostic_dir="${RUNNER_TEMP}/pr6502-reference-diagnostic"
+          mkdir -p "${evidence_dir}"
+
+          cat > "${evidence_dir}/materialized-files.txt" <<'EOF'
+          .changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json
+          .changes/e2e/hostinger-completed-build-log-evidence-r3c-windows.json
+          .changes/e2e/push-workflow-runner-context-registration.json
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          EOF
+          cat > "${evidence_dir}/deleted-files.txt" <<'EOF'
+          .github/workflows/pr6502-reference-convergence.yml
+          .github/workflows/pr6502-reference-diagnostic.yml
+          EOF
+
+          : > "${evidence_dir}/entries.ndjson"
+          while IFS= read -r path; do
+            [[ -f "${path}" ]]
+            local_sha="$(git hash-object "${path}")"
+            payload="$(jq -n --arg content "$(base64 -w0 "${path}")" '{content:$content,encoding:"base64"}')"
+            api_sha="$(gh api --method POST "/repos/${REPOSITORY}/git/blobs" --input - --jq '.sha' <<<"${payload}")"
+            [[ "${api_sha}" == "${local_sha}" ]]
+            jq -cn --arg path "${path}" --arg sha "${api_sha}" \
+              '{path:$path,mode:"100644",type:"blob",sha:$sha}' >> "${evidence_dir}/entries.ndjson"
+          done < "${evidence_dir}/materialized-files.txt"
+          while IFS= read -r path; do
+            jq -cn --arg path "${path}" \
+              '{path:$path,mode:"100644",type:"blob",sha:null}' >> "${evidence_dir}/entries.ndjson"
+          done < "${evidence_dir}/deleted-files.txt"
+
+          jq -s '.' "${evidence_dir}/entries.ndjson" > "${evidence_dir}/tree-entries.json"
+          [[ "$(jq 'length' "${evidence_dir}/tree-entries.json")" == "7" ]]
+          printf '%s\n' "${GITHUB_SHA}" > "${evidence_dir}/expected-parent-sha.txt"
+          git rev-parse HEAD^{tree} > "${evidence_dir}/expected-final-tree-sha.txt"
+          git diff --name-status "${GITHUB_SHA}..${LOCAL_FINAL_SHA}" > "${evidence_dir}/name-status.txt"
+          cp -R "${diagnostic_dir}/." "${evidence_dir}/"
+          sha256sum "${evidence_dir}/tree-entries.json" > "${evidence_dir}/tree-entries.json.sha256"
+
+      - name: Upload verified reference object manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-reference-convergence-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-reference-git-objects
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
