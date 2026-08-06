@@ -1,6 +1,6 @@
 name: PR 6429 main sync conflict diagnostic
 
-# trigger: artifact-backed-diagnostic-v3
+# trigger: artifact-backed-diagnostic-v4-main-fa225f7
 on:
   push:
     branches:
@@ -25,7 +25,7 @@ jobs:
         id: diagnose
         shell: bash
         env:
-          PINNED_MAIN_SHA: 0ffaeef6e86df00eeec3c5ca22fab00e9c4cda1b
+          PINNED_MAIN_SHA: fa225f7146498cd570d6126a9d228fbbf9edbb3e
         run: |
           set -u
           mkdir -p /tmp/pr6429-main-sync-diagnostic
