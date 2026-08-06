@@ -138,7 +138,7 @@ await assert.rejects(
     assert.equal(error.status, 504);
     assert.equal(error.http_status, 504);
     assert.equal(error.retryable, true);
-    assert.equal(error.details.reason, "timeout");
+    assert.equal(error.details.reason, "upstream_timeout");
     assert.equal(error.details.upstream_status, 200);
     return true;
   },
