@@ -1,0 +1,57 @@
+name: PR 6429 Main Conflict Diagnostic
+
+on:
+  push:
+    branches:
+      - gpt/diagnostic/pr6429-main-conflicts-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Reproduce exact merge without writing
+        shell: bash
+        env:
+          EXPECTED_BRANCH_HEAD: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
+          MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+        run: |
+          set -u
+          mkdir -p "$RUNNER_TEMP/pr6429-conflict-diagnostic/stages"
+          OUT="$RUNNER_TEMP/pr6429-conflict-diagnostic"
+          git fetch --no-tags origin "$MAIN_SHA"
+          git rev-parse HEAD > "$OUT/diagnostic-head.txt"
+          git rev-parse "$MAIN_SHA" > "$OUT/main-sha.txt"
+          git merge-base HEAD "$MAIN_SHA" > "$OUT/merge-base.txt"
+          set +e
+          git -c user.name=github-actions -c user.email=github-actions@github.com merge --no-commit --no-ff "$MAIN_SHA" > "$OUT/merge-output.txt" 2>&1
+          MERGE_STATUS=$?
+          set -e
+          printf '%s\n' "$MERGE_STATUS" > "$OUT/merge-status.txt"
+          git status --short > "$OUT/status-short.txt"
+          git diff --name-only --diff-filter=U > "$OUT/conflict-files.txt"
+          git ls-files -u > "$OUT/unmerged-index.txt"
+          git diff --cc > "$OUT/conflicts.diff" || true
+          while IFS= read -r file; do
+            [[ -n "$file" ]] || continue
+            safe="${file//\//__}"
+            git show ":1:$file" > "$OUT/stages/${safe}.base" 2>/dev/null || true
+            git show ":2:$file" > "$OUT/stages/${safe}.ours" 2>/dev/null || true
+            git show ":3:$file" > "$OUT/stages/${safe}.theirs" 2>/dev/null || true
+          done < "$OUT/conflict-files.txt"
+          git merge --abort || true
+
+      - name: Upload conflict evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-main-conflict-diagnostic-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr6429-conflict-diagnostic
+          if-no-files-found: error
+          retention-days: 7
