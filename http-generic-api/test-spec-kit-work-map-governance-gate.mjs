@@ -7,6 +7,7 @@ import {
   buildEffectiveWorkMapRegistry,
   validateGovernedRepository,
 } from "./scripts/spec-kit-work-map-governance-gate.mjs";
+import { validateSchemaClassification } from "./scripts/work-map-schema-classification.mjs";
 
 function write(root, relative, content) {
   const file = path.join(root, relative);
@@ -101,15 +102,14 @@ function finalize(manifest) {
 {
   const { root, policy } = fixture();
   const { baseRegistry, effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+  const classification = validateSchemaClassification({ root, policy });
   assert.equal(effectiveRegistry.fingerprint, baseRegistry.fingerprint);
   assert.deepEqual(effectiveRegistry.signature, baseRegistry.signature);
   assert.match(effectiveRegistry.schema_classification_fingerprint, /^[0-9a-f]{64}$/);
   assert.notEqual(effectiveRegistry.schema_classification_fingerprint, effectiveRegistry.fingerprint);
   assert.equal(
     effectiveRegistry.schema_classification_signature.schema_classification_registry_hash,
-    effectiveRegistry.schema_classification_fingerprint
-      ? effectiveRegistry.schema_classification_signature.schema_classification_registry_hash
-      : null
+    classification.registry_hash
   );
 
   const manifest = finalize(buildScaffoldManifest("001-example", {
