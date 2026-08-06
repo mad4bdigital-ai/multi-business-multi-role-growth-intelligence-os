@@ -152,6 +152,14 @@ export function buildRepositoryAutomationPlan(input = {}) {
   if (defaultBranch !== "main") {
     throw facadeError(400, "repository_policy_automation_main_only", "repository_policy is restricted to main.");
   }
+  const capabilityEnvelopeId = compact(input.capability_envelope_id || "", 64);
+  const applyBinding = mode === "apply" ? {
+    expected_main_sha: compact(input.expected_main_sha || "", 40).toLowerCase() || null,
+    expected_policy_fingerprint: compact(input.expected_policy_fingerprint || input.policy_fingerprint || "", 64).toLowerCase() || null,
+    capability_envelope_ref_sha256: capabilityEnvelopeId ? sha256(capabilityEnvelopeId) : null,
+    typed_confirmation_matches: compact(input.confirm || "", 128) === GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    secrets_included: false,
+  } : null;
   const steps = REPOSITORY_POLICY_STEPS.map((step, index) => ({
     ...step,
     step_order: index + 1,
@@ -174,6 +182,7 @@ export function buildRepositoryAutomationPlan(input = {}) {
     default_branch: defaultBranch,
     capabilities: ["repository_policy_controller"],
     steps,
+    ...(applyBinding ? { apply_binding: applyBinding } : {}),
     live_apply_authorized: false,
     force_push_allowed: false,
     repository_content_mutation_allowed: false,
