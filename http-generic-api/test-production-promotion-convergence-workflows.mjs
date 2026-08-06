@@ -67,16 +67,11 @@ for (const required of [
 for (const required of [
   /name: Certified Production Release Cut Validation/,
   /pull_request_target:/,
-  /issues: write/,
-  /gpt\/validate-certified-release-base-\*/,
-  /gpt\/validate-certified-release-candidate-/,
+  /contents: read/,
+  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
   /Validate trusted same-repository validation surface/,
   /certified validation requires a same-repository head/,
   /persist-credentials: false/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed/,
   /runner_pool=ubuntu-24\.04-arm/,
   /execution_mode=direct_arm/,
   /candidate first parent must be the certified release cut/,
@@ -114,11 +109,14 @@ for (const required of [
 const certifiedJobHeader =
   certifiedReleaseCut.match(/  certified-release-cut-ci:\n[\s\S]*?    steps:/)?.[0] ?? "";
 assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
-assert.doesNotMatch(
+assert.match(
   certifiedJobHeader,
-  /^    if:/m,
-  "certified release-cut validation must not use a job-level eligibility condition",
+  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
+  "certified release-cut validation must use a branch-independent governed eligibility selector",
 );
+assert.doesNotMatch(certifiedReleaseCut, /issues:\s*write/);
+assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
+assert.doesNotMatch(certifiedReleaseCut, /gpt\/validate-certified-release-(?:base|candidate)-/);
 
 const armJobs = certifiedReleaseCut.match(/runs-on: ubuntu-24\.04-arm/g) ?? [];
 assert.equal(
