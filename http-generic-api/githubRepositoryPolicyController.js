@@ -80,8 +80,8 @@ export function buildGithubRepositoryPolicyCapabilityBinding({
   const owner = compact(target.owner || "", 191);
   const repo = compact(target.repo || "", 191);
   const branch = compact(target.default_branch || "main", 191) || "main";
-  const expectedMainSha = compact(expected_main_sha, 40).toLowerCase();
-  const expectedPolicyFingerprint = compact(expected_policy_fingerprint, 64).toLowerCase();
+  const expectedMainSha = String(expected_main_sha ?? "").trim().toLowerCase();
+  const expectedPolicyFingerprint = String(expected_policy_fingerprint ?? "").trim().toLowerCase();
   if (!owner || !repo || branch !== "main" || !SHA_PATTERN.test(expectedMainSha) || !FINGERPRINT_PATTERN.test(expectedPolicyFingerprint)) {
     return null;
   }
@@ -602,7 +602,8 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
     : null;
   const managedRulesetBlocked = managedRulesets.length > 1
     || (managedRulesets.length === 1 && repositoryManagedRulesets.length !== 1);
-  const currentMainSha = readback?.main_sha || compact(args.expected_main_sha || "", 40) || null;
+  const requestedMainSha = String(args.expected_main_sha ?? "").trim().toLowerCase();
+  const currentMainSha = readback?.main_sha || requestedMainSha || null;
   const policyFingerprint = githubRepositoryPolicyFingerprint({
     target,
     expected_main_sha: currentMainSha,
@@ -730,15 +731,15 @@ async function authorizeApply(args, deps, target) {
 }
 
 function validateApplyInputs(args, preReadback, plan) {
-  const expectedMainSha = compact(args.expected_main_sha || "", 40).toLowerCase();
-  const expectedFingerprint = compact(args.expected_policy_fingerprint || args.policy_fingerprint || "", 64).toLowerCase();
+  const expectedMainSha = String(args.expected_main_sha ?? "").trim().toLowerCase();
+  const expectedFingerprint = String(args.expected_policy_fingerprint ?? args.policy_fingerprint ?? "").trim().toLowerCase();
   if (!SHA_PATTERN.test(expectedMainSha)) {
     throw controllerError(400, "github_repository_policy_expected_main_sha_required", "expected_main_sha must be a full commit SHA.");
   }
   if (!FINGERPRINT_PATTERN.test(expectedFingerprint)) {
     throw controllerError(400, "github_repository_policy_fingerprint_required", "expected_policy_fingerprint must be a 64-character SHA-256 fingerprint.");
   }
-  if (compact(args.confirm || "", 128) !== GITHUB_REPOSITORY_POLICY_CONFIRMATION) {
+  if (String(args.confirm ?? "").trim() !== GITHUB_REPOSITORY_POLICY_CONFIRMATION) {
     throw controllerError(400, "github_repository_policy_confirmation_invalid", `confirm must equal ${GITHUB_REPOSITORY_POLICY_CONFIRMATION}.`);
   }
   if (preReadback.main_sha !== expectedMainSha) {
@@ -815,15 +816,15 @@ export async function runGithubRepositoryPolicyController(args = {}, deps = {}) 
 
   if (mode === "apply") {
     assertAdminCaller(deps.auth || {});
-    const expectedMainSha = compact(args.expected_main_sha || "", 40).toLowerCase();
-    const expectedFingerprint = compact(args.expected_policy_fingerprint || args.policy_fingerprint || "", 64).toLowerCase();
+    const expectedMainSha = String(args.expected_main_sha ?? "").trim().toLowerCase();
+    const expectedFingerprint = String(args.expected_policy_fingerprint ?? args.policy_fingerprint ?? "").trim().toLowerCase();
     if (!SHA_PATTERN.test(expectedMainSha)) {
       throw controllerError(400, "github_repository_policy_expected_main_sha_required", "expected_main_sha must be a full commit SHA.");
     }
     if (!FINGERPRINT_PATTERN.test(expectedFingerprint)) {
       throw controllerError(400, "github_repository_policy_fingerprint_required", "expected_policy_fingerprint must be a 64-character SHA-256 fingerprint.");
     }
-    if (compact(args.confirm || "", 128) !== GITHUB_REPOSITORY_POLICY_CONFIRMATION) {
+    if (String(args.confirm ?? "").trim() !== GITHUB_REPOSITORY_POLICY_CONFIRMATION) {
       throw controllerError(400, "github_repository_policy_confirmation_invalid", `confirm must equal ${GITHUB_REPOSITORY_POLICY_CONFIRMATION}.`);
     }
     const target = await resolveTarget(args);

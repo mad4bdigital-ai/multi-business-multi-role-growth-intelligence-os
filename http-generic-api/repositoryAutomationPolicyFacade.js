@@ -65,6 +65,8 @@ const SECRET_VALUE_PATTERNS = [
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/i,
   /\b(?:ghp_|github_pat_|ghs_)[A-Za-z0-9_.\-]+\b/,
 ];
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
+const FINGERPRINT_PATTERN = /^[0-9a-f]{64}$/i;
 
 function facadeError(status, code, message, details = null) {
   const error = new Error(message);
@@ -152,12 +154,21 @@ export function buildRepositoryAutomationPlan(input = {}) {
   if (defaultBranch !== "main") {
     throw facadeError(400, "repository_policy_automation_main_only", "repository_policy is restricted to main.");
   }
-  const capabilityEnvelopeId = compact(input.capability_envelope_id || "", 64);
+  const capabilityEnvelopeId = String(input.capability_envelope_id ?? "").trim();
+  const expectedMainShaInput = String(input.expected_main_sha ?? "").trim().toLowerCase();
+  const expectedPolicyFingerprintInput = String(input.expected_policy_fingerprint ?? input.policy_fingerprint ?? "").trim().toLowerCase();
+  const typedConfirmationInput = String(input.confirm ?? "").trim();
   const applyBinding = mode === "apply" ? {
-    expected_main_sha: compact(input.expected_main_sha || "", 40).toLowerCase() || null,
-    expected_policy_fingerprint: compact(input.expected_policy_fingerprint || input.policy_fingerprint || "", 64).toLowerCase() || null,
+    expected_main_sha: SHA_PATTERN.test(expectedMainShaInput) ? expectedMainShaInput : null,
+    expected_main_sha_input_sha256: sha256(expectedMainShaInput),
+    expected_main_sha_valid: SHA_PATTERN.test(expectedMainShaInput),
+    expected_policy_fingerprint: FINGERPRINT_PATTERN.test(expectedPolicyFingerprintInput) ? expectedPolicyFingerprintInput : null,
+    expected_policy_fingerprint_input_sha256: sha256(expectedPolicyFingerprintInput),
+    expected_policy_fingerprint_valid: FINGERPRINT_PATTERN.test(expectedPolicyFingerprintInput),
     capability_envelope_ref_sha256: capabilityEnvelopeId ? sha256(capabilityEnvelopeId) : null,
-    typed_confirmation_matches: compact(input.confirm || "", 128) === GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    capability_envelope_present: capabilityEnvelopeId.length > 0,
+    typed_confirmation_sha256: sha256(typedConfirmationInput),
+    typed_confirmation_matches: typedConfirmationInput === GITHUB_REPOSITORY_POLICY_CONFIRMATION,
     secrets_included: false,
   } : null;
   const steps = REPOSITORY_POLICY_STEPS.map((step, index) => ({
@@ -297,7 +308,10 @@ export async function runRepositoryAutomation(input = {}, deps = {}) {
   }
 
   const runId = compact(input.run_id || "", 64) || randomUUID();
-  const idempotencyKey = compact(input.idempotency_key || `repository-policy:${plan.plan_sha256}`, 191);
+  const requestedIdempotencyKey = String(input.idempotency_key ?? "").trim();
+  const idempotencyKey = requestedIdempotencyKey
+    ? `repository-policy:${sha256({ requested_idempotency_key: requestedIdempotencyKey, plan_sha256: plan.plan_sha256 })}`
+    : `repository-policy:${plan.plan_sha256}`;
   const persist = deps.persist !== false;
   const pool = deps.pool || (persist ? getPool() : null);
   const controller = deps.policyController || runGithubRepositoryPolicyController;
