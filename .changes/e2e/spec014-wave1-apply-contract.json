@@ -35,6 +35,7 @@
             "Checkout trusted main and verify it contains repository readiness and the merged Runtime Readiness contract.",
             "Verify protected Production contains the exact reviewed Wave 1 migration blob and the runtime reports that same stable Production SHA.",
             "Perform governed migration ledger/schema readback before creating an execution envelope or sending Apply.",
+            "Use the supported read-only /admin/control DB contract with action=run and the fixed statement in the sql field when reading the exact authorization row.",
             "If the exact Apply ledger and four expected tables already exist, report already_applied and send no Apply.",
             "Otherwise read the exact governed migration authorization row created by Runtime Readiness and prove checksum, statement count, source PR, source merge, zero-risk preflight, and allow_apply=1.",
             "Never create or rotate readiness authorization from the Apply contract.",
@@ -48,13 +49,14 @@
             "The workflow trigger is exactly APPLY_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION on issue #6215 and differs from the Runtime Readiness trigger.",
             "The workflow has contents:read only and no push, pull_request, workflow_dispatch, Issue write, PR write, or repository mutation permission.",
             "The executor pins Wave 1 blob 1e820553d95e5bdb5f8c49d7bf09cb159c51c7bc, checksum 9eca6e585d12de633931c7d7e099f467a955aaf7b819ccb2660d34acf63d5053, four statements, source PR #4564, and source merge 7a96920eff2579321707d193a1d030e6454891b1.",
+            "The authorization-row readback uses DB action=run with the fixed SQL in the sql field, remains read_only with bounded max_rows, and never uses unsupported action=query.",
             "The Apply contract never creates readiness authorization; it requires exactly one authorized governed_migration_authorization_registry row with matching policy, source, checksum, statement count, source PR, source merge, zero-risk preflight, and allow_apply=1.",
             "Readback-first prevents duplicate Apply when the exact ledger and four tables already exist.",
             "The same-cycle dry-run reports mode=dry_run, applies_sql=false, exact checksum and statement count, preflight pass, and zero risks.",
             "The execution envelope requires explicit apply authorization under governed_migration_execute_apply_v1 and external_write_allowed=false.",
             "The executor contains exactly one mode=apply request and never retries Apply after an unsuccessful or ambiguous response.",
             "An ambiguous Apply response records apply_sent=true, retry_permitted=false, and requires exact readback before any future operator decision.",
-            "Success requires exact Apply ledger metadata and all four foundation tables.",
+            "Success requires exact Apply ledger metadata and all four foundation tables, including readback rows that expose the canonical information_schema TABLE_NAME field.",
             "No provider call, credential payload read, external business write, deployment, restart, Production ref mutation, or secret evidence occurs during contract validation."
           ],
           "tests": [

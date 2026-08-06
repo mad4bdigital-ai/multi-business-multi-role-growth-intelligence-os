@@ -536,6 +536,14 @@ export function validateRepository(options = {}) {
   ].includes(file) || file.startsWith(`${normalizePath(policy.work_map_root)}/`));
 
   const manifestFeatures = allFeatures.filter((feature) => fs.existsSync(path.join(root, policy.spec_root, feature, policy.manifest_filename)));
+  const registryRefreshFeatures = manifestFeatures.filter((feature) => {
+    try {
+      const manifest = readJson(path.join(root, policy.spec_root, feature, policy.manifest_filename));
+      return manifest.review_state === "ready_for_implementation" || !policy.review_states.includes(manifest.review_state);
+    } catch {
+      return true;
+    }
+  });
   const newFeatures = options.newFeatures || changedFeatures.filter((feature) => !gitFeatureExistsAtBase(root, policy.spec_root, feature));
   const optedInChanged = changedFeatures.filter((feature) => manifestFeatures.includes(feature));
   const targets = options.all
@@ -543,7 +551,7 @@ export function validateRepository(options = {}) {
     : unique([
       ...newFeatures,
       ...optedInChanged,
-      ...(policyChanged ? manifestFeatures : []),
+      ...(policyChanged ? registryRefreshFeatures : []),
     ]).sort();
 
   const runtimeChanged = Object.prototype.hasOwnProperty.call(options, "implementationChanged")
