@@ -1,0 +1,134 @@
+name: PR 6500 Spec 014 Work Map Binding Refresh R5 Windows Once
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-20260806
+    paths:
+      - .github/workflows/pr6500-spec014-binding-refresh-r5-windows-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6500-spec014-binding-refresh-r5-windows-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref == 'refs/heads/fix/transport-response-schema-promotion-readiness-20260806'
+    runs-on: windows-latest
+    env:
+      TARGET_BRANCH: fix/transport-response-schema-promotion-readiness-20260806
+      R1_WORKFLOW: .github/workflows/pr6500-spec014-binding-refresh-once.yml
+      R2_WORKFLOW: .github/workflows/pr6500-spec014-binding-refresh-r2-once.yml
+      R3_WORKFLOW: .github/workflows/pr6500-spec014-binding-refresh-r3-arm-once.yml
+      R4_WORKFLOW: .github/workflows/pr6500-spec014-binding-refresh-r4-macos-once.yml
+      R5_WORKFLOW: .github/workflows/pr6500-spec014-binding-refresh-r5-windows-once.yml
+      EXPECTED_CONTENT_HEAD: 1cf85767070e445848b2ddaefa56df61dc90cd5a
+      EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+      HOSTINGER_SPEC: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      RETAIL_SPEC: specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+      OLD_FINGERPRINT: ea6b8ea3bee793f4009786f96f0c0dcddc320a78a1d57d1ae0d051c6a179e0f7
+      OLD_INDEX_SOURCE_HASH: ef362cdb8af2bb48c6d91665c9812077526b40419a6f4afa7bd2c9ac10b6303a
+      OLD_COVERAGE_SOURCE_HASH: 7ece785e472b6c05d68a882a0532685775f89683324e33cad81c40cefeba7808
+      NEW_FINGERPRINT: d8fff3801dbe57d0fc6bc2b59026811a339f8f601f1b061187f1caf4f70d54e1
+      NEW_INDEX_SOURCE_HASH: 278f8215a431a3b897e4cf35cf2d35023c5db20ab6116fe8c6ae7d30ff53ed15
+      NEW_COVERAGE_SOURCE_HASH: 94f80f821614acd525a093ebb84b5de0d7811c2428784fc155a43be8a6131379
+
+    steps:
+      - name: Check out exact PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable inputs and five-workflow trigger scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git merge-base "${EXPECTED_CONTENT_HEAD}" HEAD)" = "${EXPECTED_CONTENT_HEAD}"
+          actual="$(git diff --name-only "${EXPECTED_CONTENT_HEAD}" HEAD | sed '/^$/d' | sort)"
+          expected="$(printf '%s\n' "${R1_WORKFLOW}" "${R2_WORKFLOW}" "${R3_WORKFLOW}" "${R4_WORKFLOW}" "${R5_WORKFLOW}" | sort)"
+          test "${actual}" = "${expected}"
+          test -z "$(git status --porcelain)"
+
+      - name: Refresh exactly six stale bindings and retire all writers
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const targets = [
+            { path: process.env.HOSTINGER_SPEC, featureKey: '014-governed-hostinger-storage-orchestration' },
+            { path: process.env.RETAIL_SPEC, featureKey: '014-retail-commerce-operations-growth-os' },
+          ];
+          const oldValues = {
+            fingerprint: process.env.OLD_FINGERPRINT,
+            index_source_hash: process.env.OLD_INDEX_SOURCE_HASH,
+            coverage_source_hash: process.env.OLD_COVERAGE_SOURCE_HASH,
+          };
+          const newValues = {
+            fingerprint: process.env.NEW_FINGERPRINT,
+            index_source_hash: process.env.NEW_INDEX_SOURCE_HASH,
+            coverage_source_hash: process.env.NEW_COVERAGE_SOURCE_HASH,
+          };
+          for (const target of targets) {
+            const document = JSON.parse(fs.readFileSync(target.path, 'utf8'));
+            if (document.feature_key !== target.featureKey) throw new Error(`${target.path}: unexpected feature_key`);
+            for (const [key, value] of Object.entries(oldValues)) {
+              if (document.registry?.[key] !== value) throw new Error(`${target.path}: stale-value precondition failed for ${key}`);
+            }
+            Object.assign(document.registry, newValues);
+            fs.writeFileSync(target.path, `${JSON.stringify(document, null, 2)}\n`);
+          }
+          NODE
+          git rm -- "${R1_WORKFLOW}" "${R2_WORKFLOW}" "${R3_WORKFLOW}" "${R4_WORKFLOW}" "${R5_WORKFLOW}"
+          actual="$(git diff --name-only HEAD -- . | sed '/^$/d' | sort)"
+          expected="$(printf '%s\n' "${R1_WORKFLOW}" "${R2_WORKFLOW}" "${R3_WORKFLOW}" "${R4_WORKFLOW}" "${R5_WORKFLOW}" "${HOSTINGER_SPEC}" "${RETAIL_SPEC}" | sort)"
+          test "${actual}" = "${expected}"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install locked API dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run exact Work Map governance and regressions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node http-generic-api/test-spec-kit-completion-gate.mjs
+
+      - name: Commit and push exact bounded repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${HOSTINGER_SPEC}" "${RETAIL_SPEC}"
+          staged="$(git diff --cached --name-only | sed '/^$/d' | sort)"
+          expected="$(printf '%s\n' "${R1_WORKFLOW}" "${R2_WORKFLOW}" "${R3_WORKFLOW}" "${R4_WORKFLOW}" "${R5_WORKFLOW}" "${HOSTINGER_SPEC}" "${RETAIL_SPEC}" | sort)"
+          test "${staged}" = "${expected}"
+          git diff --cached --check
+          git commit -m "chore(work-maps): refresh Spec 014 registry bindings"
+          test -z "$(git status --porcelain)"
+          remote_head="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          git push origin "HEAD:${TARGET_BRANCH}"
