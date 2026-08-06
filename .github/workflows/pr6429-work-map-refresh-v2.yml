@@ -1,0 +1,87 @@
+name: PR 6429 exact-head Work Map refresh v2
+
+on:
+  push:
+    branches:
+      - gpt/generated/pr6429-work-map-refresh-v2-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6429-work-map-refresh-v2
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Generate exact-head Work Maps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout helper branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: gpt/generated/pr6429-work-map-refresh-v2-20260806
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Generate and validate final-tree Work Maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow_path='.github/workflows/pr6429-work-map-refresh-v2.yml'
+          rm -f "${workflow_path}"
+
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          mapfile -t generated_changes < <(git diff --name-only -- docs/work-maps | sort)
+          expected_generated=(
+            'docs/work-maps/README.md'
+            'docs/work-maps/data-model-domain-map.md'
+            'docs/work-maps/work-map-coverage-matrix.md'
+          )
+          printf '%s\n' "${generated_changes[@]}" > /tmp/generated-changes.txt
+          printf '%s\n' "${expected_generated[@]}" > /tmp/expected-generated.txt
+          diff -u /tmp/expected-generated.txt /tmp/generated-changes.txt
+
+          mapfile -t all_changes < <(git status --short | sed -E 's/^.. //' | sort)
+          expected_all=(
+            '.github/workflows/pr6429-work-map-refresh-v2.yml'
+            'docs/work-maps/README.md'
+            'docs/work-maps/data-model-domain-map.md'
+            'docs/work-maps/work-map-coverage-matrix.md'
+          )
+          printf '%s\n' "${all_changes[@]}" > /tmp/all-changes.txt
+          printf '%s\n' "${expected_all[@]}" > /tmp/expected-all.txt
+          diff -u /tmp/expected-all.txt /tmp/all-changes.txt
+
+      - name: Commit only generated maps and push without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_remote='${{ github.sha }}'
+          remote_before="$(git ls-remote --exit-code origin refs/heads/gpt/generated/pr6429-work-map-refresh-v2-20260806 | awk '{print $1}')"
+          test "${remote_before}" = "${expected_remote}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
+          git diff --cached --quiet && { echo 'Expected generated changes were not staged'; exit 1; }
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" = '3'
+          git commit -m 'docs(work-maps): regenerate governed platform maps'
+          git push origin HEAD:refs/heads/gpt/generated/pr6429-work-map-refresh-v2-20260806
+
+          result_head="$(git rev-parse HEAD)"
+          remote_after="$(git ls-remote --exit-code origin refs/heads/gpt/generated/pr6429-work-map-refresh-v2-20260806 | awk '{print $1}')"
+          test "${remote_after}" = "${result_head}"
