@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   converge:
-    name: Regenerate maps and remove one-shot workflow
+    name: Regenerate final-tree maps and remove one-shot workflow
     runs-on: windows-latest
     timeout-minutes: 20
     defaults:
@@ -26,20 +26,21 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: b6b6bd6a2277a40fae3eda94b3592e8677661860
+      AUTHORIZED_PARENT_SHA: 6a2b51cb03aedd13f56b7370aa9562a793541ac1
       ONE_SHOT_PATH: .github/workflows/pr6502-work-map-convergence.yml
     steps:
-      - name: Checkout exact one-shot commit
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          ref: ${{ github.sha }}
-          token: ${{ github.token }}
-
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: "22"
+      - name: Checkout exact one-shot commit without marketplace actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --prune --depth=2 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          node --version
 
       - name: Validate exact PR and fast-forward authority
         env:
@@ -57,6 +58,7 @@ jobs:
 
           pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
           test "$(jq -r '.state' <<<"${pr_json}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr_json}")" = "true"
           test "$(jq -r '.base.ref' <<<"${pr_json}")" = "main"
           test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
           test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
@@ -64,6 +66,13 @@ jobs:
 
           compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}")"
           test "$(jq -r '.behind_by' <<<"${compare_json}")" = "0"
+
+      - name: Remove one-shot source before final-tree generation
+        run: |
+          set -euo pipefail
+          test -f "${ONE_SHOT_PATH}"
+          rm -- "${ONE_SHOT_PATH}"
+          test ! -e "${ONE_SHOT_PATH}"
 
       - name: Validate Work Map generator contracts
         run: |
@@ -80,17 +89,23 @@ jobs:
           node http-generic-api/test-work-map-schema-classification.mjs
           node http-generic-api/test-work-map-schema-classification-contract.mjs
 
-      - name: Regenerate and prove idempotency
+      - name: Regenerate final-tree maps and prove idempotency
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
-          unexpected_files="$(git diff --name-only | grep -Ev '^docs/work-maps/(README|repository-automation-map)\.md$' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Unexpected generated changes:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
+          mapfile -t changed_paths < <(git diff --name-only | sort)
+          printf '%s\n' "${changed_paths[@]}"
+          for path in "${changed_paths[@]}"; do
+            case "${path}" in
+              "${ONE_SHOT_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+                ;;
+              *)
+                echo "Unexpected generated change: ${path}"
+                exit 1
+                ;;
+            esac
+          done
 
           test -n "$(git diff --name-only -- docs/work-maps/repository-automation-map.md)"
 
@@ -100,13 +115,11 @@ jobs:
           test "${first_diff_hash}" = "${second_diff_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Remove one-shot workflow and publish bounded result
+      - name: Commit final-tree maps and publish bounded result
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          rm -- "${ONE_SHOT_PATH}"
-
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
@@ -118,10 +131,16 @@ jobs:
           test "${#staged[@]}" -le 3
           printf '%s\n' "${staged[@]}" | grep -Fxq "${ONE_SHOT_PATH}"
           printf '%s\n' "${staged[@]}" | grep -Fxq "docs/work-maps/repository-automation-map.md"
-          if printf '%s\n' "${staged[@]}" | grep -Ev "^(${ONE_SHOT_PATH}|docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md)$"; then
-            echo "Unexpected staged path."
-            exit 1
-          fi
+          for path in "${staged[@]}"; do
+            case "${path}" in
+              "${ONE_SHOT_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+                ;;
+              *)
+                echo "Unexpected staged path: ${path}"
+                exit 1
+                ;;
+            esac
+          done
 
           git commit -m "docs(work-maps): converge generated repository automation map"
           result_sha="$(git rev-parse HEAD)"
@@ -134,4 +153,4 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" \
-            -f body="WORK_MAP_CONVERGENCE outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} generated_paths=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md one_shot_removed=true protected_ref_mutation=false force_push=false"
+            -f body="WORK_MAP_CONVERGENCE outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} generated_from_final_tree=true generated_paths=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md one_shot_removed=true protected_ref_mutation=false force_push=false"
