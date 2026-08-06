@@ -5,44 +5,55 @@
   "title": "Transport Response Schema Promotion Readiness",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
-  "requires_new_secrets": false,
   "secrets_included": false,
-  "scope": [
-    "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
-    ".changes/e2e/transport-response-schema-promotion-readiness.json"
-  ],
+  "scope": {
+    "include": [
+      "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+      ".changes/e2e/transport-response-schema-promotion-readiness.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "journeys": [
+      "objective": "Validate Promotion Readiness for the isolated Migration 1048 response-chunk schema recovery without applying the migration or granting provider, credential, secret, deployment, or Production authority.",
+      "e2e_journeys": [
         {
-          "id": "migration-readiness-contract",
-          "description": "Validate the Migration 1048 recovery definition and safety markers without applying the migration.",
+          "id": "validate-migration-1048-promotion-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "transport response schema promotion evaluator",
+          "entrypoint": "The exact pull-request head contains the isolated Migration 1048 response-chunk schema recovery candidate.",
+          "terminal_outcome": "The candidate proves the complete sixteen-column runtime contract, bounded indexes, deterministic readiness view, additive safety, and zero secret-bearing or unrelated-surface authority without applying the migration.",
+          "steps": [
+            "Read the runtime-required response-chunk column contract and the isolated Migration 1048 SQL from the exact pull-request head.",
+            "Execute the repository regression that checks all required columns, indexes, readiness markers, non-destructive behavior, and exclusion of unrelated tenant, ticket, registry, and credential surfaces.",
+            "Record repository evidence only; do not connect to a database, apply SQL, call a provider, read credentials, deploy, or mutate Production."
+          ],
+          "assertions": [
+            "All sixteen runtime-required governed response-chunk columns are represented in Migration 1048.",
+            "The owner-user and principal-expiry indexes and the deterministic transport-schema readiness view are present.",
+            "The recovery remains additive and excludes destructive statements, credential material, unrelated tenant-resolution, ticket-lifecycle, and registry surfaces.",
+            "The validation performs no database connection, migration apply, provider call, secret access, deployment, Production mutation, external send, or external write."
+          ],
           "tests": [
             {
-              "id": "migration-1048-static-readiness",
-              "type": "ci",
-              "command": "node --input-type=module -e \"import fs from 'node:fs';const p='http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql';const s=fs.readFileSync(p,'utf8');const required=['-- no_provider_call','-- no_credential_payload_read','-- no_raw_secrets','-- no_external_send','-- no_external_write','-- secrets_included_false','CREATE TABLE IF NOT EXISTS governed_tool_response_chunks','owner_tenant_id VARCHAR(64)','owner_user_id VARCHAR(64)','owner_workspace_id VARCHAR(64)','owner_principal_type VARCHAR(64)','owner_principal_id VARCHAR(191)','source_surface VARCHAR(64)','idx_governed_chunk_owner_user_expiry','idx_governed_chunk_principal_expiry','CREATE OR REPLACE VIEW v_governed_response_chunk_transport_schema_readiness','16 AS required_column_count','0 AS secrets_included'];const missing=required.filter((value)=>!s.includes(value));if(missing.length){console.error(JSON.stringify({status:'fail',migration:p,missing}));process.exit(1)}console.log(JSON.stringify({status:'pass',migration:p,checks:required.length,applied:false}))\"",
-              "requires_secrets": false
+              "id": "transport-response-chunk-schema-recovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-chunk-schema-recovery.mjs",
+              "args": []
             }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+            "http-generic-api/test-transport-response-chunk-schema-recovery.mjs"
           ]
         }
       ]
     }
-  ],
-  "rollback": [],
-  "excluded_surface_classes": [
-    "DocumentationOnly",
-    "SensitiveOperations",
-    "SecretManagement",
-    "SecretsRequired"
-  ],
-  "evidence": {
-    "ci_required": true,
-    "e2e_required": true,
-    "observability_required": false,
-    "no_new_secrets_attested": true,
-    "secret_inventory_verified": false
-  }
+  ]
 }
