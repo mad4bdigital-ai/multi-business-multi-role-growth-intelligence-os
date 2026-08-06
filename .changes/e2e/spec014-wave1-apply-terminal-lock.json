@@ -1,0 +1,147 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-wave1-apply-terminal-lock",
+  "title": "Spec 014 Wave 1 Apply terminal lock",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-wave1-apply-terminal-lock.json",
+      ".github/workflows/spec014-wave1-apply.yml",
+      "http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Retire the completed Wave 1 Apply authority after canonical execution and certification.",
+      "e2e_journeys": [
+        {
+          "id": "retired-trigger-is-rejected",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository member",
+          "entrypoint": "A new exact Wave 1 Apply comment on control issue 6215",
+          "terminal_outcome": "The workflow emits a terminal-lock summary and fails without checkout, secret access, executor invocation, SQL, or retry.",
+          "steps": [
+            "Match the historical issue, exact trigger phrase, and trusted author association.",
+            "Bind the audit summary to canonical Apply comment 5195149968 and run 31030632615.",
+            "Bind final certification to comment 5195415632 and run 31032704208.",
+            "Reject the retired authority deterministically."
+          ],
+          "assertions": [
+            "The workflow requests no GitHub token permission.",
+            "The workflow contains no repository checkout, runtime secret, Node setup, or Apply executor invocation.",
+            "The rejection path performs no SQL, database mutation, provider call, deployment, restart, or external send."
+          ],
+          "tests": [
+            {
+              "id": "spec014-wave1-apply-terminal-lock-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-wave1-apply-terminal-lock.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec014-wave1-apply.yml",
+            "http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve an auditable response to repeated historical Apply comments without retaining execution authority.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-evidence-remains-bound",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository governance reviewer",
+          "entrypoint": "Static workflow and regression inspection",
+          "terminal_outcome": "Canonical execution and certification identifiers remain explicit while all active Apply surfaces are absent.",
+          "steps": [
+            "Inspect the terminal-lock workflow.",
+            "Verify canonical comment and run identifiers.",
+            "Verify the historical trigger can only reach the rejection step.",
+            "Verify the retired workflow has no write or secret authority."
+          ],
+          "assertions": [
+            "Canonical Apply run 31030632615 remains the only execution evidence binding.",
+            "Canonical certification run 31032704208 remains the readback-first completion evidence.",
+            "No new Apply authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "spec014-wave1-apply-terminal-lock-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-wave1-apply-terminal-lock.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-wave1-apply-terminal-lock.json",
+            ".github/workflows/spec014-wave1-apply.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prevent regression from terminal lock back to executable migration authority.",
+      "e2e_journeys": [
+        {
+          "id": "authority-regression-is-rejected",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "CI governance gate",
+          "entrypoint": "A change to the retired Wave 1 workflow",
+          "terminal_outcome": "Regression fails if checkout, secrets, setup tooling, the Apply executor, or repository write permissions return.",
+          "steps": [
+            "Read the exact workflow source.",
+            "Require the terminal-lock identity and canonical evidence bindings.",
+            "Reject secret, checkout, setup, executor, or write-permission reintroduction.",
+            "Require deterministic nonzero rejection."
+          ],
+          "assertions": [
+            "The retired workflow remains fail-closed.",
+            "Repeated comments cannot execute SQL or reach Runtime.",
+            "No provider or Production mutation authority exists."
+          ],
+          "tests": [
+            {
+              "id": "spec014-wave1-apply-terminal-lock-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-wave1-apply-terminal-lock.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec014-wave1-apply.yml",
+            "http-generic-api/test-spec014-wave1-apply-terminal-lock.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "The terminal lock performs no provider canary or runtime operation."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "The terminal lock performs no Production action, deployment, SQL, migration, or database mutation."
+    }
+  ]
+}
