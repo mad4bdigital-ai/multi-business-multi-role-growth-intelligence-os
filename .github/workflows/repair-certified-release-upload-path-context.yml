@@ -1,0 +1,93 @@
+name: Repair Certified Release Upload Path Context
+
+on:
+  push:
+    branches:
+      - fix/certified-release-upload-path-context-20260806
+    paths:
+      - .github/ops/certified-release-upload-path-context.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-certified-release-upload-path-context
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact repair head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Patch only step-level upload paths and registration assertions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
+          workflow = workflow_path.read_text()
+          replacements = {
+              '            ${{ env.EVIDENCE_PATH }}': '            ${{ runner.temp }}/certified-production-release-cut.json',
+              '            ${{ env.CI_SUMMARY_PATH }}': '            ${{ runner.temp }}/certified-release-ci.json',
+          }
+          for old, new in replacements.items():
+              count = workflow.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one occurrence of {old!r}, found {count}')
+              workflow = workflow.replace(old, new)
+          workflow_path.write_text(workflow)
+
+          test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
+          test = test_path.read_text()
+          anchor = "assert.ok(finalize.includes('echo \\\"CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json\\\" >> \\\"$GITHUB_ENV\\\"'));\n"
+          addition = anchor + "assert.ok(finalize.includes('${{ runner.temp }}/certified-production-release-cut.json'));\nassert.ok(finalize.includes('${{ runner.temp }}/certified-release-ci.json'));\nassert.doesNotMatch(finalize, /\\$\\{\\{ env\\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \\}\\}/);\n"
+          if test.count(anchor) != 1:
+              raise SystemExit('registration-test insertion anchor is missing or ambiguous')
+          test = test.replace(anchor, addition)
+          test_path.write_text(test)
+          PY
+
+          git diff --check
+          test "$(git diff --name-only | wc -l)" -eq 2
+          git diff --name-only | grep -Fx '.github/workflows/production-certified-release-cut-validation.yml'
+          git diff --name-only | grep -Fx 'http-generic-api/test-production-certified-release-cut-validation-registration.mjs'
+
+      - name: Validate repaired registration contracts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+
+      - name: Materialize governed Git blobs
+        id: blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          WORKFLOW_BLOB="$(jq -Rs '{content: ., encoding: "utf-8"}' < .github/workflows/production-certified-release-cut-validation.yml | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
+          TEST_BLOB="$(jq -Rs '{content: ., encoding: "utf-8"}' < http-generic-api/test-production-certified-release-cut-validation-registration.mjs | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
+          [[ "$WORKFLOW_BLOB" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TEST_BLOB" =~ ^[0-9a-f]{40}$ ]]
+          echo "WORKFLOW_BLOB=$WORKFLOW_BLOB"
+          echo "TEST_BLOB=$TEST_BLOB"
+          printf '{"source_head":"%s","workflow_blob":"%s","test_blob":"%s","secrets_included":false}\n' "$GITHUB_SHA" "$WORKFLOW_BLOB" "$TEST_BLOB" > "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
+          cat "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
+
+      - name: Upload blob manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-release-upload-path-blob-manifest-${{ github.run_id }}
+          path: ${{ runner.temp }}/certified-release-upload-path-blob-manifest.json
+          if-no-files-found: error
+          retention-days: 14
