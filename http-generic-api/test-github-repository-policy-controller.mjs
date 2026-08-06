@@ -179,79 +179,79 @@ try {
   }
 
 
-{
-  const excludedRuleset = desiredRuleset({ excludeRefs: ["~DEFAULT_BRANCH"] });
-  const mock = createGithubFetch({ initialRuleset: excludedRuleset });
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
-  assert.equal(readback.ruleset_details[0].applies_to_main, false);
-  assert.equal(readback.managed_ruleset_count, 0);
-  const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
-  assert.equal(plan.operation, "create_ruleset");
-}
+  {
+    const excludedRuleset = desiredRuleset({ excludeRefs: ["~DEFAULT_BRANCH"] });
+    const mock = createGithubFetch({ initialRuleset: excludedRuleset });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.ruleset_details[0].applies_to_main, false);
+    assert.equal(readback.managed_ruleset_count, 0);
+    const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+    assert.equal(plan.operation, "create_ruleset");
+  }
 
-{
-  const wildcardExcludedRuleset = desiredRuleset({ excludeRefs: ["refs/heads/ma*"] });
-  const mock = createGithubFetch({ initialRuleset: wildcardExcludedRuleset });
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
-  assert.equal(readback.ruleset_details[0].applies_to_main, false);
-  assert.equal(readback.managed_ruleset_count, 0);
-}
+  {
+    const wildcardExcludedRuleset = desiredRuleset({ excludeRefs: ["refs/heads/ma*"] });
+    const mock = createGithubFetch({ initialRuleset: wildcardExcludedRuleset });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.ruleset_details[0].applies_to_main, false);
+    assert.equal(readback.managed_ruleset_count, 0);
+  }
 
-{
-  const mock = createGithubFetch({ initialRuleset: desiredRuleset(), repositoryPayload: {} });
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
-  assert.equal(readback.repository_auto_merge_allowed, null);
-  assert.equal(readback.proof.auto_merge_disabled, false);
-  assert.ok(readback.findings.includes("repository_auto_merge_not_disabled"));
-  assert.equal(readback.proof.server_policy_gate_complete, false);
-}
+  {
+    const mock = createGithubFetch({ initialRuleset: desiredRuleset(), repositoryPayload: {} });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.repository_auto_merge_allowed, null);
+    assert.equal(readback.proof.auto_merge_disabled, false);
+    assert.ok(readback.findings.includes("repository_auto_merge_not_disabled"));
+    assert.equal(readback.proof.server_policy_gate_complete, false);
+  }
 
-{
-  const mock = createGithubFetch({ initialRuleset: desiredRuleset(), rulesetDetailStatus: 403 });
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
-  assert.equal(readback.proof.ruleset_details_readable, false);
-  assert.equal(readback.proof.policy_state_readable, false);
-  assert.equal(readback.proof.finalizer_not_bypass_proven, false);
-  assert.ok(readback.findings.includes("ruleset_details_unreadable"));
-  assert.equal(readback.proof.server_policy_gate_complete, false);
-}
+  {
+    const mock = createGithubFetch({ initialRuleset: desiredRuleset(), rulesetDetailStatus: 403 });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.proof.ruleset_details_readable, false);
+    assert.equal(readback.proof.policy_state_readable, false);
+    assert.equal(readback.proof.finalizer_not_bypass_proven, false);
+    assert.ok(readback.findings.includes("ruleset_details_unreadable"));
+    assert.equal(readback.proof.server_policy_gate_complete, false);
+  }
 
-{
-  const mock = createGithubFetch({
-    initialRuleset: desiredRuleset(),
-    branchPayload: { name: "main", commit: { sha: MAIN_SHA } },
-  });
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
-  assert.equal(readback.main_sha, null);
-  assert.equal(readback.branch_protected, null);
-  assert.equal(readback.proof.policy_state_readable, false);
-  assert.equal(readback.proof.direct_push_block_proven, false);
-  assert.equal(readback.proof.server_policy_gate_complete, false);
-}
+  {
+    const mock = createGithubFetch({
+      initialRuleset: desiredRuleset(),
+      branchPayload: { name: "main", commit: { sha: MAIN_SHA } },
+    });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.main_sha, null);
+    assert.equal(readback.branch_protected, null);
+    assert.equal(readback.proof.policy_state_readable, false);
+    assert.equal(readback.proof.direct_push_block_proven, false);
+    assert.equal(readback.proof.server_policy_gate_complete, false);
+  }
 
-{
-  const first = { ...desiredRuleset(), id: 41, enforcement: "disabled" };
-  const second = { ...desiredRuleset(), id: 42, enforcement: "evaluate" };
-  const rulesets = new Map([[41, first], [42, second]]);
-  const fetchImpl = async (url, options = {}) => {
-    const method = String(options.method || "GET").toUpperCase();
-    const path = new URL(url).pathname;
-    if (path === `/repos/${OWNER}/${REPO}` && method === "GET") return response(200, { allow_auto_merge: false });
-    if (path === `/repos/${OWNER}/${REPO}/branches/main` && method === "GET") return response(200, { name: "main", commit: { sha: MAIN_SHA }, protected: true });
-    if (path === `/repos/${OWNER}/${REPO}/rules/branches/main` && method === "GET") return response(200, []);
-    if (path === `/repos/${OWNER}/${REPO}/rulesets` && method === "GET") return response(200, [{ id: 41 }, { id: 42 }]);
-    if (path === `/repos/${OWNER}/${REPO}/branches/main/protection` && method === "GET") return response(404, { message: "Branch not protected" });
-    if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") return response(200, []);
-    const match = path.match(/\/rulesets\/(41|42)$/);
-    if (match && method === "GET") return response(200, rulesets.get(Number(match[1])));
-    throw new Error(`Unhandled GitHub ambiguity mock request: ${method} ${path}`);
-  };
-  const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(fetchImpl));
-  assert.equal(readback.managed_ruleset_count, 2);
-  assert.equal(readback.active_managed_ruleset_count, 0);
-  const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
-  assert.equal(plan.preconditions.managed_ruleset_ambiguity_absent, false);
-}
+  {
+    const first = { ...desiredRuleset(), id: 41, enforcement: "disabled" };
+    const second = { ...desiredRuleset(), id: 42, enforcement: "evaluate" };
+    const rulesets = new Map([[41, first], [42, second]]);
+    const fetchImpl = async (url, options = {}) => {
+      const method = String(options.method || "GET").toUpperCase();
+      const path = new URL(url).pathname;
+      if (path === `/repos/${OWNER}/${REPO}` && method === "GET") return response(200, { allow_auto_merge: false });
+      if (path === `/repos/${OWNER}/${REPO}/branches/main` && method === "GET") return response(200, { name: "main", commit: { sha: MAIN_SHA }, protected: true });
+      if (path === `/repos/${OWNER}/${REPO}/rules/branches/main` && method === "GET") return response(200, []);
+      if (path === `/repos/${OWNER}/${REPO}/rulesets` && method === "GET") return response(200, [{ id: 41 }, { id: 42 }]);
+      if (path === `/repos/${OWNER}/${REPO}/branches/main/protection` && method === "GET") return response(404, { message: "Branch not protected" });
+      if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") return response(200, []);
+      const match = path.match(/\/rulesets\/(41|42)$/);
+      if (match && method === "GET") return response(200, rulesets.get(Number(match[1])));
+      throw new Error(`Unhandled GitHub ambiguity mock request: ${method} ${path}`);
+    };
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(fetchImpl));
+    assert.equal(readback.managed_ruleset_count, 2);
+    assert.equal(readback.active_managed_ruleset_count, 0);
+    const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+    assert.equal(plan.preconditions.managed_ruleset_ambiguity_absent, false);
+  }
 
   {
     const mock = createGithubFetch();
