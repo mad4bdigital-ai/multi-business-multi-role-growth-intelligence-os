@@ -28,8 +28,10 @@ jobs:
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
       RETIREMENT_TOMBSTONE: .changes/e2e/production-runtime-parity-comment-bridge.json
+      RETIREMENT_CONTRACT: .changes/e2e/production-runtime-parity-comment-bridge-retirement.json
       RETIRED_BRIDGE_WORKFLOW: .github/workflows/production-runtime-parity-comment-bridge.yml
       RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+      RETIREMENT_SELF_TEST: http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
     steps:
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -96,7 +98,6 @@ jobs:
           set -euo pipefail
           mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort)
           printf 'merge_exit=%s\nunmerged_count=%s\n' "${MERGE_EXIT}" "${#conflicts[@]}"
-
           allowed=(
             ".changes/e2e/production-runtime-parity-comment-bridge.json"
             ".github/workflows/production-runtime-parity-comment-bridge.yml"
@@ -105,7 +106,7 @@ jobs:
             "docs/work-maps/repository-automation-map.md"
             "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs"
           )
-          unexpected_count=0
+          unexpected=0
           for conflict in "${conflicts[@]}"; do
             echo "::notice file=${conflict}::Detected merge conflict"
             approved=false
@@ -117,10 +118,10 @@ jobs:
             done
             if [[ "${approved}" != true ]]; then
               echo "::error file=${conflict}::Unexpected merge conflict"
-              unexpected_count=$((unexpected_count + 1))
+              unexpected=$((unexpected + 1))
             fi
           done
-          test "${unexpected_count}" -eq 0
+          test "${unexpected}" -eq 0
           if [[ "${MERGE_EXIT}" -ne 0 && ${#conflicts[@]} -eq 0 ]]; then
             echo "::error::Merge failed without an approved conflict set"
             exit 1
@@ -145,7 +146,7 @@ jobs:
             git rm --force -- "${RETIRED_BRIDGE_TEST}"
           fi
 
-      - name: Regenerate and stage Work Maps
+      - name: Regenerate Work Maps
         shell: bash
         run: |
           set -euo pipefail
@@ -159,7 +160,6 @@ jobs:
           set -euo pipefail
           registry_report="${RUNNER_TEMP}/work-map-registry.json"
           node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs --registry-report > "${registry_report}"
-
           node - "${registry_report}" <<'NODE'
           const fs = require('node:fs');
           const [reportPath] = process.argv.slice(2);
@@ -168,7 +168,6 @@ jobs:
           if (!report.ok || !registry || !/^[0-9a-f]{64}$/.test(registry.fingerprint || '')) {
             throw new Error('Invalid Work Map registry report');
           }
-
           const expected = {
             fingerprint: registry.fingerprint,
             index_source_hash: registry.signature?.index_source_hash,
@@ -181,19 +180,16 @@ jobs:
           for (const key of ['index_source_hash', 'coverage_source_hash']) {
             if (!/^[0-9a-f]{64}$/.test(expected[key] || '')) throw new Error(`Invalid ${key}`);
           }
-
           const targets = [
             ['specs/014-governed-hostinger-storage-orchestration/work-map-integration.json', '014-governed-hostinger-storage-orchestration'],
             ['specs/014-retail-commerce-operations-growth-os/work-map-integration.json', '014-retail-commerce-operations-growth-os'],
           ];
-
           for (const [file, featureKey] of targets) {
             const original = fs.readFileSync(file, 'utf8');
             const parsed = JSON.parse(original);
             if (parsed.feature_key !== featureKey || parsed.review_state !== 'ready_for_implementation') {
               throw new Error(`Unexpected manifest identity/state: ${file}`);
             }
-
             const lines = original.replace(/\r\n/g, '\n').split('\n');
             let inRegistry = false;
             const seen = new Set();
@@ -207,7 +203,6 @@ jobs:
                 return line;
               }
               if (!inRegistry) return line;
-
               for (const [key, value] of Object.entries(expected)) {
                 const match = line.match(new RegExp(`^(    "${key}": )("[^"]*"|-?[0-9]+)(,?)$`));
                 if (!match) continue;
@@ -217,7 +212,6 @@ jobs:
               }
               return line;
             });
-
             const missing = Object.keys(expected).filter((key) => !seen.has(key));
             if (missing.length) throw new Error(`Missing registry fields in ${file}: ${missing.join(',')}`);
             const output = next.join('\n');
@@ -252,17 +246,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
+          node "${RETIREMENT_SELF_TEST}"
 
-      - name: Prove bounded merge state
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -z "$(git ls-files -u)"
-          test -z "$(git diff --name-only --diff-filter=U)"
-          test "$(git rev-parse -q --verify MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
-
-      - name: Stage generated bindings and assert final PR scope
+      - name: Stage generated reconciliation outputs
         shell: bash
         run: |
           set -euo pipefail
@@ -271,12 +257,29 @@ jobs:
             docs/work-maps/repository-automation-map.md \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git status --short
 
-          test ! -e "${TEMP_WORKFLOW}"
+      - name: Assert clean bounded merge state
+        shell: bash
+        run: |
+          set -euo pipefail
           test -z "$(git ls-files -u)"
-          test -z "$(git diff --name-only)"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          test "$(git rev-parse -q --verify MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
+          mapfile -t unstaged < <(git diff --name-only | sort)
+          for path in "${unstaged[@]}"; do
+            echo "::error file=${path}::Unstaged reconciliation change"
+          done
+          test "${#unstaged[@]}" -eq 0
 
+      - name: Assert final PR path allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
           mapfile -t final_scope < <(git diff --cached --name-only "${PINNED_MAIN_SHA}" | sort)
+          printf 'final_pr_scope_count=%s\n' "${#final_scope[@]}"
+          printf 'final_pr_scope=%s\n' "${final_scope[*]}"
+          test "${#final_scope[@]}" -gt 0
           allowed=(
             ".changes/e2e/production-runtime-parity-comment-bridge-retirement.json"
             ".changes/e2e/production-runtime-parity-comment-bridge.json"
@@ -288,17 +291,6 @@ jobs:
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
             "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
           )
-          required=(
-            ".changes/e2e/production-runtime-parity-comment-bridge-retirement.json"
-            ".changes/e2e/production-runtime-parity-comment-bridge.json"
-            ".github/workflows/production-runtime-parity-comment-bridge.yml"
-            "docs/work-maps/README.md"
-            "docs/work-maps/repository-automation-map.md"
-            "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs"
-            "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs"
-          )
-
-          printf 'final_pr_scope=%s\n' "${final_scope[*]}"
           for path in "${final_scope[@]}"; do
             approved=false
             for expected in "${allowed[@]}"; do
@@ -312,12 +304,18 @@ jobs:
               exit 1
             fi
           done
-          for expected in "${required[@]}"; do
-            if ! printf '%s\n' "${final_scope[@]}" | grep -Fxq "${expected}"; then
-              echo "::error file=${expected}::Required final PR path is missing"
-              exit 1
-            fi
-          done
+
+      - name: Assert semantic retirement state
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "${TEMP_WORKFLOW}"
+          test ! -e "${RETIRED_BRIDGE_WORKFLOW}"
+          test ! -e "${RETIRED_BRIDGE_TEST}"
+          test -f "${RETIREMENT_TOMBSTONE}"
+          test -f "${RETIREMENT_CONTRACT}"
+          test -f "${RETIREMENT_SELF_TEST}"
+          node "${RETIREMENT_SELF_TEST}"
 
       - name: Commit merge and push exact branch
         id: publish
@@ -328,7 +326,6 @@ jobs:
           remote_main="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
           test "${remote_main}" = "${PINNED_MAIN_SHA}"
-
           git commit -m "chore: reconcile PR 6463 with current main"
           result_sha="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
@@ -356,7 +353,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          body="PR6463_BOUNDED_RECONCILIATION outcome=${{ job.status }} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} merge_exit=${MERGE_EXIT:-unresolved} allowed_conflicts=.changes/e2e/production-runtime-parity-comment-bridge.json,.github/workflows/production-runtime-parity-comment-bridge.yml,.github/workflows/pr6463-bounded-main-reconciliation.yml,docs/work-maps/README.md,docs/work-maps/repository-automation-map.md,http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
+          body="PR6463_BOUNDED_RECONCILIATION outcome=${{ job.status }} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} merge_exit=${MERGE_EXIT:-unresolved} protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
           if ! gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null; then
             echo "::warning::Unable to publish reconciliation comment"
           fi
