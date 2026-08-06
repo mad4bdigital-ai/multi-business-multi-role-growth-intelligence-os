@@ -1,0 +1,139 @@
+name: PR 6502 Work Map Convergence
+run-name: PR 6502 Work Map Convergence · ${{ github.sha }}
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr6502-work-map-convergence.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: pr-6502-work-map-convergence
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    name: Regenerate maps and remove one-shot workflow
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    env:
+      TARGET_PR: "6502"
+      TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+      AUTHORIZED_PARENT_SHA: 85874ace2edb49bb3285b02deb880b78375eb414
+      ONE_SHOT_PATH: .github/workflows/pr6502-work-map-convergence.yml
+    steps:
+      - name: Checkout exact one-shot commit
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+          token: ${{ github.token }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate exact PR and fast-forward authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_AFTER: ${{ github.event.after }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "${EVENT_BEFORE}" = "${AUTHORIZED_PARENT_SHA}"
+          test "${EVENT_AFTER}" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_PARENT_SHA}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = "open"
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${GITHUB_SHA}"
+
+          compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = "0"
+
+      - name: Validate Work Map generator contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/scripts/platform-work-map-generator.mjs
+          node --check http-generic-api/scripts/platform-work-map-schema-intelligence.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification.mjs
+          node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+
+      - name: Regenerate and prove idempotency
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+          unexpected_files="$(git diff --name-only | grep -Ev '^docs/work-maps/(README|repository-automation-map)\.md$' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Unexpected generated changes:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+
+          git diff --quiet -- docs/work-maps/README.md || true
+          test -n "$(git diff --name-only -- docs/work-maps/repository-automation-map.md)"
+
+          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_diff_hash}" = "${second_diff_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Remove one-shot workflow and publish bounded result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -- "${ONE_SHOT_PATH}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          git add -u -- "${ONE_SHOT_PATH}"
+
+          mapfile -t staged < <(git diff --cached --name-only | sort)
+          printf '%s\n' "${staged[@]}"
+          test "${#staged[@]}" -ge 2
+          test "${#staged[@]}" -le 3
+          printf '%s\n' "${staged[@]}" | grep -Fxq "${ONE_SHOT_PATH}"
+          printf '%s\n' "${staged[@]}" | grep -Fxq "docs/work-maps/repository-automation-map.md"
+          if printf '%s\n' "${staged[@]}" | grep -Ev "^(${ONE_SHOT_PATH}|docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md)$"; then
+            echo "Unexpected staged path."
+            exit 1
+          fi
+
+          git commit -m "docs(work-maps): converge generated repository automation map"
+          result_sha="$(git rev-parse HEAD)"
+          remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${result_sha}"
+          test ! -e "${ONE_SHOT_PATH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" \
+            -f body="WORK_MAP_CONVERGENCE outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} generated_paths=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md one_shot_removed=true protected_ref_mutation=false force_push=false"
