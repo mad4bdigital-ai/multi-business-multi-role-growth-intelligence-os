@@ -559,7 +559,7 @@ jobs:
         with:
           name: certified-production-release-cut-${{ github.event.pull_request.head.sha }}
           path: |
-            ${{ env.EVIDENCE_PATH }}
-            ${{ env.CI_SUMMARY_PATH }}
+            ${{ runner.temp }}/certified-production-release-cut.json
+            ${{ runner.temp }}/certified-release-ci.json
           if-no-files-found: error
           retention-days: 30

@@ -15,6 +15,9 @@ assert.equal(jobEnv.includes('runner.'), false, 'job-level env must not use runn
 assert.ok(finalize.includes('- name: Initialize runner-local evidence paths'));
 assert.ok(finalize.includes('echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"'));
 assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));
+assert.ok(finalize.includes('${{ runner.temp }}/certified-production-release-cut.json'));
+assert.ok(finalize.includes('${{ runner.temp }}/certified-release-ci.json'));
+assert.doesNotMatch(finalize, /\$\{\{ env\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \}\}/);
 assert.ok(workflow.includes('pull_request_target:'));
 assert.ok(workflow.includes("if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"));
 assert.match(workflow, /permissions:\n  contents: read/);
