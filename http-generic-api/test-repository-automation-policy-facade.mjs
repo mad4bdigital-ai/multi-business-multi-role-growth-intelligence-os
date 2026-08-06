@@ -175,6 +175,28 @@ await assert.rejects(
   (error) => error?.code === "github_repository_policy_fingerprint_required"
 );
 
+let invalidAutomationProviderCalls = 0;
+await assert.rejects(
+  runRepositoryAutomation({
+    automation_key: "repository_policy",
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: `${MAIN_SHA}0`,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    capability_envelope_id: "env-policy-1",
+  }, {
+    persist: false,
+    policyController: async () => {
+      invalidAutomationProviderCalls += 1;
+      return readback;
+    },
+  }),
+  (error) => error?.code === "github_repository_policy_expected_main_sha_required"
+);
+assert.equal(invalidAutomationProviderCalls, 0, "Invalid Apply authority must fail before readback or provider access.");
+
 const calls = [];
 const policyController = async (args) => {
   calls.push(args.mode);
@@ -300,7 +322,7 @@ await assert.rejects(
   }),
   (error) => error?.code === "github_repository_policy_confirmation_invalid"
 );
-assert.equal(capturedApply.confirm, undefined, "The facade must not invent typed confirmation.");
+assert.equal(capturedApply, null, "Missing typed confirmation must fail before readback or apply dispatch.");
 
 assert.throws(
   () => buildRepositoryAutomationPlan({ automation_key: "repository_policy", default_branch: "Production" }),
@@ -321,6 +343,7 @@ console.log(JSON.stringify({
   caller_supplied_idempotency_key_bound_to_plan_identity: true,
   overlong_authority_values_rejected_without_truncation: true,
   invalid_authority_inputs_have_distinct_plan_identity: true,
+  invalid_apply_rejected_before_provider_readback: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
   typed_confirmation_not_invented: true,
