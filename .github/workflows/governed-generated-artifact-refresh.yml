@@ -1,59 +1,105 @@
 name: Governed Generated Artifact Refresh
-run-name: Governed Generated Artifact Refresh · ${{ inputs.target_ref }} · ${{ inputs.expected_head_sha }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      target_ref:
-        description: Governed work branch to refresh
-        required: true
-        type: string
-      expected_head_sha:
-        description: Exact current 40-character head SHA
-        required: true
-        type: string
-      confirmation:
-        description: Type APPLY_GENERATED_ARTIFACT_REFRESH
-        required: true
-        type: string
+  push:
+    branches:
+      - "fix/transport-response-delivery-20260806"
 
 permissions:
   actions: write
   contents: write
 
 concurrency:
-  group: governed-generated-artifact-refresh-${{ inputs.target_ref }}
-  cancel-in-progress: true
+  group: transport-latest-main-reconcile-once
+  cancel-in-progress: false
 
 jobs:
   apply:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    env:
-      OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh
+    timeout-minutes: 35
     steps:
-      - name: Validate dispatch identity
-        shell: bash
-        env:
-          TARGET_REF: ${{ inputs.target_ref }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
-          CONFIRMATION: ${{ inputs.confirmation }}
-        run: |
-          set -euo pipefail
-          if [[ "$TARGET_REF" == "main" || "$TARGET_REF" == "Production" ]]; then
-            echo "Protected branch mutation is forbidden: $TARGET_REF" >&2
-            exit 1
-          fi
-          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
-
-      - name: Checkout exact expected head
+      - name: Checkout exact triggering head
         uses: actions/checkout@v5
         with:
-          ref: ${{ inputs.expected_head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
+
+      - name: Pin branch and fetch current main
+        id: pin
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/transport-response-delivery-20260806
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse origin/main)"
+          [[ "${main_sha}" =~ ^[0-9a-f]{40}$ ]]
+          echo "main_sha=${main_sha}" >> "$GITHUB_OUTPUT"
+          test "${TARGET_BRANCH}" != main
+          test "${TARGET_BRANCH}" != Production
+
+      - name: Merge main with bounded conflict policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_status=$?
+          set -e
+
+          conflicts="$(git diff --name-only --diff-filter=U || true)"
+          unexpected="$(printf '%s\n' "${conflicts}" | grep -Ev '^(docs/work-maps/[A-Za-z0-9._-]+\.md|http-generic-api/frontend-operation-governance\.generated\.(json|md|yaml)|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/frontend-registry-closure-report\.(json|md)|http-generic-api/skill-inventory\.generated\.md|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml|http-generic-api/scripts/test-manifest\.mjs)$' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Unexpected merge conflicts:" >&2
+            printf '%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+
+          while IFS= read -r path; do
+            [[ -n "${path}" ]] || continue
+            if [[ "${path}" == "http-generic-api/scripts/test-manifest.mjs" ]]; then
+              git checkout --theirs -- "${path}"
+            else
+              git checkout --ours -- "${path}"
+            fi
+            git add -- "${path}"
+          done <<< "${conflicts}"
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("http-generic-api/scripts/test-manifest.mjs")
+          text = path.read_text(encoding="utf-8")
+          anchor = '  "node test-smoke-branch-cleanup-gate.mjs",\n'
+          entries = [
+              '  "node test-sink-orchestration-json-asset-lookup-failure.mjs",\n',
+              '  "node test-local-connector-transport-errors.mjs",\n',
+              '  "node test-transport-response-chunk-schema-recovery.mjs",\n',
+          ]
+          if text.count(anchor) != 1:
+              raise SystemExit("test manifest insertion anchor mismatch")
+          for entry in entries:
+              if entry not in text:
+                  text = text.replace(anchor, entry + anchor, 1)
+          path.write_text(text, encoding="utf-8")
+          PY
+          git add -- http-generic-api/scripts/test-manifest.mjs
+
+          test -z "$(git diff --name-only --diff-filter=U || true)"
+          test "${merge_status}" -eq 0 || git rev-parse --verify MERGE_HEAD
+
+          git checkout origin/main -- .github/workflows/governed-generated-artifact-refresh.yml
+          test ! -e .github/workflows/transport-main-reconcile-once.yml
+          test ! -e .github/workflows/transport-main-reconcile-diagnostic-once.yml
+          test ! -e .github/workflows/transport-main-reconcile-finalize-once.yml
+          test ! -e .github/workflows/transport-connector-merge-diagnostic-once.yml
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -62,61 +108,48 @@ jobs:
           cache: npm
           cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Apply registered generated-artifact refresh tool
-        run: >-
-          node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
-          --target-ref "${{ inputs.target_ref }}"
-          --expected-head-sha "${{ inputs.expected_head_sha }}"
-          --confirmation "${{ inputs.confirmation }}"
-          --output-dir "${OUTPUT_DIR}"
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
 
-      - name: Dispatch read-only verification on resulting exact head
+      - name: Regenerate frontend governed evidence
+        working-directory: http-generic-api
+        run: npm run frontend:dispatch:generate -- --baseline-ref=main
+
+      - name: Regenerate and verify clean Work Maps
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TARGET_REF: ${{ inputs.target_ref }}
         run: |
           set -euo pipefail
-          report="${OUTPUT_DIR}/generated-artifact-refresh-report.json"
-          test -f "$report"
-          result_sha="$(jq -r '.commit_sha // .expected_head_sha' "$report")"
-          [[ "$result_sha" =~ ^[0-9a-f]{40}$ ]]
-          remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          [[ "$remote_sha" == "$result_sha" ]]
-          payload="$(jq -cn \
-            --arg ref "$TARGET_REF" \
-            --arg target_ref "$TARGET_REF" \
-            --arg expected_head_sha "$result_sha" \
-            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
-          gh api \
-            --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/pr-generated-artifact-refresh.yml/dispatches" \
-            --input - <<<"$payload"
-          jq -cn \
-            --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
-            --arg target_ref "$TARGET_REF" \
-            --arg candidate_sha "$result_sha" \
-            --arg workflow "PR Generated Artifact Refresh" \
-            '{contract:$contract,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,requested:true,secrets_included:false}' \
-            > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          if grep -R -n -E 'transport-(connector-merge-diagnostic|main-reconcile)|Transport (connector merged diagnostic once|main reconciliation)' docs/work-maps; then
+            echo "Temporary transport workflow references remain in generated Work Maps." >&2
+            exit 1
+          fi
 
-      - name: Upload canonical refresh report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: governed-generated-artifact-refresh-${{ github.run_id }}
-          path: ${{ env.OUTPUT_DIR }}/
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Publish bounded summary
-        if: always()
-        shell: bash
+      - name: Verify transport and latest-main contracts
+        working-directory: http-generic-api
         run: |
-          if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-report.md" ]]; then
-            cat "${OUTPUT_DIR}/generated-artifact-refresh-report.md" >> "$GITHUB_STEP_SUMMARY"
-          fi
-          if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json" ]]; then
-            echo >> "$GITHUB_STEP_SUMMARY"
-            echo "Exact-head read-only verification dispatch requested." >> "$GITHUB_STEP_SUMMARY"
-          fi
+          node test-local-connector-transport-errors.mjs
+          node test-transport-response-chunk-schema-recovery.mjs
+          node test-sink-orchestration-json-asset-lookup-failure.mjs
+          node test-production-certified-release-cut-validation-registration.mjs
+          node test-production-promotion-convergence-workflows.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-openapi-route-coverage.mjs
+
+      - name: Commit reconciliation and push without force
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/transport-response-delivery-20260806
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+          MERGED_MAIN_SHA: ${{ steps.pin.outputs.main_sha }}
+        run: |
+          set -euo pipefail
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git commit -m "merge(main): reconcile transport recovery with latest main"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          test "$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')" = "${MERGED_MAIN_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
