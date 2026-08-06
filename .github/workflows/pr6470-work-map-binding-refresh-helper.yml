@@ -1,4 +1,4 @@
-name: PR 6470 Work Map Binding Refresh Helper
+name: PR 6470 Atomic Work Map Refresh And Seal Helper
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  refresh-binding:
+  refresh-and-seal:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact helper branch
@@ -25,25 +25,49 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Validate generated maps on the final tree before sealing
+      - name: Generate and validate Work Maps on the final tree
         shell: bash
         run: |
           set -euo pipefail
           helper='.github/workflows/pr6470-work-map-binding-refresh-helper.yml'
+          readme='docs/work-maps/README.md'
+          domain_map='docs/work-maps/data-model-domain-map.md'
+          coverage='docs/work-maps/work-map-coverage-matrix.md'
+
           test -f "${helper}"
           rm "${helper}"
           test ! -e "${helper}"
 
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          changed="$(git diff --name-only | LC_ALL=C sort)"
+          for required in "${helper}" "${readme}" "${domain_map}" "${coverage}"; do
+            printf '%s\n' "${changed}" | grep -Fx "${required}"
+          done
+          unexpected="$(printf '%s\n' "${changed}" | grep -Fvx \
+            -e "${helper}" \
+            -e "${readme}" \
+            -e "${domain_map}" \
+            -e "${coverage}" || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo 'Unexpected generated-tree changes:'
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
-      - name: Refresh official Spec 014 binding and run final readback
+      - name: Seal Spec 014 binding and prove final readback
         shell: bash
         run: |
           set -euo pipefail
           helper='.github/workflows/pr6470-work-map-binding-refresh-helper.yml'
+          readme='docs/work-maps/README.md'
+          domain_map='docs/work-maps/data-model-domain-map.md'
+          coverage='docs/work-maps/work-map-coverage-matrix.md'
           manifest='specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
           tasks='specs/014-governed-hostinger-storage-orchestration/tasks.md'
 
@@ -51,11 +75,18 @@ jobs:
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
 
           changed="$(git diff --name-only | LC_ALL=C sort)"
-          printf '%s\n' "${changed}" | grep -Fx "${helper}"
-          printf '%s\n' "${changed}" | grep -Fx "${manifest}"
-          unexpected="$(printf '%s\n' "${changed}" | grep -Fvx -e "${helper}" -e "${manifest}" -e "${tasks}" || true)"
+          for required in "${helper}" "${readme}" "${domain_map}" "${coverage}" "${manifest}"; do
+            printf '%s\n' "${changed}" | grep -Fx "${required}"
+          done
+          unexpected="$(printf '%s\n' "${changed}" | grep -Fvx \
+            -e "${helper}" \
+            -e "${readme}" \
+            -e "${domain_map}" \
+            -e "${coverage}" \
+            -e "${manifest}" \
+            -e "${tasks}" || true)"
           if [[ -n "${unexpected}" ]]; then
-            echo 'Unexpected binding-refresh changes:'
+            echo 'Unexpected sealed-tree changes:'
             printf '%s\n' "${unexpected}"
             exit 1
           fi
@@ -70,28 +101,38 @@ jobs:
           }
           NODE
 
-      - name: Commit binding refresh and helper deletion atomically
+      - name: Commit final maps, binding, and helper deletion atomically
         shell: bash
         run: |
           set -euo pipefail
           helper='.github/workflows/pr6470-work-map-binding-refresh-helper.yml'
+          readme='docs/work-maps/README.md'
+          domain_map='docs/work-maps/data-model-domain-map.md'
+          coverage='docs/work-maps/work-map-coverage-matrix.md'
           manifest='specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
           tasks='specs/014-governed-hostinger-storage-orchestration/tasks.md'
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- "${helper}" "${manifest}" "${tasks}"
+          git add -A -- "${helper}" "${readme}" "${domain_map}" "${coverage}" "${manifest}" "${tasks}"
 
           staged="$(git diff --cached --name-only | LC_ALL=C sort)"
-          printf '%s\n' "${staged}" | grep -Fx "${helper}"
-          printf '%s\n' "${staged}" | grep -Fx "${manifest}"
-          unexpected="$(printf '%s\n' "${staged}" | grep -Fvx -e "${helper}" -e "${manifest}" -e "${tasks}" || true)"
+          for required in "${helper}" "${readme}" "${domain_map}" "${coverage}" "${manifest}"; do
+            printf '%s\n' "${staged}" | grep -Fx "${required}"
+          done
+          unexpected="$(printf '%s\n' "${staged}" | grep -Fvx \
+            -e "${helper}" \
+            -e "${readme}" \
+            -e "${domain_map}" \
+            -e "${coverage}" \
+            -e "${manifest}" \
+            -e "${tasks}" || true)"
           if [[ -n "${unexpected}" ]]; then
-            echo 'Unexpected staged binding-refresh changes:'
+            echo 'Unexpected staged final-tree changes:'
             printf '%s\n' "${unexpected}"
             exit 1
           fi
 
           git diff --cached --check
-          git commit -m "docs(spec-014): refresh final Work Map binding"
+          git commit -m "docs(work-maps): refresh and seal PR 6429 exact-head maps"
           git push origin HEAD:gpt/generated/pr6429-work-map-refresh-20260806
