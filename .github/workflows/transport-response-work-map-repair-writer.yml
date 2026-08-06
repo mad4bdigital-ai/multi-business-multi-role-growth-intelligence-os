@@ -29,14 +29,13 @@ jobs:
       - name: Verify bounded writer introduction
         shell: bash
         env:
-          EXPECTED_PARENT_SHA: 19b2cb731ca5f057a052dad1e4ac4263e27939ec
+          EXPECTED_BASE_SHA: 19b2cb731ca5f057a052dad1e4ac4263e27939ec
         run: |
           set -Eeuo pipefail
           workflow='.github/workflows/transport-response-work-map-repair-writer.yml'
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
-          test "$(git diff --name-only HEAD^ HEAD)" = "${workflow}"
+          test "$(git diff --name-only "${EXPECTED_BASE_SHA}" HEAD)" = "${workflow}"
           git rm "${workflow}"
-          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
+          git diff --quiet "${EXPECTED_BASE_SHA}" -- .
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -54,23 +53,23 @@ jobs:
       - name: Verify exact candidate identity and scope
         shell: bash
         env:
+          EXPECTED_BASE_SHA: 19b2cb731ca5f057a052dad1e4ac4263e27939ec
           EXPECTED_SOURCE_HASH: 1c45413330d694a3e151d56a41763880c2889372eb683180621112a5a1942845
         run: |
           set -Eeuo pipefail
           expected="$(mktemp)"
           actual="$(mktemp)"
           cat > "${expected}" <<'EOF'
-          .github/workflows/transport-response-work-map-repair-writer.yml
           docs/work-maps/README.md
           docs/work-maps/data-model-domain-map.md
           docs/work-maps/observability-release-map.md
           docs/work-maps/work-map-coverage-matrix.md
           EOF
-          git diff --name-only | sort > "${actual}"
+          git diff --name-only "${EXPECTED_BASE_SHA}" -- . | sort > "${actual}"
           sort -o "${expected}" "${expected}"
           diff -u "${expected}" "${actual}"
           grep -Fq "Source hash: \`${EXPECTED_SOURCE_HASH}\`" docs/work-maps/README.md
-          test -z "$(git diff --name-only | grep -Ev '^(\.github/workflows/transport-response-work-map-repair-writer\.yml|docs/work-maps/(README|data-model-domain-map|observability-release-map|work-map-coverage-matrix)\.md)$' || true)"
+          test -z "$(git diff --name-only "${EXPECTED_BASE_SHA}" -- . | grep -Ev '^docs/work-maps/(README|data-model-domain-map|observability-release-map|work-map-coverage-matrix)\.md$' || true)"
 
       - name: Run focused Work Map governance checks
         shell: bash
@@ -89,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          git add \
+          git add -A -- \
             '.github/workflows/transport-response-work-map-repair-writer.yml' \
             'docs/work-maps/README.md' \
             'docs/work-maps/data-model-domain-map.md' \
