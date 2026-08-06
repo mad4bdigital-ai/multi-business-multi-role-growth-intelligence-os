@@ -1,4 +1,4 @@
-name: PR 6502 Complete Four Context Repairs Once
+name: PR 6502 Render Four Context Repairs Once
 
 on:
   push:
@@ -8,18 +8,19 @@ on:
       - .github/workflows/pr6502-complete-four-context-repairs-once.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  repair:
+  render:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
           ref: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
           fetch-depth: 1
+          persist-credentials: false
 
-      - name: Apply exact bounded replacements
+      - name: Render exact bounded replacements
         shell: bash
         run: |
           set -euo pipefail
@@ -39,7 +40,6 @@ jobs:
               (
                   ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
                   f"      EVIDENCE_DIR: {expression}/production-promotion-post-finalization\n",
-                  "",
                   "      - name: Initialize bounded post-finalization evidence directory\n"
                   "        shell: bash\n"
                   "        run: |\n"
@@ -52,7 +52,6 @@ jobs:
               (
                   ".github/workflows/governed-production-promotion-request-launcher.yml",
                   f"      EVIDENCE_PATH: {expression}/governed-production-promotion-convergence.json\n",
-                  "",
                   "      - name: Initialize bounded convergence evidence path\n"
                   "        shell: bash\n"
                   "        run: |\n"
@@ -65,7 +64,6 @@ jobs:
               (
                   ".github/workflows/hostinger-production-release-evidence-r5.yml",
                   f"      EVIDENCE_DIR: {expression}/hostinger-production-release-evidence-r5\n",
-                  "",
                   "      - name: Initialize bounded R5 evidence directory\n"
                   "        shell: bash\n"
                   "        run: |\n"
@@ -77,8 +75,8 @@ jobs:
               ),
           ]
 
-          for file_name, old_binding, replacement, initializer in repairs:
-              replace_once(file_name, old_binding, replacement)
+          for file_name, old_binding, initializer in repairs:
+              replace_once(file_name, old_binding, "")
               replace_once(file_name, "    steps:\n", "    steps:\n" + initializer)
 
           ueacp = ".github/workflows/ueacp-live-authority-evidence-one-shot.yml"
@@ -90,7 +88,7 @@ jobs:
           ]:
               replace_once(ueacp, f"      {name}: {expression}/{suffix}\n", "")
 
-          ueacp_initializer = (
+          initializer = (
               "      - name: Initialize bounded UEACP evidence paths\n"
               "        shell: bash\n"
               "        run: |\n"
@@ -105,21 +103,17 @@ jobs:
               "            echo \"EVIDENCE_PATH=${evidence_dir}/ueacp-live-evidence-packet.json\"\n"
               "          } >> \"${GITHUB_ENV}\"\n\n"
           )
-          replace_once(ueacp, "    steps:\n", "    steps:\n" + ueacp_initializer)
+          replace_once(ueacp, "    steps:\n", "    steps:\n" + initializer)
           PY
 
-      - name: Commit exact result and remove one-shot
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm .github/workflows/pr6502-complete-four-context-repairs-once.yml
-          git config user.name "mad4bdigital-ai"
-          git config user.email "mad4b.digital@gmail.com"
-          git add \
-            .github/workflows/governed-production-promotion-post-finalization-guard.yml \
-            .github/workflows/governed-production-promotion-request-launcher.yml \
-            .github/workflows/hostinger-production-release-evidence-r5.yml \
-            .github/workflows/ueacp-live-authority-evidence-one-shot.yml \
-            .github/workflows/pr6502-complete-four-context-repairs-once.yml
-          git commit -m "fix(ci): complete remaining runner context repairs"
-          git push origin HEAD:fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+      - name: Upload rendered workflow files
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-four-context-repairs-${{ github.run_id }}
+          path: |
+            .github/workflows/governed-production-promotion-post-finalization-guard.yml
+            .github/workflows/governed-production-promotion-request-launcher.yml
+            .github/workflows/hostinger-production-release-evidence-r5.yml
+            .github/workflows/ueacp-live-authority-evidence-one-shot.yml
+          if-no-files-found: error
+          retention-days: 7
