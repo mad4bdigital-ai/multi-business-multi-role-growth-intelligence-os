@@ -18,7 +18,7 @@ concurrency:
 jobs:
   harden:
     name: Harden launcher identity and generate final-tree maps
-    runs-on: macos-14
+    runs-on: ubuntu-slim
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 52c58b84b47ec15461ce6d9893328167c219a91c
+      AUTHORIZED_PARENT_SHA: 9b838b69b884bb84529570175ed858299250455d
       ONE_SHOT_PATH: .github/workflows/pr6502-same-repository-hardening.yml
       LAUNCHER_PATH: .github/workflows/governed-production-promotion-request-launcher.yml
       TEST_PATH: http-generic-api/test-production-promotion-convergence-workflows.mjs
@@ -139,9 +139,9 @@ jobs:
             esac
           done <<< "${changed_paths}"
 
-          first_docs_hash="$(git diff --binary -- docs/work-maps | shasum -a 256 | awk '{print $1}')"
+          first_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_docs_hash="$(git diff --binary -- docs/work-maps | shasum -a 256 | awk '{print $1}')"
+          second_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           test "${first_docs_hash}" = "${second_docs_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
