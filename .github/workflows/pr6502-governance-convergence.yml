@@ -6,7 +6,7 @@ on:
       - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: pr6502-governance-convergence
@@ -23,7 +23,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify bounded branch and expected remote head
         shell: bash
@@ -43,20 +43,36 @@ jobs:
           set -Eeuo pipefail
           python3 .github/scripts/pr6502-governance-convergence.py
 
-      - name: Commit exact final tree and push without force
+      - name: Package exact final delta
         shell: bash
         run: |
           set -Eeuo pipefail
-          git status --short
+          evidence_dir="${RUNNER_TEMP}/pr6502-final-delta"
+          mkdir -p "${evidence_dir}/files"
           git diff --check
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && {
             echo "::error::renderer produced no final diff"
             exit 1
           }
-          git commit -m "fix(ci): converge workflow lifecycle and E2E governance"
-          remote_head_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
-          [[ "${remote_head_sha}" == "${GITHUB_SHA}" ]]
-          git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+
+          printf '%s\n' "${GITHUB_SHA}" > "${evidence_dir}/expected-parent-sha.txt"
+          git write-tree > "${evidence_dir}/rendered-tree-sha.txt"
+          git diff --cached --name-status > "${evidence_dir}/name-status.txt"
+          git diff --cached --name-only --diff-filter=D > "${evidence_dir}/deleted-files.txt"
+          git diff --cached --name-only --diff-filter=ACMRT > "${evidence_dir}/materialized-files.txt"
+          while IFS= read -r path; do
+            [[ -n "${path}" ]] || continue
+            mkdir -p "${evidence_dir}/files/$(dirname "${path}")"
+            cp -- "${path}" "${evidence_dir}/files/${path}"
+          done < "${evidence_dir}/materialized-files.txt"
+          git diff --cached --binary > "${evidence_dir}/final.patch"
+          sha256sum "${evidence_dir}/final.patch" > "${evidence_dir}/final.patch.sha256"
+
+      - name: Upload exact final delta
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-governance-convergence-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-final-delta
+          if-no-files-found: error
+          retention-days: 7
