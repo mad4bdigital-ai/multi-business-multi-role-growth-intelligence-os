@@ -27,7 +27,7 @@ jobs:
       - name: Verify immutable authority boundary
         shell: bash
         env:
-          EXPECTED_PARENT: 07033a030a5e0a0894575ca0c372fe9265425477
+          EXPECTED_PARENT: c95f7743a3931d16b8a8b9dc23db836efbeeebe4
           EXPECTED_MAIN: 52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5
           EXPECTED_BRANCH: fix/spec014-wave1-apply-cross-run-guard-20260805
           WRITER_PATH: .github/workflows/spec014-work-map-binding-refresh-20260806.yml
@@ -52,36 +52,12 @@ jobs:
           mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
           test "$(printf '%s\n' "${pr_files[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
 
-      - name: Refresh exact registry bindings
+      - name: Regenerate exact registry bindings
         shell: bash
         run: |
           set -euo pipefail
           rm .github/workflows/spec014-work-map-binding-refresh-20260806.yml
-          node <<'NODE'
-          const fs = require('node:fs');
-          const targets = [
-            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
-            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json',
-          ];
-          const oldFingerprint = '0d5e83fdf5c64b989cec0745f9fea9a98156bd9f12348cfe6e30417fe6bfd314';
-          const oldIndex = '8af1fafcb8ce298f42ea750cf75a52c575a836450930fe56b2f589bda3c2e5ce';
-          const newFingerprint = '6fec9a5b5e50191d9d6f86df5decd33e5b3b470134bf6d4101aae6a9c2bed9e7';
-          const newIndex = 'e29d1b4972941a89347fdbbd11cc8960d104e54aaeefe1cd935a71d098b138e4';
-          const expectedCoverage = 'e12cbc5ae9c4a743221ae6d33004741f492cd91c4ae2cbc82c05b7c3fd60537b';
-          for (const file of targets) {
-            const doc = JSON.parse(fs.readFileSync(file, 'utf8'));
-            if (doc.review_state !== 'ready_for_implementation') throw new Error(`${file}: unexpected review_state`);
-            if (doc.registry?.fingerprint !== oldFingerprint) throw new Error(`${file}: unexpected old fingerprint`);
-            if (doc.registry?.index_source_hash !== oldIndex) throw new Error(`${file}: unexpected old index hash`);
-            if (doc.registry?.coverage_source_hash !== expectedCoverage) throw new Error(`${file}: unexpected coverage hash`);
-            if (doc.registry?.map_count !== 19 || doc.registry?.domain_count !== 16 || doc.registry?.uncategorized_count !== 0 || doc.registry?.taxonomy_gap_cluster_count !== 0) {
-              throw new Error(`${file}: unexpected registry cardinality`);
-            }
-            doc.registry.fingerprint = newFingerprint;
-            doc.registry.index_source_hash = newIndex;
-            fs.writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
-          }
-          NODE
+          node http-generic-api/scripts/platform-work-map-generator.mjs
 
       - name: Validate bounded diff and governance gate
         shell: bash
@@ -113,6 +89,6 @@ jobs:
           git add -- .github/workflows/spec014-work-map-binding-refresh-20260806.yml \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-          git commit -m "chore(spec014): refresh terminal-lock work map bindings"
+          git commit -m "chore(spec014): regenerate terminal-lock work map bindings"
           git push origin "HEAD:refs/heads/$BRANCH"
           test "$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1)" = "$(git rev-parse HEAD)"
