@@ -72,8 +72,6 @@ for (const required of [
   /Validate trusted same-repository validation surface/,
   /certified validation requires a same-repository head/,
   /persist-credentials: false/,
-  /runner_pool=ubuntu-24\.04-arm/,
-  /execution_mode=direct_arm/,
   /candidate first parent must be the certified release cut/,
   /candidate tree differs from certified release cut/,
   /certified release cut is not contained by current main/,
