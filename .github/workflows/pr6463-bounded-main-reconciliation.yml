@@ -26,6 +26,7 @@ jobs:
       PINNED_MAIN_SHA: faa7cd34117c7e0e18d1b55dad7968afb944378f
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
+      RETIREMENT_TOMBSTONE: .changes/e2e/production-runtime-parity-comment-bridge.json
       RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
     steps:
       - name: Checkout exact triggering head
@@ -97,17 +98,17 @@ jobs:
           mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort)
           printf 'merge_exit=%s\n' "${MERGE_EXIT}"
           printf 'unmerged_count=%s\n' "${#conflicts[@]}"
-          if ((${#conflicts[@]})); then
-            printf 'unmerged=%s\n' "${conflicts[@]}"
-          fi
 
           allowed=(
+            ".changes/e2e/production-runtime-parity-comment-bridge.json"
             ".github/workflows/pr6463-bounded-main-reconciliation.yml"
             "docs/work-maps/README.md"
             "docs/work-maps/repository-automation-map.md"
             "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs"
           )
+          unexpected_count=0
           for conflict in "${conflicts[@]}"; do
+            echo "::notice file=${conflict}::Detected merge conflict"
             approved=false
             for expected in "${allowed[@]}"; do
               if [[ "${conflict}" = "${expected}" ]]; then
@@ -117,9 +118,10 @@ jobs:
             done
             if [[ "${approved}" != true ]]; then
               echo "::error file=${conflict}::Unexpected merge conflict"
-              exit 1
+              unexpected_count=$((unexpected_count + 1))
             fi
           done
+          test "${unexpected_count}" -eq 0
           if [[ "${MERGE_EXIT}" -ne 0 && ${#conflicts[@]} -eq 0 ]]; then
             echo "::error::Merge failed without an approved conflict set"
             exit 1
@@ -132,6 +134,15 @@ jobs:
           if git ls-files -u -- "${TEMP_WORKFLOW}" | grep -q .; then
             git checkout --ours -- "${TEMP_WORKFLOW}"
             git add -- "${TEMP_WORKFLOW}"
+          fi
+
+      - name: Preserve retirement tombstone
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git ls-files -u -- "${RETIREMENT_TOMBSTONE}" | grep -q .; then
+            git checkout --ours -- "${RETIREMENT_TOMBSTONE}"
+            git add -- "${RETIREMENT_TOMBSTONE}"
           fi
 
       - name: Preserve intentional bridge-test deletion
