@@ -23,7 +23,7 @@ jobs:
     timeout-minutes: 20
     env:
       TARGET_BRANCH: fix/retire-production-runtime-parity-bridge-6441-20260806
-      PREVIOUS_MAIN_SHA: e3a9669147e24cff65effebacc0fdde76cd3a1cf
+      BASELINE_MAIN_SHA: faa7cd34117c7e0e18d1b55dad7968afb944378f
       PINNED_MAIN_SHA: ba10f269e831efa2c210b2729d1b31723a171052
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-main-ancestry-sync.yml
@@ -64,7 +64,7 @@ jobs:
           test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
           test "$(jq -r '.head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.head.sha' "${pr_file}")" = "${GITHUB_SHA}"
-          git merge-base --is-ancestor "${PREVIOUS_MAIN_SHA}" HEAD
+          git merge-base --is-ancestor "${BASELINE_MAIN_SHA}" HEAD
           test -z "$(git status --porcelain)"
 
           git config user.name "github-actions[bot]"
