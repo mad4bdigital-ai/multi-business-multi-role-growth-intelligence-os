@@ -1,0 +1,98 @@
+name: PR 6502 E2E All Diagnostic
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.head_commit.message == 'chore(ci): capture PR 6502 E2E all diagnostics'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact diagnostic head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Build exact permanent tree locally
+        shell: bash
+        env:
+          REGISTRY_FINGERPRINT: 8addd56e625f8f29346eadcd351b688611550e421dcb564eaf8e0e1318f1bd18
+          INDEX_SOURCE_HASH: 50e0b3d3df269e276ea6ca6b3036d5630282156f5bafef2104acbe181ed1b5e1
+        run: |
+          set -Eeuo pipefail
+          [[ "${GITHUB_REF_NAME}" == "fix/push-workflow-runner-context-registration-main-ba10f269-20260806" ]]
+          [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')" == "${GITHUB_SHA}" ]]
+          python3 - <<'PYEXTRACT'
+          from pathlib import Path
+          import textwrap
+          source = Path('.github/workflows/pr6502-reference-convergence.yml').read_text(encoding='utf-8').splitlines(keepends=True)
+          start = next(i for i, line in enumerate(source) if "python3 - <<'PY'" in line)
+          end = next(i for i in range(start + 1, len(source)) if source[i].strip() == 'PY')
+          Path('/tmp/pr6502-reference-render.py').write_text(textwrap.dedent(''.join(source[start + 1:end])), encoding='utf-8')
+          PYEXTRACT
+          python3 /tmp/pr6502-reference-render.py
+          rm -f \
+            .github/workflows/pr6502-reference-convergence.yml \
+            .github/workflows/pr6502-reference-diagnostic.yml \
+            .github/workflows/pr6502-reference-finalizer.yml \
+            .github/workflows/pr6502-e2e-all-diagnostic.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "test(ci): reproduce PR 6502 permanent E2E tree"
+
+      - name: Capture E2E all-mode diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          output_dir="${RUNNER_TEMP}/pr6502-e2e-all-diagnostic"
+          mkdir -p "${output_dir}"
+          : > "${output_dir}/statuses.ndjson"
+          run_check() {
+            local name="$1"
+            shift
+            set +e
+            "$@" > "${output_dir}/${name}.log" 2>&1
+            local code=$?
+            set -e
+            jq -cn --arg name "$name" --argjson exit_code "$code" '{name:$name,exit_code:$exit_code}' >> "${output_dir}/statuses.ndjson"
+          }
+          set -e
+          run_check test-reference node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          run_check test-git-index node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          run_check reference-all node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --all \
+            --report-file "${output_dir}/e2e-contract-reference-integrity.json"
+          run_check git-index node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${output_dir}/e2e-contract-reference-integrity.json"
+          jq -s '.' "${output_dir}/statuses.ndjson" > "${output_dir}/statuses.json"
+          git rev-parse HEAD > "${output_dir}/local-final-sha.txt"
+          git rev-parse HEAD^{tree} > "${output_dir}/local-final-tree-sha.txt"
+
+      - name: Upload E2E all diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-e2e-all-diagnostic-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-e2e-all-diagnostic
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+      - name: Enforce E2E all-mode result
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          jq . "${RUNNER_TEMP}/pr6502-e2e-all-diagnostic/statuses.json"
+          jq -e 'all(.[]; .exit_code == 0)' "${RUNNER_TEMP}/pr6502-e2e-all-diagnostic/statuses.json" > /dev/null
