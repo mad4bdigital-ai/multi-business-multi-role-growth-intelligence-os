@@ -1,0 +1,106 @@
+name: Temporary PR 6490 Work Map Binding Sync
+
+on:
+  push:
+    branches:
+      - gpt/pr-generated-artifact-runner-context-clean-main-840a3b6-20260806
+    paths:
+      - .github/workflows/tmp-pr6490-work-map-binding-sync.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-pr6490-work-map-binding-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact staging commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate immutable branch and parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "gpt/pr-generated-artifact-runner-context-clean-main-840a3b6-20260806"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "bf7aeb326cb1820c26d63306e7c3768e3c734603"
+          remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          test "${remote_sha}" = "${GITHUB_SHA}"
+
+      - name: Update exact Work Map registry bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const paths = [
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json'
+          ];
+          const oldFingerprint = 'eda348684e6eb6bac47b668575d7a74b115e432b7463db51c2adefae93faf493';
+          const oldIndex = 'e9e8f27ff5614cd329ff22a27cc97c3cc4ab08281c767c7d38771a0b27d7bea8';
+          const fingerprint = '204402e7d4ac5ceff4eec95b502e0b73f0218d7cc5bacd1c8198dc425c304ef7';
+          const indexSourceHash = '4c8cb6a26095cdc8d61f92aeaef7b1915d5f2de1cae336883df25a9d2d7de7dc';
+          for (const path of paths) {
+            let text = fs.readFileSync(path, 'utf8');
+            const fingerprintNeedle = `"fingerprint": "${oldFingerprint}"`;
+            const indexNeedle = `"index_source_hash": "${oldIndex}"`;
+            if (text.split(fingerprintNeedle).length !== 2) throw new Error(`Unexpected fingerprint binding in ${path}`);
+            if (text.split(indexNeedle).length !== 2) throw new Error(`Unexpected index binding in ${path}`);
+            text = text.replace(fingerprintNeedle, `"fingerprint": "${fingerprint}"`);
+            text = text.replace(indexNeedle, `"index_source_hash": "${indexSourceHash}"`);
+            fs.writeFileSync(path, text);
+          }
+          NODE
+
+      - name: Verify bounded diff and self-delete
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/tmp-pr6490-work-map-binding-sync.yml
+          mapfile -t changed < <(git status --short | awk '{print $2}' | sort)
+          expected=(
+            .github/workflows/tmp-pr6490-work-map-binding-sync.yml
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          )
+          printf '%s\n' "${changed[@]}" > /tmp/changed.txt
+          printf '%s\n' "${expected[@]}" | sort > /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/changed.txt
+          node <<'NODE'
+          const fs = require('node:fs');
+          const expectedFingerprint = '204402e7d4ac5ceff4eec95b502e0b73f0218d7cc5bacd1c8198dc425c304ef7';
+          const expectedIndex = '4c8cb6a26095cdc8d61f92aeaef7b1915d5f2de1cae336883df25a9d2d7de7dc';
+          for (const path of [
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json'
+          ]) {
+            const doc = JSON.parse(fs.readFileSync(path, 'utf8'));
+            if (doc.registry.fingerprint !== expectedFingerprint) throw new Error(`Fingerprint mismatch: ${path}`);
+            if (doc.registry.index_source_hash !== expectedIndex) throw new Error(`Index hash mismatch: ${path}`);
+          }
+          NODE
+
+      - name: Commit, push, and read back
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+                  specs/014-retail-commerce-operations-growth-os/work-map-integration.json \
+                  .github/workflows/tmp-pr6490-work-map-binding-sync.yml
+          git commit -m 'chore(work-maps): sync exact registry bindings for PR 6490'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+          local_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          test "${local_sha}" = "${remote_sha}"
