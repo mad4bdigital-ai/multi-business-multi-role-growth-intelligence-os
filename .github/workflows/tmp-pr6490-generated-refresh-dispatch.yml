@@ -1,0 +1,42 @@
+name: Temporary PR 6490 Generated Refresh Dispatch
+
+on:
+  push:
+    branches:
+      - gpt/pr-generated-artifact-runner-context-clean-main-840a3b6-20260806
+    paths:
+      - .github/workflows/tmp-pr6490-generated-refresh-dispatch.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Validate exact branch and parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "gpt/pr-generated-artifact-runner-context-clean-main-840a3b6-20260806"
+          test "${{ github.event.before }}" = "7c8dae65834be04c1726ed0c40c22c8a13113a15"
+          [[ "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Dispatch exact-head governed writer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          payload="$(jq -cn \
+            --arg ref main \
+            --arg target_ref "${GITHUB_REF_NAME}" \
+            --arg expected_head_sha "${GITHUB_SHA}" \
+            '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH"}}')"
+          gh api --method POST \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/governed-generated-artifact-refresh.yml/dispatches" \
+            --input - <<<"${payload}"
