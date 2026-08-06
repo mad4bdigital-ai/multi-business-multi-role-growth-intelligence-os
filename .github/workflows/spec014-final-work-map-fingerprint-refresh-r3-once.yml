@@ -1,5 +1,5 @@
 name: Spec 014 Final Work Map Fingerprint Refresh R3 Once
-# Initialized after workflow registration.
+# Compute bindings from the final tree after self-removal.
 
 on:
   push:
@@ -61,6 +61,13 @@ jobs:
           node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
 
+      - name: Remove one-time surface before registry calculation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "${WORKFLOW_PATH}"
+          test ! -e "${WORKFLOW_PATH}"
+
       - name: Build deterministic Retail binding refresher
         shell: bash
         run: |
@@ -99,34 +106,34 @@ jobs:
           NODE
           node --check "${RUNNER_TEMP}/refresh-retail-binding.mjs"
 
-      - name: Refresh both bindings and prove idempotency
+      - name: Refresh final-tree bindings and prove idempotency
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "${REPORT_DIR}/hostinger-first.json"
           node "${RUNNER_TEMP}/refresh-retail-binding.mjs" | tee "${REPORT_DIR}/retail-first.json"
-          first_hash="$(git diff --binary -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
+          first_hash="$(git diff --binary -- "${WORKFLOW_PATH}" "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "${REPORT_DIR}/hostinger-second.json"
           node "${RUNNER_TEMP}/refresh-retail-binding.mjs" | tee "${REPORT_DIR}/retail-second.json"
-          second_hash="$(git diff --binary -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
+          second_hash="$(git diff --binary -- "${WORKFLOW_PATH}" "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
           test "${first_hash}" = "${second_hash}"
+          test -n "$(git diff --name-only -- "${WORKFLOW_PATH}")"
           test -n "$(git diff --name-only -- "${HOSTINGER_MANIFEST}")"
           test -n "$(git diff --name-only -- "${RETAIL_MANIFEST}")"
           while IFS= read -r file; do
             case "${file}" in
-              "${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
+              "${WORKFLOW_PATH}"|"${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
               *) echo "Unexpected generated write: ${file}" >&2; exit 1 ;;
             esac
           done < <(git diff --name-only)
           git diff --check
           node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/integration-gate.json"
 
-      - name: Self-delete, commit, and push fast-forward
+      - name: Commit final tree and push fast-forward
         id: publish
         shell: bash
         run: |
           set -euo pipefail
-          git rm "${WORKFLOW_PATH}"
           git add -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}"
           while IFS= read -r file; do
             case "${file}" in
