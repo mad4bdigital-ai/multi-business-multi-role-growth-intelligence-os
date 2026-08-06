@@ -38,7 +38,7 @@ jobs:
           rm -rf "${report_dir}"
           mkdir -p "${report_dir}"
           echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
-          printf '%s\n' 'r2-initialized-after-workflow-registration' > "${report_dir}/initialization.txt"
+          printf '%s\n' 'r2-governance-readback-corrected' > "${report_dir}/initialization.txt"
 
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -68,7 +68,7 @@ jobs:
           done
           node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
           node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
-          node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
+          node --check http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
           printf '%s\n' "${GITHUB_SHA}" > "${REPORT_DIR}/expected-head.txt"
 
       - name: Build deterministic Retail binding refresher
@@ -156,8 +156,13 @@ jobs:
           test -n "$(git diff --name-only -- "${HOSTINGER_MANIFEST}")"
           test -n "$(git diff --name-only -- "${RETAIL_MANIFEST}")"
           git diff --check
-          REPORT_PATH="${REPORT_DIR}/precommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/precommit-hostinger-readback.stdout.json"
-          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/precommit-integration-gate.json"
+          REPORT_PATH="${REPORT_DIR}/precommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/precommit-hostinger-readback.stdout.json" 2> "${REPORT_DIR}/precommit-hostinger-readback.stderr.txt"
+          set +e
+          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${REPORT_DIR}/precommit-governance-gate.json" 2>&1
+          governance_status=$?
+          set -e
+          cat "${REPORT_DIR}/precommit-governance-gate.json"
+          test "${governance_status}" = '0'
 
       - name: Remove one-time workflow and commit bounded result
         id: publish
@@ -179,8 +184,8 @@ jobs:
           git commit -m 'fix(spec014): refresh final Work Map registry bindings'
           result_head="$(git rev-parse HEAD)"
           [[ "${result_head}" =~ ^[0-9a-f]{40}$ ]]
-          REPORT_PATH="${REPORT_DIR}/postcommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/postcommit-hostinger-readback.stdout.json"
-          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/postcommit-integration-gate.json"
+          REPORT_PATH="${REPORT_DIR}/postcommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/postcommit-hostinger-readback.stdout.json" 2> "${REPORT_DIR}/postcommit-hostinger-readback.stderr.txt"
+          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${REPORT_DIR}/postcommit-governance-gate.json" 2>&1
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
@@ -207,6 +212,7 @@ jobs:
 
       - name: Publish checkpoint to pull request
         if: always()
+        continue-on-error: true
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -215,7 +221,7 @@ jobs:
           set -euo pipefail
           outcome='success'
           if [[ "${{ job.status }}" != 'success' ]]; then outcome='failure'; fi
-          body="SPEC014_FINAL_WORK_MAP_MULTI_BINDING_REFRESH_R2 outcome=${outcome} trigger_head=${GITHUB_SHA} result_head=${RESULT_HEAD:-unresolved} target_pr=${TARGET_PR} official_hostinger_generator=true retail_companion_refresh=true protected_branch_mutation=false force_push=false runtime_provider_database_deployment_access=false secrets_included=false"
+          body="SPEC014_FINAL_WORK_MAP_MULTI_BINDING_REFRESH_R2 outcome=${outcome} trigger_head=${GITHUB_SHA} result_head=${RESULT_HEAD:-unresolved} target_pr=${TARGET_PR} official_hostinger_generator=true retail_companion_refresh=true governance_gate=official_ci_changed protected_branch_mutation=false force_push=false runtime_provider_database_deployment_access=false secrets_included=false"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" -f body="${body}" >/dev/null
 
       - name: Write bounded execution summary
@@ -232,6 +238,7 @@ jobs:
             echo "- Target branch: \`${TARGET_BRANCH}\`"
             echo '- Hostinger generator: `spec014-refresh-final-work-map-binding.mjs`'
             echo '- Retail binding: deterministic companion using the same effective registry'
+            echo '- Readback authority: `spec-kit-work-map-governance-gate.mjs --ci --changed`'
             echo '- Protected branch mutation: `false`'
             echo '- Force push: `false`'
             echo '- Runtime/provider/database/deployment access: `false`'
