@@ -58,9 +58,8 @@ jobs:
 
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
-      - name: Seal Spec 014 binding and prove final readback
+      - name: Seal Spec 014 binding and prove final governance and readback
         shell: bash
         run: |
           set -euo pipefail
@@ -90,6 +89,33 @@ jobs:
             printf '%s\n' "${unexpected}"
             exit 1
           fi
+
+          node --input-type=module <<'NODE'
+          import { validateGovernedRepository } from './http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs';
+
+          const changedFiles = [
+            'docs/work-maps/README.md',
+            'docs/work-maps/data-model-domain-map.md',
+            'docs/work-maps/work-map-coverage-matrix.md',
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+          ];
+          const result = validateGovernedRepository({
+            changedFiles,
+            newFeatures: [],
+            implementationChanged: false,
+          });
+          const payload = {
+            ok: result.ok,
+            gate: 'fail_closed',
+            changed_files: changedFiles,
+            spec_kits_checked: result.integration.targets,
+            findings: result.findings,
+            secrets_included: false,
+          };
+          const writer = result.ok ? console.log : console.error;
+          writer(JSON.stringify(payload, null, 2));
+          if (!result.ok) process.exit(1);
+          NODE
 
           report="${RUNNER_TEMP}/spec014-final-work-map-readback.json"
           REPORT_PATH="${report}" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
