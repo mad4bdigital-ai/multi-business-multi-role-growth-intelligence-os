@@ -17,8 +17,8 @@ concurrency:
 
 jobs:
   converge:
-    name: Regenerate final-tree maps and remove one-shot workflow
-    runs-on: ubuntu-latest
+    name: Regenerate final-tree maps for connector cleanup
+    runs-on: windows-latest
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 5368d923f95a6ed3ab8b0d7659b4facea4775959
+      AUTHORIZED_PARENT_SHA: 09155bf953cf49dba761d8e17bec5f15b4687961
       ONE_SHOT_PATH: .github/workflows/pr6502-work-map-convergence.yml
     steps:
       - name: Checkout exact one-shot commit without marketplace actions
@@ -108,32 +108,32 @@ jobs:
           done
 
           test -n "$(git diff --name-only -- docs/work-maps/repository-automation-map.md)"
-
           first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           test "${first_diff_hash}" = "${second_diff_hash}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Commit final-tree maps and publish bounded result
+      - name: Commit generated maps without workflow mutation
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          git restore --source=HEAD -- "${ONE_SHOT_PATH}"
+          test -f "${ONE_SHOT_PATH}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
-          git add -u -- "${ONE_SHOT_PATH}"
 
           mapfile -t staged < <(git diff --cached --name-only | sort)
           printf '%s\n' "${staged[@]}"
-          test "${#staged[@]}" -ge 2
-          test "${#staged[@]}" -le 3
-          printf '%s\n' "${staged[@]}" | grep -Fxq "${ONE_SHOT_PATH}"
+          test "${#staged[@]}" -ge 1
+          test "${#staged[@]}" -le 2
           printf '%s\n' "${staged[@]}" | grep -Fxq "docs/work-maps/repository-automation-map.md"
           for path in "${staged[@]}"; do
             case "${path}" in
-              "${ONE_SHOT_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+              docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
                 ;;
               *)
                 echo "Unexpected staged path: ${path}"
@@ -144,13 +144,16 @@ jobs:
 
           git commit -m "docs(work-maps): converge generated repository automation map"
           result_sha="$(git rev-parse HEAD)"
+
+          rm -- "${ONE_SHOT_PATH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git restore --source=HEAD -- "${ONE_SHOT_PATH}"
+
           remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_before}" = "${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
           remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_after}" = "${result_sha}"
-          test ! -e "${ONE_SHOT_PATH}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" \
-            -f body="WORK_MAP_CONVERGENCE outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} generated_from_final_tree=true generated_paths=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md one_shot_removed=true protected_ref_mutation=false force_push=false"
+            -f body="WORK_MAP_CONVERGENCE outcome=generated authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} generated_from_final_tree=true generated_paths=docs/work-maps/README.md,docs/work-maps/repository-automation-map.md connector_cleanup_required=true protected_ref_mutation=false force_push=false"
