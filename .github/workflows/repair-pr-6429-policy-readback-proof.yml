@@ -22,7 +22,7 @@ jobs:
           ref: gpt/github-main-policy-controller-20260805
           fetch-depth: 0
 
-      - name: Normalize bounded repair formatting by line
+      - name: Normalize controller formatting by structural ranges
         shell: bash
         run: |
           set -euo pipefail
@@ -35,69 +35,38 @@ jobs:
                       return index
               raise SystemExit(f'line marker not found: {value}')
 
-          def leading_spaces(line):
-              return len(line) - len(line.lstrip(' '))
+          def normalize_range(lines, start, end, base_prefixes=('const ',), continuation_prefixes=('?', ':', '&&', '||')):
+              for index in range(start, end):
+                  if not lines[index].strip():
+                      continue
+                  stripped = lines[index].lstrip()
+                  if stripped.startswith(base_prefixes):
+                      lines[index] = '  ' + stripped
+                  elif stripped.startswith(continuation_prefixes):
+                      lines[index] = '    ' + stripped
 
-          controller_path = Path('http-generic-api/githubRepositoryPolicyController.js')
-          lines = controller_path.read_text().splitlines()
+          path = Path('http-generic-api/githubRepositoryPolicyController.js')
+          lines = path.read_text().splitlines()
 
           readback_start = find_line(lines, '  const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);')
           readback_end = find_line(lines, '  const config = resolveGitHubAppConfig(args.action || {});', readback_start)
-          for index in range(readback_start + 1, readback_end):
-              line = lines[index]
-              if not line.strip():
-                  continue
-              indent = leading_spaces(line)
-              stripped = line.lstrip()
-              if indent == 0:
-                  lines[index] = '  ' + line
-              elif indent == 2 and stripped.startswith(('?', ':', '&&', '||')):
-                  lines[index] = '  ' + line
+          normalize_range(lines, readback_start, readback_end)
 
           managed_start = find_line(lines, '  const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);')
           managed_end = find_line(lines, '  const allBypassActors = mainRulesets.flatMap((item) => item.bypass_actors.map((actor) => ({ ...actor, ruleset_id: item.id, ruleset_name: item.name })));', managed_start)
-          for index in range(managed_start + 1, managed_end):
-              if lines[index].strip() and leading_spaces(lines[index]) == 0:
-                  lines[index] = '  ' + lines[index]
+          normalize_range(lines, managed_start, managed_end, continuation_prefixes=())
 
           proof_start = find_line(lines, '  const branchReadable = branch.ok')
           proof_end = find_line(lines, '  const proof = {', proof_start)
-          for index in range(proof_start + 1, proof_end):
-              line = lines[index]
-              if not line.strip():
-                  continue
-              indent = leading_spaces(line)
-              stripped = line.lstrip()
-              if indent == 0:
-                  lines[index] = '  ' + line
-              elif indent == 2 and stripped.startswith(('?', ':', '&&', '||')):
-                  lines[index] = '  ' + line
+          normalize_range(lines, proof_start, proof_end)
 
           output_start = find_line(lines, '    ruleset_index_count: rulesetsIndexReadable ? rulesetIndex.length : null,')
           output_end = find_line(lines, '    bypass_actors: allBypassActors,', output_start)
-          for index in range(output_start + 1, output_end):
-              if lines[index].strip() and leading_spaces(lines[index]) == 0:
-                  lines[index] = '    ' + lines[index]
+          for index in range(output_start, output_end):
+              if lines[index].strip():
+                  lines[index] = '    ' + lines[index].lstrip()
 
-          controller_path.write_text('\n'.join(lines) + '\n')
-
-          test_path = Path('http-generic-api/test-github-repository-policy-controller.mjs')
-          test_lines = test_path.read_text().splitlines()
-          excluded_line = find_line(test_lines, '  const excludedRuleset = desiredRuleset({ excludeRefs: ["~DEFAULT_BRANCH"] });')
-          regressions_start = excluded_line - 1
-          if test_lines[regressions_start] != '{':
-              raise SystemExit('regression block opening marker not found')
-          regressions_end = None
-          for index in range(excluded_line + 1, len(test_lines) - 1):
-              if test_lines[index] == '  {' and test_lines[index + 1] == '    const mock = createGithubFetch();':
-                  regressions_end = index
-                  break
-          if regressions_end is None:
-              raise SystemExit('regression block closing marker not found')
-          for index in range(regressions_start, regressions_end):
-              if test_lines[index].strip():
-                  test_lines[index] = '  ' + test_lines[index]
-          test_path.write_text('\n'.join(test_lines) + '\n')
+          path.write_text('\n'.join(lines) + '\n')
           PY
 
       - name: Install focused test dependencies
@@ -119,8 +88,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/repair-pr-6429-policy-readback-proof.yml
-          git add http-generic-api/githubRepositoryPolicyController.js \
-            http-generic-api/test-github-repository-policy-controller.mjs
+          git add http-generic-api/githubRepositoryPolicyController.js
           git diff --cached --check
           git commit -m "style(github): normalize policy readback proof repair"
           git push origin HEAD:gpt/github-main-policy-controller-20260805
