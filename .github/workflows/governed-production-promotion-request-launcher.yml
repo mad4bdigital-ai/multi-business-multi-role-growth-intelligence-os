@@ -88,11 +88,11 @@ jobs:
           done
 
           request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"
-          gh pr view "$REQUEST_PR" --repo "$REPOSITORY"             --json state,title,headRefOid,headRepositoryOwner,baseRefName             > "$request_file"
-          [[ "$(jq -r '.state' "$request_file")" == "OPEN" ]] || reject "request PR is not open"
-          [[ "$(jq -r '.baseRefName' "$request_file")" == "main" ]] || reject "request PR must target main"
-          [[ "$(jq -r '.headRepositoryOwner.login' "$request_file")" == "$GITHUB_REPOSITORY_OWNER" ]] || reject "request PR must belong to this repository owner"
-          [[ "$(jq -r '.headRefOid' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR expected head SHA mismatch"
+          gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" > "$request_file"
+          [[ "$(jq -r '.state' "$request_file")" == "open" ]] || reject "request PR is not open"
+          [[ "$(jq -r '.base.ref' "$request_file")" == "main" ]] || reject "request PR must target main"
+          [[ "$(jq -r '.head.repo.full_name // ""' "$request_file")" == "$REPOSITORY" ]] || reject "request PR must originate from this repository"
+          [[ "$(jq -r '.head.sha' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR expected head SHA mismatch"
           [[ "$(jq -r '.title' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"
 
       - name: Initialize bounded convergence evidence path

@@ -37,9 +37,12 @@ for (const required of [
   /provider_call_executed: false/,
   /credential_payload_read: false/,
   /secrets_included: false/,
+  /\.head\.repo\.full_name \/\/ ""/,
+  /request PR must originate from this repository/,
 ]) {
   assert.match(launcher, required);
 }
+assert.doesNotMatch(launcher, /headRepositoryOwner/);
 
 for (const required of [
   /workflow_run:/,
