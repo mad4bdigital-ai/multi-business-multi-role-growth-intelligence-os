@@ -6,6 +6,7 @@ import {
   REPOSITORY_POLICY_STEPS,
   buildGithubRepositoryPolicyPlan,
   buildRepositoryAutomationPlan,
+  runGithubRepositoryPolicyController,
   runRepositoryAutomation,
 } from "./repositoryAutomationPolicyFacade.js";
 
@@ -54,6 +55,7 @@ const routeSource = readFileSync(new URL("./routes/repositoryAutomationRoutes.js
 const migrationSource = readFileSync(new URL("./migrations/20260805_github_repository_policy_controller.sql", import.meta.url), "utf8");
 assert.equal(routeSource.includes('router.post("/admin/repository-automation/policy-controller", ...requireAdmin'), true);
 assert.equal(routeSource.includes('runGithubRepositoryPolicyController(bodyOf(req), automationDeps(req))'), true);
+assert.equal(routeSource.includes('from "../repositoryAutomationPolicyFacade.js"'), true);
 assert.equal(migrationSource.includes("'github_repository_policy_controller'"), true);
 assert.equal(migrationSource.includes("'VIRTUAL'"), true);
 assert.equal(migrationSource.includes("'internal://github-repository-policy-controller'"), true);
@@ -105,8 +107,14 @@ const applyPlanMovedMain = buildRepositoryAutomationPlan({
 });
 assert.equal(applyPlanEnvelopeOne.apply_binding.expected_main_sha, MAIN_SHA);
 assert.equal(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint, policyPlan.policy_fingerprint);
+assert.equal(applyPlanEnvelopeOne.apply_binding.expected_main_sha_valid, true);
+assert.equal(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint_valid, true);
+assert.equal(applyPlanEnvelopeOne.apply_binding.capability_envelope_present, true);
 assert.equal(applyPlanEnvelopeOne.apply_binding.typed_confirmation_matches, true);
+assert.match(applyPlanEnvelopeOne.apply_binding.expected_main_sha_input_sha256, /^[a-f0-9]{64}$/);
+assert.match(applyPlanEnvelopeOne.apply_binding.expected_policy_fingerprint_input_sha256, /^[a-f0-9]{64}$/);
 assert.match(applyPlanEnvelopeOne.apply_binding.capability_envelope_ref_sha256, /^[a-f0-9]{64}$/);
+assert.match(applyPlanEnvelopeOne.apply_binding.typed_confirmation_sha256, /^[a-f0-9]{64}$/);
 assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanEnvelopeTwo.plan_sha256);
 assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanMovedMain.plan_sha256);
 assert.notEqual(
@@ -114,6 +122,58 @@ assert.notEqual(
   applyPlanEnvelopeTwo.apply_binding.capability_envelope_ref_sha256
 );
 assert.equal(JSON.stringify(applyPlanEnvelopeOne).includes("env-policy-1"), false);
+
+const applyPlanOverlongMain = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: `${MAIN_SHA}0`,
+  expected_policy_fingerprint: policyPlan.policy_fingerprint,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "env-policy-1",
+});
+const applyPlanOverlongFingerprint = buildRepositoryAutomationPlan({
+  automation_key: "repository_policy",
+  mode: "apply",
+  owner: OWNER,
+  repo: REPO,
+  default_branch: "main",
+  expected_main_sha: MAIN_SHA,
+  expected_policy_fingerprint: `${policyPlan.policy_fingerprint}0`,
+  confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  capability_envelope_id: "env-policy-1",
+});
+assert.equal(applyPlanOverlongMain.apply_binding.expected_main_sha, null);
+assert.equal(applyPlanOverlongMain.apply_binding.expected_main_sha_valid, false);
+assert.equal(applyPlanOverlongFingerprint.apply_binding.expected_policy_fingerprint, null);
+assert.equal(applyPlanOverlongFingerprint.apply_binding.expected_policy_fingerprint_valid, false);
+assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanOverlongMain.plan_sha256);
+assert.notEqual(applyPlanEnvelopeOne.plan_sha256, applyPlanOverlongFingerprint.plan_sha256);
+
+await assert.rejects(
+  runGithubRepositoryPolicyController({
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: `${MAIN_SHA}0`,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  }, { auth: { caller_type: "admin" } }),
+  (error) => error?.code === "github_repository_policy_expected_main_sha_required"
+);
+await assert.rejects(
+  runGithubRepositoryPolicyController({
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: `${policyPlan.policy_fingerprint}0`,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  }, { auth: { caller_type: "admin" } }),
+  (error) => error?.code === "github_repository_policy_fingerprint_required"
+);
 
 const calls = [];
 const policyController = async (args) => {
@@ -164,6 +224,59 @@ assert.equal(applied.repository_content_mutation_executed, false);
 assert.equal(applied.force_push_executed, false);
 assert.equal(applied.secrets_included, false);
 
+const persistedIdempotencyKeys = [];
+function persistencePool() {
+  return {
+    async query(sql, params = []) {
+      if (sql.includes("SELECT run_id FROM repository_automation_runs")) {
+        persistedIdempotencyKeys.push(params[0]);
+      }
+      return [[]];
+    },
+  };
+}
+const persistenceController = async (args) => {
+  if (args.mode === "readback") return readback;
+  if (args.mode === "apply") {
+    return {
+      contract: "github-repository-policy-controller-v1",
+      mode: "apply",
+      policy_fingerprint: policyPlan.policy_fingerprint,
+      mutation: { operation: "create_ruleset", ruleset_id: 42 },
+      mutation_executed: true,
+      readback: {
+        ...readback,
+        proof: { ...readback.proof, server_policy_gate_complete: true },
+      },
+      secrets_included: false,
+    };
+  }
+  throw new Error(`unexpected mode ${args.mode}`);
+};
+for (const capabilityEnvelopeId of ["env-policy-1", "env-policy-2"]) {
+  await runRepositoryAutomation({
+    automation_key: "repository_policy",
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    default_branch: "main",
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    capability_envelope_id: capabilityEnvelopeId,
+    idempotency_key: "customer-retry-key",
+  }, {
+    persist: true,
+    pool: persistencePool(),
+    policyController: persistenceController,
+    auth: { caller_type: "admin" },
+  });
+}
+assert.equal(persistedIdempotencyKeys.length, 2);
+assert.match(persistedIdempotencyKeys[0], /^repository-policy:[a-f0-9]{64}$/);
+assert.match(persistedIdempotencyKeys[1], /^repository-policy:[a-f0-9]{64}$/);
+assert.notEqual(persistedIdempotencyKeys[0], persistedIdempotencyKeys[1]);
+
 let capturedApply = null;
 await assert.rejects(
   runRepositoryAutomation({
@@ -205,6 +318,9 @@ console.log(JSON.stringify({
   three_steps_registered: true,
   persisted_surface_compatible: true,
   apply_idempotency_bound_to_main_policy_and_envelope: true,
+  caller_supplied_idempotency_key_bound_to_plan_identity: true,
+  overlong_authority_values_rejected_without_truncation: true,
+  invalid_authority_inputs_have_distinct_plan_identity: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
   typed_confirmation_not_invented: true,
