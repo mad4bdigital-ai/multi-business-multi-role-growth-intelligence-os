@@ -38,6 +38,7 @@ jobs:
           rm -rf "${report_dir}"
           mkdir -p "${report_dir}"
           echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+          printf '%s\n' 'r2-initialized-after-workflow-registration' > "${report_dir}/initialization.txt"
 
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -62,10 +63,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
-          test -f "${WORKFLOW_PATH}"
-          test -f "${HOSTINGER_MANIFEST}"
-          test -f "${HOSTINGER_TASKS}"
-          test -f "${RETAIL_MANIFEST}"
+          for file in "${WORKFLOW_PATH}" "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}"; do
+            test -f "${file}"
+          done
           node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
           node --check http-generic-api/scripts/spec014-final-work-map-readback.mjs
           node --check http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs
@@ -90,16 +90,16 @@ jobs:
             throw new Error(`Schema classification is not ready: ${JSON.stringify(classification.findings)}`);
           }
           if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
-            throw new Error(`Unexpected Work Map registry shape: maps=${effectiveRegistry.maps.length}, domains=${effectiveRegistry.domains.length}`);
+            throw new Error(`Unexpected registry shape: maps=${effectiveRegistry.maps.length}, domains=${effectiveRegistry.domains.length}`);
           }
           if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
-            throw new Error('Work Map registry still contains unresolved objects or taxonomy gaps');
+            throw new Error('Work Map registry contains unresolved objects or taxonomy gaps');
           }
 
           const manifestPath = path.join(root, process.env.RETAIL_MANIFEST);
           const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
           if (manifest.feature_key !== '014-retail-commerce-operations-growth-os' || manifest.review_state !== 'ready_for_implementation') {
-            throw new Error('Retail Work Map manifest identity or review state is not eligible for deterministic refresh');
+            throw new Error('Retail manifest is not eligible for deterministic refresh');
           }
           const previousRegistry = { ...(manifest.registry || {}) };
           manifest.registry = {
@@ -125,7 +125,7 @@ jobs:
             provider_dispatch: false,
             live_database_access: false,
             migration_apply: false,
-            secrets_included: false,
+            secrets_included: false
           }, null, 2));
           NODE
           node --check "${RUNNER_TEMP}/refresh-retail-work-map-binding.mjs"
@@ -134,18 +134,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            | tee "${REPORT_DIR}/hostinger-generator-first.json"
-          node "${RUNNER_TEMP}/refresh-retail-work-map-binding.mjs" \
-            | tee "${REPORT_DIR}/retail-generator-first.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "${REPORT_DIR}/hostinger-generator-first.json"
+          node "${RUNNER_TEMP}/refresh-retail-work-map-binding.mjs" | tee "${REPORT_DIR}/retail-generator-first.json"
           first_diff_hash="$(git diff --binary -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
-
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            | tee "${REPORT_DIR}/hostinger-generator-second.json"
-          node "${RUNNER_TEMP}/refresh-retail-work-map-binding.mjs" \
-            | tee "${REPORT_DIR}/retail-generator-second.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs | tee "${REPORT_DIR}/hostinger-generator-second.json"
+          node "${RUNNER_TEMP}/refresh-retail-work-map-binding.mjs" | tee "${REPORT_DIR}/retail-generator-second.json"
           second_diff_hash="$(git diff --binary -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}" | sha256sum | awk '{print $1}')"
-
           test "${first_diff_hash}" = "${second_diff_hash}"
           printf '%s\n' "${first_diff_hash}" > "${REPORT_DIR}/deterministic-diff-sha256.txt"
 
@@ -153,21 +147,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(git diff --name-only | grep -Ev "^(${HOSTINGER_MANIFEST}|${HOSTINGER_TASKS}|${RETAIL_MANIFEST})$" || true)"
-          if [[ -n "${unexpected}" ]]; then
-            echo 'Unexpected refresher write set:' >&2
-            printf '%s\n' "${unexpected}" >&2
-            exit 1
-          fi
+          while IFS= read -r file; do
+            case "${file}" in
+              "${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
+              *) echo "Unexpected refresher write: ${file}" >&2; exit 1 ;;
+            esac
+          done < <(git diff --name-only)
           test -n "$(git diff --name-only -- "${HOSTINGER_MANIFEST}")"
           test -n "$(git diff --name-only -- "${RETAIL_MANIFEST}")"
           git diff --check
-          REPORT_PATH="${REPORT_DIR}/precommit-hostinger-readback.json" \
-            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
-            > "${REPORT_DIR}/precommit-hostinger-readback.stdout.json"
-          GITHUB_BASE_REF=main \
-            node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs \
-            > "${REPORT_DIR}/precommit-integration-gate.json"
+          REPORT_PATH="${REPORT_DIR}/precommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/precommit-hostinger-readback.stdout.json"
+          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/precommit-integration-gate.json"
 
       - name: Remove one-time workflow and commit bounded result
         id: publish
@@ -176,28 +166,21 @@ jobs:
           set -euo pipefail
           git rm "${WORKFLOW_PATH}"
           git add -- "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}"
-          changed="$(git diff --cached --name-only)"
-          unexpected="$(printf '%s\n' "${changed}" | grep -Ev "^(${WORKFLOW_PATH}|${HOSTINGER_MANIFEST}|${HOSTINGER_TASKS}|${RETAIL_MANIFEST})$" || true)"
-          if [[ -n "${unexpected}" ]]; then
-            echo 'Unexpected staged write set:' >&2
-            printf '%s\n' "${unexpected}" >&2
-            exit 1
-          fi
-          printf '%s\n' "${changed}" > "${REPORT_DIR}/staged-files.txt"
+          while IFS= read -r file; do
+            case "${file}" in
+              "${WORKFLOW_PATH}"|"${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
+              *) echo "Unexpected staged write: ${file}" >&2; exit 1 ;;
+            esac
+          done < <(git diff --cached --name-only)
+          git diff --cached --name-only > "${REPORT_DIR}/staged-files.txt"
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix(spec014): refresh final Work Map registry bindings'
           result_head="$(git rev-parse HEAD)"
           [[ "${result_head}" =~ ^[0-9a-f]{40}$ ]]
-
-          REPORT_PATH="${REPORT_DIR}/postcommit-hostinger-readback.json" \
-            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
-            > "${REPORT_DIR}/postcommit-hostinger-readback.stdout.json"
-          GITHUB_BASE_REF=main \
-            node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs \
-            > "${REPORT_DIR}/postcommit-integration-gate.json"
-
+          REPORT_PATH="${REPORT_DIR}/postcommit-hostinger-readback.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "${REPORT_DIR}/postcommit-hostinger-readback.stdout.json"
+          GITHUB_BASE_REF=main node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/postcommit-integration-gate.json"
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
@@ -232,7 +215,7 @@ jobs:
           set -euo pipefail
           outcome='success'
           if [[ "${{ job.status }}" != 'success' ]]; then outcome='failure'; fi
-          body="SPEC014_FINAL_WORK_MAP_MULTI_BINDING_REFRESH_R2 outcome=${outcome} trigger_head=${GITHUB_SHA} result_head=${RESULT_HEAD:-unresolved} target_pr=${TARGET_PR} official_hostinger_generator=true retail_companion_refresh=true precommit_readback=$([[ -f "${REPORT_DIR}/precommit-integration-gate.json" ]] && echo pass || echo unavailable) protected_branch_mutation=false force_push=false runtime_provider_database_deployment_access=false secrets_included=false"
+          body="SPEC014_FINAL_WORK_MAP_MULTI_BINDING_REFRESH_R2 outcome=${outcome} trigger_head=${GITHUB_SHA} result_head=${RESULT_HEAD:-unresolved} target_pr=${TARGET_PR} official_hostinger_generator=true retail_companion_refresh=true protected_branch_mutation=false force_push=false runtime_provider_database_deployment_access=false secrets_included=false"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" -f body="${body}" >/dev/null
 
       - name: Write bounded execution summary
