@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
       ".github/workflows/pr-generated-artifact-refresh.yml",
+      "docs/governance/pr-generated-artifact-refresh-runner-context.md",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
     ]
   },
@@ -39,6 +40,7 @@
             "No runner.temp expression exists in job-level workflow context.",
             "The workflow has read-only contents permission and no write permissions, git push, recovery activation, or recovery dispatch.",
             "Report files are created below RUNNER_TEMP only after runner allocation.",
+            "The registration and authority boundary is documented.",
             "No Production, provider, credential, SQL, migration, database, protected-ref, force-push, or external-send authority is introduced."
           ],
           "tests": [
@@ -52,6 +54,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
           ]
         }
@@ -67,12 +70,13 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository automation governance reviewer",
-          "entrypoint": "Static workflow and executable regression validation",
+          "entrypoint": "Static workflow, documented boundary, and executable regression validation",
           "terminal_outcome": "The workflow remains a read-only verifier while all repository-writing authority stays outside pull-request validation.",
           "steps": [
             "Validate permissions and triggers.",
             "Validate exact-head checkout and remote readback.",
-            "Validate bounded canonical report enforcement."
+            "Validate bounded canonical report enforcement.",
+            "Validate the documented no-mutation boundary."
           ],
           "assertions": [
             "Pull-request validation cannot mutate repository or Actions state.",
@@ -89,6 +93,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
           ]
         }
@@ -104,13 +109,14 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "CI governance gates",
-          "entrypoint": "Any future change to the repaired workflow or regression contract",
+          "entrypoint": "Any future change to the repaired workflow, documentation, or regression contract",
           "terminal_outcome": "Regression rejects pre-allocation runner context, write permissions, recovery activation, mutation commands, or missing bounded report initialization.",
           "steps": [
             "Load the workflow source.",
             "Reject unavailable runner context.",
             "Reject write authority and recovery mutation paths.",
-            "Require post-allocation bounded path initialization."
+            "Require post-allocation bounded path initialization.",
+            "Retain the documented safety boundary."
           ],
           "assertions": [
             "The workflow cannot regress silently.",
@@ -128,6 +134,7 @@
           "evidence_paths": [
             ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
             ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
           ]
         }
