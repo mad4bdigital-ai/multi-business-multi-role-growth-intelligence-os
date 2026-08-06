@@ -36,8 +36,8 @@ jobs:
           test -f "$INPUT/manifest.json"
           jq -e '.contract == "mad4b.pr6429-main-reconciliation-candidate.v1"' "$INPUT/manifest.json"
           jq -e '.candidate_sha == "4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9"' "$INPUT/manifest.json"
-          jq -e '.main_sha == "c6b933e2f711a93d9b0d556adf5e1111d0f9b981"' "$INPUT/manifest.json"
-          jq -e '.tree_sha == "4c9e7f6d9e12069e671a204675e99754c24bff6f"' "$INPUT/manifest.json"
+          jq -e '.main_sha == "c6b933e2026941fb0ab59cd9b4e1d8154c83e195"' "$INPUT/manifest.json"
+          jq -e '.tree_sha == "9218d716b6e180070f0b636fafd453328e24b858"' "$INPUT/manifest.json"
           jq -e '.remote_write_executed == false and .secrets_included == false' "$INPUT/manifest.json"
 
       - name: Create only the three missing Git blobs
