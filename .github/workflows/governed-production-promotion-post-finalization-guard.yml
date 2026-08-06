@@ -26,9 +26,17 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-      EVIDENCE_DIR: ${{ runner.temp }}/production-promotion-post-finalization
       MAX_POST_FINALIZATION_RETRIES: 3
     steps:
+      - name: Initialize bounded post-finalization evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/production-promotion-post-finalization"
+          rm -rf "${evidence_dir}"
+          mkdir -p "${evidence_dir}"
+          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+
       - name: Download and validate convergence evidence
         id: evidence
         shell: bash
