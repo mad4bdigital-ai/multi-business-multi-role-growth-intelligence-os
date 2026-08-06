@@ -444,8 +444,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"
-          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"
+          echo "EVIDENCE_PATH=${GITHUB_WORKSPACE}/certified-production-release-cut.json" >> "$GITHUB_ENV"
+          echo "CI_SUMMARY_PATH=${GITHUB_WORKSPACE}/certified-release-ci.json" >> "$GITHUB_ENV"
 
       - name: Require successful direct ARM CI gates
         shell: bash
@@ -559,7 +559,7 @@ jobs:
         with:
           name: certified-production-release-cut-${{ github.event.pull_request.head.sha }}
           path: |
-            ${{ runner.temp }}/certified-production-release-cut.json
-            ${{ runner.temp }}/certified-release-ci.json
+            certified-production-release-cut.json
+            certified-release-ci.json
           if-no-files-found: error
           retention-days: 30
