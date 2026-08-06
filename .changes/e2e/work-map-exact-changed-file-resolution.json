@@ -24,7 +24,7 @@
         {
           "id": "exclude-historical-first-parent-files",
           "end_to_end": true,
-          "level": "repository_runtime",
+          "level": "synthetic_runtime",
           "actor": "Repository governance validator",
           "entrypoint": "A pull request or writer-dispatched Work Map Integration run on a rebuilt merge candidate",
           "terminal_outcome": "The gate evaluates exactly base SHA...head SHA, excludes files visible only in HEAD~1 history, and rejects missing, stale, or unavailable identities before governance evaluation.",
