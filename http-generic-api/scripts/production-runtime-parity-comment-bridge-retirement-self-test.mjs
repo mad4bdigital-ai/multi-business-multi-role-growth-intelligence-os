@@ -7,14 +7,23 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
 
-const retiredPaths = [
+const retiredExecutablePaths = [
   ".github/workflows/production-runtime-parity-comment-bridge.yml",
-  ".changes/e2e/production-runtime-parity-comment-bridge.json",
   "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
 ];
-for (const relativePath of retiredPaths) {
-  assert.equal(fs.existsSync(path.join(root, relativePath)), false, `retired bridge path must remain absent: ${relativePath}`);
+for (const relativePath of retiredExecutablePaths) {
+  assert.equal(fs.existsSync(path.join(root, relativePath)), false, `retired bridge executable path must remain absent: ${relativePath}`);
 }
+
+const tombstonePath = ".changes/e2e/production-runtime-parity-comment-bridge.json";
+const tombstoneAbsolutePath = path.join(root, tombstonePath);
+assert.equal(fs.existsSync(tombstoneAbsolutePath), true, "retired bridge governance tombstone must remain present");
+const tombstone = JSON.parse(fs.readFileSync(tombstoneAbsolutePath, "utf8"));
+assert.equal(tombstone.feature_key, "production-runtime-parity-comment-bridge");
+assert.equal(tombstone.current_phase, "mvp");
+assert.deepEqual(tombstone.scope?.include, [tombstonePath], "tombstone scope must not retain executable bridge ownership");
+assert.equal(tombstone.secrets_included, false);
+assert.match(tombstone.title || "", /retired|tombstone/i);
 
 const r7Paths = [
   ".github/workflows/hostinger-production-runtime-readback-r7.yml",
@@ -66,7 +75,8 @@ assert.match(r7Workflow, /\.secrets_included == false/u);
 console.log(JSON.stringify({
   ok: true,
   gate: "production_runtime_parity_comment_bridge_retirement",
-  retired_path_count: retiredPaths.length,
+  retired_executable_path_count: retiredExecutablePaths.length,
+  governance_tombstone_present: true,
   canonical_entrypoint: "hostinger-production-runtime-readback-r7",
   public_get_only: true,
   mutation_performed: false,
