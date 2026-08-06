@@ -1,0 +1,184 @@
+name: PR 6429 Main Reconciliation Writer
+
+on:
+  push:
+    branches:
+      - gpt/diagnostic/pr6429-main-conflicts-20260806
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: pr6429-main-reconciliation-writer
+  cancel-in-progress: false
+
+jobs:
+  write:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CANDIDATE_SHA: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
+      MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+      PRIMARY_BRANCH: gpt/github-main-policy-controller-20260805
+      TARGET_BRANCH: gpt/reconcile/pr6429-main-c6b933e2-20260806
+      ARTIFACT_RUN_ID: "31115306868"
+      ARTIFACT_NAME: pr6429-main-reconciliation-candidate-31115306868
+      EXPECTED_TREE_SHA: 9218d716ec06c169737fa4bf371c6634bb36c821
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download validated immutable reconciliation candidate
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ runner.temp }}/pr6429-main-reconciliation-candidate
+          repository: ${{ github.repository }}
+          run-id: ${{ env.ARTIFACT_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Rebuild exact tree and fast-forward reconciliation branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARTIFACT="$RUNNER_TEMP/pr6429-main-reconciliation-candidate"
+          EVIDENCE="$RUNNER_TEMP/pr6429-main-reconciliation-write-evidence"
+          rm -rf "$EVIDENCE"
+          mkdir -p "$EVIDENCE"
+
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          test -f "$ARTIFACT/manifest.json"
+          test -f "$ARTIFACT/changes-vs-candidate.txt"
+          test -f "$ARTIFACT/conflict-files.txt"
+          test -d "$ARTIFACT/new-blobs"
+
+          jq -e \
+            --arg candidate "$CANDIDATE_SHA" \
+            --arg main "$MAIN_SHA" \
+            --arg tree "$EXPECTED_TREE_SHA" \
+            '.contract == "mad4b.pr6429-main-reconciliation-candidate.v1"
+             and .candidate_sha == $candidate
+             and .main_sha == $main
+             and .parents == [$candidate, $main]
+             and .tree_sha == $tree
+             and .new_blob_count == 7
+             and .remote_write_executed == false
+             and .secrets_included == false' \
+            "$ARTIFACT/manifest.json" >/dev/null
+
+          test "$(tr -d '\r\n' < "$ARTIFACT/resolved-tree.txt")" = "$EXPECTED_TREE_SHA"
+
+          cat > "$EVIDENCE/expected-conflict-files.txt" <<'FILES'
+          docs/work-maps/README.md
+          docs/work-maps/data-model-domain-map.md
+          docs/work-maps/work-map-coverage-matrix.md
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          FILES
+          diff -u "$EVIDENCE/expected-conflict-files.txt" "$ARTIFACT/conflict-files.txt"
+          find "$ARTIFACT/new-blobs" -type f -printf '%P\n' | sort > "$EVIDENCE/artifact-new-blobs.txt"
+          diff -u "$EVIDENCE/expected-conflict-files.txt" "$EVIDENCE/artifact-new-blobs.txt"
+
+          remote_sha() {
+            git ls-remote origin "refs/heads/$1" | awk '{print $1}'
+          }
+
+          test "$(remote_sha "$PRIMARY_BRANCH")" = "$CANDIDATE_SHA"
+          test "$(remote_sha "$TARGET_BRANCH")" = "$CANDIDATE_SHA"
+          test "$(remote_sha main)" = "$MAIN_SHA"
+
+          git fetch --no-tags origin "$MAIN_SHA"
+          test "$(git rev-parse "$MAIN_SHA")" = "$MAIN_SHA"
+
+          set +e
+          git -c user.name=github-actions -c user.email=github-actions@github.com \
+            merge --no-commit --no-ff "$MAIN_SHA" > "$EVIDENCE/merge-output.txt" 2>&1
+          merge_status=$?
+          set -e
+          test "$merge_status" -eq 1
+
+          git diff --name-only --diff-filter=U | sort > "$EVIDENCE/actual-conflict-files.txt"
+          diff -u "$EVIDENCE/expected-conflict-files.txt" "$EVIDENCE/actual-conflict-files.txt"
+
+          while IFS= read -r file; do
+            git checkout --ours -- "$file"
+            cp "$ARTIFACT/new-blobs/$file" "$file"
+            git add "$file"
+          done < "$EVIDENCE/expected-conflict-files.txt"
+
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --check
+          git diff --cached --name-status > "$EVIDENCE/staged-changes.txt"
+          diff -u "$ARTIFACT/changes-vs-candidate.txt" "$EVIDENCE/staged-changes.txt"
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "Merge main c6b933e2 into PR 6429 candidate"
+
+          resolved_sha="$(git rev-parse HEAD)"
+          resolved_tree="$(git rev-parse 'HEAD^{tree}')"
+          test "$(git rev-parse HEAD^1)" = "$CANDIDATE_SHA"
+          test "$(git rev-parse HEAD^2)" = "$MAIN_SHA"
+          test "$resolved_tree" = "$EXPECTED_TREE_SHA"
+          test -z "$(git status --porcelain)"
+
+          test "$(remote_sha "$PRIMARY_BRANCH")" = "$CANDIDATE_SHA"
+          test "$(remote_sha "$TARGET_BRANCH")" = "$CANDIDATE_SHA"
+          test "$(remote_sha main)" = "$MAIN_SHA"
+
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+
+          target_readback="$(remote_sha "$TARGET_BRANCH")"
+          primary_readback="$(remote_sha "$PRIMARY_BRANCH")"
+          main_readback="$(remote_sha main)"
+          test "$target_readback" = "$resolved_sha"
+          test "$primary_readback" = "$CANDIDATE_SHA"
+          test "$main_readback" = "$MAIN_SHA"
+
+          export resolved_sha resolved_tree target_readback primary_readback main_readback EVIDENCE
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const evidence = {
+            contract: 'mad4b.pr6429-main-reconciliation-write-evidence.v1',
+            repository: process.env.GITHUB_REPOSITORY,
+            run_id: Number(process.env.GITHUB_RUN_ID),
+            source_artifact_run_id: Number(process.env.ARTIFACT_RUN_ID),
+            source_artifact_name: process.env.ARTIFACT_NAME,
+            candidate_sha: process.env.CANDIDATE_SHA,
+            main_sha: process.env.MAIN_SHA,
+            resolved_commit_sha: process.env.resolved_sha,
+            resolved_tree_sha: process.env.resolved_tree,
+            expected_tree_sha: process.env.EXPECTED_TREE_SHA,
+            parents: [process.env.CANDIDATE_SHA, process.env.MAIN_SHA],
+            target_branch: process.env.TARGET_BRANCH,
+            target_readback_sha: process.env.target_readback,
+            primary_branch: process.env.PRIMARY_BRANCH,
+            primary_readback_sha: process.env.primary_readback,
+            main_readback_sha: process.env.main_readback,
+            force_push: false,
+            production_mutation: false,
+            primary_branch_mutation: false,
+            remote_write_executed: true,
+            secrets_included: false,
+          };
+          fs.writeFileSync(path.join(process.env.EVIDENCE, 'write-evidence.json'), `${JSON.stringify(evidence, null, 2)}\n`);
+          NODE
+
+          git show --stat --oneline --decorate HEAD > "$EVIDENCE/merge-stat.txt"
+          git diff --name-status "$MAIN_SHA" HEAD > "$EVIDENCE/changes-vs-main.txt"
+
+      - name: Upload reconciliation write evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-main-reconciliation-write-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr6429-main-reconciliation-write-evidence
+          if-no-files-found: error
+          retention-days: 14
