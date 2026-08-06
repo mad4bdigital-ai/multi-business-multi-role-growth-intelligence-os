@@ -14,7 +14,12 @@
       "http-generic-api/test-local-connector-transport-errors.mjs",
       "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
       "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-operation-governance.generated.md",
+      "http-generic-api/frontend-operation-governance.generated.yaml",
       "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/frontend-registry-closure-report.json",
+      "http-generic-api/frontend-registry-closure-report.md",
+      "http-generic-api/skill-inventory.generated.md",
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "docs/work-maps/**"
     ]
