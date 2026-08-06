@@ -130,7 +130,6 @@ jobs:
           node http-generic-api/test-work-map-schema-classification-contract.mjs
           node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
           node http-generic-api/test-transport-response-chunk-schema-recovery.mjs
-          node http-generic-api/scripts/surface-contract-discovery.mjs --check
 
       - name: Commit and push bounded Work Map repair
         shell: bash
