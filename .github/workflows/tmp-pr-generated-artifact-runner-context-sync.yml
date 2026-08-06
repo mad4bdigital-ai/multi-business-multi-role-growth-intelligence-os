@@ -26,13 +26,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Validate immutable branch and parent
+      - name: Validate immutable branch ancestry
         shell: bash
         run: |
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "gpt/reconcile-pr-generated-artifact-runner-context-main-421c1ce-20260806"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
-          test "$(git rev-parse HEAD^)" = "421c1ce515aaac3d12ece384c85b6a8fc13216d2"
+          test "$(git rev-parse HEAD^)" = "2d5bf7e427819ea8ed2dfd22e8358fd4bfdb277b"
+          test "$(git rev-parse HEAD^^)" = "421c1ce515aaac3d12ece384c85b6a8fc13216d2"
           remote_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
           test "${remote_sha}" = "${GITHUB_SHA}"
 
@@ -40,180 +41,142 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
+          python3 <<'PY'
+          import json
+          from pathlib import Path
 
-          const workflowPath = '.github/workflows/pr-generated-artifact-refresh.yml';
-          let workflow = fs.readFileSync(workflowPath, 'utf8');
-          const oldWorkflow = `      TARGET_REF: \${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
-      REPORT_PATH: \${{ runner.temp }}/pr-generated-artifact-refresh-summary.json
-      REPORT_MARKDOWN_PATH: \${{ runner.temp }}/pr-generated-artifact-refresh-summary.md
-    steps:
-      - name: Validate exact candidate inputs`;
-          const newWorkflow = `      TARGET_REF: \${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.event.pull_request.head.ref }}
-    steps:
-      - name: Initialize bounded refresh report paths after runner allocation
-        shell: bash
-        run: |
-          set -euo pipefail
-          report_dir="\${RUNNER_TEMP}/pr-generated-artifact-refresh"
-          rm -rf "\${report_dir}"
-          mkdir -p "\${report_dir}"
-          echo "REPORT_PATH=\${report_dir}/pr-generated-artifact-refresh-summary.json" >> "\${GITHUB_ENV}"
-          echo "REPORT_MARKDOWN_PATH=\${report_dir}/pr-generated-artifact-refresh-summary.md" >> "\${GITHUB_ENV}"
+          workflow_path = Path('.github/workflows/pr-generated-artifact-refresh.yml')
+          lines = workflow_path.read_text().splitlines()
+          report_indexes = [i for i, line in enumerate(lines) if line.startswith('      REPORT_PATH:')]
+          markdown_indexes = [i for i, line in enumerate(lines) if line.startswith('      REPORT_MARKDOWN_PATH:')]
+          if len(report_indexes) != 1 or len(markdown_indexes) != 1:
+              raise SystemExit('Unexpected report-path declaration count')
+          report_index = report_indexes[0]
+          markdown_index = markdown_indexes[0]
+          if markdown_index != report_index + 1 or lines[markdown_index + 1] != '    steps:':
+              raise SystemExit('Unexpected job environment layout')
+          del lines[report_index:markdown_index + 1]
+          steps_index = lines.index('    steps:')
+          initializer = [
+              '      - name: Initialize bounded refresh report paths after runner allocation',
+              '        shell: bash',
+              '        run: |',
+              '          set -euo pipefail',
+              '          report_dir="${RUNNER_TEMP}/pr-generated-artifact-refresh"',
+              '          rm -rf "${report_dir}"',
+              '          mkdir -p "${report_dir}"',
+              '          echo "REPORT_PATH=${report_dir}/pr-generated-artifact-refresh-summary.json" >> "${GITHUB_ENV}"',
+              '          echo "REPORT_MARKDOWN_PATH=${report_dir}/pr-generated-artifact-refresh-summary.md" >> "${GITHUB_ENV}"',
+              '',
+          ]
+          lines[steps_index + 1:steps_index + 1] = initializer
+          workflow_path.write_text('\n'.join(lines) + '\n')
 
-      - name: Validate exact candidate inputs`;
-          if (workflow.split(oldWorkflow).length !== 2) throw new Error('Unexpected generated-artifact workflow source');
-          workflow = workflow.replace(oldWorkflow, newWorkflow);
-          fs.writeFileSync(workflowPath, workflow);
+          test_path = Path('http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs')
+          test = test_path.read_text()
+          contents_assertion = '  assert.doesNotMatch(prWorkflowSource, /contents:\\s*write/u);'
+          if test.count(contents_assertion) != 1:
+              raise SystemExit('Unexpected contents assertion count')
+          test = test.replace(contents_assertion, '\n'.join([
+              '  assert.doesNotMatch(prWorkflowSource, /actions:\\s*write/u);',
+              '  assert.doesNotMatch(prWorkflowSource, /issues:\\s*write/u);',
+              '  assert.doesNotMatch(prWorkflowSource, /pull-requests:\\s*write/u);',
+              contents_assertion,
+          ]))
+          push_assertion = '  assert.doesNotMatch(prWorkflowSource, /git\\s+push/u);'
+          if test.count(push_assertion) != 1:
+              raise SystemExit('Unexpected push assertion count')
+          test = test.replace(push_assertion, '\n'.join([
+              push_assertion,
+              '  assert.doesNotMatch(prWorkflowSource, /work-map-recovery-activation/u);',
+              '  assert.doesNotMatch(prWorkflowSource, /WORK_MAP_RECOVERY_ACTIVATION_BRIDGE/u);',
+              '  assert.doesNotMatch(prWorkflowSource, /spec-kit-work-map-autofix-recovery-dispatch\\.yml\\/dispatches/u);',
+          ]))
+          marker = 'const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");'
+          if test.count(marker) != 1:
+              raise SystemExit('Unexpected publisher marker count')
+          context_check = r'''runCheck("pr-workflow-runner-context-availability", () => {
+            assert.doesNotMatch(
+              prWorkflowSource,
+              /\$\{\{\s*runner\.temp\s*\}\}/u,
+              "PR workflow must not evaluate runner.temp before runner allocation",
+            );
+            assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
+            assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
+            assert.match(prWorkflowSource, /REPORT_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.json/u);
+            assert.match(prWorkflowSource, /REPORT_MARKDOWN_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.md/u);
+            assert.match(prWorkflowSource, /path:\s*\|[\s\S]*\$\{\{ env\.REPORT_PATH \}\}/u);
+          });
 
-          const testPath = 'http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs';
-          let test = fs.readFileSync(testPath, 'utf8');
-          const contentsAssertion = '  assert.doesNotMatch(prWorkflowSource, /contents:\\s*write/u);';
-          if (test.split(contentsAssertion).length !== 2) throw new Error('Unexpected contents assertion count');
-          test = test.replace(contentsAssertion, [
-            '  assert.doesNotMatch(prWorkflowSource, /actions:\\s*write/u);',
-            '  assert.doesNotMatch(prWorkflowSource, /issues:\\s*write/u);',
-            '  assert.doesNotMatch(prWorkflowSource, /pull-requests:\\s*write/u);',
-            contentsAssertion,
-          ].join('\n'));
-          const pushAssertion = '  assert.doesNotMatch(prWorkflowSource, /git\\s+push/u);';
-          if (test.split(pushAssertion).length !== 2) throw new Error('Unexpected git push assertion count');
-          test = test.replace(pushAssertion, [
-            pushAssertion,
-            '  assert.doesNotMatch(prWorkflowSource, /work-map-recovery-activation/u);',
-            '  assert.doesNotMatch(prWorkflowSource, /WORK_MAP_RECOVERY_ACTIVATION_BRIDGE/u);',
-            '  assert.doesNotMatch(prWorkflowSource, /spec-kit-work-map-autofix-recovery-dispatch\\.yml\\/dispatches/u);',
-          ].join('\n'));
-          const publisherMarker = 'const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");';
-          if (test.split(publisherMarker).length !== 2) throw new Error('Unexpected publisher marker count');
-          const contextCheck = `runCheck("pr-workflow-runner-context-availability", () => {
-  assert.doesNotMatch(
-    prWorkflowSource,
-    /\\$\\{\\{\\s*runner\\.temp\\s*\\}\\}/u,
-    "PR workflow must not evaluate runner.temp before runner allocation",
-  );
-  assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
-  assert.match(prWorkflowSource, /report_dir="\\$\\{RUNNER_TEMP\\}\\/pr-generated-artifact-refresh"/u);
-  assert.match(
-    prWorkflowSource,
-    /echo "REPORT_PATH=\\$\\{report_dir\\}\\/pr-generated-artifact-refresh-summary\\.json" >> "\\$\\{GITHUB_ENV\\}"/u,
-  );
-  assert.match(
-    prWorkflowSource,
-    /echo "REPORT_MARKDOWN_PATH=\\$\\{report_dir\\}\\/pr-generated-artifact-refresh-summary\\.md" >> "\\$\\{GITHUB_ENV\\}"/u,
-  );
-  assert.match(prWorkflowSource, /path:\\s*\\|[\\s\\S]*\\$\\{\\{ env\\.REPORT_PATH \\}\\}/u);
-});
+          '''
+          test = test.replace(marker, context_check + marker)
+          summary = '  canonical_auth_repair_registered: true,\n  jobs_level_runner_context_used: false,'
+          if test.count(summary) != 1:
+              raise SystemExit('Unexpected test summary contract')
+          test = test.replace(summary, '  canonical_auth_repair_registered: true,\n  pull_request_write_authority: false,\n  jobs_level_runner_context_used: false,')
+          test_path.write_text(test)
 
-`;
-          test = test.replace(publisherMarker, contextCheck + publisherMarker);
-          const summaryNeedle = '  canonical_auth_repair_registered: true,\n  jobs_level_runner_context_used: false,';
-          if (test.split(summaryNeedle).length !== 2) throw new Error('Unexpected summary contract');
-          test = test.replace(summaryNeedle, '  canonical_auth_repair_registered: true,\n  pull_request_write_authority: false,\n  jobs_level_runner_context_used: false,');
-          fs.writeFileSync(testPath, test);
-
-          const e2ePath = '.changes/e2e/pr-generated-artifact-refresh-runner-context.json';
-          const e2e = {
-            $schema: '../../.specify/schemas/e2e-phases.schema.json',
-            schema_version: 1,
-            feature_key: 'pr-generated-artifact-refresh-runner-context-registration',
-            title: 'PR generated-artifact refresh runner-context registration',
-            delivery_mode: 'single_pr',
-            current_phase: 'resilient',
-            scope: {
-              include: [
-                e2ePath,
-                workflowPath,
-                testPath,
+          e2e_path = Path('.changes/e2e/pr-generated-artifact-refresh-runner-context.json')
+          e2e = {
+              '$schema': '../../.specify/schemas/e2e-phases.schema.json',
+              'schema_version': 1,
+              'feature_key': 'pr-generated-artifact-refresh-runner-context-registration',
+              'title': 'PR generated-artifact refresh runner-context registration',
+              'delivery_mode': 'single_pr',
+              'current_phase': 'resilient',
+              'scope': {'include': [str(e2e_path), str(workflow_path), str(test_path)]},
+              'merge_contract': {'minimum_phase': 'mvp'},
+              'phases': [
+                  {
+                      'id': 'mvp', 'status': 'implemented',
+                      'objective': 'Restore exact-head read-only generated-artifact validation without evaluating runner context before allocation.',
+                      'e2e_journeys': [{
+                          'id': 'read-only-generated-artifact-refresh-registration', 'end_to_end': True,
+                          'level': 'synthetic_runtime', 'actor': 'GitHub Actions planner and pull-request validator',
+                          'entrypoint': 'A same-repository governed pull request or exact manual validation dispatch',
+                          'terminal_outcome': 'The workflow registers, initializes bounded report paths after runner allocation, validates the exact head read-only, and uploads canonical no-secret evidence.',
+                          'steps': ['Plan without job-level runner context.', 'Initialize bounded paths after allocation.', 'Verify the exact remote head.', 'Evaluate without repository mutation.', 'Upload and enforce canonical evidence.'],
+                          'assertions': ['No pre-allocation runner context is used.', 'The workflow remains read-only.', 'No Production or provider mutation authority is introduced.'],
+                          'tests': [{'id': 'generated-artifact-refresh-runner-context-regression', 'runner': 'node', 'working_directory': 'http-generic-api', 'path': 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs', 'args': []}],
+                          'evidence_paths': [str(workflow_path), str(test_path)],
+                      }],
+                  },
+                  {
+                      'id': 'operational', 'status': 'implemented',
+                      'objective': 'Preserve exact-head identity, bounded evidence, and read-only authority.',
+                      'e2e_journeys': [{
+                          'id': 'exact-head-read-only-operational-validation', 'end_to_end': True,
+                          'level': 'synthetic_runtime', 'actor': 'Repository automation governance reviewer',
+                          'entrypoint': 'Static workflow and executable regression validation',
+                          'terminal_outcome': 'The workflow remains a read-only verifier with canonical secret-free evidence.',
+                          'steps': ['Validate permissions.', 'Validate exact-head checkout.', 'Validate report enforcement.'],
+                          'assertions': ['Pull-request validation cannot mutate repository state.', 'Evidence remains secret-free.'],
+                          'tests': [{'id': 'generated-artifact-refresh-authority-regression', 'runner': 'node', 'working_directory': 'http-generic-api', 'path': 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs', 'args': []}],
+                          'evidence_paths': [str(workflow_path), str(test_path)],
+                      }],
+                  },
+                  {
+                      'id': 'resilient', 'status': 'implemented',
+                      'objective': 'Fail closed on unavailable runner context or pull-request write authority.',
+                      'e2e_journeys': [{
+                          'id': 'runner-context-and-authority-fail-closed', 'end_to_end': True,
+                          'level': 'synthetic_runtime', 'actor': 'CI governance gates',
+                          'entrypoint': 'Any change to the repaired workflow or test contract',
+                          'terminal_outcome': 'Regression rejects pre-allocation context, write permissions, recovery activation, or missing bounded initialization.',
+                          'steps': ['Load workflow source.', 'Reject unavailable context.', 'Reject write authority.', 'Require bounded initialization.'],
+                          'assertions': ['The workflow cannot regress silently.', 'No secrets are included.'],
+                          'tests': [{'id': 'generated-artifact-refresh-resilience-regression', 'runner': 'node', 'working_directory': 'http-generic-api', 'path': 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs', 'args': []}],
+                          'evidence_paths': [str(e2e_path), str(workflow_path), str(test_path)],
+                      }],
+                  },
+                  {'id': 'canary', 'status': 'not_applicable', 'objective': 'No provider canary authority.'},
+                  {'id': 'production', 'status': 'not_applicable', 'objective': 'No Production action or deployment.'},
               ],
-            },
-            merge_contract: { minimum_phase: 'mvp' },
-            phases: [
-              {
-                id: 'mvp',
-                status: 'implemented',
-                objective: 'Restore exact-head read-only generated-artifact validation without evaluating runner context before allocation.',
-                e2e_journeys: [
-                  {
-                    id: 'read-only-generated-artifact-refresh-registration',
-                    end_to_end: true,
-                    level: 'synthetic_runtime',
-                    actor: 'GitHub Actions planner and pull-request validator',
-                    entrypoint: 'A same-repository governed pull request or exact manual validation dispatch',
-                    terminal_outcome: 'The workflow registers, initializes bounded report paths after runner allocation, validates the exact head read-only, and uploads canonical no-secret evidence.',
-                    steps: [
-                      'Plan the pull-request or workflow-dispatch event without job-level runner.temp.',
-                      'Allocate the runner and publish report paths through GITHUB_ENV.',
-                      'Checkout and verify the exact remote branch head with credentials disabled.',
-                      'Evaluate generated artifacts without repository mutation.',
-                      'Upload and enforce the canonical structured report.',
-                    ],
-                    assertions: [
-                      'No runner.temp expression exists in job-level workflow context.',
-                      'The workflow has contents: read only and no write permissions, git push, recovery activation, or recovery dispatch.',
-                      'Report files are created below RUNNER_TEMP only after runner allocation.',
-                      'No Production, provider, credential, SQL, migration, database, protected-ref, force-push, or external-send authority is introduced.',
-                    ],
-                    tests: [
-                      {
-                        id: 'generated-artifact-refresh-runner-context-regression',
-                        runner: 'node',
-                        working_directory: 'http-generic-api',
-                        path: 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs',
-                        args: [],
-                      },
-                    ],
-                    evidence_paths: [workflowPath, testPath],
-                  },
-                ],
-              },
-              {
-                id: 'operational',
-                status: 'implemented',
-                objective: 'Preserve exact-head identity, bounded evidence, read-only permissions, and independent governed mutation authority.',
-                e2e_journeys: [
-                  {
-                    id: 'exact-head-read-only-operational-validation',
-                    end_to_end: true,
-                    level: 'synthetic_runtime',
-                    actor: 'Repository automation governance reviewer',
-                    entrypoint: 'Static workflow and executable regression validation',
-                    terminal_outcome: 'The workflow remains a read-only verifier while all repository-writing authority stays outside the pull-request validation job.',
-                    steps: ['Validate permissions and trigger contracts.', 'Validate exact-head checkout and remote readback.', 'Validate canonical report enforcement.'],
-                    assertions: ['Pull-request validation cannot mutate repository or Actions state.', 'Canonical evidence remains secret-free.'],
-                    tests: [{ id: 'generated-artifact-refresh-authority-regression', runner: 'node', working_directory: 'http-generic-api', path: 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs', args: [] }],
-                    evidence_paths: [workflowPath, testPath],
-                  },
-                ],
-              },
-              {
-                id: 'resilient',
-                status: 'implemented',
-                objective: 'Fail closed if runner context is evaluated before allocation or pull-request write authority returns.',
-                e2e_journeys: [
-                  {
-                    id: 'runner-context-and-authority-fail-closed',
-                    end_to_end: true,
-                    level: 'synthetic_runtime',
-                    actor: 'CI governance gates',
-                    entrypoint: 'Any future change to the repaired workflow or regression contract',
-                    terminal_outcome: 'Regression tests reject pre-allocation runner.temp, write permissions, recovery activation, mutation commands, or missing bounded report initialization.',
-                    steps: ['Load the workflow source.', 'Reject unavailable runner context.', 'Reject write authority and recovery mutation paths.', 'Require post-allocation bounded path initialization.'],
-                    assertions: ['The workflow cannot regress silently.', 'No secrets are included in evidence.'],
-                    tests: [{ id: 'generated-artifact-refresh-resilience-regression', runner: 'node', working_directory: 'http-generic-api', path: 'scripts/test-generated-artifact-refresh-maintenance-tool.mjs', args: [] }],
-                    evidence_paths: [e2ePath, workflowPath, testPath],
-                  },
-                ],
-              },
-              { id: 'canary', status: 'not_applicable', objective: 'This workflow-registration repair has no provider canary authority.' },
-              { id: 'production', status: 'not_applicable', objective: 'This repair performs no Production action or deployment.' },
-            ],
-            secrets_included: false,
-          };
-          fs.mkdirSync('.changes/e2e', { recursive: true });
-          fs.writeFileSync(e2ePath, `${JSON.stringify(e2e, null, 2)}\n`);
-          NODE
+              'secrets_included': False,
+          }
+          e2e_path.parent.mkdir(parents=True, exist_ok=True)
+          e2e_path.write_text(json.dumps(e2e, indent=2) + '\n')
+          PY
 
       - name: Verify bounded diff and self-delete
         shell: bash
@@ -231,8 +194,14 @@ jobs:
           printf '%s\n' "${expected[@]}" | sort > /tmp/expected.txt
           diff -u /tmp/expected.txt /tmp/changed.txt
           test ! -e .github/workflows/tmp-pr-generated-artifact-runner-context-sync.yml
-          ! grep -F '${{ runner.temp }}' .github/workflows/pr-generated-artifact-refresh.yml
-          grep -Fq 'Initialize bounded refresh report paths after runner allocation' .github/workflows/pr-generated-artifact-refresh.yml
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/pr-generated-artifact-refresh.yml').read_text()
+          if 'runner' + '.temp' in source:
+              raise SystemExit('Unavailable runner context remains')
+          if 'Initialize bounded refresh report paths after runner allocation' not in source:
+              raise SystemExit('Runtime initializer missing')
+          PY
           node --check http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs
           node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/pr-generated-artifact-refresh-runner-context.json','utf8'))"
 
