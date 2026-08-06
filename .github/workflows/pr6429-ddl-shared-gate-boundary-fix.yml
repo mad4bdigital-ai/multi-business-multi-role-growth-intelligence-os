@@ -1,0 +1,138 @@
+name: PR 6429 DDL shared gate boundary fix
+
+on:
+  push:
+    branches:
+      - gpt/fix/ddl-shared-gate-boundary-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6429-ddl-shared-gate-boundary-fix
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      WORK_BRANCH: gpt/fix/ddl-shared-gate-boundary-20260806
+      BASE_BRANCH: gpt/github-main-policy-controller-20260805
+      BASE_SHA: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
+      WORKFLOW_PATH: .github/workflows/pr6429-ddl-shared-gate-boundary-fix.yml
+      PATCH_SCRIPT: .github/scripts/pr6429-ddl-shared-gate-boundary-fix.cjs
+      BOOTSTRAP_SCRIPT: .github/scripts/pr6429-ddl-shared-gate-boundary-bootstrap.cjs
+    steps:
+      - name: Checkout exact helper head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          check-latest: false
+
+      - name: Verify immutable helper binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
+          git merge-base --is-ancestor "${BASE_SHA}" HEAD
+          case "$(node --version)" in v22.*) ;; *) exit 1 ;; esac
+
+      - name: Apply deterministic DDL boundary patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
+          mkdir -p "${evidence_root}"
+          node "${BOOTSTRAP_SCRIPT}" | tee "${evidence_root}/bootstrap.json"
+          node --check "${PATCH_SCRIPT}"
+          PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" \
+            node "${PATCH_SCRIPT}"
+          rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}"
+          git add -A -- \
+            "${WORKFLOW_PATH}" \
+            "${PATCH_SCRIPT}" \
+            "${BOOTSTRAP_SCRIPT}" \
+            .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json \
+            .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml \
+            http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+
+      - name: Create exact three-file candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+          cat > "${expected}" <<'EOF'
+          .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json
+          .github/scripts/pr6429-ddl-shared-gate-boundary-bootstrap.cjs
+          .github/scripts/pr6429-ddl-shared-gate-boundary-fix.cjs
+          .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
+          .github/workflows/pr6429-ddl-shared-gate-boundary-fix.yml
+          http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+          EOF
+          sed -i 's/^          //' "${expected}"
+          sort -o "${expected}" "${expected}"
+          git diff --cached --name-only | sort > "${actual}"
+          diff -u "${expected}" "${actual}"
+          test ! -e "${WORKFLOW_PATH}"
+          test ! -e "${PATCH_SCRIPT}"
+          test ! -e "${BOOTSTRAP_SCRIPT}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "fix(ci): distinguish shared E2E gate dependency scope"
+
+          cat > "${expected}" <<'EOF'
+          .changes/e2e/spec014-durable-authorized-injection-schema-ddl-rollup-boundary.json
+          .github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml
+          http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+          EOF
+          sed -i 's/^          //' "${expected}"
+          sort -o "${expected}" "${expected}"
+          git diff --name-only "${BASE_SHA}...HEAD" | sort > "${actual}"
+          diff -u "${expected}" "${actual}"
+
+      - name: Run DDL and E2E contract regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/ddl-shared-gate-boundary-fix"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs \
+            | tee "${evidence_root}/workflow-test.json"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl.mjs \
+            | tee "${evidence_root}/ddl-parity-test.json"
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${BASE_SHA}" --head HEAD \
+            --report-file "${evidence_root}/phase-governance.json"
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs \
+            --root . --base "${BASE_SHA}" --head HEAD \
+            --head-ref "${WORK_BRANCH}" --base-ref "${BASE_BRANCH}" \
+            --report-file "${evidence_root}/parallel-pr-gate.json"
+
+      - name: Push without force after immutable readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${BASE_BRANCH}" | awk '{print $1}')" = "${BASE_SHA}"
+          git push origin "HEAD:refs/heads/${WORK_BRANCH}"
+          final_sha="$(git rev-parse HEAD)"
+          test "$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')" = "${final_sha}"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ddl-shared-gate-boundary-fix-${{ github.sha }}
+          path: ${{ runner.temp }}/ddl-shared-gate-boundary-fix
+          if-no-files-found: warn
+          retention-days: 14
