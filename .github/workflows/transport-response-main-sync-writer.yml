@@ -38,6 +38,15 @@ jobs:
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
           test "$(git diff --name-only "${EXPECTED_CONTENT_HEAD}" HEAD)" = "${workflow}"
 
+      - name: Remove diagnostic workflow locally
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          workflow='.github/workflows/transport-response-main-sync-writer.yml'
+          git rm --cached --ignore-unmatch -- "${workflow}"
+          rm -f -- "${workflow}"
+          test ! -e "${workflow}"
+
       - name: Merge pinned main locally
         shell: bash
         env:
