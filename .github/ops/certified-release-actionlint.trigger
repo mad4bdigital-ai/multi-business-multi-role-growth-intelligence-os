@@ -1,5 +1,5 @@
-attempt=2
-quote_colon_bearing_if_values=true
-actionlint=true
+attempt=3
+target=.github/workflows/materialize-certified-release-yaml-fix.yml
+actionlint_shellcheck_disabled=true
 production_mutation=false
 secrets_included=false
