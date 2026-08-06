@@ -160,6 +160,17 @@ await assert.rejects(
     expected_main_sha: `${MAIN_SHA}0`,
     expected_policy_fingerprint: policyPlan.policy_fingerprint,
     confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  }, { auth: { caller_type: "tenant" } }),
+  (error) => error?.code === "github_repository_policy_admin_required"
+);
+await assert.rejects(
+  runGithubRepositoryPolicyController({
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: `${MAIN_SHA}0`,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
   }, { auth: { caller_type: "admin" } }),
   (error) => error?.code === "github_repository_policy_expected_main_sha_required"
 );
@@ -192,6 +203,7 @@ await assert.rejects(
       invalidAutomationProviderCalls += 1;
       return readback;
     },
+    auth: { caller_type: "admin" },
   }),
   (error) => error?.code === "github_repository_policy_expected_main_sha_required"
 );
@@ -344,6 +356,7 @@ console.log(JSON.stringify({
   overlong_authority_values_rejected_without_truncation: true,
   invalid_authority_inputs_have_distinct_plan_identity: true,
   invalid_apply_rejected_before_provider_readback: true,
+  admin_rejected_before_authority_validation: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
   typed_confirmation_not_invented: true,
