@@ -136,8 +136,8 @@ function applySinglePrMaintenanceException(evaluation, options) {
 }
 
 export function evaluateRepository(options = {}) {
-  const ownershipAware = applyOwnershipNeutralSpecArtifactException(evaluateCoreRepository(options));
-  return applySinglePrMaintenanceException(ownershipAware, options);
+  const maintenanceAware = applySinglePrMaintenanceException(evaluateCoreRepository(options), options);
+  return applyOwnershipNeutralSpecArtifactException(maintenanceAware);
 }
 
 function writeAtomic(file, data) {
