@@ -102,9 +102,7 @@ jobs:
               'title': 'Production certified release-cut registration context repair',
               'delivery_mode': 'single_pr',
               'current_phase': 'mvp',
-              'scope': {
-                  'include': [str(declaration_path), str(workflow_path), str(test_path)]
-              },
+              'scope': {'include': [str(declaration_path), str(workflow_path), str(test_path)]},
               'merge_contract': {'minimum_phase': 'mvp'},
               'phases': [
                   {
@@ -162,12 +160,10 @@ jobs:
           git diff --check
           echo 'bounded generated files validation: pass'
 
-      - name: Commit exact final scope and remove writer
+      - name: Stage exact final scope and remove writer
         shell: bash
         run: |
           set -Eeuo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git rm .github/workflows/repair-certified-release-runner-context.yml
           git rm .github/ops/certified-release-runner-context.trigger
           git add \
@@ -180,12 +176,23 @@ jobs:
             '.github/workflows/production-certified-release-cut-validation.yml' \
             'http-generic-api/test-production-certified-release-cut-validation-registration.mjs' | sort)"
           ACTUAL="$(git diff --cached --name-only "$EXPECTED_MAIN_SHA" | sort)"
-          [[ "$ACTUAL" == "$EXPECTED" ]] || {
-            echo '::error::bounded repair scope mismatch'
-            printf 'Expected:\n%s\nActual:\n%s\n' "$EXPECTED" "$ACTUAL"
-            exit 1
-          }
-
+          printf 'Expected final scope:\n%s\nActual final scope:\n%s\n' "$EXPECTED" "$ACTUAL"
+          [[ "$ACTUAL" == "$EXPECTED" ]]
           git diff --cached --check
+          git status --short
+
+      - name: Commit exact final scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix(ci): resolve certified release paths at runner runtime"
+
+      - name: Push final fast-forward commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
+          [[ "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" == "$GITHUB_SHA" ]]
           git push origin "HEAD:${TARGET_BRANCH}"
