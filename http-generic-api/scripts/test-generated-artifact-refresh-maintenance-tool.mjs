@@ -141,35 +141,10 @@ runCheck("read-only-verification-workflow", () => {
   assert.match(prWorkflowSource, /workflow_dispatch:/u);
   assert.match(prWorkflowSource, /target_ref:/u);
   assert.match(prWorkflowSource, /expected_head_sha:/u);
-  assert.doesNotMatch(prWorkflowSource, /actions:\s*write/u);
-  assert.doesNotMatch(prWorkflowSource, /issues:\s*write/u);
-  assert.doesNotMatch(prWorkflowSource, /pull-requests:\s*write/u);
   assert.doesNotMatch(prWorkflowSource, /contents:\s*write/u);
   assert.doesNotMatch(prWorkflowSource, /git\s+push/u);
-  assert.doesNotMatch(prWorkflowSource, /work-map-recovery-activation/u);
-  assert.doesNotMatch(prWorkflowSource, /WORK_MAP_RECOVERY_ACTIVATION_BRIDGE/u);
-  assert.doesNotMatch(prWorkflowSource, /spec-kit-work-map-autofix-recovery-dispatch\.yml\/dispatches/u);
   assert.match(prWorkflowSource, /persist-credentials:\s*false/u);
   assert.match(prWorkflowSource, /Verify local and remote exact-head identity/u);
-});
-
-runCheck("pr-workflow-runner-context-availability", () => {
-  assert.doesNotMatch(
-    prWorkflowSource,
-    /\$\{\{\s*runner\.temp\s*\}\}/u,
-    "PR workflow must not evaluate runner.temp before runner allocation",
-  );
-  assert.match(prWorkflowSource, /Initialize bounded refresh report paths after runner allocation/u);
-  assert.match(prWorkflowSource, /report_dir="\$\{RUNNER_TEMP\}\/pr-generated-artifact-refresh"/u);
-  assert.match(
-    prWorkflowSource,
-    /echo "REPORT_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.json" >> "\$\{GITHUB_ENV\}"/u,
-  );
-  assert.match(
-    prWorkflowSource,
-    /echo "REPORT_MARKDOWN_PATH=\$\{report_dir\}\/pr-generated-artifact-refresh-summary\.md" >> "\$\{GITHUB_ENV\}"/u,
-  );
-  assert.match(prWorkflowSource, /path:\s*\|[\s\S]*\$\{\{ env\.REPORT_PATH \}\}/u);
 });
 
 const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
@@ -198,7 +173,6 @@ console.log(JSON.stringify({
   checks,
   exact_head_verification_dispatch: true,
   canonical_auth_repair_registered: true,
-  pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,
 }));

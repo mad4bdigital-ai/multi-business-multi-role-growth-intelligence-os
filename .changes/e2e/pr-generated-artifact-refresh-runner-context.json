@@ -9,7 +9,7 @@
     "include": [
       ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
       ".github/workflows/pr-generated-artifact-refresh.yml",
-      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+      "http-generic-api/test-pr-generated-artifact-refresh-runner-context.mjs"
     ]
   },
   "merge_contract": {
@@ -46,13 +46,13 @@
               "id": "generated-artifact-refresh-registration-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "path": "test-pr-generated-artifact-refresh-runner-context.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            "http-generic-api/test-pr-generated-artifact-refresh-runner-context.mjs"
           ]
         }
       ]
@@ -73,7 +73,7 @@
             "Validate target_ref and expected_head_sha.",
             "Checkout the exact SHA with persist-credentials false.",
             "Verify local and remote branch identity.",
-            "Run evidence publisher and mutation-safety regressions.",
+            "Run the dedicated runner-context regression.",
             "Fail closed when the canonical report is absent, malformed, secret-bearing, or blocked."
           ],
           "assertions": [
@@ -86,13 +86,13 @@
               "id": "generated-artifact-refresh-operational-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "path": "test-pr-generated-artifact-refresh-runner-context.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".github/workflows/pr-generated-artifact-refresh.yml",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            "http-generic-api/test-pr-generated-artifact-refresh-runner-context.mjs"
           ]
         }
       ]
@@ -126,14 +126,14 @@
               "id": "generated-artifact-refresh-resilience-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
-              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "path": "test-pr-generated-artifact-refresh-runner-context.mjs",
               "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
             ".github/workflows/pr-generated-artifact-refresh.yml",
-            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+            "http-generic-api/test-pr-generated-artifact-refresh-runner-context.mjs"
           ]
         }
       ]
