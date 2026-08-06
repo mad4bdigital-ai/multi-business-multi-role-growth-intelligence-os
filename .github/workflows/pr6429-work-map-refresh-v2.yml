@@ -1,5 +1,6 @@
 name: PR 6429 exact-head Work Map refresh v2
 
+# trigger: exact-head-generation-v2
 on:
   push:
     branches:
