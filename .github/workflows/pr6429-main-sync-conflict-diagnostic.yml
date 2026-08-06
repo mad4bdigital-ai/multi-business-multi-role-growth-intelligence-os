@@ -1,6 +1,6 @@
 name: PR 6429 governed main reconciliation
 
-# trigger: execute-pinned-main-c77c8f8-v3
+# trigger: execute-pinned-main-421c1ce-v4
 on:
   push:
     branches:
@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 30
     env:
       WORK_BRANCH: gpt/reconcile/pr6429-main-20260806
-      PINNED_MAIN_SHA: c77c8f8faf13d650b458b2826088b1d75c3fe18f
+      PINNED_MAIN_SHA: 421c1ce515aaac3d12ece384c85b6a8fc13216d2
       WORKFLOW_PATH: .github/workflows/pr6429-main-sync-conflict-diagnostic.yml
     steps:
       - name: Checkout reconciliation branch
@@ -159,10 +159,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test \
-            test/github-repository-policy-controller.test.js \
-            test/frontend-github-contract.test.js \
-            test/github-routes.test.js
+          evidence_dir=/tmp/pr6429-reconciliation-evidence
+          mkdir -p "${evidence_dir}"
+          overall=0
+          for test_file in \
+            test-github-repository-policy-controller.mjs \
+            test-repository-automation-policy-facade.mjs \
+            test-frontend-surface-dispatch.mjs
+          do
+            set +e
+            node "${test_file}" 2>&1 | tee "${evidence_dir}/${test_file}.log"
+            test_rc=${PIPESTATUS[0]}
+            set -e
+            printf '%s=%s\n' "${test_file}" "${test_rc}" >> "${evidence_dir}/focused-test-status.txt"
+            if [[ "${test_rc}" -ne 0 ]]; then
+              overall=1
+            fi
+          done
+          exit "${overall}"
 
       - name: Commit merge and push without force
         shell: bash
@@ -178,8 +192,9 @@ jobs:
             echo 'conflicts_resolved=docs/work-maps/README.md,http-generic-api/frontend-operation-governance.generated.json,http-generic-api/frontend-surface-dispatch.generated.json'
             echo 'resolution=regenerated_from_final_merged_tree'
             echo 'work_map_validation=official_autofix_contracts_plus_two-pass_idempotency'
+            echo 'focused_tests=canonical_pr6429_e2e_contract_tests'
             echo 'force_push=false'
-          } > /tmp/pr6429-reconciliation-evidence/bindings.txt
+          } >> /tmp/pr6429-reconciliation-evidence/bindings.txt
           git diff --cached --name-only | sort > /tmp/pr6429-reconciliation-evidence/staged-paths.txt
 
           git commit -m 'chore: reconcile PR 6429 with latest main'
