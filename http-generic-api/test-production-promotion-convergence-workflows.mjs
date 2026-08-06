@@ -46,15 +46,18 @@ for (const required of [
   /Governed Production Promotion Request Launcher/,
   /MAX_POST_FINALIZATION_RETRIES: 3/,
   /\.request_pr \| test/,
+  /\.validation_pr \| test/,
   /jq -r '\.request_pr'/,
+  /jq -r '\.validation_pr'/,
   /main_moved_after_finalization/,
   /production_moved_after_finalization/,
   /release_head_changed_after_finalization/,
   /candidate_no_longer_matches_or_contains_main/,
   /candidate_no_longer_contains_pinned_production/,
   /gh pr reopen "\$REQUEST_PR"/,
-  /startswith\(\"release\/production-\"\)/,
-  /startswith\(\"gpt\/validate-production-candidate-\"\)/,
+  /startswith\(\"release: promote pinned main \"\)/,
+  /startswith\(\"ci: validate exact Production candidate \"\)/,
+  /authoritative_validation_pr=/,
   /single_release_surface=true/,
   /final_freshness_readback=true/,
   /merge executed: false/,
@@ -63,6 +66,11 @@ for (const required of [
 ]) {
   assert.match(postFinalizationGuard, required);
 }
+assert.doesNotMatch(
+  postFinalizationGuard,
+  /(?:release\/production-|gpt\/validate-production-candidate-)/,
+  "post-finalization cleanup must select governed PR surfaces independently of work-branch names",
+);
 
 for (const required of [
   /name: Certified Production Release Cut Validation/,
