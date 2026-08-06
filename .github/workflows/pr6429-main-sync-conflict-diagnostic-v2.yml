@@ -1,0 +1,76 @@
+name: PR 6429 main reconciliation conflict diagnostic v2
+
+on:
+  push:
+    branches:
+      - gpt/reconcile/pr6429-main-20260806-v2
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr6429-main-reconciliation-conflict-diagnostic-v2
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      WORK_BRANCH: gpt/reconcile/pr6429-main-20260806-v2
+    steps:
+      - name: Checkout exact reconciliation branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Diagnose merge against captured main
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-main-reconciliation-conflicts-v2"
+          mkdir -p "${evidence_root}"
+
+          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          test "${remote_branch_head}" = "${GITHUB_SHA}"
+          test "${captured_main_head}" =~ ^[0-9a-f]{40}$
+          git fetch --no-tags origin "${captured_main_head}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          set +e
+          git merge --no-ff --no-commit "${captured_main_head}"
+          merge_rc=$?
+          set -e
+
+          git diff --name-only --diff-filter=U | sort > "${evidence_root}/conflicts.txt"
+          git status --short > "${evidence_root}/status.txt"
+          {
+            echo "event_sha=${GITHUB_SHA}"
+            echo "captured_main_sha=${captured_main_head}"
+            echo "merge_rc=${merge_rc}"
+            echo "force_push=false"
+            echo "remote_write=false"
+            echo "production_mutation=false"
+            echo "migration_apply=false"
+            echo "provider_dispatch=false"
+            echo "secrets_included=false"
+          } > "${evidence_root}/bindings.txt"
+
+          cat "${evidence_root}/bindings.txt"
+          echo '--- conflicts ---'
+          cat "${evidence_root}/conflicts.txt"
+
+          # Diagnostic-only run: never commit or push a merge result.
+          exit 1
+
+      - name: Upload conflict diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-main-reconciliation-conflicts-v2-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6429-main-reconciliation-conflicts-v2
+          if-no-files-found: error
+          retention-days: 7
