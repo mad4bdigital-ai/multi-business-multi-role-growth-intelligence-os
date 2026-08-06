@@ -1,4 +1,4 @@
-attempt=3
+attempt=4
 target=.github/workflows/materialize-certified-release-yaml-fix.yml
 actionlint_shellcheck_disabled=true
 production_mutation=false
