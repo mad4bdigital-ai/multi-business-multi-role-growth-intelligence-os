@@ -185,6 +185,17 @@ await assert.rejects(
   }, { auth: { caller_type: "admin" } }),
   (error) => error?.code === "github_repository_policy_fingerprint_required"
 );
+await assert.rejects(
+  runGithubRepositoryPolicyController({
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  }, { auth: { caller_type: "admin" } }),
+  (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
+);
 
 let invalidAutomationProviderCalls = 0;
 await assert.rejects(
@@ -208,6 +219,28 @@ await assert.rejects(
   (error) => error?.code === "github_repository_policy_expected_main_sha_required"
 );
 assert.equal(invalidAutomationProviderCalls, 0, "Invalid Apply authority must fail before readback or provider access.");
+
+let missingEnvelopeProviderCalls = 0;
+await assert.rejects(
+  runRepositoryAutomation({
+    automation_key: "repository_policy",
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+  }, {
+    persist: false,
+    policyController: async () => {
+      missingEnvelopeProviderCalls += 1;
+      return readback;
+    },
+    auth: { caller_type: "admin" },
+  }),
+  (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
+);
+assert.equal(missingEnvelopeProviderCalls, 0, "Missing capability envelope must fail before readback or provider access.");
 
 const calls = [];
 const policyController = async (args) => {
@@ -356,6 +389,7 @@ console.log(JSON.stringify({
   overlong_authority_values_rejected_without_truncation: true,
   invalid_authority_inputs_have_distinct_plan_identity: true,
   invalid_apply_rejected_before_provider_readback: true,
+  missing_capability_envelope_rejected_before_provider_readback: true,
   admin_rejected_before_authority_validation: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
