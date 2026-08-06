@@ -162,8 +162,44 @@ jobs:
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
 
-      - name: Require complete Spec Kit Work Map integration
-        run: node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+      - name: Evaluate complete Spec Kit Work Map integration
+        id: work_map_governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          diagnostic_root="${RUNNER_TEMP}/work-map-governance-diagnostic"
+          mkdir -p "${diagnostic_root}"
+          tested_head_sha="$(git rev-parse HEAD)"
+          if [[ "${tested_head_sha}" != "${EXPECTED_CHECKED_OUT_SHA}" ]]; then
+            echo "Work Map governance checkout mismatch. Expected ${EXPECTED_CHECKED_OUT_SHA}, found ${tested_head_sha}."
+            exit 1
+          fi
+
+          set +e
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${diagnostic_root}/gate-output.json"
+          exit_code=$?
+          set -e
+
+          cat "${diagnostic_root}/gate-output.json"
+          printf 'contract=mad4b.work-map-governance-diagnostic.v1\nrepository=%s\nrun_id=%s\nexpected_head_sha=%s\ntested_head_sha=%s\nexit_code=%s\nremote_write_executed=false\n' \
+            "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}" "${EXPECTED_CHECKED_OUT_SHA}" "${tested_head_sha}" "${exit_code}" \
+            > "${diagnostic_root}/metadata.txt"
+          echo "exit_code=${exit_code}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload bounded Work Map governance diagnostic
+        if: always() && steps.work_map_governance.outputs.exit_code != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: work-map-governance-diagnostic-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
+          path: ${{ runner.temp }}/work-map-governance-diagnostic
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Fail closed on Work Map governance findings
+        if: steps.work_map_governance.outputs.exit_code != '0'
+        run: |
+          echo "Work Map governance rejected the exact head. Use the bounded structured diagnostic artifact from this run."
+          exit 1
 
       - name: Run Work Map governance regression tests
         working-directory: http-generic-api
