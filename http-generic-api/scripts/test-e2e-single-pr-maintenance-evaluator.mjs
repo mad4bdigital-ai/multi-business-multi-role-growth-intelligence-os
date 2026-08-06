@@ -99,6 +99,7 @@ const maintenance = phaseContract("001-example-maintenance", "single_pr", [
 ]);
 writeJson(path.join(root, ".changes", "e2e", "001-example-maintenance.json"), maintenance);
 writeJson(path.join(root, "specs", "001-example", "work-map-integration.json"), { schema_version: 1 });
+fs.writeFileSync(path.join(root, "specs", "001-example", "spec.md"), "# Real spec maintenance\n");
 fs.writeFileSync(path.join(root, "http-generic-api", "example", "service.mjs"), "export const version = 2;\n");
 run(["add", "."], root);
 run(["commit", "-m", "covered maintenance"], root);
