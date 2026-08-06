@@ -1,0 +1,153 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr-generated-artifact-refresh-runner-context-registration",
+  "title": "PR generated-artifact refresh registration after runner allocation",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore GitHub Actions registration by resolving bounded report paths only after runner allocation.",
+      "e2e_journeys": [
+        {
+          "id": "registered-read-only-refresh",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions planner and pull-request validator",
+          "entrypoint": "A same-repository governed pull request or exact workflow_dispatch request",
+          "terminal_outcome": "The workflow registers, allocates a runner, binds two report paths under RUNNER_TEMP, evaluates the exact head read-only, uploads bounded evidence, and enforces the canonical decision.",
+          "steps": [
+            "Plan the workflow without evaluating runner.temp in job-level env.",
+            "Allocate the Ubuntu runner and initialize a clean bounded report directory.",
+            "Publish REPORT_PATH and REPORT_MARKDOWN_PATH through GITHUB_ENV.",
+            "Validate and checkout the exact governed head without persistent credentials.",
+            "Evaluate generated artifacts read-only and upload the canonical reports."
+          ],
+          "assertions": [
+            "No job-level runner.temp expression remains.",
+            "Both report paths are initialized after runner allocation.",
+            "The workflow retains contents: read and no git push authority.",
+            "Artifact upload reads only the two bounded report files."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-registration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve exact-head validation, read-only permissions, bounded artifact evidence, and canonical fail-closed report enforcement.",
+      "e2e_journeys": [
+        {
+          "id": "exact-head-bounded-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation governance reviewer",
+          "entrypoint": "Static workflow and executable regression review",
+          "terminal_outcome": "Exact local and remote SHA identity is required before evaluation and the report contract determines the final outcome.",
+          "steps": [
+            "Validate target_ref and expected_head_sha.",
+            "Checkout the exact SHA with persist-credentials false.",
+            "Verify local and remote branch identity.",
+            "Run evidence publisher and mutation-safety regressions.",
+            "Fail closed when the canonical report is absent, malformed, secret-bearing, or blocked."
+          ],
+          "assertions": [
+            "main and Production remain invalid mutation targets.",
+            "The verification workflow has contents: read only.",
+            "No force push, deployment, provider mutation, SQL, migration, or secret inclusion is introduced."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-operational-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prevent recurrence of unavailable pre-allocation runner contexts and unbounded report-path drift.",
+      "e2e_journeys": [
+        {
+          "id": "runner-context-regression-fails-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "CI regression gate",
+          "entrypoint": "Any future change to the PR generated-artifact refresh workflow",
+          "terminal_outcome": "The candidate is rejected if runner.temp returns to job-level env or the post-allocation bindings and bounded upload contract disappear.",
+          "steps": [
+            "Load the workflow source.",
+            "Reject any runner.temp expression in the workflow.",
+            "Require the named post-allocation initializer.",
+            "Require both RUNNER_TEMP-derived GITHUB_ENV bindings.",
+            "Require bounded upload references."
+          ],
+          "assertions": [
+            "The regression fails before merge on unavailable runner context use.",
+            "The regression fails before merge when either report path is not bound.",
+            "Secrets are not included in evidence."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-resilience-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This registration repair has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}
