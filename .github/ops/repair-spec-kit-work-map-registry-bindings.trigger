@@ -1,5 +1,5 @@
-repair_head=814947e2f355451d1d651524f3ddc4a118718619
-runner=ubuntu-24.04-arm
+repair_head=5bf8c43d1d75cbffdc91ec0b7aae11129305ab64
+runner=ubuntu-22.04
 expected_pr=6497
 expected_old_fingerprint=ea6b8ea3bee793f4009786f96f0c0dcddc320a78a1d57d1ae0d051c6a179e0f7
 expected_new_fingerprint=d6dd9551d69a4305520591f0961c4eabc1d55e54c08176d4dedc40a99437bffe
