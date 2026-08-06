@@ -11,12 +11,12 @@ permissions:
   contents: write
 
 concurrency:
-  group: repair-spec-kit-work-map-registry-bindings-${{ github.ref }}
+  group: repair-spec-kit-work-map-registry-bindings-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
   repair:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     env:
       EXPECTED_BRANCH: fix/certified-release-registration-clean-20260806
