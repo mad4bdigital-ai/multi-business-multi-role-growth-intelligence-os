@@ -2,8 +2,8 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "sql-json-asset-lookup-error-boundary",
-  "title": "JSON asset lookup error boundary for governed execution writeback",
-  "delivery_mode": "single_pr",
+  "title": "SQL-authoritative JSON asset lookup and bounded fallback failure",
+  "delivery_mode": "multi_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
@@ -21,27 +21,29 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Preserve the original provider failure and complete governed execution evidence when JSON Asset Registry reconciliation is unavailable.",
+      "objective": "Resolve prior JSON assets through the configured SQL-primary data source without initializing Google Sheets, while preserving the original provider result when any secondary lookup fails.",
       "e2e_journeys": [
         {
           "id": "provider-failure-survives-json-asset-lookup-failure",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "System tool dispatcher recording a failed GitHub provider execution",
-          "entrypoint": "performUniversalServerWriteback with a failed github_get_git_ref_head result and an unavailable JSON Asset Registry lookup",
-          "terminal_outcome": "The original provider error remains authoritative, the execution log and JSON asset evidence are written, and the secondary registry lookup failure is emitted only as a bounded warning.",
+          "entrypoint": "performUniversalServerWriteback with failed github_get_git_ref_head results under SQL and Sheets data-source modes",
+          "terminal_outcome": "SQL mode reuses the latest active transported JSON asset without invoking Sheets, while Sheets lookup failure remains a bounded warning and neither path replaces the original provider error.",
           "steps": [
-            "Submit a failed GitHub provider result to the universal writeback orchestration with SQL runtime authority.",
-            "Force JSON Asset Registry reconciliation to throw the missing governed spreadsheet identifier error.",
-            "Continue the governed writeback path and persist execution-log and JSON-asset evidence.",
-            "Read back the returned writeback state and captured warning to verify that the provider failure was not masked."
+            "Submit a failed GitHub provider result to universal writeback in Sheets mode and force the existing-asset lookup to throw the missing spreadsheet identifier error.",
+            "Verify that governed execution-log and JSON-asset evidence continue and that the provider failure remains authoritative.",
+            "Submit a second failed provider result in SQL mode and resolve matching JSON Asset Registry rows through the SQL-primary data-source adapter.",
+            "Select the latest active transported asset, suppress duplicate JSON-asset insertion, and prove that the injected Sheets lookup was never invoked.",
+            "Read back both writeback results, execution-log evidence, JSON-asset counts, lookup calls, and captured warnings."
           ],
           "assertions": [
-            "The returned status, error code, and short message remain the original provider failure values.",
-            "Exactly one Execution Log Unified row is written with failed status.",
-            "A JSON asset row is still written even though prior-asset lookup failed.",
-            "The governed pre-response log guard remains passed.",
-            "The missing spreadsheet identifier appears only in the bounded warning and does not replace the provider result."
+            "Both returned status, error code, and short message values remain the original provider failure values.",
+            "Sheets mode does not invoke the SQL lookup and its missing spreadsheet error appears only as a bounded warning.",
+            "SQL mode invokes JSON Asset Registry findRows exactly once with asset_key and never invokes the Sheets lookup.",
+            "A SQL row with active_status 1 and a non-empty transport_status is accepted as the existing authoritative asset.",
+            "The Sheets failure path writes a JSON asset row, while the SQL existing-asset path avoids a duplicate row.",
+            "Each execution writes one Execution Log Unified row and preserves the governed pre-response log guard."
           ],
           "tests": [
             {
@@ -65,17 +67,17 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Add structured observability and alert classification for degraded secondary writeback dependencies without changing provider authority."
+      "objective": "Add structured observability for SQL lookup latency, fallback classification, and degraded secondary writeback dependencies without changing provider authority."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise additional registry, storage, and execution-log dependency failures while proving bounded continuation and deterministic evidence."
+      "objective": "Exercise SQL, Sheets fallback, storage, and execution-log dependency failures while proving bounded continuation and deterministic evidence."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Validate the same failure boundary against a live non-production SQL-authoritative runtime."
+      "objective": "Validate SQL-authoritative lookup and Sheets suppression against a live non-production runtime."
     },
     {
       "id": "production",
