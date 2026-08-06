@@ -66,7 +66,8 @@ jobs:
             (.main_sha | test("^[0-9a-f]{40}$")) and
             (.production_sha | test("^[0-9a-f]{40}$")) and
             (.candidate_sha | test("^[0-9a-f]{40}$")) and
-            (.release_pr | test("^[0-9]+$"))
+            (.release_pr | test("^[0-9]+$")) and
+            (.validation_pr | test("^[0-9]+$"))
           ' "$EVIDENCE_PATH" >/dev/null
 
           REQUEST_PR="$(jq -r '.request_pr' "$EVIDENCE_PATH")"
@@ -74,6 +75,7 @@ jobs:
           PRODUCTION_SHA="$(jq -r '.production_sha' "$EVIDENCE_PATH")"
           CANDIDATE_SHA="$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
           RELEASE_PR="$(jq -r '.release_pr' "$EVIDENCE_PATH")"
+          VALIDATION_PR="$(jq -r '.validation_pr' "$EVIDENCE_PATH")"
 
           {
             echo "request_pr=$REQUEST_PR"
@@ -81,6 +83,7 @@ jobs:
             echo "production_sha=$PRODUCTION_SHA"
             echo "candidate_sha=$CANDIDATE_SHA"
             echo "release_pr=$RELEASE_PR"
+            echo "validation_pr=$VALIDATION_PR"
             echo "evidence_path=$EVIDENCE_PATH"
           } >> "$GITHUB_OUTPUT"
 
@@ -175,16 +178,17 @@ jobs:
         shell: bash
         env:
           RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
+          VALIDATION_PR: ${{ steps.evidence.outputs.validation_pr }}
           CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
           PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
           PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
         run: |
           set -Eeuo pipefail
-          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} validation_pr=${VALIDATION_PR} merge_executed=false deployment_executed=false"
 
           gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,headRefName,baseRefName \
-            --jq '.[] | select(.baseRefName == "Production" and (.headRefName | startswith("release/production-"))) | [.number, .headRefName] | @tsv' |
+            --json number,title,headRefName,baseRefName \
+            --jq '.[] | select(.baseRefName == "Production" and (.title | startswith("release: promote pinned main "))) | [.number, .headRefName] | @tsv' |
           while IFS=$'\t' read -r pr_number head_branch; do
             [[ -n "$pr_number" ]] || continue
             if [[ "$pr_number" == "$RELEASE_PR" ]]; then
@@ -195,11 +199,11 @@ jobs:
           done
 
           gh pr list --repo "$REPOSITORY" --state open --limit 200 \
-            --json number,headRefName \
-            --jq '.[] | select(.headRefName | startswith("gpt/validate-production-candidate-")) | [.number, .headRefName] | @tsv' |
+            --json number,title,headRefName \
+            --jq '.[] | select(.title | startswith("ci: validate exact Production candidate ")) | [.number, .headRefName] | @tsv' |
           while IFS=$'\t' read -r pr_number head_branch; do
             [[ -n "$pr_number" ]] || continue
-            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_EXACT_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "SUPERSEDED_EXACT_VALIDATION authoritative_release_pr=${RELEASE_PR} authoritative_validation_pr=${VALIDATION_PR} authoritative_candidate=${CANDIDATE_SHA} head_branch=${head_branch} merge_executed=false deployment_executed=false" || true
             gh pr close "$pr_number" --repo "$REPOSITORY" || true
           done
 
@@ -215,6 +219,7 @@ jobs:
           - source convergence run: \`${SOURCE_RUN_ID}\`
           - candidate: \`${{ steps.evidence.outputs.candidate_sha }}\`
           - release PR: \`${{ steps.evidence.outputs.release_pr }}\`
+          - validation PR: \`${{ steps.evidence.outputs.validation_pr }}\`
           - final freshness stable: \`${{ steps.readback.outputs.stable }}\`
           - readback reason: \`${{ steps.readback.outputs.reason }}\`
           - merge executed: false
