@@ -1,6 +1,6 @@
 name: PR 6429 Spec 014 binding refresh
 
-# trigger: arm-v1
+# trigger: arm-v2
 on:
   push:
     branches:
