@@ -51,7 +51,12 @@ for (const workflow of liveWorkflows) {
     `live workflow must not retain the retired bridge bound to closed control issue #4953: ${workflow.name}`,
   );
 }
-const liveWorkflowText = liveWorkflows.map((workflow) => workflow.text).join("\n");
+
+const retirementSelfTestInvocation =
+  "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs";
+const liveWorkflowText = liveWorkflows
+  .map((workflow) => workflow.text.replaceAll(retirementSelfTestInvocation, ""))
+  .join("\n");
 assert.doesNotMatch(liveWorkflowText, /RUN_PRODUCTION_RUNTIME_PARITY\b/u);
 assert.doesNotMatch(liveWorkflowText, /production-runtime-parity-comment-bridge/u);
 
