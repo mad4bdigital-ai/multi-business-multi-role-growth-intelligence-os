@@ -1,0 +1,7 @@
+attempt=1
+pin_main_at_job_start=true
+static_workspace_upload_paths=true
+publish_ref=false
+force_push=false
+production_mutation=false
+secrets_included=false
