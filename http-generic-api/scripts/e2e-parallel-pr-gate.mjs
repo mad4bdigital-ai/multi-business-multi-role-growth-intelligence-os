@@ -234,6 +234,101 @@ function resolveParents(root, headSha) {
   }
 }
 
+
+const DEFAULT_BRANCH_SYNC_GENERATED_RESOLUTION_PATTERNS = [
+  /^docs\/work-maps\/[^/]+\.md$/,
+  /^http-generic-api\/frontend-(?:operation-governance|surface-dispatch)\.generated\.json$/,
+  /^specs\/[^/]+\/work-map-integration\.json$/
+];
+
+function changedFilesForRange(root, range) {
+  try {
+    return execFileSync("git", ["diff", "--name-only", range], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).split(/\r?\n/).map(normalize).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+function resolveBlob(root, ref, file) {
+  if (!ref || !file) return null;
+  try {
+    const value = execFileSync("git", ["rev-parse", "--verify", ref + ":" + file], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    return /^[0-9a-f]{40}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function isGeneratedReconciliationPath(file) {
+  const normalized = normalize(file);
+  return DEFAULT_BRANCH_SYNC_GENERATED_RESOLUTION_PATTERNS.some((pattern) => pattern.test(normalized));
+}
+
+function classifyDefaultBranchSynchronization({ root, headRef, baseRef, headSha, baseSha, changedFiles }) {
+  if (headRef === "main" && Boolean(baseRef) && baseRef !== "Production") {
+    return { allowed: true, identity: "protected_main" };
+  }
+  if (
+    !/^gpt\/reconcile\/[A-Za-z0-9._/-]+$/.test(headRef || "") ||
+    !baseRef ||
+    baseRef === "main" ||
+    baseRef === "Production" ||
+    !/^[0-9a-f]{40}$/.test(headSha || "") ||
+    !/^[0-9a-f]{40}$/.test(baseSha || "")
+  ) {
+    return { allowed: false, identity: null };
+  }
+
+  const mainRef = resolveCanonicalMainRef(root);
+  const mainSha = resolveCommit(root, mainRef);
+  const parents = resolveParents(root, headSha);
+  if (
+    !mainSha ||
+    parents.length !== 2 ||
+    parents[1] !== mainSha ||
+    !isAncestor(root, baseSha, parents[0]) ||
+    !isAncestor(root, baseSha, headSha) ||
+    !isAncestor(root, mainSha, headSha)
+  ) {
+    return { allowed: false, identity: null, main_sha: mainSha };
+  }
+
+  const normalizedChangedFiles = [...new Set((changedFiles || []).map(normalize).filter(Boolean))].sort();
+  const mainDelta = new Set(changedFilesForRange(root, baseSha + "..." + mainSha));
+  const unexpectedFiles = normalizedChangedFiles.filter((file) => !mainDelta.has(file));
+  const novelResolutionFiles = normalizedChangedFiles.filter((file) => {
+    const headBlob = resolveBlob(root, headSha, file);
+    const mainBlob = resolveBlob(root, mainSha, file);
+    const firstParentBlob = resolveBlob(root, parents[0], file);
+    return headBlob !== mainBlob && headBlob !== firstParentBlob;
+  });
+  const unsafeResolutionFiles = novelResolutionFiles.filter((file) => !isGeneratedReconciliationPath(file));
+  if (!mainDelta.size || unexpectedFiles.length || unsafeResolutionFiles.length) {
+    return {
+      allowed: false,
+      identity: null,
+      main_sha: mainSha,
+      unexpected_files: unexpectedFiles,
+      unsafe_resolution_files: unsafeResolutionFiles
+    };
+  }
+  return {
+    allowed: true,
+    identity: "history_preserving_feature_branch_main_sync",
+    main_sha: mainSha,
+    synchronized_file_count: normalizedChangedFiles.length,
+    generated_resolution_files: novelResolutionFiles
+  };
+}
+
 function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {
   if (headRef === "main" && baseRef === "Production") {
     return { allowed: true, identity: "protected_main" };
@@ -335,9 +430,15 @@ function main() {
   if (!productionPromotion && integrations.length > 1) addFinding(report, "parallel_work_pr_must_have_single_integration_contract", { active: integrations.map((row) => row.contract.feature_key) });
   if (!productionPromotion && active.length && integrations.length) addFinding(report, "parallel_work_pr_cannot_be_workstream_and_integration", {});
 
-  const defaultBranchSync = options.headRef === "main"
-    && Boolean(options.baseRef)
-    && options.baseRef !== "Production";
+  const defaultBranchSynchronization = classifyDefaultBranchSynchronization({
+    root: options.root,
+    headRef: options.headRef,
+    baseRef: options.baseRef,
+    headSha: options.head,
+    baseSha: options.base,
+    changedFiles: report.changed_files
+  });
+  const defaultBranchSync = defaultBranchSynchronization.allowed;
 
   let mode = "standard";
   let featureKey = "";
@@ -393,6 +494,11 @@ function main() {
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
   report.phase_evaluation_base = phaseEvaluationBase;
+  report.default_branch_sync_identity = defaultBranchSynchronization.identity;
+  report.default_branch_sync_main_sha = defaultBranchSynchronization.main_sha || null;
+  report.default_branch_sync_unexpected_files = defaultBranchSynchronization.unexpected_files || [];
+  report.default_branch_sync_unsafe_resolution_files = defaultBranchSynchronization.unsafe_resolution_files || [];
+  report.default_branch_sync_generated_resolution_files = defaultBranchSynchronization.generated_resolution_files || [];
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,

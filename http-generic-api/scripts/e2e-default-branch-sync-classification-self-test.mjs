@@ -119,4 +119,39 @@ assert.notEqual(undeclared.status, 0, JSON.stringify({ status: undeclared.status
 const undeclaredReport = JSON.parse(undeclared.stdout);
 assert(undeclaredReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
 
-console.log(JSON.stringify({ ok: true, tests: 11, default_branch_sync: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));
+run("git", ["checkout", "-b", "feature-target", baseSha], root);
+run("git", ["merge", "--no-ff", "--no-edit", headSha], root);
+const reconciliationSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const reconciliationReport = JSON.parse(run(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", reconciliationSha, "--head-ref", "gpt/reconcile/feature-target-main-sync", "--base-ref", "gpt/feature-target"], root));
+assert.equal(reconciliationReport.ok, true, JSON.stringify(reconciliationReport.findings));
+assert.equal(reconciliationReport.pr_mode, "default_branch_sync");
+assert.equal(reconciliationReport.default_branch_sync_identity, "history_preserving_feature_branch_main_sync");
+assert.equal(reconciliationReport.default_branch_sync_main_sha, headSha);
+assert.deepEqual(reconciliationReport.default_branch_sync_unsafe_resolution_files, []);
+
+run("git", ["checkout", "-b", "feature-target-with-extra", baseSha], root);
+run("git", ["merge", "--no-ff", "--no-commit", headSha], root);
+fs.writeFileSync(path.join(root, "http-generic-api", "scripts", "unrelated-reconciliation-extra.mjs"), "export const unrelated = true;\n");
+run("git", ["add", "."], root);
+run("git", ["commit", "-m", "unsafe reconciliation with unrelated file"], root);
+const unsafeExtraSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const unsafeExtra = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", unsafeExtraSha, "--head-ref", "gpt/reconcile/feature-target-unsafe-extra", "--base-ref", "gpt/feature-target"], { cwd: root, encoding: "utf8" });
+assert.notEqual(unsafeExtra.status, 0, JSON.stringify({ status: unsafeExtra.status, stdout: unsafeExtra.stdout, stderr: unsafeExtra.stderr }));
+const unsafeExtraReport = JSON.parse(unsafeExtra.stdout);
+assert.equal(unsafeExtraReport.pr_mode, "standard");
+assert(unsafeExtraReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
+
+run("git", ["checkout", "-b", "feature-target-with-tamper", baseSha], root);
+run("git", ["merge", "--no-ff", "--no-commit", headSha], root);
+fs.writeFileSync(path.join(root, gatePath), "export const version = 3;\n");
+run("git", ["add", "."], root);
+run("git", ["commit", "-m", "unsafe reconciliation with non-generated conflict resolution"], root);
+const unsafeTamperSha = run("git", ["rev-parse", "HEAD"], root).trim();
+const unsafeTamper = spawnSync(process.execPath, [GATE, "--root", root, "--base", baseSha, "--head", unsafeTamperSha, "--head-ref", "gpt/reconcile/feature-target-unsafe-tamper", "--base-ref", "gpt/feature-target"], { cwd: root, encoding: "utf8" });
+assert.notEqual(unsafeTamper.status, 0, JSON.stringify({ status: unsafeTamper.status, stdout: unsafeTamper.stdout, stderr: unsafeTamper.stderr }));
+const unsafeTamperReport = JSON.parse(unsafeTamper.stdout);
+assert.equal(unsafeTamperReport.pr_mode, "standard");
+assert.deepEqual(unsafeTamperReport.default_branch_sync_unsafe_resolution_files, [gatePath]);
+assert(unsafeTamperReport.findings.some((finding) => finding.code === "parallel_work_pr_branch_not_declared"));
+
+console.log(JSON.stringify({ ok: true, tests: 25, default_branch_sync: true, history_preserving_feature_branch_sync: true, unrelated_file_rejected: true, non_generated_conflict_resolution_rejected: true, production_promotion_preserved: true, undeclared_feature_fail_closed: true, secrets_included: false }));

@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "e2e-history-preserving-feature-branch-main-sync",
+  "title": "History-preserving feature-branch main synchronization classification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/e2e-history-preserving-feature-branch-main-sync.json",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Classify a non-protected feature-branch reconciliation as default-branch synchronization only when it is a current-main merge and its complete PR delta contains no unrelated path or ungoverned conflict resolution.",
+      "e2e_journeys": [
+        {
+          "id": "history-preserving-feature-branch-main-sync-classification",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance runner",
+          "entrypoint": "A gpt/reconcile helper PR targets a governed non-protected feature branch.",
+          "terminal_outcome": "The helper is classified as bounded default-branch synchronization only when current-main parent topology, the main-delta file subset, and generated-conflict-resolution constraints all pass.",
+          "steps": [
+            "Resolve the canonical current main commit and candidate merge parents.",
+            "Require the candidate second parent to equal current main and the PR base to be an ancestor of the first parent.",
+            "Compute the exact base-to-main delta and compare every PR-visible changed path against it.",
+            "Compare candidate blobs with main and first-parent blobs to identify novel conflict resolutions.",
+            "Allow novel resolutions only on registered generated Work Map, frontend-governance, and Spec binding artifacts.",
+            "Reject unrelated paths and non-generated conflict-resolution tampering before phase execution is skipped."
+          ],
+          "assertions": [
+            "Production and main remain forbidden helper targets.",
+            "Only gpt/reconcile branches can use the feature-branch synchronization classifier.",
+            "The merge has exactly two parents and its second parent is the canonical current main commit.",
+            "The PR base is an ancestor of the merge first parent and final head.",
+            "Every changed file is present in the exact base-to-main delta.",
+            "A candidate blob differing from both main and the feature first parent is accepted only on bounded generated-artifact paths.",
+            "An unrelated file or non-generated conflict resolution keeps the candidate in standard mode and fails closed."
+          ],
+          "tests": [
+            {
+              "id": "e2e-history-preserving-main-sync-classifier-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/e2e-history-preserving-feature-branch-main-sync.json",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+            "http-generic-api/scripts/e2e-default-branch-sync-classification-self-test.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
