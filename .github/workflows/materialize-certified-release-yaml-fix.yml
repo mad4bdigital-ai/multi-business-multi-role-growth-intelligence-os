@@ -70,13 +70,15 @@ jobs:
 
           test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
           test = test_path.read_text()
-          old = '''assert.ok(workflow.includes("if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\"));'''
-          new = '''assert.ok(workflow.includes(`if: "startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"`));
-assert.ok(finalize.includes(`if: "always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"`));
-assert.doesNotMatch(workflow, /^\\s+if:\\s+(?:always\\(\\)\\s+&&\\s+)?startsWith\\(github\\.event\\.pull_request\\.title,\\s+'test\\(release\\):/m);'''
+          old = """assert.ok(workflow.includes("if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"));"""
+          new_lines = [
+              "assert.ok(workflow.includes(`if: \"startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\"`));",
+              "assert.ok(finalize.includes(`if: \"always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\"`));",
+              r"assert.doesNotMatch(workflow, /^\s+if:\s+(?:always\(\)\s+&&\s+)?startsWith\(github\.event\.pull_request\.title,\s+'test\(release\):/m);",
+          ]
           if test.count(old) != 1:
               raise SystemExit('expected unquoted condition assertion exactly once')
-          test_path.write_text(test.replace(old, new))
+          test_path.write_text(test.replace(old, '\n'.join(new_lines)))
           PY
 
           git diff --check
