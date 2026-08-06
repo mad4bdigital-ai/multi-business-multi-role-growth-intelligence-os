@@ -1,0 +1,124 @@
+name: Work Map Refresh PR 6484 R4 Once
+
+on:
+  push:
+    branches:
+      - gpt/fix-production-runtime-parity-runner-context-20260806
+    paths:
+      - .github/workflows/work-map-refresh-pr6484-r4-once.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: work-map-refresh-pr6484-r4-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/fix-production-runtime-parity-runner-context-20260806
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify immutable PR binding
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_BRANCH: gpt/fix-production-runtime-parity-runner-context-20260806
+          EXPECTED_PR: '6484'
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          test "$(git rev-parse --abbrev-ref HEAD)" = "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${EXPECTED_PR}" --jq '.state')" = open
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${EXPECTED_PR}" --jq '.draft')" = true
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${EXPECTED_PR}" --jq '.head.ref')" = "${EXPECTED_BRANCH}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${EXPECTED_PR}" --jq '.head.sha')" = "${GITHUB_SHA}"
+          test "$(gh api "/repos/${GITHUB_REPOSITORY}/pulls/${EXPECTED_PR}" --jq '.base.ref')" = main
+
+      - name: Generate final-tree Work Maps and registry bindings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          writer='.github/workflows/work-map-refresh-pr6484-r4-once.yml'
+          rm -f "${writer}"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { buildEffectiveWorkMapRegistry } from './http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs';
+
+          const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root: process.cwd() });
+          if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
+            throw new Error(`Unexpected registry shape: maps=${effectiveRegistry.maps.length}, domains=${effectiveRegistry.domains.length}`);
+          }
+          if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
+            throw new Error('Work Map registry contains unresolved objects or taxonomy gaps');
+          }
+
+          const paths = [
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json'
+          ];
+          const registry = {
+            fingerprint: effectiveRegistry.fingerprint,
+            index_source_hash: effectiveRegistry.signature.index_source_hash,
+            coverage_source_hash: effectiveRegistry.signature.coverage_source_hash,
+            map_count: effectiveRegistry.maps.length,
+            domain_count: effectiveRegistry.domains.length,
+            uncategorized_count: effectiveRegistry.uncategorized_objects.length,
+            taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length
+          };
+          for (const path of paths) {
+            const value = JSON.parse(fs.readFileSync(path, 'utf8'));
+            value.registry = registry;
+            fs.writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
+          }
+          console.log(JSON.stringify({ ok: true, registry }, null, 2));
+          NODE
+
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            '.github/workflows/work-map-refresh-pr6484-r4-once.yml'
+            'docs/work-maps/README.md'
+            'docs/work-maps/repository-automation-map.md'
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json'
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for index in "${!expected[@]}"; do
+            test "${changed[$index]}" = "${expected[$index]}"
+          done
+
+          node http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-autofix-diagnostics.mjs
+
+      - name: Commit and fast-forward clean final tree
+        shell: bash
+        env:
+          EXPECTED_BRANCH: gpt/fix-production-runtime-parity-runner-context-20260806
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin "refs/heads/${EXPECTED_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/work-map-refresh-pr6484-r4-once.yml docs/work-maps/README.md docs/work-maps/repository-automation-map.md specs/014-governed-hostinger-storage-orchestration/work-map-integration.json specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git commit -m 'docs(work-maps): refresh combined PR 6484 final tree'
+          git push origin "HEAD:refs/heads/${EXPECTED_BRANCH}"
