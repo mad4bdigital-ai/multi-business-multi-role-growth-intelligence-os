@@ -1,4 +1,4 @@
-name: Transport Response Main Sync Diagnostic
+name: Transport Response Main Sync Writer
 
 on:
   push:
@@ -8,67 +8,73 @@ on:
       - .github/workflows/transport-response-main-sync-writer.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: transport-response-main-sync-diagnostic
+  group: transport-response-main-sync-writer
   cancel-in-progress: false
 
 jobs:
-  diagnose:
+  write:
     if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref == 'refs/heads/fix/transport-response-schema-promotion-readiness-20260806'
     runs-on: ubuntu-24.04
+    env:
+      TARGET_BRANCH: fix/transport-response-schema-promotion-readiness-20260806
+      WORKFLOW_PATH: .github/workflows/transport-response-main-sync-writer.yml
+      EXPECTED_CONTENT_HEAD: dbe15418f3ef4edf0336db181fa8ab1360726b73
+      EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
     steps:
       - name: Check out exact repair branch
         uses: actions/checkout@v5
         with:
-          ref: fix/transport-response-schema-promotion-readiness-20260806
+          ref: ${{ env.TARGET_BRANCH }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
-      - name: Verify pinned inputs
+      - name: Verify pinned inputs and bounded workflow-only repair chain
         shell: bash
-        env:
-          EXPECTED_CONTENT_HEAD: dbe15418f3ef4edf0336db181fa8ab1360726b73
-          EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
         run: |
           set -Eeuo pipefail
-          workflow='.github/workflows/transport-response-main-sync-writer.yml'
-          git fetch origin main
+          git fetch --no-tags origin main
           test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
-          test "$(git diff --name-only "${EXPECTED_CONTENT_HEAD}" HEAD)" = "${workflow}"
+          test "$(git merge-base "${EXPECTED_CONTENT_HEAD}" HEAD)" = "${EXPECTED_CONTENT_HEAD}"
+          mapfile -t repair_files < <(git diff --name-only "${EXPECTED_CONTENT_HEAD}" HEAD | sed '/^$/d')
+          test "${#repair_files[@]}" -eq 1
+          test "${repair_files[0]}" = "${WORKFLOW_PATH}"
+          test -z "$(git status --porcelain)"
 
-      - name: Remove diagnostic workflow locally
+      - name: Merge pinned main on a clean tree
         shell: bash
         run: |
           set -Eeuo pipefail
-          workflow='.github/workflows/transport-response-main-sync-writer.yml'
-          git rm --cached --ignore-unmatch -- "${workflow}"
-          rm -f -- "${workflow}"
-          test ! -e "${workflow}"
-
-      - name: Merge pinned main locally
-        shell: bash
-        env:
-          EXPECTED_MAIN_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
-        run: |
-          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           set +e
           git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
           merge_rc=$?
           set -e
-          mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sed '/^$/d')
           if (( merge_rc != 0 )); then
-            test "${#conflicts[@]}" = '1'
-            test "${conflicts[0]}" = 'docs/work-maps/README.md'
+            test "${#conflicts[@]}" -eq 1
+            test "${conflicts[0]}" = "docs/work-maps/README.md"
             git checkout --theirs -- docs/work-maps/README.md
-            git add docs/work-maps/README.md
+            git add -- docs/work-maps/README.md
           else
-            test "${#conflicts[@]}" = '0'
+            test "${#conflicts[@]}" -eq 0
           fi
           test -f .git/MERGE_HEAD
           test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
           test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --check
+          git commit -m "chore: merge main into migration 1048 readiness"
+          test -z "$(git status --porcelain)"
+
+      - name: Remove temporary writer after synchronization
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git rm -- "${WORKFLOW_PATH}"
+          test ! -e "${WORKFLOW_PATH}"
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -90,42 +96,55 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Check pipeline connectivity
+      - name: Verify exact repair scope
         shell: bash
-        run: node http-generic-api/scripts/pipeline-connectivity-check.mjs
+        run: |
+          set -Eeuo pipefail
+          expected=(
+            "${WORKFLOW_PATH}"
+            "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
+          )
+          mapfile -t actual < <(git diff --name-only HEAD -- . | sed '/^$/d' | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#actual[@]}" -eq 5
+          diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${actual[@]}")
+          grep -Eq -- '^- Source hash \(SHA-256\): `[0-9a-f]{64}`$' docs/work-maps/README.md
 
-      - name: Check Work Map schema contract
+      - name: Run focused Work Map and migration verification
         shell: bash
-        run: node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/test-platform-work-map-generator.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+          node http-generic-api/test-work-map-schema-classification.mjs
+          node http-generic-api/test-work-map-schema-classification-contract.mjs
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          node http-generic-api/test-transport-response-chunk-schema-recovery.mjs
+          node http-generic-api/scripts/surface-contract-discovery.mjs --check
 
-      - name: Check Work Map schema classification
+      - name: Commit and push bounded Work Map repair
         shell: bash
-        run: node http-generic-api/scripts/work-map-schema-classification.mjs
-
-      - name: Test Work Map generator
-        shell: bash
-        run: node http-generic-api/test-platform-work-map-generator.mjs
-
-      - name: Test pipeline connectivity
-        shell: bash
-        run: node http-generic-api/test-pipeline-connectivity-check.mjs
-
-      - name: Test Work Map schema classification
-        shell: bash
-        run: node http-generic-api/test-work-map-schema-classification.mjs
-
-      - name: Test Work Map schema contract
-        shell: bash
-        run: node http-generic-api/test-work-map-schema-classification-contract.mjs
-
-      - name: Test Spec Kit Work Map governance
-        shell: bash
-        run: node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
-
-      - name: Test migration 1048 regression
-        shell: bash
-        run: node http-generic-api/test-transport-response-chunk-schema-recovery.mjs
-
-      - name: Check Surface Contract outputs
-        shell: bash
-        run: node http-generic-api/scripts/surface-contract-discovery.mjs --check
+        run: |
+          set -Eeuo pipefail
+          expected=(
+            "${WORKFLOW_PATH}"
+            "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
+          )
+          git add -A -- "${expected[@]}"
+          mapfile -t staged < <(git diff --cached --name-only | sed '/^$/d' | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#staged[@]}" -eq 5
+          diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${staged[@]}")
+          git diff --cached --check
+          git commit -m "docs(work-maps): refresh migration 1048 readiness maps"
+          test -z "$(git status --porcelain)"
+          git push origin "HEAD:${TARGET_BRANCH}"
