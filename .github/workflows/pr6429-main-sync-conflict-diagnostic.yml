@@ -1,5 +1,6 @@
 name: PR 6429 governed main reconciliation
 
+# trigger: execute-pinned-main-fa225f7-v1
 on:
   push:
     branches:
