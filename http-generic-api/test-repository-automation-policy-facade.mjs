@@ -196,6 +196,18 @@ await assert.rejects(
   }, { auth: { caller_type: "admin" } }),
   (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
 );
+await assert.rejects(
+  runGithubRepositoryPolicyController({
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    capability_envelope_id: "e".repeat(65),
+  }, { auth: { caller_type: "admin" } }),
+  (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
+);
 
 let invalidAutomationProviderCalls = 0;
 await assert.rejects(
@@ -241,6 +253,29 @@ await assert.rejects(
   (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
 );
 assert.equal(missingEnvelopeProviderCalls, 0, "Missing capability envelope must fail before readback or provider access.");
+
+let overlongEnvelopeProviderCalls = 0;
+await assert.rejects(
+  runRepositoryAutomation({
+    automation_key: "repository_policy",
+    mode: "apply",
+    owner: OWNER,
+    repo: REPO,
+    expected_main_sha: MAIN_SHA,
+    expected_policy_fingerprint: policyPlan.policy_fingerprint,
+    confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+    capability_envelope_id: "e".repeat(65),
+  }, {
+    persist: false,
+    policyController: async () => {
+      overlongEnvelopeProviderCalls += 1;
+      return readback;
+    },
+    auth: { caller_type: "admin" },
+  }),
+  (error) => error?.code === "github_repository_policy_capability_envelope_invalid"
+);
+assert.equal(overlongEnvelopeProviderCalls, 0, "Overlong capability envelope ID must fail before readback or provider access.");
 
 const calls = [];
 const policyController = async (args) => {
@@ -390,6 +425,7 @@ console.log(JSON.stringify({
   invalid_authority_inputs_have_distinct_plan_identity: true,
   invalid_apply_rejected_before_provider_readback: true,
   missing_capability_envelope_rejected_before_provider_readback: true,
+  overlong_capability_envelope_rejected_without_truncation: true,
   admin_rejected_before_authority_validation: true,
   capability_envelope_reference_not_exposed: true,
   dry_run_default_no_mutation: true,
