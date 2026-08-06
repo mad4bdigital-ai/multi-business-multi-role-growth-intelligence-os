@@ -48,6 +48,124 @@ jobs:
         working-directory: http-generic-api
         run: npm ci
 
+      - name: Apply transport envelope classification patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          service_path = Path("http-generic-api/services/localConnectorOrchestrator.js")
+          service = service_path.read_text()
+
+          function_anchor = '''export async function readLocalConnectorResponse(response, { operation = "local_connector_call" } = {}) {'''
+          classifier = '''function classifyLocalConnectorEnvelopeFailure(code, message) {
+            const normalizedCode = String(code || "").trim().toUpperCase();
+            const normalizedMessage = String(message || "").trim();
+
+            if (
+              ["UNAUTHORIZED", "AUTHENTICATION_FAILED", "INVALID_CREDENTIAL", "INVALID_CREDENTIALS"].includes(normalizedCode) ||
+              /missing or invalid connector credential|invalid connector credential/iu.test(normalizedMessage)
+            ) {
+              return classifyLocalConnectorHttpFailure(401);
+            }
+            if (["FORBIDDEN", "PERMISSION_DENIED", "SCOPE_DENIED"].includes(normalizedCode)) {
+              return classifyLocalConnectorHttpFailure(403);
+            }
+            if (["TIMEOUT", "REQUEST_TIMEOUT", "GATEWAY_TIMEOUT"].includes(normalizedCode)) {
+              return classifyLocalConnectorHttpFailure(504);
+            }
+            return null;
+          }
+
+          export async function readLocalConnectorResponse(response, { operation = "local_connector_call" } = {}) {'''
+          if service.count(function_anchor) != 1:
+              raise SystemExit("readLocalConnectorResponse anchor mismatch")
+          service = service.replace(function_anchor, classifier, 1)
+
+          old_failure = '''  if (payload.ok === false) {
+            const payloadCode = String(payload?.error?.code || "").trim();
+            const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
+            throw localConnectorError(
+              payloadCode || "connector_operation_failed",
+              payloadMessage,
+              status >= 400 ? status : 400,
+              {
+                operation,
+                reason: payloadCode || "operation_failed",
+                retryable: false,
+                upstream_status: status || null,
+                request_id: requestId,
+              },
+            );
+          }'''
+          new_failure = '''  if (payload.ok === false) {
+            const payloadCode = String(payload?.error?.code || "").trim();
+            const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
+            const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
+            throw localConnectorError(
+              classification?.code || payloadCode || "connector_operation_failed",
+              payloadMessage,
+              classification?.http_status || (status >= 400 ? status : 400),
+              {
+                operation,
+                reason: classification?.reason || payloadCode || "operation_failed",
+                retryable: classification?.retryable || false,
+                upstream_status: status || null,
+                request_id: requestId,
+                content_type: contentType || null,
+                response_excerpt: redactConnectorExcerpt(responseText),
+              },
+            );
+          }'''
+          if service.count(old_failure) != 1:
+              raise SystemExit("payload failure block mismatch")
+          service = service.replace(old_failure, new_failure, 1)
+          service_path.write_text(service)
+
+          test_path = Path("http-generic-api/test-local-connector-transport-errors.mjs")
+          test = test_path.read_text()
+          test_anchor = '''await assert.rejects(
+            () => readLocalConnectorResponse(fakeResponse({
+              status: 200,
+              contentType: "text/plain",
+              body: "not-json",
+            })),'''
+          regression = '''await assert.rejects(
+            () => readLocalConnectorResponse(fakeResponse({
+              status: 200,
+              headers: { "x-request-id": "envelope-auth-1" },
+              body: JSON.stringify({
+                ok: false,
+                error: {
+                  code: "UNAUTHORIZED",
+                  message: "Missing or invalid connector credential",
+                },
+              }),
+            }), { operation: "connectorPowerShell" }),
+            (error) => {
+              assert.equal(error.code, "connector_credential_invalid");
+              assert.equal(error.http_status, 401);
+              assert.equal(error.retryable, false);
+              assert.equal(error.details.reason, "credential_invalid");
+              assert.equal(error.details.request_id, "envelope-auth-1");
+              assert.equal(error.details.operation, "connectorPowerShell");
+              return true;
+            },
+          );
+
+          await assert.rejects(
+            () => readLocalConnectorResponse(fakeResponse({
+              status: 200,
+              contentType: "text/plain",
+              body: "not-json",
+            })),'''
+          if test.count(test_anchor) != 1:
+              raise SystemExit("transport test anchor mismatch")
+          test = test.replace(test_anchor, regression, 1)
+          test_path.write_text(test)
+          PY
+
       - name: Remove one-time writer before generation
         run: git rm .github/workflows/transport-response-delivery-refresh-once.yml
 
@@ -75,7 +193,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          unexpected="$(git status --porcelain | sed -E 's/^.. //' | grep -Ev '^(\.github/workflows/transport-response-delivery-refresh-once\.yml|docs/work-maps/|http-generic-api/frontend-operation-governance\.generated\.(json|md|yaml)|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/frontend-registry-closure-report\.(json|md)|http-generic-api/skill-inventory\.generated\.md|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          unexpected="$(git status --porcelain | sed -E 's/^.. //' | grep -Ev '^(\.changes/e2e/transport-response-delivery-recovery\.json|\.github/workflows/transport-response-delivery-refresh-once\.yml|docs/work-maps/(README|data-model-domain-map|migration-lifecycle-map|observability-release-map|work-map-coverage-matrix)\.md|http-generic-api/services/localConnectorOrchestrator\.js|http-generic-api/test-local-connector-transport-errors\.mjs|http-generic-api/frontend-operation-governance\.generated\.(json|md|yaml)|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/frontend-registry-closure-report\.(json|md)|http-generic-api/skill-inventory\.generated\.md|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
           if [[ -n "${unexpected}" ]]; then
             echo "Unexpected generated mutation paths:" >&2
             printf '%s\n' "${unexpected}" >&2
@@ -91,7 +209,15 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .github/workflows/transport-response-delivery-refresh-once.yml docs/work-maps \
+          git add .changes/e2e/transport-response-delivery-recovery.json \
+            .github/workflows/transport-response-delivery-refresh-once.yml \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/migration-lifecycle-map.md \
+            docs/work-maps/observability-release-map.md \
+            docs/work-maps/work-map-coverage-matrix.md \
+            http-generic-api/services/localConnectorOrchestrator.js \
+            http-generic-api/test-local-connector-transport-errors.mjs \
             http-generic-api/frontend-operation-governance.generated.json \
             http-generic-api/frontend-operation-governance.generated.md \
             http-generic-api/frontend-operation-governance.generated.yaml \
