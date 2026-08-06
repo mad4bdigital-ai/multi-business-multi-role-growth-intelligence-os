@@ -18,15 +18,35 @@ jobs:
   materialize:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      EXPECTED_MAIN_SHA: 840a3b605ade9279bf110e95dfc58d614345d516
     steps:
       - name: Checkout exact repair head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 0
+          fetch-depth: 1
           persist-credentials: false
 
-      - name: Patch only step-level upload paths and registration assertions
+      - name: Verify immutable branch and main inputs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          BRANCH_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
+          MAIN_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$BRANCH_HEAD" = "$GITHUB_SHA"
+          test "$MAIN_HEAD" = "$EXPECTED_MAIN_SHA"
+
+      - name: Checkout exact current main tree
+        uses: actions/checkout@v5
+        with:
+          ref: 840a3b605ade9279bf110e95dfc58d614345d516
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Patch current main registration surface
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -50,38 +70,31 @@ jobs:
           test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
           test = test_path.read_text()
           anchor = '''assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));'''
-          addition_lines = [
+          addition = '\n'.join([
               anchor,
               "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-production-release-cut.json'));",
               "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-release-ci.json'));",
               r"assert.doesNotMatch(finalize, /\$\{\{ env\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \}\}/);",
-          ]
+          ])
           if test.count(anchor) != 1:
               raise SystemExit('registration-test insertion anchor is missing or ambiguous')
-          test = test.replace(anchor, '\n'.join(addition_lines))
-          test_path.write_text(test)
+          test_path.write_text(test.replace(anchor, addition))
           PY
 
           git diff --check
-          test "$(git diff --name-only | wc -l)" -eq 2
-          git diff --name-only | grep -Fx '.github/workflows/production-certified-release-cut-validation.yml'
-          git diff --name-only | grep -Fx 'http-generic-api/test-production-certified-release-cut-validation-registration.mjs'
+          test "$(git diff --name-only "$EXPECTED_MAIN_SHA" -- | wc -l)" -eq 2
+          git diff --name-only "$EXPECTED_MAIN_SHA" -- | grep -Fx '.github/workflows/production-certified-release-cut-validation.yml'
+          git diff --name-only "$EXPECTED_MAIN_SHA" -- | grep -Fx 'http-generic-api/test-production-certified-release-cut-validation-registration.mjs'
 
       - name: Validate exact final repository shape
         shell: bash
         run: |
           set -Eeuo pipefail
-          rm -f \
-            .github/workflows/repair-certified-release-upload-path-context.yml \
-            .github/ops/certified-release-upload-path-context.trigger
-
-          git diff --check
-          test "$(git diff --name-only | wc -l)" -eq 4
-          git diff --name-status | grep -Fx 'D	.github/workflows/repair-certified-release-upload-path-context.yml'
-          git diff --name-status | grep -Fx 'D	.github/ops/certified-release-upload-path-context.trigger'
-
+          test ! -e .github/workflows/repair-certified-release-upload-path-context.yml
+          test ! -e .github/ops/certified-release-upload-path-context.trigger
           node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
+          git diff --check
 
       - name: Materialize governed Git blobs
         id: blobs
@@ -96,18 +109,8 @@ jobs:
           [[ "$TEST_BLOB" =~ ^[0-9a-f]{40}$ ]]
           echo "workflow_blob=$WORKFLOW_BLOB" >> "$GITHUB_OUTPUT"
           echo "test_blob=$TEST_BLOB" >> "$GITHUB_OUTPUT"
-          printf '{"source_head":"%s","workflow_blob":"%s","test_blob":"%s","secrets_included":false}\n' "$GITHUB_SHA" "$WORKFLOW_BLOB" "$TEST_BLOB" > "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
-          cat "$RUNNER_TEMP/certified-release-upload-path-blob-manifest.json"
 
-      - name: Upload blob manifest
-        uses: actions/upload-artifact@v4
-        with:
-          name: certified-release-upload-path-blob-manifest-${{ github.run_id }}
-          path: ${{ runner.temp }}/certified-release-upload-path-blob-manifest.json
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Publish one clean bounded repair commit
+      - name: Publish synchronized bounded repair commit
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -115,30 +118,28 @@ jobs:
           TEST_BLOB: ${{ steps.blobs.outputs.test_blob }}
         run: |
           set -Eeuo pipefail
-          CURRENT_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
-          test "$CURRENT_HEAD" = "$GITHUB_SHA"
-          BASE_TREE="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${GITHUB_SHA}" --jq .tree.sha)"
+          BRANCH_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
+          MAIN_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$BRANCH_HEAD" = "$GITHUB_SHA"
+          test "$MAIN_HEAD" = "$EXPECTED_MAIN_SHA"
+          BASE_TREE="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${EXPECTED_MAIN_SHA}" --jq .tree.sha)"
 
           jq -n \
             --arg base_tree "$BASE_TREE" \
             --arg workflow_blob "$WORKFLOW_BLOB" \
             --arg test_blob "$TEST_BLOB" \
-            '{
-              base_tree: $base_tree,
-              tree: [
-                {path: ".github/workflows/production-certified-release-cut-validation.yml", mode: "100644", type: "blob", sha: $workflow_blob},
-                {path: "http-generic-api/test-production-certified-release-cut-validation-registration.mjs", mode: "100644", type: "blob", sha: $test_blob},
-                {path: ".github/workflows/repair-certified-release-upload-path-context.yml", mode: "100644", type: "blob", sha: null},
-                {path: ".github/ops/certified-release-upload-path-context.trigger", mode: "100644", type: "blob", sha: null}
-              ]
-            }' > "$RUNNER_TEMP/repair-tree.json"
+            '{base_tree: $base_tree, tree: [
+              {path: ".github/workflows/production-certified-release-cut-validation.yml", mode: "100644", type: "blob", sha: $workflow_blob},
+              {path: "http-generic-api/test-production-certified-release-cut-validation-registration.mjs", mode: "100644", type: "blob", sha: $test_blob}
+            ]}' > "$RUNNER_TEMP/repair-tree.json"
           TREE_SHA="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input "$RUNNER_TEMP/repair-tree.json" --jq .sha)"
 
           jq -n \
             --arg message 'fix(ci): use runner context for certified release artifact paths' \
             --arg tree "$TREE_SHA" \
-            --arg parent "$GITHUB_SHA" \
-            '{message: $message, tree: $tree, parents: [$parent]}' > "$RUNNER_TEMP/repair-commit.json"
+            --arg branch_parent "$GITHUB_SHA" \
+            --arg main_parent "$EXPECTED_MAIN_SHA" \
+            '{message: $message, tree: $tree, parents: [$branch_parent, $main_parent]}' > "$RUNNER_TEMP/repair-commit.json"
           COMMIT_SHA="$(gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input "$RUNNER_TEMP/repair-commit.json" --jq .sha)"
           [[ "$COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
 
