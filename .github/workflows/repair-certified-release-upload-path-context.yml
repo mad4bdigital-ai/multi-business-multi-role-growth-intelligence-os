@@ -33,11 +33,12 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
+          expression_open = '$' + '{{'
           workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
           workflow = workflow_path.read_text()
           replacements = {
-              '            ${{ env.EVIDENCE_PATH }}': '            ${{ runner.temp }}/certified-production-release-cut.json',
-              '            ${{ env.CI_SUMMARY_PATH }}': '            ${{ runner.temp }}/certified-release-ci.json',
+              '            ' + expression_open + ' env.EVIDENCE_PATH }}': '            ' + expression_open + ' runner.temp }}/certified-production-release-cut.json',
+              '            ' + expression_open + ' env.CI_SUMMARY_PATH }}': '            ' + expression_open + ' runner.temp }}/certified-release-ci.json',
           }
           for old, new in replacements.items():
               count = workflow.count(old)
@@ -48,11 +49,16 @@ jobs:
 
           test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
           test = test_path.read_text()
-          anchor = "assert.ok(finalize.includes('echo \\\"CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json\\\" >> \\\"$GITHUB_ENV\\\"'));\n"
-          addition = anchor + "assert.ok(finalize.includes('${{ runner.temp }}/certified-production-release-cut.json'));\nassert.ok(finalize.includes('${{ runner.temp }}/certified-release-ci.json'));\nassert.doesNotMatch(finalize, /\\$\\{\\{ env\\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \\}\\}/);\n"
+          anchor = '''assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));'''
+          addition_lines = [
+              anchor,
+              "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-production-release-cut.json'));",
+              "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-release-ci.json'));",
+              r"assert.doesNotMatch(finalize, /\$\{\{ env\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \}\}/);",
+          ]
           if test.count(anchor) != 1:
               raise SystemExit('registration-test insertion anchor is missing or ambiguous')
-          test = test.replace(anchor, addition)
+          test = test.replace(anchor, '\n'.join(addition_lines))
           test_path.write_text(test)
           PY
 
