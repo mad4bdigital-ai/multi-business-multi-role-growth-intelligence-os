@@ -1,0 +1,102 @@
+name: Transport response delivery generated refresh once
+
+on:
+  push:
+    branches:
+      - "fix/transport-response-delivery-20260806"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: transport-response-delivery-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact triggering head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Pin branch identity
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/transport-response-delivery-20260806
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_sha}" = "${EXPECTED_HEAD_SHA}"
+          test "${TARGET_BRANCH}" != "main"
+          test "${TARGET_BRANCH}" != "Production"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Remove one-time writer before generation
+        run: git rm .github/workflows/transport-response-delivery-refresh-once.yml
+
+      - name: Regenerate bounded frontend evidence
+        working-directory: http-generic-api
+        env:
+          CANONICAL_BASELINE_REF: main
+        run: npm run frontend:dispatch:generate -- --baseline-ref="${CANONICAL_BASELINE_REF}"
+
+      - name: Regenerate governed Work Maps
+        run: |
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Verify focused transport and generated contracts
+        working-directory: http-generic-api
+        run: |
+          node test-transport-response-chunk-schema-recovery.mjs
+          node test-local-connector-transport-errors.mjs
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-openapi-route-coverage.mjs
+
+      - name: Enforce bounded mutation set
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(git status --porcelain | sed -E 's/^.. //' | grep -Ev '^(\.github/workflows/transport-response-delivery-refresh-once\.yml|docs/work-maps/|http-generic-api/frontend-operation-governance\.generated\.json|http-generic-api/frontend-surface-dispatch\.generated\.json|http-generic-api/openapi/frontend-runtime-routes\.generated\.yaml)$' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Unexpected generated mutation paths:" >&2
+            printf '%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+
+      - name: Commit and push without force
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/transport-response-delivery-20260806
+          EXPECTED_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/transport-response-delivery-refresh-once.yml docs/work-maps \
+            http-generic-api/frontend-operation-governance.generated.json \
+            http-generic-api/frontend-surface-dispatch.generated.json \
+            http-generic-api/openapi/frontend-runtime-routes.generated.yaml
+          git diff --cached --quiet && { echo "No generated changes to publish."; exit 0; }
+          git commit -m "chore(transport): refresh governed generated evidence"
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_sha}" = "${EXPECTED_HEAD_SHA}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
