@@ -455,8 +455,6 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       VALIDATION_PR: ${{ github.event.pull_request.number }}
-      EVIDENCE_PATH: ${{ runner.temp }}/certified-production-release-cut.json
-      CI_SUMMARY_PATH: ${{ runner.temp }}/certified-release-ci.json
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       HEAD_REF: ${{ github.event.pull_request.head.ref }}
@@ -469,6 +467,13 @@ jobs:
       EXECUTION_RESULT: ${{ needs.execution-resolver-gate.result }}
       ARCHITECTURE_RESULT: ${{ needs.architecture-drift.result }}
     steps:
+      - name: Initialize runner-local evidence paths
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"
+          echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"
+
       - name: Require successful direct ARM CI gates
         shell: bash
         run: |
