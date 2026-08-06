@@ -27,6 +27,7 @@ jobs:
       PINNED_MAIN_SHA: 840a3b605ade9279bf110e95dfc58d614345d516
       PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-bounded-main-reconciliation.yml
+      RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
     steps:
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -75,7 +76,7 @@ jobs:
           set -e
 
           unmerged="$(git diff --name-only --diff-filter=U | sort)"
-          unexpected_unmerged="$(printf '%s\n' "${unmerged}" | grep -v -E '^(\.github/workflows/pr6463-bounded-main-reconciliation\.yml|docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md)?$' || true)"
+          unexpected_unmerged="$(printf '%s\n' "${unmerged}" | grep -v -E '^(\.github/workflows/pr6463-bounded-main-reconciliation\.yml|docs/work-maps/README\.md|docs/work-maps/repository-automation-map\.md|http-generic-api/scripts/test-production-runtime-parity-comment-bridge\.mjs)?$' || true)"
           if [[ -n "${unexpected_unmerged}" ]]; then
             echo "Unexpected merge conflicts:"
             printf '%s\n' "${unexpected_unmerged}"
@@ -89,6 +90,9 @@ jobs:
           if printf '%s\n' "${unmerged}" | grep -Fxq "${TEMP_WORKFLOW}"; then
             git checkout --ours -- "${TEMP_WORKFLOW}"
             git add -- "${TEMP_WORKFLOW}"
+          fi
+          if printf '%s\n' "${unmerged}" | grep -Fxq "${RETIRED_BRIDGE_TEST}"; then
+            git rm -- "${RETIRED_BRIDGE_TEST}"
           fi
 
           rm -f docs/work-maps/README.md docs/work-maps/repository-automation-map.md
@@ -240,5 +244,5 @@ jobs:
         run: |
           set -euo pipefail
           outcome="${{ job.status }}"
-          body="PR6463_BOUNDED_RECONCILIATION outcome=${outcome} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} allowed_conflicts=.github/workflows/pr6463-bounded-main-reconciliation.yml,docs/work-maps/README.md,docs/work-maps/repository-automation-map.md protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
+          body="PR6463_BOUNDED_RECONCILIATION outcome=${outcome} pinned_main_sha=${PINNED_MAIN_SHA} triggering_head_sha=${GITHUB_SHA} result_head_sha=${RESULT_SHA:-unresolved} allowed_conflicts=.github/workflows/pr6463-bounded-main-reconciliation.yml,docs/work-maps/README.md,docs/work-maps/repository-automation-map.md,http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs protected_branch_mutation=false force_push=false deployment=false provider_call=false sql=false migration_apply=false secrets_included=false"
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
