@@ -1,0 +1,247 @@
+name: PR 6502 Reference Convergence
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6502-reference-convergence
+  cancel-in-progress: false
+
+jobs:
+  render:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.head_commit.message == 'chore(ci): render PR 6502 reference convergence'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REGISTRY_FINGERPRINT: 8addd56e625f8f29346eadcd351b688611550e421dcb564eaf8e0e1318f1bd18
+      INDEX_SOURCE_HASH: 50e0b3d3df269e276ea6ca6b3036d5630282156f5bafef2104acbe181ed1b5e1
+    steps:
+      - name: Checkout exact renderer head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify bounded branch and exact remote head
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          [[ "${GITHUB_REF_NAME}" == "fix/push-workflow-runner-context-registration-main-ba10f269-20260806" ]]
+          [[ "${GITHUB_REF_NAME}" != "main" ]]
+          [[ "${GITHUB_REF_NAME}" != "Production" ]]
+          [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
+          remote_head_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          [[ "${remote_head_sha}" == "${GITHUB_SHA}" ]]
+
+      - name: Render exact reference and registry repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('.')
+          lifecycle = '.github/workflows/repository-tool-lifecycle-governance.yml'
+          general_test = 'http-generic-api/test-push-workflow-runner-context-registration.mjs'
+          canonical_workflow = '.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml'
+          canonical_reporter = 'http-generic-api/scripts/hostinger-nodejs-completed-build-log-evidence.mjs'
+          canonical_test = 'http-generic-api/scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs'
+          governance_doc = 'docs/governance/push-workflow-runner-context-registration.md'
+
+          def read(path: str):
+              return json.loads((root / path).read_text(encoding='utf-8'))
+
+          def write(path: str, value):
+              (root / path).write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
+
+          def unique(values):
+              return list(dict.fromkeys(values))
+
+          def retire_contract(path: str, retired_workflow: str, journey_id: str, title: str):
+              contract = read(path)
+              contract['title'] = title
+              contract['scope']['include'] = unique([
+                  value for value in contract['scope']['include']
+                  if value != retired_workflow
+              ] + [general_test, canonical_workflow, canonical_reporter, canonical_test, governance_doc])
+
+              mvp = next(phase for phase in contract['phases'] if phase['id'] == 'mvp')
+              mvp['objective'] = (
+                  'Retire the incident-specific completed-build evidence bridge while preserving the canonical '
+                  'GET-only evidence collector and a regression that prevents silent re-registration.'
+              )
+              journey = mvp['e2e_journeys'][0]
+              journey['id'] = journey_id
+              journey['actor'] = 'Repository governance evaluator and the canonical Hostinger evidence collector'
+              journey['entrypoint'] = 'Exact pull-request tree after retirement of the incident-specific evidence bridge.'
+              journey['terminal_outcome'] = (
+                  'The retired workflow is absent, the canonical GET-only collector remains tracked, and no provider '
+                  'mutation or Production authority is introduced.'
+              )
+              journey['steps'] = [
+                  'Verify the incident-specific workflow path is absent from the exact candidate tree.',
+                  'Run the repository-wide runner-context and retired-workflow regression.',
+                  'Run the canonical Hostinger completed-build evidence contract without credential access.',
+                  'Verify every declared evidence path resolves to a tracked regular file.',
+              ]
+              journey['assertions'] = [
+                  'The retired workflow cannot be registered or triggered.',
+                  'The canonical evidence workflow remains GET-only and fail-closed.',
+                  'No deployment, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref update, force push, or external business send occurs.',
+                  'Secrets are neither read by the regression nor included in evidence.',
+              ]
+              journey['tests'] = [
+                  {
+                      'id': f'{journey_id}-retirement-regression',
+                      'runner': 'node',
+                      'working_directory': '.',
+                      'path': general_test,
+                      'args': [],
+                  },
+                  {
+                      'id': f'{journey_id}-canonical-collector-contract',
+                      'runner': 'node',
+                      'working_directory': 'http-generic-api',
+                      'path': 'scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs',
+                      'args': [],
+                  },
+              ]
+              journey['evidence_paths'] = [
+                  path,
+                  general_test,
+                  canonical_workflow,
+                  canonical_reporter,
+                  canonical_test,
+                  governance_doc,
+              ]
+
+              resilient = next(phase for phase in contract['phases'] if phase['id'] == 'resilient')
+              resilient['status'] = 'not_applicable'
+              resilient['objective'] = (
+                  'The incident-specific bridge is retired; resilience is enforced by the canonical collector and '
+                  'repository lifecycle regression rather than a second runtime surface.'
+              )
+              resilient.pop('e2e_journeys', None)
+              contract['secrets_included'] = False
+              write(path, contract)
+
+          retire_contract(
+              '.changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json',
+              '.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml',
+              'retire-drift-tolerant-completed-build-fallback',
+              'Retirement of the drift-tolerant Hostinger completed-build evidence fallback',
+          )
+          retire_contract(
+              '.changes/e2e/hostinger-completed-build-log-evidence-r3c-windows.json',
+              '.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml',
+              'retire-windows-completed-build-fallback',
+              'Retirement of the Windows Hostinger completed-build evidence fallback',
+          )
+
+          push_path = '.changes/e2e/push-workflow-runner-context-registration.json'
+          push = read(push_path)
+          retired = {
+              '.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml',
+              '.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml',
+              '.github/workflows/response-chunk-ownership-governed-rollout-push.yml',
+              '.github/workflows/ueacp-live-authority-evidence-one-shot.yml',
+          }
+          push['scope']['include'] = [value for value in push['scope']['include'] if value not in retired]
+          for phase in push['phases']:
+              for journey in phase.get('e2e_journeys', []):
+                  journey['evidence_paths'] = unique([
+                      lifecycle if value == '.github/workflows/repository-tool-lifecycle.yml' else value
+                      for value in journey.get('evidence_paths', [])
+                      if value not in retired
+                  ])
+          write(push_path, push)
+
+          for manifest_path in [
+              'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+              'specs/014-retail-commerce-operations-growth-os/work-map-integration.json',
+          ]:
+              manifest = read(manifest_path)
+              manifest['registry']['fingerprint'] = os.environ['REGISTRY_FINGERPRINT']
+              manifest['registry']['index_source_hash'] = os.environ['INDEX_SOURCE_HASH']
+              write(manifest_path, manifest)
+          PY
+
+      - name: Validate repaired contracts and Work Map bindings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
+          mkdir -p "${RUNNER_TEMP}/pr6502-reference-validation"
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --all \
+            --report-file "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+            --report-file "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci \
+            > "${RUNNER_TEMP}/pr6502-reference-validation/work-map-governance.json"
+          node http-generic-api/test-push-workflow-runner-context-registration.mjs
+          git diff --check
+
+      - name: Create immutable Git blobs without updating a ref
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          evidence_dir="${RUNNER_TEMP}/pr6502-reference-git-objects"
+          mkdir -p "${evidence_dir}"
+          rm -f .github/workflows/pr6502-reference-convergence.yml
+          git add -A
+
+          cat > "${evidence_dir}/materialized-files.txt" <<'EOF'
+          .changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json
+          .changes/e2e/hostinger-completed-build-log-evidence-r3c-windows.json
+          .changes/e2e/push-workflow-runner-context-registration.json
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          EOF
+          printf '%s\n' '.github/workflows/pr6502-reference-convergence.yml' > "${evidence_dir}/deleted-files.txt"
+
+          : > "${evidence_dir}/entries.ndjson"
+          while IFS= read -r path; do
+            [[ -f "${path}" ]]
+            local_sha="$(git hash-object "${path}")"
+            payload="$(jq -n --arg content "$(base64 -w0 "${path}")" '{content:$content,encoding:"base64"}')"
+            api_sha="$(gh api --method POST "/repos/${REPOSITORY}/git/blobs" --input - --jq '.sha' <<<"${payload}")"
+            [[ "${api_sha}" == "${local_sha}" ]]
+            jq -cn --arg path "${path}" --arg sha "${api_sha}" \
+              '{path:$path,mode:"100644",type:"blob",sha:$sha}' >> "${evidence_dir}/entries.ndjson"
+          done < "${evidence_dir}/materialized-files.txt"
+          jq -cn --arg path '.github/workflows/pr6502-reference-convergence.yml' \
+            '{path:$path,mode:"100644",type:"blob",sha:null}' >> "${evidence_dir}/entries.ndjson"
+
+          jq -s '.' "${evidence_dir}/entries.ndjson" > "${evidence_dir}/tree-entries.json"
+          [[ "$(jq 'length' "${evidence_dir}/tree-entries.json")" == "6" ]]
+          printf '%s\n' "${GITHUB_SHA}" > "${evidence_dir}/expected-parent-sha.txt"
+          git write-tree > "${evidence_dir}/expected-final-tree-sha.txt"
+          git diff --cached --name-status > "${evidence_dir}/name-status.txt"
+          cp "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json" "${evidence_dir}/"
+          cp "${RUNNER_TEMP}/pr6502-reference-validation/work-map-governance.json" "${evidence_dir}/"
+          sha256sum "${evidence_dir}/tree-entries.json" > "${evidence_dir}/tree-entries.json.sha256"
+
+      - name: Upload verified reference object manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-reference-convergence-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-reference-git-objects
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
