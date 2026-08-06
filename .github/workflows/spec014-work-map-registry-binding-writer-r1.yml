@@ -1,0 +1,172 @@
+name: Spec 014 Work Map Registry Binding Writer R1
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-v2-20260806
+    paths:
+      - ".github/workflows/spec014-work-map-registry-binding-writer-r1.yml"
+
+permissions:
+  contents: write
+  actions: write
+  pull-requests: read
+
+concurrency:
+  group: spec014-work-map-registry-binding-writer-r1
+  cancel-in-progress: false
+
+jobs:
+  refresh-bindings:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref_name == 'fix/transport-response-schema-promotion-readiness-v2-20260806'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: fix/transport-response-schema-promotion-readiness-v2-20260806
+      WRITER_PATH: .github/workflows/spec014-work-map-registry-binding-writer-r1.yml
+    steps:
+      - name: Checkout exact writer head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable writer binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "${GITHUB_REPOSITORY}" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+
+      - name: Refresh both Spec 014 registry bindings deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import path from "node:path";
+          import { buildEffectiveWorkMapRegistry } from "./http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs";
+          import { validateSchemaClassification } from "./http-generic-api/scripts/work-map-schema-classification.mjs";
+
+          const root = process.cwd();
+          const classification = validateSchemaClassification({ root });
+          const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root });
+
+          if (!classification.ok || classification.unresolved.length !== 0 || classification.classification_coverage_percent !== 100) {
+            throw new Error(`Schema classification is not ready: ${JSON.stringify(classification.findings)}`);
+          }
+          if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
+            throw new Error(`Unexpected registry shape: maps=${effectiveRegistry.maps.length}, domains=${effectiveRegistry.domains.length}`);
+          }
+          if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
+            throw new Error("Registry contains unresolved objects or taxonomy gaps");
+          }
+
+          const registry = {
+            fingerprint: effectiveRegistry.fingerprint,
+            index_source_hash: effectiveRegistry.signature.index_source_hash,
+            coverage_source_hash: effectiveRegistry.signature.coverage_source_hash,
+            map_count: effectiveRegistry.maps.length,
+            domain_count: effectiveRegistry.domains.length,
+            uncategorized_count: effectiveRegistry.uncategorized_objects.length,
+            taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length,
+          };
+
+          const targets = [
+            "014-governed-hostinger-storage-orchestration",
+            "014-retail-commerce-operations-growth-os",
+          ];
+          const report = [];
+          for (const featureKey of targets) {
+            const relativePath = `specs/${featureKey}/work-map-integration.json`;
+            const absolutePath = path.join(root, relativePath);
+            const manifest = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
+            if (manifest.feature_key !== featureKey) throw new Error(`Feature identity mismatch: ${relativePath}`);
+            if (manifest.review_state !== "ready_for_implementation") throw new Error(`Feature is not eligible: ${relativePath}`);
+            if (manifest.secrets_included !== false) throw new Error(`Secret boundary missing: ${relativePath}`);
+            const previousRegistry = manifest.registry;
+            manifest.registry = registry;
+            fs.writeFileSync(absolutePath, `${JSON.stringify(manifest, null, 2)}\n`);
+            report.push({ feature_key: featureKey, path: relativePath, previous_registry: previousRegistry, current_registry: registry });
+          }
+
+          fs.mkdirSync(".tmp/spec014-work-map-registry-binding-writer", { recursive: true });
+          fs.writeFileSync(
+            ".tmp/spec014-work-map-registry-binding-writer/report.json",
+            `${JSON.stringify({
+              ok: true,
+              contract: "mad4b.spec014-work-map-registry-binding-writer.r1",
+              source_head_sha: process.env.GITHUB_SHA,
+              targets: report,
+              classification_coverage_percent: classification.classification_coverage_percent,
+              unresolved_schema_objects: classification.unresolved.length,
+              provider_dispatch: false,
+              live_database_access: false,
+              migration_apply: false,
+              secrets_included: false,
+            }, null, 2)}\n`,
+          );
+          NODE
+
+      - name: Remove temporary writer and enforce bounded diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "${WRITER_PATH}"
+          git diff --check
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            "${WRITER_PATH}" \
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json" \
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json" | sort)"
+          test "${actual}" = "${expected}"
+
+      - name: Verify generated artifacts and governance on working tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+      - name: Commit and push fast-forward only
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git commit -m "fix(work-map): refresh Spec 014 registry bindings"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+
+      - name: Dispatch exact-head verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
+          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+          gh workflow run hostinger-storage-final-work-map-readback-guard.yml --ref "${TARGET_BRANCH}"
+
+      - name: Upload bounded writer evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-work-map-registry-binding-writer-${{ github.run_id }}
+          path: .tmp/spec014-work-map-registry-binding-writer
+          if-no-files-found: warn
+          retention-days: 14
