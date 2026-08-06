@@ -1,0 +1,45 @@
+name: PR 6429 main sync conflict diagnostic
+
+on:
+  push:
+    branches:
+      - gpt/reconcile/pr6429-main-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    name: Diagnose main merge conflicts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout reconciliation branch
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: gpt/reconcile/pr6429-main-20260806
+
+      - name: Attempt non-writing merge and report conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          set +e
+          git merge --no-ff --no-commit origin/main
+          merge_rc=$?
+          set -e
+          echo "merge_rc=${merge_rc}"
+          echo '--- conflict paths ---'
+          git diff --name-only --diff-filter=U | sort
+          echo '--- status ---'
+          git status --short
+          if [ "${merge_rc}" -eq 0 ]; then
+            git merge --abort || true
+            echo 'No conflicts detected.'
+            exit 0
+          fi
+          conflict_count="$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')"
+          test "${conflict_count}" -gt 0
+          git merge --abort
+          echo "Detected ${conflict_count} conflict path(s); no write performed."
