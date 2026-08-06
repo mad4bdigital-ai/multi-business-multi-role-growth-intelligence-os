@@ -1,4 +1,4 @@
-name: PR 6429 main reconciliation conflict diagnostic v2
+name: PR 6429 governed main reconciliation v2
 
 on:
   push:
@@ -6,131 +6,263 @@ on:
       - gpt/reconcile/pr6429-main-20260806-v2
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pr6429-main-reconciliation-conflict-diagnostic-v2
+  group: pr6429-governed-main-reconciliation-v2
   cancel-in-progress: true
 
 jobs:
-  diagnose:
+  reconcile:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       WORK_BRANCH: gpt/reconcile/pr6429-main-20260806-v2
+      PRIMARY_HEAD_SHA: 4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9
+      EXPECTED_MAIN_SHA: ba10f269e831efa2c210b2729d1b31723a171052
+      WORKFLOW_PATH: .github/workflows/pr6429-main-sync-conflict-diagnostic-v2.yml
+      RETAIL_FEATURE: 014-retail-commerce-operations-growth-os
     steps:
-      - name: Checkout exact reconciliation branch
+      - name: Checkout exact reconciliation head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
 
-      - name: Diagnose merge against captured main
-        id: merge_diagnostic
-        shell: bash
-        run: |
-          set -u
-          evidence_root="${RUNNER_TEMP}/pr6429-main-reconciliation-conflicts-v2"
-          mkdir -p "${evidence_root}"
-          : > "${evidence_root}/conflicts.txt"
-          : > "${evidence_root}/status.txt"
-
-          event_sha="${GITHUB_SHA}"
-          remote_branch_head=""
-          captured_main_head=""
-          fetched_main_head=""
-          branch_read_rc=0
-          main_read_rc=0
-          fetch_rc=0
-          merge_rc=125
-
-          set +e
-          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          branch_read_rc=$?
-          captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
-          main_read_rc=$?
-
-          if [[ ${branch_read_rc} -eq 0 && "${remote_branch_head}" == "${event_sha}" && \
-                ${main_read_rc} -eq 0 && "${captured_main_head}" =~ ^[0-9a-f]{40}$ ]]; then
-            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
-            fetch_rc=$?
-            if [[ ${fetch_rc} -eq 0 ]]; then
-              fetched_main_head="$(git rev-parse refs/remotes/origin/main 2>/dev/null)"
-              if [[ "${fetched_main_head}" == "${captured_main_head}" ]]; then
-                git config user.name 'github-actions[bot]'
-                git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-                git merge --no-ff --no-commit "${captured_main_head}"
-                merge_rc=$?
-              else
-                fetch_rc=86
-              fi
-            fi
-          else
-            fetch_rc=87
-          fi
-          set -e
-
-          git diff --name-only --diff-filter=U | sort > "${evidence_root}/conflicts.txt" || true
-          git status --short > "${evidence_root}/status.txt" || true
-          conflict_count="$(grep -cve '^$' "${evidence_root}/conflicts.txt" || true)"
-
-          {
-            echo "event_sha=${event_sha}"
-            echo "remote_branch_sha=${remote_branch_head}"
-            echo "captured_main_sha=${captured_main_head}"
-            echo "fetched_main_sha=${fetched_main_head}"
-            echo "branch_read_rc=${branch_read_rc}"
-            echo "main_read_rc=${main_read_rc}"
-            echo "fetch_rc=${fetch_rc}"
-            echo "merge_rc=${merge_rc}"
-            echo "conflict_count=${conflict_count}"
-            echo "force_push=false"
-            echo "remote_write=false"
-            echo "production_mutation=false"
-            echo "migration_apply=false"
-            echo "provider_dispatch=false"
-            echo "secrets_included=false"
-          } > "${evidence_root}/bindings.txt"
-
-          {
-            echo '## PR #6429 reconciliation diagnostic'
-            echo
-            echo '```text'
-            cat "${evidence_root}/bindings.txt"
-            echo
-            echo '--- conflicts ---'
-            cat "${evidence_root}/conflicts.txt"
-            echo '```'
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-          echo "merge_rc=${merge_rc}" >> "${GITHUB_OUTPUT}"
-          echo "conflict_count=${conflict_count}" >> "${GITHUB_OUTPUT}"
-          echo "captured_main_sha=${captured_main_head}" >> "${GITHUB_OUTPUT}"
-
-          cat "${evidence_root}/bindings.txt"
-          echo '--- conflicts ---'
-          cat "${evidence_root}/conflicts.txt"
-
-          # Diagnostic-only: preserve evidence for upload, never commit or push.
-          exit 0
-
-      - name: Upload conflict diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Set up repository Node contract
+        uses: actions/setup-node@v4
         with:
-          name: pr6429-main-reconciliation-conflicts-v2-${{ github.sha }}
-          path: ${{ runner.temp }}/pr6429-main-reconciliation-conflicts-v2
-          if-no-files-found: error
-          retention-days: 7
+          node-version-file: .nvmrc
+          check-latest: false
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
 
-      - name: Confirm diagnostic remained read-only
-        if: always()
+      - name: Verify immutable branch and main bindings
         shell: bash
         run: |
           set -euo pipefail
-          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          test "${remote_branch_head}" = "${GITHUB_SHA}"
-          captured_main_sha="${{ steps.merge_diagnostic.outputs.captured_main_sha }}"
-          [[ "${captured_main_sha}" =~ ^[0-9a-f]{40}$ ]]
-          echo "merge_rc=${{ steps.merge_diagnostic.outputs.merge_rc }}"
-          echo "conflict_count=${{ steps.merge_diagnostic.outputs.conflict_count }}"
+          [[ "${GITHUB_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${EXPECTED_MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${PRIMARY_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          remote_branch_sha="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          remote_main_sha="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          test "${remote_branch_sha}" = "${GITHUB_SHA}"
+          test "${remote_main_sha}" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${PRIMARY_HEAD_SHA}" HEAD
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          test "$(git rev-parse refs/remotes/origin/main)" = "${EXPECTED_MAIN_SHA}"
+          case "$(node --version)" in v22.*) ;; *) exit 1 ;; esac
+
+      - name: Merge captured main and resolve exact diagnosed conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          mkdir -p "${evidence_root}"
+          cat > "${evidence_root}/expected-conflicts.txt" <<'EOF'
+          docs/work-maps/README.md
+          docs/work-maps/data-model-domain-map.md
+          docs/work-maps/work-map-coverage-matrix.md
+          http-generic-api/frontend-operation-governance.generated.json
+          http-generic-api/frontend-surface-dispatch.generated.json
+          specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          EOF
+          sed -i 's/^          //' "${evidence_root}/expected-conflicts.txt"
+          sort -o "${evidence_root}/expected-conflicts.txt" "${evidence_root}/expected-conflicts.txt"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          set +e
+          git merge --no-ff --no-commit "${EXPECTED_MAIN_SHA}"
+          merge_rc=$?
+          set -e
+          test "${merge_rc}" -eq 1
+
+          git diff --name-only --diff-filter=U | sort > "${evidence_root}/actual-conflicts.txt"
+          diff -u "${evidence_root}/expected-conflicts.txt" "${evidence_root}/actual-conflicts.txt"
+
+          mapfile -t conflicts < "${evidence_root}/expected-conflicts.txt"
+          git checkout --ours -- "${conflicts[@]}"
+          git add -- "${conflicts[@]}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          rm "${WORKFLOW_PATH}"
+          git add -A -- "${WORKFLOW_PATH}"
+          test ! -e "${WORKFLOW_PATH}"
+
+          git branch -f main "${EXPECTED_MAIN_SHA}"
+          pre_generation_tree="$(git write-tree)"
+          echo "${pre_generation_tree}" > "${RUNNER_TEMP}/pre-generation-tree.txt"
+          printf 'merge_rc=%s\n' "${merge_rc}" > "${evidence_root}/merge-result.txt"
+
+      - name: Install exact dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Regenerate canonical Work Maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          node http-generic-api/scripts/platform-work-map-generator.mjs | tee "${evidence_root}/work-map-generator.json"
+
+      - name: Regenerate canonical frontend governance artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          cd http-generic-api
+          npm run frontend:dispatch:generate -- --baseline-ref=main | tee "${evidence_root}/frontend-generation.txt"
+
+      - name: Refresh Hostinger and Retail Work Map bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            | tee "${evidence_root}/hostinger-binding-refresh.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key "${RETAIL_FEATURE}" \
+            | tee "${evidence_root}/retail-binding-refresh.json"
+
+      - name: Enforce canonical generator write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          mapfile -t generated < <(git diff --name-only | sort)
+          printf '%s\n' "${generated[@]}" > "${evidence_root}/generator-changed-files.txt"
+
+          for file in "${generated[@]}"; do
+            case "${file}" in
+              docs/work-maps/*.md) ;;
+              http-generic-api/frontend-operation-governance.generated.json) ;;
+              http-generic-api/frontend-surface-dispatch.generated.json) ;;
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json) ;;
+              specs/014-governed-hostinger-storage-orchestration/tasks.md) ;;
+              specs/014-retail-commerce-operations-growth-os/work-map-integration.json) ;;
+              *) echo "Unexpected generator write: ${file}" >&2; exit 1 ;;
+            esac
+          done
+
+          if [[ ${#generated[@]} -gt 0 ]]; then
+            git add -- "${generated[@]}"
+          fi
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+
+          pre_generation_tree="$(cat "${RUNNER_TEMP}/pre-generation-tree.txt")"
+          post_generation_tree="$(git write-tree)"
+          git diff --name-only "${pre_generation_tree}" "${post_generation_tree}" | sort \
+            > "${evidence_root}/generator-index-delta.txt"
+          diff -u "${evidence_root}/generator-changed-files.txt" "${evidence_root}/generator-index-delta.txt"
+
+      - name: Verify canonical currentness and focused contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key "${RETAIL_FEATURE}" --check
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+          cd http-generic-api
+          npm run frontend:dispatch:check -- --baseline-ref=main
+          node test-frontend-operation-governance-generator.mjs
+          node test-frontend-surface-dispatch.mjs
+          node test-frontend-auth-openapi-parity.mjs
+          node test-github-repository-policy-controller.mjs
+          node test-repository-automation-policy-facade.mjs
+          node test-spec014-refresh-final-work-map-binding.mjs
+          node test-work-map-schema-classification.mjs
+          node test-work-map-schema-classification-contract.mjs
+          node test-spec-kit-work-map-governance-gate.mjs
+          node scripts/test-generated-artifact-refresh-maintenance-tool.mjs
+
+      - name: Commit merge candidate and prove parent topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_root="${RUNNER_TEMP}/pr6429-governed-main-reconciliation-v2"
+          test -f .git/MERGE_HEAD
+          test "$(cat .git/MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test ! -e "${WORKFLOW_PATH}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          git diff --cached --name-only | sort > "${evidence_root}/staged-files.txt"
+          git status --short > "${evidence_root}/precommit-status.txt"
+          git commit -m "chore(governance): reconcile PR 6429 with current main"
+
+          final_sha="$(git rev-parse HEAD)"
+          first_parent="$(git rev-parse HEAD^1)"
+          second_parent="$(git rev-parse HEAD^2)"
+          test "${first_parent}" = "${GITHUB_SHA}"
+          test "${second_parent}" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${PRIMARY_HEAD_SHA}" HEAD
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" HEAD
+          test ! -e "${WORKFLOW_PATH}"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key "${RETAIL_FEATURE}" --check
+          cd http-generic-api
+          npm run frontend:dispatch:check -- --baseline-ref=main
+          cd ..
+
+          git diff --name-only "${PRIMARY_HEAD_SHA}...HEAD" | sort > "${evidence_root}/final-changed-files.txt"
+          git diff --stat "${PRIMARY_HEAD_SHA}...HEAD" > "${evidence_root}/final-diff-stat.txt"
+          node - "${evidence_root}" "${final_sha}" "${first_parent}" "${second_parent}" <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = process.argv[2];
+          const report = {
+            contract: 'mad4b.pr6429-governed-main-reconciliation.v2',
+            repository: process.env.GITHUB_REPOSITORY,
+            run_id: process.env.GITHUB_RUN_ID,
+            event_sha: process.env.GITHUB_SHA,
+            primary_head_sha: process.env.PRIMARY_HEAD_SHA,
+            captured_main_sha: process.env.EXPECTED_MAIN_SHA,
+            final_sha: process.argv[3],
+            first_parent_sha: process.argv[4],
+            second_parent_sha: process.argv[5],
+            conflicts: fs.readFileSync(path.join(root, 'actual-conflicts.txt'), 'utf8').split(/\r?\n/).filter(Boolean),
+            generator_changed_files: fs.readFileSync(path.join(root, 'generator-changed-files.txt'), 'utf8').split(/\r?\n/).filter(Boolean),
+            force_push: false,
+            protected_branch_write: false,
+            production_mutation: false,
+            migration_apply: false,
+            provider_dispatch: false,
+            credentials_accessed: false,
+            secrets_included: false
+          };
+          fs.writeFileSync(path.join(root, 'summary.json'), `${JSON.stringify(report, null, 2)}\n`);
+          NODE
+
+      - name: Push without force after immutable remote readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_branch_sha="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          remote_main_sha="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          test "${remote_branch_sha}" = "${GITHUB_SHA}"
+          test "${remote_main_sha}" = "${EXPECTED_MAIN_SHA}"
+          git push origin "HEAD:refs/heads/${WORK_BRANCH}"
+          pushed_sha="$(git rev-parse HEAD)"
+          remote_after="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${pushed_sha}"
+
+      - name: Upload governed reconciliation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-governed-main-reconciliation-v2-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6429-governed-main-reconciliation-v2
+          if-no-files-found: warn
+          retention-days: 14
