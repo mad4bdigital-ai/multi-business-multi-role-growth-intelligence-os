@@ -36,6 +36,14 @@ if (featureBoundaryCount !== 1) {
 }
 source = source.replace(featureBoundaryAnchor, featureBoundaryReplacement);
 
+const featureScopeIndexAnchor = `const featureScopeGate = source.indexOf('if [[ "\${candidate_mode}" == "feature" ]]');`;
+const featureScopeIndexReplacement = `const featureScopeGate = source.indexOf('contract_local_changes=');`;
+const featureScopeIndexCount = source.split(featureScopeIndexAnchor).length - 1;
+if (featureScopeIndexCount !== 1) {
+  throw new Error(`Feature scope ordering anchor expected once, found ${featureScopeIndexCount}.`);
+}
+source = source.replace(featureScopeIndexAnchor, featureScopeIndexReplacement);
+
 fs.writeFileSync(testPath, source);
 
 const syntax = spawnSync(process.execPath, ['--check', testPath], {
@@ -52,7 +60,7 @@ const report = {
   ok: syntax.status === 0 && runtime.status === 0,
   base_sha: baseSha,
   test_path: testPath,
-  assertions_added: 7,
+  assertions_added: 8,
   syntax_status: syntax.status,
   syntax_stdout: String(syntax.stdout || '').slice(-4000),
   syntax_stderr: String(syntax.stderr || '').slice(-4000),
