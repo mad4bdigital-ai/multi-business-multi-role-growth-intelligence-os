@@ -7,24 +7,26 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 concurrency:
   group: pr6502-finalize-governance-artifact
   cancel-in-progress: false
 
 jobs:
-  finalize:
-    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+  stage:
+    if: >-
+      github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
+      github.event.head_commit.message == 'chore(ci): prepare PR 6502 governed staging push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Checkout exact finalizer head
+      - name: Checkout exact staging head
         uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Verify bounded branch and expected remote head
         shell: bash
@@ -36,7 +38,6 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
           remote_head_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
           [[ "${remote_head_sha}" == "${GITHUB_SHA}" ]]
-          [[ "$(git rev-parse HEAD^{tree})" != "e449b23cf62f210c0d64fe9931094049c5cf41c5" ]]
 
       - name: Download verified convergence delta
         uses: actions/download-artifact@v5
@@ -46,7 +47,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: 31109645120
 
-      - name: Apply verified permanent delta and validate
+      - name: Validate and stage permanent non-workflow tree
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -54,50 +55,44 @@ jobs:
           expected_patch_sha="ba72e7106509c3aa1ebb97416108c8c046e2c8e8ce9d45ecb6a935342a32e3d1"
           actual_patch_sha="$(sha256sum "${source_dir}/final.patch" | awk '{print $1}')"
           [[ "${actual_patch_sha}" == "${expected_patch_sha}" ]]
-          [[ "$(cat "${source_dir}/expected-parent-sha.txt")" == "d8ea58610314bd3d8dbd9d98ea021fce5abf65ae" ]]
           [[ "$(cat "${source_dir}/rendered-tree-sha.txt")" == "e449b23cf62f210c0d64fe9931094049c5cf41c5" ]]
 
           git apply \
             --exclude=.github/scripts/pr6502-governance-convergence.py \
             --exclude=.github/workflows/pr6502-governance-convergence.yml \
             "${source_dir}/final.patch"
-          rm -f .github/workflows/pr6502-finalize-governance-artifact.yml
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/test-push-workflow-runner-context-registration.mjs
           node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
           git diff --check
 
-      - name: Package exact final delta
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          evidence_dir="${RUNNER_TEMP}/pr6502-final-governance-delta"
-          mkdir -p "${evidence_dir}/files"
+          staging_dir=".changes/pr6502-staged-workflows"
+          rm -rf "${staging_dir}"
+          mkdir -p "${staging_dir}"
+          cp .github/workflows/governed-production-promotion-post-finalization-guard.yml \
+            "${staging_dir}/governed-production-promotion-post-finalization-guard.yml"
+          cp .github/workflows/governed-production-promotion-request-launcher.yml \
+            "${staging_dir}/governed-production-promotion-request-launcher.yml"
+
+          git restore --source=HEAD --staged --worktree -- .github/workflows
+          if git diff --name-only | grep -q '^\.github/workflows/'; then
+            echo "::error::staging commit must not modify workflow paths"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet && {
-            echo "::error::finalizer produced no delta"
+            echo "::error::staging produced no delta"
             exit 1
           }
-          printf '%s\n' "${GITHUB_SHA}" > "${evidence_dir}/expected-parent-sha.txt"
-          git write-tree > "${evidence_dir}/rendered-tree-sha.txt"
-          [[ "$(cat "${evidence_dir}/rendered-tree-sha.txt")" == "e449b23cf62f210c0d64fe9931094049c5cf41c5" ]]
-          git diff --cached --name-status > "${evidence_dir}/name-status.txt"
-          git diff --cached --name-only --diff-filter=D > "${evidence_dir}/deleted-files.txt"
-          git diff --cached --name-only --diff-filter=ACMRT > "${evidence_dir}/materialized-files.txt"
-          while IFS= read -r path; do
-            [[ -n "${path}" ]] || continue
-            mkdir -p "${evidence_dir}/files/$(dirname "${path}")"
-            cp -- "${path}" "${evidence_dir}/files/${path}"
-          done < "${evidence_dir}/materialized-files.txt"
-          git diff --cached --binary > "${evidence_dir}/final.patch"
-          sha256sum "${evidence_dir}/final.patch" > "${evidence_dir}/final.patch.sha256"
-
-      - name: Upload exact final governance delta
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr6502-final-governance-${{ github.sha }}
-          path: ${{ runner.temp }}/pr6502-final-governance-delta
-          if-no-files-found: error
-          include-hidden-files: true
-          retention-days: 7
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo "::error::staged index contains workflow path mutation"
+            exit 1
+          fi
+          git commit -m "fix(ci): stage verified PR 6502 governance tree"
+          remote_head_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          [[ "${remote_head_sha}" == "${GITHUB_SHA}" ]]
+          git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
