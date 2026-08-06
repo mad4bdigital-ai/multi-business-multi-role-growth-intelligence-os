@@ -1,6 +1,6 @@
 name: PR 6429 governed main reconciliation
 
-# trigger: execute-pinned-main-fa225f7-v1
+# trigger: execute-pinned-main-fa225f7-v2
 on:
   push:
     branches:
@@ -92,8 +92,21 @@ jobs:
           node http-generic-api/scripts/pipeline-connectivity-check.mjs
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          converged=false
+          for attempt in 1 2 3; do
+            echo "Work Map stabilization attempt ${attempt}/3"
+            node http-generic-api/scripts/platform-work-map-generator.mjs --write
+            if node http-generic-api/scripts/platform-work-map-generator.mjs --check; then
+              converged=true
+              break
+            fi
+          done
+          if [[ "${converged}" != 'true' ]]; then
+            echo '::error::Work Maps did not reach a stable fixed point within three bounded attempts.'
+            exit 1
+          fi
+
           node http-generic-api/scripts/validate-spec-kit-work-maps.mjs --schema
           node http-generic-api/scripts/validate-spec-kit-work-maps.mjs --governance
 
@@ -141,6 +154,7 @@ jobs:
             echo "pinned_main_sha=${PINNED_MAIN_SHA}"
             echo 'conflicts_resolved=docs/work-maps/README.md,http-generic-api/frontend-operation-governance.generated.json,http-generic-api/frontend-surface-dispatch.generated.json'
             echo 'resolution=regenerated_from_final_merged_tree'
+            echo 'work_map_stabilization=max_3_attempts_fail_closed'
             echo 'force_push=false'
           } > /tmp/pr6429-reconciliation-evidence/bindings.txt
           git diff --cached --name-only | sort > /tmp/pr6429-reconciliation-evidence/staged-paths.txt
