@@ -1,0 +1,118 @@
+name: Materialize Certified Release Static Upload Paths
+
+on:
+  push:
+    branches:
+      - fix/certified-release-upload-path-context-20260806
+    paths:
+      - .github/ops/certified-release-static-upload-paths.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-certified-release-static-upload-paths
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact materializer head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Pin current main
+        id: pin
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          BRANCH_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
+          MAIN_HEAD="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$BRANCH_HEAD" = "$GITHUB_SHA"
+          [[ "$MAIN_HEAD" =~ ^[0-9a-f]{40}$ ]]
+          echo "main_sha=$MAIN_HEAD" >> "$GITHUB_OUTPUT"
+          echo "PINNED_MAIN_SHA=$MAIN_HEAD" >> "$GITHUB_ENV"
+
+      - name: Checkout pinned main tree
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.pin.outputs.main_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Patch static workspace artifact paths
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$PINNED_MAIN_SHA"
+          python - <<'PY'
+          from pathlib import Path
+
+          expression_open = '$' + '{{'
+          workflow_path = Path('.github/workflows/production-certified-release-cut-validation.yml')
+          workflow = workflow_path.read_text()
+          replacements = {
+              'EVIDENCE_PATH="${RUNNER_TEMP}/certified-production-release-cut.json"': 'EVIDENCE_PATH="${GITHUB_WORKSPACE}/certified-production-release-cut.json"',
+              'CI_SUMMARY_PATH="${RUNNER_TEMP}/certified-release-ci.json"': 'CI_SUMMARY_PATH="${GITHUB_WORKSPACE}/certified-release-ci.json"',
+              '            ' + expression_open + ' env.EVIDENCE_PATH }}': '            certified-production-release-cut.json',
+              '            ' + expression_open + ' env.CI_SUMMARY_PATH }}': '            certified-release-ci.json',
+          }
+          for old, new in replacements.items():
+              count = workflow.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one occurrence of {old!r}, found {count}')
+              workflow = workflow.replace(old, new)
+          workflow_path.write_text(workflow)
+
+          test_path = Path('http-generic-api/test-production-certified-release-cut-validation-registration.mjs')
+          test = test_path.read_text()
+          old_lines = [
+              '''assert.ok(finalize.includes('echo "EVIDENCE_PATH=${RUNNER_TEMP}/certified-production-release-cut.json" >> "$GITHUB_ENV"'));''',
+              '''assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${RUNNER_TEMP}/certified-release-ci.json" >> "$GITHUB_ENV"'));''',
+              "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-production-release-cut.json'));",
+              "assert.ok(finalize.includes('" + expression_open + " runner.temp }}/certified-release-ci.json'));",
+              r"assert.doesNotMatch(finalize, /\$\{\{ env\.(?:EVIDENCE_PATH|CI_SUMMARY_PATH) \}\}/);",
+          ]
+          new_lines = [
+              '''assert.ok(finalize.includes('echo "EVIDENCE_PATH=${GITHUB_WORKSPACE}/certified-production-release-cut.json" >> "$GITHUB_ENV"'));''',
+              '''assert.ok(finalize.includes('echo "CI_SUMMARY_PATH=${GITHUB_WORKSPACE}/certified-release-ci.json" >> "$GITHUB_ENV"'));''',
+              "const uploadIndex = finalize.indexOf('- name: Upload certified release-cut evidence');",
+              "assert.notEqual(uploadIndex, -1, 'certified evidence upload step must exist');",
+              "const upload = finalize.slice(uploadIndex);",
+              "const pathIndex = upload.indexOf('          path: |');",
+              "const noFilesIndex = upload.indexOf('          if-no-files-found:');",
+              "assert.ok(pathIndex >= 0 && noFilesIndex > pathIndex, 'upload path block must be bounded');",
+              "const pathBlock = upload.slice(pathIndex, noFilesIndex);",
+              "assert.ok(pathBlock.includes('certified-production-release-cut.json'));",
+              "assert.ok(pathBlock.includes('certified-release-ci.json'));",
+              r"assert.doesNotMatch(pathBlock, /\$\{\{/);",
+          ]
+          old = '\n'.join(old_lines)
+          if test.count(old) != 1:
+              raise SystemExit('expected runner-context assertion block exactly once')
+          test_path.write_text(test.replace(old, '\n'.join(new_lines)))
+          PY
+
+          git diff --check
+          test "$(git diff --name-only "$PINNED_MAIN_SHA" -- | wc -l)" -eq 2
+          node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+          node --check http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+
+      - name: Materialize bounded blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          WORKFLOW_BLOB="$(jq -Rs '{content: ., encoding: "utf-8"}' < .github/workflows/production-certified-release-cut-validation.yml | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
+          TEST_BLOB="$(jq -Rs '{content: ., encoding: "utf-8"}' < http-generic-api/test-production-certified-release-cut-validation-registration.mjs | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq .sha)"
+          [[ "$WORKFLOW_BLOB" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TEST_BLOB" =~ ^[0-9a-f]{40}$ ]]
+          printf 'PINNED_MAIN_SHA=%s\nWORKFLOW_BLOB=%s\nTEST_BLOB=%s\n' "$PINNED_MAIN_SHA" "$WORKFLOW_BLOB" "$TEST_BLOB"
