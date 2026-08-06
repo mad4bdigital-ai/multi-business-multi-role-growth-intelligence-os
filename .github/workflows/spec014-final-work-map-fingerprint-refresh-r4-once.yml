@@ -1,5 +1,5 @@
 name: Spec 014 Final Work Map Fingerprint Refresh R4 Once
-# Initialized after workflow registration.
+# Validate only the changed governed scope.
 
 on:
   push:
@@ -130,9 +130,9 @@ jobs:
             esac
           done < <(git diff --name-only)
           git diff --check
-          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/direct-integration-gate.json"
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --all > "${REPORT_DIR}/governance-gate.json"
-          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs > "${REPORT_DIR}/fingerprint-separation-regression.txt"
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/direct-integration-gate.json" 2>&1
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs > "${REPORT_DIR}/governance-gate.json" 2>&1
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs > "${REPORT_DIR}/fingerprint-separation-regression.txt" 2>&1
 
       - name: Commit final tree and push fast-forward
         id: publish
@@ -151,8 +151,8 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix(spec014): align canonical Work Map fingerprints'
           result_head="$(git rev-parse HEAD)"
-          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/postcommit-direct-integration-gate.json"
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --all > "${REPORT_DIR}/postcommit-governance-gate.json"
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs > "${REPORT_DIR}/postcommit-direct-integration-gate.json" 2>&1
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs > "${REPORT_DIR}/postcommit-governance-gate.json" 2>&1
           remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
