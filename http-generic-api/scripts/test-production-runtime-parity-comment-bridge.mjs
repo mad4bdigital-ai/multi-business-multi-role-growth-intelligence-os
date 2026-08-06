@@ -40,6 +40,20 @@ assert.match(workflow, /\.secrets_included == false/u);
 assert.doesNotMatch(workflow, /secrets\./u);
 assert.doesNotMatch(workflow, /^  (?:push|schedule|pull_request_target|deployment):/mu);
 
+assert.doesNotMatch(
+  workflow,
+  /^      REPORT_DIR: \$\{\{ runner\.temp \}\}\/production-runtime-parity-comment-bridge$/mu,
+  "runner.temp must not be resolved in job-level env before a runner is allocated"
+);
+const stepScopedReportDirs = workflow.match(
+  /^          REPORT_DIR: \$\{\{ runner\.temp \}\}\/production-runtime-parity-comment-bridge$/gmu
+) || [];
+assert.equal(stepScopedReportDirs.length, 3, "report directory must be bound only inside the three runner-backed shell steps");
+assert.match(
+  workflow,
+  /^          path: \$\{\{ runner\.temp \}\}\/production-runtime-parity-comment-bridge\/\*$/mu
+);
+
 const triggerPattern = /^RUN_PRODUCTION_RUNTIME_PARITY expected_sha=([0-9a-f]{40}) tooling_sha=([0-9a-f]{40})$/u;
 const expectedSha = "a".repeat(40);
 const toolingSha = "b".repeat(40);
@@ -52,4 +66,4 @@ for (const invalid of [
   `RUN_PRODUCTION_RUNTIME_PARITY auth_url=https://example.com expected_sha=${expectedSha} tooling_sha=${toolingSha}`
 ]) assert.equal(triggerPattern.test(invalid), false, invalid);
 
-console.log(JSON.stringify({ok:true,tests:2,gate:"production_runtime_parity_comment_bridge",provider_method:"public_https_get",provider_mutation:false,secrets_included:false}));
+console.log(JSON.stringify({ok:true,tests:3,gate:"production_runtime_parity_comment_bridge",provider_method:"public_https_get",provider_mutation:false,secrets_included:false}));
