@@ -17,8 +17,8 @@ concurrency:
 
 jobs:
   harden:
-    name: Harden launcher identity and remove one-shot
-    runs-on: windows-latest
+    name: Harden launcher identity and generate final-tree maps
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 20
     defaults:
       run:
@@ -26,7 +26,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: aef17bb8a01b71057b345434f5541b6fc4f37b49
+      AUTHORIZED_PARENT_SHA: 0d3d9a722365753cae47a151dea4825a9849ba14
       ONE_SHOT_PATH: .github/workflows/pr6502-same-repository-hardening.yml
       LAUNCHER_PATH: .github/workflows/governed-production-promotion-request-launcher.yml
       TEST_PATH: http-generic-api/test-production-promotion-convergence-workflows.mjs
@@ -78,7 +78,7 @@ jobs:
           const testPath = process.env.TEST_PATH;
           let launcher = fs.readFileSync(launcherPath, "utf8");
           const blockStart = '          request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"\n';
-          const blockEnd = '          [[ "$(jq -r \'.title\' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"\n';
+          const blockEnd = '          [[ "$(jq -r \' .title\' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"\n'.replace("\\' .title\\'", "\\'.title\\'");
           const start = launcher.indexOf(blockStart);
           const endStart = launcher.indexOf(blockEnd, start);
           if (start < 0 || endStart < 0 || launcher.indexOf(blockStart, start + 1) !== -1) {
@@ -115,7 +115,7 @@ jobs:
           ! grep -Fq 'headRepositoryOwner' "${LAUNCHER_PATH}"
           grep -Fq 'assert.doesNotMatch(launcher, /headRepositoryOwner/);' "${TEST_PATH}"
 
-      - name: Remove one-shot and regenerate final-tree maps
+      - name: Generate maps from final permanent tree and prove idempotency
         run: |
           set -euo pipefail
           rm -- "${ONE_SHOT_PATH}"
@@ -145,26 +145,27 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
 
-      - name: Commit bounded final tree and push fast-forward
+      - name: Commit bounded permanent changes for connector cleanup
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          git restore --source=HEAD -- "${ONE_SHOT_PATH}"
+          test -f "${ONE_SHOT_PATH}"
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- "${LAUNCHER_PATH}" "${TEST_PATH}" docs/work-maps/README.md docs/work-maps/repository-automation-map.md
-          git add -u -- "${ONE_SHOT_PATH}"
 
           mapfile -t staged < <(git diff --cached --name-only | sort)
           printf '%s\n' "${staged[@]}"
-          test "${#staged[@]}" -ge 3
-          test "${#staged[@]}" -le 5
-          printf '%s\n' "${staged[@]}" | grep -Fxq "${ONE_SHOT_PATH}"
+          test "${#staged[@]}" -ge 2
+          test "${#staged[@]}" -le 4
           printf '%s\n' "${staged[@]}" | grep -Fxq "${LAUNCHER_PATH}"
           printf '%s\n' "${staged[@]}" | grep -Fxq "${TEST_PATH}"
           for path in "${staged[@]}"; do
             case "${path}" in
-              "${ONE_SHOT_PATH}"|"${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+              "${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
                 ;;
               *)
                 echo "Unexpected staged path: ${path}"
@@ -180,11 +181,15 @@ jobs:
 
           git commit -m "fix(governance): require same-repository promotion request"
           result_sha="$(git rev-parse HEAD)"
+          remote_before_push="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before_push}" = "${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
           remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_after}" = "${result_sha}"
-          test ! -e "${ONE_SHOT_PATH}"
+
+          rm -- "${ONE_SHOT_PATH}"
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git restore --source=HEAD -- "${ONE_SHOT_PATH}"
 
           gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" \
-            -f body="SAME_REPOSITORY_HARDENING outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} exact_head_binding=true same_repository_check=true regression_added=true work_maps_current=true one_shot_removed=true force_push=false protected_ref_mutation=false"
+            -f body="SAME_REPOSITORY_HARDENING outcome=generated authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} exact_head_binding=true same_repository_check=true regression_added=true work_maps_current_for_final_tree=true connector_cleanup_required=true force_push=false protected_ref_mutation=false"
