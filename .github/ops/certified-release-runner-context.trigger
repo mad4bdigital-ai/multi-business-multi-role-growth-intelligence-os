@@ -1,4 +1,5 @@
-trigger=certified-release-runner-context-repair
+trigger=certified-release-runner-context-blob-materialization
 base=a55e30d340cd63917939f8264e2d5c9af8c7bd8b
-writer=8781e987c010c475aba198fbefa3af4aeb3bcba7
-attempt=registration-safe-v3
+source_run=31080487142
+writer=754ce6df1c4a2e3c9caa79ccf9cbfda64d405d63
+attempt=detached-blobs-v1
