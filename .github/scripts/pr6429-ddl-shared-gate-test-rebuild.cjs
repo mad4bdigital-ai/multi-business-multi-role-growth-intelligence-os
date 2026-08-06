@@ -12,8 +12,8 @@ let source = execFileSync('git', ['show', `${baseSha}:${testPath}`], {
   stdio: ['ignore', 'pipe', 'inherit'],
 });
 
-const anchor = `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature'", 'feature allowlist evidence');`;
-const replacement = [
+const featureEvidenceAnchor = `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature'", 'feature allowlist evidence');`;
+const featureEvidenceReplacement = [
   `requireFragment("'feature_scope_allowlist_enforced': candidate_mode == 'feature' and boundary_mode == 'contract_local'", 'contract-local feature allowlist evidence');`,
   `requireFragment("'shared_gate_dependency_validated': candidate_mode == 'feature' and boundary_mode == 'shared_gate_dependency'", 'shared gate dependency evidence');`,
   `requireFragment('BOUNDARY_MODE: \${{ steps.boundary.outputs.boundary_mode }}', 'boundary mode output binding');`,
@@ -22,11 +22,20 @@ const replacement = [
   `requireFragment("shared_gate='^http-generic-api/scripts/e2e-parallel-pr-gate", 'shared gate exact-match pattern prefix');`,
 ].join('\n');
 
-const count = source.split(anchor).length - 1;
-if (count !== 1) {
-  throw new Error(`Feature evidence anchor expected once, found ${count}.`);
+const featureEvidenceCount = source.split(featureEvidenceAnchor).length - 1;
+if (featureEvidenceCount !== 1) {
+  throw new Error(`Feature evidence anchor expected once, found ${featureEvidenceCount}.`);
 }
-source = source.replace(anchor, replacement);
+source = source.replace(featureEvidenceAnchor, featureEvidenceReplacement);
+
+const featureBoundaryAnchor = `requireFragment('if [[ "\${candidate_mode}" == "feature" ]]', 'feature-only diff allowlist enforcement');`;
+const featureBoundaryReplacement = `requireFragment('if [[ "\${candidate_mode}" == "feature" ]]; then', 'feature boundary mode classification');`;
+const featureBoundaryCount = source.split(featureBoundaryAnchor).length - 1;
+if (featureBoundaryCount !== 1) {
+  throw new Error(`Feature boundary assertion anchor expected once, found ${featureBoundaryCount}.`);
+}
+source = source.replace(featureBoundaryAnchor, featureBoundaryReplacement);
+
 fs.writeFileSync(testPath, source);
 
 const syntax = spawnSync(process.execPath, ['--check', testPath], {
@@ -43,7 +52,7 @@ const report = {
   ok: syntax.status === 0 && runtime.status === 0,
   base_sha: baseSha,
   test_path: testPath,
-  assertions_added: 6,
+  assertions_added: 7,
   syntax_status: syntax.status,
   syntax_stdout: String(syntax.stdout || '').slice(-4000),
   syntax_stderr: String(syntax.stderr || '').slice(-4000),
