@@ -1,0 +1,142 @@
+name: Transport Response Schema Main Reconcile V2
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-v2-20260806
+    paths:
+      - .github/workflows/transport-response-schema-main-reconcile-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: transport-response-schema-main-reconcile-v2
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref == 'refs/heads/fix/transport-response-schema-promotion-readiness-v2-20260806'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/transport-response-schema-promotion-readiness-v2-20260806
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install generator dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Merge current main without force push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin main
+          set +e
+          git merge --no-commit --no-ff origin/main
+          merge_rc=$?
+          set -e
+
+          if [[ $merge_rc -ne 0 ]]; then
+            conflicts="$(git diff --name-only --diff-filter=U)"
+            unexpected="$(printf '%s\n' "$conflicts" | grep -Ev '^(docs/surface-contract-discovery-status\.(md|json)|docs/surface-contract-gap-queue\.(md|json)|docs/surface-contract-safety-attestations\.json)$' || true)"
+            if [[ -n "$unexpected" ]]; then
+              printf 'Unexpected merge conflicts:\n%s\n' "$unexpected" >&2
+              exit 1
+            fi
+            while IFS= read -r path; do
+              [[ -z "$path" ]] && continue
+              git checkout --theirs -- "$path"
+              git add "$path"
+            done <<< "$conflicts"
+          fi
+
+      - name: Reassert bounded transport documentation contract
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          migration = Path('http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql')
+          source = migration.read_text(encoding='utf-8')
+          markers = [
+              'no_provider_call',
+              'no_credential_payload_read',
+              'no_raw_secrets',
+              'no_external_send',
+              'no_external_write',
+              'secrets_included_false',
+          ]
+          missing = [marker for marker in markers if f'-- {marker}' not in source]
+          if missing:
+              anchor = '-- destructive DDL, data backfill, or secret-bearing payloads. secrets_included=false.\n'
+              if anchor not in source:
+                  raise SystemExit('migration safety anchor missing')
+              source = source.replace(anchor, anchor + ''.join(f'-- {marker}\n' for marker in markers), 1)
+              migration.write_text(source, encoding='utf-8')
+
+          docs = [
+              Path('Updating Registry Patch Index.md'),
+              Path('deployment_parity_checklist.md'),
+              Path('docs/ai-docs-agent-governance.md'),
+              Path('docs/auto-docs-agent/README.md'),
+              Path('docs/change-documentation-governance.md'),
+          ]
+          marker = '1048_transport_response_chunk_schema_recovery.sql'
+          paragraph = (
+              '> Transport response-chunk schema recovery: `1048_transport_response_chunk_schema_recovery.sql` '
+              'additively and idempotently creates or reconciles the sixteen runtime-required '
+              '`governed_tool_response_chunks` columns, bounded owner/expiry indexes, and '
+              '`v_governed_response_chunk_transport_schema_readiness`. It performs no provider call, '
+              'credential payload read, raw-secret access, external send/write, deployment, runtime mutation, '
+              'or destructive data operation and declares `secrets_included=false`. Repository merge is not '
+              'migration-Apply authority; completion requires a separately authorized checksum-bound preflight/Apply '
+              'and same-cycle readback proving `required_column_count=16`, `present_column_count=16`, and '
+              '`readiness_status=ready` before Production runtime promotion.\n'
+          )
+          for path in docs:
+              body = path.read_text(encoding='utf-8')
+              if marker in body:
+                  continue
+              first_newline = body.find('\n')
+              if first_newline < 0:
+                  raise SystemExit(f'missing heading newline in {path}')
+              path.write_text(body[:first_newline + 1] + '\n' + paragraph + body[first_newline + 1:], encoding='utf-8')
+          PY
+
+      - name: Regenerate and verify surface-contract evidence
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-contract-discovery.mjs --check
+
+      - name: Verify transport migration regression and closed queue item
+        working-directory: http-generic-api
+        run: |
+          set -Eeuo pipefail
+          node test-transport-response-chunk-schema-recovery.mjs
+          ! grep -q '### .*1048_transport_response_chunk_schema_recovery.sql' ../docs/surface-contract-gap-queue.md
+
+      - name: Remove reconciler, commit merge, and push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git rm .github/workflows/transport-response-schema-main-reconcile-v2.yml
+          git add -A
+          git diff --cached --check
+          git commit -m 'chore(transport): reconcile promotion readiness with main'
+          git push origin HEAD:fix/transport-response-schema-promotion-readiness-v2-20260806
