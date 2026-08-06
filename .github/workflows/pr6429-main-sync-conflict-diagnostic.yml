@@ -1,6 +1,6 @@
 name: PR 6429 main sync conflict diagnostic
 
-# trigger: exact-main-sync-diagnostic-v1
+# trigger: artifact-backed-diagnostic-v2
 on:
   push:
     branches:
@@ -21,26 +21,55 @@ jobs:
           fetch-depth: 0
           ref: gpt/reconcile/pr6429-main-20260806
 
-      - name: Attempt non-writing merge and report conflicts
+      - name: Attempt pinned non-writing merge
+        id: diagnose
         shell: bash
+        env:
+          PINNED_MAIN_SHA: 0ffaeef6e86df00eeec3c5ca22fab00e9c4cda1b
         run: |
-          set -euo pipefail
-          git fetch --no-tags origin main
-          set +e
-          git merge --no-ff --no-commit origin/main
-          merge_rc=$?
-          set -e
-          echo "merge_rc=${merge_rc}"
-          echo '--- conflict paths ---'
-          git diff --name-only --diff-filter=U | sort
-          echo '--- status ---'
-          git status --short
-          if [ "${merge_rc}" -eq 0 ]; then
-            git merge --abort || true
-            echo 'No conflicts detected.'
+          set -u
+          mkdir -p /tmp/pr6429-main-sync-diagnostic
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin "${PINNED_MAIN_SHA}"
+
+          branch_head="$(git rev-parse HEAD)"
+          remote_main="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          {
+            echo "branch_head=${branch_head}"
+            echo "pinned_main_sha=${PINNED_MAIN_SHA}"
+            echo "remote_main_sha=${remote_main}"
+          } > /tmp/pr6429-main-sync-diagnostic/bindings.txt
+
+          if [ "${remote_main}" != "${PINNED_MAIN_SHA}" ]; then
+            echo 'main_moved=true' >> /tmp/pr6429-main-sync-diagnostic/bindings.txt
+            echo 'Pinned main moved before diagnosis; no merge attempted.' > /tmp/pr6429-main-sync-diagnostic/result.txt
             exit 0
           fi
-          conflict_count="$(git diff --name-only --diff-filter=U | wc -l | tr -d ' ')"
-          test "${conflict_count}" -gt 0
-          git merge --abort
-          echo "Detected ${conflict_count} conflict path(s); no write performed."
+
+          set +e
+          git merge --no-ff --no-commit "${PINNED_MAIN_SHA}" > /tmp/pr6429-main-sync-diagnostic/merge-output.txt 2>&1
+          merge_rc=$?
+          set -e
+
+          echo "merge_rc=${merge_rc}" > /tmp/pr6429-main-sync-diagnostic/result.txt
+          git diff --name-only --diff-filter=U | sort > /tmp/pr6429-main-sync-diagnostic/conflict-paths.txt
+          git status --short > /tmp/pr6429-main-sync-diagnostic/status.txt
+          git diff --cc > /tmp/pr6429-main-sync-diagnostic/combined-conflict.diff || true
+          conflict_count="$(wc -l < /tmp/pr6429-main-sync-diagnostic/conflict-paths.txt | tr -d ' ')"
+          echo "conflict_count=${conflict_count}" >> /tmp/pr6429-main-sync-diagnostic/result.txt
+
+          if git rev-parse -q --verify MERGE_HEAD >/dev/null; then
+            git merge --abort || true
+          fi
+
+          echo 'Diagnostic captured; no repository write performed.'
+
+      - name: Upload conflict diagnostic
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-main-sync-conflicts-${{ github.sha }}
+          path: /tmp/pr6429-main-sync-diagnostic
+          if-no-files-found: error
+          retention-days: 3
