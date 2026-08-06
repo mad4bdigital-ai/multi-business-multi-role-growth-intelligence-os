@@ -1,0 +1,76 @@
+name: PR 6429 Policy Ownership Trigger V6
+
+on:
+  push:
+    branches:
+      - gpt/github-main-policy-controller-20260805
+    paths:
+      - .github/workflows/pr6429-policy-ownership-trigger-v6.yml
+
+permissions:
+  contents: write
+
+jobs:
+  trigger-ownership-repair-v6:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact work branch
+        uses: actions/checkout@v4
+        with:
+          ref: gpt/github-main-policy-controller-20260805
+          fetch-depth: 0
+
+      - name: Extract and execute validated V4 repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEXTRACT'
+          from pathlib import Path
+
+          source = Path('.github/workflows/pr6429-policy-ownership-repair-v4.yml')
+          lines = source.read_text().splitlines()
+          start = next(i for i, line in enumerate(lines) if line.strip() == "python3 - <<'PY'") + 1
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == 'PY')
+          body = lines[start:end]
+          indents = [len(line) - len(line.lstrip()) for line in body if line.strip()]
+          if not indents:
+              raise SystemExit('V4 embedded repair script is empty')
+          common = min(indents)
+          Path('/tmp/pr6429-policy-ownership-v4.py').write_text(
+              '\n'.join(line[common:] if line.strip() else '' for line in body) + '\n'
+          )
+          PYEXTRACT
+          python3 /tmp/pr6429-policy-ownership-v4.py
+
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Validate focused repair
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-github-repository-policy-controller.mjs
+          node test-repository-automation-policy-facade.mjs
+          node test-frontend-surface-dispatch.mjs
+
+      - name: Commit repair with safe staging and remove bootstraps
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/pr6429-policy-review-repair.yml
+          rm -f .github/workflows/pr6429-policy-review-trigger.yml
+          rm -f .github/workflows/pr6429-policy-review-trigger-v2.yml
+          rm -f .github/workflows/pr6429-policy-ownership-repair-v3.yml
+          rm -f .github/workflows/pr6429-policy-ownership-repair-v4.yml
+          rm -f .github/workflows/pr6429-policy-ownership-trigger-v5.yml
+          rm -f .github/workflows/pr6429-policy-ownership-trigger-v6.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/test-github-repository-policy-controller.mjs
+          git add -u -- .github/workflows
+          git diff --cached --check
+          git commit -m "fix(github): reject inherited repository policy Rulesets"
+          git push origin HEAD:gpt/github-main-policy-controller-20260805
