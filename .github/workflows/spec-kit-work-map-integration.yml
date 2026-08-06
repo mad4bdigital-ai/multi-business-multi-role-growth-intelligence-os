@@ -69,11 +69,9 @@ jobs:
           [[ -n "${GITHUB_REF_NAME}" ]]
 
           pr_file="${RUNNER_TEMP}/work-map-integration-target-pr.json"
-          gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls" \
-            -f state=open \
-            -f base=main \
-            -f head="${GITHUB_REPOSITORY_OWNER}:${GITHUB_REF_NAME}" \
-            -f per_page=2 > "${pr_file}"
+          head_query="$(jq -rn --arg value "${GITHUB_REPOSITORY_OWNER}:${GITHUB_REF_NAME}" '$value | @uri')"
+          gh api --method GET \
+            "repos/${GITHUB_REPOSITORY}/pulls?state=open&base=main&head=${head_query}&per_page=2" > "${pr_file}"
 
           pr_count="$(jq 'length' "${pr_file}")"
           test "${pr_count}" = "1"
