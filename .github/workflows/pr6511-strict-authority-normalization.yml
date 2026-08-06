@@ -36,7 +36,11 @@ jobs:
           test "$(git merge-base d0e8e0399ff5cf8c441c5259e32af779f0bfd532 HEAD)" = "d0e8e0399ff5cf8c441c5259e32af779f0bfd532"
 
       - name: Apply strict authority normalization patch
-        run: node scripts/pr6511-strict-authority-normalization.mjs
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/pr6511-strict-authority-normalization.mjs
+          node scripts/pr6511-idempotency-key-binding.mjs
 
       - name: Validate JavaScript syntax
         shell: bash
