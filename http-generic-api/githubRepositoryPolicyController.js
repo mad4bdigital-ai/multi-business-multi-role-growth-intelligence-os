@@ -354,19 +354,25 @@ function matchesMainCondition(detail = {}, defaultBranch = "main") {
     && !exclude.some((pattern) => refPatternMatchesMain(pattern, defaultBranch));
 }
 
-function evaluateRuleset(detail = {}, checks, finalizerAppId) {
+function evaluateRuleset(detail = {}, checks, finalizerAppId, target = {}) {
   const writable = writableRulesetPayload(detail);
   const pullRequest = pullRequestRuleEvidence(writable.rules);
   const observedChecks = statusCheckContexts(writable.rules);
   const missingChecks = checks.filter((check) => !observedChecks.includes(check));
   const bypassActors = writable.bypass_actors;
   const matchingFinalizerBypassActors = bypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
+  const sourceType = compact(detail.source_type || "", 64) || null;
+  const source = compact(detail.source || "", 255) || null;
+  const repositorySource = target.owner && target.repo ? `${target.owner}/${target.repo}` : null;
   return {
     id: Number(detail.id || 0) || null,
     name: compact(detail.name || "", 100) || null,
     target: detail.target || null,
     enforcement: detail.enforcement || null,
-    applies_to_main: matchesMainCondition(detail),
+    source_type: sourceType,
+    source,
+    repository_owned: sourceType === "Repository" && source === repositorySource,
+    applies_to_main: matchesMainCondition(detail, target.default_branch || "main"),
     pull_request: pullRequest,
     required_status_checks: observedChecks,
     missing_required_checks: missingChecks,
@@ -450,9 +456,10 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
   const checks = normalizeRequiredChecks(args.required_checks);
   const evaluatedRulesets = rulesetDetails
     .filter((item) => item.status === 200 && item.detail)
-    .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId));
+    .map((item) => evaluateRuleset(item.detail, checks, finalizerAppId, target));
   const mainRulesets = evaluatedRulesets.filter((item) => item.enforcement === "active" && item.applies_to_main);
   const managedRulesets = evaluatedRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+  const repositoryManagedRulesets = managedRulesets.filter((item) => item.repository_owned === true);
   const activeManagedRulesets = mainRulesets.filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME);
   const allBypassActors = mainRulesets.flatMap((item) => item.bypass_actors.map((actor) => ({ ...actor, ruleset_id: item.id, ruleset_name: item.name })));
   const matchingFinalizerBypassActors = allBypassActors.filter((actor) => finalizerAppId && actor.actor_type === "Integration" && actor.actor_id === finalizerAppId);
@@ -555,6 +562,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     ruleset_index_count: rulesetsIndexReadable ? rulesetIndex.length : null,
     ruleset_details: evaluatedRulesets,
     managed_ruleset_count: managedRulesets.length,
+    repository_managed_ruleset_count: repositoryManagedRulesets.length,
     active_managed_ruleset_count: activeManagedRulesets.length,
     bypass_actors: allBypassActors,
     direct_collaborators: collaboratorPermissions,
@@ -588,7 +596,12 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
   }
   const desiredRuleset = buildDesiredRuleset(checks);
   const managedRulesets = (readback?.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
-  const existingManagedRuleset = managedRulesets.length === 1 ? managedRulesets[0] : null;
+  const repositoryManagedRulesets = managedRulesets.filter((item) => item.repository_owned === true);
+  const existingManagedRuleset = managedRulesets.length === 1 && repositoryManagedRulesets.length === 1
+    ? repositoryManagedRulesets[0]
+    : null;
+  const managedRulesetBlocked = managedRulesets.length > 1
+    || (managedRulesets.length === 1 && repositoryManagedRulesets.length !== 1);
   const currentMainSha = readback?.main_sha || compact(args.expected_main_sha || "", 40) || null;
   const policyFingerprint = githubRepositoryPolicyFingerprint({
     target,
@@ -609,13 +622,14 @@ const capabilityAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
     desired_ruleset_fingerprint: githubRepositoryPolicyFingerprint(desiredRuleset),
     policy_fingerprint: policyFingerprint,
     capability_authorization: capabilityAuthorization,
-    operation: existingManagedRuleset ? "update_ruleset" : "create_ruleset",
+    operation: managedRulesetBlocked ? "blocked" : existingManagedRuleset ? "update_ruleset" : "create_ruleset",
     existing_ruleset_id: existingManagedRuleset?.id || null,
     preconditions: {
       policy_state_readable: readback?.proof?.policy_state_readable === true,
       finalizer_app_identity_resolved: readback?.proof?.finalizer_app_identity_resolved === true,
       no_main_bypass_actors: Array.isArray(readback?.bypass_actors) && readback.bypass_actors.length === 0,
       managed_ruleset_ambiguity_absent: managedRulesets.length <= 1,
+      managed_ruleset_repository_owned: managedRulesets.length === 0 || (managedRulesets.length === 1 && repositoryManagedRulesets.length === 1),
       repository_auto_merge_disabled: readback?.proof?.auto_merge_disabled === true,
       merge_queue_disabled: readback?.proof?.merge_queue_disabled_or_equivalent === true,
     },
@@ -756,8 +770,11 @@ function validateApplyInputs(args, preReadback, plan) {
       secrets_included: false,
     });
   }
-  if (preReadback.managed_ruleset_count > 1) {
+  if (!plan.preconditions.managed_ruleset_ambiguity_absent || preReadback.managed_ruleset_count > 1) {
     throw controllerError(409, "github_repository_policy_managed_ruleset_ambiguous", "More than one managed main policy Ruleset exists.");
+  }
+  if (!plan.preconditions.managed_ruleset_repository_owned) {
+    throw controllerError(409, "github_repository_policy_managed_ruleset_not_repository_owned", "The matching managed Ruleset is inherited and cannot be mutated by the repository controller.");
   }
   if (!preReadback.proof.auto_merge_disabled || !preReadback.proof.merge_queue_disabled_or_equivalent) {
     throw controllerError(409, "github_repository_policy_alternate_merge_path_blocked", "Auto-merge or merge queue must be disabled before applying the governed policy.");
@@ -822,7 +839,7 @@ export async function runGithubRepositoryPolicyController(args = {}, deps = {}) 
   const fetchImpl = deps.fetchImpl || fetch;
   const token = await resolveToken(args, deps);
   const target = preReadback.target;
-  const previousRuleset = (preReadback.ruleset_details || []).find((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main) || null;
+  const previousRuleset = (preReadback.ruleset_details || []).find((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main && item.repository_owned === true) || null;
   const apiBase = `/repos/${encode(target.owner)}/${encode(target.repo)}/rulesets`;
   let mutation;
   let createdRulesetId = null;
@@ -850,11 +867,12 @@ export async function runGithubRepositoryPolicyController(args = {}, deps = {}) 
 
   const postReadback = await readGithubRepositoryPolicy(args, { ...deps, token });
   const managed = (postReadback.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
+  const repositoryManaged = managed.filter((item) => item.repository_owned === true);
   const expectedRulesetFingerprint = plan.desired_ruleset_fingerprint;
   const postconditions = {
     main_sha_unchanged: postReadback.main_sha === preReadback.main_sha,
-    one_managed_ruleset: managed.length === 1,
-    ruleset_fingerprint_matches: managed.length === 1 && managed[0].policy_fingerprint === expectedRulesetFingerprint,
+    one_managed_ruleset: managed.length === 1 && repositoryManaged.length === 1,
+    ruleset_fingerprint_matches: repositoryManaged.length === 1 && repositoryManaged[0].policy_fingerprint === expectedRulesetFingerprint,
     server_policy_gate_complete: postReadback.proof.server_policy_gate_complete === true,
     no_bypass_actors: postReadback.bypass_actors.length === 0,
     secrets_included: false,

@@ -29,6 +29,8 @@ function desiredRuleset({
   missingCheck = null,
   includeRefs = ["~DEFAULT_BRANCH"],
   excludeRefs = [],
+  sourceType = "Repository",
+  source = `${OWNER}/${REPO}`,
 } = {}) {
   const checks = GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS
     .filter((check) => check !== missingCheck)
@@ -38,6 +40,8 @@ function desiredRuleset({
     name: GITHUB_REPOSITORY_POLICY_RULESET_NAME,
     target: "branch",
     enforcement: "active",
+    source_type: sourceType,
+    source,
     bypass_actors: bypassActors,
     conditions: { ref_name: { include: includeRefs, exclude: excludeRefs } },
     rules: [
@@ -119,13 +123,13 @@ function createGithubFetch({
     }
     if (path === `/repos/${OWNER}/${REPO}/rulesets` && method === "POST") {
       const body = JSON.parse(options.body || "{}");
-      state.ruleset = { id: 42, ...body };
+      state.ruleset = { id: 42, source_type: "Repository", source: `${OWNER}/${REPO}`, ...body };
       state.mutations.push({ method, path, body });
       return response(201, state.ruleset);
     }
     if (path === `/repos/${OWNER}/${REPO}/rulesets/42` && method === "PUT") {
       const body = JSON.parse(options.body || "{}");
-      state.ruleset = { id: 42, ...body };
+      state.ruleset = { id: 42, source_type: "Repository", source: `${OWNER}/${REPO}`, ...body };
       state.mutations.push({ method, path, body });
       return response(200, state.ruleset);
     }
@@ -487,6 +491,32 @@ try {
     );
   }
 
+  {
+  const inheritedRuleset = desiredRuleset({ sourceType: "Organization", source: OWNER });
+  const mock = createGithubFetch({ initialRuleset: inheritedRuleset });
+  const planResult = await runGithubRepositoryPolicyController(
+    { mode: "plan", owner: OWNER, repo: REPO },
+    controllerDeps(mock.fetchImpl)
+  );
+  assert.equal(planResult.readback.ruleset_details[0].repository_owned, false);
+  assert.equal(planResult.readback.repository_managed_ruleset_count, 0);
+  assert.equal(planResult.operation, "blocked");
+  assert.equal(planResult.preconditions.managed_ruleset_repository_owned, false);
+  await expectCode(
+    runGithubRepositoryPolicyController({
+      mode: "apply",
+      owner: OWNER,
+      repo: REPO,
+      expected_main_sha: MAIN_SHA,
+      expected_policy_fingerprint: planResult.policy_fingerprint,
+      confirm: GITHUB_REPOSITORY_POLICY_CONFIRMATION,
+      capability_envelope_id: "env-policy-1",
+    }, controllerDeps(mock.fetchImpl)),
+    "github_repository_policy_managed_ruleset_not_repository_owned"
+  );
+  assert.equal(mock.state.mutations.length, 0);
+}
+
   console.log(JSON.stringify({
     ok: true,
     test: "github_repository_policy_controller_fail_closed",
@@ -500,6 +530,7 @@ try {
     bypass_actor_blocks_apply: true,
     exact_plan_applies_once: true,
     postcondition_mismatch_rolls_back: true,
+    inherited_managed_ruleset_rejected: true,
     secrets_included: false,
   }));
 } finally {
