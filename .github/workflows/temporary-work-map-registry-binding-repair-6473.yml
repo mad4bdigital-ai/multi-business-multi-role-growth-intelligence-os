@@ -1,0 +1,132 @@
+name: Temporary Work Map Registry Binding Repair 6473
+
+on:
+  pull_request:
+    types: [synchronize]
+    paths:
+      - ".changes/e2e/work-map-registry-binding-repair-6473.trigger"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-work-map-registry-binding-repair-6473
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.event.pull_request.number == 6473 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact authorized head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable branch identity and current main ancestry
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$TARGET_BRANCH" == "fix/certified-release-cut-runner-context-20260806" ]]
+          [[ "$(git rev-parse HEAD)" == "$EXPECTED_HEAD_SHA" ]]
+          git fetch --no-tags origin \
+            "+refs/heads/$TARGET_BRANCH:refs/remotes/origin/$TARGET_BRANCH" \
+            "+refs/heads/main:refs/remotes/origin/main"
+          [[ "$(git rev-parse refs/remotes/origin/$TARGET_BRANCH)" == "$EXPECTED_HEAD_SHA" ]]
+          git merge-base --is-ancestor refs/remotes/origin/main HEAD
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Refresh exact Work Map registry bindings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { buildEffectiveWorkMapRegistry } from './http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs';
+
+          const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root: process.cwd() });
+          if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
+            throw new Error(`unexpected registry shape maps=${effectiveRegistry.maps.length} domains=${effectiveRegistry.domains.length}`);
+          }
+          if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
+            throw new Error('registry contains unresolved objects or taxonomy gaps');
+          }
+
+          const registry = {
+            fingerprint: effectiveRegistry.fingerprint,
+            index_source_hash: effectiveRegistry.signature.index_source_hash,
+            coverage_source_hash: effectiveRegistry.signature.coverage_source_hash,
+            map_count: effectiveRegistry.maps.length,
+            domain_count: effectiveRegistry.domains.length,
+            uncategorized_count: effectiveRegistry.uncategorized_objects.length,
+            taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length,
+          };
+          const manifests = [
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json',
+          ];
+          for (const manifestPath of manifests) {
+            const absolute = path.resolve(manifestPath);
+            const manifest = JSON.parse(fs.readFileSync(absolute, 'utf8'));
+            if (!manifest.feature_key || manifest.review_state !== 'ready_for_implementation') {
+              throw new Error(`ineligible manifest ${manifestPath}`);
+            }
+            manifest.registry = registry;
+            fs.writeFileSync(absolute, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+          }
+          console.log(JSON.stringify({ ok: true, manifests, registry, secrets_included: false }, null, 2));
+          NODE
+
+      - name: Validate bounded governance repair
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          git diff --check
+          mapfile -t changed < <(git diff --name-only)
+          printf '%s\n' "${changed[@]}"
+          [[ "${#changed[@]}" -eq 2 ]]
+          [[ "${changed[0]}" == "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json" ]]
+          [[ "${changed[1]}" == "specs/014-retail-commerce-operations-growth-os/work-map-integration.json" ]]
+
+      - name: Commit and push exact bounded repair
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git commit -m "docs(spec-kits): refresh exact work map registry bindings"
+          REMOTE_HEAD="$(git ls-remote --exit-code origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ "$REMOTE_HEAD" == "$EXPECTED_HEAD_SHA" ]]
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          RESULT_HEAD="$(git rev-parse HEAD)"
+          REMOTE_FINAL="$(git ls-remote --exit-code origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          [[ "$REMOTE_FINAL" == "$RESULT_HEAD" ]]
+          echo "result_head_sha=$RESULT_HEAD" >> "$GITHUB_STEP_SUMMARY"
+          echo "remote_write_executed=true" >> "$GITHUB_STEP_SUMMARY"
+          echo "force_push_executed=false" >> "$GITHUB_STEP_SUMMARY"
+          echo "secrets_included=false" >> "$GITHUB_STEP_SUMMARY"

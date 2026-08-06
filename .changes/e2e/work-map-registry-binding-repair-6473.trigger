@@ -1,0 +1,6 @@
+pr=6473
+expected_head_sha=4db2ec77b2eb40d93fafea185ac6c1e13e930b6b
+scope=spec014-work-map-registry-bindings
+remote_write_authorized=true
+force_push_authorized=false
+secrets_included=false
