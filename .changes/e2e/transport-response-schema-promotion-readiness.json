@@ -1,0 +1,109 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "transport-response-schema-promotion-readiness",
+  "title": "Transport response chunk schema repository promotion readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/transport-response-schema-promotion-readiness.json",
+      "Updating Registry Patch Index.md",
+      "deployment_parity_checklist.md",
+      "docs/ai-docs-agent-governance.md",
+      "docs/auto-docs-agent/README.md",
+      "docs/change-documentation-governance.md",
+      "docs/surface-contract-discovery-status.json",
+      "docs/surface-contract-discovery-status.md",
+      "docs/surface-contract-gap-queue.json",
+      "docs/surface-contract-gap-queue.md",
+      "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the repository-only documentation and safety-marker gaps for migration 1048, regenerate deterministic Surface Contract evidence, and prove that the migration is no longer present in the generated gap queue without applying SQL or claiming live database readiness.",
+      "e2e_journeys": [
+        {
+          "id": "migration-1048-repository-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository release reviewer",
+          "entrypoint": "Migration 1048 regression and Surface Contract exact readback",
+          "terminal_outcome": "The additive migration contract passes regression, all five governance targets document its authority boundary, all six standalone safety markers are detected, generated evidence is current, and migration 1048 is absent from the Surface Contract Gap Queue while live Apply remains unauthorized.",
+          "steps": [
+            "Load migration 1048 and verify its additive idempotent schema-recovery contract.",
+            "Detect each standalone no-provider, no-credential, no-secret, no-send, no-write, and secrets-excluded safety marker.",
+            "Verify all five required governance documentation targets mention migration 1048 and preserve the no-Apply authority boundary.",
+            "Regenerate and compare Surface Contract status and gap-queue evidence deterministically.",
+            "Confirm migration 1048 is absent from the generated gap queue and retain the separately authorized production readback requirement."
+          ],
+          "assertions": [
+            "Migration 1048 remains additive and idempotent and its focused regression passes.",
+            "All five governance documentation targets cover migration 1048.",
+            "All six standalone safety markers are machine-detectable.",
+            "Surface Contract --check succeeds against the committed generated outputs.",
+            "Migration 1048 is absent from docs/surface-contract-gap-queue.json.",
+            "Repository evidence does not authorize SQL execution, migration Apply, database mutation, provider action, deployment, Production-ref mutation, or external writes."
+          ],
+          "tests": [
+            {
+              "id": "transport-response-schema-recovery-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-chunk-schema-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "surface-contract-exact-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/surface-contract-discovery.mjs",
+              "args": [
+                "--check"
+              ]
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+            "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
+            "docs/surface-contract-discovery-status.json",
+            "docs/surface-contract-gap-queue.json",
+            "deployment_parity_checklist.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run a checksum-bound governed preflight and Apply for migration 1048 followed by same-cycle database schema readback.",
+      "blockers": [
+        "Explicit migration-Apply authority has not been granted.",
+        "No fresh checksum-bound governed migration authorization has been created.",
+        "No production SQL execution or database mutation is authorized by this PR.",
+        "Same-cycle readback has not proven required_column_count=16, present_column_count=16, and readiness_status=ready."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove checksum drift, partial-column recovery, stale readiness evidence, failed Apply, and readback mismatch handling through the separately governed migration path."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-only readiness change performs no live non-production migration or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "Production promotion remains outside this PR and blocked until separately authorized Apply and same-cycle readiness readback succeed."
+    }
+  ]
+}
