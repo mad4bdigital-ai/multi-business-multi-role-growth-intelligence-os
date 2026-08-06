@@ -25,11 +25,21 @@ jobs:
       TRIGGER_HEAD_SHA: ${{ github.sha }}
       PR_NUMBER: "5152"
       ARTIFACT_NAME: ueacp-live-authority-evidence-${{ github.run_id }}-${{ github.run_attempt }}
-      AUTHORIZATION_PATH: ${{ runner.temp }}/ueacp-live-authorization.json
-      IDENTITY_PATH: ${{ runner.temp }}/ueacp-live-identity.json
-      CENSUS_PATH: ${{ runner.temp }}/ueacp-live-census.json
-      EVIDENCE_PATH: ${{ runner.temp }}/ueacp-live-evidence-packet.json
     steps:
+      - name: Initialize bounded UEACP evidence paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/ueacp-live-authority-evidence"
+          rm -rf "${evidence_dir}"
+          mkdir -p "${evidence_dir}"
+          {
+            echo "AUTHORIZATION_PATH=${evidence_dir}/ueacp-live-authorization.json"
+            echo "IDENTITY_PATH=${evidence_dir}/ueacp-live-identity.json"
+            echo "CENSUS_PATH=${evidence_dir}/ueacp-live-census.json"
+            echo "EVIDENCE_PATH=${evidence_dir}/ueacp-live-evidence-packet.json"
+          } >> "${GITHUB_ENV}"
+
       - name: Checkout exact trigger head
         uses: actions/checkout@v5
         with:
