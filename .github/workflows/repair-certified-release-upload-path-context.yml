@@ -67,10 +67,19 @@ jobs:
           git diff --name-only | grep -Fx '.github/workflows/production-certified-release-cut-validation.yml'
           git diff --name-only | grep -Fx 'http-generic-api/test-production-certified-release-cut-validation-registration.mjs'
 
-      - name: Validate repaired registration contracts
+      - name: Validate exact final repository shape
         shell: bash
         run: |
           set -Eeuo pipefail
+          rm -f \
+            .github/workflows/repair-certified-release-upload-path-context.yml \
+            .github/ops/certified-release-upload-path-context.trigger
+
+          git diff --check
+          test "$(git diff --name-only | wc -l)" -eq 4
+          git diff --name-status | grep -Fx 'D	.github/workflows/repair-certified-release-upload-path-context.yml'
+          git diff --name-status | grep -Fx 'D	.github/ops/certified-release-upload-path-context.trigger'
+
           node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
           node http-generic-api/test-production-promotion-convergence-workflows.mjs
 
