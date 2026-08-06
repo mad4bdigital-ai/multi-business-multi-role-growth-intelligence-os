@@ -123,22 +123,19 @@ jobs:
           set -euo pipefail
           manifest="specs/${RETAIL_FEATURE}/work-map-integration.json"
           git add -- "${manifest}"
-          mapfile -t staged < <(git diff --cached --name-only | sort)
+          mapfile -t staged < <(git diff --cached --name-only | LC_ALL=C sort)
           printf '%s\n' "${staged[@]}"
-          expected="$(printf '%s\n' "${WORKFLOW_PATH}" "${manifest}" | sort)"
+          expected="$(printf '%s\n' "${WORKFLOW_PATH}" "${manifest}" | LC_ALL=C sort)"
           actual="$(printf '%s\n' "${staged[@]}")"
           test "${actual}" = "${expected}"
 
-          mapfile -t final_scope < <(git diff --name-only "${BASE_SHA}...HEAD" | sort)
-          printf '%s\n' "${final_scope[@]}"
           expected_final="$(printf '%s\n' \
             'http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs' \
             'http-generic-api/test-spec014-refresh-final-work-map-binding.mjs' \
-            "${manifest}" | sort)"
-          current_final="$(printf '%s\n' "${final_scope[@]}")"
-          test "${current_final}" = "$(printf '%s\n' \
-            'http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs' \
-            'http-generic-api/test-spec014-refresh-final-work-map-binding.mjs')"
+            "${manifest}" | LC_ALL=C sort)"
+          candidate_final="$(git diff --cached --name-only "${BASE_SHA}" | LC_ALL=C sort)"
+          printf '%s\n' "${candidate_final}"
+          test "${candidate_final}" = "${expected_final}"
           printf '%s\n' "${expected_final}" > "${RUNNER_TEMP}/expected-final-scope.txt"
 
       - name: Commit candidate and prove final readback
@@ -149,7 +146,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "fix(work-maps): refresh Retail binding with generalized producer"
 
-          actual_final="$(git diff --name-only "${BASE_SHA}...HEAD" | sort)"
+          actual_final="$(git diff --name-only "${BASE_SHA}...HEAD" | LC_ALL=C sort)"
           expected_final="$(cat "${RUNNER_TEMP}/expected-final-scope.txt")"
           test "${actual_final}" = "${expected_final}"
           test ! -e "${WORKFLOW_PATH}"
