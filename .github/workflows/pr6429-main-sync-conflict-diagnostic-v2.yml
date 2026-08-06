@@ -26,6 +26,7 @@ jobs:
           fetch-depth: 0
 
       - name: Diagnose merge against captured main
+        id: merge_diagnostic
         shell: bash
         run: |
           set -euo pipefail
@@ -47,10 +48,12 @@ jobs:
 
           git diff --name-only --diff-filter=U | sort > "${evidence_root}/conflicts.txt"
           git status --short > "${evidence_root}/status.txt"
+          conflict_count="$(grep -cve '^$' "${evidence_root}/conflicts.txt" || true)"
           {
             echo "event_sha=${GITHUB_SHA}"
             echo "captured_main_sha=${captured_main_head}"
             echo "merge_rc=${merge_rc}"
+            echo "conflict_count=${conflict_count}"
             echo "force_push=false"
             echo "remote_write=false"
             echo "production_mutation=false"
@@ -59,18 +62,42 @@ jobs:
             echo "secrets_included=false"
           } > "${evidence_root}/bindings.txt"
 
+          {
+            echo '## PR #6429 reconciliation diagnostic'
+            echo
+            echo '```text'
+            cat "${evidence_root}/bindings.txt"
+            echo
+            echo '--- conflicts ---'
+            cat "${evidence_root}/conflicts.txt"
+            echo '```'
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+          echo "merge_rc=${merge_rc}" >> "${GITHUB_OUTPUT}"
+          echo "conflict_count=${conflict_count}" >> "${GITHUB_OUTPUT}"
+          echo "captured_main_sha=${captured_main_head}" >> "${GITHUB_OUTPUT}"
+
           cat "${evidence_root}/bindings.txt"
           echo '--- conflicts ---'
           cat "${evidence_root}/conflicts.txt"
 
-          # Diagnostic-only run: never commit or push a merge result.
-          exit 1
+          # Diagnostic-only: preserve evidence for upload, never commit or push.
+          exit 0
 
       - name: Upload conflict diagnostic
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pr6429-main-reconciliation-conflicts-v2-${{ github.sha }}
           path: ${{ runner.temp }}/pr6429-main-reconciliation-conflicts-v2
           if-no-files-found: error
           retention-days: 7
+
+      - name: Confirm diagnostic remained read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          test "${remote_branch_head}" = "${GITHUB_SHA}"
+          test "${{ steps.merge_diagnostic.outputs.captured_main_sha }}" =~ ^[0-9a-f]{40}$
+          echo "merge_rc=${{ steps.merge_diagnostic.outputs.merge_rc }}"
+          echo "conflict_count=${{ steps.merge_diagnostic.outputs.conflict_count }}"
