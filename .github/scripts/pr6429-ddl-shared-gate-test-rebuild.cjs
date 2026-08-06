@@ -33,15 +33,24 @@ const syntax = spawnSync(process.execPath, ['--check', testPath], {
   encoding: 'utf8',
   stdio: ['ignore', 'pipe', 'pipe'],
 });
+const runtime = syntax.status === 0
+  ? spawnSync(process.execPath, [testPath], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+  : { status: null, stdout: '', stderr: '' };
 const report = {
-  ok: syntax.status === 0,
+  ok: syntax.status === 0 && runtime.status === 0,
   base_sha: baseSha,
   test_path: testPath,
   assertions_added: 6,
   syntax_status: syntax.status,
   syntax_stdout: String(syntax.stdout || '').slice(-4000),
   syntax_stderr: String(syntax.stderr || '').slice(-4000),
+  runtime_status: runtime.status,
+  runtime_stdout: String(runtime.stdout || '').slice(-4000),
+  runtime_stderr: String(runtime.stderr || '').slice(-4000),
   secrets_included: false,
 };
 process.stdout.write(`${JSON.stringify(report)}\n`);
-if (syntax.status !== 0) process.exitCode = 1;
+if (!report.ok) process.exitCode = 1;
