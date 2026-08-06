@@ -176,7 +176,7 @@ jobs:
           fi
 
           set +e
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${diagnostic_root}/gate-output.json"
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed > "${diagnostic_root}/gate-output.json" 2>&1
           exit_code=$?
           set -e
 
