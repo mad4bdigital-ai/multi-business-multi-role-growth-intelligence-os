@@ -8,6 +8,7 @@ import { matchesPattern } from "./e2e-phase-governance.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
+const PARALLEL_MAINTENANCE_CONTEXT_ARTIFACTS = new Set(["work-map-integration.json"]);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -69,6 +70,84 @@ function writeOutputs(file, outputs) {
   if (!file) return;
   const lines = Object.entries(outputs).map(([key, value]) => `${key}=${String(value ?? "")}`);
   fs.appendFileSync(file, `${lines.join("\n")}\n`);
+}
+
+function normalize(value) {
+  return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, parallelSummaries }) {
+  const summariesByPath = new Map(
+    parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
+  );
+  const specRoot = normalize(policy.spec_root).replace(/\/+$/, "");
+  const specPrefix = `${specRoot}/`;
+
+  for (const rawFile of changedFiles) {
+    const file = normalize(rawFile);
+    if (!file.startsWith(specPrefix)) continue;
+    const [feature, ...relativeParts] = file.slice(specPrefix.length).split("/");
+    const relativePath = relativeParts.join("/");
+    if (!feature || !PARALLEL_MAINTENANCE_CONTEXT_ARTIFACTS.has(relativePath)) continue;
+
+    const contractPath = normalize(path.posix.join(specRoot, feature, policy.spec_contract_file));
+    if (summariesByPath.has(contractPath)) continue;
+    const absolute = path.join(root, contractPath);
+    if (!fs.existsSync(absolute)) continue;
+    const contract = readJson(absolute);
+    if (contract.parallel_work?.enabled !== true) continue;
+    summariesByPath.set(contractPath, {
+      feature_key: contract.feature_key || feature,
+      contract_path: contractPath
+    });
+  }
+
+  return [...summariesByPath.values()].sort((left, right) =>
+    normalize(left.contract_path).localeCompare(normalize(right.contract_path))
+  );
+}
+
+function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, policy, parallelSummaries, baseRef }) {
+  if (baseRef !== "main" || !runtimeFiles.length || !parallelSummaries.length) return null;
+
+  const allParallelContractsIntegrated = parallelSummaries.every((summary) => {
+    const contract = readJson(path.join(root, summary.contract_path));
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const workstreams = new Map((contract.parallel_work?.workstreams || []).map((row) => [row.id, row]));
+    const requiredWorkstreams = contract.parallel_work?.integration?.required_workstreams || [];
+    return currentPhase?.status === "implemented"
+      && requiredWorkstreams.length > 0
+      && requiredWorkstreams.every((id) => workstreams.get(id)?.status === "integrated");
+  });
+  if (!allParallelContractsIntegrated) return null;
+
+  const contractRoot = normalize(policy.non_spec_contract_root || ".changes/e2e").replace(/\/+$/, "");
+  const candidates = changedFiles
+    .filter((file) => file.startsWith(`${contractRoot}/`) && file.endsWith(".json"))
+    .sort();
+
+  const matches = [];
+  for (const contractPath of candidates) {
+    const absolute = path.join(root, contractPath);
+    if (!fs.existsSync(absolute)) continue;
+    const contract = readJson(absolute);
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const scope = contract.scope?.include || [];
+    if (
+      contract.delivery_mode === "single_pr"
+      && currentPhase?.status === "implemented"
+      && contract.secrets_included === false
+      && Array.isArray(scope)
+      && runtimeFiles.every((file) => scope.some((pattern) => matchesPattern(file, pattern)))
+    ) {
+      matches.push({
+        feature_key: contract.feature_key || null,
+        contract_path: contractPath,
+        runtime_files: runtimeFiles
+      });
+    }
+  }
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function resolveCanonicalMainRef(root) {
@@ -203,27 +282,27 @@ function main() {
   });
 
   const promotion = classifyProductionPromotion({
-  root: options.root,
-  headRef: options.headRef,
-  baseRef: options.baseRef,
-  headSha: options.head,
-  baseSha: options.base
-});
-const productionPromotion = promotion.allowed;
-const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
-if (productionPromotion && !phaseEvaluationBase) {
-  addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
-    head_sha: options.head,
-    promotion_identity: promotion.identity
+    root: options.root,
+    headRef: options.headRef,
+    baseRef: options.baseRef,
+    headSha: options.head,
+    baseSha: options.base
   });
-}
-if (options.baseRef === "Production" && !productionPromotion) {
-  addFinding(report, "production_promotion_identity_invalid", {
-    head_ref: options.headRef || null,
-    head_sha: options.head || null,
-    base_sha: options.base || null
-  });
-}
+  const productionPromotion = promotion.allowed;
+  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+  if (productionPromotion && !phaseEvaluationBase) {
+    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+      head_sha: options.head,
+      promotion_identity: promotion.identity
+    });
+  }
+  if (options.baseRef === "Production" && !productionPromotion) {
+    addFinding(report, "production_promotion_identity_invalid", {
+      head_ref: options.headRef || null,
+      head_sha: options.head || null,
+      base_sha: options.base || null
+    });
+  }
 
   const active = [];
   const integrations = [];
@@ -264,6 +343,7 @@ if (options.baseRef === "Production" && !productionPromotion) {
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
+  let singlePrMaintenanceContract = null;
   if (defaultBranchSync) {
     mode = "default_branch_sync";
   } else if (!productionPromotion && active.length === 1) {
@@ -275,18 +355,40 @@ if (options.baseRef === "Production" && !productionPromotion) {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
-    const runtimeChanged = report.changed_files.some((file) => {
-      const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
-      return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
+  } else if (options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
+    const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
+    const runtimeFiles = report.changed_files.filter((file) =>
+      policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
+    );
+    const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
+      root: options.root,
+      changedFiles: report.changed_files,
+      policy,
+      parallelSummaries: report.contracts
     });
-    if (runtimeChanged) addFinding(report, "parallel_work_pr_branch_not_declared", { head_ref: options.headRef, contracts: report.contracts.map((row) => row.feature_key) });
+    if (maintenanceParallelSummaries.length) {
+      singlePrMaintenanceContract = resolveSinglePrMaintenanceContract({
+        root: options.root,
+        changedFiles: report.changed_files,
+        runtimeFiles,
+        policy,
+        parallelSummaries: maintenanceParallelSummaries,
+        baseRef: options.baseRef
+      });
+      if (runtimeFiles.length && !singlePrMaintenanceContract) {
+        addFinding(report, "parallel_work_pr_branch_not_declared", {
+          head_ref: options.headRef,
+          contracts: maintenanceParallelSummaries.map((row) => row.feature_key)
+        });
+      }
+    }
   }
 
   report.pr_mode = mode;
   report.feature_key = featureKey || null;
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
+  report.single_pr_maintenance_contract = singlePrMaintenanceContract;
   report.base_ref = options.baseRef || null;
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
