@@ -6,7 +6,7 @@ on:
       - fix/certified-release-cut-runner-context-20260806
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: repair-certified-release-runner-context
@@ -25,7 +25,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Verify immutable repair binding
         shell: bash
@@ -160,7 +160,7 @@ jobs:
           git diff --check
           echo 'bounded generated files validation: pass'
 
-      - name: Stage exact final scope and remove writer
+      - name: Stage exact final scope and remove temporary files
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -179,20 +179,22 @@ jobs:
           printf 'Expected final scope:\n%s\nActual final scope:\n%s\n' "$EXPECTED" "$ACTUAL"
           [[ "$ACTUAL" == "$EXPECTED" ]]
           git diff --cached --check
-          git status --short
 
-      - name: Commit exact final scope
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "fix(ci): resolve certified release paths at runner runtime"
+      - name: Export validated repair payload
+        uses: actions/upload-artifact@v4
+        with:
+          name: certified-release-runner-context-payload-${{ github.run_id }}
+          path: |
+            .github/workflows/production-certified-release-cut-validation.yml
+            http-generic-api/test-production-certified-release-cut-validation-registration.mjs
+            .changes/e2e/production-certified-release-cut-registration-context.json
+          if-no-files-found: error
+          retention-days: 7
 
-      - name: Push final fast-forward commit
+      - name: Verify connector handoff boundary
         shell: bash
         run: |
           set -Eeuo pipefail
           git fetch --no-tags origin "+refs/heads/${TARGET_BRANCH}:refs/remotes/origin/${TARGET_BRANCH}"
           [[ "$(git rev-parse refs/remotes/origin/${TARGET_BRANCH})" == "$GITHUB_SHA" ]]
-          git push origin "HEAD:${TARGET_BRANCH}"
+          echo 'validated payload exported; branch mutation deferred to governed GitHub connector'
