@@ -1,0 +1,90 @@
+name: PR 6463 Main Ancestry Sync
+run-name: Synchronize PR 6463 ancestry with unchanged main tree
+
+on:
+  push:
+    branches:
+      - fix/retire-production-runtime-parity-bridge-6441-20260806
+    paths:
+      - .github/workflows/pr6463-main-ancestry-sync.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: pr6463-main-ancestry-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Merge identical-tree main ancestry and self-delete
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: fix/retire-production-runtime-parity-bridge-6441-20260806
+      PREVIOUS_MAIN_SHA: faa7cd34117c7e0e18d1b55dad7968afb944378f
+      PINNED_MAIN_SHA: e3a9669147e24cff65effebacc0fdde76cd3a1cf
+      EXPECTED_FINAL_TREE: 8f09eb75df18baf383fb4bcaab75b7b92c403ef7
+      TEMP_WORKFLOW: .github/workflows/pr6463-main-ancestry-sync.yml
+    steps:
+      - name: Checkout exact triggering head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable branch and identical main trees
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/${TARGET_BRANCH})" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/main)" = "${PINNED_MAIN_SHA}"
+          git merge-base --is-ancestor "${PREVIOUS_MAIN_SHA}" HEAD
+          test "$(git rev-parse "${PREVIOUS_MAIN_SHA}^{tree}")" = "$(git rev-parse "${PINNED_MAIN_SHA}^{tree}")"
+          git diff --quiet "${PREVIOUS_MAIN_SHA}" "${PINNED_MAIN_SHA}" --
+          test "$(git rev-parse HEAD^{tree})" != "${EXPECTED_FINAL_TREE}"
+          test -f "${TEMP_WORKFLOW}"
+
+      - name: Merge pinned main and remove one-shot before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git merge --no-commit --no-ff "${PINNED_MAIN_SHA}"
+          test "$(git rev-parse MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git rm -- "${TEMP_WORKFLOW}"
+          test ! -e "${TEMP_WORKFLOW}"
+          mapfile -t staged_paths < <(git diff --cached --name-only)
+          test "${#staged_paths[@]}" = "1"
+          test "${staged_paths[0]}" = "${TEMP_WORKFLOW}"
+
+      - name: Validate final tree before publishing
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
+          node http-generic-api/scripts/repository-automation-work-map-currentness-test.mjs
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+      - name: Commit exact ancestry synchronization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit -m "chore: synchronize PR 6463 ancestry with unchanged main tree"
+          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF}')" = "3"
+          git merge-base --is-ancestor "${PINNED_MAIN_SHA}" HEAD
+          test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_FINAL_TREE}"
+          test ! -e "${TEMP_WORKFLOW}"
+
+      - name: Push branch without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          git push origin "HEAD:${TARGET_BRANCH}"
