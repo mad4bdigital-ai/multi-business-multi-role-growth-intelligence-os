@@ -144,7 +144,12 @@ jobs:
           )
           declare -A allowed=()
           for path in "${expected[@]}"; do allowed["${path}"]=1; done
-          git add -A -- "${expected[@]}"
+
+          # The writer deletion is already staged by git rm. Passing that now-absent
+          # path back to git add is a fatal pathspec error, so stage only live maps.
+          for path in "${expected[@]:1}"; do test -f "${path}"; done
+          git add -- "${expected[@]:1}"
+
           mapfile -t staged < <(git diff --cached --name-only | sed '/^$/d' | sort)
           test "${#staged[@]}" -ge 2
           test "${#staged[@]}" -le "${#expected[@]}"
@@ -154,4 +159,7 @@ jobs:
           git diff --cached --check
           git commit -m "docs(work-maps): refresh migration 1048 readiness maps"
           test -z "$(git status --porcelain)"
+
+          remote_head="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
           git push origin "HEAD:${TARGET_BRANCH}"
