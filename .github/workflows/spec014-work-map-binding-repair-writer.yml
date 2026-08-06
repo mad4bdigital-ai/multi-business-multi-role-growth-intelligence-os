@@ -1,0 +1,131 @@
+name: Spec 014 Work Map Binding Repair Writer
+
+on:
+  push:
+    branches:
+      - chore/spec014-wave1-runtime-evidence-cleanup-20260804
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spec014-work-map-binding-repair-writer
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@v5
+        with:
+          ref: chore/spec014-wave1-runtime-evidence-cleanup-20260804
+          fetch-depth: 0
+
+      - name: Verify immutable writer identity and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent='289bfaa943ade868e307acfd10875492a983259e'
+          expected_main='52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5'
+          writer='.github/workflows/spec014-work-map-binding-repair-writer.yml'
+
+          test "$(git rev-parse HEAD^)" = "$expected_parent"
+          test "$(git diff-tree --no-commit-id --name-only -r HEAD)" = "$writer"
+
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$expected_main"
+
+          cat > /tmp/expected-initial.txt <<'EOF'
+.changes/e2e/spec014-wave1-readback-pr-write-separation.json
+.changes/e2e/work-map-exact-changed-file-resolution.json
+.github/ops/spec014-wave1-runtime-evidence-readback.mjs
+.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml
+.github/workflows/spec014-wave1-runtime-evidence-readback.yml
+.github/workflows/spec014-work-map-binding-repair-writer.yml
+docs/work-maps/README.md
+docs/work-maps/repository-automation-map.md
+http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+http-generic-api/scripts/e2e-phase-governance-core.mjs
+http-generic-api/scripts/e2e-phase-governance.mjs
+http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs
+http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs
+http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs
+http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+EOF
+          git diff --name-only origin/main...HEAD | sort > /tmp/actual-initial.txt
+          diff -u /tmp/expected-initial.txt /tmp/actual-initial.txt
+
+      - name: Apply exact binding repair and retire writer locally
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const file = 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json';
+          const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const oldFingerprint = '0d5e83fdf5c64b989cec0745f9fea9a98156bd9f12348cfe6e30417fe6bfd314';
+          const oldIndexHash = '8af1fafcb8ce298f42ea750cf75a52c575a836450930fe56b2f589bda3c2e5ce';
+          const newFingerprint = '43ddef058371a60ed57355b2339084eac477243072339f72fe966a9d40c8efbd';
+          const newIndexHash = '733dd466cdfa58e13392274bfda0c32f5d2eaadfcbc6bbb5c0f7142ac91718da';
+          if (data?.registry?.fingerprint !== oldFingerprint) {
+            throw new Error(`unexpected current fingerprint: ${data?.registry?.fingerprint}`);
+          }
+          if (data?.registry?.index_source_hash !== oldIndexHash) {
+            throw new Error(`unexpected current index_source_hash: ${data?.registry?.index_source_hash}`);
+          }
+          data.registry.fingerprint = newFingerprint;
+          data.registry.index_source_hash = newIndexHash;
+          fs.writeFileSync(file, `${JSON.stringify(data, null, 2)}\n`);
+          NODE
+
+          git rm .github/workflows/spec014-work-map-binding-repair-writer.yml
+          git add specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(spec014): refresh final Work Map registry binding'
+
+      - name: Verify final bounded tree and focused invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^^)" = '289bfaa943ade868e307acfd10875492a983259e'
+          test "$(git rev-parse origin/main)" = '52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5'
+          test ! -e .github/workflows/spec014-work-map-binding-repair-writer.yml
+
+          cat > /tmp/expected-final.txt <<'EOF'
+.changes/e2e/spec014-wave1-readback-pr-write-separation.json
+.changes/e2e/work-map-exact-changed-file-resolution.json
+.github/ops/spec014-wave1-runtime-evidence-readback.mjs
+.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml
+.github/workflows/spec014-wave1-runtime-evidence-readback.yml
+docs/work-maps/README.md
+docs/work-maps/repository-automation-map.md
+http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+http-generic-api/scripts/e2e-phase-governance-core.mjs
+http-generic-api/scripts/e2e-phase-governance.mjs
+http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs
+http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs
+http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs
+http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs
+http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs
+specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+EOF
+          git diff --name-only origin/main...HEAD | sort > /tmp/actual-final.txt
+          diff -u /tmp/expected-final.txt /tmp/actual-final.txt
+
+          node -e "const d=require('./specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'); if(d.registry.fingerprint!=='43ddef058371a60ed57355b2339084eac477243072339f72fe966a9d40c8efbd'||d.registry.index_source_hash!=='733dd466cdfa58e13392274bfda0c32f5d2eaadfcbc6bbb5c0f7142ac91718da') process.exit(1)"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+
+      - name: Publish one fast-forward product commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin chore/spec014-wave1-runtime-evidence-cleanup-20260804
+          test "$(git rev-parse origin/chore/spec014-wave1-runtime-evidence-cleanup-20260804)" = "$(git rev-parse HEAD^)"
+          git push origin HEAD:chore/spec014-wave1-runtime-evidence-cleanup-20260804
