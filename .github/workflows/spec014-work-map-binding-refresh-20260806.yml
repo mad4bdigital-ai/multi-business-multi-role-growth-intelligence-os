@@ -27,7 +27,7 @@ jobs:
       - name: Verify immutable authority boundary
         shell: bash
         env:
-          EXPECTED_PARENT: ed4494f2e22d5646b751c7817f9eee7e913db6a1
+          EXPECTED_PARENT: 7c9813c5519eda7fa89371dd88f2ca58d0c7199e
           EXPECTED_MAIN: 52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5
           EXPECTED_BRANCH: fix/spec014-wave1-apply-cross-run-guard-20260805
           WRITER_PATH: .github/workflows/spec014-work-map-binding-refresh-20260806.yml
@@ -65,8 +65,32 @@ jobs:
             echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Generator check failed::platform-work-map-generator --check rejected the post-cleanup tree"
             exit 1
           fi
-          if ! node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed; then
-            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Governance gate failed::spec-kit-work-map-governance-gate --ci --changed rejected the post-cleanup tree"
+          set +e
+          gate_output="$(node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed 2>&1)"
+          gate_status=$?
+          set -e
+          if [[ "$gate_status" -ne 0 ]]; then
+            compact="$(printf '%s' "$gate_output" | node -e '
+              let raw = "";
+              process.stdin.on("data", (chunk) => { raw += chunk; });
+              process.stdin.on("end", () => {
+                try {
+                  const payload = JSON.parse(raw);
+                  const findings = Array.isArray(payload.findings) ? payload.findings.slice(0, 12) : [];
+                  process.stdout.write(JSON.stringify({
+                    work_maps_discovered: payload.work_maps_discovered,
+                    schema_domains_discovered: payload.schema_domains_discovered,
+                    spec_kits_checked: payload.spec_kits_checked,
+                    new_spec_kits: payload.new_spec_kits,
+                    implementation_changed: payload.implementation_changed,
+                    findings,
+                  }));
+                } catch {
+                  process.stdout.write(raw.slice(-4000).replace(/\r?\n/g, " "));
+                }
+              });
+            ')"
+            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Governance gate findings::${compact}"
             exit 1
           fi
           if ! node http-generic-api/test-spec-kit-work-map-governance-gate.mjs; then
