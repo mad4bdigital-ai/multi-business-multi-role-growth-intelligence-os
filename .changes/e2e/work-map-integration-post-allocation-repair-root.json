@@ -1,0 +1,190 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-integration-post-allocation-repair-root",
+  "title": "Work Map integration post-allocation repair root",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+      "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+      "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow the active Spec Kit Work Map Integration workflow to parse and accept workflow_dispatch by deferring runner.temp-derived repair-root initialization until after runner allocation.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-parses-after-runner-allocation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed Work Map writer",
+          "entrypoint": "workflow_dispatch of spec-kit-work-map-integration.yml on an exact generated branch head",
+          "terminal_outcome": "GitHub accepts the dispatch, allocates the runner, initializes the bounded repair directory through RUNNER_TEMP, and starts read-only integration validation.",
+          "steps": [
+            "Parse the active workflow without evaluating runner.temp at job registration time.",
+            "Allocate the ubuntu runner.",
+            "Initialize WORK_MAP_REPAIR_ROOT from RUNNER_TEMP through GITHUB_ENV.",
+            "Checkout and validate the exact requested branch head.",
+            "Run Work Map currentness and governance checks without repository writes."
+          ],
+          "assertions": [
+            "WORK_MAP_REPAIR_ROOT is absent from job-level env.",
+            "The repair root is initialized after runner allocation.",
+            "The repair candidate remains bounded to the runner temporary directory.",
+            "The integration workflow retains contents:read only."
+          ],
+          "tests": [
+            {
+              "id": "work-map-integration-registration-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-integration-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve the existing exact-head Work Map integration and repair-candidate behavior while removing only the pre-run expression defect.",
+      "e2e_journeys": [
+        {
+          "id": "bounded-repair-candidate-behavior-is-preserved",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository automation governance reviewer",
+          "entrypoint": "workflow and executable registration regression",
+          "terminal_outcome": "The workflow continues to check generated maps, creates a local repair candidate only when stale, uploads read-only evidence, and fails closed without committing or pushing.",
+          "steps": [
+            "Validate the canonical Work Map modules and connectivity.",
+            "Check generated Work Maps for currentness.",
+            "When stale, generate only beneath docs/work-maps in the runner workspace.",
+            "Upload the bounded candidate and fail closed.",
+            "Run schema and governance regressions when current."
+          ],
+          "assertions": [
+            "No contents:write permission is introduced.",
+            "No commit, push, force push, protected-ref mutation, Runtime contact, deployment, database action, provider action, SQL, or Migration Apply is introduced.",
+            "Step-level runner.temp use for artifact upload remains valid."
+          ],
+          "tests": [
+            {
+              "id": "work-map-integration-post-allocation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-integration-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prevent regression to job-level runner.temp evaluation and keep invalid registration fail-closed before any repository or external mutation.",
+      "e2e_journeys": [
+        {
+          "id": "registration-regression-is-rejected",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository lifecycle gate",
+          "entrypoint": "candidate changes to the Work Map integration workflow",
+          "terminal_outcome": "Executable regression rejects any return of WORK_MAP_REPAIR_ROOT to job-level runner.temp and requires bounded post-allocation initialization.",
+          "steps": [
+            "Read the exact workflow source.",
+            "Reject job-level runner.temp for WORK_MAP_REPAIR_ROOT.",
+            "Require the named post-allocation initialization step.",
+            "Require RUNNER_TEMP, GITHUB_ENV, cleanup, and directory creation bindings.",
+            "Retain the read-only integration workflow boundary."
+          ],
+          "assertions": [
+            "The workflow remains dispatchable and read-only.",
+            "The repair directory is deterministic and runner-scoped.",
+            "No secrets are included and no external system is contacted."
+          ],
+          "tests": [
+            {
+              "id": "work-map-integration-registration-fail-closed",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-integration-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-ready-manifest-targeting",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-integration-post-allocation-repair-root.json",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-integration-registration.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository validation repair has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository validation repair performs no Production action or deployment."
+    }
+  ]
+}

@@ -166,7 +166,13 @@ export async function performUniversalServerWriteback(input = {}, deps = {}) {
 
   if (shouldPersistJsonAsset) {
     const nextAssetKey = `${String(input.endpoint_key || "unknown_endpoint").trim()}__${execution_trace_id}`;
-    const existingAssetRow = await findExistingJsonAssetByAssetKey(nextAssetKey);
+    let existingAssetRow = null;
+
+    try {
+      existingAssetRow = await findExistingJsonAssetByAssetKey(nextAssetKey);
+    } catch (err) {
+      console.warn("[sinkOrchestration] findExistingJsonAssetByAssetKey failed — continuing:", err.message);
+    }
 
     if (!existingAssetRow) {
       jsonAssetRow = toJsonAssetRegistryRow({

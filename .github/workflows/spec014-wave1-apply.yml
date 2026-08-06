@@ -1,0 +1,46 @@
+name: Spec 014 Wave 1 Migration Apply (terminally locked)
+run-name: Spec 014 Wave 1 terminal lock / comment ${{ github.event.comment.id }}
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  reject-retired-apply:
+    name: Reject retired Spec 014 Wave 1 Apply trigger
+    if: >-
+      github.event.issue.number == 6215 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_20260802_01_SPEC014_HOSTINGER_STORAGE_FOUNDATION' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      CANONICAL_APPLY_COMMENT_ID: '5195149968'
+      CANONICAL_APPLY_RUN_ID: '31030632615'
+      CANONICAL_CERTIFICATION_COMMENT_ID: '5195415632'
+      CANONICAL_CERTIFICATION_RUN_ID: '31032704208'
+      MIGRATION: 20260802_01_spec014_hostinger_storage_foundation.sql
+    steps:
+      - name: Reject retired Apply authority
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          {
+            echo '## Spec 014 Wave 1 Apply: terminally locked'
+            echo
+            echo "- Migration: \`${MIGRATION}\`"
+            echo "- Canonical Apply comment: \`${CANONICAL_APPLY_COMMENT_ID}\`"
+            echo "- Canonical Apply run: \`${CANONICAL_APPLY_RUN_ID}\`"
+            echo "- Canonical certification comment: \`${CANONICAL_CERTIFICATION_COMMENT_ID}\`"
+            echo "- Canonical certification run: \`${CANONICAL_CERTIFICATION_RUN_ID}\`"
+            echo '- Apply authority: retired'
+            echo '- SQL execution: prohibited'
+            echo '- Retry: prohibited'
+            echo '- Repository checkout: not performed'
+            echo '- Secrets: not requested'
+          } >> "${GITHUB_STEP_SUMMARY}"
+          echo '::error title=Spec 014 Wave 1 Apply retired::The canonical migration is already applied and certified. This trigger is terminally locked; no SQL or retry was attempted.'
+          exit 1

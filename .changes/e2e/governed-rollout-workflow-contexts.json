@@ -24,7 +24,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Allow the three governed rollout workflows to register and execute their authorized evidence phases without unavailable GitHub Actions contexts, repository-side status mutations, or stale migration-bootstrap confirmations.",
+      "objective": "Allow the three governed rollout workflows to register and execute their authorized evidence phases without unavailable GitHub Actions contexts, repository-side status mutations, or stale migration-bootstrap and migration-Apply confirmations.",
       "e2e_journeys": [
         {
           "id": "validate-governed-rollout-registration-confirmation-and-evidence-boundaries",
@@ -32,23 +32,25 @@
           "level": "synthetic_runtime",
           "actor": "GitHub Actions workflow parser and governed rollout operator",
           "entrypoint": "The Brand Skill, Sprint 69 Migration 1006, and response chunk ownership workflow and controller contracts",
-          "terminal_outcome": "Each workflow can reach its exact authorization gate, use a valid evidence directory, preserve separate Apply or runtime confirmations, derive the response-chunk migration-bootstrap confirmation from the exact migration filename, and emit no-secret Artifact and Job Summary evidence without writing to repository Issues.",
+          "terminal_outcome": "Each workflow can reach its exact authorization gate, use a valid evidence directory, preserve separate external Apply and runtime confirmations, derive the response-chunk migration-bootstrap and migration-Apply confirmations from the exact migration filename, and emit no-secret Artifact and Job Summary evidence without writing to repository Issues.",
           "steps": [
             "Validate Brand Skill typed bindings from repository root before checkout creates the service working directory.",
             "Bind Sprint 69 readiness and Apply evidence to stable repository-relative directories.",
             "Bind response chunk readiness, Apply, and runtime-closure evidence to stable repository-relative directories.",
-            "Keep the Issue #4191 workflow trigger token separate from the filename-derived governed migration authorization-bootstrap confirmation.",
+            "Keep the Issue #4191 readiness trigger token separate from the filename-derived governed migration authorization-bootstrap confirmation.",
+            "Keep the Issue #4191 Apply trigger token separate from the filename-derived governed migration execute confirmation.",
             "Remove GitHub Issue write permissions and API status-comment mutations from the two governed rollout workflows.",
-            "Publish bounded no-secret artifacts and GitHub Job Summaries while preserving exact readiness, Apply, runtime, and migration-bootstrap confirmation boundaries.",
-            "Run the focused workflow contracts that reject unavailable contexts, repository writes, and stale bootstrap-confirmation regressions."
+            "Publish bounded no-secret artifacts and GitHub Job Summaries while preserving exact readiness, external Apply, runtime, migration-bootstrap, and migration-Apply confirmation boundaries.",
+            "Run the focused workflow contracts that reject unavailable contexts, repository writes, and stale bootstrap or Apply confirmation regressions."
           ],
           "assertions": [
             "No job-level EVIDENCE_DIR references runner.temp before a runner exists.",
             "Brand Skill pre-checkout validation explicitly runs from repository root.",
             "The Sprint 69 and response chunk workflows request contents:read only and contain no gh api mutation.",
             "Readiness, Apply, and runtime-closure evidence directories are stable repository-relative paths.",
-            "The response-chunk Issue trigger remains AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT while the internal bootstrap confirmation is AUTHORIZE_GOVERNED_MIGRATION_20260728_GOVERNED_RESPONSE_CHUNK_OWNERSHIP.",
-            "Readiness, Apply, runtime-closure, and migration-bootstrap confirmation gates remain exact and separate.",
+            "The response-chunk readiness Issue trigger remains AUTHORIZE_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT while the internal bootstrap confirmation is AUTHORIZE_GOVERNED_MIGRATION_20260728_GOVERNED_RESPONSE_CHUNK_OWNERSHIP.",
+            "The response-chunk Apply Issue trigger remains APPLY_GOVERNED_RESPONSE_CHUNK_OWNERSHIP_ROLLOUT while the internal execute confirmation is APPLY_20260728_GOVERNED_RESPONSE_CHUNK_OWNERSHIP.",
+            "Readiness, external Apply, runtime-closure, migration-bootstrap, and migration-Apply confirmation gates remain exact and separate.",
             "No SQL, migration Apply, provider call, credential read, deployment, Production mutation, or external business write is executed by these contract tests."
           ],
           "tests": [
