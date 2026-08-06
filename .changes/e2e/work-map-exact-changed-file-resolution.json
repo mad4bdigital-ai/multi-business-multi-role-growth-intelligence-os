@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-exact-changed-file-resolution",
+  "title": "Exact-base Work Map changed-file resolution",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-exact-changed-file-resolution.json",
+      "http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs",
+      "http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve Work Map changed files from an immutable base/head pair in GitHub Actions and fail closed instead of silently falling back to the last parent commit.",
+      "e2e_journeys": [
+        {
+          "id": "exclude-historical-first-parent-files",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance validator",
+          "entrypoint": "A pull request or writer-dispatched Work Map Integration run on a rebuilt merge candidate",
+          "terminal_outcome": "The gate evaluates exactly base SHA...head SHA, excludes files visible only in HEAD~1 history, and rejects missing, stale, or unavailable identities before governance evaluation.",
+          "steps": [
+            "Create a temporary Git history whose first parent contains unrelated Spec files while the exact base-to-head candidate changes only one bounded file.",
+            "Prove the legacy HEAD~1 comparison sees the unrelated files.",
+            "Resolve changed files from the immutable pull-request base and head SHAs.",
+            "Require only the bounded candidate file to be returned.",
+            "Reject an unavailable base SHA and a moved workflow-dispatch target head.",
+            "Keep local non-CI repository behavior separate while GitHub Actions --changed mode remains exact and fail-closed."
+          ],
+          "assertions": [
+            "GitHub Actions changed-scope resolution never falls back to HEAD~1.",
+            "Pull-request event payload base/head identities are used exactly.",
+            "Workflow dispatch re-reads the target PR and rejects head movement.",
+            "Unavailable base or head commits fail closed.",
+            "No repository write, protected-ref mutation, Runtime contact, database access, provider action, deployment, or secret inclusion occurs."
+          ],
+          "tests": [
+            {
+              "id": "exact-work-map-changed-file-resolution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-exact-changed-files.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/work-map-exact-changed-file-resolution.json",
+            "http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Keep exact changed-scope resolution aligned with future GitHub event and writer-dispatch contracts."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject malformed event payloads, missing commits, moved heads, and unsupported events without heuristic fallback."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository-only governance validation performs no provider or Runtime canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "No Production, deployment, Runtime, SQL, migration, database, provider, or external business mutation."
+    }
+  ],
+  "secrets_included": false
+}
