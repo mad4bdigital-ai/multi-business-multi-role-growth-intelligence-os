@@ -1,6 +1,7 @@
 name: Transport response delivery generated refresh once
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - "fix/transport-response-delivery-20260806"
@@ -85,15 +86,24 @@ jobs:
               raise SystemExit("readLocalConnectorResponse marker mismatch")
           service = service.replace(function_marker, helper + function_marker, 1)
 
-          old_start = '''  if (payload.ok === false) {
+          old_block = '''  if (payload.ok === false) {
             const payloadCode = String(payload?.error?.code || "").trim();
             const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
             throw localConnectorError(
               payloadCode || "connector_operation_failed",
               payloadMessage,
               status >= 400 ? status : 400,
+              {
+                operation,
+                reason: payloadCode || "operation_failed",
+                retryable: false,
+                upstream_status: status || null,
+                request_id: requestId,
+              },
+            );
+          }
           '''
-          new_start = '''  if (payload.ok === false) {
+          new_block = '''  if (payload.ok === false) {
             const payloadCode = String(payload?.error?.code || "").trim();
             const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
             const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
@@ -101,26 +111,21 @@ jobs:
               classification?.code || payloadCode || "connector_operation_failed",
               payloadMessage,
               classification?.http_status || (status >= 400 ? status : 400),
-          '''
-          if service.count(old_start) != 1:
-              raise SystemExit("payload failure start mismatch")
-          service = service.replace(old_start, new_start, 1)
-
-          old_details = '''        reason: payloadCode || "operation_failed",
-                retryable: false,
-                upstream_status: status || null,
-                request_id: requestId,
-          '''
-          new_details = '''        reason: classification?.reason || payloadCode || "operation_failed",
+              {
+                operation,
+                reason: classification?.reason || payloadCode || "operation_failed",
                 retryable: Boolean(classification?.retryable),
                 upstream_status: status || null,
                 request_id: requestId,
                 content_type: contentType || null,
                 response_excerpt: redactConnectorExcerpt(responseText),
+              },
+            );
+          }
           '''
-          if service.count(old_details) != 1:
-              raise SystemExit("payload failure details mismatch")
-          service = service.replace(old_details, new_details, 1)
+          if service.count(old_block) != 1:
+              raise SystemExit("payload failure block mismatch")
+          service = service.replace(old_block, new_block, 1)
           service_path.write_text(service, encoding="utf-8")
 
           test_path = Path("http-generic-api/test-local-connector-transport-errors.mjs")
@@ -142,6 +147,7 @@ jobs:
                   code: "UNAUTHORIZED",
                   message: "Missing or invalid connector credential",
                 },
+                debug: "token=super-secret-value",
               }),
             }), { operation: "connectorPowerShell" }),
             (error) => {
@@ -152,6 +158,9 @@ jobs:
               assert.equal(error.details.upstream_status, 200);
               assert.equal(error.details.request_id, "req-credential-envelope");
               assert.equal(error.details.operation, "connectorPowerShell");
+              assert.equal(error.details.content_type, "application/json");
+              assert.equal(error.details.secrets_included, false);
+              assert.doesNotMatch(JSON.stringify(error.details), /super-secret-value/);
               return true;
             },
           );
