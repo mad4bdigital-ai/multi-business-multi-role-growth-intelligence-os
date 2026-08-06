@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/repository-automation-work-map-currentness-test.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
       - name: Prove exact merge state and final tree
         shell: bash
