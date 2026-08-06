@@ -53,7 +53,34 @@ jobs:
           node "${BOOTSTRAP_SCRIPT}" | tee "${evidence_root}/bootstrap.json"
           node --check "${PATCH_SCRIPT}"
           PATCH_DIAGNOSTIC_PATH="${evidence_root}/patch-diagnostics.txt" node "${PATCH_SCRIPT}"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml')
+          source = path.read_text()
+          escaped = r'\${'
+          count = source.count(escaped)
+          if count == 0:
+              raise SystemExit('expected generated escaped expressions were not found')
+          source = source.replace(escaped, '${')
+          if escaped in source:
+              raise SystemExit('escaped workflow expressions remain after normalization')
+          path.write_text(source)
+          print({'ok': True, 'normalized_expression_count': count})
+          PY
+
           BASE_SHA="${BASE_SHA}" node "${TEST_REBUILD_SCRIPT}" | tee "${evidence_root}/test-rebuild.json"
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs')
+          source = path.read_text()
+          anchor = "assert.equal(source.includes('git push'), false, 'workflow must not mutate repository state');"
+          assertion = "assert.equal(source.includes('\\\\${'), false, 'workflow must not contain escaped GitHub or shell expressions');"
+          if source.count(anchor) != 1:
+              raise SystemExit('workflow mutation assertion anchor must occur exactly once')
+          source = source.replace(anchor, assertion + '\n' + anchor)
+          path.write_text(source)
+          PY
           node --check http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
 
           rm "${WORKFLOW_PATH}" "${PATCH_SCRIPT}" "${BOOTSTRAP_SCRIPT}" "${TEST_REBUILD_SCRIPT}"
