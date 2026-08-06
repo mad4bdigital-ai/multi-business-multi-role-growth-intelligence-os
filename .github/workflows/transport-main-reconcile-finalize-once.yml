@@ -84,6 +84,7 @@ jobs:
           git rm .github/workflows/transport-main-reconcile-once.yml
           git rm .github/workflows/transport-main-reconcile-diagnostic-once.yml
           git rm .github/workflows/transport-main-reconcile-finalize-once.yml
+          git rm .github/workflows/transport-connector-merge-diagnostic-once.yml
 
       - name: Setup Node
         uses: actions/setup-node@v6
