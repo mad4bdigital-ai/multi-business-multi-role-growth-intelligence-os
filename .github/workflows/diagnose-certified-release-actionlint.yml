@@ -21,29 +21,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Quote both colon-bearing if expressions in workspace
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('.github/workflows/production-certified-release-cut-validation.yml')
-          text = path.read_text()
-          replacements = {
-              "    if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')": "    if: \"startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\"",
-              "    if: always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')": "    if: \"always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')\"",
-          }
-          for old, new in replacements.items():
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'expected exactly one occurrence of {old!r}, found {count}')
-              text = text.replace(old, new)
-          path.write_text(text)
-          PY
-          git diff --check
-
-      - name: Run actionlint against quoted certified release workflow
+      - name: Run actionlint against YAML fix materializer
         uses: docker://rhysd/actionlint:latest
         with:
-          args: -color .github/workflows/production-certified-release-cut-validation.yml
+          args: -color -shellcheck= .github/workflows/materialize-certified-release-yaml-fix.yml
