@@ -93,15 +93,24 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/surface-contract-discovery.mjs
 
-      - name: Verify focused contracts
+      - name: Verify migration regression
+        working-directory: http-generic-api
+        run: node test-transport-response-chunk-schema-recovery.mjs
+
+      - name: Verify generated surface-contract readback
+        working-directory: http-generic-api
+        run: node scripts/surface-contract-discovery.mjs --check
+
+      - name: Verify migration left the gap queue
         shell: bash
         run: |
           set -Eeuo pipefail
-          cd http-generic-api
-          node test-transport-response-chunk-schema-recovery.mjs
-          node scripts/surface-contract-discovery.mjs --check
-          cd ..
           ! grep -q '### .*1048_transport_response_chunk_schema_recovery.sql' docs/surface-contract-gap-queue.md
+
+      - name: Verify five governance documentation targets
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           for target in \
             'Updating Registry Patch Index.md' \
             'deployment_parity_checklist.md' \
@@ -110,6 +119,11 @@ jobs:
             'docs/change-documentation-governance.md'; do
             grep -q '1048_transport_response_chunk_schema_recovery.sql' "$target"
           done
+
+      - name: Verify six explicit safety markers
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           for marker in no_provider_call no_credential_payload_read no_raw_secrets no_external_send no_external_write secrets_included_false; do
             grep -q "$marker" http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql
           done
