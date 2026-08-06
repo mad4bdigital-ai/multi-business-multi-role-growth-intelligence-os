@@ -1,6 +1,6 @@
 name: PR 6429 main sync conflict diagnostic
 
-# trigger: artifact-backed-diagnostic-v2
+# trigger: artifact-backed-diagnostic-v3
 on:
   push:
     branches:
