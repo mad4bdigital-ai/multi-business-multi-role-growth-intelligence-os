@@ -1,5 +1,5 @@
 const fs = require('node:fs');
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 
 const baseSha = process.env.BASE_SHA;
 const testPath = 'http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs';
@@ -29,10 +29,19 @@ if (count !== 1) {
 source = source.replace(anchor, replacement);
 fs.writeFileSync(testPath, source);
 
-process.stdout.write(`${JSON.stringify({
-  ok: true,
+const syntax = spawnSync(process.execPath, ['--check', testPath], {
+  encoding: 'utf8',
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+const report = {
+  ok: syntax.status === 0,
   base_sha: baseSha,
   test_path: testPath,
   assertions_added: 6,
+  syntax_status: syntax.status,
+  syntax_stdout: String(syntax.stdout || '').slice(-4000),
+  syntax_stderr: String(syntax.stderr || '').slice(-4000),
   secrets_included: false,
-})}\n`);
+};
+process.stdout.write(`${JSON.stringify(report)}\n`);
+if (syntax.status !== 0) process.exitCode = 1;
