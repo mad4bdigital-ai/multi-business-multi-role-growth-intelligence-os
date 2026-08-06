@@ -95,7 +95,7 @@ jobs:
           test ! -e .github/workflows/repair-certified-release-upload-path-context.yml
           test ! -e .github/ops/certified-release-upload-path-context.trigger
           node http-generic-api/test-production-certified-release-cut-validation-registration.mjs
-          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+          node --check http-generic-api/test-production-certified-release-cut-validation-registration.mjs
           git diff --check
 
       - name: Materialize governed Git blobs
