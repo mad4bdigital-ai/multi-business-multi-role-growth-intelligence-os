@@ -1,0 +1,88 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sql-json-asset-lookup-error-boundary",
+  "title": "SQL-authoritative JSON asset lookup and bounded fallback failure",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/sinkOrchestration.js",
+      "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve prior JSON assets through the configured SQL-primary data source without initializing Google Sheets, while preserving the original provider result when any secondary lookup fails.",
+      "e2e_journeys": [
+        {
+          "id": "provider-failure-survives-json-asset-lookup-failure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "System tool dispatcher recording a failed GitHub provider execution",
+          "entrypoint": "performUniversalServerWriteback with failed github_get_git_ref_head results under SQL and Sheets data-source modes",
+          "terminal_outcome": "SQL mode reuses the latest active transported JSON asset without invoking Sheets, while Sheets lookup failure remains a bounded warning and neither path replaces the original provider error.",
+          "steps": [
+            "Submit a failed GitHub provider result to universal writeback in Sheets mode and force the existing-asset lookup to throw the missing spreadsheet identifier error.",
+            "Verify that governed execution-log and JSON-asset evidence continue and that the provider failure remains authoritative.",
+            "Submit a second failed provider result in SQL mode and resolve matching JSON Asset Registry rows through the SQL-primary data-source adapter.",
+            "Select the latest active transported asset, suppress duplicate JSON-asset insertion, and prove that the injected Sheets lookup was never invoked.",
+            "Read back both writeback results, execution-log evidence, JSON-asset counts, lookup calls, and captured warnings."
+          ],
+          "assertions": [
+            "Both returned status, error code, and short message values remain the original provider failure values.",
+            "Sheets mode does not invoke the SQL lookup and its missing spreadsheet error appears only as a bounded warning.",
+            "SQL mode invokes JSON Asset Registry findRows exactly once with asset_key and never invokes the Sheets lookup.",
+            "A SQL row with active_status 1 and a non-empty transport_status is accepted as the existing authoritative asset.",
+            "The Sheets failure path writes a JSON asset row, while the SQL existing-asset path avoids a duplicate row.",
+            "Each execution writes one Execution Log Unified row and preserves the governed pre-response log guard."
+          ],
+          "tests": [
+            {
+              "id": "sink-json-asset-lookup-failure-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sink-orchestration-json-asset-lookup-failure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/sinkOrchestration.js",
+            "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add structured observability for SQL lookup latency, fallback classification, and degraded secondary writeback dependencies without changing provider authority."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise SQL, Sheets fallback, storage, and execution-log dependency failures while proving bounded continuation and deterministic evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate SQL-authoritative lookup and Sheets suppression against a live non-production runtime."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA and runtime readback without intentionally disrupting production dependencies."
+    }
+  ]
+}
