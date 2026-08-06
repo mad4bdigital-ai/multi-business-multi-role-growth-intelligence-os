@@ -1,0 +1,2 @@
+Temporary exact-head CI trigger for PR #6500 after bounded Spec 014 Work Map binding refresh.
+No runtime, provider, credential, SQL, migration, database, deployment, restart, Production-ref, or external-write authority.
