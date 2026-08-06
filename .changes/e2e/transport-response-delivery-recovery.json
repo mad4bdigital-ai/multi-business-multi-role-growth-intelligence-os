@@ -1,0 +1,117 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "transport-response-delivery-recovery",
+  "title": "Transport response delivery recovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/transport-response-delivery-recovery.json",
+      "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/services/localConnectorOrchestrator.js",
+      "http-generic-api/test-local-connector-transport-errors.mjs",
+      "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "docs/work-maps/**"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recover durable oversized response delivery and preserve actionable Local Connector transport semantics without changing application policy or business data behavior.",
+      "e2e_journeys": [
+        {
+          "id": "recover-durable-response-chunk-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tool response transport runtime",
+          "entrypoint": "An oversized governed tool response requires durable chunk persistence on a partially migrated database.",
+          "terminal_outcome": "The response chunk table satisfies the complete runtime schema through an isolated additive recovery migration and exposes a deterministic readiness result.",
+          "steps": [
+            "Read the runtime-required response chunk column contract from governedToolResponseChunkStore.js.",
+            "Validate that the isolated recovery migration creates or reconciles every required column and transport index without tenant inbox dependencies.",
+            "Confirm that the migration is additive, idempotent, non-secret-bearing, and exposes transport schema readiness evidence."
+          ],
+          "assertions": [
+            "All sixteen runtime-required response chunk columns are represented.",
+            "The migration does not depend on tenant resolution, ticket lifecycle, registry spreadsheet, or destructive data operations.",
+            "The readiness view reports ready only when the complete runtime column contract is present."
+          ],
+          "tests": [
+            {
+              "id": "transport-response-chunk-schema-recovery",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-chunk-schema-recovery.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+            "http-generic-api/test-transport-response-chunk-schema-recovery.mjs"
+          ]
+        },
+        {
+          "id": "classify-local-connector-transport-failures",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Local Connector orchestration client",
+          "entrypoint": "A connector call returns an authentication failure, upstream HTML error, timeout, rate limit, invalid envelope, or successful JSON response.",
+          "terminal_outcome": "The orchestrator returns a structured non-secret error with the correct HTTP status, retryability, request identifier, and bounded redacted evidence.",
+          "steps": [
+            "Read the connector response body as text before attempting JSON parsing.",
+            "Classify HTTP and client transport failures into credential, scope, timeout, rate-limit, upstream-unavailable, invalid-envelope, or operation-failure categories.",
+            "Persist the actual status and retryability in the universal writeback while redacting response excerpts and excluding credentials."
+          ],
+          "assertions": [
+            "A 502 HTML response is retryable, preserves the upstream status and Ray ID, and does not expose secret values.",
+            "A 401 response is non-retryable and classified as an invalid connector credential.",
+            "A successful non-JSON response fails closed as an invalid connector response envelope.",
+            "A valid successful JSON response remains unchanged."
+          ],
+          "tests": [
+            {
+              "id": "local-connector-transport-errors",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-local-connector-transport-errors.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/services/localConnectorOrchestrator.js",
+            "http-generic-api/test-local-connector-transport-errors.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose live readiness and failure-category metrics for response chunk persistence and connector transports."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise partial migration, retry exhaustion, malformed response, and concurrent response persistence scenarios."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate bounded oversized-response and Local Connector failure handling in a non-production tenant canary."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require runtime readback proving chunk schema readiness and structured connector transport errors after deployment."
+    }
+  ]
+}
