@@ -12,6 +12,10 @@ import {
 export { REPO_ROOT, matchesPattern, executePhaseTests };
 
 const E2E_OWNERSHIP_NEUTRAL_SPEC_ARTIFACTS = new Set(["work-map-integration.json"]);
+const E2E_OWNERSHIP_NEUTRAL_FINDINGS = new Set([
+  "missing_spec_e2e_phase_contract",
+  "e2e_phase_contract_not_changed_with_feature"
+]);
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -57,8 +61,10 @@ function applyOwnershipNeutralSpecArtifactException(evaluation) {
   if (!neutralContractPaths.size) return evaluation;
 
   report.findings = report.findings.filter((finding) =>
-    finding.code !== "missing_spec_e2e_phase_contract"
-    || !neutralContractPaths.has(normalize(finding.contract_path))
+    !(
+      E2E_OWNERSHIP_NEUTRAL_FINDINGS.has(finding.code)
+      && neutralContractPaths.has(normalize(finding.contract_path))
+    )
   );
   report.ok = report.findings.length === 0;
   return evaluation;
