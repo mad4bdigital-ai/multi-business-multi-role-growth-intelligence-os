@@ -1,0 +1,214 @@
+name: PR 6502 Render Lifecycle Convergence Repair
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+    paths:
+      - .github/workflows/pr6502-render-lifecycle-convergence-repair.yml
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Render governed convergence replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          launcher_path = Path('.github/workflows/governed-production-promotion-request-launcher.yml')
+          launcher = launcher_path.read_text()
+
+          old_trigger = """on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+"""
+          new_trigger = """on:
+  workflow_dispatch:
+    inputs:
+      request_pr:
+        description: Open same-repository request PR number
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact request PR head SHA
+        required: true
+        type: string
+      release_branch:
+        description: Governed non-protected release candidate branch
+        required: true
+        type: string
+      validation_branch:
+        description: Governed non-protected exact-validation branch
+        required: true
+        type: string
+      validation_base_branch:
+        description: Governed non-protected validation-base branch
+        required: true
+        type: string
+      confirmation:
+        description: Type DISPATCH_GOVERNED_PRODUCTION_PROMOTION_CONVERGENCE
+        required: true
+        type: string
+"""
+          if launcher.count(old_trigger) != 1:
+              raise SystemExit('launcher trigger target mismatch')
+          launcher = launcher.replace(old_trigger, new_trigger, 1)
+
+          old_job = """  converge-source-pinned-candidate:
+    name: Converge current source-pinned Production candidate
+    if: >-
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'gpt/request-production-promotion-') &&
+      github.event.pull_request.title == 'ops: request governed Production synchronization'
+    runs-on: ubuntu-latest
+"""
+          new_job = """  converge-source-pinned-candidate:
+    name: Converge current source-pinned Production candidate
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+"""
+          if launcher.count(old_job) != 1:
+              raise SystemExit('launcher job target mismatch')
+          launcher = launcher.replace(old_job, new_job, 1)
+
+          old_env = """      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ github.event.pull_request.number }}
+"""
+          new_env = """      REPOSITORY: ${{ github.repository }}
+      REQUEST_PR: ${{ inputs.request_pr }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      RELEASE_BRANCH_INPUT: ${{ inputs.release_branch }}
+      VALIDATION_BRANCH_INPUT: ${{ inputs.validation_branch }}
+      VALIDATION_BASE_BRANCH_INPUT: ${{ inputs.validation_base_branch }}
+      DISPATCH_CONFIRMATION: ${{ inputs.confirmation }}
+"""
+          if launcher.count(old_env) != 1:
+              raise SystemExit('launcher env target mismatch')
+          launcher = launcher.replace(old_env, new_env, 1)
+
+          steps_anchor = """    steps:
+      - name: Initialize bounded convergence evidence path
+"""
+          validation_step = """    steps:
+      - name: Validate governed dispatch binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$DISPATCH_CONFIRMATION" = "DISPATCH_GOVERNED_PRODUCTION_PROMOTION_CONVERGENCE"
+          [[ "$REQUEST_PR" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          request_json="$(gh pr view "$REQUEST_PR" --repo "$REPOSITORY" --json state,isDraft,headRefOid,headRefName,headRepositoryOwner,baseRefName,title)"
+          test "$(jq -r '.state' <<<"$request_json")" = "OPEN"
+          test "$(jq -r '.isDraft' <<<"$request_json")" = "false"
+          test "$(jq -r '.baseRefName' <<<"$request_json")" = "main"
+          test "$(jq -r '.headRefOid' <<<"$request_json")" = "$EXPECTED_HEAD_SHA"
+          test "$(jq -r '.title' <<<"$request_json")" = "ops: request governed Production synchronization"
+          target_branch="$(jq -r '.headRefName' <<<"$request_json")"
+          test "$target_branch" != "main"
+          test "$target_branch" != "Production"
+
+          for branch in "$RELEASE_BRANCH_INPUT" "$VALIDATION_BRANCH_INPUT" "$VALIDATION_BASE_BRANCH_INPUT"; do
+            git check-ref-format --branch "$branch" >/dev/null
+            test "$branch" != "main"
+            test "$branch" != "Production"
+          done
+          test "$RELEASE_BRANCH_INPUT" != "$VALIDATION_BRANCH_INPUT"
+          test "$RELEASE_BRANCH_INPUT" != "$VALIDATION_BASE_BRANCH_INPUT"
+          test "$VALIDATION_BRANCH_INPUT" != "$VALIDATION_BASE_BRANCH_INPUT"
+
+      - name: Initialize bounded convergence evidence path
+"""
+          if launcher.count(steps_anchor) != 1:
+              raise SystemExit('launcher steps target mismatch')
+          launcher = launcher.replace(steps_anchor, validation_step, 1)
+
+          old_branches = """            ATTEMPT_SUFFIX="a${attempt}-${GITHUB_RUN_ID}"
+            RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+"""
+          new_branches = """            ATTEMPT_SUFFIX="a${attempt}-${GITHUB_RUN_ID}"
+            RELEASE_BRANCH="${RELEASE_BRANCH_INPUT}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BRANCH="${VALIDATION_BRANCH_INPUT}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+            VALIDATION_BASE_BRANCH="${VALIDATION_BASE_BRANCH_INPUT}-${MAIN_SHORT}-${PRODUCTION_SHORT}-${ATTEMPT_SUFFIX}"
+"""
+          if launcher.count(old_branches) != 1:
+              raise SystemExit('launcher branch construction target mismatch')
+          launcher = launcher.replace(old_branches, new_branches, 1)
+          launcher_path.write_text(launcher)
+
+          post_path = Path('.github/workflows/governed-production-promotion-post-finalization-guard.yml')
+          post = post_path.read_text()
+          start = post.index('      - name: Close superseded Production and validation surfaces\n')
+          end = post.index('      - name: Publish post-finalization summary\n', start)
+          replacement = """      - name: Publish stable release-surface marker
+        if: steps.readback.outputs.stable == 'true'
+        shell: bash
+        env:
+          RELEASE_PR: ${{ steps.evidence.outputs.release_pr }}
+          CANDIDATE_SHA: ${{ steps.evidence.outputs.candidate_sha }}
+          PINNED_MAIN_SHA: ${{ steps.evidence.outputs.main_sha }}
+          PINNED_PRODUCTION_SHA: ${{ steps.evidence.outputs.production_sha }}
+        run: |
+          set -Eeuo pipefail
+          FINAL_MARKER="POST_FINALIZATION_STABLE source_run=${SOURCE_RUN_ID} candidate=${CANDIDATE_SHA} main=${PINNED_MAIN_SHA} Production=${PINNED_PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+          gh pr comment "$RELEASE_PR" --repo "$REPOSITORY" --body "$FINAL_MARKER single_release_surface=true final_freshness_readback=true"
+
+"""
+          post = post[:start] + replacement + post[end:]
+          post_path.write_text(post)
+
+          test_path = Path('http-generic-api/test-production-promotion-convergence-workflows.mjs')
+          test = test_path.read_text()
+          launcher_insert = """  /workflow_dispatch:/,
+  /request_pr:/,
+  /expected_head_sha:/,
+  /release_branch:/,
+  /validation_branch:/,
+  /validation_base_branch:/,
+  /DISPATCH_GOVERNED_PRODUCTION_PROMOTION_CONVERGENCE/,
+  /Validate governed dispatch binding/,
+  /test \"\$target_branch\" != \"main\"/,
+  /test \"\$target_branch\" != \"Production\"/,
+"""
+          marker = "for (const required of [\n"
+          if test.count(marker) < 1:
+              raise SystemExit('test launcher marker missing')
+          test = test.replace(marker, marker + launcher_insert, 1)
+          test = test.replace("  /startswith\\(\\\"release\\/production-\\\"\\)/,\n", "")
+          test = test.replace("  /startswith\\(\\\"gpt\\/validate-production-candidate-\\\"\\)/,\n", "")
+          post_block_marker = "  /gh pr reopen \"\\$REQUEST_PR\"/,\n"
+          if post_block_marker not in test:
+              raise SystemExit('test post marker missing')
+          test = test.replace(post_block_marker, post_block_marker + "  /Publish stable release-surface marker/,\n", 1)
+          test += "\nassert.doesNotMatch(launcher, /pull_request(?:_target)?:/);\nassert.doesNotMatch(launcher, /(?:gpt|fix|feat|chore|docs|release)\\/[A-Za-z0-9._/-]+/);\nassert.doesNotMatch(postFinalizationGuard, /(?:gpt|fix|feat|chore|docs|release)\\/[A-Za-z0-9._/-]+/);\n"
+          test_path.write_text(test)
+          PY
+
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+
+      - name: Upload rendered files
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-lifecycle-convergence-repair-${{ github.run_id }}
+          path: |
+            .github/workflows/governed-production-promotion-request-launcher.yml
+            .github/workflows/governed-production-promotion-post-finalization-guard.yml
+            http-generic-api/test-production-promotion-convergence-workflows.mjs
+          if-no-files-found: error
+          retention-days: 7
