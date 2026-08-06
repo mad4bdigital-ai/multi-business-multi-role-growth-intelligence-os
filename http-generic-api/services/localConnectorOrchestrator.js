@@ -4,6 +4,8 @@ import { assertLocalConnectorDeviceTrust } from "../localConnectorDeviceTrust.js
 
 const PLATFORM_TENANT_ID = "00000000-0000-4000-a000-000000000001";
 const PLATFORM_ADMIN_USER_ID = "00000000-0000-4000-a000-000000000002";
+const CONNECTOR_TIMEOUT_MS = 35_000;
+const CONNECTOR_RESPONSE_EXCERPT_MAX_CHARS = 768;
 
 function createLocalActionId() {
   return `local_action_${crypto.randomUUID().replace(/-/g, "")}`;
@@ -26,10 +28,248 @@ function connectorRuntimeUrl(config) {
   return String(config?.runtime_url || config?.device_runtime_url || config?.tunnel_url || "").replace(/\/$/, "");
 }
 
+function localConnectorError(code, message, httpStatus = 500, details = {}) {
+  const error = new Error(message);
+  error.code = code;
+  error.status = httpStatus;
+  error.http_status = httpStatus;
+  error.retryable = Boolean(details.retryable);
+  error.details = {
+    ...details,
+    retryable: Boolean(details.retryable),
+    secrets_included: false,
+  };
+  return error;
+}
+
 function connectorAuthToken(config) {
   const token = String(config?.connector_secret || "").trim();
-  if (!token) throw new Error("Per-device connector_secret is not configured for this local connector.");
+  if (!token) {
+    throw localConnectorError(
+      "connector_credential_missing",
+      "The local connector credential is not configured for this device.",
+      401,
+      { reason: "credential_missing", retryable: false },
+    );
+  }
   return token;
+}
+
+function responseHeader(response, name) {
+  return String(response?.headers?.get?.(name) || "").trim();
+}
+
+function redactConnectorExcerpt(value = "") {
+  return String(value || "")
+    .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}\b/giu, "Bearer [REDACTED]")
+    .replace(/(["']?)(authorization|api[_-]?key|token|secret|password|passwd|cookie)\1\s*[:=]\s*(?:"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|[^\s,;]+)/giu, "$1$2$1=[REDACTED]")
+    .slice(0, CONNECTOR_RESPONSE_EXCERPT_MAX_CHARS);
+}
+
+export function classifyLocalConnectorHttpFailure(status) {
+  const normalizedStatus = Number(status || 0);
+  if (normalizedStatus === 401) {
+    return {
+      code: "connector_credential_invalid",
+      message: "The local connector rejected the supplied credential.",
+      http_status: 401,
+      reason: "credential_invalid",
+      retryable: false,
+    };
+  }
+  if (normalizedStatus === 403) {
+    return {
+      code: "connector_scope_denied",
+      message: "The local connector denied the requested capability scope.",
+      http_status: 403,
+      reason: "scope_denied",
+      retryable: false,
+    };
+  }
+  if (normalizedStatus === 408 || normalizedStatus === 504) {
+    return {
+      code: "connector_timeout",
+      message: "The local connector did not complete the request before the timeout.",
+      http_status: 504,
+      reason: "upstream_timeout",
+      retryable: true,
+    };
+  }
+  if (normalizedStatus === 429) {
+    return {
+      code: "connector_rate_limited",
+      message: "The local connector temporarily rejected the request because of rate limiting.",
+      http_status: 429,
+      reason: "rate_limited",
+      retryable: true,
+    };
+  }
+  if ([500, 502, 503].includes(normalizedStatus)) {
+    return {
+      code: "connector_transport_unavailable",
+      message: "The local connector transport is temporarily unavailable.",
+      http_status: normalizedStatus || 502,
+      reason: "upstream_unavailable",
+      retryable: true,
+    };
+  }
+  return {
+    code: "connector_upstream_http_error",
+    message: "The local connector returned an unsuccessful HTTP response.",
+    http_status: normalizedStatus >= 400 ? normalizedStatus : 502,
+    reason: "upstream_http_error",
+    retryable: normalizedStatus >= 500,
+  };
+}
+
+function classifyLocalConnectorEnvelopeFailure(code, message) {
+  const normalizedCode = String(code || "").trim().toUpperCase();
+  const normalizedMessage = String(message || "").trim();
+
+  if (
+    ["UNAUTHORIZED", "AUTHENTICATION_FAILED", "INVALID_CREDENTIAL", "INVALID_CREDENTIALS"].includes(normalizedCode) ||
+    /missing or invalid connector credential|invalid connector credential/iu.test(normalizedMessage)
+  ) {
+    return classifyLocalConnectorHttpFailure(401);
+  }
+  if (["FORBIDDEN", "PERMISSION_DENIED", "SCOPE_DENIED"].includes(normalizedCode)) {
+    return classifyLocalConnectorHttpFailure(403);
+  }
+  if (["TIMEOUT", "REQUEST_TIMEOUT", "GATEWAY_TIMEOUT", "TIMED_OUT", "DEADLINE_EXCEEDED"].includes(normalizedCode)) {
+    return classifyLocalConnectorHttpFailure(504);
+  }
+  return null;
+}
+
+export async function readLocalConnectorResponse(response, { operation = "local_connector_call" } = {}) {
+  const status = Number(response?.status || 0);
+  const contentType = responseHeader(response, "content-type").toLowerCase();
+  const requestId =
+    responseHeader(response, "x-request-id") ||
+    responseHeader(response, "cf-ray") ||
+    responseHeader(response, "x-correlation-id") ||
+    null;
+  const responseText = String(await response.text());
+  let payload = null;
+
+  if (responseText) {
+    try {
+      payload = JSON.parse(responseText);
+    } catch {
+      payload = null;
+    }
+  }
+
+  if (!response?.ok) {
+    const classification = classifyLocalConnectorHttpFailure(status);
+    const providerMessage = payload?.error?.message || payload?.message || null;
+    throw localConnectorError(
+      classification.code,
+      providerMessage || classification.message,
+      classification.http_status,
+      {
+        operation,
+        reason: classification.reason,
+        retryable: classification.retryable,
+        upstream_status: status || null,
+        request_id: requestId,
+        content_type: contentType || null,
+        response_excerpt: redactConnectorExcerpt(responseText),
+      },
+    );
+  }
+
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw localConnectorError(
+      "connector_response_invalid",
+      "The local connector returned a non-JSON or invalid response envelope.",
+      502,
+      {
+        operation,
+        reason: "invalid_response_envelope",
+        retryable: true,
+        upstream_status: status || null,
+        request_id: requestId,
+        content_type: contentType || null,
+        response_excerpt: redactConnectorExcerpt(responseText),
+      },
+    );
+  }
+
+  if (payload.ok === false) {
+      const payloadCode = String(payload?.error?.code || "").trim();
+      const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
+      const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
+      throw localConnectorError(
+        classification?.code || payloadCode || "connector_operation_failed",
+        payloadMessage,
+        classification?.http_status || (status >= 400 ? status : 400),
+        {
+          operation,
+          reason: classification?.reason || payloadCode || "operation_failed",
+          retryable: Boolean(classification?.retryable),
+          upstream_status: status || null,
+          request_id: requestId,
+          content_type: contentType || null,
+          response_excerpt: redactConnectorExcerpt(responseText),
+        },
+      );
+    }
+
+  return payload;
+}
+
+function normalizeLocalConnectorError(error, fallbackCode) {
+  if (error?.code && (error?.http_status || error?.status)) {
+    return {
+      code: error.code,
+      message: error.message,
+      http_status: Number(error.http_status || error.status),
+      retryable: Boolean(error.retryable ?? error?.details?.retryable),
+      details: error.details || null,
+      device_trust: error.device_trust || null,
+    };
+  }
+
+  if (error?.name === "TimeoutError" || error?.name === "AbortError") {
+    return {
+      code: "connector_timeout",
+      message: "The local connector did not complete the request before the timeout.",
+      http_status: 504,
+      retryable: true,
+      details: {
+        reason: "client_timeout",
+        retryable: true,
+        timeout_ms: CONNECTOR_TIMEOUT_MS,
+        secrets_included: false,
+      },
+      device_trust: error.device_trust || null,
+    };
+  }
+
+  if (error instanceof TypeError) {
+    return {
+      code: "connector_transport_unavailable",
+      message: "The local connector transport could not be reached.",
+      http_status: 502,
+      retryable: true,
+      details: {
+        reason: "network_or_fetch_failure",
+        retryable: true,
+        secrets_included: false,
+      },
+      device_trust: error.device_trust || null,
+    };
+  }
+
+  return {
+    code: error?.code || fallbackCode,
+    message: error?.message || "The local connector operation failed.",
+    http_status: Number(error?.status || 400),
+    retryable: false,
+    details: error?.details || null,
+    device_trust: error?.device_trust || null,
+  };
 }
 
 async function resolveUserLocalConfig(userId, tenantId, deviceId, { includeDisabled = false } = {}) {
@@ -86,19 +326,12 @@ async function executeGovernedShellCommand(args) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ action: "run", alias, extra_args: extraArgs }),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
     });
-    const raw = await response.json();
-    if (!raw.ok && raw.error) throw new Error(raw.error.message || raw.stderr || "Command failed");
-    output = raw;
+    output = await readLocalConnectorResponse(response, { operation: `shell:${alias}` });
     status = "completed";
-
-  } catch (err) {
-    error = {
-      code: err.code || "local_command_execution_failed",
-      message: err.message,
-      device_trust: err.device_trust || null,
-    };
+  } catch (caught) {
+    error = normalizeLocalConnectorError(caught, "local_command_execution_failed");
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
@@ -114,7 +347,7 @@ async function executeGovernedShellCommand(args) {
       responseBody: output || error,
       error_code: error?.code,
       error_message_short: error?.message,
-      http_status: status === "completed" ? 200 : 400,
+      http_status: status === "completed" ? 200 : error?.http_status || 500,
       brand_name: null,
       execution_trace_id: localActionId,
       started_at: startedAt.toISOString(),
@@ -158,19 +391,13 @@ async function readGovernedLocalFile(args) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ action: "read", path }),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
     });
-    const raw = await response.json();
-    if (!raw.ok) throw new Error(raw.error?.message || "File read failed");
+    const raw = await readLocalConnectorResponse(response, { operation: "file:read" });
     content = raw.content;
     status = "completed";
-
-  } catch (err) {
-    error = {
-      code: err.code || "local_file_read_failed",
-      message: err.message,
-      device_trust: err.device_trust || null,
-    };
+  } catch (caught) {
+    error = normalizeLocalConnectorError(caught, "local_file_read_failed");
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
@@ -186,7 +413,7 @@ async function readGovernedLocalFile(args) {
       responseBody: content || error,
       error_code: error?.code,
       error_message_short: error?.message,
-      http_status: status === "completed" ? 200 : 400,
+      http_status: status === "completed" ? 200 : error?.http_status || 500,
       brand_name: null,
       execution_trace_id: localActionId,
       started_at: startedAt.toISOString(),
@@ -230,19 +457,12 @@ async function writeGovernedLocalFile(args) {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify({ action: "write", path, content }),
-      signal: AbortSignal.timeout(35000),
+      signal: AbortSignal.timeout(CONNECTOR_TIMEOUT_MS),
     });
-    const raw = await response.json();
-    if (!raw.ok) throw new Error(raw.error?.message || "File write failed");
-    result = raw;
+    result = await readLocalConnectorResponse(response, { operation: "file:write" });
     status = "completed";
-
-  } catch (err) {
-    error = {
-      code: err.code || "local_file_write_failed",
-      message: err.message,
-      device_trust: err.device_trust || null,
-    };
+  } catch (caught) {
+    error = normalizeLocalConnectorError(caught, "local_file_write_failed");
   } finally {
     await performUniversalServerWriteback({
       mode: "sync",
@@ -258,7 +478,7 @@ async function writeGovernedLocalFile(args) {
       responseBody: result || error,
       error_code: error?.code,
       error_message_short: error?.message,
-      http_status: status === "completed" ? 200 : 400,
+      http_status: status === "completed" ? 200 : error?.http_status || 500,
       brand_name: null,
       execution_trace_id: localActionId,
       started_at: startedAt.toISOString(),
