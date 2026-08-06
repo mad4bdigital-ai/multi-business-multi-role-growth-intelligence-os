@@ -1,0 +1,27 @@
+name: Diagnose Certified Release Actionlint
+
+on:
+  push:
+    branches:
+      - fix/certified-release-upload-path-context-20260806
+    paths:
+      - .github/ops/certified-release-actionlint.trigger
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run actionlint against certified release workflow
+        uses: docker://rhysd/actionlint:latest
+        with:
+          args: -color .github/workflows/production-certified-release-cut-validation.yml
