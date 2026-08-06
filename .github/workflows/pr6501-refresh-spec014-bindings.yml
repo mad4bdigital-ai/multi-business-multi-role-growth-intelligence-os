@@ -90,6 +90,10 @@ jobs:
           expected_changed=$'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json\nspecs/014-retail-commerce-operations-growth-os/work-map-integration.json'
           test "${changed}" = "${expected_changed}"
 
+          # The generated repository automation map inventories workflow files.
+          # Remove this one-shot writer from the working tree before currentness validation.
+          git rm .github/workflows/pr6501-refresh-spec014-bindings.yml
+
       - name: Validate generated maps, classification, and governed Spec bindings
         shell: bash
         env:
@@ -101,7 +105,7 @@ jobs:
           node http-generic-api/scripts/work-map-schema-classification.mjs
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --changed
 
-      - name: Commit without retaining the temporary workflow
+      - name: Commit bounded repair
         id: publish
         shell: bash
         env:
@@ -113,7 +117,6 @@ jobs:
           git add \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-          git rm .github/workflows/pr6501-refresh-spec014-bindings.yml
 
           staged="$(git diff --cached --name-only)"
           expected_staged=$'.github/workflows/pr6501-refresh-spec014-bindings.yml\nspecs/014-governed-hostinger-storage-orchestration/work-map-integration.json\nspecs/014-retail-commerce-operations-growth-os/work-map-integration.json'
