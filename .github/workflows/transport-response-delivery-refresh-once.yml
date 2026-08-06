@@ -80,11 +80,10 @@ jobs:
           }
 
           '''
-          if "function classifyLocalConnectorEnvelopeFailure" in service:
-              raise SystemExit("transport envelope classifier already present before one-time patch")
-          if service.count(function_marker) != 1:
-              raise SystemExit("readLocalConnectorResponse marker mismatch")
-          service = service.replace(function_marker, helper + function_marker, 1)
+          if "function classifyLocalConnectorEnvelopeFailure" not in service:
+              if service.count(function_marker) != 1:
+                  raise SystemExit("readLocalConnectorResponse marker mismatch")
+              service = service.replace(function_marker, helper + function_marker, 1)
 
           block_start_marker = "  if (payload.ok === false) {"
           block_end_marker = "\n\n  return payload;"
@@ -92,26 +91,28 @@ jobs:
               raise SystemExit("payload failure block start mismatch")
           block_start = service.index(block_start_marker)
           block_end = service.index(block_end_marker, block_start)
-          new_block = '''  if (payload.ok === false) {
-            const payloadCode = String(payload?.error?.code || "").trim();
-            const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
-            const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
-            throw localConnectorError(
-              classification?.code || payloadCode || "connector_operation_failed",
-              payloadMessage,
-              classification?.http_status || (status >= 400 ? status : 400),
-              {
-                operation,
-                reason: classification?.reason || payloadCode || "operation_failed",
-                retryable: Boolean(classification?.retryable),
-                upstream_status: status || null,
-                request_id: requestId,
-                content_type: contentType || null,
-                response_excerpt: redactConnectorExcerpt(responseText),
-              },
-            );
-          }'''
-          service = service[:block_start] + new_block + service[block_end:]
+          current_block = service[block_start:block_end]
+          if "classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage)" not in current_block:
+              new_block = '''  if (payload.ok === false) {
+                const payloadCode = String(payload?.error?.code || "").trim();
+                const payloadMessage = payload?.error?.message || payload?.stderr || "The local connector operation failed.";
+                const classification = classifyLocalConnectorEnvelopeFailure(payloadCode, payloadMessage);
+                throw localConnectorError(
+                  classification?.code || payloadCode || "connector_operation_failed",
+                  payloadMessage,
+                  classification?.http_status || (status >= 400 ? status : 400),
+                  {
+                    operation,
+                    reason: classification?.reason || payloadCode || "operation_failed",
+                    retryable: Boolean(classification?.retryable),
+                    upstream_status: status || null,
+                    request_id: requestId,
+                    content_type: contentType || null,
+                    response_excerpt: redactConnectorExcerpt(responseText),
+                  },
+                );
+              }'''
+              service = service[:block_start] + new_block + service[block_end:]
           service_path.write_text(service, encoding="utf-8")
 
           test_path = Path("http-generic-api/test-local-connector-transport-errors.mjs")
@@ -152,11 +153,10 @@ jobs:
           );
 
           '''
-          if "req-credential-envelope" in test:
-              raise SystemExit("credential envelope regression already present before one-time patch")
-          if test.count(marker) != 1:
-              raise SystemExit("non-JSON regression marker mismatch")
-          test = test.replace(marker, regression + marker, 1)
+          if "req-credential-envelope" not in test:
+              if test.count(marker) != 1:
+                  raise SystemExit("non-JSON regression marker mismatch")
+              test = test.replace(marker, regression + marker, 1)
           test_path.write_text(test, encoding="utf-8")
           PY
 
