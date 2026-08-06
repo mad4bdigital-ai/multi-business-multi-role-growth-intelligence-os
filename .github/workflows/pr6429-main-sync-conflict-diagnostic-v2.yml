@@ -29,29 +29,59 @@ jobs:
         id: merge_diagnostic
         shell: bash
         run: |
-          set -euo pipefail
+          set -u
           evidence_root="${RUNNER_TEMP}/pr6429-main-reconciliation-conflicts-v2"
           mkdir -p "${evidence_root}"
+          : > "${evidence_root}/conflicts.txt"
+          : > "${evidence_root}/status.txt"
 
-          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
-          captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
-          test "${remote_branch_head}" = "${GITHUB_SHA}"
-          test "${captured_main_head}" =~ ^[0-9a-f]{40}$
-          git fetch --no-tags origin "${captured_main_head}"
+          event_sha="${GITHUB_SHA}"
+          remote_branch_head=""
+          captured_main_head=""
+          fetched_main_head=""
+          branch_read_rc=0
+          main_read_rc=0
+          fetch_rc=0
+          merge_rc=125
 
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           set +e
-          git merge --no-ff --no-commit "${captured_main_head}"
-          merge_rc=$?
+          remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
+          branch_read_rc=$?
+          captured_main_head="$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')"
+          main_read_rc=$?
+
+          if [[ ${branch_read_rc} -eq 0 && "${remote_branch_head}" == "${event_sha}" && \
+                ${main_read_rc} -eq 0 && "${captured_main_head}" =~ ^[0-9a-f]{40}$ ]]; then
+            git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+            fetch_rc=$?
+            if [[ ${fetch_rc} -eq 0 ]]; then
+              fetched_main_head="$(git rev-parse refs/remotes/origin/main 2>/dev/null)"
+              if [[ "${fetched_main_head}" == "${captured_main_head}" ]]; then
+                git config user.name 'github-actions[bot]'
+                git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                git merge --no-ff --no-commit "${captured_main_head}"
+                merge_rc=$?
+              else
+                fetch_rc=86
+              fi
+            fi
+          else
+            fetch_rc=87
+          fi
           set -e
 
-          git diff --name-only --diff-filter=U | sort > "${evidence_root}/conflicts.txt"
-          git status --short > "${evidence_root}/status.txt"
+          git diff --name-only --diff-filter=U | sort > "${evidence_root}/conflicts.txt" || true
+          git status --short > "${evidence_root}/status.txt" || true
           conflict_count="$(grep -cve '^$' "${evidence_root}/conflicts.txt" || true)"
+
           {
-            echo "event_sha=${GITHUB_SHA}"
+            echo "event_sha=${event_sha}"
+            echo "remote_branch_sha=${remote_branch_head}"
             echo "captured_main_sha=${captured_main_head}"
+            echo "fetched_main_sha=${fetched_main_head}"
+            echo "branch_read_rc=${branch_read_rc}"
+            echo "main_read_rc=${main_read_rc}"
+            echo "fetch_rc=${fetch_rc}"
             echo "merge_rc=${merge_rc}"
             echo "conflict_count=${conflict_count}"
             echo "force_push=false"
@@ -85,6 +115,7 @@ jobs:
           exit 0
 
       - name: Upload conflict diagnostic
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: pr6429-main-reconciliation-conflicts-v2-${{ github.sha }}
@@ -93,11 +124,13 @@ jobs:
           retention-days: 7
 
       - name: Confirm diagnostic remained read-only
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
           remote_branch_head="$(git ls-remote --exit-code origin "refs/heads/${WORK_BRANCH}" | awk '{print $1}')"
           test "${remote_branch_head}" = "${GITHUB_SHA}"
-          test "${{ steps.merge_diagnostic.outputs.captured_main_sha }}" =~ ^[0-9a-f]{40}$
+          captured_main_sha="${{ steps.merge_diagnostic.outputs.captured_main_sha }}"
+          [[ "${captured_main_sha}" =~ ^[0-9a-f]{40}$ ]]
           echo "merge_rc=${{ steps.merge_diagnostic.outputs.merge_rc }}"
           echo "conflict_count=${{ steps.merge_diagnostic.outputs.conflict_count }}"
