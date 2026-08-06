@@ -203,8 +203,8 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .changes/e2e/transport-response-delivery-recovery.json \
-            .github/workflows/transport-response-delivery-refresh-once.yml \
+          git add -- \
+            .changes/e2e/transport-response-delivery-recovery.json \
             docs/work-maps/README.md \
             docs/work-maps/data-model-domain-map.md \
             docs/work-maps/migration-lifecycle-map.md \
