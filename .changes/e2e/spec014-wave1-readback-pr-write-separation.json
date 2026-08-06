@@ -67,6 +67,7 @@
             "A failing Work Map gate uploads a bounded structured artifact before the workflow fails closed, without adding repository write authority or secrets.",
             "Post-integration maintenance is rejected when it targets a branch other than main or when parallel delivery is reopened.",
             "The retained surfaces perform no runtime, database, provider, deployment, credential, or external business mutation.",
+            "Final required checks run from a repository-owner-authored exact head after any governed Work Map writer commit.",
             "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, heuristic changed-file fallback, shallow candidate checkout, or unstructured-only failure evidence returns."
           ],
           "tests": [
