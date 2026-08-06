@@ -91,7 +91,7 @@ jobs:
 
       - name: Regenerate surface-contract evidence
         working-directory: http-generic-api
-        run: node scripts/surface-contract-discovery.mjs
+        run: node scripts/surface-contract-discovery.mjs --write
 
       - name: Verify migration regression
         working-directory: http-generic-api
