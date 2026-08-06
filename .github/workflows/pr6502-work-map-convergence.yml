@@ -12,7 +12,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: pr-6502-work-map-convergence
+  group: pr-6502-work-map-convergence-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: fb2e5240485ffdffdad595a1f33c953c3a0c51c1
+      AUTHORIZED_PARENT_SHA: 3e9436064863361ec405db70f66b4bce174a7ebf
       ONE_SHOT_PATH: .github/workflows/pr6502-work-map-convergence.yml
     steps:
       - name: Checkout exact one-shot commit
