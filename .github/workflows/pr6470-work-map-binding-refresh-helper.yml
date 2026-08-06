@@ -1,0 +1,96 @@
+name: PR 6470 Work Map Binding Refresh Helper
+
+on:
+  push:
+    branches:
+      - gpt/generated/pr6429-work-map-refresh-20260806
+    paths:
+      - .github/workflows/pr6470-work-map-binding-refresh-helper.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-binding:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact helper branch
+        uses: actions/checkout@v5
+        with:
+          ref: gpt/generated/pr6429-work-map-refresh-20260806
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Refresh official Spec 014 binding on final tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper='.github/workflows/pr6470-work-map-binding-refresh-helper.yml'
+          manifest='specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
+          tasks='specs/014-governed-hostinger-storage-orchestration/tasks.md'
+
+          test -f "${helper}"
+          rm "${helper}"
+          test ! -e "${helper}"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+
+          changed="$(git diff --name-only | LC_ALL=C sort)"
+          printf '%s\n' "${changed}"
+          printf '%s\n' "${changed}" | grep -Fx "${helper}"
+          printf '%s\n' "${changed}" | grep -Fx "${manifest}"
+          unexpected="$(printf '%s\n' "${changed}" | grep -Fvx -e "${helper}" -e "${manifest}" -e "${tasks}" || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo 'Unexpected binding-refresh changes:'
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+
+      - name: Validate maps, classification, governance, and exact-head readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/pr6470-work-map-binding-refresh-helper.yml
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          report="${RUNNER_TEMP}/spec014-final-work-map-readback.json"
+          REPORT_PATH="${report}" node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node - "${report}" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (!report.ok || report.findings.length !== 0 || report.secrets_included !== false) {
+            throw new Error(`Final Work Map readback failed: ${JSON.stringify(report.findings)}`);
+          }
+          NODE
+
+      - name: Commit binding refresh and helper deletion atomically
+        shell: bash
+        run: |
+          set -euo pipefail
+          helper='.github/workflows/pr6470-work-map-binding-refresh-helper.yml'
+          manifest='specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'
+          tasks='specs/014-governed-hostinger-storage-orchestration/tasks.md'
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A -- "${helper}" "${manifest}" "${tasks}"
+
+          staged="$(git diff --cached --name-only | LC_ALL=C sort)"
+          printf '%s\n' "${staged}" | grep -Fx "${helper}"
+          printf '%s\n' "${staged}" | grep -Fx "${manifest}"
+          unexpected="$(printf '%s\n' "${staged}" | grep -Fvx -e "${helper}" -e "${manifest}" -e "${tasks}" || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo 'Unexpected staged binding-refresh changes:'
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+
+          git diff --cached --check
+          git commit -m "docs(spec-014): refresh final Work Map binding"
+          git push origin HEAD:gpt/generated/pr6429-work-map-refresh-20260806
