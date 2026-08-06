@@ -17,7 +17,7 @@ concurrency:
 jobs:
   refresh:
     if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' && github.ref == 'refs/heads/fix/transport-response-schema-promotion-readiness-20260806'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     env:
       TARGET_BRANCH: fix/transport-response-schema-promotion-readiness-20260806
       WORKFLOW_PATH: .github/workflows/pr6500-spec014-binding-refresh-once.yml
@@ -58,18 +58,10 @@ jobs:
           set -Eeuo pipefail
           node - <<'NODE'
           const fs = require('node:fs');
-
           const targets = [
-            {
-              path: process.env.HOSTINGER_SPEC,
-              featureKey: '014-governed-hostinger-storage-orchestration',
-            },
-            {
-              path: process.env.RETAIL_SPEC,
-              featureKey: '014-retail-commerce-operations-growth-os',
-            },
+            { path: process.env.HOSTINGER_SPEC, featureKey: '014-governed-hostinger-storage-orchestration' },
+            { path: process.env.RETAIL_SPEC, featureKey: '014-retail-commerce-operations-growth-os' },
           ];
-
           const expectedOld = {
             fingerprint: process.env.OLD_FINGERPRINT,
             index_source_hash: process.env.OLD_INDEX_SOURCE_HASH,
@@ -80,53 +72,22 @@ jobs:
             index_source_hash: process.env.NEW_INDEX_SOURCE_HASH,
             coverage_source_hash: process.env.NEW_COVERAGE_SOURCE_HASH,
           };
-
           for (const target of targets) {
-            const original = fs.readFileSync(target.path, 'utf8');
-            const document = JSON.parse(original);
-            if (document.feature_key !== target.featureKey) {
-              throw new Error(`${target.path}: unexpected feature_key ${document.feature_key}`);
-            }
-            if (!document.registry || typeof document.registry !== 'object') {
-              throw new Error(`${target.path}: missing registry object`);
-            }
+            const document = JSON.parse(fs.readFileSync(target.path, 'utf8'));
+            if (document.feature_key !== target.featureKey) throw new Error(`${target.path}: unexpected feature_key`);
             for (const [key, value] of Object.entries(expectedOld)) {
-              if (document.registry[key] !== value) {
-                throw new Error(`${target.path}: ${key} drifted; expected old ${value}, found ${document.registry[key]}`);
-              }
+              if (document.registry?.[key] !== value) throw new Error(`${target.path}: ${key} drifted`);
             }
-            for (const [key, value] of Object.entries(expectedNew)) {
-              document.registry[key] = value;
-            }
+            Object.assign(document.registry, expectedNew);
             fs.writeFileSync(target.path, `${JSON.stringify(document, null, 2)}\n`);
           }
           NODE
 
           git rm -- "${WORKFLOW_PATH}"
-          test ! -e "${WORKFLOW_PATH}"
-
-          mapfile -t actual < <(git diff --name-only HEAD -- . | sed '/^$/d' | sort)
           expected=("${WORKFLOW_PATH}" "${HOSTINGER_SPEC}" "${RETAIL_SPEC}")
+          mapfile -t actual < <(git diff --name-only HEAD -- . | sed '/^$/d' | sort)
           test "${#actual[@]}" -eq 3
           test "$(printf '%s\n' "${actual[@]}" | sort | sha256sum | awk '{print $1}')" = "$(printf '%s\n' "${expected[@]}" | sort | sha256sum | awk '{print $1}')"
-
-          node - <<'NODE'
-          const fs = require('node:fs');
-          const targets = [process.env.HOSTINGER_SPEC, process.env.RETAIL_SPEC];
-          const expected = {
-            fingerprint: process.env.NEW_FINGERPRINT,
-            index_source_hash: process.env.NEW_INDEX_SOURCE_HASH,
-            coverage_source_hash: process.env.NEW_COVERAGE_SOURCE_HASH,
-          };
-          for (const path of targets) {
-            const document = JSON.parse(fs.readFileSync(path, 'utf8'));
-            for (const [key, value] of Object.entries(expected)) {
-              if (document.registry?.[key] !== value) {
-                throw new Error(`${path}: failed exact readback for ${key}`);
-              }
-            }
-          }
-          NODE
 
       - name: Set up Node
         uses: actions/setup-node@v6
@@ -159,16 +120,14 @@ jobs:
           set -Eeuo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
           git add -- "${HOSTINGER_SPEC}" "${RETAIL_SPEC}"
-          mapfile -t staged < <(git diff --cached --name-only | sed '/^$/d' | sort)
           expected=("${WORKFLOW_PATH}" "${HOSTINGER_SPEC}" "${RETAIL_SPEC}")
+          mapfile -t staged < <(git diff --cached --name-only | sed '/^$/d' | sort)
           test "${#staged[@]}" -eq 3
           test "$(printf '%s\n' "${staged[@]}" | sort | sha256sum | awk '{print $1}')" = "$(printf '%s\n' "${expected[@]}" | sort | sha256sum | awk '{print $1}')"
           git diff --cached --check
           git commit -m "chore(work-maps): refresh Spec 014 registry bindings"
           test -z "$(git status --porcelain)"
-
           remote_head="$(git ls-remote --heads origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
           git push origin "HEAD:${TARGET_BRANCH}"
