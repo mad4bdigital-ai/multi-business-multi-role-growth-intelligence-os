@@ -241,6 +241,13 @@ jobs:
           set -euo pipefail
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
+      - name: Remove one-shot workflow before retirement proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- "${TEMP_WORKFLOW}"
+          test ! -e "${TEMP_WORKFLOW}"
+
       - name: Prove Production parity bridge retirement
         shell: bash
         run: |
@@ -255,11 +262,10 @@ jobs:
           test -z "$(git diff --name-only --diff-filter=U)"
           test "$(git rev-parse -q --verify MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
 
-      - name: Remove one-shot workflow and assert final PR scope
+      - name: Stage generated bindings and assert final PR scope
         shell: bash
         run: |
           set -euo pipefail
-          git rm -- "${TEMP_WORKFLOW}"
           git add -- \
             docs/work-maps/README.md \
             docs/work-maps/repository-automation-map.md \
