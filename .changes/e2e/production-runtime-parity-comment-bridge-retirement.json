@@ -24,25 +24,27 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove the permanently unreachable Production parity bridge bound to closed historical Issue #4953 and retain Hostinger Production Runtime Readback R7 as the sole supported exact-SHA, public-GET-only runtime parity entrypoint.",
+      "objective": "Remove the permanently unreachable Production parity bridge bound to closed historical Issue #4953, retain its contract path as a non-executable governance tombstone, and preserve Hostinger Production Runtime Readback R7 as the sole supported exact-SHA, public-GET-only runtime parity entrypoint.",
       "e2e_journeys": [
         {
           "id": "retire-closed-control-production-parity-bridge",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository workflow registrar and governance runner",
-          "entrypoint": "A bounded pull request removes the closed-Issue bridge and adds an exact retirement regression.",
-          "terminal_outcome": "No live workflow is bound to Issue #4953 or accepts RUN_PRODUCTION_RUNTIME_PARITY, while canonical R7 remains present, read-only, exact-SHA-bound, public-GET-only, and secret-free.",
+          "entrypoint": "A bounded pull request removes the closed-Issue bridge executables, rewrites the historical contract as a tombstone, and adds an exact retirement regression.",
+          "terminal_outcome": "No live workflow is bound to Issue #4953 or accepts RUN_PRODUCTION_RUNTIME_PARITY, the historical contract grants no executable ownership, and canonical R7 remains present, read-only, exact-SHA-bound, public-GET-only, and secret-free.",
           "steps": [
             "Remove the Production Runtime Parity Comment Bridge workflow bound to closed Issue #4953.",
-            "Remove the bridge-specific E2E contract and regression test.",
+            "Remove the bridge-specific executable regression test.",
+            "Rewrite the historical bridge contract as a governance-valid tombstone scoped only to its own contract path.",
             "Scan all live workflow files for the retired command, workflow name, and Issue #4953 binding.",
             "Require the canonical R7 workflow, contract, and regression to remain present.",
             "Verify R7 accepts only authorized pull-request comments with an exact Production SHA.",
             "Verify R7 uses fixed public HTTPS GET endpoints and declares every mutation/effect flag false."
           ],
           "assertions": [
-            "The three historical bridge paths remain absent.",
+            "The historical bridge workflow and bridge-specific executable test remain absent.",
+            "The historical E2E contract remains only as a non-executable retirement tombstone scoped to itself.",
             "No live workflow contains RUN_PRODUCTION_RUNTIME_PARITY or production-runtime-parity-comment-bridge.",
             "No live workflow is bound to github.event.issue.number == 4953.",
             "Hostinger Production Runtime Readback R7 remains the sole supported runtime-parity entrypoint.",
@@ -68,6 +70,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/production-runtime-parity-comment-bridge-retirement.json",
+            ".changes/e2e/production-runtime-parity-comment-bridge.json",
             "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs",
             ".changes/e2e/hostinger-production-runtime-readback-r7.json",
             ".github/workflows/hostinger-production-runtime-readback-r7.yml",
@@ -84,7 +87,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Reject future reintroduction of the retired command, workflow identity, or historical Issue #4953 control binding."
+      "objective": "Reject future reintroduction of the retired command, workflow identity, executable test, or historical Issue #4953 control binding."
     },
     {
       "id": "canary",
@@ -94,7 +97,7 @@
     {
       "id": "production",
       "status": "planned",
-      "objective": "Prove protected main contains one authoritative runtime-parity entrypoint and no dead historical control binding."
+      "objective": "Prove protected main contains the retirement tombstone, one authoritative runtime-parity entrypoint, and no dead historical control binding."
     }
   ],
   "secrets_included": false
