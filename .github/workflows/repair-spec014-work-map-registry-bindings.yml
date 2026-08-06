@@ -1,0 +1,141 @@
+name: Repair Spec 014 Work Map Registry Bindings
+
+on:
+  push:
+    branches:
+      - repair/spec014-work-map-registry-bindings-20260806
+    paths:
+      - .github/ops/repair-spec014-work-map-registry-bindings.trigger
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: repair-spec014-work-map-registry-bindings-6497
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    env:
+      TARGET_PR: "6497"
+      TARGET_BRANCH: fix/certified-release-registration-clean-20260806
+      EXPECTED_HEAD: b11248f33487dfe01b10e6e0f114d6abf58c5cd2
+      EXPECTED_MAIN: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
+    steps:
+      - name: Checkout exact authorized pull request head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate exact pull request and main identity
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD}"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" > "${RUNNER_TEMP}/pr.json"
+          test "$(jq -r '.state' "${RUNNER_TEMP}/pr.json")" = "open"
+          test "$(jq -r '.base.ref' "${RUNNER_TEMP}/pr.json")" = "main"
+          test "$(jq -r '.head.ref' "${RUNNER_TEMP}/pr.json")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' "${RUNNER_TEMP}/pr.json")" = "${EXPECTED_HEAD}"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "${current_main}" = "${EXPECTED_MAIN}"
+
+      - name: Refresh only the two stale registry bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { buildEffectiveWorkMapRegistry } from './http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs';
+          import { validateSchemaClassification } from './http-generic-api/scripts/work-map-schema-classification.mjs';
+
+          const root = process.cwd();
+          const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root });
+          const classification = validateSchemaClassification({ root });
+          if (!classification.ok || classification.unresolved.length !== 0 || classification.classification_coverage_percent !== 100) {
+            throw new Error(`Schema classification is not ready: ${JSON.stringify(classification.findings)}`);
+          }
+          if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
+            throw new Error(`Unexpected registry shape: maps=${effectiveRegistry.maps.length}, domains=${effectiveRegistry.domains.length}`);
+          }
+          if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
+            throw new Error('Registry contains unresolved objects or taxonomy gaps');
+          }
+
+          const registry = {
+            fingerprint: effectiveRegistry.fingerprint,
+            index_source_hash: effectiveRegistry.signature.index_source_hash,
+            coverage_source_hash: effectiveRegistry.signature.coverage_source_hash,
+            map_count: effectiveRegistry.maps.length,
+            domain_count: effectiveRegistry.domains.length,
+            uncategorized_count: effectiveRegistry.uncategorized_objects.length,
+            taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length,
+          };
+          const manifests = [
+            ['014-governed-hostinger-storage-orchestration', 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json'],
+            ['014-retail-commerce-operations-growth-os', 'specs/014-retail-commerce-operations-growth-os/work-map-integration.json'],
+          ];
+          for (const [featureKey, relativePath] of manifests) {
+            const file = path.join(root, relativePath);
+            const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (manifest.feature_key !== featureKey || manifest.review_state !== 'ready_for_implementation') {
+              throw new Error(`Manifest identity or state mismatch: ${relativePath}`);
+            }
+            manifest.registry = registry;
+            fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
+          }
+          console.log(JSON.stringify({
+            contract: 'mad4b.spec014-registry-binding-repair.v1',
+            registry,
+            changed_files: manifests.map(([, relativePath]) => relativePath),
+            repository_mutation_scope: 'candidate_branch_only',
+            provider_dispatch: false,
+            live_database_access: false,
+            migration_apply: false,
+            secrets_included: false,
+          }, null, 2));
+          NODE
+
+      - name: Validate bounded scope and all governance contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git diff --name-only | sort)
+          expected=(
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          )
+          test "${#changed[@]}" -eq "${#expected[@]}"
+          for index in "${!expected[@]}"; do
+            test "${changed[$index]}" = "${expected[$index]}"
+          done
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          git diff --exit-code -- docs/work-maps
+
+      - name: Commit and push bounded manifest repair without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git diff --cached --quiet && { echo "No manifest repair required"; exit 1; }
+          git commit -m "docs(work-maps): refresh final Spec 014 registry bindings"
+          remote_head="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | cut -f1)"
+          test "${remote_head}" = "${EXPECTED_HEAD}"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
