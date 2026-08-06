@@ -1,5 +1,5 @@
-name: PR 6463 Main Ancestry Sync
-run-name: Synchronize PR 6463 ancestry with unchanged main tree
+name: PR 6463 Main Reconciliation
+run-name: Reconcile PR 6463 generated artifacts with pinned main
 
 on:
   push:
@@ -13,20 +13,25 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: pr6463-main-ancestry-sync
+  group: pr6463-main-reconciliation
   cancel-in-progress: false
 
 jobs:
-  sync:
-    name: Merge identical-tree main ancestry and self-delete
+  reconcile:
+    name: Merge current main, regenerate governed artifacts, and self-delete
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       TARGET_BRANCH: fix/retire-production-runtime-parity-bridge-6441-20260806
-      PREVIOUS_MAIN_SHA: faa7cd34117c7e0e18d1b55dad7968afb944378f
-      PINNED_MAIN_SHA: e3a9669147e24cff65effebacc0fdde76cd3a1cf
-      EXPECTED_FINAL_TREE: 8f09eb75df18baf383fb4bcaab75b7b92c403ef7
+      PREVIOUS_MAIN_SHA: e3a9669147e24cff65effebacc0fdde76cd3a1cf
+      PINNED_MAIN_SHA: ba10f269e831efa2c210b2729d1b31723a171052
+      PR_NUMBER: "6463"
       TEMP_WORKFLOW: .github/workflows/pr6463-main-ancestry-sync.yml
+      RETIREMENT_TOMBSTONE: .changes/e2e/production-runtime-parity-comment-bridge.json
+      RETIREMENT_CONTRACT: .changes/e2e/production-runtime-parity-comment-bridge-retirement.json
+      RETIRED_BRIDGE_WORKFLOW: .github/workflows/production-runtime-parity-comment-bridge.yml
+      RETIRED_BRIDGE_TEST: http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs
+      RETIREMENT_SELF_TEST: http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
     steps:
       - name: Checkout exact triggering head
         uses: actions/checkout@v5
@@ -35,40 +40,176 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify immutable branch and identical main trees
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable branch, draft PR, and pinned main
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           git fetch --no-tags origin main "${TARGET_BRANCH}"
+          pr_file="${RUNNER_TEMP}/pr6463.json"
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" > "${pr_file}"
+
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           test "$(git rev-parse origin/${TARGET_BRANCH})" = "${GITHUB_SHA}"
           test "$(git rev-parse origin/main)" = "${PINNED_MAIN_SHA}"
+          test "$(jq -r '.state' "${pr_file}")" = "open"
+          test "$(jq -r '.draft' "${pr_file}")" = "true"
+          test "$(jq -r '.base.ref' "${pr_file}")" = "main"
+          test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' "${pr_file}")" = "${GITHUB_SHA}"
           git merge-base --is-ancestor "${PREVIOUS_MAIN_SHA}" HEAD
-          test "$(git rev-parse "${PREVIOUS_MAIN_SHA}^{tree}")" = "$(git rev-parse "${PINNED_MAIN_SHA}^{tree}")"
-          git diff --quiet "${PREVIOUS_MAIN_SHA}" "${PINNED_MAIN_SHA}" --
-          test "$(git rev-parse HEAD^{tree})" != "${EXPECTED_FINAL_TREE}"
-          test -f "${TEMP_WORKFLOW}"
+          test -z "$(git status --porcelain)"
 
-      - name: Merge pinned main and remove one-shot before commit
-        shell: bash
-        run: |
-          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git merge --no-commit --no-ff "${PINNED_MAIN_SHA}"
-          test "$(git rev-parse MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
-          test -z "$(git diff --name-only --diff-filter=U)"
-          git rm -- "${TEMP_WORKFLOW}"
-          test ! -e "${TEMP_WORKFLOW}"
-          mapfile -t staged_paths < <(git diff --cached --name-only)
-          test "${#staged_paths[@]}" = "1"
-          test "${staged_paths[0]}" = "${TEMP_WORKFLOW}"
 
-      - name: Prove retired bridge contract
+      - name: Merge pinned main with bounded generated-artifact conflict resolution
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
+          set +e
+          git merge --no-commit --no-ff "${PINNED_MAIN_SHA}"
+          merge_status=$?
+          set -e
+
+          mapfile -t conflicts < <(git diff --name-only --diff-filter=U | sort)
+          if (( merge_status != 0 )) && (( ${#conflicts[@]} == 0 )); then
+            echo "::error::Merge failed without a resolvable conflict set"
+            exit "${merge_status}"
+          fi
+
+          allowed_conflicts=(
+            "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
+            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          )
+          for path in "${conflicts[@]}"; do
+            approved=false
+            for expected in "${allowed_conflicts[@]}"; do
+              if [[ "${path}" = "${expected}" ]]; then
+                approved=true
+                break
+              fi
+            done
+            if [[ "${approved}" != true ]]; then
+              echo "::error file=${path}::Unexpected merge conflict"
+              exit 1
+            fi
+            git checkout --theirs -- "${path}"
+            git add -- "${path}"
+          done
+
+          test "$(git rev-parse MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+      - name: Remove one-shot before generated-artifact refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -- "${TEMP_WORKFLOW}"
+          test ! -e "${TEMP_WORKFLOW}"
+
+      - name: Regenerate final Work Maps from combined sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+      - name: Refresh opted-in Spec Kit registry bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          registry_report="${RUNNER_TEMP}/work-map-registry.json"
+          node http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs --registry-report > "${registry_report}"
+          node - "${registry_report}" <<'NODE'
+          const fs = require('node:fs');
+          const [reportPath] = process.argv.slice(2);
+          const report = JSON.parse(fs.readFileSync(reportPath, 'utf8'));
+          const registry = report.registry;
+          if (!report.ok || !registry || !/^[0-9a-f]{64}$/.test(registry.fingerprint || '')) {
+            throw new Error('Invalid Work Map registry report');
+          }
+          const expected = {
+            fingerprint: registry.fingerprint,
+            index_source_hash: registry.signature?.index_source_hash,
+            coverage_source_hash: registry.signature?.coverage_source_hash,
+            map_count: registry.maps?.length,
+            domain_count: registry.domains?.length,
+            uncategorized_count: registry.uncategorized_objects?.length,
+            taxonomy_gap_cluster_count: registry.taxonomy_gap_clusters?.length,
+          };
+          for (const key of ['index_source_hash', 'coverage_source_hash']) {
+            if (!/^[0-9a-f]{64}$/.test(expected[key] || '')) throw new Error(`Invalid ${key}`);
+          }
+          const targets = [
+            ['specs/014-governed-hostinger-storage-orchestration/work-map-integration.json', '014-governed-hostinger-storage-orchestration'],
+            ['specs/014-retail-commerce-operations-growth-os/work-map-integration.json', '014-retail-commerce-operations-growth-os'],
+          ];
+          for (const [file, featureKey] of targets) {
+            const original = fs.readFileSync(file, 'utf8');
+            const parsed = JSON.parse(original);
+            if (parsed.feature_key !== featureKey || parsed.review_state !== 'ready_for_implementation') {
+              throw new Error(`Unexpected manifest identity/state: ${file}`);
+            }
+            const lines = original.replace(/\r\n/g, '\n').split('\n');
+            let inRegistry = false;
+            const seen = new Set();
+            const next = lines.map((line) => {
+              if (/^  "registry": \{$/.test(line)) {
+                inRegistry = true;
+                return line;
+              }
+              if (inRegistry && /^  },$/.test(line)) {
+                inRegistry = false;
+                return line;
+              }
+              if (!inRegistry) return line;
+              for (const [key, value] of Object.entries(expected)) {
+                const match = line.match(new RegExp(`^(    "${key}": )("[^"]*"|-?[0-9]+)(,?)$`));
+                if (!match) continue;
+                seen.add(key);
+                const rendered = typeof value === 'string' ? JSON.stringify(value) : String(value);
+                return `${match[1]}${rendered}${match[3]}`;
+              }
+              return line;
+            });
+            const missing = Object.keys(expected).filter((key) => !seen.has(key));
+            if (missing.length) throw new Error(`Missing registry fields in ${file}: ${missing.join(',')}`);
+            const output = next.join('\n');
+            const validated = JSON.parse(output);
+            for (const [key, value] of Object.entries(expected)) {
+              if (validated.registry[key] !== value) throw new Error(`Binding refresh failed for ${file}:${key}`);
+            }
+            fs.writeFileSync(file, output);
+          }
+          NODE
+
+      - name: Stage exact generated outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -- \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/observability-release-map.md \
+            docs/work-maps/repository-automation-map.md \
+            docs/work-maps/work-map-coverage-matrix.md \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          test -z "$(git diff --name-only --diff-filter=U)"
+          test -z "$(git diff --name-only)"
 
       - name: Prove Work Map currentness
         shell: bash
@@ -76,28 +217,61 @@ jobs:
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Prove exact merge state and final tree
+      - name: Prove Spec Kit Work Map governance
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
-          test -z "$(git diff --name-only --diff-filter=U)"
-          test "$(git write-tree)" = "${EXPECTED_FINAL_TREE}"
-          test ! -e "${TEMP_WORKFLOW}"
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
 
-      - name: Commit exact ancestry synchronization
+      - name: Prove Production parity bridge retirement
         shell: bash
         run: |
           set -euo pipefail
-          git commit -m "chore: synchronize PR 6463 ancestry with unchanged main tree"
-          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF}')" = "3"
-          git merge-base --is-ancestor "${PINNED_MAIN_SHA}" HEAD
-          test "$(git rev-parse HEAD^{tree})" = "${EXPECTED_FINAL_TREE}"
-          test ! -e "${TEMP_WORKFLOW}"
+          node "${RETIREMENT_SELF_TEST}"
 
-      - name: Push branch without force
+      - name: Assert exact final PR scope and semantic state
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=(
+            ".changes/e2e/production-runtime-parity-comment-bridge-retirement.json"
+            ".changes/e2e/production-runtime-parity-comment-bridge.json"
+            ".github/workflows/production-runtime-parity-comment-bridge.yml"
+            "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
+            "docs/work-maps/repository-automation-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
+            "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs"
+            "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs"
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+          )
+          mapfile -t actual < <(git diff --cached --name-only "${PINNED_MAIN_SHA}" | sort)
+          mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
+          printf 'final_pr_scope_count=%s\n' "${#actual[@]}"
+          printf 'final_pr_scope=%s\n' "${actual[*]}"
+          test "${#actual[@]}" = "${#wanted[@]}"
+          diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${actual[@]}")
+
+          test ! -e "${TEMP_WORKFLOW}"
+          test ! -e "${RETIRED_BRIDGE_WORKFLOW}"
+          test ! -e "${RETIRED_BRIDGE_TEST}"
+          test -f "${RETIREMENT_TOMBSTONE}"
+          test -f "${RETIREMENT_CONTRACT}"
+          test -f "${RETIREMENT_SELF_TEST}"
+          node "${RETIREMENT_SELF_TEST}"
+
+      - name: Commit and push exact reconciled branch without force
         shell: bash
         run: |
           set -euo pipefail
           test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git ls-remote --exit-code origin refs/heads/main | awk '{print $1}')" = "${PINNED_MAIN_SHA}"
+          git commit -m "chore: reconcile PR 6463 generated artifacts with main"
+          result_sha="$(git rev-parse HEAD)"
+          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF}')" = "3"
+          git merge-base --is-ancestor "${PINNED_MAIN_SHA}" HEAD
+          test ! -e "${TEMP_WORKFLOW}"
           git push origin "HEAD:${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
