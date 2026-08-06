@@ -64,13 +64,26 @@ jobs:
           test "${#staged_paths[@]}" = "1"
           test "${staged_paths[0]}" = "${TEMP_WORKFLOW}"
 
-      - name: Validate final tree before publishing
+      - name: Prove retired bridge contract
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
+
+      - name: Prove Work Map currentness
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/repository-automation-work-map-currentness-test.mjs
+
+      - name: Prove exact merge state and final tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
           test -z "$(git diff --name-only --diff-filter=U)"
+          test "$(git write-tree)" = "${EXPECTED_FINAL_TREE}"
+          test ! -e "${TEMP_WORKFLOW}"
 
       - name: Commit exact ancestry synchronization
         shell: bash
