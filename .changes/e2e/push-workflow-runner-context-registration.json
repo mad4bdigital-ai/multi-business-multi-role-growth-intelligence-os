@@ -11,10 +11,6 @@
       ".github/workflows/governed-migration-dependency-gate.yml",
       ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
-      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml",
-      ".github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml",
-      ".github/workflows/response-chunk-ownership-governed-rollout-push.yml",
-      ".github/workflows/ueacp-live-authority-evidence-one-shot.yml",
       ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
       ".github/workflows/hostinger-production-release-evidence-r5.yml",
       ".github/workflows/production-certified-release-cut-validation.yml",
@@ -70,7 +66,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/push-workflow-runner-context-registration.json",
-            ".github/workflows/repository-tool-lifecycle.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
             ".github/workflows/e2e-contract-reference-integrity.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             ".github/workflows/governed-migration-dependency-gate.yml",
@@ -130,7 +126,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/push-workflow-runner-context-registration.json",
-            ".github/workflows/repository-tool-lifecycle.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
             ".github/workflows/e2e-contract-reference-integrity.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             ".github/workflows/governed-migration-dependency-gate.yml",
@@ -190,7 +186,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/push-workflow-runner-context-registration.json",
-            ".github/workflows/repository-tool-lifecycle.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
             ".github/workflows/e2e-contract-reference-integrity.yml",
             ".github/workflows/spec-kit-work-map-integration.yml",
             ".github/workflows/governed-migration-dependency-gate.yml",
