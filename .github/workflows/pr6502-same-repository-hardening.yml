@@ -1,0 +1,192 @@
+name: PR 6502 Same-Repository Hardening
+run-name: PR 6502 Same-Repository Hardening · ${{ github.sha }}
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr6502-same-repository-hardening.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+  issues: write
+
+concurrency:
+  group: pr-6502-same-repository-hardening-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    name: Harden launcher identity and remove one-shot
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    env:
+      TARGET_PR: "6502"
+      TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+      AUTHORIZED_PARENT_SHA: 68bf7648b0819277f5c3f6d051f0cf258b6b4dd9
+      ONE_SHOT_PATH: .github/workflows/pr6502-same-repository-hardening.yml
+      LAUNCHER_PATH: .github/workflows/governed-production-promotion-request-launcher.yml
+      TEST_PATH: http-generic-api/test-production-promotion-convergence-workflows.mjs
+    steps:
+      - name: Checkout exact one-shot commit without marketplace actions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh auth setup-git
+          git init .
+          git remote add origin "https://github.com/${GITHUB_REPOSITORY}.git"
+          git fetch --no-tags --prune --depth=2 origin "${GITHUB_SHA}"
+          git checkout --detach FETCH_HEAD
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_PARENT_SHA}"
+          node --version
+
+      - name: Validate exact PR and fast-forward authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_AFTER: ${{ github.event.after }}
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REPOSITORY}" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "${EVENT_BEFORE}" = "${AUTHORIZED_PARENT_SHA}"
+          test "${EVENT_AFTER}" = "${GITHUB_SHA}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr_json}")" = "true"
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${GITHUB_SHA}"
+
+          compare_json="$(gh api "repos/${GITHUB_REPOSITORY}/compare/main...${GITHUB_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${compare_json}")" = "0"
+
+      - name: Patch same-repository validation and regression
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+
+          const launcherPath = process.env.LAUNCHER_PATH;
+          const testPath = process.env.TEST_PATH;
+
+          let launcher = fs.readFileSync(launcherPath, "utf8");
+          const blockStart = '          request_file="${RUNNER_TEMP}/production-promotion-request-pr.json"\n';
+          const blockEnd = '          [[ "$(jq -r \'.title\' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"\n';
+          const start = launcher.indexOf(blockStart);
+          const endStart = launcher.indexOf(blockEnd, start);
+          if (start < 0 || endStart < 0) {
+            throw new Error("launcher request identity block was not found exactly once");
+          }
+          if (launcher.indexOf(blockStart, start + 1) !== -1) {
+            throw new Error("launcher request identity block is ambiguous");
+          }
+          const replacement = `          request_file="\${RUNNER_TEMP}/production-promotion-request-pr.json"
+          gh api "/repos/\${REPOSITORY}/pulls/\${REQUEST_PR}" > "$request_file"
+          [[ "$(jq -r '.state' "$request_file")" == "open" ]] || reject "request PR is not open"
+          [[ "$(jq -r '.base.ref' "$request_file")" == "main" ]] || reject "request PR must target main"
+          [[ "$(jq -r '.head.repo.full_name // ""' "$request_file")" == "$REPOSITORY" ]] || reject "request PR must originate from this repository"
+          [[ "$(jq -r '.head.sha' "$request_file")" == "$EXPECTED_REQUEST_HEAD_SHA" ]] || reject "request PR expected head SHA mismatch"
+          [[ "$(jq -r '.title' "$request_file")" == "ops: request governed Production synchronization" ]] || reject "request PR title contract mismatch"
+`;
+          launcher = launcher.slice(0, start) + replacement + launcher.slice(endStart + blockEnd.length);
+          if (launcher.includes("headRepositoryOwner")) {
+            throw new Error("owner-only request validation remains in launcher");
+          }
+          fs.writeFileSync(launcherPath, launcher);
+
+          let test = fs.readFileSync(testPath, "utf8");
+          const anchor = '  /secrets_included: false/,\n]) {\n  assert.match(launcher, required);\n}\n';
+          if (!test.includes(anchor)) {
+            throw new Error("launcher contract assertion anchor not found");
+          }
+          const hardened = '  /secrets_included: false/,\n  /\\.head\\.repo\\.full_name \\/\\/ ""/,\n  /request PR must originate from this repository/,\n]) {\n  assert.match(launcher, required);\n}\nassert.doesNotMatch(launcher, /headRepositoryOwner/);\n';
+          test = test.replace(anchor, hardened);
+          fs.writeFileSync(testPath, test);
+          NODE
+
+          grep -Fq '.head.repo.full_name // ""' "${LAUNCHER_PATH}"
+          grep -Fq 'request PR must originate from this repository' "${LAUNCHER_PATH}"
+          ! grep -Fq 'headRepositoryOwner' "${LAUNCHER_PATH}"
+          grep -Fq 'assert.doesNotMatch(launcher, /headRepositoryOwner/);' "${TEST_PATH}"
+
+      - name: Remove one-shot and regenerate final-tree maps
+        run: |
+          set -euo pipefail
+          rm -- "${ONE_SHOT_PATH}"
+          test ! -e "${ONE_SHOT_PATH}"
+
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+          node http-generic-api/test-push-workflow-runner-context-registration.mjs
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+          mapfile -t changed_paths < <(git diff --name-only | sort)
+          printf '%s\n' "${changed_paths[@]}"
+          for path in "${changed_paths[@]}"; do
+            case "${path}" in
+              "${ONE_SHOT_PATH}"|"${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+                ;;
+              *)
+                echo "Unexpected changed path: ${path}"
+                exit 1
+                ;;
+            esac
+          done
+
+          first_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_docs_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_docs_hash}" = "${second_docs_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+
+      - name: Commit bounded final tree and push fast-forward
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${LAUNCHER_PATH}" "${TEST_PATH}" docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          git add -u -- "${ONE_SHOT_PATH}"
+
+          mapfile -t staged < <(git diff --cached --name-only | sort)
+          printf '%s\n' "${staged[@]}"
+          test "${#staged[@]}" -ge 3
+          test "${#staged[@]}" -le 5
+          printf '%s\n' "${staged[@]}" | grep -Fxq "${ONE_SHOT_PATH}"
+          printf '%s\n' "${staged[@]}" | grep -Fxq "${LAUNCHER_PATH}"
+          printf '%s\n' "${staged[@]}" | grep -Fxq "${TEST_PATH}"
+          for path in "${staged[@]}"; do
+            case "${path}" in
+              "${ONE_SHOT_PATH}"|"${LAUNCHER_PATH}"|"${TEST_PATH}"|docs/work-maps/README.md|docs/work-maps/repository-automation-map.md)
+                ;;
+              *)
+                echo "Unexpected staged path: ${path}"
+                exit 1
+                ;;
+            esac
+          done
+
+          live_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.head.sha' <<<"${live_pr}")" = "${GITHUB_SHA}"
+          remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "${GITHUB_SHA}"
+
+          git commit -m "fix(governance): require same-repository promotion request"
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${result_sha}"
+          test ! -e "${ONE_SHOT_PATH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${TARGET_PR}/comments" \
+            -f body="SAME_REPOSITORY_HARDENING outcome=passed authorized_parent_sha=${AUTHORIZED_PARENT_SHA} one_shot_sha=${GITHUB_SHA} result_head_sha=${result_sha} exact_head_binding=true same_repository_check=true regression_added=true work_maps_current=true one_shot_removed=true force_push=false protected_ref_mutation=false"
