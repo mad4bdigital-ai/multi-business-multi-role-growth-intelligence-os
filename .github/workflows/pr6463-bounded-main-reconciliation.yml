@@ -170,14 +170,28 @@ jobs:
           }
           NODE
 
-      - name: Prove merged contracts before publishing
+      - name: Prove Work Map currentness
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Prove Spec Kit Work Map governance
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+      - name: Prove Production parity bridge retirement
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs
 
+      - name: Prove bounded merge state
+        shell: bash
+        run: |
+          set -euo pipefail
           test -z "$(git diff --name-only --diff-filter=U)"
           test "$(git rev-parse -q --verify MERGE_HEAD)" = "${PINNED_MAIN_SHA}"
 
