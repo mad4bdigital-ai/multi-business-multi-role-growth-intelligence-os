@@ -279,6 +279,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
+- `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
 - `http-generic-api/test-work-map-schema-classification-contract.mjs`
 - `http-generic-api/test-work-map-schema-classification.mjs`
 
