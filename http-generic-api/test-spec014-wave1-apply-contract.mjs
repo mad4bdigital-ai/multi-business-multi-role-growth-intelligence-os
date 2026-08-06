@@ -66,6 +66,8 @@ for (const value of [
 }
 
 assert.match(runner, /governed_migration_authorization_registry/);
+assert.match(runner, /tool: 'db'[\s\S]*action: 'run'[\s\S]*sql: query/);
+assert.doesNotMatch(runner, /action: 'query'/);
 assert.match(runner, /authorization_source, AUTHORIZATION_SOURCE/);
 assert.match(runner, /policy_key, AUTHORIZATION_POLICY_KEY/);
 assert.match(runner, /allow_apply \|\| 0\), 1/);
@@ -98,6 +100,7 @@ assert.match(runner, /restart_executed: false/);
 assert.match(runner, /secrets_included: false/);
 assert.match(runner, /exactApplyLedger/);
 assert.match(runner, /exactTables/);
+assert.match(runner, /row\.TABLE_NAME/);
 assert.match(runner, /final_readback/);
 
 const mainBody = runner.slice(runner.indexOf('async function main()'));
