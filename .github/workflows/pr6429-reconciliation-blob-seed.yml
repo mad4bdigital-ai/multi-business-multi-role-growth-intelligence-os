@@ -1,0 +1,92 @@
+name: PR 6429 Reconciliation Blob Seed
+
+on:
+  push:
+    branches:
+      - gpt/diagnostic/pr6429-blob-seed-20260806
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  seed:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: "31115306868"
+      SOURCE_ARTIFACT: pr6429-main-reconciliation-candidate-31115306868
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download immutable successful candidate artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          INPUT="$RUNNER_TEMP/pr6429-candidate"
+          rm -rf "$INPUT"
+          mkdir -p "$INPUT"
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$SOURCE_ARTIFACT" --dir "$INPUT"
+          test -f "$INPUT/manifest.json"
+          jq -e '.contract == "mad4b.pr6429-main-reconciliation-candidate.v1"' "$INPUT/manifest.json"
+          jq -e '.candidate_sha == "4d081fe1d677bbbd440b1d4c2e7eb050332bbfa9"' "$INPUT/manifest.json"
+          jq -e '.main_sha == "c6b933e2f711a93d9b0d556adf5e1111d0f9b981"' "$INPUT/manifest.json"
+          jq -e '.tree_sha == "4c9e7f6d9e12069e671a204675e99754c24bff6f"' "$INPUT/manifest.json"
+          jq -e '.remote_write_executed == false and .secrets_included == false' "$INPUT/manifest.json"
+
+      - name: Create only the three missing Git blobs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          INPUT="$RUNNER_TEMP/pr6429-candidate/new-blobs"
+          OUT="$RUNNER_TEMP/pr6429-blob-seed-evidence"
+          rm -rf "$OUT"
+          mkdir -p "$OUT"
+          : > "$OUT/receipts.ndjson"
+
+          seed_blob() {
+            local path="$1"
+            local expected_sha="$2"
+            local file="$INPUT/$path"
+            local local_sha payload response actual_sha
+            test -f "$file"
+            local_sha="$(git hash-object "$file")"
+            test "$local_sha" = "$expected_sha"
+            payload="$RUNNER_TEMP/blob-payload.json"
+            response="$RUNNER_TEMP/blob-response.json"
+            jq -n --arg content "$(base64 -w0 "$file")" '{content:$content,encoding:"base64"}' > "$payload"
+            gh api --method POST "repos/$GITHUB_REPOSITORY/git/blobs" --input "$payload" > "$response"
+            actual_sha="$(jq -r '.sha' "$response")"
+            test "$actual_sha" = "$expected_sha"
+            jq -cn --arg path "$path" --arg expected_sha "$expected_sha" --arg actual_sha "$actual_sha" '{path:$path,expected_sha:$expected_sha,actual_sha:$actual_sha,matched:($expected_sha==$actual_sha)}' >> "$OUT/receipts.ndjson"
+          }
+
+          seed_blob "docs/work-maps/README.md" "fb708ec773544adf6116e18d60e7fb85bcf2fbfb"
+          seed_blob "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json" "1999eb99ef4c0fcd1c3edeb0601af31eb96b5b1e"
+          seed_blob "specs/014-retail-commerce-operations-growth-os/work-map-integration.json" "743536f3074f76d4632ba1e55ec7ee52c8c561d2"
+
+          test "$(wc -l < "$OUT/receipts.ndjson")" -eq 3
+          jq -s -e 'length == 3 and all(.matched == true)' "$OUT/receipts.ndjson"
+          jq -n \
+            --arg contract "mad4b.pr6429-reconciliation-blob-seed.v1" \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_artifact "$SOURCE_ARTIFACT" \
+            --slurpfile receipts "$OUT/receipts.ndjson" \
+            '{contract:$contract,source_run_id:$source_run_id,source_artifact:$source_artifact,blob_count:($receipts|length),receipts:$receipts,commit_created:false,ref_updated:false,push_executed:false,secrets_included:false}' \
+            > "$OUT/summary.json"
+
+      - name: Upload blob receipts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6429-reconciliation-blob-seed-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr6429-blob-seed-evidence
+          if-no-files-found: error
+          retention-days: 7
