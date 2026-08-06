@@ -322,6 +322,7 @@ async function persistReceipt(pool, runId, output, status = "completed") {
 export async function runRepositoryAutomation(input = {}, deps = {}) {
   if (!isRepositoryPolicy(input)) return runBaseAutomation(input, deps);
   assertSecretFree(input);
+  assertStrictApplyAuthority(input);
   const plan = buildRepositoryAutomationPlan(input);
   if (plan.mode !== "apply") {
     return {
