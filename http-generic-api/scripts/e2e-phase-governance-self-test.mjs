@@ -127,4 +127,60 @@ assert.equal(matchesPattern("src/a.ts", "docs/**"), false);
   assert(result.report.findings.some((row) => row.code === "runtime_change_not_covered_by_e2e_contract"));
 }
 
-console.log(JSON.stringify({ ok: true, tests: 7, gate: "e2e_phase_governance", secrets_included: false }));
+
+{
+  const root = tempRepo();
+  write(root, "http-generic-api/example/service.mjs");
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  write(root, "specs/001-example/work-map-integration.json", "{}\n");
+  const bridge = contract({
+    feature_key: "generated-binding-bridge",
+    title: "Generated binding bridge",
+    delivery_mode: "single_pr",
+    scope: { include: ["http-generic-api/example/**", ".changes/e2e/generated-binding-bridge.json"] }
+  });
+  write(root, ".changes/e2e/generated-binding-bridge.json", `${JSON.stringify(bridge, null, 2)}\n`);
+  const result = evaluateRepository({
+    root,
+    policy,
+    changedFiles: [
+      ".changes/e2e/generated-binding-bridge.json",
+      "http-generic-api/example/service.mjs",
+      "http-generic-api/example/e2e.mjs",
+      "specs/001-example/work-map-integration.json"
+    ]
+  });
+  assert.equal(result.report.ok, true, JSON.stringify(result.report.findings));
+  assert.deepEqual(result.report.contracts.map((row) => row.contract_path), [".changes/e2e/generated-binding-bridge.json"]);
+}
+
+{
+  const root = tempRepo();
+  write(root, "http-generic-api/example/service.mjs");
+  write(root, "http-generic-api/example/e2e.mjs", "process.exit(0);\n");
+  write(root, "specs/001-example/work-map-integration.json", "{}\n");
+  write(root, "specs/001-example/spec.md", "# Real Spec change\n");
+  write(root, "specs/001-example/e2e-phases.json", `${JSON.stringify(contract(), null, 2)}\n`);
+  const bridge = contract({
+    feature_key: "generated-binding-bridge",
+    title: "Generated binding bridge",
+    delivery_mode: "single_pr",
+    scope: { include: ["http-generic-api/example/**", ".changes/e2e/generated-binding-bridge.json"] }
+  });
+  write(root, ".changes/e2e/generated-binding-bridge.json", `${JSON.stringify(bridge, null, 2)}\n`);
+  const result = evaluateRepository({
+    root,
+    policy,
+    changedFiles: [
+      ".changes/e2e/generated-binding-bridge.json",
+      "http-generic-api/example/service.mjs",
+      "http-generic-api/example/e2e.mjs",
+      "specs/001-example/work-map-integration.json",
+      "specs/001-example/spec.md"
+    ]
+  });
+  assert.equal(result.report.ok, false);
+  assert(result.report.findings.some((row) => row.code === "e2e_phase_contract_not_changed_with_feature"));
+}
+
+console.log(JSON.stringify({ ok: true, tests: 9, gate: "e2e_phase_governance", secrets_included: false }));

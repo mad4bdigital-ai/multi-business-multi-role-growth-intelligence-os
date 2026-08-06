@@ -7,6 +7,7 @@ import {
   buildEffectiveWorkMapRegistry,
   validateGovernedRepository,
 } from "./scripts/spec-kit-work-map-governance-gate.mjs";
+import { validateSchemaClassification } from "./scripts/work-map-schema-classification.mjs";
 
 function write(root, relative, content) {
   const file = path.join(root, relative);
@@ -100,7 +101,17 @@ function finalize(manifest) {
 
 {
   const { root, policy } = fixture();
-  const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+  const { baseRegistry, effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+  const classification = validateSchemaClassification({ root, policy });
+  assert.equal(effectiveRegistry.fingerprint, baseRegistry.fingerprint);
+  assert.deepEqual(effectiveRegistry.signature, baseRegistry.signature);
+  assert.match(effectiveRegistry.schema_classification_fingerprint, /^[0-9a-f]{64}$/);
+  assert.notEqual(effectiveRegistry.schema_classification_fingerprint, effectiveRegistry.fingerprint);
+  assert.equal(
+    effectiveRegistry.schema_classification_signature.schema_classification_registry_hash,
+    classification.registry_hash
+  );
+
   const manifest = finalize(buildScaffoldManifest("001-example", {
     root,
     policy,
@@ -150,6 +161,47 @@ function finalize(manifest) {
   });
   assert.equal(result.ok, false);
   assert(result.findings.some((row) => row.type === "stale_work_map_registry_binding"));
+}
+
+{
+  const { root, policy } = fixture();
+  const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root, policy });
+  const readyManifest = finalize(buildScaffoldManifest("001-example", {
+    root,
+    policy,
+    registry: effectiveRegistry,
+    owner: "platform-architecture",
+  }));
+  write(root, "specs/001-example/work-map-integration.json", JSON.stringify(readyManifest));
+  write(root, "specs/002-draft/spec.md", "# Draft feature\n");
+  const draftManifest = buildScaffoldManifest("002-draft", {
+    root,
+    policy,
+    registry: effectiveRegistry,
+    owner: "platform-architecture",
+  });
+  write(root, "specs/002-draft/work-map-integration.json", JSON.stringify(draftManifest));
+
+  const registryRefresh = validateGovernedRepository({
+    root,
+    policy,
+    changedFiles: ["docs/work-maps/README.md", "runtime/example.js"],
+    newFeatures: [],
+    implementationChanged: true,
+  });
+  assert.equal(registryRefresh.ok, true, JSON.stringify(registryRefresh.findings));
+  assert.deepEqual(registryRefresh.integration.targets, ["001-example"]);
+
+  const changedDraft = validateGovernedRepository({
+    root,
+    policy,
+    changedFiles: ["specs/002-draft/spec.md", "runtime/example.js"],
+    newFeatures: [],
+    implementationChanged: true,
+  });
+  assert.equal(changedDraft.ok, false);
+  assert.deepEqual(changedDraft.integration.targets, ["002-draft"]);
+  assert(changedDraft.findings.some((row) => row.feature === "002-draft"));
 }
 
 console.log("spec kit Work Map governance tests passed");
