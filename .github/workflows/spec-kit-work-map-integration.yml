@@ -37,9 +37,17 @@ jobs:
     name: Work Map Integration Gate
     runs-on: ubuntu-latest
     env:
-      WORK_MAP_REPAIR_ROOT: ${{ runner.temp }}/work-map-repair-candidate
       EXPECTED_CHECKED_OUT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
     steps:
+      - name: Initialize bounded Work Map repair directory after runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          repair_root="${RUNNER_TEMP}/work-map-repair-candidate"
+          echo "WORK_MAP_REPAIR_ROOT=${repair_root}" >> "${GITHUB_ENV}"
+          rm -rf "${repair_root}"
+          mkdir -p "${repair_root}"
+
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0

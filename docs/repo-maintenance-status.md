@@ -148,6 +148,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-candidate.yml`
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
+- `.github/workflows/production-runtime-parity-comment-bridge.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
@@ -166,6 +167,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
 - `.github/workflows/spec-kit-work-map-recovery-bootstrap.yml`
+- `.github/workflows/spec014-wave1-apply.yml`
 - `.github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml`
 - `.github/workflows/spec014-wave1-runtime-evidence-readback.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
