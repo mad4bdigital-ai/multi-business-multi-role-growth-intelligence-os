@@ -27,7 +27,7 @@ jobs:
       - name: Verify immutable authority boundary
         shell: bash
         env:
-          EXPECTED_PARENT: fb0750136000ae07d3c56e757d50b78f028d9512
+          EXPECTED_PARENT: ed4494f2e22d5646b751c7817f9eee7e913db6a1
           EXPECTED_MAIN: 52ed25f8b9765aedfde6e3e0f9dfd826ea9cf7d5
           EXPECTED_BRANCH: fix/spec014-wave1-apply-cross-run-guard-20260805
           WRITER_PATH: .github/workflows/spec014-work-map-binding-refresh-20260806.yml
@@ -61,9 +61,18 @@ jobs:
           mapfile -t changed < <(git diff --name-only | sort)
           expected=(.github/workflows/spec014-work-map-binding-refresh-20260806.yml)
           test "$(printf '%s\n' "${changed[@]}")" = "$(printf '%s\n' "${expected[@]}")"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          if ! node http-generic-api/scripts/platform-work-map-generator.mjs --check; then
+            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Generator check failed::platform-work-map-generator --check rejected the post-cleanup tree"
+            exit 1
+          fi
+          if ! node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed; then
+            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Governance gate failed::spec-kit-work-map-governance-gate --ci --changed rejected the post-cleanup tree"
+            exit 1
+          fi
+          if ! node http-generic-api/test-spec-kit-work-map-governance-gate.mjs; then
+            echo "::error file=.github/workflows/spec014-work-map-binding-refresh-20260806.yml,title=Governance regression failed::test-spec-kit-work-map-governance-gate rejected the post-cleanup tree"
+            exit 1
+          fi
           git diff --check
 
       - name: Commit and push fast-forward only
