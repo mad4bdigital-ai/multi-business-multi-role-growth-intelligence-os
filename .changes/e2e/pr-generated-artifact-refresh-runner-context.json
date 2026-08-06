@@ -1,0 +1,157 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "pr-generated-artifact-refresh-runner-context-registration",
+  "title": "PR generated-artifact refresh runner-context registration",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
+      "docs/governance/pr-generated-artifact-refresh-runner-context.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore exact-head read-only generated-artifact validation without evaluating runner context before allocation.",
+      "e2e_journeys": [
+        {
+          "id": "read-only-generated-artifact-refresh-registration",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions planner and pull-request validator",
+          "entrypoint": "A same-repository governed pull request or exact manual validation dispatch",
+          "terminal_outcome": "The workflow registers, initializes bounded report paths after runner allocation, validates the exact head read-only, and uploads canonical no-secret evidence.",
+          "steps": [
+            "Plan the event without job-level runner context.",
+            "Allocate the runner and publish bounded report paths through GITHUB_ENV.",
+            "Checkout and verify the exact remote branch head with credentials disabled.",
+            "Evaluate generated artifacts without repository mutation.",
+            "Upload and enforce the canonical structured report."
+          ],
+          "assertions": [
+            "No runner.temp expression exists in job-level workflow context.",
+            "The workflow has read-only contents permission and no write permissions, git push, recovery activation, or recovery dispatch.",
+            "Report files are created below RUNNER_TEMP only after runner allocation.",
+            "The registration and authority boundary is documented.",
+            "No Production, provider, credential, SQL, migration, database, protected-ref, force-push, or external-send authority is introduced."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-runner-context-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Preserve exact-head identity, bounded evidence, read-only authority, and independent governed mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "exact-head-read-only-operational-validation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository automation governance reviewer",
+          "entrypoint": "Static workflow, documented boundary, and executable regression validation",
+          "terminal_outcome": "The workflow remains a read-only verifier while all repository-writing authority stays outside pull-request validation.",
+          "steps": [
+            "Validate permissions and triggers.",
+            "Validate exact-head checkout and remote readback.",
+            "Validate bounded canonical report enforcement.",
+            "Validate the documented no-mutation boundary."
+          ],
+          "assertions": [
+            "Pull-request validation cannot mutate repository or Actions state.",
+            "Canonical evidence remains secret-free."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail closed if unavailable runner context or pull-request write authority returns.",
+      "e2e_journeys": [
+        {
+          "id": "runner-context-and-authority-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "CI governance gates",
+          "entrypoint": "Any future change to the repaired workflow, documentation, or regression contract",
+          "terminal_outcome": "Regression rejects pre-allocation runner context, write permissions, recovery activation, mutation commands, or missing bounded report initialization.",
+          "steps": [
+            "Load the workflow source.",
+            "Reject unavailable runner context.",
+            "Reject write authority and recovery mutation paths.",
+            "Require post-allocation bounded path initialization.",
+            "Retain the documented safety boundary."
+          ],
+          "assertions": [
+            "The workflow cannot regress silently.",
+            "No secrets are included in evidence."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-resilience-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/pr-generated-artifact-refresh-runner-context.json",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
+            "docs/governance/pr-generated-artifact-refresh-runner-context.md",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This workflow-registration repair has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}

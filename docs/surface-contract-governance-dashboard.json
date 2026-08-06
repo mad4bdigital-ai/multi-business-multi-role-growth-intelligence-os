@@ -6,44 +6,44 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 461,
+    "migrations_with_surfaces": 462,
     "docs_complete_count": 458,
-    "docs_gap_count": 3,
-    "docs_completion_percent": 99.35,
+    "docs_gap_count": 4,
+    "docs_completion_percent": 99.13,
     "gap_severity_counts": {
       "high": 0,
       "medium": 0,
-      "low": 3,
+      "low": 4,
       "none": 458
     },
     "surface_totals": {
       "plugins": 15,
       "tools": 747,
-      "views": 510,
+      "views": 511,
       "policies": 195,
       "routes": 704
     },
     "migrations_by_surface_type": {
       "plugins": 12,
       "tools": 270,
-      "views": 204,
+      "views": 205,
       "policies": 134,
       "routes": 290
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 3,
-      "deployment_parity_checklist.md": 3,
-      "docs/ai-docs-agent-governance.md": 3,
-      "docs/auto-docs-agent/README.md": 3,
-      "docs/change-documentation-governance.md": 3
+      "Updating Registry Patch Index.md": 4,
+      "deployment_parity_checklist.md": 4,
+      "docs/ai-docs-agent-governance.md": 4,
+      "docs/auto-docs-agent/README.md": 4,
+      "docs/change-documentation-governance.md": 4
     },
     "safety_marker_counts": {
-      "no_provider_call": 460,
+      "no_provider_call": 461,
       "no_credential_payload_read": 459,
       "no_raw_secrets": 459,
       "no_external_send": 459,
       "no_external_write": 459,
-      "secrets_included_false": 460
+      "secrets_included_false": 461
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
@@ -66,18 +66,18 @@
     }
   },
   "queue": {
-    "total_items": 3,
+    "total_items": 4,
     "class_counts": {
       "critical_review": 0,
       "high_review": 0,
-      "medium_review": 3,
+      "medium_review": 4,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 3,
+    "total_items": 4,
     "class_counts": {
-      "safety_marker_review": 2,
+      "safety_marker_review": 3,
       "standard_backlog_review": 1
     },
     "gate_candidate_count": 0
@@ -85,8 +85,8 @@
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 1,
-    "blocking_new_item_count": 1
+    "new_item_count": 2,
+    "blocking_new_item_count": 2
   },
   "top_immediate_items": [],
   "safety": {
