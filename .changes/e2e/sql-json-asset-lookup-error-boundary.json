@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sql-json-asset-lookup-error-boundary",
+  "title": "JSON asset lookup error boundary for governed execution writeback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/sinkOrchestration.js",
+      "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve the original provider failure and complete governed execution evidence when JSON Asset Registry reconciliation is unavailable.",
+      "e2e_journeys": [
+        {
+          "id": "provider-failure-survives-json-asset-lookup-failure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "System tool dispatcher recording a failed GitHub provider execution",
+          "entrypoint": "performUniversalServerWriteback with a failed github_get_git_ref_head result and an unavailable JSON Asset Registry lookup",
+          "terminal_outcome": "The original provider error remains authoritative, the execution log and JSON asset evidence are written, and the secondary registry lookup failure is emitted only as a bounded warning.",
+          "steps": [
+            "Submit a failed GitHub provider result to the universal writeback orchestration with SQL runtime authority.",
+            "Force JSON Asset Registry reconciliation to throw the missing governed spreadsheet identifier error.",
+            "Continue the governed writeback path and persist execution-log and JSON-asset evidence.",
+            "Read back the returned writeback state and captured warning to verify that the provider failure was not masked."
+          ],
+          "assertions": [
+            "The returned status, error code, and short message remain the original provider failure values.",
+            "Exactly one Execution Log Unified row is written with failed status.",
+            "A JSON asset row is still written even though prior-asset lookup failed.",
+            "The governed pre-response log guard remains passed.",
+            "The missing spreadsheet identifier appears only in the bounded warning and does not replace the provider result."
+          ],
+          "tests": [
+            {
+              "id": "sink-json-asset-lookup-failure-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sink-orchestration-json-asset-lookup-failure.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/sinkOrchestration.js",
+            "http-generic-api/test-sink-orchestration-json-asset-lookup-failure.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add structured observability and alert classification for degraded secondary writeback dependencies without changing provider authority."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise additional registry, storage, and execution-log dependency failures while proving bounded continuation and deterministic evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the same failure boundary against a live non-production SQL-authoritative runtime."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA and runtime readback without intentionally disrupting production dependencies."
+    }
+  ]
+}
