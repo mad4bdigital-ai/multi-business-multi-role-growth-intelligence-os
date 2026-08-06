@@ -111,7 +111,7 @@ jobs:
           mapfile -t wanted < <(printf '%s\n' "${expected[@]}" | sort)
           test "${#actual[@]}" -eq 5
           diff -u <(printf '%s\n' "${wanted[@]}") <(printf '%s\n' "${actual[@]}")
-          grep -Eq -- '^- Source hash \(SHA-256\): `[0-9a-f]{64}`$' docs/work-maps/README.md
+          grep -Eq -- '^> Source hash: `[0-9a-f]{64}`$' docs/work-maps/README.md
 
       - name: Run focused Work Map and migration verification
         shell: bash
