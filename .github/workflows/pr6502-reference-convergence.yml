@@ -16,12 +16,13 @@ jobs:
   render:
     if: >-
       github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os' &&
-      github.event.head_commit.message == 'chore(ci): render PR 6502 reference convergence'
+      github.event.head_commit.message == 'chore(ci): validate PR 6502 final reference tree'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
+      BASE_SHA: c6b933e2f711a93d9b0d556adf5e1111d0f9b981
       REGISTRY_FINGERPRINT: 8addd56e625f8f29346eadcd351b688611550e421dcb564eaf8e0e1318f1bd18
       INDEX_SOURCE_HASH: 50e0b3d3df269e276ea6ca6b3036d5630282156f5bafef2104acbe181ed1b5e1
     steps:
@@ -40,10 +41,10 @@ jobs:
           [[ "${GITHUB_REF_NAME}" != "main" ]]
           [[ "${GITHUB_REF_NAME}" != "Production" ]]
           [[ "$(git rev-parse HEAD)" == "${GITHUB_SHA}" ]]
-          remote_head_sha="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
-          [[ "${remote_head_sha}" == "${GITHUB_SHA}" ]]
+          [[ "$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')" == "${GITHUB_SHA}" ]]
+          git cat-file -e "${BASE_SHA}^{commit}"
 
-      - name: Render exact reference and registry repair
+      - name: Render exact final reference tree
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -84,49 +85,51 @@ jobs:
                   'GET-only evidence collector and a regression that prevents silent re-registration.'
               )
               journey = mvp['e2e_journeys'][0]
-              journey['id'] = journey_id
-              journey['actor'] = 'Repository governance evaluator and the canonical Hostinger evidence collector'
-              journey['entrypoint'] = 'Exact pull-request tree after retirement of the incident-specific evidence bridge.'
-              journey['terminal_outcome'] = (
-                  'The retired workflow is absent, the canonical GET-only collector remains tracked, and no provider '
-                  'mutation or Production authority is introduced.'
-              )
-              journey['steps'] = [
-                  'Verify the incident-specific workflow path is absent from the exact candidate tree.',
-                  'Run the repository-wide runner-context and retired-workflow regression.',
-                  'Run the canonical Hostinger completed-build evidence contract without credential access.',
-                  'Verify every declared evidence path resolves to a tracked regular file.',
-              ]
-              journey['assertions'] = [
-                  'The retired workflow cannot be registered or triggered.',
-                  'The canonical evidence workflow remains GET-only and fail-closed.',
-                  'No deployment, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref update, force push, or external business send occurs.',
-                  'Secrets are neither read by the regression nor included in evidence.',
-              ]
-              journey['tests'] = [
-                  {
-                      'id': f'{journey_id}-retirement-regression',
-                      'runner': 'node',
-                      'working_directory': '.',
-                      'path': general_test,
-                      'args': [],
-                  },
-                  {
-                      'id': f'{journey_id}-canonical-collector-contract',
-                      'runner': 'node',
-                      'working_directory': 'http-generic-api',
-                      'path': 'scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs',
-                      'args': [],
-                  },
-              ]
-              journey['evidence_paths'] = [
-                  path,
-                  general_test,
-                  canonical_workflow,
-                  canonical_reporter,
-                  canonical_test,
-                  governance_doc,
-              ]
+              journey.update({
+                  'id': journey_id,
+                  'actor': 'Repository governance evaluator and canonical Hostinger evidence collector',
+                  'entrypoint': 'Exact pull-request tree after retirement of the incident-specific evidence bridge.',
+                  'terminal_outcome': (
+                      'The retired workflow is absent, the canonical GET-only collector remains tracked, and no '
+                      'provider mutation or Production authority is introduced.'
+                  ),
+                  'steps': [
+                      'Verify the incident-specific workflow path is absent from the exact candidate tree.',
+                      'Run the repository-wide runner-context and retired-workflow regression.',
+                      'Run the canonical Hostinger completed-build evidence contract without credential access.',
+                      'Verify every declared evidence path resolves to a tracked regular file.',
+                  ],
+                  'assertions': [
+                      'The retired workflow cannot be registered or triggered.',
+                      'The canonical evidence workflow remains GET-only and fail-closed.',
+                      'No deployment, restart, provider mutation, SQL, migration Apply, database mutation, protected-ref update, force push, or external business send occurs.',
+                      'Secrets are neither read by the regression nor included in evidence.',
+                  ],
+                  'tests': [
+                      {
+                          'id': f'{journey_id}-retirement-regression',
+                          'runner': 'node',
+                          'working_directory': '.',
+                          'path': general_test,
+                          'args': [],
+                      },
+                      {
+                          'id': f'{journey_id}-canonical-collector-contract',
+                          'runner': 'node',
+                          'working_directory': 'http-generic-api',
+                          'path': 'scripts/test-hostinger-nodejs-completed-build-log-evidence.mjs',
+                          'args': [],
+                      },
+                  ],
+                  'evidence_paths': [
+                      path,
+                      general_test,
+                      canonical_workflow,
+                      canonical_reporter,
+                      canonical_test,
+                      governance_doc,
+                  ],
+              })
 
               resilient = next(phase for phase in contract['phases'] if phase['id'] == 'resilient')
               resilient['status'] = 'not_applicable'
@@ -179,32 +182,59 @@ jobs:
               write(manifest_path, manifest)
           PY
 
-      - name: Validate repaired contracts and Work Map bindings
+          rm -f .github/workflows/pr6502-reference-convergence.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "test(ci): validate exact PR 6502 final reference tree"
+          echo "LOCAL_FINAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Validate E2E reference integrity on local final commit
         shell: bash
         run: |
           set -Eeuo pipefail
-          node http-generic-api/test-e2e-contract-reference-integrity.mjs
-          node http-generic-api/test-e2e-contract-git-index-integrity.mjs
-          mkdir -p "${RUNNER_TEMP}/pr6502-reference-validation"
+          output_dir="${RUNNER_TEMP}/pr6502-reference-validation"
+          mkdir -p "${output_dir}"
+          node http-generic-api/test-e2e-contract-reference-integrity.mjs \
+            > "${output_dir}/test-e2e-contract-reference-integrity.log" 2>&1
+          node http-generic-api/test-e2e-contract-git-index-integrity.mjs \
+            > "${output_dir}/test-e2e-contract-git-index-integrity.log" 2>&1
           node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
-            --all \
-            --report-file "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json"
+            --base-sha "${BASE_SHA}" \
+            --head-sha "${LOCAL_FINAL_SHA}" \
+            --report-file "${output_dir}/e2e-contract-reference-integrity.json" \
+            > "${output_dir}/e2e-contract-reference-integrity.log" 2>&1
           node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
-            --report-file "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci \
-            > "${RUNNER_TEMP}/pr6502-reference-validation/work-map-governance.json"
-          node http-generic-api/test-push-workflow-runner-context-registration.mjs
-          git diff --check
+            --report-file "${output_dir}/e2e-contract-reference-integrity.json" \
+            > "${output_dir}/e2e-contract-git-index-integrity.log" 2>&1
+
+      - name: Validate Work Map bindings on local final commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          output_dir="${RUNNER_TEMP}/pr6502-reference-validation"
+          repair_dir="${RUNNER_TEMP}/pr6502-work-map-repair"
+          mkdir -p "${output_dir}" "${repair_dir}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check \
+            > "${output_dir}/platform-work-map-generator.log" 2>&1
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs \
+            --ci \
+            --changed \
+            --base-sha "${BASE_SHA}" \
+            --head-sha "${LOCAL_FINAL_SHA}" \
+            --repair-output-dir "${repair_dir}" \
+            > "${output_dir}/work-map-governance.json" 2>&1
+          node http-generic-api/test-push-workflow-runner-context-registration.mjs \
+            > "${output_dir}/runner-context-regression.log" 2>&1
 
       - name: Create immutable Git blobs without updating a ref
         shell: bash
         run: |
           set -Eeuo pipefail
           evidence_dir="${RUNNER_TEMP}/pr6502-reference-git-objects"
+          validation_dir="${RUNNER_TEMP}/pr6502-reference-validation"
           mkdir -p "${evidence_dir}"
-          rm -f .github/workflows/pr6502-reference-convergence.yml
-          git add -A
 
           cat > "${evidence_dir}/materialized-files.txt" <<'EOF'
           .changes/e2e/hostinger-completed-build-log-evidence-push-r3b.json
@@ -231,10 +261,9 @@ jobs:
           jq -s '.' "${evidence_dir}/entries.ndjson" > "${evidence_dir}/tree-entries.json"
           [[ "$(jq 'length' "${evidence_dir}/tree-entries.json")" == "6" ]]
           printf '%s\n' "${GITHUB_SHA}" > "${evidence_dir}/expected-parent-sha.txt"
-          git write-tree > "${evidence_dir}/expected-final-tree-sha.txt"
-          git diff --cached --name-status > "${evidence_dir}/name-status.txt"
-          cp "${RUNNER_TEMP}/pr6502-reference-validation/e2e-contract-reference-integrity.json" "${evidence_dir}/"
-          cp "${RUNNER_TEMP}/pr6502-reference-validation/work-map-governance.json" "${evidence_dir}/"
+          git rev-parse HEAD^{tree} > "${evidence_dir}/expected-final-tree-sha.txt"
+          git diff --name-status "${GITHUB_SHA}..${LOCAL_FINAL_SHA}" > "${evidence_dir}/name-status.txt"
+          cp -R "${validation_dir}/." "${evidence_dir}/"
           sha256sum "${evidence_dir}/tree-entries.json" > "${evidence_dir}/tree-entries.json.sha256"
 
       - name: Upload verified reference object manifest
