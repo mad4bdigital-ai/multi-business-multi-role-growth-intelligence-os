@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 
 const FORBIDDEN_PROJECTION_KEYS = new Set([
   "execution_context_json",
@@ -65,6 +66,8 @@ const resourceRef = safeId(required("SPEC017_CANARY_RESOURCE_REF"), "resource_re
 const runNonce = safeId(process.env.GITHUB_RUN_ID || `${Date.now()}`, "run_nonce");
 const evidencePath = String(process.env.SPEC017_CANARY_EVIDENCE_PATH || "artifacts/spec017-managed-execution-protected-canary.json").trim();
 
+let tenantToken = "";
+
 async function api(path, { method = "GET", auth = "tenant", body = undefined, expected = [200] } = {}) {
   const headers = { accept: "application/json" };
   if (body !== undefined) headers["content-type"] = "application/json";
@@ -86,7 +89,6 @@ async function api(path, { method = "GET", auth = "tenant", body = undefined, ex
   return { status: response.status, payload };
 }
 
-let tenantToken = "";
 const evidence = {
   schema_version: 1,
   report_type: "spec017_managed_execution_protected_canary",
@@ -126,7 +128,6 @@ try {
       ttl_seconds: 600,
       reason: `spec017_protected_canary:${sourceSha.slice(0, 12)}`,
     },
-    expected: [200],
   });
   tenantToken = String(issued.payload?.access_token || "");
   if (!tenantToken || issued.payload?.tenant?.tenant_id !== tenantId || issued.payload?.user?.user_id !== userId) {
@@ -135,12 +136,11 @@ try {
   evidence.tenant_identity.short_lived_platform_jwt_used = true;
   evidence.assertions.active_user_membership_verified = true;
 
-  const workflowKey = "spec017_protected_canary";
   const baseEnvelope = {
     tenant_id: tenantId,
     user_id: userId,
     parent_ticket_id: parentTicketId,
-    workflow_key: workflowKey,
+    workflow_key: "spec017_protected_canary",
     capability_key: capabilityKey,
     resource_type: resourceType,
     resource_ref: resourceRef,
@@ -193,7 +193,6 @@ try {
     method: "POST",
     auth: "tenant",
     body: readOnlyEnvelope,
-    expected: [200],
   });
   if (readOnlyReplay.payload?.reused !== true) throw new Error("run_idempotency_reuse_missing");
   evidence.assertions.run_idempotency_verified = true;
@@ -216,8 +215,8 @@ try {
     auth: "admin",
     body: { mode: "dry_run" },
   });
-  if ((healthyDryRun.payload?.analysis?.blocking_contradictions || []).length !== 0) {
-    throw new Error("healthy_reconciliation_blocking_contradictions");
+  if ((healthyDryRun.payload?.contradictions || []).length !== 0 || Number(healthyDryRun.payload?.reconciliation?.action_count || 0) !== 0) {
+    throw new Error("healthy_reconciliation_not_clean");
   }
   evidence.assertions.reconciliation_dry_run_verified = true;
 
@@ -241,15 +240,12 @@ try {
     method: "POST",
     auth: "tenant",
     body: stepBody,
-    expected: [200],
   });
   if (stepReplay.payload?.reused !== true) throw new Error("step_idempotency_reuse_missing");
   evidence.assertions.step_idempotency_verified = true;
 
   await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}/steps/${encodeURIComponent(stepRunId)}/status`, {
-    method: "PATCH",
-    auth: "tenant",
-    body: { status: "running" },
+    method: "PATCH", auth: "tenant", body: { status: "running" },
   });
   await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}/steps/${encodeURIComponent(stepRunId)}/status`, {
     method: "PATCH",
@@ -277,26 +273,20 @@ try {
   evidence.assertions.reassignment_active_membership_verified = true;
 
   await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}/steps/${encodeURIComponent(stepRunId)}/status`, {
-    method: "PATCH",
-    auth: "tenant",
-    body: { status: "running" },
+    method: "PATCH", auth: "tenant", body: { status: "running" },
   });
   await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}/steps/${encodeURIComponent(stepRunId)}/status`, {
-    method: "PATCH",
-    auth: "tenant",
-    body: { status: "completed", output_json: { canary: true, provider_dispatch: false } },
+    method: "PATCH", auth: "tenant", body: { status: "completed", output_json: { canary: true, provider_dispatch: false } },
   });
   await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}/status`, {
-    method: "PATCH",
-    auth: "tenant",
-    body: { status: "completed", output_json: { canary: true, readback: "verified" } },
+    method: "PATCH", auth: "tenant", body: { status: "completed", output_json: { canary: true, readback: "verified" } },
   });
 
   const readOnlyFinalTenant = await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}`, { auth: "tenant" });
   assertNoForbiddenProjectionKeys(readOnlyFinalTenant.payload?.projection);
   if (readOnlyFinalTenant.payload?.projection?.status !== "completed") throw new Error("read_only_terminal_projection_mismatch");
   const readOnlyFinalAdmin = await api(`/managed-execution-runs/${encodeURIComponent(readOnlyRunId)}`, { auth: "admin" });
-  if ((readOnlyFinalAdmin.payload?.projection?.analysis?.contradictions || []).length !== 0) {
+  if ((readOnlyFinalAdmin.payload?.projection?.contradictions || []).length !== 0) {
     throw new Error("read_only_terminal_contradictions_present");
   }
   evidence.assertions.read_only_terminal_zero_contradictions = true;
@@ -392,15 +382,15 @@ try {
   evidence.assertions.rollback_lifecycle_verified = true;
 
   const rollbackAdminProjection = await api(`/managed-execution-runs/${encodeURIComponent(stateChangeRunId)}`, { auth: "admin" });
-  const rollbackContradictions = rollbackAdminProjection.payload?.projection?.analysis?.contradictions || [];
-  if (rollbackContradictions.length !== 0) throw new Error("rollback_terminal_contradictions_present");
+  if ((rollbackAdminProjection.payload?.projection?.contradictions || []).length !== 0) {
+    throw new Error("rollback_terminal_contradictions_present");
+  }
   evidence.assertions.rollback_terminal_zero_contradictions = true;
 
   const finalDryRun = await api(`/managed-execution-runs/${encodeURIComponent(stateChangeRunId)}/reconcile`, {
     method: "POST", auth: "admin", body: { mode: "dry_run" },
   });
-  const finalAnalysis = finalDryRun.payload?.analysis || {};
-  if ((finalAnalysis.contradictions || []).length !== 0 || Number(finalAnalysis.reconciliation?.action_count || 0) !== 0) {
+  if ((finalDryRun.payload?.contradictions || []).length !== 0 || Number(finalDryRun.payload?.reconciliation?.action_count || 0) !== 0) {
     throw new Error("final_reconciliation_not_clean");
   }
   evidence.assertions.final_zero_action_reconciliation_readback = true;
@@ -408,6 +398,7 @@ try {
   evidence.status = "pass";
 } finally {
   tenantToken = "";
+  await mkdir(dirname(evidencePath), { recursive: true });
   await writeFile(evidencePath, `${JSON.stringify(evidence, null, 2)}\n`, { encoding: "utf8" });
 }
 
