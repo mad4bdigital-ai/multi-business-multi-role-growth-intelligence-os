@@ -29,6 +29,9 @@ for (const expected of [
   'const EXPECTED_STATEMENT_COUNT = 34',
   "const SOURCE_PR = 6509",
   "const SOURCE_MERGE_SHA = '6503e74c60b8f6add9efade1f25ceb8afaec6209'",
+  "const MIGRATION_CONFIRMATION_KEY = MIGRATION",
+  "const AUTH_CONFIRM = `AUTHORIZE_GOVERNED_MIGRATION_${MIGRATION_CONFIRMATION_KEY}`",
+  "const APPLY_CONFIRM = `APPLY_${MIGRATION_CONFIRMATION_KEY}`",
   "name: 'governed_migration_execute'",
   "mode: 'dry_run'",
   "mode: 'apply'",
@@ -66,5 +69,16 @@ for (const forbidden of [
 ]) {
   assert.doesNotMatch(runner, forbidden, `Migration 1048 rollout runner violates safety contract: ${forbidden}`);
 }
+
+assert.doesNotMatch(
+  runner,
+  /const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'/,
+  'Authorization bootstrap must not use the Issue trigger command as its typed migration confirmation',
+);
+assert.doesNotMatch(
+  runner,
+  /const APPLY_CONFIRM = 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'/,
+  'Migration Apply must not use the Issue trigger command as its typed executor confirmation',
+);
 
 console.log('PASS governed Migration 1048 rollout contract');
