@@ -177,12 +177,54 @@ jobs:
           git add single-owner-autofix-diagnostic.txt
           git commit -m "chore(github): record single-owner diff hygiene diagnostic"
           git push origin HEAD:fix/github-main-single-owner-policy-20260807
-      - name: Commit final bounded patch and remove bootstrap files
+      - name: Package bounded permanent patch
         if: success()
+        shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(github): support governed single-owner review mode"
-          git push origin HEAD:fix/github-main-single-owner-policy-20260807
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+          cat > "$expected" <<'EOF'
+          .changes/e2e/github-repository-policy-single-owner-mode.json
+          .github/workflows/single-owner-review-gate.yml
+          http-generic-api/githubRepositoryPolicyController.js
+          http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql
+          http-generic-api/scripts/single-owner-review-gate.mjs
+          http-generic-api/test-github-repository-policy-controller.mjs
+          http-generic-api/test-single-owner-review-gate.mjs
+          EOF
+          sort -o "$expected" "$expected"
+          git add -- \
+            .changes/e2e/github-repository-policy-single-owner-mode.json \
+            .github/workflows/single-owner-review-gate.yml \
+            http-generic-api/githubRepositoryPolicyController.js \
+            http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql \
+            http-generic-api/scripts/single-owner-review-gate.mjs \
+            http-generic-api/test-github-repository-policy-controller.mjs \
+            http-generic-api/test-single-owner-review-gate.mjs
+          git diff --cached --name-only | sort > "$actual"
+          diff -u "$expected" "$actual"
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "No bounded permanent changes"
+            exit 1
+          fi
+          rm -rf single-owner-permanent-patch
+          mkdir -p single-owner-permanent-patch
+          while IFS= read -r path; do
+            mkdir -p "single-owner-permanent-patch/$(dirname "$path")"
+            cp -- "$path" "single-owner-permanent-patch/$path"
+          done < "$expected"
+          (
+            cd single-owner-permanent-patch
+            find . -type f -not -name MANIFEST.sha256 -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256
+            test "$(find . -type f -not -name MANIFEST.sha256 | wc -l)" -eq 7
+          )
+      - name: Upload bounded permanent patch
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-owner-permanent-patch-${{ github.sha }}
+          path: single-owner-permanent-patch
+          if-no-files-found: error
+          retention-days: 3
