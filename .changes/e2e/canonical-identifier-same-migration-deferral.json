@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "canonical-identifier-same-migration-deferral",
+  "title": "Same-migration canonical identifier schema deferral",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/canonicalIdentifierContract.js",
+      "http-generic-api/test-canonical-identifier-contract.mjs",
+      ".changes/e2e/canonical-identifier-same-migration-deferral.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow binary-protected identifier comparisons against columns declared by CREATE TABLE in the same migration to defer to same-cycle schema readback without weakening fail-closed validation for legacy or unprotected identifiers.",
+      "e2e_journeys": [
+        {
+          "id": "defer-created-column-and-preserve-fail-closed-guards",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed migration preflight",
+          "entrypoint": "A migration contains CREATE TABLE declarations and canonical identifier comparisons that reference both new and existing schema columns.",
+          "terminal_outcome": "Only binary-protected comparisons whose missing side is declared in the same migration are deferred while missing legacy columns and unprotected comparisons remain blocking.",
+          "steps": [
+            "Parse CREATE TABLE declarations from the migration SQL.",
+            "Resolve the canonical identifier comparison contracts against live schema metadata.",
+            "Defer a missing column only when exactly that column is declared by the same migration and the comparison is binary-protected.",
+            "Keep legacy missing columns and unprotected comparisons as blocking issues.",
+            "Expose deferred schema-column evidence for same-cycle readback."
+          ],
+          "assertions": [
+            "The connection ownership migration reports seven canonical comparisons and three deferred new columns with zero blocking issues.",
+            "A missing legacy identifier column remains blocked even when the comparison uses BINARY protection.",
+            "A same-migration new column remains blocked when the comparison is not binary-protected.",
+            "Deferred schema columns are explicitly reported rather than silently ignored."
+          ],
+          "tests": [
+            {
+              "id": "canonical-identifier-same-migration-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-canonical-identifier-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/canonicalIdentifierContract.js",
+            "http-generic-api/test-canonical-identifier-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose deferred same-migration identifier comparisons in migration preflight diagnostics and operator evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Cover additional CREATE TABLE syntax variants and mixed live/new identifier comparison sets."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe governed migration dry-runs using deferred same-migration schema evidence in non-production environments."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require same-cycle schema readback before any deferred identifier comparison is accepted after migration apply."
+    }
+  ]
+}
