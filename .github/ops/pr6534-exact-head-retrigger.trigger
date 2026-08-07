@@ -1,0 +1,4 @@
+pr=6534
+purpose=exact-head-pull-request-gate-retrigger
+base_main=e56355a753862b12ecffde1f81e45cb48deaf5ee
+source_head=bd227c37bda4c28c4a445dded02e0702dc3c16ac
