@@ -9,6 +9,10 @@
     "include": [
       ".changes/e2e/spec017-protected-managed-execution-canary.json",
       ".github/workflows/spec017-protected-managed-execution-canary.yml",
+      "docs/e2e-phases/spec017-protected-managed-execution-canary.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi.generated.json",
       "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
       "http-generic-api/scripts/spec017-managed-execution-protected-canary.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
