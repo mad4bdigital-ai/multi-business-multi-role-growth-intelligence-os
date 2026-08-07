@@ -134,7 +134,7 @@ assert.equal(brandRule.readback.mode, "transactional_readback");
 assert.equal(brandRule.readback.before_commit, true);
 assert.equal(brandRule.rollback.mode, "transaction");
 assert.equal(brandRule.parameter_bindings.brand_target_key, "response.brand.target_key");
-assert.equal(brandRule.parameter_bindings.brand_workspace_id, "response.brand_workspace.workspace_id");
+assert.equal(brandRule.parameter_bindings.brand_workspace_id, "response.workspace_link.workspace_id");
 assert(brandRule.evidence_refs.includes("test-workspace-brand-create-operation-governance.mjs"));
 assert.match(brandRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
 
