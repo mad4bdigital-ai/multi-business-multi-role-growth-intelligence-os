@@ -15,7 +15,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      EXPECTED_MAIN: 16bf7a895bb60f0ff20f58dcf95adffd41ab2e6c
       REPAIR_BRANCH: fix/migration-1048-canonical-confirmation-and-readiness-marker
     steps:
       - name: Checkout exact repair head
@@ -24,5 +23,14 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: true
+      - name: Snapshot current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse FETCH_HEAD)"
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]
+          echo "EXPECTED_MAIN=$main_sha" >> "$GITHUB_ENV"
+          echo "V8_EXPECTED_MAIN=$main_sha"
       - name: Reconcile bounded repair
         run: node .github/ops/reconcile-migration-1048-repair-with-main-v8.mjs
