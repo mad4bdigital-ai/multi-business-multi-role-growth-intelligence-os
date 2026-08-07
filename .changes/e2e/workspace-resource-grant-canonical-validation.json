@@ -1,0 +1,74 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-resource-grant-canonical-validation",
+  "title": "Canonical tenant-scoped resource authority before workspace grants",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-resource-grant-canonical-validation.json",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/workspaceGrantResourceAuthority.js",
+      "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Require canonical tenant-scoped resource authority resolution before a workspace resource grant can be inserted or reactivated, preventing arbitrary, cross-tenant, inactive, ambiguous, or unverifiable resource references from receiving grants.",
+      "e2e_journeys": [
+        {
+          "id": "workspace-grant-resolves-canonical-resource-before-write",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated workspace owner or admin",
+          "entrypoint": "Workspace resource grant creation request for an active workspace member",
+          "terminal_outcome": "The requested resource resolves exactly once through canonical tenant-scoped authority before the grant write; cross-tenant, inactive, missing, ambiguous, or unverifiable references fail closed and cannot reach the grant INSERT path.",
+          "steps": [
+            "Enter the workspace resource grant route with a canonical User JWT principal and an active grantee membership.",
+            "Resolve the requested workspace, asset, vault, brand, app, or site reference against its authoritative tenant-scoped source while the mutation transaction is open.",
+            "Reject a resource that is missing, cross-tenant, inactive, deleted, ambiguous, expired, or otherwise not canonically resolvable.",
+            "Fail closed for workflow and agent grants until a tenant-scoped canonical ownership source exists for those resource types.",
+            "Use only the canonical resolved resource_ref in the workspace_resource_grants write and exact active-grant readback.",
+            "Regenerate frontend surface dispatch evidence from the same route source tree and require the committed source digest to match.",
+            "Exercise the canonical authority resolver regression without connecting to or mutating a live database."
+          ],
+          "assertions": [
+            "Workspace grants require the resource_ref to match the active requested tenant.",
+            "Asset grants require exactly one workspace_assets row for the requested asset, require tenant ownership, and reject lifecycle_status=deleted.",
+            "Vault grants require exactly one workspace_vaults row owned by the tenant with status=active.",
+            "Brand grants resolve through active tenant_brand_links plus an active canonical brand, reject cross-tenant links, and reject ambiguous active matches.",
+            "App grants require exactly one developer_apps row owned by the requested tenant with status=active.",
+            "Site grants require an active cms_sites identity plus at least one current active cms_site_access_grants row scoped to the requested tenant; multiple valid access grants do not make the site identity ambiguous.",
+            "Workflow and agent references fail closed before any guessed authority query is attempted because current operational sources do not prove tenant ownership canonically.",
+            "The route writes and reads back only the canonical resource_ref returned by the authority resolver.",
+            "The committed frontend-surface-dispatch generated evidence is current for the changed workspace resource route and is covered by this E2E contract.",
+            "CI performs no live database mutation, SQL migration, Migration Apply, Production mutation, deployment, provider call, credential or secret access, restart, external send, or force push."
+          ],
+          "tests": [
+            {
+              "id": "workspace-resource-grant-canonical-validation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-resource-grant-canonical-validation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-resource-grant-canonical-validation.json",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/workspaceGrantResourceAuthority.js",
+            "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
