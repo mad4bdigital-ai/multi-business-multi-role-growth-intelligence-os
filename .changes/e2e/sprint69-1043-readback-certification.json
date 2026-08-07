@@ -1,0 +1,85 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sprint69-1043-readback-certification",
+  "title": "Migration 1043 canonical readback-only certification",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/sprint69-1043-readback-certification.json",
+      ".github/ops/lib/admin-control-db-request.mjs",
+      ".github/ops/sprint69-1043-apply.mjs",
+      ".github/ops/sprint69-1043-readback-certify.mjs",
+      ".github/workflows/sprint69-1043-readback-certify.yml",
+      "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+      "http-generic-api/test-sprint69-1043-readback-certification-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair Migration 1043 post-Apply certification to consume the canonical governed migration readback shape and provide a separately triggered readback-only certificate that can never send or retry Apply.",
+      "e2e_journeys": [
+        {
+          "id": "certify-existing-migration-1043-without-apply",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authorized repository operator certifying an already-applied governed migration",
+          "entrypoint": "Static readback-only workflow, certifier, canonical parser, shared Admin DB request builder, and exact issue-comment trigger",
+          "terminal_outcome": "The repository proves the canonical schema readback shape, exact Apply ledger contract, expected objects, and readiness-view requirements while exposing no governed migration Apply capability or retry path.",
+          "steps": [
+            "Require the exact CERTIFY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE_READBACK comment on issue #4449 from an OWNER, MEMBER, or COLLABORATOR.",
+            "Checkout trusted main with contents:read only.",
+            "Validate the pinned Migration 1043 blob and checksum and require current Production/runtime exact-SHA parity.",
+            "Call governed_migration_schema_readback with the exact migration, checksum, statement count, and expected object names.",
+            "Accept only canonical readback.schema.tables rows keyed by TABLE_NAME and require expectations.missing.tables to be an empty array.",
+            "Require an exact mode=apply ledger with matching migration, checksum, four statements, preflight pass, zero risks, and no secret evidence.",
+            "Build the readiness-view database request only through buildAdminControlDbReadRequest, which pins canonical /admin/control tool=db action=run sql and read_only=true.",
+            "Query only the fixed v_managed_execution_lifecycle_readiness SELECT through the shared builder.",
+            "Require readiness_status=ready with 3/3 tables and 15/15 binding columns.",
+            "Emit sanitized evidence with readback_only=true, apply_sent=false, migration_apply_executed=false, and managed_control_plane_write_executed=false."
+          ],
+          "assertions": [
+            "The readback-only workflow contains no APPLY_1043 confirmation, governed_migration_execute call, mode=apply request, execution envelope creation, or apply authorization operation.",
+            "The certifier self-test accepts schema.tables[].TABLE_NAME with an empty expectations.missing.tables array and rejects the legacy readback.tables shape.",
+            "The Migration 1043 Apply runner uses the same canonical schema.tables[].TABLE_NAME object parser so successful canonical readback cannot false-fail certification.",
+            "The certifier contains no raw Admin DB tool/action request body and delegates the only database query to the canonical shared read-only request builder.",
+            "The only database query in readback certification is the fixed readiness-view SELECT with read_only=true.",
+            "No SQL migration execution, second Apply attempt, authorization bootstrap, managed control-plane write, provider call, credential payload access, external business write, deployment, Production ref mutation, or secret evidence is permitted by this contract."
+          ],
+          "tests": [
+            {
+              "id": "migration-1043-readback-certification-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-readback-certification-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-1043-readback-self-test",
+              "runner": "node",
+              "working_directory": ".",
+              "path": ".github/ops/sprint69-1043-readback-certify.mjs",
+              "args": ["--self-test"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/sprint69-1043-readback-certification.json",
+            ".github/ops/lib/admin-control-db-request.mjs",
+            ".github/ops/sprint69-1043-apply.mjs",
+            ".github/ops/sprint69-1043-readback-certify.mjs",
+            ".github/workflows/sprint69-1043-readback-certify.yml",
+            "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+            "http-generic-api/test-sprint69-1043-readback-certification-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
