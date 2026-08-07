@@ -11,6 +11,36 @@ import {
   assertWorkspaceAssetBrandPatchSafe,
   resolveWorkspaceAssetBrandRef,
 } from "../../../workspaceAssetBrandAuthority.js";
+import {
+  assertWorkspaceAssetIdentityCompatible,
+  buildWorkspaceAssetProvenance,
+  mergeWorkspaceAssetMetadata,
+  parseWorkspaceAssetMetadata,
+} from "../../../workspaceAssetProvenance.js";
+
+function appendAssetReadScope(resourceDescriptor, context, clauses, params) {
+  if (!context || resourceDescriptor.table !== "workspace_assets" || isOwnerRole(context.member?.role)) return;
+  clauses.push(`(
+    COALESCE(NULLIF(r.brand_ref,''),'')=''
+    OR EXISTS (
+      SELECT 1
+        FROM v_workspace_resource_grant_effective g
+       WHERE g.tenant_id=?
+         AND g.grantee_user_id=?
+         AND g.resource_type='brand'
+         AND LOWER(g.resource_ref)=LOWER(r.brand_ref)
+    )
+    OR EXISTS (
+      SELECT 1
+        FROM v_workspace_resource_grant_effective ag
+       WHERE ag.tenant_id=?
+         AND ag.grantee_user_id=?
+         AND ag.resource_type='asset'
+         AND LOWER(ag.resource_ref)=LOWER(r.asset_id)
+    )
+  )`);
+  params.push(context.tenantId, context.auth.user_id, context.tenantId, context.auth.user_id);
+}
 
 function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   const params = [];
@@ -22,6 +52,7 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
       clauses.push(`r.${resourceDescriptor.user}=?`);
       params.push(context.auth.user_id);
     }
+    appendAssetReadScope(resourceDescriptor, context, clauses, params);
   } else {
     if (query.tenant_id) {
       clauses.push(`r.${resourceDescriptor.tenant}=?`);
@@ -170,6 +201,7 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         clauses.push(`r.${resourceDescriptor.user}=?`);
         params.push(context.auth.user_id);
       }
+      appendAssetReadScope(resourceDescriptor, context, clauses, params);
     }
     const [rows] = await executeQuery(
       `SELECT ${resourceDescriptor.fields}
@@ -182,36 +214,89 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
   }
 
   async function insertAsset({ tenantId, actorId, input }) {
-    const assetId = String(input.asset_id || randomUUID()).slice(0, 64);
+    const assetType = String(input.asset_type || "").trim();
+    const assetRef = String(input.asset_ref || "").trim();
+    if (!assetRef || assetRef.length > 512) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_ref_required",
+        "asset_ref is required and must not exceed 512 characters.",
+        400
+      );
+    }
+
     const canonicalBrandRef = await resolveWorkspaceAssetBrandRef(activeExecutor(), {
       tenantId,
       actorId: actorId || "platform_admin",
       brandRef: input.brand_ref,
     });
-    await executeQuery(
-      `INSERT INTO workspace_assets
-        (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
-         workflow_ref,session_ref,visibility,lifecycle_status,metadata_json,created_by)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-      [
-        assetId,
-        tenantId,
-        input.vault_id || null,
-        String(input.asset_type),
-        input.asset_ref || null,
-        String(input.display_name),
-        canonicalBrandRef,
-        input.site_ref || null,
-        input.workflow_ref || null,
-        input.session_ref || null,
-        input.visibility || "workspace",
-        input.lifecycle_status || "active",
-        input.metadata_json && typeof input.metadata_json === "object" ? JSON.stringify(input.metadata_json) : null,
-        actorId || "platform_admin",
-      ]
+
+    const [identityRows] = await executeQuery(
+      `SELECT asset_id,tenant_id,asset_type,asset_ref,brand_ref,lifecycle_status,metadata_json,created_by
+         FROM workspace_assets
+        WHERE tenant_id=? AND asset_type=? AND asset_ref=?
+        LIMIT 2 FOR UPDATE`,
+      [tenantId, assetType, assetRef]
     );
+    if (!Array.isArray(identityRows) || identityRows.length > 1) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_identity_ambiguous",
+        "Asset identity did not resolve uniquely before persistence."
+      );
+    }
+
+    const existing = identityRows[0] || null;
+    const provenance = buildWorkspaceAssetProvenance(input, {
+      tenantId,
+      brandRef: canonicalBrandRef,
+      actorId: existing?.created_by || actorId || "platform_admin",
+      assetType,
+      assetRef,
+    });
+
+    let assetId = existing?.asset_id || null;
+    if (existing) {
+      const existingMetadata = assertWorkspaceAssetIdentityCompatible(existing, provenance);
+      const mergedMetadata = mergeWorkspaceAssetMetadata(existingMetadata, provenance);
+      const needsBackfill = Object.entries(provenance).some(([key, value]) => (
+        value !== null && value !== undefined && (existingMetadata[key] === null || existingMetadata[key] === undefined || existingMetadata[key] === "")
+      )) || existingMetadata.secrets_included !== false;
+      if (needsBackfill) {
+        await executeQuery(
+          `UPDATE workspace_assets
+              SET metadata_json=?,updated_at=NOW()
+            WHERE asset_id=? AND tenant_id=?`,
+          [JSON.stringify(mergedMetadata), assetId, tenantId]
+        );
+      }
+    } else {
+      assetId = String(input.asset_id || randomUUID()).slice(0, 64);
+      const metadata = mergeWorkspaceAssetMetadata(input.metadata_json, provenance);
+      await executeQuery(
+        `INSERT INTO workspace_assets
+          (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
+           workflow_ref,session_ref,visibility,lifecycle_status,metadata_json,created_by)
+         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+        [
+          assetId,
+          tenantId,
+          input.vault_id || null,
+          assetType,
+          assetRef,
+          String(input.display_name),
+          canonicalBrandRef,
+          input.site_ref || null,
+          input.workflow_ref || null,
+          input.session_ref || null,
+          input.visibility || "workspace",
+          input.lifecycle_status || "active",
+          JSON.stringify(metadata),
+          actorId || "platform_admin",
+        ]
+      );
+    }
+
     const [readbackRows] = await executeQuery(
-      `SELECT asset_id,tenant_id,brand_ref
+      `SELECT asset_id,tenant_id,asset_type,asset_ref,brand_ref,lifecycle_status,metadata_json,created_by
          FROM workspace_assets
         WHERE asset_id=? AND tenant_id=?
         LIMIT 2 FOR UPDATE`,
@@ -219,17 +304,31 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
     );
     if (!Array.isArray(readbackRows) || readbackRows.length !== 1) {
       throw resourceRepositoryInvariantError(
-        "workspace_asset_brand_readback_invalid",
-        "Created workspace asset did not resolve exactly once before commit."
+        "workspace_asset_readback_invalid",
+        "Persisted workspace asset did not resolve exactly once before commit."
       );
     }
     const [readback] = readbackRows;
+    if (String(readback.asset_type || "") !== assetType || String(readback.asset_ref || "") !== assetRef) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_identity_readback_mismatch",
+        "Persisted workspace asset identity did not match the requested identity before commit."
+      );
+    }
     const persistedBrandRef = String(readback.brand_ref || "").trim();
     const expectedBrandRef = String(canonicalBrandRef || "").trim();
     if (persistedBrandRef !== expectedBrandRef) {
       throw resourceRepositoryInvariantError(
         "workspace_asset_brand_readback_mismatch",
         "Created workspace asset Brand attachment did not match canonical authority before commit."
+      );
+    }
+    assertWorkspaceAssetIdentityCompatible(readback, provenance);
+    const readbackMetadata = parseWorkspaceAssetMetadata(readback.metadata_json);
+    if (String(readbackMetadata.content_identity || "") !== String(provenance.content_identity || "")) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_provenance_readback_mismatch",
+        "Persisted workspace asset provenance did not match the requested content identity before commit."
       );
     }
     return assetId;
@@ -406,4 +505,4 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
   return repository;
 }
 
-export const _testingResourceRepository = { buildQueryParts };
+export const _testingResourceRepository = { buildQueryParts, appendAssetReadScope };
