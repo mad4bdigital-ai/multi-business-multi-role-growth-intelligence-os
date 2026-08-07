@@ -11,8 +11,8 @@
 
 ## Class counts
 
-- safety_marker_review: 3
-- standard_backlog_review: 1
+- safety_marker_review: 2
+- standard_backlog_review: 2
 
 ## Immediate review candidates
 
