@@ -1,0 +1,175 @@
+name: Reconcile Migration 1048 Repair With Main V6
+
+on:
+  push:
+    branches:
+      - fix/migration-1048-canonical-confirmation-and-readiness-marker
+    paths:
+      - .github/ops/reconcile-migration-1048-repair-with-main-v6.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migration-1048-reconcile-main-v6
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_MAIN: 167fecba1f9ed9e0ab4c0f3cd94bb2c9f54b89f7
+    steps:
+      - name: Checkout exact repair head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Guard branch and main heads
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
+          branch_head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
+          main_head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$branch_head" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$main_head" = "$EXPECTED_MAIN"
+
+      - name: Merge exact main and resolve bounded overlap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${EXPECTED_MAIN}"
+          set +e
+          git merge --no-commit --no-ff "$EXPECTED_MAIN"
+          merge_rc=$?
+          set -e
+
+          conflicts="$(git diff --name-only --diff-filter=U || true)"
+          if [ -n "$conflicts" ]; then
+            while IFS= read -r path; do
+              case "$path" in
+                .github/ops/transport-response-schema-1048-governed-rollout.mjs|http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs) ;;
+                *) echo "Unexpected merge conflict: $path" >&2; exit 1 ;;
+              esac
+            done <<< "$conflicts"
+          elif [ "$merge_rc" -ne 0 ]; then
+            echo 'Merge failed without bounded conflicts' >&2
+            exit "$merge_rc"
+          fi
+
+          git checkout --theirs -- .github/ops/transport-response-schema-1048-governed-rollout.mjs
+          git checkout --theirs -- http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+          python3 <<'PY'
+          from pathlib import Path
+
+          runner = Path('.github/ops/transport-response-schema-1048-governed-rollout.mjs')
+          text = runner.read_text()
+          old = "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';"
+          new = "const VERIFY_CONFIRM = `VERIFY_GOVERNED_MIGRATION_${MIGRATION_CONFIRMATION_KEY}`;"
+          if text.count(old) != 1:
+              raise SystemExit('main VERIFY confirmation anchor count != 1')
+          runner.write_text(text.replace(old, new))
+
+          test = Path('http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs')
+          text = test.read_text()
+          replacements = {
+              '  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",': '  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",',
+              '  "APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",': '  "APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",',
+              '  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",': '  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'main workflow-command test anchor count != 1: {old}')
+              text = text.replace(old, new)
+
+          auth_apply_anchor = '  "const APPLY_CONFIRM = `APPLY_${MIGRATION_CONFIRMATION_KEY}`",\n'
+          verify_line = '  "const VERIFY_CONFIRM = `VERIFY_GOVERNED_MIGRATION_${MIGRATION_CONFIRMATION_KEY}`",\n'
+          if text.count(auth_apply_anchor) != 1:
+              raise SystemExit('dynamic APPLY test anchor count != 1')
+          text = text.replace(auth_apply_anchor, auth_apply_anchor + verify_line)
+
+          first_block_end = "  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing ${expected}`);\n}\n\n"
+          readiness = "\n".join([
+              'for (const expected of [',
+              "  'issues: write',",
+              "  'Publish checksum-bound readiness marker',",
+              "  'actions/github-script@v7',",
+              "  'summary.readiness_marker',",
+              ']) {',
+              '  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);',
+              '}',
+              '',
+          ])
+          if text.count(first_block_end) != 1:
+              raise SystemExit('workflow expectation block anchor count != 1')
+          text = text.replace(first_block_end, first_block_end + readiness)
+
+          console_anchor = "console.log('PASS governed Migration 1048 rollout contract');"
+          obsolete = "\n".join([
+              'for (const forbidden of [',
+              "  'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',",
+              "  'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',",
+              "  'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',",
+              ']) {',
+              '  assert.ok(!workflow.includes(forbidden), `Migration 1048 workflow retains obsolete trigger: ${forbidden}`);',
+              '}',
+              '',
+          ])
+          if text.count(console_anchor) != 1:
+              raise SystemExit('console anchor count != 1')
+          text = text.replace(console_anchor, obsolete + console_anchor)
+          test.write_text(text)
+          PY
+
+          git add -- .github/ops/transport-response-schema-1048-governed-rollout.mjs http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+      - name: Run Migration 1048 regression after reconciliation
+        run: node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Generate clean-tree Work Maps and Spec014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/reconcile-migration-1048-repair-with-main-v6.yml
+          rm -f .github/ops/reconcile-migration-1048-repair-with-main-v6.trigger
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md specs/014-governed-hostinger-storage-orchestration/integration.md specs/014-governed-hostinger-storage-orchestration/tasks.md specs/014-retail-commerce-operations-growth-os/integration.md specs/014-retail-commerce-operations-growth-os/tasks.md
+
+      - name: Commit reconciled repair and push
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
+          branch_head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
+          main_head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$branch_head" = "$GITHUB_SHA"
+          test "$main_head" = "$EXPECTED_MAIN"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git status --short
+          git commit -m 'merge: reconcile Migration 1048 rollout repair with current main'
+          git push origin "HEAD:refs/heads/${branch}"
