@@ -1,0 +1,183 @@
+name: Repair Migration 1048 Rollout Contract V4
+
+on:
+  push:
+    branches:
+      - fix/migration-1048-canonical-confirmation-and-readiness-marker
+    paths:
+      - .github/ops/repair-migration-1048-rollout-contract-v4.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-migration-1048-rollout-contract-v4
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: fix/migration-1048-canonical-confirmation-and-readiness-marker
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact repair head
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=guard branch=${GITHUB_REF_NAME} sha=${GITHUB_SHA}"
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          git fetch origin "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+
+      - name: Apply previously validated V3 permanent patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=patch-v3"
+          node .github/ops/repair-migration-1048-rollout-contract-v3.mjs
+
+      - name: Verify patched rollout regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=regression-pre-cleanup"
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Remove all temporary repair scaffolding
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=self-cleanup"
+          git rm -f --ignore-unmatch \
+            .github/workflows/repair-migration-1048-rollout-contract.yml \
+            .github/ops/repair-migration-1048-rollout-contract.trigger \
+            .github/workflows/repair-migration-1048-rollout-contract-v2.yml \
+            .github/ops/repair-migration-1048-rollout-contract-v2.trigger \
+            .github/workflows/repair-migration-1048-rollout-contract-v3.yml \
+            .github/ops/repair-migration-1048-rollout-contract-v3.trigger \
+            .github/ops/repair-migration-1048-rollout-contract-v3.mjs \
+            .github/workflows/repair-migration-1048-rollout-contract-v4.yml \
+            .github/ops/repair-migration-1048-rollout-contract-v4.trigger
+
+      - name: Refresh final Work Maps and Spec014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=work-map-write"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+
+      - name: Verify exact final generated state before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=pre-commit-checks"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Enforce bounded repair diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=bounded-diff"
+          mapfile -t CHANGED < <(git status --short | sed -E 's/^.. //' | sort)
+          printf '%s\n' "${CHANGED[@]}"
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              .github/ops/repair-migration-1048-rollout-contract-v3.mjs|.github/ops/repair-migration-1048-rollout-contract-v3.trigger|.github/ops/repair-migration-1048-rollout-contract.trigger|.github/ops/repair-migration-1048-rollout-contract-v2.trigger|.github/ops/repair-migration-1048-rollout-contract-v4.trigger|.github/ops/transport-response-schema-1048-governed-rollout.mjs|.github/workflows/repair-migration-1048-rollout-contract.yml|.github/workflows/repair-migration-1048-rollout-contract-v2.yml|.github/workflows/repair-migration-1048-rollout-contract-v3.yml|.github/workflows/repair-migration-1048-rollout-contract-v4.yml|.github/workflows/transport-response-schema-1048-governed-rollout.yml|http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs|docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json)
+                ;;
+              *) echo "Unexpected repair write: $file"; exit 1 ;;
+            esac
+          done
+
+      - name: Save exact validated patch before commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=patch-evidence"
+          git diff --binary > "${RUNNER_TEMP}/migration-1048-v4.patch"
+          test -s "${RUNNER_TEMP}/migration-1048-v4.patch"
+
+      - name: Upload exact validated patch evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-1048-v4-validated-patch
+          path: ${{ runner.temp }}/migration-1048-v4.patch
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Commit exact repaired head
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=commit"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo 'Repair produced no staged changes'; exit 1; }
+          git commit -m "fix(migration): align 1048 canonical rollout confirmations"
+          NEW_HEAD="$(git rev-parse HEAD)"
+          echo "new_head=${NEW_HEAD}" >> "$GITHUB_OUTPUT"
+          echo "committed_head=${NEW_HEAD}"
+
+      - name: Verify generated state after commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=post-commit-checks head=$(git rev-parse HEAD)"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          if test -n "$(git status --porcelain)"; then
+            echo 'Post-commit worktree is not clean:'
+            git status --short
+            git diff --stat
+            exit 1
+          fi
+
+      - name: Verify remote branch has not moved
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=stale-head-guard expected=${GITHUB_SHA}"
+          git fetch origin "${EXPECTED_BRANCH}"
+          REMOTE_HEAD="$(git rev-parse origin/${EXPECTED_BRANCH})"
+          echo "remote_head=${REMOTE_HEAD}"
+          test "${REMOTE_HEAD}" = "${GITHUB_SHA}"
+
+      - name: Push exact repaired head
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=push head=$(git rev-parse HEAD)"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
+
+      - name: Verify pushed ref
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "checkpoint=remote-readback"
+          LOCAL_HEAD="$(git rev-parse HEAD)"
+          git fetch origin "${EXPECTED_BRANCH}"
+          REMOTE_HEAD="$(git rev-parse origin/${EXPECTED_BRANCH})"
+          echo "local_head=${LOCAL_HEAD} remote_head=${REMOTE_HEAD}"
+          test "${REMOTE_HEAD}" = "${LOCAL_HEAD}"
+          echo "result_head=${LOCAL_HEAD}" >> "$GITHUB_STEP_SUMMARY"
