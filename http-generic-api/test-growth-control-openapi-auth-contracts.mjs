@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 
-const [adminOpenApi, tenantOpenApi, routeSource, runtimeGuardSource, adminPrincipalSource] = await Promise.all([
+const [adminOpenApi, tenantOpenApi, routeSource, tenantRouteSource, runtimeGuardSource, adminPrincipalSource] = await Promise.all([
   fs.readFile(new URL("./openapi/growth-control-plane-admin-ui.openapi.yaml", import.meta.url), "utf8"),
   fs.readFile(new URL("./openapi/tenant-growth-control-plane.openapi.yaml", import.meta.url), "utf8"),
   fs.readFile(new URL("./routes/dynamicGrowthControlPlaneRoutes.js", import.meta.url), "utf8"),
+  fs.readFile(new URL("./routes/tenantGrowthControlPlaneRoutes.js", import.meta.url), "utf8"),
   fs.readFile(new URL("./runtimeGuards.js", import.meta.url), "utf8"),
   fs.readFile(new URL("./routes/adminCliRoutes.js", import.meta.url), "utf8"),
 ]);
@@ -29,5 +30,20 @@ assert.match(tenantOpenApi, /effective tenant role is resolved from\n        aut
 assert.match(tenantOpenApi, /stale JWT role claim cannot elevate/);
 assert.match(tenantOpenApi, /effective role and field profile come from authoritative active\n        membership and workspace authorization readback/);
 assert.doesNotMatch(tenantOpenApi, /Tenant, user, and role identity come from the token only/);
+assert.match(
+  tenantRouteSource,
+  /const requireTenant = \[requireBackendApiKey, requireTenantUserJwt\]\.filter\(Boolean\)/,
+  "Tenant Growth Control Plane must parse the bearer credential before enforcing tenant JWT scope.",
+);
+assert.match(
+  tenantRouteSource,
+  /"\/tenant\/control-plane\/configuration-versions", \.\.\.requireTenant,/,
+  "Configuration projection must use the authenticated tenant guard chain.",
+);
+assert.match(
+  tenantRouteSource,
+  /"\/tenant\/control-plane\/activity-bindings", \.\.\.requireTenant,/,
+  "Activity binding projection must use the authenticated tenant guard chain.",
+);
 
 console.log("growth control OpenAPI auth contracts passed");
