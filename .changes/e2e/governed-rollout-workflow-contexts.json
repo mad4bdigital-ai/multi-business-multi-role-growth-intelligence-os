@@ -10,6 +10,7 @@
       ".changes/e2e/governed-rollout-workflow-contexts.json",
       ".github/ops/response-chunk-ownership-governed-rollout.mjs",
       ".github/workflows/brand-skill-mariadb-certification.yml",
+      ".github/workflows/response-chunk-ownership-governed-rollout-push.yml",
       ".github/workflows/response-chunk-ownership-governed-rollout.yml",
       ".github/workflows/sprint69-1006-governed-rollout.yml",
       "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
@@ -37,6 +38,7 @@
             "Validate Brand Skill typed bindings from repository root before checkout creates the service working directory.",
             "Bind Sprint 69 readiness and Apply evidence to stable repository-relative directories.",
             "Bind response chunk readiness, Apply, and runtime-closure evidence to stable repository-relative directories.",
+            "Bind the trusted-main response-chunk push bridge to stable repository-relative evidence paths without runner-only job-level contexts.",
             "Keep the Issue #4191 readiness trigger token separate from the filename-derived governed migration authorization-bootstrap confirmation.",
             "Keep the Issue #4191 Apply trigger token separate from the filename-derived governed migration execute confirmation.",
             "Remove GitHub Issue write permissions and API status-comment mutations from the two governed rollout workflows.",
@@ -45,6 +47,7 @@
           ],
           "assertions": [
             "No job-level EVIDENCE_DIR references runner.temp before a runner exists.",
+            "The response-chunk trusted-main push bridge contains no job-level runner context and uses stable repository-relative evidence paths.",
             "Brand Skill pre-checkout validation explicitly runs from repository root.",
             "The Sprint 69 and response chunk workflows request contents:read only and contain no gh api mutation.",
             "Readiness, Apply, and runtime-closure evidence directories are stable repository-relative paths.",
@@ -79,6 +82,7 @@
           "evidence_paths": [
             ".github/ops/response-chunk-ownership-governed-rollout.mjs",
             ".github/workflows/brand-skill-mariadb-certification.yml",
+            ".github/workflows/response-chunk-ownership-governed-rollout-push.yml",
             ".github/workflows/sprint69-1006-governed-rollout.yml",
             ".github/workflows/response-chunk-ownership-governed-rollout.yml",
             "http-generic-api/test-brand-skill-mariadb-certification-contract.mjs",
