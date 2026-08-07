@@ -24,9 +24,12 @@ const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
 const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
 const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
 const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
+const ASSET_SERVICE_FILE = "workspaceAssetLifecycle.js";
+const ASSET_TEST_FILE = "test-workspace-brand-asset-create-operation-governance.mjs";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
 const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
+const ASSET_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/assets";
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -186,6 +189,61 @@ function evaluateBrandCreateRecipe(apiRoot) {
   return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE] };
 }
 
+function evaluateAssetCreateRecipe(apiRoot) {
+  const routeSource = readText(apiRoot, BRAND_ROUTE_FILE);
+  const serviceSource = readText(apiRoot, ASSET_SERVICE_FILE);
+  const route = routeRegistry(routeSource, BRAND_ROUTE_FILE).get(ASSET_CREATE_OPERATION);
+  const createBlock = extractFunctionBlock(serviceSource, "createWorkspaceAsset");
+  const membershipBlock = extractFunctionBlock(serviceSource, "requireActiveActorMembership");
+  const brandBlock = extractFunctionBlock(serviceSource, "resolveTenantBrand");
+  const workspaceBlock = extractFunctionBlock(serviceSource, "requireBrandWorkspaceBinding");
+  const authorityBlock = extractFunctionBlock(serviceSource, "requireBrandAssetAuthority");
+  const readbackBlock = extractFunctionBlock(serviceSource, "readAssetExactly");
+  const compatibilityBlock = extractFunctionBlock(serviceSource, "assertExistingAssetCompatible");
+  const claimedTests = registeredTestEvidence(apiRoot).get(ASSET_CREATE_OPERATION) || [];
+  const gates = [
+    evidenceGate("route_present", route, BRAND_ROUTE_FILE),
+    evidenceGate("user_jwt_guard", route?.route_guards?.includes("requireUserJwt"), "requireUserJwt"),
+    evidenceGate("route_service_binding", route?.declaration?.includes("createWorkspaceAsset"), "createWorkspaceAsset"),
+    evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_asset_create") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "begin/commit/rollback"),
+    evidenceGate("service_present", createBlock, "createWorkspaceAsset"),
+    evidenceGate("locked_active_membership", membershipBlock.includes("JOIN tenants") && membershipBlock.includes("LIMIT 2 FOR UPDATE"), "locked active actor membership"),
+    evidenceGate("active_tenant_brand", brandBlock.includes("tenant_brand_links") && brandBlock.includes("b.status='active'") && brandBlock.includes("FOR UPDATE"), "active tenant-brand authority"),
+    evidenceGate("brand_workspace_binding", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "exact Brand Workspace binding"),
+    evidenceGate("brand_scoped_mutation_authority", authorityBlock.includes("resource_type='brand'") && authorityBlock.includes("BRAND_ASSET_PERMISSIONS") && authorityBlock.includes("FOR UPDATE"), "owner/admin or explicit brand admin/manage/edit grant"),
+    evidenceGate("durable_asset_identity", createBlock.includes("workspace_assets") && createBlock.includes("asset_type") && createBlock.includes("asset_ref") && createBlock.includes("LIMIT 2 FOR UPDATE"), "tenant+asset_type+asset_ref durable identity"),
+    evidenceGate("provenance_and_checksum", serviceSource.includes("workspace-asset-provenance-v1") && serviceSource.includes("content_sha256") && serviceSource.includes("source_type") && serviceSource.includes("content_identity"), "bounded provenance/checksum/content identity"),
+    evidenceGate("idempotency_conflict_guards", compatibilityBlock.includes("workspace_asset_identity_brand_conflict") && compatibilityBlock.includes("workspace_asset_identity_checksum_conflict") && compatibilityBlock.includes("workspace_asset_identity_provenance_conflict"), "brand/checksum/provenance conflicts fail closed"),
+    evidenceGate("transactional_readback", readbackBlock.includes("workspace_assets") && readbackBlock.includes("LIMIT 2 FOR UPDATE") && createBlock.includes("workspace_asset_provenance_readback_invalid"), "exact same-transaction asset/provenance readback"),
+    evidenceGate("no_secret_response", routeSource.includes("secrets_included: false") && serviceSource.includes("secrets_included: false"), "secrets_included=false"),
+    evidenceGate("registered_operation_test", claimedTests.includes(ASSET_TEST_FILE), ASSET_TEST_FILE),
+  ];
+  const recipe = {
+    recipe_id: "workspace-brand-asset-create-v1",
+    rule_id: "generated-workspace-brand-asset-create-governance",
+    operation: ASSET_CREATE_OPERATION,
+    source_file: BRAND_ROUTE_FILE,
+    owner: "workspace-platform",
+    rationale: "Creates or idempotently reuses one persisted Brand Asset only after locked active membership, exact tenant-brand and Brand Workspace resolution, and workspace-owner or explicit brand-scoped management authority; durable identity, source provenance, checksum/content identity, and the authorized Brand binding are read back in the same transaction before commit.",
+    preflight_mode: "locked_brand_scoped_authority_and_asset_identity",
+    approval_mode: "runtime_authorization",
+    parameter_bindings: {
+      tenant_id: "request.path.tenant_id",
+      asset_type: "request.body.asset_type",
+      asset_ref: "request.body.asset_ref",
+      brand_ref: "request.body.brand_ref",
+      source_type: "request.body.source_type",
+      content_sha256: "request.body.content_sha256",
+      actor_user_id: "authenticated_user.user_id",
+      asset_id: "response.asset.asset_id",
+      brand_target_key: "response.asset.brand_ref",
+      brand_workspace_id: "response.brand_workspace.workspace_id",
+      content_identity: "response.asset.provenance.content_identity",
+    },
+  };
+  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, ASSET_SERVICE_FILE, ASSET_TEST_FILE] };
+}
+
 function generatedStateChangeRule(recipe, evidenceFiles, apiRoot) {
   return {
     rule_id: recipe.rule_id,
@@ -221,6 +279,8 @@ function withSourceAuthority(plan, apiRoot) {
     BRAND_ROUTE_FILE,
     BRAND_SERVICE_FILE,
     BRAND_TEST_FILE,
+    ASSET_SERVICE_FILE,
+    ASSET_TEST_FILE,
   ]);
   const sourceAuthority = files.map((file) => ({
     file,
@@ -231,7 +291,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v3-brand-create-extension",
+      id: "frontend-operation-governance-generator-v4-brand-asset-extension",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
@@ -243,7 +303,7 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const basePlan = buildBaseOperationGovernance({ apiRoot });
   if (process.env.FRONTEND_OPERATION_GOVERNANCE_BASE_TEST === "1") return basePlan;
 
-  const evaluations = [evaluateLeaseRecipe(apiRoot), evaluateBrandCreateRecipe(apiRoot)];
+  const evaluations = [evaluateLeaseRecipe(apiRoot), evaluateBrandCreateRecipe(apiRoot), evaluateAssetCreateRecipe(apiRoot)];
   const plan = withSourceAuthority(basePlan, apiRoot);
   const operationRules = [...plan.operation_rules];
   const rejectedCandidates = [...plan.rejected_candidates];
