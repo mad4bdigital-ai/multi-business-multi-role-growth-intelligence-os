@@ -69,7 +69,7 @@ function materializedAssetInput({ workspace, canonicalBrandRef, source }) {
   }
   const validationStatus = sourceValidationStatus(source);
   return {
-    asset_type: "brand_core",
+    asset_type: "external_ref",
     asset_ref: canonicalSourceRef,
     display_name: text(source.document_name || source.asset_key || source.doc_key || canonicalSourceRef, 255),
     brand_ref: canonicalBrandRef,
