@@ -34,7 +34,9 @@ const MATERIALIZE_ROUTE_FILE = "routes/resourceApiRoutes.js";
 const MATERIALIZE_SERVICE_FILE = "workspaceBrandCoreAssetMaterialization.js";
 const MATERIALIZE_REPOSITORY_FILE = "src/infrastructure/resourceApi/resourceRepository.js";
 const MATERIALIZE_TEST_FILE = "test-brand-core-asset-materialization-operation-governance.mjs";
-const BRAND_CORE_MATERIALIZE_OPERATION = "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core";
+const MATERIALIZE_CONTAINER_FOUNDATION_FILE = "migrations/319_sprint69_dynamic_container_authority_foundation.sql";
+const MATERIALIZE_WORKSPACE_OWNERSHIP_FILE = "migrations/20260730_context_kernel_connection_ownership_persistence.sql";
+const BRAND_CORE_MATERIALIZE_OPERATION = "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core";
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -198,12 +200,16 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
   const routeSource = readText(apiRoot, MATERIALIZE_ROUTE_FILE);
   const serviceSource = readText(apiRoot, MATERIALIZE_SERVICE_FILE);
   const repositorySource = readText(apiRoot, MATERIALIZE_REPOSITORY_FILE);
+  const containerFoundationSource = readText(apiRoot, MATERIALIZE_CONTAINER_FOUNDATION_FILE);
+  const workspaceOwnershipSource = readText(apiRoot, MATERIALIZE_WORKSPACE_OWNERSHIP_FILE);
   const route = routeRegistry(routeSource, MATERIALIZE_ROUTE_FILE).get(BRAND_CORE_MATERIALIZE_OPERATION);
   const materializeBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAsset");
   const transactionBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAssetTransaction");
   const inputBlock = extractFunctionBlock(serviceSource, "materializedAssetInput");
+  const rootWorkspaceBlock = extractFunctionBlock(serviceSource, "resolveRootWorkspace");
   const brandBlock = extractFunctionBlock(serviceSource, "resolveCanonicalBrand");
-  const workspaceBlock = extractFunctionBlock(serviceSource, "resolveBrandWorkspace");
+  const brandWorkspaceBlock = extractFunctionBlock(serviceSource, "resolveBrandOperationalWorkspace");
+  const topologyBlock = extractFunctionBlock(serviceSource, "resolveBrandContainerTopology");
   const sourceBlock = extractFunctionBlock(serviceSource, "resolveBrandCoreSource");
   const persistBlock = extractFunctionBlock(serviceSource, "persistMaterializedAsset");
   const insertAssetBlock = extractFunctionBlock(repositorySource, "insertAsset");
@@ -218,37 +224,47 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
       "centralized createUserJwtMiddleware binding parsed as requireUserJwt with no route-local User JWT verifier"
     ),
     evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAssetTransaction"),
+    evidenceGate("workspace_route_binding", route?.declaration?.includes("workspace_id") && route?.declaration?.includes("brand_key") && !route?.declaration?.includes(":tenant_id/assets/materialize-brand-core"), "workspace_id + brand_key route authority"),
     evidenceGate("transaction_scope", transactionBlock.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && transactionBlock.includes("await connection.beginTransaction()") && transactionBlock.includes("await connection.commit()") && transactionBlock.includes("await connection.rollback()"), "service-owned transaction begin/commit/rollback"),
-    evidenceGate("route_readback_marker", transactionBlock.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && transactionBlock.includes("source_provider") && transactionBlock.includes("content_identity"), "service-owned canonical asset projection readback marker"),
+    evidenceGate("route_readback_marker", transactionBlock.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && transactionBlock.includes("source_provider") && transactionBlock.includes("brand_container_id") && transactionBlock.includes("content_identity"), "service-owned Root Workspace + Brand container + canonical asset readback marker"),
     evidenceGate("service_present", materializeBlock, "materializeWorkspaceBrandCoreAsset"),
-    evidenceGate("canonical_brand_authority", brandBlock.includes("resolveWorkspaceAssetBrandRef") && brandBlock.includes("FOR UPDATE"), "canonical tenant Brand authority"),
-    evidenceGate("brand_workspace_authority", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "canonical Brand Workspace authority"),
+    evidenceGate("root_workspace_authority", rootWorkspaceBlock.includes("workspace_ownership_type") && rootWorkspaceBlock.includes("personal") && rootWorkspaceBlock.includes("company") && rootWorkspaceBlock.includes("workspace_type") && rootWorkspaceBlock.includes("FOR UPDATE"), "personal/company Root Workspace classification and locked tenant derivation"),
+    evidenceGate("root_workspace_schema_contract", workspaceOwnershipSource.includes("workspace_ownership_type") && workspaceOwnershipSource.includes("ENUM('personal','company')") && workspaceOwnershipSource.includes("Existing workspace_registry.workspace_type semantics remain unchanged"), MATERIALIZE_WORKSPACE_OWNERSHIP_FILE),
+    evidenceGate("canonical_brand_authority", brandBlock.includes("resolveWorkspaceAssetBrandRef") && brandBlock.includes("FOR UPDATE"), "existing canonical tenant Brand mutation authority"),
+    evidenceGate("brand_workspace_authority", brandWorkspaceBlock.includes("workspace_registry") && brandWorkspaceBlock.includes("workspace_type='brand'") && brandWorkspaceBlock.includes("linked_brand_key") && brandWorkspaceBlock.includes("workspace_ownership_type") && brandWorkspaceBlock.includes("FOR UPDATE"), "workspace_type=brand child operational compatibility workspace"),
+    evidenceGate("brand_container_topology", topologyBlock.includes("FROM containers brand_container") && topologyBlock.includes("JOIN container_relationships relationship") && topologyBlock.includes("relationship.relationship_type_key='contains'") && topologyBlock.includes("brand_core_materialize_brand_container_cross_workspace") && topologyBlock.includes("contributes_to_inheritance"), "exact Root Workspace contains Brand container topology"),
+    evidenceGate("brand_container_closure", topologyBlock.includes("FROM container_closure") && topologyBlock.includes("shortest_depth") && topologyBlock.includes("path_count") && topologyBlock.includes("brand_core_materialize_brand_container_path_ambiguous"), "single direct inheritance-bearing closure path"),
+    evidenceGate("container_schema_contract", containerFoundationSource.includes("('brand','Brand'") && containerFoundationSource.includes("JSON_ARRAY('workspace')") && containerFoundationSource.includes("('contains','Contains','containment',1,1,1") && containerFoundationSource.includes("('connections','Connections'") && containerFoundationSource.includes("('assets','Assets'") && containerFoundationSource.includes("('brand_core','Brand Core'"), MATERIALIZE_CONTAINER_FOUNDATION_FILE),
+    evidenceGate("no_topology_self_heal", !serviceSource.includes("INSERT INTO containers") && !serviceSource.includes("INSERT INTO container_relationships"), "missing topology fails closed instead of mutating authority graph"),
     evidenceGate("canonical_source_resolution", sourceBlock.includes("FROM brand_core") && sourceBlock.includes("LIMIT 3 FOR UPDATE") && sourceBlock.includes("sourceActive"), "Brand Core source identity/status resolution"),
-    evidenceGate("canonical_provenance_adapter", inputBlock.includes('source_type: "import"') && inputBlock.includes('source_provider: "brand_core"') && inputBlock.includes("content_sha256: null") && inputBlock.includes("brand_workspace_id"), "Brand Core source mapped into canonical workspace asset provenance"),
+    evidenceGate("canonical_provenance_adapter", inputBlock.includes('source_type: "import"') && inputBlock.includes('source_provider: "brand_core"') && inputBlock.includes("content_sha256: null") && inputBlock.includes("root_workspace_id") && inputBlock.includes("brand_workspace_id") && inputBlock.includes("brand_container_id") && inputBlock.includes("brand_container_relationship_id"), "Root Workspace and Brand container lineage mapped into canonical workspace asset provenance"),
     evidenceGate("canonical_asset_persistence", persistBlock.includes("createResourceRepository") && persistBlock.includes("repository.insertAsset"), "canonical Resource API repository insertAsset"),
     evidenceGate("atomic_asset_serialization", insertAssetBlock.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id") && insertAssetBlock.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?") && insertAssetBlock.includes("LIMIT 2 FOR UPDATE"), "existing workspace asset UNIQUE identity serialization and locked reread"),
     evidenceGate("provenance_conflict_guard", insertAssetBlock.includes("assertWorkspaceAssetIdentityCompatible") && insertAssetBlock.includes("workspace_asset_provenance_readback_mismatch"), "canonical provenance compatibility/readback"),
-    evidenceGate("transactional_lineage_readback", persistBlock.includes("FROM workspace_assets") && persistBlock.includes("LIMIT 2 FOR UPDATE") && persistBlock.includes("brand_core_asset_materialize_readback_mismatch"), "exact Brand Core lineage readback"),
+    evidenceGate("transactional_lineage_readback", persistBlock.includes("FROM workspace_assets") && persistBlock.includes("LIMIT 2 FOR UPDATE") && persistBlock.includes("brand_core_asset_materialize_readback_mismatch"), "exact Root Workspace/Brand container/Brand Core lineage readback"),
     evidenceGate("no_parallel_schema_preflight", !serviceSource.includes("information_schema") && !serviceSource.includes("workspace_asset_provenance_schema_required"), "no second provenance schema authority"),
     evidenceGate("no_provider_content_fetch", serviceSource.includes("provider_content_fetched: false") && !serviceSource.includes("fetch("), "no provider content fetch"),
     evidenceGate("registered_operation_test", claimedTests.includes(MATERIALIZE_TEST_FILE), MATERIALIZE_TEST_FILE),
   ];
   const recipe = {
-    recipe_id: "workspace-brand-core-asset-materialize-v2",
+    recipe_id: "workspace-brand-core-asset-materialize-v3-root-brand-container",
     rule_id: "generated-workspace-brand-core-asset-materialize-governance",
     operation: BRAND_CORE_MATERIALIZE_OPERATION,
     source_file: MATERIALIZE_ROUTE_FILE,
     owner: "workspace-platform",
-    rationale: "Materializes exactly one active Brand Core context source only after canonical User-JWT, tenant Brand authority and Brand Workspace authority; persistence is delegated to the canonical Resource API workspace asset lifecycle, whose existing unique identity serializes retries/concurrency and whose provenance compatibility/readback fails closed on conflicting source identity. No provider content is fetched or falsely checksummed.",
-    preflight_mode: "canonical_user_jwt_brand_authority_and_resource_asset_provenance",
+    rationale: "Materializes exactly one active Brand Core context source only after canonical User-JWT, a personal/company Root Workspace that derives tenant scope, existing Brand mutation authority, one workspace_type=brand child operational binding, and one direct inheritance-bearing Root Workspace contains Brand container path. Missing, ambiguous, or cross-workspace topology fails closed without self-healing the authority graph. Persistence stays on the canonical Resource API workspace asset lifecycle and no provider content is fetched or falsely checksummed.",
+    preflight_mode: "canonical_user_jwt_root_workspace_brand_container_and_resource_asset_provenance",
     approval_mode: "runtime_authorization",
     parameter_bindings: {
-      tenant_id: "request.path.tenant_id",
-      brand_ref: "request.body.brand_ref",
+      workspace_id: "request.path.workspace_id",
+      brand_key: "request.path.brand_key",
+      tenant_id: "response.tenant_id",
       source_ref: "request.body.source_ref",
       asset_id: "response.asset.asset_id",
       content_identity: "response.asset.content_identity",
-      brand_workspace_id: "response.workspace.workspace_id",
+      brand_workspace_id: "response.workspace.brand_workspace_id",
+      brand_container_id: "response.workspace.brand_container_id",
+      containment_relationship_id: "response.workspace.containment_relationship_id",
     },
   };
   return {
@@ -259,6 +275,8 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
       MATERIALIZE_SERVICE_FILE,
       MATERIALIZE_REPOSITORY_FILE,
       MATERIALIZE_TEST_FILE,
+      MATERIALIZE_CONTAINER_FOUNDATION_FILE,
+      MATERIALIZE_WORKSPACE_OWNERSHIP_FILE,
     ],
   };
 }
@@ -301,6 +319,8 @@ function withSourceAuthority(plan, apiRoot) {
     MATERIALIZE_SERVICE_FILE,
     MATERIALIZE_REPOSITORY_FILE,
     MATERIALIZE_TEST_FILE,
+    MATERIALIZE_CONTAINER_FOUNDATION_FILE,
+    MATERIALIZE_WORKSPACE_OWNERSHIP_FILE,
   ];
   const files = unique([
     ...plan.source_authority.map((entry) => entry.file),
@@ -315,7 +335,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v5-brand-core-canonical-asset-lifecycle",
+      id: "frontend-operation-governance-generator-v6-root-workspace-brand-container",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
