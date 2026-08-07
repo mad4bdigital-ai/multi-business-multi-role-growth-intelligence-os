@@ -1,0 +1,125 @@
+name: Temporary Migration 1042 Surface Static Review
+
+on:
+  push:
+    branches:
+      - docs/migration-1042-surface-contract-remediation-20260807
+    paths:
+      - .github/workflows/tmp-1042-surface-static-review.yml
+
+permissions:
+  contents: write
+
+jobs:
+  static-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Generate checksum-bound static review evidence
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import { assessMigrationSqlPreflight } from './releaseReadiness.js';
+
+          const migration = '1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql';
+          const source = fs.readFileSync(`migrations/${migration}`, 'utf8').replace(/\r\n?/g, '\n');
+          const sha256 = createHash('sha256').update(source, 'utf8').digest('hex');
+          const preflight = assessMigrationSqlPreflight(migration, source);
+          const patterns = [
+            /\bDROP\s+(?:TABLE|VIEW|DATABASE)\b/i,
+            /\bTRUNCATE\s+TABLE\b/i,
+            /\bDELETE\s+FROM\b/i,
+            /\bLOAD\s+DATA\b/i,
+            /\bINTO\s+OUTFILE\b/i,
+            /\bCALL\s+[A-Za-z0-9_]+\s*\(/i,
+            /\bPREPARE\s+[A-Za-z0-9_]+\s+FROM\b/i,
+            /^\s*EXECUTE\s+[A-Za-z0-9_]+\b/im,
+            /\bCREATE\s+(?:PROCEDURE|FUNCTION|TRIGGER)\b/i,
+            /^\s*GRANT\b[\s\S]*?\bON\b/im,
+            /^\s*REVOKE\b[\s\S]*?\bON\b/im,
+          ];
+          const forbidden_patterns = patterns.filter((p) => p.test(source)).map((p) => p.source).sort();
+          const riskCounts = (preflight.risks || []).reduce((out, risk) => {
+            out[risk.code] = (out[risk.code] || 0) + 1;
+            return out;
+          }, {});
+          const safetyMarkers = [
+            'no_provider_call',
+            'no_credential_payload_read',
+            'no_raw_secrets',
+            'no_external_send',
+            'no_external_write',
+            'secrets_included_false',
+          ];
+          const requiredFragments = [
+            'CREATE TABLE IF NOT EXISTS support_ticket_dedupe_claims',
+            'CREATE OR REPLACE TRIGGER trg_ticket_lifecycle_sla_milestones',
+            'CREATE OR REPLACE VIEW v_support_ticket_integrity_readiness AS',
+            'CREATE OR REPLACE VIEW v_support_ticket_latest_activity AS',
+            "target_capability = COALESCE(target_capability, 'wordpress_tenant_safe_self_repair')",
+          ];
+          const report = {
+            contract: 'mad4b.migration-1042-static-review-candidate.v1',
+            migration_file: migration,
+            migration_sha256: sha256,
+            checksum_canonicalization: 'utf8_lf_v1',
+            preflight_status: preflight.status,
+            preflight_risk_count: Number(preflight.risk_count || 0),
+            statement_count: Number(preflight.counts?.statements || 0),
+            preflight_risks: Object.fromEntries(Object.entries(riskCounts).sort()),
+            forbidden_patterns,
+            safety_markers_present: Object.fromEntries(safetyMarkers.map((m) => [m, source.includes(m)])),
+            required_sql_fragments_present: Object.fromEntries(requiredFragments.map((f) => [f, source.includes(f)])),
+            migration_effects: {
+              internal_database_write: true,
+              schema_mutation: true,
+              trigger_mutation: true,
+              external_write: false,
+              provider_call: false,
+              credential_payload_read: false,
+              secrets_included: false,
+            },
+            execution_authorized: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync('/tmp/migration-1042-static-review.json', `${JSON.stringify(report, null, 2)}\n`);
+          console.log(JSON.stringify(report, null, 2));
+          if (!safetyMarkers.every((m) => source.includes(m))) process.exit(1);
+          if (!requiredFragments.every((f) => source.includes(f))) process.exit(1);
+          NODE
+
+      - name: Upload static review evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-1042-static-review-${{ github.run_id }}
+          path: /tmp/migration-1042-static-review.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove temporary workflow from branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "migration-1042-review-probe[bot]"
+          git config user.email "migration-1042-review-probe[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-1042-surface-static-review.yml
+          git commit -m "chore(ci): remove temporary Migration 1042 review probe"
+          git push origin HEAD:docs/migration-1042-surface-contract-remediation-20260807
