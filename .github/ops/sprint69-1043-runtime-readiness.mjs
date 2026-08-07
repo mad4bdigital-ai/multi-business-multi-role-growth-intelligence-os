@@ -330,7 +330,7 @@ async function createReadyAuthorizationEnvelope() {
     const approvedPayload = await adminShell('capability_resolution_envelope_approve', [
       `--envelope-id=${envelope.envelope_id}`,
       '--approved-by=github_actions',
-      '--decision-note=Approve the checksum-bound Migration 1043 authorization-bootstrap envelope for runtime readiness only; migration SQL and activation registry synchronization are not executed.',
+      '--decision-note=Approve the checksum-bound Migration 1043 authorization-bootstrap envelope for runtime readiness only. Migration SQL and activation registry synchronization are not executed.',
       '--ttl-minutes=45',
     ], 'migration_1043_authorization_envelope_approve');
     const approved = findObjectWithKey(approvedPayload, 'envelope_id');
