@@ -79,7 +79,7 @@ for (const required of [
   /name: Certified Production Release Cut Validation/,
   /pull_request_target:/,
   /contents: read/,
-  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
   /Validate trusted same-repository validation surface/,
   /certified validation requires a same-repository head/,
   /persist-credentials: false/,
@@ -120,8 +120,8 @@ const certifiedJobHeader =
 assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
 assert.match(
   certifiedJobHeader,
-  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
-  "certified release-cut validation must use a branch-independent governed eligibility selector",
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
+  "certified release-cut validation must use a quoted, branch-independent governed eligibility selector",
 );
 assert.doesNotMatch(certifiedReleaseCut, /issues:\s*write/);
 assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
