@@ -1,0 +1,6 @@
+Migration 1048 repair reconciliation V8
+expected_main=16bf7a895bb60f0ff20f58dcf95adffd41ab2e6c
+strategy=main-tree-plus-three-permanent-overlays
+parents=current_repair_head,current_main
+force=false
+database_apply=false
