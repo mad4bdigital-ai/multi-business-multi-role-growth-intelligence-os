@@ -108,6 +108,7 @@ assert.match(tenantABrandKey, /^workspace_brand_[a-f0-9]{32}$/);
   });
   assert.equal(result.created, false);
   assert.equal(result.brand.target_key, targetKey, "retry must reuse the tenant's existing canonical brand identity");
+  assert.equal(result.next_steps.brand_core_profile_required, false, "canonical readiness must accept a persisted true-like value");
   assert.equal(connection.queries.some((entry) => /INSERT INTO brands/.test(entry.sql)), false, "idempotent retry must not create another global brand row");
   assert.equal(connection.queries.some((entry) => /INSERT INTO workspace_resource_grants/.test(entry.sql)), true, "idempotent retry must repair creator grant if needed");
 }
@@ -127,8 +128,9 @@ assert.match(tenantABrandKey, /^workspace_brand_[a-f0-9]{32}$/);
   const connection = buildConnection({ authorityRows: [] });
   await assert.rejects(
     () => createWorkspaceBrand(connection, { tenantId: "tenant-a", actorUserId: "user-a", displayName: "Acme Travel" }),
-    (error) => error?.code === "workspace_owner_authority_invalid"
+    (error) => error?.code === "active_membership_required"
   );
+  assert.equal(connection.queries.length, 1, "missing membership must fail before brand/link/grant queries");
 }
 
 for (const invalidName of ["", " ", "x", "x".repeat(256)]) {
