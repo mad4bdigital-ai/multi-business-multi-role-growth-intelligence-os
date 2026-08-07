@@ -43,15 +43,22 @@ assert.match(workflow, /sprint69-1043-readback-certify\.mjs/);
 for (const text of [runner, workflow]) {
   assert.doesNotMatch(text, /APPLY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE/);
   assert.doesNotMatch(text, /name:\s*['"]governed_migration_execute['"]/);
-  assert.doesNotMatch(text, /mode:\s*['"]apply['"]/);
   assert.doesNotMatch(text, /capability_resolution_envelope_(?:create|approve|apply_authorize)/);
 }
+assert.doesNotMatch(workflow, /mode:\s*['"]apply['"]/);
+
+const governedToolCalls = [...runner.matchAll(/requestRaw\('\/gpt\/tools\/call',\s*\{([\s\S]*?)\n\s*\}\);/g)]
+  .map((match) => match[1]);
+assert.equal(governedToolCalls.length, 1, 'Readback certifier must expose exactly one governed tool call.');
+assert.match(governedToolCalls[0], /name:\s*['"]governed_migration_schema_readback['"]/);
+assert.doesNotMatch(governedToolCalls[0], /mode:\s*['"]apply['"]/);
 
 assert.match(runner, /name: 'governed_migration_schema_readback'/);
 assert.match(runner, /readback\?\.schema\?\.tables/);
 assert.match(runner, /readback\?\.expectations\?\.missing\?\.tables/);
 assert.match(runner, /row\?\.TABLE_NAME/);
 assert.doesNotMatch(runner, /readback\?\.tables/);
+assert.match(runner, /String\(ledger\?\.mode \|\| ''\)\.toLowerCase\(\) === 'apply'/);
 assert.match(runner, /import \{ buildAdminControlDbReadRequest \} from '\.\/lib\/admin-control-db-request\.mjs';/);
 assert.match(runner, /buildAdminControlDbReadRequest\(\{[\s\S]*?sql,[\s\S]*?params,[\s\S]*?maxRows: 20,[\s\S]*?authorityContext:/);
 assert.doesNotMatch(runner, /tool:\s*['"]db['"]/);
@@ -84,6 +91,7 @@ console.log(JSON.stringify({
   readback_only: true,
   canonical_schema_shape: 'schema.tables[].TABLE_NAME',
   canonical_admin_db_builder: true,
+  historical_apply_ledger_is_read_only_evidence: true,
   apply_capability_present: false,
   secrets_included: false,
 }, null, 2));
