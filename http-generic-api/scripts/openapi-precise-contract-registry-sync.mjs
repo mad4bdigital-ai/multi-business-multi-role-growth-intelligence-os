@@ -94,7 +94,7 @@ function normalizePath(routePath) {
   let value = String(routePath || "").trim();
   if (!value || value === "/") return "/";
   if (!value.startsWith("/")) value = `/${value}`;
-  return value.replace(/:([A-Za-z0-9_]+)/g, "{$1").replace(/\/+/g, "/").replace(/\/$/, "") || "/";
+  return value.replace(/:([A-Za-z0-9_]+)/g, "{$1}").replace(/\/+/g, "/").replace(/\/$/, "") || "/";
 }
 
 function normalizeRegistry(input) {
