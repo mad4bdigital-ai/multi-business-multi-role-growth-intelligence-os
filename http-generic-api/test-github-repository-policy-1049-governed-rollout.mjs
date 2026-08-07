@@ -53,15 +53,20 @@ assert.ok(publisherWorkflow.includes('migration-1049-readiness-issue-publisher.m
 for (const expected of [
   "const EXPECTED_WORKFLOW = 'Governed Migration 1049 GitHub Repository Policy Rollout'",
   'const ISSUE = Number(process.env.CONTROL_ISSUE || 6612)',
+  "const EXPECTED_SOURCE_MERGE_SHA = 'f3f98374a8207c6106aea8a6a334e38101defed1'",
   "const READY_PREFIX = 'GITHUB_REPOSITORY_POLICY_1049_READINESS result=pass '",
   "sourceRun?.event, 'issue_comment'",
   "sourceRun?.conclusion, 'success'",
   "summary?.result, 'ready_for_apply'",
   "summary?.authorization, 'pass'",
   "summary?.dry_run, 'pass'",
+  "summary?.source_merge_status",
+  'source_merge=${EXPECTED_SOURCE_MERGE_SHA}',
   "method: 'POST'",
   'issues/${ISSUE}/comments',
   "action: 'unchanged'",
 ]) assert.ok(publisher.includes(expected), `Migration 1049 publisher missing ${expected}`);
+
+assert.ok(!publisher.includes('summary?.source_merge_sha'), 'Trusted publisher must not depend on an optional source_merge_sha field from readiness summary');
 
 console.log('PASS governed Migration 1049 repository-policy rollout contract');
