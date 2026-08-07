@@ -1,0 +1,345 @@
+--- a/.github/workflows/single-owner-review-gate.yml
++++ b/.github/workflows/single-owner-review-gate.yml
+@@ -1,7 +1,7 @@
+ name: Single Owner Review Gate
+ 
+ on:
+-  pull_request:
++  pull_request_target:
+     branches: [main]
+     types: [opened, reopened, synchronize, ready_for_review]
+   pull_request_review:
+@@ -23,7 +23,7 @@
+     steps:
+       - uses: actions/checkout@v5
+         with:
+-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
++          ref: main
+           fetch-depth: 1
+       - uses: actions/setup-node@v6
+         with:
+--- a/http-generic-api/githubRepositoryPolicyController.js
++++ b/http-generic-api/githubRepositoryPolicyController.js
+@@ -305,14 +305,15 @@
+ }
+ 
+ function eligibleHumanCollaborators(readback = {}) {
+-  return (Array.isArray(readback?.direct_collaborators) ? readback.direct_collaborators : []).filter((item) =>
++  const collaborators = Array.isArray(readback?.collaborators) ? readback.collaborators : readback?.direct_collaborators;
++  return (Array.isArray(collaborators) ? collaborators : []).filter((item) =>
+     item?.type === "User" && ["write", "maintain", "admin"].includes(compact(item?.permission || item?.role_name || "", 32).toLowerCase())
+   );
+ }
+ 
+ function singleOwnerModeEligible(readback = {}, target = {}) {
+   const eligible = eligibleHumanCollaborators(readback);
+-  return eligible.length === 1 && eligible[0].login === target.owner;
++  return readback?.proof?.collaborator_ownership_complete === true && eligible.length === 1;
+ }
+ 
+ function resolveSingleOwnerMode(args = {}, readback = null, target = {}) {
+@@ -425,6 +426,25 @@
+   return details;
+ }
+ 
++async function readAllCollaborators({ owner, repo, token, fetchImpl }) {
++  const items = [];
++  for (let page = 1; page <= 10; page += 1) {
++    const result = await githubRequest({
++      apiPath: `/repos/${encode(owner)}/${encode(repo)}/collaborators?affiliation=all&per_page=100&page=${page}`,
++      token,
++      fetchImpl,
++    });
++    if (!result.ok || !Array.isArray(result.payload)) {
++      return { ok: false, status: result.status, payload: [], complete: false };
++    }
++    items.push(...result.payload);
++    if (result.payload.length < 100) {
++      return { ok: true, status: result.status, payload: items, complete: true };
++    }
++  }
++  return { ok: false, status: 409, payload: [], complete: false };
++}
++
+ async function readCollaboratorPermissions({ owner, repo, collaborators, token, fetchImpl }) {
+   const output = [];
+   for (const collaborator of Array.isArray(collaborators) ? collaborators : []) {
+@@ -459,7 +479,7 @@
+     githubRequest({ apiPath: `${base}/rules/branches/${encode(target.default_branch)}`, token, fetchImpl }),
+     githubRequest({ apiPath: `${base}/rulesets?includes_parents=true&per_page=100`, token, fetchImpl }),
+     githubRequest({ apiPath: `${base}/branches/${encode(target.default_branch)}/protection`, token, fetchImpl }),
+-    githubRequest({ apiPath: `${base}/collaborators?affiliation=direct&per_page=100`, token, fetchImpl }),
++    readAllCollaborators({ owner: target.owner, repo: target.repo, token, fetchImpl }),
+   ]);
+ 
+   const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);
+@@ -472,13 +492,22 @@
+     && indexedRulesetIds.length === rulesetIndex.length
+     && rulesetDetails.length === indexedRulesetIds.length
+     && rulesetDetails.every((item) => item.status === 200 && item.detail);
+-  const collaboratorPermissions = collaborators.ok
++  const collaboratorPermissions = collaborators.ok && collaborators.complete === true
+     ? await readCollaboratorPermissions({ owner: target.owner, repo: target.repo, collaborators: collaborators.payload, token, fetchImpl })
+     : [];
+-  const eligibleHumans = collaboratorPermissions.filter((item) =>
+-    item?.type === "User" && ["write", "maintain", "admin"].includes(compact(item?.permission || item?.role_name || "", 32).toLowerCase())
+-  );
+-  const singleOwnerEligible = eligibleHumans.length === 1 && eligibleHumans[0].login === target.owner;
++  const collaboratorPermissionsReadable = collaborators.ok
++    && collaborators.complete === true
++    && Array.isArray(collaborators.payload)
++    && collaboratorPermissions.length === collaborators.payload.length
++    && collaboratorPermissions.every((item) =>
++      item?.status === 200 && Boolean(compact(item?.permission || item?.role_name || "", 32))
++    );
++  const eligibleHumans = collaboratorPermissionsReadable
++    ? collaboratorPermissions.filter((item) =>
++      item?.type === "User" && ["write", "maintain", "admin"].includes(compact(item?.permission || item?.role_name || "", 32).toLowerCase())
++    )
++    : [];
++  const singleOwnerEligible = collaboratorPermissionsReadable && eligibleHumans.length === 1;
+ 
+   const config = resolveGitHubAppConfig(args.action || {});
+   const finalizerAppId = /^\d+$/.test(String(config.appId || "")) ? Number(config.appId) : null;
+@@ -545,6 +574,7 @@
+ 
+   const proof = {
+     policy_state_readable: protectionReadable,
++    collaborator_ownership_complete: collaboratorPermissionsReadable,
+     ruleset_details_readable: rulesetDetailsReadable,
+     required_reviews_proven: requiredReviewCount >= 1 || singleOwnerModeObserved,
+     required_approving_review_count: requiredReviewCount,
+@@ -565,6 +595,7 @@
+ 
+   const findings = [];
+   if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
++  if (!proof.collaborator_ownership_complete) findings.push("collaborator_ownership_incomplete");
+   if (!proof.ruleset_details_readable) findings.push("ruleset_details_unreadable");
+   if (!proof.required_reviews_proven) findings.push("required_review_missing");
+   if (!proof.dismiss_stale_reviews_proven) findings.push("stale_review_dismissal_missing");
+@@ -600,6 +631,7 @@
+     repository_managed_ruleset_count: repositoryManagedRulesets.length,
+     active_managed_ruleset_count: activeManagedRulesets.length,
+     bypass_actors: allBypassActors,
++    collaborators: collaboratorPermissions,
+     direct_collaborators: collaboratorPermissions,
+     eligible_human_collaborators: eligibleHumans,
+     single_owner_mode_eligible: singleOwnerEligible,
+@@ -634,7 +666,7 @@
+   }
+   const singleOwnerMode = resolveSingleOwnerMode(args, readback, target);
+   if (bool(args.single_owner_mode) && !singleOwnerModeEligible(readback || {}, target)) {
+-    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "single_owner_mode requires exactly one eligible human collaborator and that collaborator must be the repository owner.", {
++    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "single_owner_mode requires complete collaborator permission proof and exactly one eligible human collaborator.", {
+       eligible_human_collaborators: eligibleHumanCollaborators(readback || {}).map((item) => ({ login: item.login, permission: item.permission, role_name: item.role_name })),
+       secrets_included: false,
+     });
+@@ -826,7 +858,7 @@
+     throw controllerError(409, "github_repository_policy_managed_ruleset_not_repository_owned", "The matching managed Ruleset is inherited and cannot be mutated by the repository controller.");
+   }
+   if (plan.review_policy_mode === "single_owner_attestation" && plan.preconditions.review_policy_mode_eligible !== true) {
+-    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "Single-owner policy apply is blocked because the live collaborator readback does not prove exactly one eligible owner.");
++    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "Single-owner policy apply is blocked because the live collaborator readback does not prove exactly one eligible human collaborator.");
+   }
+   if (!preReadback.proof.auto_merge_disabled || !preReadback.proof.merge_queue_disabled_or_equivalent) {
+     throw controllerError(409, "github_repository_policy_alternate_merge_path_blocked", "Auto-merge or merge queue must be disabled before applying the governed policy.");
+--- a/http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql
++++ b/http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql
+@@ -24,7 +24,7 @@
+       CASE WHEN JSON_VALID(input_schema) THEN input_schema ELSE JSON_OBJECT() END,
+       '$.properties.single_owner_mode',JSON_OBJECT(
+         'type','boolean',
+-        'description','Optional explicit request; succeeds only when live collaborator readback proves exactly one eligible human and that human is the repository owner.'
++        'description','Optional explicit request; succeeds only when live collaborator readback proves complete permissions and exactly one eligible human collaborator.'
+       )
+     ),
+     description=CONCAT(
+--- a/http-generic-api/scripts/single-owner-review-gate.mjs
++++ b/http-generic-api/scripts/single-owner-review-gate.mjs
+@@ -42,7 +42,7 @@
+       reviewer: approval?.login || null,
+     };
+   }
+-  const singleOwnerEligible = eligible.length === 1 && eligible[0].login === author && author === owner;
++  const singleOwnerEligible = eligible.length === 1 && eligible[0].login === author;
+   if (!singleOwnerEligible) {
+     return { ok: false, mode: "blocked", reason: "single_owner_eligibility_not_proven", eligible_humans: eligible, reviewer: null };
+   }
+@@ -84,9 +84,9 @@
+     const batch = await api(`${url}${separator}per_page=100&page=${page}`, token);
+     if (!Array.isArray(batch)) throw new Error(`Expected array from ${url}`);
+     items.push(...batch);
+-    if (batch.length < 100) break;
++    if (batch.length < 100) return items;
+   }
+-  return items;
++  throw new Error(`Pagination safety bound exceeded for ${url}`);
+ }
+ 
+ async function publishCheck({ apiBase, repo, token, headSha, conclusion, summary }) {
+@@ -117,7 +117,7 @@
+     return;
+   }
+   const [collaborators, reviews] = await Promise.all([
+-    listAll(`${apiBase}/repos/${repo}/collaborators?affiliation=direct`, token),
++    listAll(`${apiBase}/repos/${repo}/collaborators?affiliation=all`, token),
+     listAll(`${apiBase}/repos/${repo}/pulls/${prNumber}/reviews`, token),
+   ]);
+   const result = evaluateReviewGate({
+--- a/http-generic-api/test-github-repository-policy-controller.mjs
++++ b/http-generic-api/test-github-repository-policy-controller.mjs
+@@ -10,6 +10,7 @@
+ } from "./githubRepositoryPolicyController.js";
+ 
+ const OWNER = "mad4bdigital-ai";
++const SOLE_HUMAN = "repository-owner";
+ const REPO = "multi-business-multi-role-growth-intelligence-os";
+ const MAIN_SHA = "a".repeat(40);
+ const STALE_SHA = "b".repeat(40);
+@@ -77,6 +78,7 @@
+   repositoryPayload = undefined,
+   branchPayload = undefined,
+   rulesetDetailStatus = 200,
++  collaboratorPermissionStatus = 200,
+ } = {}) {
+   const state = {
+     ruleset: initialRuleset,
+@@ -111,10 +113,15 @@
+         : response(classicStatus, { message: classicStatus === 403 ? "Resource not accessible by integration" : "unexpected" });
+     }
+     if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") {
+-      return response(200, [{ login: OWNER, type: "User" }]);
+-    }
+-    if (path === `/repos/${OWNER}/${REPO}/collaborators/${OWNER}/permission` && method === "GET") {
+-      return response(200, { permission: "admin", role_name: "admin" });
++      assert.equal(parsed.searchParams.get("affiliation"), "all");
++      assert.equal(parsed.searchParams.get("per_page"), "100");
++      assert.ok(Number(parsed.searchParams.get("page")) >= 1);
++      return response(200, [{ login: SOLE_HUMAN, type: "User" }]);
++    }
++    if (path === `/repos/${OWNER}/${REPO}/collaborators/${SOLE_HUMAN}/permission` && method === "GET") {
++      return collaboratorPermissionStatus === 200
++        ? response(200, { permission: "admin", role_name: "admin" })
++        : response(collaboratorPermissionStatus, { message: "permission unavailable" });
+     }
+     if (path === `/repos/${OWNER}/${REPO}/rulesets/42` && method === "GET") {
+       if (!state.ruleset) return response(404, { message: "Not Found" });
+@@ -285,6 +292,19 @@
+   }
+ 
+   {
++    const mock = createGithubFetch({ collaboratorPermissionStatus: 403 });
++    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
++    assert.equal(readback.proof.collaborator_ownership_complete, false);
++    assert.equal(readback.single_owner_mode_eligible, false);
++    assert.ok(readback.findings.includes("collaborator_ownership_incomplete"));
++    const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
++    assert.equal(plan.review_policy_mode, "independent_approval");
++    const pullRequest = plan.desired_ruleset.rules.find((rule) => rule.type === "pull_request").parameters;
++    assert.equal(pullRequest.required_approving_review_count, 1);
++    assert.equal(pullRequest.require_last_push_approval, true);
++  }
++
++  {
+     let fetchCalls = 0;
+     let authorizeCalls = 0;
+     const fetchImpl = async () => { fetchCalls += 1; throw new Error("network should not be reached"); };
+--- a/http-generic-api/test-single-owner-review-gate.mjs
++++ b/http-generic-api/test-single-owner-review-gate.mjs
+@@ -1,18 +1,20 @@
+ import assert from "node:assert/strict";
++import fs from "node:fs";
+ import { evaluateReviewGate } from "./scripts/single-owner-review-gate.mjs";
+ 
+ const sha = "a".repeat(40);
+ const owner = "mad4bdigital-ai";
+-const admin = { login: owner, type: "User", permissions: { admin: true, maintain: true, push: true } };
++const soleHuman = "repository-owner";
++const admin = { login: soleHuman, type: "User", permissions: { admin: true, maintain: true, push: true } };
+ 
+ {
+   const result = evaluateReviewGate({
+     owner,
+-    author: owner,
++    author: soleHuman,
+     headSha: sha,
+     collaborators: [admin],
+     reviews: [{
+-      user: { login: owner },
++      user: { login: soleHuman },
+       state: "COMMENTED",
+       commit_id: sha,
+       submitted_at: "2026-08-07T00:00:00Z",
+@@ -26,11 +28,11 @@
+ {
+   const result = evaluateReviewGate({
+     owner,
+-    author: owner,
++    author: soleHuman,
+     headSha: sha,
+     collaborators: [admin],
+     reviews: [{
+-      user: { login: owner },
++      user: { login: soleHuman },
+       state: "COMMENTED",
+       commit_id: "b".repeat(40),
+       submitted_at: "2026-08-07T00:00:00Z",
+@@ -44,11 +46,11 @@
+   const reviewer = { login: "reviewer", type: "User", permissions: { push: true } };
+   const result = evaluateReviewGate({
+     owner,
+-    author: owner,
++    author: soleHuman,
+     headSha: sha,
+     collaborators: [admin, reviewer],
+     reviews: [{
+-      user: { login: owner },
++      user: { login: soleHuman },
+       state: "COMMENTED",
+       commit_id: sha,
+       submitted_at: "2026-08-07T00:00:00Z",
+@@ -63,7 +65,7 @@
+   const reviewer = { login: "reviewer", type: "User", permissions: { push: true } };
+   const result = evaluateReviewGate({
+     owner,
+-    author: owner,
++    author: soleHuman,
+     headSha: sha,
+     collaborators: [admin, reviewer],
+     reviews: [{
+@@ -78,4 +80,35 @@
+   assert.equal(result.mode, "independent_approval");
+ }
+ 
++
++{
++  const result = evaluateReviewGate({
++    owner,
++    author: "automation-bot",
++    headSha: sha,
++    collaborators: [admin],
++    reviews: [{
++      user: { login: soleHuman },
++      state: "APPROVED",
++      commit_id: sha,
++      submitted_at: "2026-08-07T00:00:00Z",
++      body: "approved",
++    }],
++  });
++  assert.equal(result.ok, true);
++  assert.equal(result.mode, "independent_approval");
++}
++
++{
++  const gateSource = fs.readFileSync(new URL("./scripts/single-owner-review-gate.mjs", import.meta.url), "utf8");
++  const workflowSource = fs.readFileSync(new URL("../.github/workflows/single-owner-review-gate.yml", import.meta.url), "utf8");
++  assert.match(gateSource, /collaborators\?affiliation=all/);
++  assert.doesNotMatch(gateSource, /collaborators\?affiliation=direct/);
++  assert.match(gateSource, /Pagination safety bound exceeded/);
++  assert.match(workflowSource, /pull_request_target:/);
++  assert.doesNotMatch(workflowSource, /^  pull_request:/m);
++  assert.match(workflowSource, /ref: main/);
++  assert.doesNotMatch(workflowSource, /pull_request\.head\.sha \|\| github\.sha/);
++}
++
+ console.log(JSON.stringify({ ok: true, test: "single_owner_review_gate", secrets_included: false }));
