@@ -44,9 +44,20 @@ PREPARE wa_source_ref_stmt FROM @wa_source_ref_sql;
 EXECUTE wa_source_ref_stmt;
 DEALLOCATE PREPARE wa_source_ref_stmt;
 
+SET @wa_source_ref_sha_sql := (
+  SELECT CASE WHEN COUNT(*) = 0
+    THEN 'ALTER TABLE workspace_assets ADD COLUMN source_ref_sha256 CHAR(64) NULL AFTER source_ref'
+    ELSE 'SELECT 1 AS workspace_asset_source_ref_sha256_present' END
+  FROM information_schema.columns
+  WHERE table_schema = DATABASE() AND table_name = 'workspace_assets' AND column_name = 'source_ref_sha256'
+);
+PREPARE wa_source_ref_sha_stmt FROM @wa_source_ref_sha_sql;
+EXECUTE wa_source_ref_sha_stmt;
+DEALLOCATE PREPARE wa_source_ref_sha_stmt;
+
 SET @wa_source_revision_sql := (
   SELECT CASE WHEN COUNT(*) = 0
-    THEN 'ALTER TABLE workspace_assets ADD COLUMN source_revision VARCHAR(191) NULL AFTER source_ref'
+    THEN 'ALTER TABLE workspace_assets ADD COLUMN source_revision VARCHAR(191) NULL AFTER source_ref_sha256'
     ELSE 'SELECT 1 AS workspace_asset_source_revision_present' END
   FROM information_schema.columns
   WHERE table_schema = DATABASE() AND table_name = 'workspace_assets' AND column_name = 'source_revision'
@@ -101,7 +112,7 @@ DEALLOCATE PREPARE wa_content_sha_stmt;
 
 SET @wa_provenance_index_sql := (
   SELECT CASE WHEN COUNT(*) = 0
-    THEN 'ALTER TABLE workspace_assets ADD UNIQUE KEY uq_workspace_asset_provenance (tenant_id, brand_ref, source_type, source_ref)'
+    THEN 'ALTER TABLE workspace_assets ADD UNIQUE KEY uq_workspace_asset_provenance (tenant_id, brand_ref(96), source_type, source_ref_sha256)'
     ELSE 'SELECT 1 AS workspace_asset_provenance_index_present' END
   FROM information_schema.statistics
   WHERE table_schema = DATABASE() AND table_name = 'workspace_assets' AND index_name = 'uq_workspace_asset_provenance'
@@ -124,9 +135,9 @@ DEALLOCATE PREPARE wa_content_index_stmt;
 CREATE OR REPLACE VIEW v_workspace_asset_provenance_schema_readiness AS
 SELECT
   'workspace_asset_provenance_v1' AS contract_key,
-  8 AS required_column_count,
+  9 AS required_column_count,
   metrics.present_column_count,
-  CASE WHEN metrics.present_column_count = 8 AND metrics.provenance_index_count = 1
+  CASE WHEN metrics.present_column_count = 9 AND metrics.provenance_index_count = 1
        THEN 'ready' ELSE 'blocked' END AS readiness_status,
   metrics.provenance_index_count,
   metrics.content_index_count,
@@ -140,7 +151,7 @@ FROM (
     (SELECT COUNT(*) FROM information_schema.columns
       WHERE table_schema = DATABASE() AND table_name = 'workspace_assets'
         AND column_name IN (
-          'workspace_id','source_type','source_ref','source_revision','source_updated_at',
+          'workspace_id','source_type','source_ref','source_ref_sha256','source_revision','source_updated_at',
           'source_validation_status','provenance_sha256','content_sha256'
         )) AS present_column_count,
     (SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
