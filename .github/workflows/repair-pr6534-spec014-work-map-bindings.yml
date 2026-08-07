@@ -28,7 +28,7 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Refresh bounded canonical bindings
+      - name: Refresh final exact-head Work Maps and Spec014 bindings
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_BRANCH: gpt/migration-1048-governed-rollout-20260807
@@ -42,47 +42,58 @@ jobs:
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
           test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
 
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --write
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --write
+          # The one-shot repair workflow is itself a Work Map source. Remove the
+          # temporary writer and trigger from the worktree before generating the
+          # canonical final-head maps so their fingerprints cannot become stale
+          # immediately after the repair commit deletes these files.
+          rm -f "$WORKFLOW_FILE" "$TRIGGER_FILE"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --write
+
+          # Converge once more in case refreshed Spec014 metadata participates in
+          # any generated source set, then prove idempotent final state.
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
 
           mapfile -t CHANGED < <(git status --short | sed -E 's/^.. //' | sort)
-          ALLOWED=(
-            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
-            "specs/014-governed-hostinger-storage-orchestration/tasks.md"
-            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
-          )
+          test "${#CHANGED[@]}" -gt 0
           for file in "${CHANGED[@]}"; do
-            allowed=false
-            for candidate in "${ALLOWED[@]}"; do
-              if [[ "$file" == "$candidate" ]]; then allowed=true; break; fi
-            done
-            if [[ "$allowed" != true ]]; then
-              echo "Unexpected producer write: $file"
-              exit 1
-            fi
+            case "$file" in
+              "$WORKFLOW_FILE"|"$TRIGGER_FILE"|docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json)
+                ;;
+              *)
+                echo "Unexpected repair write: $file"
+                exit 1
+                ;;
+            esac
           done
-          git status --short | grep -Fq "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
-          git status --short | grep -Fq "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
 
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
-          node scripts/spec-kit-work-map-generator.mjs --check
+          git status --short | grep -Fq "$WORKFLOW_FILE"
+          git status --short | grep -Fq "$TRIGGER_FILE"
 
-          rm -f "$WORKFLOW_FILE" "$TRIGGER_FILE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- \
             "$WORKFLOW_FILE" \
             "$TRIGGER_FILE" \
+            docs/work-maps \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-governed-hostinger-storage-orchestration/tasks.md \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-          git commit -m "fix(spec014): refresh final Work Map bindings for PR 6534"
+          git diff --cached --quiet && { echo "Repair produced no staged change"; exit 1; }
+          git commit -m "fix(spec014): converge final Work Map bindings for PR 6534"
           NEW_HEAD="$(git rev-parse HEAD)"
 
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
-          node scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
-          node scripts/spec-kit-work-map-generator.mjs --check
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          git status --porcelain | test "$(wc -l)" -eq 0
 
           git fetch origin "${EXPECTED_BRANCH}"
           test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
