@@ -12,6 +12,7 @@
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/test-workspace-brand-create.mjs",
       "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+      "http-generic-api/test-frontend-operation-governance-generator.mjs",
       "http-generic-api/frontend-operation-governance-tests.json",
       "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
       "http-generic-api/frontend-operation-governance.generated.json",
@@ -45,6 +46,7 @@
             "Read back tenant link, Brand Workspace, and creator grant before commit and roll back on mutation or readback failure.",
             "Register exact frontend operation evidence for POST /me/workspaces/{tenant_id}/brands.",
             "Generate the Brand Create state_change rule only when route, runtime auth, transaction, locked owner authority, canonical identity, tenant link, Brand Workspace, creator grant, no-secret response, and registered operation test evidence all pass.",
+            "Run the governance-generator regression that proves Brand Create is emitted only when evidence is complete and is rejected when owner/test evidence disappears.",
             "Require generated operation governance, frontend dispatch, and runtime route evidence to match the final source tree."
           ],
           "assertions": [
@@ -74,6 +76,13 @@
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create-operation-governance.mjs",
               "args": []
+            },
+            {
+              "id": "frontend-operation-governance-generator-brand-extension",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -82,6 +91,7 @@
             "http-generic-api/workspaceBrandLifecycle.js",
             "http-generic-api/test-workspace-brand-create.mjs",
             "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+            "http-generic-api/test-frontend-operation-governance-generator.mjs",
             "http-generic-api/frontend-operation-governance-tests.json",
             "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
             "http-generic-api/frontend-operation-governance.generated.json",
