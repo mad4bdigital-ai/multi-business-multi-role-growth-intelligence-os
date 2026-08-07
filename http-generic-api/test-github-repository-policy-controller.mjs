@@ -10,6 +10,7 @@ import {
 } from "./githubRepositoryPolicyController.js";
 
 const OWNER = "mad4bdigital-ai";
+const SOLE_HUMAN = "repository-owner";
 const REPO = "multi-business-multi-role-growth-intelligence-os";
 const MAIN_SHA = "a".repeat(40);
 const STALE_SHA = "b".repeat(40);
@@ -77,6 +78,7 @@ function createGithubFetch({
   repositoryPayload = undefined,
   branchPayload = undefined,
   rulesetDetailStatus = 200,
+  collaboratorPermissionStatus = 200,
 } = {}) {
   const state = {
     ruleset: initialRuleset,
@@ -111,10 +113,15 @@ function createGithubFetch({
         : response(classicStatus, { message: classicStatus === 403 ? "Resource not accessible by integration" : "unexpected" });
     }
     if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") {
-      return response(200, [{ login: OWNER, type: "User" }]);
+      assert.equal(parsed.searchParams.get("affiliation"), "all");
+      assert.equal(parsed.searchParams.get("per_page"), "100");
+      assert.ok(Number(parsed.searchParams.get("page")) >= 1);
+      return response(200, [{ login: SOLE_HUMAN, type: "User" }]);
     }
-    if (path === `/repos/${OWNER}/${REPO}/collaborators/${OWNER}/permission` && method === "GET") {
-      return response(200, { permission: "admin", role_name: "admin" });
+    if (path === `/repos/${OWNER}/${REPO}/collaborators/${SOLE_HUMAN}/permission` && method === "GET") {
+      return collaboratorPermissionStatus === 200
+        ? response(200, { permission: "admin", role_name: "admin" })
+        : response(collaboratorPermissionStatus, { message: "permission unavailable" });
     }
     if (path === `/repos/${OWNER}/${REPO}/rulesets/42` && method === "GET") {
       if (!state.ruleset) return response(404, { message: "Not Found" });
@@ -269,14 +276,32 @@ try {
     );
     assert.equal(first.desired_ruleset.bypass_actors.length, 0);
     assert.equal(first.desired_ruleset.rules.some((rule) => rule.type === "non_fast_forward"), true);
+    assert.equal(first.review_policy_mode, "single_owner_attestation");
+    const singleOwnerPullRequest = first.desired_ruleset.rules.find((rule) => rule.type === "pull_request").parameters;
+    assert.equal(singleOwnerPullRequest.required_approving_review_count, 0);
+    assert.equal(singleOwnerPullRequest.require_last_push_approval, false);
+    assert.ok(GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS.includes("Single Owner Review Gate"));
     assert.throws(
-      () => buildGithubRepositoryPolicyPlan({ required_approving_review_count: 0 }, readback),
+      () => buildGithubRepositoryPolicyPlan({ single_owner_mode: false, required_approving_review_count: 0 }, readback),
       (error) => error?.code === "github_repository_policy_unsafe_override_rejected"
     );
     assert.throws(
       () => buildGithubRepositoryPolicyPlan({ required_checks: ["Syntax Check"] }, readback),
       (error) => error?.code === "github_repository_policy_required_checks_invalid"
     );
+  }
+
+  {
+    const mock = createGithubFetch({ collaboratorPermissionStatus: 403 });
+    const readback = await readGithubRepositoryPolicy({ owner: OWNER, repo: REPO }, controllerDeps(mock.fetchImpl));
+    assert.equal(readback.proof.collaborator_ownership_complete, false);
+    assert.equal(readback.single_owner_mode_eligible, false);
+    assert.ok(readback.findings.includes("collaborator_ownership_incomplete"));
+    const plan = buildGithubRepositoryPolicyPlan({ owner: OWNER, repo: REPO }, readback);
+    assert.equal(plan.review_policy_mode, "independent_approval");
+    const pullRequest = plan.desired_ruleset.rules.find((rule) => rule.type === "pull_request").parameters;
+    assert.equal(pullRequest.required_approving_review_count, 1);
+    assert.equal(pullRequest.require_last_push_approval, true);
   }
 
   {
