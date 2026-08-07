@@ -7,12 +7,14 @@ import { fileURLToPath } from 'node:url';
 const API_DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(API_DIR, '..');
 const RUNNER_PATH = path.join(ROOT, '.github/ops/sprint69-1043-readback-certify.mjs');
+const BUILDER_PATH = path.join(ROOT, '.github/ops/lib/admin-control-db-request.mjs');
 const WORKFLOW_PATH = path.join(ROOT, '.github/workflows/sprint69-1043-readback-certify.yml');
 const E2E_PATH = path.join(ROOT, '.changes/e2e/sprint69-1043-readback-certification.json');
 const CERTIFY_CONFIRM = 'CERTIFY_1043_SPRINT69_TENANT_MANAGED_EXECUTION_LIFECYCLE_READBACK';
 
-const [runner, workflow, e2eText] = await Promise.all([
+const [runner, builder, workflow, e2eText] = await Promise.all([
   fs.readFile(RUNNER_PATH, 'utf8'),
+  fs.readFile(BUILDER_PATH, 'utf8'),
   fs.readFile(WORKFLOW_PATH, 'utf8'),
   fs.readFile(E2E_PATH, 'utf8'),
 ]);
@@ -50,8 +52,13 @@ assert.match(runner, /readback\?\.schema\?\.tables/);
 assert.match(runner, /readback\?\.expectations\?\.missing\?\.tables/);
 assert.match(runner, /row\?\.TABLE_NAME/);
 assert.doesNotMatch(runner, /readback\?\.tables/);
-assert.match(runner, /tool: 'db',\s*action: 'run',\s*sql,/);
-assert.match(runner, /read_only: true/);
+assert.match(runner, /import \{ buildAdminControlDbReadRequest \} from '\.\/lib\/admin-control-db-request\.mjs';/);
+assert.match(runner, /buildAdminControlDbReadRequest\(\{[\s\S]*?sql,[\s\S]*?params,[\s\S]*?maxRows: 20,[\s\S]*?authorityContext:/);
+assert.doesNotMatch(runner, /tool:\s*['"]db['"]/);
+assert.doesNotMatch(runner, /action:\s*['"]run['"]/);
+assert.match(builder, /\[contract\.request\.sql_field\]: sql/);
+assert.match(builder, /read_only: true/);
+assert.match(builder, /max_rows: maxRows/);
 assert.match(runner, /v_managed_execution_lifecycle_readiness/);
 assert.match(runner, /apply_sent: false/);
 assert.match(runner, /migration_apply_executed: false/);
@@ -76,6 +83,7 @@ console.log(JSON.stringify({
   issue: 4449,
   readback_only: true,
   canonical_schema_shape: 'schema.tables[].TABLE_NAME',
+  canonical_admin_db_builder: true,
   apply_capability_present: false,
   secrets_included: false,
 }, null, 2));
