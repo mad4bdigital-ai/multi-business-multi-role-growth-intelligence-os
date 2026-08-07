@@ -1,0 +1,121 @@
+name: Transport response reconciled generated refresh
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-20260806
+    paths:
+      - .github/workflows/transport-response-reconciled-generated-refresh.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: transport-response-reconciled-generated-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify bounded writer identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "fix/transport-response-schema-promotion-readiness-20260806"
+          test "$(git rev-parse HEAD^)" = "3e6de8829282a5922e795892fa05eb10f65f7bf7"
+          test "$(git rev-parse HEAD^2 2>/dev/null || true)" = ""
+          git merge-base --is-ancestor 4e4b1c7cf9567c8a2ce073a50773f3c71428a1b9 HEAD
+          git merge-base --is-ancestor a80360ef41b20a7c0480400725257bfa4b9983cf HEAD
+
+      - name: Restore transport readiness documentation on reconciled main
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const files = [
+            'Updating Registry Patch Index.md',
+            'deployment_parity_checklist.md',
+            'docs/ai-docs-agent-governance.md',
+            'docs/auto-docs-agent/README.md',
+            'docs/change-documentation-governance.md',
+          ];
+          const paragraph = '> Transport response-chunk schema recovery: `1048_transport_response_chunk_schema_recovery.sql` additively and idempotently creates or reconciles the sixteen runtime-required `governed_tool_response_chunks` columns, bounded owner/expiry indexes, and `v_governed_response_chunk_transport_schema_readiness`. It performs no provider call, credential payload read, raw-secret access, external send/write, deployment, runtime mutation, or destructive data operation and declares `secrets_included=false`. Repository merge is not migration-Apply authority; completion requires a separately authorized checksum-bound preflight/Apply and same-cycle readback proving `required_column_count=16`, `present_column_count=16`, and `readiness_status=ready` before Production runtime promotion.';
+          for (const file of files) {
+            let text = fs.readFileSync(file, 'utf8');
+            if (text.includes(paragraph)) continue;
+            const eol = text.includes('\r\n') ? '\r\n' : '\n';
+            const firstBreak = text.indexOf(eol);
+            if (firstBreak < 0) throw new Error(`Missing heading line in ${file}`);
+            text = `${text.slice(0, firstBreak + eol.length)}${eol}${paragraph}${eol}${eol}${text.slice(firstBreak + eol.length)}`;
+            fs.writeFileSync(file, text);
+          }
+          NODE
+
+      - name: Regenerate deterministic Surface Contract evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd http-generic-api
+          node scripts/surface-contract-discovery.mjs --write
+          node scripts/surface-contract-discovery.mjs --check
+          node test-transport-response-chunk-schema-recovery.mjs
+
+      - name: Regenerate deterministic Work Maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Enforce bounded generated diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          unexpected="$(git diff --name-only | grep -Ev '^(Updating Registry Patch Index\.md|deployment_parity_checklist\.md|docs/ai-docs-agent-governance\.md|docs/auto-docs-agent/README\.md|docs/change-documentation-governance\.md|docs/surface-contract-discovery-status\.(json|md)|docs/surface-contract-gap-queue\.(json|md)|docs/work-maps/.*)$' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "Unexpected generated changes outside bounded allowlist:"
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+          git diff --name-only
+
+      - name: Commit reconciled generated evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            'Updating Registry Patch Index.md' \
+            deployment_parity_checklist.md \
+            docs/ai-docs-agent-governance.md \
+            docs/auto-docs-agent/README.md \
+            docs/change-documentation-governance.md \
+            docs/surface-contract-discovery-status.json \
+            docs/surface-contract-discovery-status.md \
+            docs/surface-contract-gap-queue.json \
+            docs/surface-contract-gap-queue.md \
+            docs/work-maps
+          git diff --cached --quiet && { echo 'Expected reconciled generated changes were not produced.'; exit 1; }
+          git commit -m "chore(generated): refresh reconciled transport readiness evidence"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Remove one-time writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -- .github/workflows/transport-response-reconciled-generated-refresh.yml
+          git add -A -- .github/workflows/transport-response-reconciled-generated-refresh.yml
+          git commit -m "chore: remove one-time transport evidence writer"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
