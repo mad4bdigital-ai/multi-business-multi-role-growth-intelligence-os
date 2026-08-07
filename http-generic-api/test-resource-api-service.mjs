@@ -177,7 +177,6 @@ const tenantArchived = await service.tenantSetResourceLifecycle("tenant-1", "ass
 assert.equal(tenantArchived.data.lifecycle_status, "archived", "archive must return lifecycle readback");
 const tenantRestored = await service.tenantSetResourceLifecycle("tenant-1", "assets", "asset-owned", "active", ownerAuth);
 assert.equal(tenantRestored.data.lifecycle_status, "active", "restore must return lifecycle readback");
-
 const createRollbackRepository = failNextReadbackAfter(createFakeRepository(), "insertAsset");
 const createRollbackService = createResourceApiService({ repository: createRollbackRepository });
 await assert.rejects(
@@ -274,7 +273,7 @@ function createTransactionPool() {
     async query(sql, params = []) {
       calls.push(sql.trim().split(/\s+/).slice(0, 3).join(" "));
       if (sql.includes("FROM workspace_assets") && sql.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?")) {
-        return [[]];
+        return [persistedAsset ? [persistedAsset] : []];
       }
       if (sql.includes("INSERT INTO workspace_assets")) {
         persistedAsset = {
