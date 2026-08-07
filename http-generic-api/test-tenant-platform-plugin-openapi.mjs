@@ -37,4 +37,17 @@ assert(mainSchema.includes("target_authorization"), "main resolver response must
 assert(mainSchema.includes("target_reference_hash"), "main resolver must document hashed target evidence");
 assert(mainSchema.includes("security_alerts"), "main resolver must document temporary security alert evidence");
 
+assert(schema.includes("workspace_id"), "tenant resolver surface must expose exact workspace_id context");
+assert(mainSchema.includes("workspace_id"), "root OpenAPI must expose exact workspace_id context");
+assert(schema.includes("one-selector-workspace-v2"), "tenant resolver surface must expose the workspace-aware contract version");
+assert(mainSchema.includes("one-selector-workspace-v2"), "root OpenAPI must expose the workspace-aware contract version");
+assert(schema.includes("connection_ownership_resolution"), "tenant resolver must expose sanitized Context Kernel ownership evidence");
+assert(mainSchema.includes("connection_ownership_resolution"), "root resolver must expose sanitized Context Kernel ownership evidence");
+assert(schema.includes("brand_connections_included"), "tenant resolver must attest that Brand connections remain excluded");
+assert(mainSchema.includes("brand_connections_included"), "root resolver must attest that Brand connections remain excluded");
+assert(schema.includes("CONNECTION_OWNERSHIP_SCOPE_MISMATCH"), "tenant resolver must document the stable ownership scope mismatch denial");
+assert(mainSchema.includes("CONNECTION_OWNERSHIP_SCOPE_MISMATCH"), "root resolver must document the stable ownership scope mismatch denial");
+assert(mainSchema.includes("x-runtime-contract-source: routes/tenantPlatformPluginRoutes.js"), "root resolver must be source-bound to the tenant Platform Plugin route");
+assert(mainSchema.includes("x-contract-completeness: precise-runtime-contract"), "root resolver must be governed by the precise runtime contract");
+
 console.log("tenant platform plugin OpenAPI tests passed");
