@@ -1,0 +1,90 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-policy-idempotency-authority-binding",
+  "title": "Repository policy Apply idempotency and authority binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-policy-idempotency-authority-binding.json",
+      "http-generic-api/repositoryAutomationPolicyFacade.js",
+      "http-generic-api/test-repository-automation-policy-facade.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind repository-policy Apply plan identity and caller idempotency to the exact authority snapshot, while rejecting malformed or incomplete authority before persistence, provider readback, or mutation dispatch.",
+      "e2e_journeys": [
+        {
+          "id": "repository-policy-apply-authority-is-immutable-before-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authenticated platform Admin through repository automation",
+          "entrypoint": "Repository policy Apply through the operational repositoryAutomationPolicyFacade boundary.",
+          "terminal_outcome": "Apply identity changes when main SHA, policy fingerprint, capability envelope, typed confirmation, or caller retry identity changes; malformed authority fails before readback or provider access, while valid dry-run and mocked Apply behavior remain compatible.",
+          "steps": [
+            "Build an Apply plan using exact main SHA, exact policy fingerprint, typed confirmation, and capability-envelope identity.",
+            "Hash the authority inputs into a secret-free Apply binding and include it in plan identity.",
+            "Bind any caller-supplied idempotency key to the resulting plan SHA instead of accepting the caller key as the persisted identity directly.",
+            "Reject non-Admin Apply before returning authority-validation details.",
+            "Reject overlong SHA, fingerprint, missing envelope, overlong envelope, or invalid typed confirmation before persistence or provider readback.",
+            "Execute the focused facade regression to prove zero provider calls for invalid authority and compatibility for valid dry-run and mocked Apply."
+          ],
+          "assertions": [
+            "Different capability envelopes produce different plan identities without exposing the raw envelope ID.",
+            "Different expected main SHAs produce different plan identities.",
+            "The same caller retry key cannot collide across different authority-bound plans.",
+            "Expected main SHA is exactly 40 hexadecimal characters and expected policy fingerprint is exactly 64 hexadecimal characters for Apply.",
+            "Capability envelope identity is required, bounded to at most 64 characters, and rejected before readback when missing or overlong.",
+            "Non-Admin callers fail before authority-validation detail is disclosed.",
+            "Malformed Apply authority produces zero persistence/readback/provider calls in the focused regression.",
+            "Dry-run behavior remains non-mutating.",
+            "No raw capability-envelope identity, provider credential, secret, token, protected-ref mutation, deployment, database action, migration apply, external send, or force push is introduced.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "repository-policy-idempotency-authority-binding-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-policy-facade.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-policy-idempotency-authority-binding.json",
+            "http-generic-api/repositoryAutomationPolicyFacade.js",
+            "http-generic-api/test-repository-automation-policy-facade.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Preserve the same authority-bound idempotency identity in persisted operational evidence after separately authorized live repository-policy execution becomes available."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove retry and ambiguity recovery cannot reuse an Apply run across changed authority snapshots or capability envelopes."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This idempotency and authority-boundary correction has no Tenant, provider, or runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This helper grants no Production, deployment, live repository-policy apply, migration apply, database, credential, provider, protected-ref, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}
