@@ -110,6 +110,7 @@ function persistedAsset({
   brandRef = BRAND_KEY,
   checksum = CHECKSUM_A,
   sourceType = "import",
+  sourceRevision = "rev-7",
   lifecycleStatus = "active",
 } = {}) {
   return {
@@ -130,7 +131,7 @@ function persistedAsset({
       source_type: sourceType,
       source_provider: "google_drive",
       source_uri: "https://drive.google.com/file/d/drive-file-123",
-      source_revision: "rev-7",
+      source_revision: sourceRevision,
       content_sha256: checksum,
       content_identity: `sha256:${checksum}`,
       ingestion_mode: "import",
@@ -184,6 +185,20 @@ function persistedAsset({
 }
 
 {
+  const connection = buildConnection({
+    membershipRows: membership("member"),
+    grantRows: [
+      { grant_id: "grant-edit", permission: "edit", status: "active", expires_at: null },
+      { grant_id: "grant-admin", permission: "admin", status: "active", expires_at: null },
+    ],
+  });
+  const result = await createWorkspaceAsset(connection, request());
+  assert.equal(result.authority.permission, "admin", "multiple compatible Brand grants must resolve to highest authority, not fail as ambiguous");
+  assert.equal(result.authority.grant_id, "grant-admin");
+  assert.equal(result.authority.effective_grant_count, 2);
+}
+
+{
   const connection = buildConnection({ membershipRows: membership("member"), grantRows: [] });
   await assert.rejects(
     () => createWorkspaceAsset(connection, request()),
@@ -220,6 +235,14 @@ function persistedAsset({
 }
 
 {
+  const connection = buildConnection({ existingAsset: persistedAsset({ sourceRevision: "rev-old" }) });
+  await assert.rejects(
+    () => createWorkspaceAsset(connection, request()),
+    (error) => error?.code === "workspace_asset_identity_provenance_conflict"
+  );
+}
+
+{
   const connection = buildConnection({ existingAsset: persistedAsset({ lifecycleStatus: "deleted" }) });
   await assert.rejects(
     () => createWorkspaceAsset(connection, request()),
@@ -246,6 +269,24 @@ function persistedAsset({
 }
 
 {
+  const connection = buildConnection();
+  await assert.rejects(
+    () => createWorkspaceAsset(connection, request({ sourceUri: "https://example.com/file?access_token=secret-value" })),
+    (error) => error?.code === "workspace_asset_provenance_secret_material_forbidden"
+  );
+  assert.equal(connection.queries.length, 0, "secret-bearing provenance must fail before database access");
+}
+
+{
+  const connection = buildConnection();
+  await assert.rejects(
+    () => createWorkspaceAsset(connection, request({ assetRef: "https://example.com/file?signature=signed-secret" })),
+    (error) => error?.code === "workspace_asset_ref_secret_material_forbidden"
+  );
+  assert.equal(connection.queries.length, 0, "secret-bearing asset_ref must fail before database access");
+}
+
+{
   const connection = buildConnection({ vaultRows: [] });
   await assert.rejects(
     () => createWorkspaceAsset(connection, request({ vaultId: "vault-other" })),
@@ -263,5 +304,9 @@ assert.match(routeSource, /idempotent_reuse: !result\.created/);
 assert.match(routeSource, /await connection\.commit\(\)/);
 assert.match(routeSource, /await connection\.rollback\(\)/);
 assert.match(routeSource, /secrets_included: false/);
+assert.match(routeSource, /access_scope: ownerScoped \? "workspace_owner_admin" : "explicit_asset_or_brand_authority"/);
+assert.match(routeSource, /resource_type='asset'/);
+assert.match(routeSource, /resource_type='brand'/);
+assert.match(routeSource, /visibility <> 'private'/);
 
 console.log("workspace Brand Asset create tests passed");
