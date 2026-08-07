@@ -16,6 +16,7 @@
       ".github/workflows/production-certified-release-cut-validation.yml",
       "docs/governance/push-workflow-runner-context-registration.md",
       "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
       "docs/work-maps/README.md",
       "docs/work-maps/repository-automation-map.md"
@@ -177,6 +178,13 @@
               "args": []
             },
             {
+              "id": "reject-runner-context-and-automation-lifecycle-regression-production-promotion-convergence",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            },
+            {
               "id": "reject-runner-context-and-automation-lifecycle-regression-release-cut-registration",
               "runner": "node",
               "working_directory": ".",
@@ -197,6 +205,7 @@
             ".github/workflows/production-certified-release-cut-validation.yml",
             "docs/governance/push-workflow-runner-context-registration.md",
             "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
             "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
             "docs/work-maps/README.md",
             "docs/work-maps/repository-automation-map.md"
