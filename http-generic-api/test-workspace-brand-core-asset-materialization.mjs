@@ -9,6 +9,29 @@ const workspaceAssetFoundationSql = readFileSync(
 assert.match(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'external_ref'/, "Brand Core reference materialization must use a workspace_assets asset_type admitted by the canonical foundation schema");
 assert.doesNotMatch(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'brand_core'/, "tests must not rely on an undeclared brand_core workspace asset type");
 
+const containerFoundationSql = readFileSync(
+  new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql", import.meta.url),
+  "utf8"
+);
+assert.match(containerFoundationSql, /\('brand','Brand'.*JSON_ARRAY\('workspace'\)/, "Brand containers must remain children of Workspace containers");
+assert.match(containerFoundationSql, /\('contains','Contains','containment',1,1,1/, "contains must contribute to both ancestry and inheritance");
+
+function rootWorkspaceRow(overrides = {}) {
+  return [{
+    workspace_id: "workspace-root-a",
+    tenant_id: "tenant-a",
+    workspace_key: "workspace_root_a",
+    display_name: "Workspace A",
+    workspace_type: "workspace",
+    workspace_ownership_type: "company",
+    owner_user_id: null,
+    ownership_revision: 7,
+    bootstrap_status: "ready",
+    tenant_status: "active",
+    ...overrides,
+  }];
+}
+
 function canonicalBrandLink() {
   return [{
     tenant_id: "tenant-a",
@@ -26,14 +49,47 @@ function brandRow() {
   return [{ target_key: "brand-a", brand_name: "Brand A", normalized_brand_name: "brand a", status: "active" }];
 }
 
-function workspaceRow() {
+function brandWorkspaceRow(overrides = {}) {
   return [{
     workspace_id: "workspace-brand-a",
     tenant_id: "tenant-a",
     workspace_key: "brand_workspace_a",
     workspace_type: "brand",
+    workspace_ownership_type: null,
     bootstrap_status: "in_progress",
     linked_brand_key: "brand-a",
+    ...overrides,
+  }];
+}
+
+function brandTopologyRow(overrides = {}) {
+  return [{
+    brand_container_id: "container-brand-a",
+    brand_container_key: "brand:brand-a",
+    brand_subject_type: "brand_target_key",
+    brand_subject_ref: "brand-a",
+    workspace_container_id: "container-workspace-root-a",
+    workspace_container_key: "workspace_root_a",
+    workspace_subject_type: "workspace",
+    workspace_subject_ref: "workspace-root-a",
+    relationship_id: "relationship-root-a-brand-a",
+    relationship_type_key: "contains",
+    contributes_to_ancestry: 1,
+    contributes_to_inheritance: 1,
+    ...overrides,
+  }];
+}
+
+function closureRow(overrides = {}) {
+  return [{
+    tenant_id: "tenant-a",
+    ancestor_container_id: "container-workspace-root-a",
+    descendant_container_id: "container-brand-a",
+    shortest_depth: 1,
+    longest_depth: 1,
+    path_count: 1,
+    authority_epoch: 18,
+    ...overrides,
   }];
 }
 
@@ -76,10 +132,13 @@ function projectedAsset(stored) {
 }
 
 function buildConnection({
+  roots = rootWorkspaceRow(),
   brandLinks = canonicalBrandLink(),
   memberships = ownerMembership(),
   brands = brandRow(),
-  workspaces = workspaceRow(),
+  brandWorkspaces = brandWorkspaceRow(),
+  topology = brandTopologyRow(),
+  closure = closureRow(),
   sources = sourceRow(),
   sourcesByCall = null,
 } = {}) {
@@ -95,12 +154,15 @@ function buildConnection({
     get persistedInserts() { return persistedInserts; },
     async query(sql, params = []) {
       calls.push({ sql, params });
+      if (sql.includes("FROM workspace_registry wr") && sql.includes("JOIN tenants")) return [roots];
       if (sql.includes("FROM tenant_brand_links tbl")) return [brandLinks];
       if (sql.includes("FROM memberships m") && sql.includes("FOR UPDATE")) return [memberships];
       if (sql.includes("FROM memberships m") && sql.includes("LIMIT 1")) return [memberships];
       if (sql.includes("FROM v_workspace_resource_grant_effective")) return [[{ grant_id: "grant-edit", permission: "edit" }]];
       if (sql.includes("FROM brands") && sql.includes("WHERE target_key=?")) return [brands];
-      if (sql.includes("FROM workspace_registry")) return [workspaces];
+      if (sql.includes("FROM workspace_registry") && sql.includes("workspace_type='brand'")) return [brandWorkspaces];
+      if (sql.includes("FROM containers brand_container")) return [topology];
+      if (sql.includes("FROM container_closure")) return [closure];
       if (sql.includes("FROM brand_core")) {
         const selected = sourcesByCall?.[sourceCall] || sourcesByCall?.at(-1) || sources;
         sourceCall += 1;
@@ -152,7 +214,7 @@ function buildConnection({
 
 async function materialize(connection, sourceRef = "positioning") {
   return materializeWorkspaceBrandCoreAsset(connection, {
-    tenantId: "tenant-a",
+    workspaceId: "workspace-root-a",
     actorUserId: "user-a",
     brandRef: "Brand A",
     sourceRef,
@@ -162,6 +224,7 @@ async function materialize(connection, sourceRef = "positioning") {
 {
   const connection = buildConnection();
   const result = await materialize(connection);
+  assert.equal(result.tenant_id, "tenant-a", "tenant authority must be derived from the selected root workspace");
   assert.equal(result.asset.brand_ref, "brand-a");
   assert.equal(result.asset.asset_type, "external_ref");
   assert.equal(result.asset.asset_ref, "asset_key:positioning");
@@ -171,12 +234,22 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(result.asset.content_sha256, null, "content hash must remain null when provider content was not fetched");
   assert.equal(result.asset.content_identity, "asset_ref:external_ref:asset_key:positioning");
   assert.equal(result.source.provider_content_fetched, false);
-  assert.equal(result.workspace.workspace_id, "workspace-brand-a");
+  assert.equal(result.workspace.workspace_id, "workspace-root-a");
+  assert.equal(result.workspace.workspace_ownership_type, "company");
+  assert.equal(result.workspace.brand_workspace_id, "workspace-brand-a");
+  assert.equal(result.workspace.brand_container_id, "container-brand-a");
+  assert.equal(result.workspace.containment_relationship_id, "relationship-root-a-brand-a");
   const metadata = JSON.parse(connection.stored.metadata_json);
+  assert.equal(metadata.root_workspace_id, "workspace-root-a");
+  assert.equal(metadata.root_workspace_ownership_type, "company");
   assert.equal(metadata.brand_workspace_id, "workspace-brand-a");
+  assert.equal(metadata.brand_container_id, "container-brand-a");
+  assert.equal(metadata.brand_container_relationship_id, "relationship-root-a-brand-a");
   assert.equal(metadata.brand_core_source_ref, "asset_key:positioning");
   assert.equal(metadata.source_provider, "brand_core");
   assert.equal(metadata.secrets_included, false);
+  assert(connection.calls.some((call) => call.sql.includes("container_relationships") && call.sql.includes("relationship_type_key='contains'")), "materialization must prove canonical Workspace contains Brand topology");
+  assert(connection.calls.some((call) => call.sql.includes("FROM container_closure") && call.sql.includes("FOR UPDATE")), "materialization must require the inherited containment path to be materialized");
   assert(connection.calls.some((call) => call.sql.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id")), "materialization must delegate atomic identity persistence to the canonical asset repository");
   assert(connection.calls.some((call) => call.sql.includes("LIMIT 2 FOR UPDATE") && call.sql.includes("workspace_assets")), "materialization must read persisted lineage back under lock before commit");
   assert(!connection.calls.some((call) => call.sql.includes("information_schema")), "materialization must not depend on a parallel provenance schema migration");
@@ -201,6 +274,49 @@ async function materialize(connection, sourceRef = "positioning") {
 }
 
 {
+  const connection = buildConnection({ roots: rootWorkspaceRow({ workspace_ownership_type: null }) });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_root_workspace_unclassified" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const connection = buildConnection({ roots: rootWorkspaceRow({ workspace_type: "brand" }) });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_workspace_not_root" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const connection = buildConnection({ brandWorkspaces: brandWorkspaceRow({ workspace_ownership_type: "company" }) });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_workspace_root_collision" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const connection = buildConnection({ topology: brandTopologyRow({ workspace_subject_ref: "workspace-root-other" }) });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_container_cross_workspace" && error?.status === 403);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const row = brandTopologyRow()[0];
+  const connection = buildConnection({ topology: [row, { ...row, relationship_id: "relationship-other-parent" }] });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_container_parent_ambiguous" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const connection = buildConnection({ closure: [] });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_container_closure_required" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
+  const connection = buildConnection({ closure: closureRow({ path_count: 2 }) });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_container_path_ambiguous" && error?.status === 409);
+  assert.equal(connection.insertAttempts, 0);
+}
+
+{
   const connection = buildConnection({ sources: sourceRow({ status: "inactive", validation_status: "invalid", active_status: "FALSE" }) });
   await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_source_inactive" && error?.status === 409);
   assert.equal(connection.insertAttempts, 0);
@@ -213,8 +329,8 @@ async function materialize(connection, sourceRef = "positioning") {
 }
 
 {
-  const connection = buildConnection({ workspaces: [] });
-  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_workspace_required" && error?.status === 422);
+  const connection = buildConnection({ brandWorkspaces: [] });
+  await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_materialize_brand_workspace_required" && error?.status === 422);
 }
 
 {
@@ -249,4 +365,4 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(connection.persistedInserts, 1, "revision conflict must not silently create or refresh a second authority row");
 }
 
-console.log("workspace Brand Core asset materialization canonical lifecycle tests passed");
+console.log("workspace Brand Core asset materialization canonical root/container lifecycle tests passed");
