@@ -14,11 +14,24 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   const contract = _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
     plugin_key: "github",
     toolKey: "github.repo.read",
+    workspace_id: "workspace-1",
   });
   assert.equal(contract.pluginKey, "github");
+  assert.equal(contract.workspaceId, "workspace-1");
   assert.equal(contract.selector.toolKey, "github.repo.read");
   assert.equal(contract.compatibilityTelemetry.legacy_selector_alias_used, true);
   assert.deepEqual(contract.compatibilityTelemetry.legacy_fields, ["toolKey"]);
+  assert.equal(contract.compatibilityTelemetry.contract_version, "one-selector-workspace-v2");
+}
+
+{
+  const contract = _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+    plugin_key: "github",
+    action_key: "github.repo.read",
+    workspaceId: "workspace-legacy",
+  });
+  assert.equal(contract.workspaceId, "workspace-legacy");
+  assert.deepEqual(contract.compatibilityTelemetry.legacy_fields, ["workspaceId"]);
 }
 
 {
@@ -27,6 +40,7 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
       plugin_key: "github",
       action_key: "github.repo.read",
       tool_key: "github.repo.read",
+      workspace_id: "workspace-1",
     }),
     (err) => err?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && err?.status === 400,
   );
@@ -35,8 +49,18 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
       plugin_key: "github",
       tenant_id: "tenant-override",
       action_key: "github.repo.read",
+      workspace_id: "workspace-1",
     }),
     (err) => err?.code === "UNKNOWN_SECURITY_CONTRACT_FIELD" && err?.details?.fields?.includes("tenant_id"),
+  );
+  assert.throws(
+    () => _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+      plugin_key: "github",
+      action_key: "github.repo.read",
+    }),
+    (err) => err?.code === "TENANT_WORKSPACE_CONTEXT_REQUIRED"
+      && err?.status === 400
+      && err?.details?.required_field === "workspace_id",
   );
 }
 
@@ -127,6 +151,8 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert(routes.includes("createCredentialIntakeSessionRecord"), "tenant intake must use shared governed session helper");
   assert(routes.includes("admin_tool_invoked: false"), "tenant intake must not claim raw admin tool dispatch");
   assert(routes.includes("requireTenantUserJwt"), "tenant routes must require user JWT");
+  assert(routes.includes("TENANT_WORKSPACE_CONTEXT_REQUIRED"), "tenant resolver must require explicit workspace context");
+  assert(routes.includes("workspaceId: contract.workspaceId"), "tenant resolver must pass the validated workspace contract");
   assert(routes.includes("tenantId: req.auth.tenant_id"), "tenant install/resolve must derive tenant_id from auth");
   assert(routes.includes("userId: req.auth.user_id"), "tenant install/resolve must derive user_id from auth");
   assert(routes.includes("security_decision_trace_admin: _adminTrace"), "tenant resolve must strip admin decision trace projection");
