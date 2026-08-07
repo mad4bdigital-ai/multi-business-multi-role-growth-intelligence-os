@@ -46,7 +46,7 @@ const FORBIDDEN_SQL_PATTERNS = [
   /\bCALL\s+[A-Za-z0-9_]+\s*\(/i,
   /\bPREPARE\s+[A-Za-z0-9_]+\s+FROM\b/i,
   /^\s*EXECUTE\s+[A-Za-z0-9_]+\b/im,
-  /\bCREATE\s+(?:PROCEDURE|FUNCTION|TRIGGER)\b/i,
+  /\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:PROCEDURE|FUNCTION|TRIGGER)\b/i,
   /^\s*GRANT\b[\s\S]*?\bON\b/im,
   /^\s*REVOKE\b[\s\S]*?\bON\b/im,
 ];
