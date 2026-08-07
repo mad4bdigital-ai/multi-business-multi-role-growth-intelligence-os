@@ -1,5 +1,0 @@
-pr=6500
-base_head=4f8214d240256fb6f6fa8dfb5318a5f45cef8e2c
-main=90265c55dd327a313ddac4c50ac08c3984fcf54b
-surface_generator=http-generic-api/scripts/surface-contract-discovery.mjs
-work_map_generator=http-generic-api/scripts/platform-work-map-generator.mjs

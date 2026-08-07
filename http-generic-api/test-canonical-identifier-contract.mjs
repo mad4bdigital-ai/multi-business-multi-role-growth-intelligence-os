@@ -51,6 +51,65 @@ const protectedResult = await assessLiveIdentifierComparisonContracts(protectedS
 assert.equal(protectedResult.status, "pass");
 assert.equal(protectedResult.issue_count, 0);
 assert.equal(protectedResult.protected_mismatch_count, 2);
+assert.equal(protectedResult.deferred_schema_column_count, 0);
+
+const connectionOwnershipMigration = readFileSync(
+  new URL("./migrations/20260730_context_kernel_connection_ownership_persistence.sql", import.meta.url),
+  "utf8",
+);
+const ownershipSchemaRows = [
+  { table_name: "workspace_registry", column_name: "tenant_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "workspace_registry", column_name: "workspace_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "workspace_app_links", column_name: "tenant_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "workspace_app_links", column_name: "workspace_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "workspace_app_links", column_name: "connection_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "user_app_connections", column_name: "tenant_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+  { table_name: "user_app_connections", column_name: "connection_id", column_type: "varchar(36)", data_type: "varchar", character_set_name: "utf8mb4", collation_name: "utf8mb4_unicode_ci" },
+];
+const ownershipResult = await assessLiveIdentifierComparisonContracts(connectionOwnershipMigration, {
+  query: async () => [ownershipSchemaRows],
+});
+assert.equal(ownershipResult.status, "pass");
+assert.equal(ownershipResult.checked_comparison_count, 7);
+assert.equal(ownershipResult.issue_count, 0);
+assert.equal(ownershipResult.deferred_schema_column_count, 3);
+assert.deepEqual(
+  ownershipResult.deferred_schema_columns
+    .map((item) => `${item.table_name}.${item.column_name}`)
+    .sort(),
+  [
+    "connection_ownership_scopes.connection_id",
+    "connection_ownership_scopes.tenant_id",
+    "connection_ownership_scopes.workspace_id",
+  ],
+);
+
+const unprotectedCreatedColumnSql = `
+CREATE TABLE IF NOT EXISTS new_connection_scope (
+  tenant_id VARCHAR(36) NOT NULL
+);
+SELECT 1
+FROM new_connection_scope scope
+JOIN user_app_connections connection
+  ON scope.tenant_id = connection.tenant_id;
+`;
+const unprotectedCreatedColumnResult = await assessLiveIdentifierComparisonContracts(
+  unprotectedCreatedColumnSql,
+  { query: async () => [[ownershipSchemaRows.at(-2)]] },
+);
+assert.equal(unprotectedCreatedColumnResult.status, "block");
+assert.equal(unprotectedCreatedColumnResult.issue_count, 1);
+assert.equal(unprotectedCreatedColumnResult.deferred_schema_column_count, 0);
+
+const missingLegacyColumnResult = await assessLiveIdentifierComparisonContracts(
+  `SELECT 1 FROM workspace_app_links link
+   JOIN user_app_connections connection
+     ON BINARY link.tenant_id = BINARY connection.tenant_id;`,
+  { query: async () => [[ownershipSchemaRows.at(-2)]] },
+);
+assert.equal(missingLegacyColumnResult.status, "block");
+assert.equal(missingLegacyColumnResult.issue_count, 1);
+assert.equal(missingLegacyColumnResult.deferred_schema_column_count, 0);
 
 assert.equal(CANONICAL_IDENTIFIER_CONTRACTS.system_id.target_sql_type, "binary(16)");
 assert.equal(CANONICAL_IDENTIFIER_CONTRACTS.tenant_id.transition_collation, "ascii_bin");
