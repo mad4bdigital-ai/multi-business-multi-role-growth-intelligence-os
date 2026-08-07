@@ -1,0 +1,4 @@
+pr=6534
+expected_main=6dc59ef603b1db17199b5abe6a41bc68cef2d6a6
+expected_source_head=3b0a586b179a59fa03a69980b82a5c8ce99c3b5d
+scope=merge-main-and-regenerate-generated-work-map-conflicts
