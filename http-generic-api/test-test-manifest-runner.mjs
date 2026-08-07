@@ -30,6 +30,18 @@ assert.equal(
 assert.equal(packageJson.scripts["test:list"], "node scripts/run-test-manifest.mjs --list");
 assert.ok(!packageJson.scripts.test.includes("&&"), "package test script must not be a shell chain");
 
+const governancePhaseIndex = suiteSource.indexOf('id: "admin-control-db-contract-governance"');
+const canonicalManifestPhaseIndex = suiteSource.indexOf('id: "canonical-test-manifest"');
+assert.ok(governancePhaseIndex >= 0, "admin DB contract governance must be a sequential test phase");
+assert.ok(canonicalManifestPhaseIndex >= 0, "canonical test manifest phase must remain present");
+assert.ok(
+  governancePhaseIndex < canonicalManifestPhaseIndex,
+  "admin DB contract governance must fail closed before the canonical test manifest",
+);
+assert.match(suiteSource, /scripts\/admin-control-db-contract-governance\.mjs/);
+assert.match(suiteSource, /args:\s*Object\.freeze\(\["--ci"\]\)/);
+assert.match(suiteSource, /spawnSync\(process\.execPath,\s*\[script,\s*\.\.\.args\]/);
+
 const duplicateCommands = testCommands.filter((command, index) => testCommands.indexOf(command) !== index);
 assert.deepEqual(duplicateCommands, [], "test manifest must not contain duplicate commands");
 
