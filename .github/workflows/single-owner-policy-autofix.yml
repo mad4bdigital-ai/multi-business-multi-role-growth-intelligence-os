@@ -22,6 +22,20 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+      - name: Repair bootstrap text decoder
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('http-generic-api/scripts/apply-single-owner-policy-autofix.mjs')
+          text = path.read_text()
+          old = 'const decode = (value) => Buffer.from(value, "base64").toString("utf8");'
+          new = 'const decode = (value) => Buffer.from(value, "base64").toString("utf8").replaceAll("\\\\n", "\\n");'
+          if text.count(old) != 1:
+              raise SystemExit('bootstrap decode anchor must occur exactly once')
+          path.write_text(text.replace(old, new))
+          PY
+          rm -f single-owner-autofix-diagnostic.txt
       - name: Apply bounded policy patch
         id: autofix
         shell: bash
@@ -39,6 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git checkout -- http-generic-api/scripts/apply-single-owner-policy-autofix.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add single-owner-autofix-diagnostic.txt
