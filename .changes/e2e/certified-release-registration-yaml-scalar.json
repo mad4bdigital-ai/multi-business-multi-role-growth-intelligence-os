@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "certified-release-registration-yaml-scalar",
+  "title": "Certified release workflow YAML registration safety",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/certified-release-registration-yaml-scalar.json",
+      ".github/workflows/production-certified-release-cut-validation.yml",
+      "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the certified Production release-cut validation workflow parseable and registrable while preserving its fail-closed title gate and read-only authority.",
+      "e2e_journeys": [
+        {
+          "id": "certified-release-workflow-registers-with-quoted-title-conditions",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "GitHub Actions workflow registrar and repository reviewer",
+          "entrypoint": "The certified release-cut workflow is loaded from the pull-request candidate tree.",
+          "terminal_outcome": "Both title-gated jobs use complete quoted YAML scalars, the registration and convergence contracts reject the unsafe unquoted form, and no write or Production authority is introduced.",
+          "steps": [
+            "Load the candidate workflow and locate the validation and finalize job conditions.",
+            "Verify that each startsWith title condition is wrapped as one quoted YAML scalar.",
+            "Run both the focused registration contract and the composed Production promotion convergence contract.",
+            "Reject an unquoted condition containing the release title prefix and colon-space sequence.",
+            "Confirm the workflow remains pull_request_target based with contents read permission and no PR comment write path."
+          ],
+          "assertions": [
+            "The certified-release-cut-ci condition is quoted as a complete YAML scalar.",
+            "The finalize condition is quoted as a complete YAML scalar.",
+            "The focused registration contract rejects both unsafe unquoted title-condition forms.",
+            "The canonical Production promotion convergence contract requires the same quoted governed eligibility selector.",
+            "The workflow retains read-only contents permission and does not introduce write, deployment, migration, provider, credential, runtime, or secret authority.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "certified-release-registration-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-certified-release-cut-validation-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/certified-release-registration-yaml-scalar.json",
+            ".github/workflows/production-certified-release-cut-validation.yml",
+            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose a canonical parser-registration diagnostic when GitHub rejects a future workflow revision before job creation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove the registration contract across synchronized pull requests, reruns, and default-branch updates without weakening fail-closed behavior."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository workflow registration repair has no provider or live-runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair grants no Production merge, deployment, migration, provider, credential, or secret authority."
+    }
+  ],
+  "secrets_included": false
+}
