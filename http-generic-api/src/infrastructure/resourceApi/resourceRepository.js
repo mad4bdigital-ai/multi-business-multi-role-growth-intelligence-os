@@ -18,6 +18,21 @@ import {
   parseWorkspaceAssetMetadata,
 } from "../../../workspaceAssetProvenance.js";
 
+const WORKSPACE_ASSET_PROVENANCE_KEYS = new Set([
+  "schema_version",
+  "source_type",
+  "source_provider",
+  "source_uri",
+  "source_revision",
+  "content_sha256",
+  "content_identity",
+  "ingestion_mode",
+  "tenant_id",
+  "brand_target_key",
+  "created_by_user_id",
+  "secrets_included",
+]);
+
 function appendAssetReadScope(resourceDescriptor, context, clauses, params) {
   if (!context || resourceDescriptor.table !== "workspace_assets" || isOwnerRole(context.member?.role)) return;
   clauses.push(`(
@@ -87,6 +102,21 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
 
 function resourceRepositoryInvariantError(code, message, status = 409) {
   return Object.assign(new Error(message), { code, status });
+}
+
+function mergeMutableAssetMetadata(existingValue, patchValue) {
+  const patch = parseWorkspaceAssetMetadata(patchValue);
+  const forbiddenKeys = Object.keys(patch).filter((key) => WORKSPACE_ASSET_PROVENANCE_KEYS.has(key));
+  if (forbiddenKeys.length) {
+    throw resourceRepositoryInvariantError(
+      "workspace_asset_provenance_mutation_forbidden",
+      `Asset provenance cannot be changed through generic metadata updates: ${forbiddenKeys.sort().join(", ")}.`
+    );
+  }
+  return {
+    ...parseWorkspaceAssetMetadata(existingValue),
+    ...patch,
+  };
 }
 
 export function createResourceRepository({ pool = null, resolvePool = null, transactionConnection = false }) {
@@ -353,8 +383,21 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
       params.push(input[field] === null ? null : String(input[field]).slice(0, 512));
     }
     if (input.metadata_json && typeof input.metadata_json === "object") {
+      const [metadataRows] = await executeQuery(
+        `SELECT metadata_json
+           FROM workspace_assets
+          WHERE asset_id=?
+          LIMIT 2 FOR UPDATE`,
+        [assetId]
+      );
+      if (!Array.isArray(metadataRows) || metadataRows.length !== 1) {
+        throw resourceRepositoryInvariantError(
+          "workspace_asset_metadata_readback_invalid",
+          "Asset metadata did not resolve exactly once before update."
+        );
+      }
       sets.push("metadata_json=?");
-      params.push(JSON.stringify(input.metadata_json));
+      params.push(JSON.stringify(mergeMutableAssetMetadata(metadataRows[0].metadata_json, input.metadata_json)));
     }
     if (!sets.length) return false;
     params.push(assetId);
@@ -505,4 +548,8 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
   return repository;
 }
 
-export const _testingResourceRepository = { buildQueryParts, appendAssetReadScope };
+export const _testingResourceRepository = {
+  buildQueryParts,
+  appendAssetReadScope,
+  mergeMutableAssetMetadata,
+};
