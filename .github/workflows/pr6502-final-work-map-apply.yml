@@ -1,0 +1,123 @@
+name: PR 6502 Final Work Map Apply
+run-name: PR 6502 Final Work Map Apply · ${{ github.sha }}
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr6502-final-work-map-apply.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: pr-6502-final-work-map-apply
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    name: Generate and publish exact final-tree Work Maps
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET_PR: "6502"
+      TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+      AUTHORIZED_PARENT_SHA: 0c03d0e906331911f98fe0d4c54ad9344f012ceb
+      EXPECTED_MAIN_SHA: 852696e8fe90d7121ff4c333654e9b0d8b244a68
+      ONE_SHOT_PATH: .github/workflows/pr6502-final-work-map-apply.yml
+      EXPECTED_README_BLOB: dad9ac886c2244299a7fb5f0a4fa10f9fdcb7649
+      EXPECTED_AUTOMATION_MAP_BLOB: 977465ac9175646743743f56911ad5c050ae4c93
+    steps:
+      - name: Checkout exact one-shot head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate exact PR and fast-forward authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REPOSITORY}" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_PARENT_SHA}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr_json}")" = "true"
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${GITHUB_SHA}"
+
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${GITHUB_SHA}" --jq '.behind_by')" = "0"
+
+      - name: Generate final permanent Work Maps and prove idempotency
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          rm -- "${ONE_SHOT_PATH}"
+          test ! -e "${ONE_SHOT_PATH}"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+          changed="$(git diff --name-only | sort)"
+          printf '%s\n' "${changed}"
+          expected="$(printf '%s\n' \
+            "${ONE_SHOT_PATH}" \
+            "docs/work-maps/README.md" \
+            "docs/work-maps/repository-automation-map.md" | sort)"
+          test "${changed}" = "${expected}"
+
+          test "$(git hash-object docs/work-maps/README.md)" = "${EXPECTED_README_BLOB}"
+          test "$(git hash-object docs/work-maps/repository-automation-map.md)" = "${EXPECTED_AUTOMATION_MAP_BLOB}"
+
+          first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          second_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          test "${first_hash}" = "${second_hash}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+          node http-generic-api/test-push-workflow-runner-context-registration.mjs
+          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+
+      - name: Commit only generated Work Maps by fast-forward
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git restore --source=HEAD -- "${ONE_SHOT_PATH}"
+          test -f "${ONE_SHOT_PATH}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+
+          staged="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' docs/work-maps/README.md docs/work-maps/repository-automation-map.md | sort)"
+          test "${staged}" = "${expected}"
+
+          live_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.head.sha' <<<"${live_pr}")" = "${GITHUB_SHA}"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "${current_main}" = "${EXPECTED_MAIN_SHA}"
+
+          remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "${GITHUB_SHA}"
+
+          git commit -m "docs(work-maps): apply exact generated repair candidate"
+          result_sha="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${result_sha}"
+
+          echo "result_head_sha=${result_sha}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "expected_parent=${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "force_push=false" >> "${GITHUB_STEP_SUMMARY}"
+          echo "protected_ref_mutation=false" >> "${GITHUB_STEP_SUMMARY}"
