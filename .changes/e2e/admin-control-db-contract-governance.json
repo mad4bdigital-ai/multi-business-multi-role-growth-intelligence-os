@@ -1,0 +1,100 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "admin-control-db-contract-governance",
+  "title": "Repository-wide admin control DB contract governance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/admin-control-db-contract-governance.json",
+      ".github/contracts/admin-control-db.v1.json",
+      ".github/ops/lib/admin-control-db-request.mjs",
+      ".github/ops/sprint69-1043-apply.mjs",
+      "docs/governance/admin-control-db-contract-policy.md",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/admin-control-db-contract-governance.mjs",
+      "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent caller/provider DB-control contract mismatches from reaching runtime by establishing one canonical manifest, a governed shared builder, a repository-wide raw-caller ratchet, CI enforcement, and explicit fail-closed policy while retaining the focused Migration 1043 caller repair.",
+      "e2e_journeys": [
+        {
+          "id": "reject-admin-db-contract-drift-before-merge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository contributor changing an operational DB-control caller",
+          "entrypoint": "CI npm test governance preflight",
+          "terminal_outcome": "CI passes only when the provider, canonical manifest, shared builder, and all governed operational callers agree on tool=db, action=run, and sql; new raw callers, legacy aliases, provider compatibility aliases, or an expanded legacy raw-caller allowlist fail closed before merge.",
+          "steps": [
+            "Load the canonical admin-control DB contract manifest.",
+            "Verify the runtime provider still defaults to and permits only action=run and reads SQL from body.sql.",
+            "Verify the provider retains unsupported_db_action and db_sql_required fail-closed errors and does not accept legacy query aliases.",
+            "Load the shared request builder and prove it emits the canonical tool, action, and SQL field without a legacy alias.",
+            "Scan all JavaScript operational callers under .github/ops for raw tool=db payloads.",
+            "Reject any new raw caller that is not in the migration-only legacy allowlist and require the shared builder instead.",
+            "Validate every allowlisted raw caller still uses action=run and sql.",
+            "On CI, compare the legacy allowlist to the base branch and reject additions so the ratchet may only shrink.",
+            "Run self-tests proving action=query, query-as-SQL-field, and missing action are rejected.",
+            "Run the Migration 1043 Apply contract test to retain the exact caller repair and no-retry safety boundary."
+          ],
+          "assertions": [
+            "The canonical contract is stored at .github/contracts/admin-control-db.v1.json and declares /admin/control, tool=db, action=run, and sql_field=sql.",
+            "New raw operational DB callers are forbidden; the shared builder is the required path for new callers.",
+            "The legacy raw-caller allowlist is a monotonic ratchet that may only shrink relative to the base branch.",
+            "The provider must not gain compatibility handling for action=query or body.query to repair a caller mismatch.",
+            "The governance check runs before the normal test manifest through npm test and is therefore CI merge-blocking wherever the repository CI test job is required.",
+            "Migration 1043 continues to use the canonical action=run and sql shape and retains its exact-once/readback/no-retry controls.",
+            "No database migration, provider call, credential payload read, external business write, deployment, Production ref mutation, or secret evidence occurs during policy validation."
+          ],
+          "tests": [
+            {
+              "id": "admin-control-db-governance-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/admin-control-db-contract-governance.mjs",
+              "args": ["--self-test"]
+            },
+            {
+              "id": "migration-1043-db-control-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sprint69-1043-apply-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/admin-control-db-contract-governance.json",
+            ".github/contracts/admin-control-db.v1.json",
+            ".github/ops/lib/admin-control-db-request.mjs",
+            "docs/governance/admin-control-db-contract-policy.md",
+            "http-generic-api/scripts/admin-control-db-contract-governance.mjs",
+            "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Migrate legacy raw operational DB callers to the shared builder and remove their allowlist entries without increasing the ratchet."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Expand static detection to any additional executable language or generated operational surface that can address /admin/control."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require zero legacy raw DB callers and retain only manifest-plus-builder construction for governed operational DB control."
+    }
+  ]
+}
