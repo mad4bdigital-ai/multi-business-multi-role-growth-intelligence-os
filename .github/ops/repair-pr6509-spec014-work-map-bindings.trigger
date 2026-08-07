@@ -1,4 +1,4 @@
 pr=6509
-expected_head=ecf27cd080af0fd2436c1669eb6740279c46ba08
-purpose=run deterministic candidate-branch-only Spec 014 Work Map registry binding refresh
+materializer_base=ce765d1238eee9f4a6176c46604c43fc7da026fb
+purpose=rerun deterministic candidate-branch-only Spec 014 Work Map registry binding refresh with partial-binding support
 secrets_included=false
