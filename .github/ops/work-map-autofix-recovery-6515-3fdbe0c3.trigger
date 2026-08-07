@@ -1,0 +1,8 @@
+contract=mad4b.work-map-autofix-recovery-dispatch.v1
+pr_number=6515
+expected_head_sha=3fdbe0c337966d3e38b03eee95710274b005f4b3
+confirmation=RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX
+direct_repository_mutation=false
+protected_branch_mutation=false
+force_push=false
+secrets_included=false
