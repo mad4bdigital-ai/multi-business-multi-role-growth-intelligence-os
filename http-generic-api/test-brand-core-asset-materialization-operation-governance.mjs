@@ -4,33 +4,39 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const route = fs.readFileSync(new URL("./routes/brandCoreAssetMaterializationRoutes.js", import.meta.url), "utf8");
+const route = fs.readFileSync(new URL("./routes/resourceApiRoutes.js", import.meta.url), "utf8");
 const service = fs.readFileSync(new URL("./workspaceBrandCoreAssetMaterialization.js", import.meta.url), "utf8");
-const migration = fs.readFileSync(new URL("./migrations/1050_workspace_asset_provenance_content_identity.sql", import.meta.url), "utf8");
+const repository = fs.readFileSync(new URL("./src/infrastructure/resourceApi/resourceRepository.js", import.meta.url), "utf8");
 
-assert(route.includes('createUserJwtMiddleware()'), "materialization must use canonical User JWT middleware");
+assert(route.includes("const requireUserJwt = createUserJwtMiddleware();"), "materialization must use canonical User JWT middleware");
 assert(route.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize"));
 assert(route.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize"));
 assert(route.includes("await connection.beginTransaction()"));
 assert(route.includes("await connection.commit()"));
 assert(route.includes("await connection.rollback()"));
+assert(route.includes("result.asset.source_provider !== \"brand_core\""));
+assert(route.includes("result.asset.content_identity"));
 assert(route.includes("secrets_included: false"));
 
 assert(service.includes("resolveWorkspaceAssetBrandRef"), "Brand authority must be canonicalized before materialization");
-assert(service.includes("v_workspace_asset_provenance_schema_readiness") || service.includes("information_schema.columns"));
 assert(service.includes("FROM brand_core"));
 assert(service.includes("FROM workspace_registry"));
-assert(service.includes("source_ref_sha256"));
-assert(service.includes("provenance_sha256"));
-assert(service.includes("content_sha256"));
+assert(service.includes("createResourceRepository"));
+assert(service.includes("repository.insertAsset"), "Brand Core materialization must delegate persistence to canonical Resource API asset lifecycle");
+assert(service.includes('source_type: "import"'));
+assert(service.includes('source_provider: "brand_core"'));
+assert(service.includes("content_sha256: null"));
+assert(service.includes("brand_workspace_id"));
 assert(service.includes("LIMIT 2 FOR UPDATE"));
+assert(service.includes("brand_core_asset_materialize_readback_mismatch"));
 assert(service.includes("provider_content_fetched: false"), "materialization must not claim provider content fetch");
+assert(!service.includes("information_schema"), "materialization must not require a parallel provenance schema");
 
-assert(migration.includes("source_ref_sha256 CHAR(64)"));
-assert(migration.includes("provenance_sha256 CHAR(64)"));
-assert(migration.includes("content_sha256 CHAR(64)"));
-assert(migration.includes("uq_workspace_asset_provenance"));
-assert(migration.includes("v_workspace_asset_provenance_schema_readiness"));
-assert(migration.includes("No provider calls"));
+assert(repository.includes("buildWorkspaceAssetProvenance"));
+assert(repository.includes("assertWorkspaceAssetIdentityCompatible"));
+assert(repository.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id"));
+assert(repository.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?"));
+assert(repository.includes("LIMIT 2 FOR UPDATE"));
+assert(repository.includes("workspace_asset_provenance_readback_mismatch"));
 
-console.log("Brand Core asset materialization operation governance evidence passed");
+console.log("Brand Core asset materialization canonical operation governance evidence passed");
