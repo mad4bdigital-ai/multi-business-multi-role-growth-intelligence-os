@@ -362,3 +362,10 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 
 - `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
 - Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
+
+
+### Migration 1048 transport response chunk schema recovery
+
+- Repository contract: `1048_transport_response_chunk_schema_recovery.sql` restores the durable governed response-chunk transport schema additively and idempotently.
+- Safety boundary: repository documentation/readiness only; no provider call, credential read, external send/write, secret payload, deployment, or database Apply is authorized by this documentation entry.
+- Production dependency: any Apply or promotion remains separately governed and requires checksum-bound preflight plus same-cycle schema readback.
