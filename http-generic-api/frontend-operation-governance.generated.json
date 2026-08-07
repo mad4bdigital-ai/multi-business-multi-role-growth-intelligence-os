@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v3-brand-create-extension",
-    "source_digest": "bbc5ac515000193a60b9aac71205f10b704f3b2b6469f136f87badfe99b0b8d4",
+    "source_digest": "320001844567538c436dd4ba188dab47719658bb7d7871a5a9bd025142ce26ba",
     "fail_closed": true
   },
   "source_authority": [
@@ -73,7 +73,7 @@
     },
     {
       "file": "src/infrastructure/resourceApi/resourceRepository.js",
-      "sha256": "c4970e193cdc0aed864ff9505340bdcc018c2eab2f3d9bdff0214283db755af1",
+      "sha256": "6d010069ede0be4725d263d07de5a1c508dcf9cd393e5e73e3cd455bd735551e",
       "present": true
     },
     {
@@ -166,7 +166,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "b389b7ccd6154c36895fbbb51d48fb483d68c07303f80568fdc73fa5a8f1b720",
+        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
         "fail_closed": true
       }
     },
@@ -208,7 +208,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "b389b7ccd6154c36895fbbb51d48fb483d68c07303f80568fdc73fa5a8f1b720",
+        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
         "fail_closed": true
       }
     },
@@ -517,7 +517,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "b389b7ccd6154c36895fbbb51d48fb483d68c07303f80568fdc73fa5a8f1b720",
+        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
         "fail_closed": true
       }
     },
@@ -559,7 +559,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "b389b7ccd6154c36895fbbb51d48fb483d68c07303f80568fdc73fa5a8f1b720",
+        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
         "fail_closed": true
       }
     }
