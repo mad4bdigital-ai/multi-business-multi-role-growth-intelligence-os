@@ -1,0 +1,113 @@
+name: PR 6572 Final Work Map Binding Producer
+
+on:
+  push:
+    branches:
+      - docs/migration-1042-surface-contract-remediation-20260807
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr6572-final-work-map-binding-producer
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EXPECTED_PARENT_SHA: 4a0138d5294ca33bea8d010c61e61ea9b10c87ca
+      HELPER_PATH: .github/workflows/pr6572-final-work-map-binding-producer.yml
+      HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      HOSTINGER_TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      RETAIL_MANIFEST: specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+    steps:
+      - name: Checkout exact helper head
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: docs/migration-1042-surface-contract-remediation-20260807
+
+      - name: Validate immutable helper ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_PARENT_SHA}"
+          remote_head="$(git ls-remote --exit-code origin 'refs/heads/docs/migration-1042-surface-contract-remediation-20260807' | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+
+      - name: Remove helper before deterministic fingerprinting
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f "${HELPER_PATH}"
+          test ! -e "${HELPER_PATH}"
+
+      - name: Run canonical binding producers
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/pr6572-final-binding"
+          mkdir -p "${report}/output"
+          node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            | tee "${report}/hostinger-producer.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os \
+            | tee "${report}/retail-producer.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check \
+            | tee "${report}/hostinger-check.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os --check \
+            | tee "${report}/retail-check.json"
+
+      - name: Enforce bounded producer surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/pr6572-final-binding"
+          mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
+          printf '%s\n' "${changed[@]}" > "${report}/changed-paths.txt"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${HELPER_PATH}"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${HOSTINGER_MANIFEST}"
+          printf '%s\n' "${changed[@]}" | grep -Fxq "${RETAIL_MANIFEST}"
+          unexpected="$(printf '%s\n' "${changed[@]}" | grep -v -E '^\.github/workflows/pr6572-final-work-map-binding-producer\.yml$|^specs/014-governed-hostinger-storage-orchestration/(work-map-integration\.json|tasks\.md)$|^specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$' || true)"
+          if [[ -n "${unexpected}" ]]; then
+            printf 'Unexpected producer path(s):\n%s\n' "${unexpected}" >&2
+            exit 1
+          fi
+          git diff --check
+          cp "${HOSTINGER_MANIFEST}" "${report}/output/hostinger-work-map-integration.json"
+          cp "${RETAIL_MANIFEST}" "${report}/output/retail-work-map-integration.json"
+          if ! git diff --quiet -- "${HOSTINGER_TASKS}"; then
+            cp "${HOSTINGER_TASKS}" "${report}/output/hostinger-tasks.md"
+          fi
+
+      - name: Prove final structured readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/pr6572-final-binding"
+          REPORT_PATH="${report}/final-readback.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            | tee "${report}/final-readback-stdout.json"
+          {
+            echo "contract=mad4b.pr6572-final-work-map-binding-producer.v1"
+            echo "source_head=${GITHUB_SHA}"
+            echo "expected_parent=${EXPECTED_PARENT_SHA}"
+            echo "repository_mutation_executed=false"
+            echo "provider_dispatch=false"
+            echo "live_database_access=false"
+            echo "migration_apply=false"
+            echo "secrets_included=false"
+          } > "${report}/metadata.txt"
+
+      - name: Upload bounded binding artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6572-final-work-map-binding-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6572-final-binding
+          if-no-files-found: error
+          retention-days: 14
