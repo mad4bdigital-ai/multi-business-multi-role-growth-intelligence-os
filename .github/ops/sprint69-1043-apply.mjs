@@ -231,8 +231,8 @@ async function adminShell(alias, extraArgs, label) {
 async function adminDbFixed(query, params = []) {
   const result = await requestRaw('/admin/control', {
     tool: 'db',
-    action: 'query',
-    query,
+    action: 'run',
+    sql: query,
     params,
     read_only: true,
     max_rows: 20,
