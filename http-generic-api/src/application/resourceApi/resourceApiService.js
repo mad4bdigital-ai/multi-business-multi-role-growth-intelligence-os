@@ -29,8 +29,12 @@ function requireAssetOperation(resourceKey, operation) {
 }
 
 function requireAssetInput(input = {}) {
-  if (!input.asset_type || !input.display_name) {
-    throw resourceError("asset_fields_required", "asset_type and display_name are required.", 400);
+  if (!input.asset_type || (!input.asset_ref && !input.asset_id) || !input.display_name) {
+    throw resourceError(
+      "asset_fields_required",
+      "asset_type, display_name, and either asset_ref or asset_id are required.",
+      400
+    );
   }
 }
 
