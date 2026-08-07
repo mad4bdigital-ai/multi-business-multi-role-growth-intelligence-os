@@ -1,0 +1,62 @@
+name: PR 6502 Refresh Spec014 Bindings
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6502-refresh-spec014-bindings
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact temporary head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Verify bounded identity
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REF_NAME}" = "fix/push-workflow-runner-context-registration-main-ba10f269-20260806"
+          test "$(git rev-parse HEAD^)" = "f3fbdd4f806c56df53e3dd975f4416085137884f"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')" = "${GITHUB_SHA}"
+
+      - name: Refresh deterministic Spec 014 bindings
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key=014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key=014-retail-commerce-operations-growth-os --check
+
+          rm -f .github/workflows/pr6502-refresh-spec014-bindings.yml
+
+          git add -A
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' '.github/workflows/pr6502-refresh-spec014-bindings.yml' 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json' 'specs/014-retail-commerce-operations-growth-os/work-map-integration.json' | sort)"
+          test "$changed" = "$expected"
+          git diff --cached --check
+
+      - name: Commit and fast-forward push
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs(spec014): refresh exact-head work-map bindings"
+          remote_before="$(git ls-remote origin "refs/heads/${GITHUB_REF_NAME}" | awk '{print $1}')"
+          test "$remote_before" = "${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
