@@ -1,0 +1,5 @@
+issue=6531
+writer=v6-reconcile-main
+expected_branch_parent=a03433ec7d469e884dcc4161586967d5996ca83b
+expected_main=167fecba1f9ed9e0ab4c0f3cd94bb2c9f54b89f7
+scope=merge-main-resolve-rollout-overlap-and-regenerate
