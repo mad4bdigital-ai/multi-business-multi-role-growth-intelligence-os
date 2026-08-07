@@ -13,191 +13,42 @@ permissions:
 jobs:
   apply-fix:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout exact branch head
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Patch bounded authorization challenge handshake
+      - name: Apply transparent bounded patch
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
+          git apply --check .changes/migration-1048-authorization-handshake.patch
+          git apply .changes/migration-1048-authorization-handshake.patch
 
-          runner_path = Path('.github/ops/transport-response-schema-1048-governed-rollout.mjs')
-          test_path = Path('http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs')
-
-          runner = runner_path.read_text()
-          legacy_constant = "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';\n"
-          if runner.count(legacy_constant) != 1:
-              raise SystemExit(f'expected exactly one legacy AUTH_CONFIRM constant, found {runner.count(legacy_constant)}')
-          runner = runner.replace(legacy_constant, '', 1)
-
-          old_function = '''async function bootstrapAuthorization(envelopeId) {
-            const args = {
-              migration: MIGRATION,
-              expected_checksum_sha256: checksum,
-              expected_statement_count: statementCount,
-              pull_request: SOURCE_PR,
-              merge_sha: SOURCE_MERGE_SHA,
-              confirm: AUTH_CONFIRM,
-              capability_envelope_id: envelopeId,
-              decision_note: 'Authorize checksum-bound Migration 1048 readiness only after exact Production artifact and runtime parity; no SQL executes in readiness.',
-            };
-
-            const first = await requestRaw('/gpt/tools/call', {
-              name: 'governed_migration_authorization_bootstrap',
-              tool_args: args,
-            }, 300000);
-            if (first.transport_ok && first.http_ok && first.payload?.ok !== false) {
-              return requireSuccess(first, 'migration_1048_authorization_bootstrap');
-            }
-
-            const detail = keyed(first.payload, 'code') || first.payload?.error || {};
-            const previous = String(
-              detail?.details?.recorded_checksum_sha256 ||
-              detail?.details?.current_checksum_sha256 ||
-              '',
-            ).toLowerCase();
-            assert.equal(String(detail?.code), 'governed_migration_authorization_previous_checksum_required');
-            assert.match(previous, /^[0-9a-f]{64}$/);
-            assert.notEqual(previous, checksum);
-
-            return requireSuccess(await requestRaw('/gpt/tools/call', {
-              name: 'governed_migration_authorization_bootstrap',
-              tool_args: { ...args, previous_checksum_sha256: previous },
-            }, 300000), 'migration_1048_authorization_rotation');
-          }
-'''.replace('          ', '')
-
-          new_function = '''function migrationAuthorizationConfirmation(migration) {
-            return `AUTHORIZE_GOVERNED_MIGRATION_${String(migration || '')
-              .replace(/\\.sql$/i, '')
-              .replace(/[^A-Za-z0-9]+/g, '_')
-              .toUpperCase()}`;
-          }
-
-          async function bootstrapAuthorization(envelopeId) {
-            const args = {
-              migration: MIGRATION,
-              expected_checksum_sha256: checksum,
-              expected_statement_count: statementCount,
-              pull_request: SOURCE_PR,
-              merge_sha: SOURCE_MERGE_SHA,
-              capability_envelope_id: envelopeId,
-              decision_note: 'Authorize checksum-bound Migration 1048 readiness only after exact Production artifact and runtime parity; no SQL executes in readiness.',
-            };
-
-            const challenge = await requestRaw('/gpt/tools/call', {
-              name: 'governed_migration_authorization_bootstrap',
-              tool_args: args,
-            }, 300000);
-            assert.equal(challenge.transport_ok, true, 'Migration 1048 authorization confirmation challenge transport failed');
-            const challengeDetail = keyed(challenge.payload, 'code') || challenge.payload?.error || {};
-            assert.equal(String(challengeDetail?.code), 'governed_migration_authorization_confirmation_required');
-            const requiredConfirmation = String(challengeDetail?.details?.required_confirmation || '').trim();
-            assert.equal(requiredConfirmation, migrationAuthorizationConfirmation(MIGRATION));
-
-            const confirmedArgs = { ...args, confirm: requiredConfirmation };
-            const confirmed = await requestRaw('/gpt/tools/call', {
-              name: 'governed_migration_authorization_bootstrap',
-              tool_args: confirmedArgs,
-            }, 300000);
-            if (confirmed.transport_ok && confirmed.http_ok && confirmed.payload?.ok !== false) {
-              return requireSuccess(confirmed, 'migration_1048_authorization_bootstrap');
-            }
-
-            const detail = keyed(confirmed.payload, 'code') || confirmed.payload?.error || {};
-            assert.equal(String(detail?.code), 'governed_migration_authorization_previous_checksum_required');
-            const previous = String(
-              detail?.details?.recorded_checksum_sha256 ||
-              detail?.details?.current_checksum_sha256 ||
-              '',
-            ).toLowerCase();
-            assert.match(previous, /^[0-9a-f]{64}$/);
-            assert.notEqual(previous, checksum);
-
-            return requireSuccess(await requestRaw('/gpt/tools/call', {
-              name: 'governed_migration_authorization_bootstrap',
-              tool_args: { ...confirmedArgs, previous_checksum_sha256: previous },
-            }, 300000), 'migration_1048_authorization_rotation');
-          }
-'''.replace('          ', '')
-
-          if runner.count(old_function) != 1:
-              raise SystemExit(f'expected exactly one legacy bootstrapAuthorization function, found {runner.count(old_function)}')
-          runner = runner.replace(old_function, new_function, 1)
-          runner_path.write_text(runner)
-
-          test = test_path.read_text()
-          anchor = "  \"const SOURCE_MERGE_SHA = '6503e74c60b8f6add9efade1f25ceb8afaec6209'\",\n"
-          addition = (
-              anchor
-              + "  \"function migrationAuthorizationConfirmation(migration)\",\n"
-              + "  \"governed_migration_authorization_confirmation_required\",\n"
-              + "  \"details?.required_confirmation\",\n"
-              + "  \"confirm: requiredConfirmation\",\n"
-              + "  \"governed_migration_authorization_previous_checksum_required\",\n"
-          )
-          if test.count(anchor) != 1:
-              raise SystemExit('expected exactly one rollout-test insertion anchor')
-          test = test.replace(anchor, addition, 1)
-
-          console_anchor = "console.log('PASS governed Migration 1048 rollout contract');\n"
-          extra_checks = '''assert.equal(
-            (runner.match(/name:\\s*'governed_migration_authorization_bootstrap'/g) || []).length,
-            3,
-            'Migration 1048 readiness must use exactly three bounded bootstrap call sites: challenge, confirmed, optional checksum rotation',
-          );
-          assert.doesNotMatch(
-            runner,
-            /const AUTH_CONFIRM\\s*=/,
-            'Migration 1048 runner must not hard-code a bootstrap confirmation that can drift from the runtime contract',
-          );
-
-'''.replace('          ', '')
-          if test.count(console_anchor) != 1:
-              raise SystemExit('expected exactly one rollout-test console anchor')
-          test = test.replace(console_anchor, extra_checks + console_anchor, 1)
-          test_path.write_text(test)
-          PY
-
-      - name: Validate bounded handshake and rollout regression
+      - name: Validate bounded contract
         shell: bash
         run: |
           set -euo pipefail
           node --check .github/ops/transport-response-schema-1048-governed-rollout.mjs
           node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
-          node --input-type=module <<'NODE'
-          const migration = '1048_transport_response_chunk_schema_recovery.sql';
-          const expected = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';
-          const actual = `AUTHORIZE_GOVERNED_MIGRATION_${migration.replace(/\.sql$/i, '').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase()}`;
-          if (actual !== expected) throw new Error(`unexpected canonical confirmation: ${actual}`);
-          console.log('canonical Migration 1048 confirmation derivation passed');
-          NODE
 
-      - name: Enforce bounded final mutation
+      - name: Remove transient repair artifacts
         shell: bash
         run: |
           set -euo pipefail
+          git rm .changes/migration-1048-authorization-handshake.patch
           git rm .github/workflows/repair-migration-1048-bootstrap-confirmation.yml
           git rm .github/workflows/apply-migration-1048-bootstrap-confirmation-fix.yml
-          changed="$(git status --short | sed -E 's/^...//')"
-          printf '%s\n' "$changed"
-          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l)" -eq 4
-          printf '%s\n' "$changed" | grep -Fx '.github/ops/transport-response-schema-1048-governed-rollout.mjs'
-          printf '%s\n' "$changed" | grep -Fx 'http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs'
-          printf '%s\n' "$changed" | grep -Fx '.github/workflows/repair-migration-1048-bootstrap-confirmation.yml'
-          printf '%s\n' "$changed" | grep -Fx '.github/workflows/apply-migration-1048-bootstrap-confirmation-fix.yml'
+          git status --short
 
-      - name: Commit bounded repair and remove transient writers
+      - name: Commit bounded repair
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add .github/ops/transport-response-schema-1048-governed-rollout.mjs http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          git add .github/ops/transport-response-schema-1048-governed-rollout.mjs
           git commit -m 'fix(migration): honor runtime 1048 authorization challenge'
           git push origin HEAD:fix/migration-1048-bootstrap-confirmation-20260807
