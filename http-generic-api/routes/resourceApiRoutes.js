@@ -69,9 +69,8 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
-  // Brand Core materialization requires the centralized fail-closed User-JWT verifier.
-  // It is declared directly in this mounted family so canonical dispatch/auth discovery
-  // can bind the exact runtime route to its generated state-change governance rule.
+  // Brand Core materialization uses the centralized fail-closed User-JWT verifier and
+  // delegates durable persistence to the canonical Resource API repository lifecycle.
   router.post(
     "/me/workspaces/:tenant_id/assets/materialize-brand-core",
     requireUserJwt,
@@ -87,8 +86,12 @@ export function buildResourceApiRoutes(deps = {}) {
           brandRef: req.body?.brand_ref,
           sourceRef: req.body?.source_ref,
         });
-        if (!result?.asset?.asset_id || !result?.asset?.provenance_sha256) {
-          throw Object.assign(new Error("Brand Core materialization did not produce an exact persisted asset readback."), {
+        if (
+          !result?.asset?.asset_id ||
+          result.asset.source_provider !== "brand_core" ||
+          !result.asset.content_identity
+        ) {
+          throw Object.assign(new Error("Brand Core materialization did not produce an exact canonical asset projection."), {
             status: 409,
             code: "brand_core_asset_materialize_readback_missing",
           });
