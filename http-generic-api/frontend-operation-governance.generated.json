@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v3-brand-create-extension",
-    "source_digest": "320001844567538c436dd4ba188dab47719658bb7d7871a5a9bd025142ce26ba",
+    "source_digest": "9783cb814200bd042b98d707bc71b34d17647d1a583fdd4c78984c80258f5f43",
     "fail_closed": true
   },
   "source_authority": [
@@ -73,7 +73,7 @@
     },
     {
       "file": "src/infrastructure/resourceApi/resourceRepository.js",
-      "sha256": "6d010069ede0be4725d263d07de5a1c508dcf9cd393e5e73e3cd455bd735551e",
+      "sha256": "0c745bd745b76381492846af1dae85cbeb7e690abe50120b71f9a3e85bb8541e",
       "present": true
     },
     {
@@ -166,7 +166,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
+        "source_digest": "4b7eb29fb755bcf50e02c0fc310e64650e17b9689bda3e8f4d1f6b03d2a09f26",
         "fail_closed": true
       }
     },
@@ -208,7 +208,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
+        "source_digest": "4b7eb29fb755bcf50e02c0fc310e64650e17b9689bda3e8f4d1f6b03d2a09f26",
         "fail_closed": true
       }
     },
@@ -517,7 +517,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
+        "source_digest": "4b7eb29fb755bcf50e02c0fc310e64650e17b9689bda3e8f4d1f6b03d2a09f26",
         "fail_closed": true
       }
     },
@@ -559,7 +559,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "057fca070e03ad72921421b865dd228ee9657d721dd657a47a38b602c93820c2",
+        "source_digest": "4b7eb29fb755bcf50e02c0fc310e64650e17b9689bda3e8f4d1f6b03d2a09f26",
         "fail_closed": true
       }
     }
