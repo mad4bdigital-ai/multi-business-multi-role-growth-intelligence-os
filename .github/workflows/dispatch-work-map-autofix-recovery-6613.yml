@@ -1,0 +1,30 @@
+name: Dispatch Work Map Autofix Recovery 6613
+
+on:
+  push:
+    branches:
+      - gpt/bridge/work-map-recovery-6613-20260807
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: dispatch-work-map-autofix-recovery-6613
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Dispatch canonical recovery workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(jq -cn '{ref:"main",inputs:{pr_number:"6613",expected_head_sha:"1c25189258a9a1451bd1c426cdece216832803e3",confirmation:"RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX"}}')"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml/dispatches" --input - <<<"${payload}"
+          echo "dispatched=true" >> "$GITHUB_STEP_SUMMARY"
+          echo "target_pr=6613" >> "$GITHUB_STEP_SUMMARY"
+          echo "expected_head_sha=1c25189258a9a1451bd1c426cdece216832803e3" >> "$GITHUB_STEP_SUMMARY"
