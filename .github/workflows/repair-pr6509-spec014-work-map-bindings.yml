@@ -32,13 +32,21 @@ jobs:
         with:
           node-version: "22"
 
-      - name: Refresh only deterministic Spec 014 bindings
+      - name: Retire materializer before canonical Work Map validation
         shell: bash
         run: |
           set -euo pipefail
           test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
           test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          git rm .github/workflows/repair-pr6509-spec014-work-map-bindings.yml
+          git rm .github/ops/repair-pr6509-spec014-work-map-bindings.trigger
+          test ! -e .github/workflows/repair-pr6509-spec014-work-map-bindings.yml
+          test ! -e .github/ops/repair-pr6509-spec014-work-map-bindings.trigger
 
+      - name: Refresh only deterministic Spec 014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
             --feature-key 014-retail-commerce-operations-growth-os
@@ -119,15 +127,12 @@ jobs:
           set -euo pipefail
           node test-spec014-refresh-final-work-map-binding.mjs
 
-      - name: Commit bounded repair and retire materializer
+      - name: Commit bounded repair
         shell: bash
         run: |
           set -euo pipefail
           remote_head="$(git ls-remote origin "refs/heads/${EXPECTED_BRANCH}" | awk '{print $1}')"
           test "${remote_head}" = "${GITHUB_SHA}"
-
-          git rm .github/workflows/repair-pr6509-spec014-work-map-bindings.yml
-          git rm .github/ops/repair-pr6509-spec014-work-map-bindings.trigger
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
