@@ -37,9 +37,11 @@ For contract version `admin_control_db_run_v1`, the only supported request shape
 The governance check validates four boundaries together:
 
 - the canonical manifest is still `tool=db`, `action=run`, `sql_field=sql`;
-- the provider still enforces those values and retains `unsupported_db_action` / `db_sql_required` failures;
+- the provider still enforces those values and retains `unsupported_db_action` / `missing_sql` failures;
 - the shared builder emits exactly the canonical request fields and no legacy alias;
 - operational callers either use the builder or belong to the shrinking legacy allowlist and still match the canonical shape.
+
+The scanner treats JavaScript object shorthand such as `{ sql }` as the canonical `sql` property, while legacy aliases are matched only at object-property boundaries. This prevents a legal value expression such as `{ sql: query }` from being misclassified as a forbidden `query` property.
 
 On pull requests, the check compares the current legacy allowlist with the base branch and fails if a new legacy raw caller is added.
 
