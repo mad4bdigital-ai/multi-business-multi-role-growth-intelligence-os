@@ -1,0 +1,41 @@
+name: Temporary Migration 1042 Main Reconciliation
+
+on:
+  push:
+    branches:
+      - docs/migration-1042-surface-contract-remediation-20260807
+    paths:
+      - .github/workflows/tmp-1042-reconcile-main.yml
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge current main without force push and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "migration-1042-reconcile[bot]"
+          git config user.email "migration-1042-reconcile[bot]@users.noreply.github.com"
+          git fetch origin main
+
+          if git merge --no-commit --no-ff origin/main; then
+            git rm .github/workflows/tmp-1042-reconcile-main.yml
+            git commit -m "chore: reconcile Migration 1042 remediation with main"
+            git push origin HEAD:docs/migration-1042-surface-contract-remediation-20260807
+          else
+            git merge --abort || true
+            git rm .github/workflows/tmp-1042-reconcile-main.yml
+            git commit -m "chore(ci): remove failed Migration 1042 reconciliation probe"
+            git push origin HEAD:docs/migration-1042-surface-contract-remediation-20260807
+            echo "main reconciliation encountered conflicts; no merge was pushed" >&2
+            exit 1
+          fi
