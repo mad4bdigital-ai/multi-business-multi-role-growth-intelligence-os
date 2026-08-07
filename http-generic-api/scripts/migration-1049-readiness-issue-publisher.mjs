@@ -9,6 +9,7 @@ const SOURCE_HEAD_SHA = String(process.env.SOURCE_HEAD_SHA || '').trim().toLower
 const SOURCE_WORKFLOW = String(process.env.SOURCE_WORKFLOW || '').trim();
 const SUMMARY_PATH = String(process.env.READINESS_SUMMARY_PATH || '').trim();
 const EXPECTED_WORKFLOW = 'Governed Migration 1049 GitHub Repository Policy Rollout';
+const EXPECTED_SOURCE_MERGE_SHA = 'f3f98374a8207c6106aea8a6a334e38101defed1';
 const READY_PREFIX = 'GITHUB_REPOSITORY_POLICY_1049_READINESS result=pass ';
 
 async function github(pathname, options = {}) {
@@ -43,14 +44,14 @@ assert.match(String(summary?.production_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.migration_blob_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.checksum || ''), /^[0-9a-f]{64}$/);
 assert.equal(Number(summary?.statement_count), 4);
-assert.equal(summary?.source_merge_sha, 'f3f98374a8207c6106aea8a6a334e38101defed1');
+assert.ok(['ahead', 'identical'].includes(String(summary?.source_merge_status || '')), 'Readiness summary did not prove the canonical source merge is contained in Production');
 assert.equal(summary?.secrets_included, false);
 
-const marker = `${READY_PREFIX}production_sha=${summary.production_sha} migration_blob=${summary.migration_blob_sha} checksum=${summary.checksum} statement_count=${summary.statement_count} source_merge=${summary.source_merge_sha}`;
+const marker = `${READY_PREFIX}production_sha=${summary.production_sha} migration_blob=${summary.migration_blob_sha} checksum=${summary.checksum} statement_count=${summary.statement_count} source_merge=${EXPECTED_SOURCE_MERGE_SHA}`;
 const comments = await github(`/repos/${REPO}/issues/${ISSUE}/comments?per_page=100`);
 if (comments.some((comment) => String(comment?.body || '').trim() === marker)) {
-  console.log(JSON.stringify({ ok: true, action: 'unchanged', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, marker_sha256_bound: true, secrets_included: false }));
+  console.log(JSON.stringify({ ok: true, action: 'unchanged', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, source_merge_sha: EXPECTED_SOURCE_MERGE_SHA, marker_sha256_bound: true, secrets_included: false }));
   process.exit(0);
 }
 await github(`/repos/${REPO}/issues/${ISSUE}/comments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ body: marker }) });
-console.log(JSON.stringify({ ok: true, action: 'created', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, marker_sha256_bound: true, secrets_included: false }));
+console.log(JSON.stringify({ ok: true, action: 'created', issue: ISSUE, source_run_id: SOURCE_RUN_ID, source_head_sha: SOURCE_HEAD_SHA, source_merge_sha: EXPECTED_SOURCE_MERGE_SHA, marker_sha256_bound: true, secrets_included: false }));
