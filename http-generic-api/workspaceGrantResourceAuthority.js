@@ -11,7 +11,8 @@ function requireExactlyOne(rows, resourceType) {
   if (rows.length !== 1) {
     throw authorityError(409, "workspace_resource_ambiguous", `${resourceType} resource reference did not resolve uniquely.`);
   }
-  return rows[0];
+  const [resolved] = rows;
+  return resolved;
 }
 
 function normalizeBrandRef(value) {
