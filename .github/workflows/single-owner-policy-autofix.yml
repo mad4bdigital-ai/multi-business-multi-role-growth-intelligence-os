@@ -149,8 +149,29 @@ jobs:
           git commit -m "chore(github): record single-owner controller regression diagnostic"
           git push origin HEAD:fix/github-main-single-owner-policy-20260807
       - name: Validate diff hygiene
+        id: diff_hygiene
         if: success()
-        run: git diff --check
+        shell: bash
+        run: |
+          set +e
+          git diff --check > /tmp/single-owner-diff-hygiene.log 2>&1
+          status=$?
+          cat /tmp/single-owner-diff-hygiene.log
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/single-owner-diff-hygiene.log single-owner-autofix-diagnostic.txt
+            exit "$status"
+          fi
+      - name: Persist diff hygiene diagnostic
+        if: failure() && steps.diff_hygiene.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- http-generic-api/scripts/apply-single-owner-policy-autofix.mjs || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add single-owner-autofix-diagnostic.txt
+          git commit -m "chore(github): record single-owner diff hygiene diagnostic"
+          git push origin HEAD:fix/github-main-single-owner-policy-20260807
       - name: Commit final bounded patch and remove bootstrap files
         if: success()
         run: |
