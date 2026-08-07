@@ -66,9 +66,7 @@ const EVIDENCE_FILES = [
   "routes/workspaceResourceRoutes.js",
   "workspaceBrandLifecycle.js",
   "test-workspace-brand-create-operation-governance.mjs",
-  "routes/brandCoreAssetMaterializationRoutes.js",
   "workspaceBrandCoreAssetMaterialization.js",
-  "migrations/1050_workspace_asset_provenance_content_identity.sql",
   "test-brand-core-asset-materialization-operation-governance.mjs",
 ];
 
@@ -137,14 +135,15 @@ assert(materializeRule, "Brand Core materialization must have a generated rule")
 assert.equal(materializeRule.rule_id, "generated-workspace-brand-core-asset-materialize-governance");
 assert.equal(materializeRule.classification, "state_change");
 assert.equal(materializeRule.owner, "workspace-platform");
-assert.equal(materializeRule.preflight.mode, "canonical_user_jwt_brand_authority_and_provenance_schema");
+assert.equal(materializeRule.preflight.mode, "canonical_user_jwt_brand_authority_and_resource_asset_provenance");
 assert.equal(materializeRule.approval.mode, "runtime_authorization");
 assert.equal(materializeRule.readback.mode, "transactional_readback");
 assert.equal(materializeRule.readback.before_commit, true);
 assert.equal(materializeRule.rollback.mode, "transaction");
 assert.equal(materializeRule.parameter_bindings.asset_id, "response.asset.asset_id");
-assert.equal(materializeRule.parameter_bindings.provenance_sha256, "response.asset.provenance_sha256");
-assert(materializeRule.evidence_refs.includes("migrations/1050_workspace_asset_provenance_content_identity.sql"));
+assert.equal(materializeRule.parameter_bindings.content_identity, "response.asset.content_identity");
+assert(materializeRule.evidence_refs.includes("src/infrastructure/resourceApi/resourceRepository.js"));
+assert(!materializeRule.evidence_refs.some((file) => file.includes("1050_workspace_asset_provenance_content_identity")));
 assert(materializeRule.evidence_refs.includes("test-brand-core-asset-materialization-operation-governance.mjs"));
 assert.match(materializeRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
 
@@ -177,15 +176,25 @@ replaceEvidence(noBrandOwnerFixture, "workspaceBrandLifecycle.js", "OWNER_ROLES.
 const noBrandOwnerPlan = buildOperationGovernance({ apiRoot: noBrandOwnerFixture });
 assert(rejection(noBrandOwnerPlan, BRAND_OPERATION).missing_evidence.includes("locked_owner_authority"));
 
-const noMaterializeSchemaFixture = createFixture();
+const noMaterializePersistenceFixture = createFixture();
 replaceEvidence(
-  noMaterializeSchemaFixture,
-  "migrations/1050_workspace_asset_provenance_content_identity.sql",
-  "v_workspace_asset_provenance_schema_readiness",
-  "workspace_asset_provenance_schema_readiness_removed"
+  noMaterializePersistenceFixture,
+  "workspaceBrandCoreAssetMaterialization.js",
+  "repository.insertAsset",
+  "canonicalAssetPersistenceRemoved"
 );
-const noMaterializeSchemaPlan = buildOperationGovernance({ apiRoot: noMaterializeSchemaFixture });
-assert(rejection(noMaterializeSchemaPlan, MATERIALIZE_OPERATION).missing_evidence.includes("migration_contract"));
+const noMaterializePersistencePlan = buildOperationGovernance({ apiRoot: noMaterializePersistenceFixture });
+assert(rejection(noMaterializePersistencePlan, MATERIALIZE_OPERATION).missing_evidence.includes("canonical_asset_persistence"));
+
+const noMaterializeSerializationFixture = createFixture();
+replaceEvidence(
+  noMaterializeSerializationFixture,
+  "src/infrastructure/resourceApi/resourceRepository.js",
+  "ON DUPLICATE KEY UPDATE asset_id=asset_id",
+  "atomicAssetSerializationRemoved"
+);
+const noMaterializeSerializationPlan = buildOperationGovernance({ apiRoot: noMaterializeSerializationFixture });
+assert(rejection(noMaterializeSerializationPlan, MATERIALIZE_OPERATION).missing_evidence.includes("atomic_asset_serialization"));
 
 const noMaterializeReadbackFixture = createFixture();
 replaceEvidence(
@@ -195,7 +204,7 @@ replaceEvidence(
   "materializeReadbackEvidenceRemoved"
 );
 const noMaterializeReadbackPlan = buildOperationGovernance({ apiRoot: noMaterializeReadbackFixture });
-assert(rejection(noMaterializeReadbackPlan, MATERIALIZE_OPERATION).missing_evidence.includes("transactional_readback"));
+assert(rejection(noMaterializeReadbackPlan, MATERIALIZE_OPERATION).missing_evidence.includes("transactional_lineage_readback"));
 
 const noMaterializeTestFixture = createFixture();
 replaceEvidence(
@@ -217,4 +226,4 @@ replaceEvidence(
 const noMaterializeRegistrationPlan = buildOperationGovernance({ apiRoot: noMaterializeRegistrationFixture });
 assert(rejection(noMaterializeRegistrationPlan, MATERIALIZE_OPERATION).missing_evidence.includes("registered_operation_test"));
 
-console.log("generated frontend operation governance Lease + Brand Create + Brand Core materialization extension tests passed");
+console.log("generated frontend operation governance Lease + Brand Create + canonical Brand Core materialization extension tests passed");
