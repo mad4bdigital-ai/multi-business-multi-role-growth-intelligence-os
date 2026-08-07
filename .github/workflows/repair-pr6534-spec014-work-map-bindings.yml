@@ -49,14 +49,14 @@ jobs:
           rm -f "$WORKFLOW_FILE" "$TRIGGER_FILE"
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --write
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
 
           # Converge once more in case refreshed Spec014 metadata participates in
           # any generated source set, then prove idempotent final state.
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --write
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
