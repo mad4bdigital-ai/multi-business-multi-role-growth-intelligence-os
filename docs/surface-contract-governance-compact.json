@@ -1,20 +1,13 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.92,
-  "docs_complete_count": 458,
-  "docs_gap_count": 5,
-  "queue_items": 5,
-  "blocking_new_item_count": 3,
+  "docs_completion_percent": 99.14,
+  "docs_complete_count": 459,
+  "docs_gap_count": 4,
+  "queue_items": 4,
+  "blocking_new_item_count": 2,
   "gate_ok": false,
-  "top_actionable": [
-    {
-      "migration_file": "20260805_github_repository_policy_controller.sql",
-      "queue_class": "critical_review",
-      "score": 755,
-      "next_step": "add targeted patch-index, parity, and governance documentation"
-    }
-  ],
+  "top_actionable": [],
   "openapi_missing_sql_route_count": 0,
   "openapi_exempt_sql_route_count": 674,
   "total_sql_route_like_count": 705,
@@ -23,8 +16,8 @@
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 3,
-    "warning_new_item_count": 3
+    "blocking_new_item_count": 2,
+    "warning_new_item_count": 2
   },
   "safety": {
     "executes_provider_calls": false,
