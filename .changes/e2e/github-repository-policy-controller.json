@@ -15,8 +15,10 @@
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/repositoryAutomationPolicyFacade.js",
       "http-generic-api/routes/repositoryAutomationRoutes.js",
+      "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
-      "http-generic-api/test-repository-automation-policy-facade.mjs"
+      "http-generic-api/test-repository-automation-policy-facade.mjs",
+      "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
     ]
   },
   "merge_contract": {
@@ -42,6 +44,7 @@
             "Require Admin caller, valid capability envelope, exact expected main SHA, exact policy fingerprint, and typed confirmation before mutation.",
             "Create or update only the managed Ruleset and perform immediate bounded readback.",
             "Regenerate operation governance, Frontend dispatch, and runtime-route OpenAPI evidence from the synchronized repository authority.",
+            "Refresh the governed Spec 014 final Work Map binding from exact repository evidence without broadening provider or Production authority.",
             "Rollback or fail closed when the observed policy fingerprint, main identity, no-bypass posture, or server policy gate is incomplete."
           ],
           "assertions": [
@@ -56,6 +59,7 @@
             "The exact plan applies once under mocked GitHub responses and same-cycle readback matches the desired fingerprint.",
             "Post-readback mismatch triggers rollback evidence and fails closed.",
             "Committed Frontend operation-governance, dispatch, and runtime-route artifacts match the canonical generator output for the synchronized main baseline.",
+            "The final Work Map binding refresh is deterministic, exact-head-bound, and covered by its focused regression.",
             "No token, private key, capability secret, provider credential, or raw authorization value appears in response or audit evidence.",
             "The implementation journey performs no live GitHub policy mutation.",
             "Rulesets that explicitly or by pattern exclude main are never counted as applying to main.",
@@ -80,6 +84,13 @@
               "args": []
             },
             {
+              "id": "spec014-final-work-map-binding-refresh",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-refresh-final-work-map-binding.mjs",
+              "args": []
+            },
+            {
               "id": "frontend-dispatch-deterministic-evidence",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -96,8 +107,10 @@
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/repositoryAutomationPolicyFacade.js",
             "http-generic-api/routes/repositoryAutomationRoutes.js",
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/test-github-repository-policy-controller.mjs",
-            "http-generic-api/test-repository-automation-policy-facade.mjs"
+            "http-generic-api/test-repository-automation-policy-facade.mjs",
+            "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
         }
       ]
