@@ -205,6 +205,7 @@
 - `20260730_hostinger_production_resync_policy.sql` — SHA-256 `320581d0adf690f6ef4cf09d4ecd6dbcd5b6625743a529fbf0bc10a4948b41a6`; surfaces: policies=1; static preflight: pass/0; runtime reviews: verify_policy_seed_readiness.
 - `20260730_repository_reconciliation_lease_control_tool.sql` — SHA-256 `fe79a8b77cbaf0aa73c46c1852354b85429482f1fa88ed9284919861bb858fdf`; surfaces: plugins=1, tools=1, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `20260802_03_spec014_hostinger_storage_execution_evidence.sql` — SHA-256 `cf484d413399bbd3a0ea9ff36155ceb8b369e1bd43c63c300a93a179e0a57096`; surfaces: tools=3, views=3, routes=3; static preflight: warn/4; runtime reviews: verify_readback_view, verify_tool_registry_binding; evidence: human review by platform_admin:f242960c-2857-4b4d-a504-ee50f8a278b4.
+- `20260805_github_repository_policy_controller.sql` — SHA-256 `87f72f18978c1419a87278f437c6fb4afa1295d71514f1d5e7d51d0cb6ba25cc`; surfaces: tools=2, routes=1; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `308_sprint69_activation_guidance_intelligence.sql` — SHA-256 `dde33c80a6a38b9968c76f30b12e6091b5ac794c707080c8f57d78c589df5077`; surfaces: routes=2; static preflight: pass/0; runtime reviews: none.
 - `308_sprint69_dynamic_governed_migration_reconciliation.sql` — SHA-256 `0635ebaa25216ae9e2da27b4ba08da697f14e36a73e289d3e7985878f8022fb4`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
 - `309_sprint69_activation_guidance_invocation_registry.sql` — SHA-256 `1d74f06f2c6003a4a4ca78bbbe1972a2cb47ddcddeace35df847a8c4442ec28a`; surfaces: tools=5; static preflight: pass/0; runtime reviews: verify_tool_registry_binding.
@@ -1811,3 +1812,10 @@ Documents and aligns PR #1270 / migration `906_sprint68_ticket_external_delivery
 
 - `315_sprint69_capability_envelope_bootstrap_policy_declaration.sql` closes only the remaining passive POST classification gap for `capability_resolution_dry_run`. It adds `preview_only`, `no_mutation`, and `no_execution` registry metadata without changing envelope create/approve or repository mutation authority.
 - Migration execution is registry-only and declares `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, and `secrets_included=false`. Production apply remains governed-runner, authorization, preflight, checksum, typed-confirmation, and same-cycle-readback gated.
+
+
+### Migration 1048 transport response chunk schema recovery
+
+- Repository contract: `1048_transport_response_chunk_schema_recovery.sql` restores the durable governed response-chunk transport schema additively and idempotently.
+- Safety boundary: repository documentation/readiness only; no provider call, credential read, external send/write, secret payload, deployment, or database Apply is authorized by this documentation entry.
+- Production dependency: any Apply or promotion remains separately governed and requires checksum-bound preflight plus same-cycle schema readback.

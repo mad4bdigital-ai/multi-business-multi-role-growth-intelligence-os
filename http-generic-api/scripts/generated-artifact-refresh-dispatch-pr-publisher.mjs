@@ -74,8 +74,17 @@ export function normalizeGeneratedArtifactDispatchEvidence({ report, workflowCon
   if (report?.source_of_truth !== "structured_report" || report?.consult_job_logs !== false) {
     throw new Error("Dispatcher report must remain structured and Job-log independent.");
   }
-  if (!BRANCH_PATTERN.test(report?.target_ref || "") || report.target_ref === "main" || report.target_ref === "Production") {
-    throw new Error("Dispatcher target_ref is not a permitted work branch.");
+  const targetRef = report?.target_ref || "";
+  const protectedTarget = targetRef === "main" || targetRef === "Production";
+  const governedWorkBranch = BRANCH_PATTERN.test(targetRef) && !protectedTarget;
+  if (!governedWorkBranch && !protectedTarget) {
+    throw new Error("Dispatcher target_ref is not a permitted work branch or protected target.");
+  }
+  if (protectedTarget && report?.outcome !== "blocked") {
+    throw new Error("Dispatcher protected target_ref is permitted only for blocked evidence.");
+  }
+  if (protectedTarget && report?.dispatch_requested !== false) {
+    throw new Error("Blocked protected-target dispatcher evidence must confirm dispatch_requested=false.");
   }
   if (!SHA_PATTERN.test(report?.expected_head_sha || "")) throw new Error("Dispatcher report requires an exact expected_head_sha.");
   if (!Number.isInteger(report?.pr_number) || report.pr_number < 1) throw new Error("Dispatcher report requires the associated PR number.");
