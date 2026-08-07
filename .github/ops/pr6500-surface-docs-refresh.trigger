@@ -1,5 +1,4 @@
 pr=6500
-writer_head=ec6cc2dee44bea798ca506a86b844c458001e75d
-main=10568a9e88bb7ecd896098cfee10bd639483029b
-migration=1048_transport_response_chunk_schema_recovery.sql
-mode=surface-docs-and-generated-evidence-v1
+writer_head=df1aa63489ccd156e50b4f185c4536420b21db5a
+main_head=10568a9e88bb7ecd896098cfee10bd639483029b
+attempt=2
