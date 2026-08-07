@@ -180,7 +180,7 @@ function evaluateBrandCreateRecipe(apiRoot) {
       display_name: "request.body.display_name|request.body.brand_name",
       actor_user_id: "authenticated_user.user_id",
       brand_target_key: "response.brand.target_key",
-      brand_workspace_id: "response.brand_workspace.workspace_id",
+      brand_workspace_id: "response.workspace_link.workspace_id",
       creator_grant_id: "response.creator_grant.grant_id",
     },
   };
