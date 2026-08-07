@@ -1,0 +1,74 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-canonical-user-jwt-route-hardening",
+  "title": "Canonical fail-closed User JWT authentication for tenant platform and workspace routes",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-canonical-user-jwt-route-hardening.json",
+      "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove ad-hoc development-secret JWT verification from tenant platform-plugin and workspace-resource routes and require the canonical fail-closed User JWT parser before authoritative membership and resource scope checks.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-bearer-token-is-canonically-parsed-before-resource-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user",
+          "entrypoint": "Bearer User JWT request to tenant platform-plugin or workspace-resource route",
+          "terminal_outcome": "A configured valid User JWT becomes a non-admin user principal before DB-backed tenant/resource authority; missing verifier configuration fails closed and no development fallback secret can authenticate a request.",
+          "steps": [
+            "Enter a tenant platform-plugin or workspace-resource route with a Bearer token.",
+            "Parse the token with createUserJwtMiddleware from userJwtAuth.js.",
+            "Reject missing verifier configuration with user_jwt_verifier_unavailable instead of a fallback secret.",
+            "Require the parsed user_jwt principal before active membership, owner/admin or resource checks.",
+            "Resolve effective tenant role and resource authority from authoritative state rather than trusting token role claims."
+          ],
+          "assertions": [
+            "Neither route owns an ad-hoc jsonwebtoken verifier or development_fallback_secret_only value.",
+            "A valid configured HS256 User JWT is parsed into a non-admin user principal.",
+            "Missing JWT_SECRET fails closed with a safe 503 verifier-unavailable response.",
+            "Workspace and platform-plugin routes retain their DB-backed membership and tenant/resource checks after parsing.",
+            "No database migration, Production mutation, provider call, credential read, external send or force push is performed by this change."
+          ],
+          "tests": [
+            {
+              "id": "tenant-canonical-user-jwt-route-auth",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-route-canonical-user-jwt-auth.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-resource-authority-foundation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-resource-authority-foundation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-canonical-user-jwt-route-hardening.json",
+            "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/userJwtAuth.js",
+            "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
+            "http-generic-api/test-workspace-resource-authority-foundation.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
