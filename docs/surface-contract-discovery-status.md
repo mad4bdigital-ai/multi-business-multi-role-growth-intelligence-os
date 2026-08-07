@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 458/463 (98.92%)
-- Documentation gap migrations: 5
-- Gap severity: high=1, medium=0, low=4
+- Documentation complete migrations: 459/463 (99.14%)
+- Documentation gap migrations: 4
+- Gap severity: high=0, medium=0, low=4
 - SQL route coverage in OpenAPI: 31/31 (100.00%)
 - SQL route-like literals exempted from OpenAPI scoring: 674/705
 - SQL routes missing OpenAPI path coverage: 0
@@ -54,21 +54,21 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 5 |
-| `deployment_parity_checklist.md` | 5 |
-| `docs/ai-docs-agent-governance.md` | 5 |
-| `docs/auto-docs-agent/README.md` | 5 |
-| `docs/change-documentation-governance.md` | 5 |
+| `Updating Registry Patch Index.md` | 4 |
+| `deployment_parity_checklist.md` | 4 |
+| `docs/ai-docs-agent-governance.md` | 4 |
+| `docs/auto-docs-agent/README.md` | 4 |
+| `docs/change-documentation-governance.md` | 4 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 461 |
-| no_credential_payload_read | 459 |
-| no_raw_secrets | 459 |
-| no_external_send | 459 |
-| no_external_write | 459 |
+| no_provider_call | 462 |
+| no_credential_payload_read | 460 |
+| no_raw_secrets | 460 |
+| no_external_send | 460 |
+| no_external_write | 460 |
 | secrets_included_false | 462 |
 
 ### Route Classification Coverage
@@ -88,15 +88,14 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 5
-- Critical review: 1
+- Total queue items: 4
+- Critical review: 0
 - High review: 0
 - Medium review: 4
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
-| `20260805_github_repository_policy_controller.sql` | critical_review | 755 | high | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 335 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1048_transport_response_chunk_schema_recovery.sql` | medium_review | 325 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
@@ -190,7 +189,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ## High-Risk Documentation Gaps
 
-- `20260805_github_repository_policy_controller.sql`
+- none
 
 ## SQL Route OpenAPI Gaps
 
