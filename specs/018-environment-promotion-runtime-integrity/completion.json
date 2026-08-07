@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "feature_key": "018-environment-promotion-runtime-integrity",
+  "title": "Environment Promotion and Runtime Integrity",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "protected_user_path_smoke": true,
+    "rollback_verification": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 6618,
+      "branch": "gpt/018-environment-promotion-runtime-integrity-20260807",
+      "role": "specification",
+      "status": "current_pr"
+    },
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "status": "specification_only",
+      "runtime_authority": false,
+      "migration_applied": false,
+      "production_deployed": false,
+      "hostinger_mutated": false,
+      "secrets_included": false
+    },
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "planned_not_applied",
+      "path": null
+    },
+    "production_verification": {
+      "status": "pending"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "secrets_included": false
+}
