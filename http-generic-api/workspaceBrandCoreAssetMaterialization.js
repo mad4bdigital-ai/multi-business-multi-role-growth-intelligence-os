@@ -1,18 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
 import { extractGoogleFileId } from "./resolvers/brandReferenceResolver.js";
 import { resolveWorkspaceAssetBrandRef } from "./workspaceAssetBrandAuthority.js";
-
-const REQUIRED_PROVENANCE_COLUMNS = [
-  "workspace_id",
-  "source_type",
-  "source_ref",
-  "source_ref_sha256",
-  "source_revision",
-  "source_updated_at",
-  "source_validation_status",
-  "provenance_sha256",
-  "content_sha256",
-];
+import { parseWorkspaceAssetMetadata } from "./workspaceAssetProvenance.js";
+import { createResourceRepository } from "./src/infrastructure/resourceApi/resourceRepository.js";
 
 function materializationError(status, code, message, details = undefined) {
   return Object.assign(new Error(message), { status, code, ...(details ? { details } : {}) });
@@ -24,10 +13,6 @@ function text(value, max = 512) {
 
 function lower(value) {
   return text(value).toLowerCase();
-}
-
-function sha256(value) {
-  return createHash("sha256").update(String(value), "utf8").digest("hex");
 }
 
 function sourceActive(row = {}) {
@@ -72,55 +57,41 @@ function sourceLookupCandidates(value) {
   return [...new Set([raw, extracted].filter(Boolean))];
 }
 
-function inferWorkspaceAssetType(row = {}) {
-  const docId = text(row.doc_id || row.google_doc_id, 255);
-  const fileId = text(row.file_id, 255);
-  const link = lower(row.google_drive_link);
-  if (docId || link.includes("docs.google.com/document")) return "doc";
-  if (fileId || link.includes("drive.google.com")) return "drive_file";
-  return "external_ref";
-}
-
-function assetLocator(row = {}, sourceRef = "") {
-  return sourceFileId(row) || text(row.google_drive_link, 512) || sourceRef;
-}
-
 function sourceRevision(row = {}) {
-  return text(row.updated_at || row.created_at, 191);
+  return text(row.updated_at || row.created_at, 255);
 }
 
-function canonicalProvenance({ tenantId, workspaceId, brandRef, sourceRef, revision, validationStatus }) {
-  return JSON.stringify({
-    schema: "workspace_asset_brand_core_provenance_v1",
-    tenant_id: tenantId,
-    workspace_id: workspaceId,
-    brand_ref: brandRef,
-    source_type: "brand_core",
-    source_ref: sourceRef,
-    source_revision: revision || null,
-    source_validation_status: validationStatus || null,
-  });
-}
-
-async function assertProvenanceSchema(connection) {
-  const [rows] = await connection.query(
-    `SELECT column_name
-       FROM information_schema.columns
-      WHERE table_schema=DATABASE()
-        AND table_name='workspace_assets'
-        AND column_name IN (${REQUIRED_PROVENANCE_COLUMNS.map(() => "?").join(",")})`,
-    REQUIRED_PROVENANCE_COLUMNS
-  );
-  const present = new Set((Array.isArray(rows) ? rows : []).map((row) => String(row.column_name || "")));
-  const missing = REQUIRED_PROVENANCE_COLUMNS.filter((column) => !present.has(column));
-  if (missing.length) {
-    throw materializationError(
-      503,
-      "workspace_asset_provenance_schema_required",
-      "Workspace asset provenance schema migration is required before Brand Core materialization.",
-      { migration: "1050_workspace_asset_provenance_content_identity.sql", missing_columns: missing }
-    );
+function materializedAssetInput({ workspace, canonicalBrandRef, source }) {
+  const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
+  if (!canonicalSourceRef) {
+    throw materializationError(422, "brand_core_source_identity_unverifiable", "Brand Core source does not expose a stable materialization identity.");
   }
+  const validationStatus = sourceValidationStatus(source);
+  return {
+    asset_type: "brand_core",
+    asset_ref: canonicalSourceRef,
+    display_name: text(source.document_name || source.asset_key || source.doc_key || canonicalSourceRef, 255),
+    brand_ref: canonicalBrandRef,
+    visibility: "restricted",
+    lifecycle_status: "active",
+    source_type: "import",
+    source_provider: "brand_core",
+    source_uri: `brand-core:${canonicalSourceRef}`,
+    source_revision: sourceRevision(source) || null,
+    content_sha256: null,
+    metadata_json: {
+      materialization_source: "brand_core",
+      brand_workspace_id: text(workspace.workspace_id, 64),
+      brand_workspace_key: text(workspace.workspace_key, 255),
+      brand_core_row_id: source.id,
+      brand_core_source_ref: canonicalSourceRef,
+      brand_core_asset_type: text(source.asset_type, 255) || null,
+      source_validation_status: validationStatus || null,
+      source_updated_at: source.updated_at || null,
+      provider_content_fetched: false,
+      secrets_included: false,
+    },
+  };
 }
 
 async function resolveCanonicalBrand(connection, tenantId, actorUserId, requestedBrandRef) {
@@ -202,104 +173,65 @@ async function resolveBrandCoreSource(connection, brand, sourceLookup) {
   if (!sourceActive(source)) {
     throw materializationError(409, "brand_core_source_inactive", "Brand Core source is not active and validated for materialization.");
   }
-  const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
-  if (!canonicalSourceRef) {
+  if (!canonicalBrandCoreSourceRef(source)) {
     throw materializationError(422, "brand_core_source_identity_unverifiable", "Brand Core source does not expose a stable materialization identity.");
   }
   return source;
 }
 
-async function materializeAsset(connection, {
+async function persistMaterializedAsset(connection, {
   tenantId,
   actorUserId,
   workspace,
   canonicalBrandRef,
   source,
 }) {
-  const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
-  const sourceRefSha256 = sha256(canonicalSourceRef);
-  const revision = sourceRevision(source);
-  const validationStatus = sourceValidationStatus(source);
-  const provenance = canonicalProvenance({
-    tenantId,
-    workspaceId: text(workspace.workspace_id, 64),
-    brandRef: canonicalBrandRef,
-    sourceRef: canonicalSourceRef,
-    revision,
-    validationStatus,
-  });
-  const provenanceSha256 = sha256(provenance);
-  const assetType = inferWorkspaceAssetType(source);
-  const locator = assetLocator(source, canonicalSourceRef);
-  const displayName = text(source.document_name || source.asset_key || source.doc_key || canonicalSourceRef, 255);
-  const candidateAssetId = randomUUID();
+  const repository = createResourceRepository({ pool: connection, transactionConnection: true });
+  const member = await repository.findMembership(actorUserId, tenantId);
+  if (!member || member.status !== "active" || member.tenant_status !== "active") {
+    throw materializationError(403, "active_membership_required", "Active workspace membership required.");
+  }
 
-  await connection.query(
-    `INSERT INTO workspace_assets
-      (asset_id, tenant_id, workspace_id, asset_type, asset_ref, display_name, brand_ref,
-       visibility, lifecycle_status, source_type, source_ref, source_ref_sha256,
-       source_revision, source_updated_at, source_validation_status,
-       provenance_sha256, content_sha256, metadata_json, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'restricted', 'active', 'brand_core', ?, ?, ?, ?, ?, ?, NULL, ?, ?)
-     ON DUPLICATE KEY UPDATE
-       workspace_id=VALUES(workspace_id),
-       asset_ref=VALUES(asset_ref),
-       display_name=VALUES(display_name),
-       source_revision=VALUES(source_revision),
-       source_updated_at=VALUES(source_updated_at),
-       source_validation_status=VALUES(source_validation_status),
-       provenance_sha256=VALUES(provenance_sha256),
-       metadata_json=VALUES(metadata_json),
-       updated_at=NOW()`,
-    [
-      candidateAssetId,
-      tenantId,
-      text(workspace.workspace_id, 64),
-      assetType,
-      locator,
-      displayName,
-      canonicalBrandRef,
-      canonicalSourceRef,
-      sourceRefSha256,
-      revision || null,
-      source.updated_at || null,
-      validationStatus || null,
-      provenanceSha256,
-      JSON.stringify({
-        materialization_source: "brand_core",
-        brand_core_row_id: source.id,
-        source_asset_key: text(source.asset_key, 255) || null,
-        source_document_name: text(source.document_name, 255) || null,
-        provider_content_fetched: false,
-        content_sha256_available: false,
-        secrets_included: false,
-      }),
-      actorUserId,
-    ]
-  );
+  const input = materializedAssetInput({ workspace, canonicalBrandRef, source });
+  const assetId = await repository.insertAsset({ tenantId, actorId: actorUserId, input });
 
-  const [readbackRows] = await connection.query(
-    `SELECT asset_id, tenant_id, workspace_id, asset_type, asset_ref, display_name, brand_ref,
-            visibility, lifecycle_status, source_type, source_ref, source_ref_sha256,
-            source_revision, source_updated_at, source_validation_status,
-            provenance_sha256, content_sha256, created_by, created_at, updated_at
+  const [lineageRows] = await connection.query(
+    `SELECT asset_id, tenant_id, asset_type, asset_ref, brand_ref, lifecycle_status, metadata_json, created_by
        FROM workspace_assets
-      WHERE tenant_id=? AND brand_ref=? AND source_type='brand_core' AND source_ref_sha256=?
+      WHERE asset_id=? AND tenant_id=?
       LIMIT 2 FOR UPDATE`,
-    [tenantId, canonicalBrandRef, sourceRefSha256]
+    [assetId, tenantId]
   );
-  if (!Array.isArray(readbackRows) || readbackRows.length !== 1) {
+  if (!Array.isArray(lineageRows) || lineageRows.length !== 1) {
     throw materializationError(409, "brand_core_asset_materialize_readback_invalid", "Materialized asset did not resolve exactly once before commit.");
   }
-  const [asset] = readbackRows;
+  const [lineage] = lineageRows;
+  const metadata = parseWorkspaceAssetMetadata(lineage.metadata_json);
+  const expectedSourceRef = canonicalBrandCoreSourceRef(source);
   if (
-    text(asset.workspace_id) !== text(workspace.workspace_id) ||
-    text(asset.brand_ref) !== canonicalBrandRef ||
-    text(asset.source_ref) !== canonicalSourceRef ||
-    text(asset.source_ref_sha256) !== sourceRefSha256 ||
-    text(asset.provenance_sha256) !== provenanceSha256
+    text(lineage.asset_type) !== input.asset_type ||
+    text(lineage.asset_ref) !== expectedSourceRef ||
+    text(lineage.brand_ref) !== canonicalBrandRef ||
+    text(metadata.brand_workspace_id) !== text(workspace.workspace_id, 64) ||
+    text(metadata.brand_core_source_ref) !== expectedSourceRef ||
+    text(metadata.source_provider) !== "brand_core" ||
+    text(metadata.source_type) !== "import" ||
+    text(metadata.source_revision) !== text(input.source_revision, 255) ||
+    metadata.content_sha256 !== null ||
+    metadata.provider_content_fetched !== false ||
+    metadata.secrets_included !== false
   ) {
-    throw materializationError(409, "brand_core_asset_materialize_readback_mismatch", "Materialized asset provenance readback does not match the canonical source authority.");
+    throw materializationError(409, "brand_core_asset_materialize_readback_mismatch", "Materialized asset lineage does not match canonical Brand Core authority.");
+  }
+
+  const context = {
+    tenantId,
+    member,
+    auth: { mode: "user_jwt", user_id: actorUserId, tenant_id: tenantId, is_admin: false },
+  };
+  const asset = await repository.getResource("assets", assetId, context);
+  if (!asset || text(asset.asset_id) !== text(assetId, 64) || asset.source_provider !== "brand_core") {
+    throw materializationError(409, "brand_core_asset_materialize_projection_invalid", "Canonical asset projection did not match the persisted Brand Core materialization.");
   }
   return asset;
 }
@@ -316,11 +248,10 @@ export async function materializeWorkspaceBrandCoreAsset(connection, {
   if (!tenant || !actor || !requestedBrand) {
     throw materializationError(400, "brand_core_materialize_identity_required", "tenant, signed-in user, and brand_ref are required.");
   }
-  await assertProvenanceSchema(connection);
   const { brand, canonicalBrandRef } = await resolveCanonicalBrand(connection, tenant, actor, requestedBrand);
   const workspace = await resolveBrandWorkspace(connection, tenant, canonicalBrandRef);
   const source = await resolveBrandCoreSource(connection, brand, sourceRef);
-  const asset = await materializeAsset(connection, {
+  const asset = await persistMaterializedAsset(connection, {
     tenantId: tenant,
     actorUserId: actor,
     workspace,
@@ -330,12 +261,13 @@ export async function materializeWorkspaceBrandCoreAsset(connection, {
   return {
     asset,
     source: {
-      source_type: "brand_core",
-      source_ref: asset.source_ref,
+      source_type: asset.source_type,
+      source_provider: asset.source_provider,
+      source_ref: canonicalBrandCoreSourceRef(source),
       source_revision: asset.source_revision,
-      source_validation_status: asset.source_validation_status,
-      provenance_sha256: asset.provenance_sha256,
+      source_validation_status: sourceValidationStatus(source),
       content_sha256: asset.content_sha256,
+      content_identity: asset.content_identity,
       provider_content_fetched: false,
     },
     workspace: {
@@ -352,7 +284,6 @@ export const _testingWorkspaceBrandCoreAssetMaterialization = {
   sourceFileId,
   canonicalBrandCoreSourceRef,
   sourceLookupCandidates,
-  inferWorkspaceAssetType,
-  canonicalProvenance,
-  sha256,
+  sourceRevision,
+  materializedAssetInput,
 };
