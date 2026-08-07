@@ -24,4 +24,4 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --ref main \
             -f branch=fix/response-chunk-push-bridge-runner-context-20260807 \
-            -f expected_head_sha=de2c745ea2aa43665e7e03403b63672ef2f5fd14
+            -f expected_head_sha=220d8fd10a7b0fc2c2c0e04ac288598dacfd386a
