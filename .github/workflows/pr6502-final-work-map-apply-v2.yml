@@ -7,7 +7,6 @@ on:
       - .github/workflows/pr6502-final-work-map-apply-v2.yml
 
 permissions:
-  actions: read
   contents: write
   pull-requests: read
 
@@ -17,21 +16,14 @@ concurrency:
 
 jobs:
   apply:
-    name: Apply exact-head Work Map artifact and retire one-shot
+    name: Regenerate exact permanent Work Maps and retire one-shot
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: cbf2dd82a2cd5031ef20d706559b4bd87cb32833
+      AUTHORIZED_PARENT_SHA: ee221504e0d4c96b0df7d545dd8380140e76ea5d
       EXPECTED_MAIN_SHA: 852696e8fe90d7121ff4c333654e9b0d8b244a68
-      ARTIFACT_ID: "8982237350"
-      ARTIFACT_RUN_ID: "31148087761"
-      ARTIFACT_NAME: work-map-repair-candidate-6502-e6f34e90d4323d2b0559f69f01112ae26a1c3dbb
-      ARTIFACT_EXPECTED_HEAD: e6f34e90d4323d2b0559f69f01112ae26a1c3dbb
-      EXPECTED_SOURCE_HASH: af2ee6ec1a50297e146da59b41dff62ab18ccba7b2ad83572f9aa1b46019819b
-      EXPECTED_README_SHA256: 00bebccae0c115e349134a1ae6ca01b4a0a9264a05f12a57211842b70cd3e441
-      EXPECTED_AUTOMATION_SHA256: 2673db475d7d78a97870e02b42735a2972f2ba4f1f0bf17f84a9c9d16e50b477
       ONE_SHOT_PATH: .github/workflows/pr6502-final-work-map-apply-v2.yml
     steps:
       - name: Checkout exact trigger head
@@ -64,66 +56,38 @@ jobs:
           test "${current_main}" = "${EXPECTED_MAIN_SHA}"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${GITHUB_SHA}" --jq '.behind_by')" = "0"
 
-      - name: Download and validate exact-head candidate
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Regenerate canonical maps from exact permanent tree
         shell: bash
         run: |
           set -Eeuo pipefail
           rm -- "${ONE_SHOT_PATH}"
           test ! -e "${ONE_SHOT_PATH}"
+          test "$(git diff --name-only | sort)" = "${ONE_SHOT_PATH}"
 
-          artifact_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}")"
-          test "$(jq -r '.expired' <<<"${artifact_json}")" = "false"
-          test "$(jq -r '.name' <<<"${artifact_json}")" = "${ARTIFACT_NAME}"
-          test "$(jq -r '.workflow_run.id' <<<"${artifact_json}")" = "${ARTIFACT_RUN_ID}"
-          test "$(jq -r '.workflow_run.head_sha' <<<"${artifact_json}")" = "${ARTIFACT_EXPECTED_HEAD}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
 
-          mkdir -p .tmp/pr6502-work-map/candidate
-          gh run download "${ARTIFACT_RUN_ID}" \
-            --repo "${GITHUB_REPOSITORY}" \
-            --name "${ARTIFACT_NAME}" \
-            --dir .tmp/pr6502-work-map/candidate
-
-          report=.tmp/pr6502-work-map/candidate/report.json
-          test "$(jq -r '.contract' "${report}")" = "mad4b.work-map-repair-candidate.v1"
-          test "$(jq -r '.repository' "${report}")" = "${GITHUB_REPOSITORY}"
-          test "$(jq -r '.expected_head_sha' "${report}")" = "${ARTIFACT_EXPECTED_HEAD}"
-          test "$(jq -r '.tested_head_sha' "${report}")" = "${ARTIFACT_EXPECTED_HEAD}"
-          test "$(jq -r '.source_hash_sha256' "${report}")" = "${EXPECTED_SOURCE_HASH}"
-          test "$(jq -r '.generated_from_exact_checked_out_head' "${report}")" = "true"
-          test "$(jq -r '.remote_write_executed' "${report}")" = "false"
-          test "$(jq -r '.secrets_included' "${report}")" = "false"
-          test "$(jq -r '.allowed_root' "${report}")" = "docs/work-maps"
-          test "$(jq -r '.changed_count' "${report}")" = "2"
-
-          expected_changed="$(printf '%s\n' \
-            'docs/work-maps/README.md' \
-            'docs/work-maps/repository-automation-map.md' | sort)"
-          test "$(sort .tmp/pr6502-work-map/candidate/changed-files.txt)" = "${expected_changed}"
-          test "$(jq -r '.changed_files[]' "${report}" | sort)" = "${expected_changed}"
-
-          test "$(sha256sum .tmp/pr6502-work-map/candidate/docs/work-maps/README.md | awk '{print $1}')" = "${EXPECTED_README_SHA256}"
-          test "$(sha256sum .tmp/pr6502-work-map/candidate/docs/work-maps/repository-automation-map.md | awk '{print $1}')" = "${EXPECTED_AUTOMATION_SHA256}"
-
-          cp .tmp/pr6502-work-map/candidate/docs/work-maps/README.md docs/work-maps/README.md
-          cp .tmp/pr6502-work-map/candidate/docs/work-maps/repository-automation-map.md docs/work-maps/repository-automation-map.md
-          rm -rf .tmp/pr6502-work-map
-
-      - name: Validate final permanent tree before write
-        shell: bash
-        run: |
-          set -Eeuo pipefail
           expected="$(printf '%s\n' \
             "${ONE_SHOT_PATH}" \
             'docs/work-maps/README.md' \
             'docs/work-maps/repository-automation-map.md' | sort)"
           test "$(git diff --name-only | sort)" = "${expected}"
-          test "$(sha256sum docs/work-maps/README.md | awk '{print $1}')" = "${EXPECTED_README_SHA256}"
-          test "$(sha256sum docs/work-maps/repository-automation-map.md | awk '{print $1}')" = "${EXPECTED_AUTOMATION_SHA256}"
+
+          before="$(git diff --binary | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          after="$(git diff --binary | sha256sum | awk '{print $1}')"
+          test "${before}" = "${after}"
+
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          echo "readme_sha256=$(sha256sum docs/work-maps/README.md | awk '{print $1}')" >> "${GITHUB_STEP_SUMMARY}"
+          echo "repository_automation_sha256=$(sha256sum docs/work-maps/repository-automation-map.md | awk '{print $1}')" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Run focused regression tests on permanent tree
+        shell: bash
+        run: |
+          set -Eeuo pipefail
           node http-generic-api/test-push-workflow-runner-context-registration.mjs
-          node http-generic-api/test-production-promotion-convergence-workflows.mjs
+          (cd http-generic-api && node test-production-promotion-convergence-workflows.mjs)
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
       - name: Commit maps and retire one-shot by fast-forward
         env:
@@ -135,10 +99,14 @@ jobs:
             "${ONE_SHOT_PATH}" \
             'docs/work-maps/README.md' \
             'docs/work-maps/repository-automation-map.md' | sort)"
+          test "$(git diff --name-only | sort)" = "${expected}"
 
           live_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${live_pr}")" = "open"
+          test "$(jq -r '.draft' <<<"${live_pr}")" = "true"
           test "$(jq -r '.head.sha' <<<"${live_pr}")" = "${GITHUB_SHA}"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${GITHUB_SHA}" --jq '.behind_by')" = "0"
           remote_before="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_before}" = "${GITHUB_SHA}"
 
@@ -146,7 +114,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A -- "${ONE_SHOT_PATH}" docs/work-maps/README.md docs/work-maps/repository-automation-map.md
           test "$(git diff --cached --name-only | sort)" = "${expected}"
-          git commit -m "docs(work-maps): apply exact-head candidate for PR #6502"
+          git commit -m "docs(work-maps): regenerate exact-head maps for PR #6502"
 
           result_sha="$(git rev-parse HEAD)"
           test "$(git diff-tree --no-commit-id --name-only -r HEAD | sort)" = "${expected}"
@@ -159,6 +127,6 @@ jobs:
           test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
 
           echo "result_head_sha=${result_sha}" >> "${GITHUB_STEP_SUMMARY}"
-          echo "source_candidate_head=${ARTIFACT_EXPECTED_HEAD}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "generated_from_trigger_head=${GITHUB_SHA}" >> "${GITHUB_STEP_SUMMARY}"
           echo "one_shot_retired=true" >> "${GITHUB_STEP_SUMMARY}"
           echo "force_push=false" >> "${GITHUB_STEP_SUMMARY}"
