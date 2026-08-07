@@ -29,10 +29,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-readiness
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
@@ -91,10 +91,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-apply
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
@@ -153,10 +153,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-verify
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
