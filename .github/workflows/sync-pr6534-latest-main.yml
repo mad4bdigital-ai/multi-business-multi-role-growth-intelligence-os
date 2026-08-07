@@ -1,0 +1,64 @@
+name: Sync PR 6534 with latest main
+
+on:
+  push:
+    branches:
+      - gpt/migration-1048-governed-rollout-20260807
+    paths:
+      - .github/ops/sync-pr6534-latest-main.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-pr6534-latest-main
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: gpt/migration-1048-governed-rollout-20260807
+      EXPECTED_MAIN: 398aed2b60f51ac7f1062e733fb4833918a5a735
+      WORKFLOW_FILE: .github/workflows/sync-pr6534-latest-main.yml
+      TRIGGER_FILE: .github/ops/sync-pr6534-latest-main.trigger
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - name: Merge exact current main without conflict overrides
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          git fetch origin main "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # No conflict resolution is permitted in this sync. The incoming main
+          # delta is disjoint from the Migration 1048 rollout diff; any conflict
+          # is therefore unexpected and must fail closed.
+          git merge --no-commit --no-ff origin/main
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+          rm -f "$WORKFLOW_FILE" "$TRIGGER_FILE"
+          git add -A
+
+          # Refuse a stale sync if either ref moved while the merge was prepared.
+          git fetch origin main "${EXPECTED_BRANCH}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+
+          git commit -m "merge(main): sync Migration 1048 rollout with tenant auth hardening"
+          NEW_HEAD="$(git rev-parse HEAD)"
+          test -z "$(git status --porcelain)"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
+
+          echo "result_head=${NEW_HEAD}" >> "$GITHUB_STEP_SUMMARY"
+          echo "main_parent=${EXPECTED_MAIN}" >> "$GITHUB_STEP_SUMMARY"
