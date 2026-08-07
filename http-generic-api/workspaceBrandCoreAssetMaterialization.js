@@ -31,7 +31,8 @@ function requireExactlyOne(rows, {
   if (rows.length !== 1) {
     throw materializationError(409, ambiguousCode, ambiguousMessage, { count: rows.length });
   }
-  return rows[0];
+  const [resolved] = rows;
+  return resolved;
 }
 
 function sourceActive(row = {}) {
@@ -273,7 +274,7 @@ async function resolveBrandContainerTopology(connection, { rootWorkspace, canoni
       { count: rows.length }
     );
   }
-  const topology = rows[0];
+  const [topology] = rows;
   if (
     lower(topology.workspace_subject_type) !== "workspace" ||
     text(topology.workspace_subject_ref, 64) !== text(rootWorkspace.workspace_id, 64)
