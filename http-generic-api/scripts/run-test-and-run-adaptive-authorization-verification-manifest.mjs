@@ -5,6 +5,11 @@ import { fileURLToPath } from "node:url";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const phases = Object.freeze([
+  Object.freeze({
+    id: "admin-control-db-contract-governance",
+    script: "scripts/admin-control-db-contract-governance.mjs",
+    args: Object.freeze(["--ci"]),
+  }),
   Object.freeze({ id: "brand-skill-migration-preflight", script: "test-brand-skill-migration-preflight.mjs" }),
   Object.freeze({ id: "brand-skill-mariadb-certification", script: "test-brand-skill-mariadb-certification-contract.mjs" }),
   Object.freeze({ id: "canonical-test-manifest", script: "scripts/run-test-manifest.mjs" }),
@@ -51,14 +56,14 @@ const report = {
   currentPhase: null,
   lastPassed: null,
   firstFailure: null,
-  phases: phases.map(({ id, script }, phaseIndex) => ({ id, script, phaseIndex, status: "pending" })),
+  phases: phases.map(({ id, script, args = [] }, phaseIndex) => ({ id, script, args: [...args], phaseIndex, status: "pending" })),
   secretsIncluded: false,
 };
 writeReport(outputFile, report);
 
 for (let phaseIndex = 0; phaseIndex < phases.length; phaseIndex += 1) {
-  const { id, script } = phases[phaseIndex];
-  const currentPhase = { id, script, phaseIndex };
+  const { id, script, args = [] } = phases[phaseIndex];
+  const currentPhase = { id, script, args: [...args], phaseIndex };
   report.currentPhase = currentPhase;
   report.phases[phaseIndex] = { ...currentPhase, status: "running", startedAt: new Date().toISOString() };
   writeReport(outputFile, report);
@@ -69,7 +74,7 @@ for (let phaseIndex = 0; phaseIndex < phases.length; phaseIndex += 1) {
   if (directory && !childEnvironment.TEST_MANIFEST_REPORT_FILE) {
     childEnvironment.TEST_MANIFEST_REPORT_FILE = path.join(directory, "test-manifest.json");
   }
-  const completed = spawnSync(process.execPath, [script], {
+  const completed = spawnSync(process.execPath, [script, ...args], {
     cwd: root,
     env: childEnvironment,
     stdio: "inherit",
