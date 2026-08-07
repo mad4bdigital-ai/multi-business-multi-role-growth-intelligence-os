@@ -1,5 +1,13 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { materializeWorkspaceBrandCoreAsset } from "./workspaceBrandCoreAssetMaterialization.js";
+
+const workspaceAssetFoundationSql = readFileSync(
+  new URL("./migrations/193_sprint67_workspace_resource_authority_foundation.sql", import.meta.url),
+  "utf8"
+);
+assert.match(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'external_ref'/, "Brand Core reference materialization must use a workspace_assets asset_type admitted by the canonical foundation schema");
+assert.doesNotMatch(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'brand_core'/, "tests must not rely on an undeclared brand_core workspace asset type");
 
 function canonicalBrandLink() {
   return [{
@@ -155,13 +163,13 @@ async function materialize(connection, sourceRef = "positioning") {
   const connection = buildConnection();
   const result = await materialize(connection);
   assert.equal(result.asset.brand_ref, "brand-a");
-  assert.equal(result.asset.asset_type, "brand_core");
+  assert.equal(result.asset.asset_type, "external_ref");
   assert.equal(result.asset.asset_ref, "asset_key:positioning");
   assert.equal(result.asset.source_type, "import");
   assert.equal(result.asset.source_provider, "brand_core");
   assert.equal(result.asset.source_revision, "2026-08-07 10:00:00");
   assert.equal(result.asset.content_sha256, null, "content hash must remain null when provider content was not fetched");
-  assert.equal(result.asset.content_identity, "asset_ref:brand_core:asset_key:positioning");
+  assert.equal(result.asset.content_identity, "asset_ref:external_ref:asset_key:positioning");
   assert.equal(result.source.provider_content_fetched, false);
   assert.equal(result.workspace.workspace_id, "workspace-brand-a");
   const metadata = JSON.parse(connection.stored.metadata_json);
@@ -189,7 +197,7 @@ async function materialize(connection, sourceRef = "positioning") {
   const result = await materialize(connection, "https://docs.google.com/document/d/legacy-doc-456/edit");
   assert.equal(result.source.source_ref, "google_file:legacy-doc-456");
   assert.equal(result.asset.asset_ref, "google_file:legacy-doc-456");
-  assert.equal(result.asset.asset_type, "brand_core");
+  assert.equal(result.asset.asset_type, "external_ref");
 }
 
 {
