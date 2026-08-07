@@ -69,14 +69,12 @@ jobs:
           for file in "${files[@]}"; do
             test -f "${file}"
             if ! grep -Fq "${MIGRATION_FILE}" "${file}"; then
-              cat >> "${file}" <<'EOF'
-
-### Migration 1048 transport response chunk schema recovery
-
-- Repository contract: `1048_transport_response_chunk_schema_recovery.sql` restores the durable governed response-chunk transport schema additively and idempotently.
-- Safety boundary: repository documentation/readiness only; no provider call, credential read, external send/write, secret payload, deployment, or database Apply is authorized by this documentation entry.
-- Production dependency: any Apply or promotion remains separately governed and requires checksum-bound preflight plus same-cycle schema readback.
-EOF
+              printf '\n\n%s\n\n%s\n%s\n%s\n' \
+                '### Migration 1048 transport response chunk schema recovery' \
+                '- Repository contract: `1048_transport_response_chunk_schema_recovery.sql` restores the durable governed response-chunk transport schema additively and idempotently.' \
+                '- Safety boundary: repository documentation/readiness only; no provider call, credential read, external send/write, secret payload, deployment, or database Apply is authorized by this documentation entry.' \
+                '- Production dependency: any Apply or promotion remains separately governed and requires checksum-bound preflight plus same-cycle schema readback.' \
+                >> "${file}"
             fi
             grep -Fq "${MIGRATION_FILE}" "${file}"
           done
@@ -110,24 +108,25 @@ EOF
             git diff --cached --name-only
           } | sed '/^$/d' | sort -u > /tmp/actual.txt
 
-          cat > /tmp/allowed.txt <<'EOF'
-.github/ops/pr6500-surface-docs-refresh.trigger
-.github/workflows/pr6500-surface-docs-refresh-once.yml
-Updating Registry Patch Index.md
-deployment_parity_checklist.md
-docs/ai-docs-agent-governance.md
-docs/auto-docs-agent/README.md
-docs/change-documentation-governance.md
-docs/surface-contract-discovery-status.md
-docs/surface-contract-discovery-status.json
-docs/surface-contract-gap-queue.md
-docs/surface-contract-gap-queue.json
-docs/work-maps/README.md
-docs/work-maps/data-model-domain-map.md
-docs/work-maps/observability-release-map.md
-docs/work-maps/work-map-coverage-matrix.md
-EOF
-          unexpected="$(comm -23 /tmp/actual.txt <(sort /tmp/allowed.txt) || true)"
+          allowed=(
+            ".github/ops/pr6500-surface-docs-refresh.trigger"
+            ".github/workflows/pr6500-surface-docs-refresh-once.yml"
+            "Updating Registry Patch Index.md"
+            "deployment_parity_checklist.md"
+            "docs/ai-docs-agent-governance.md"
+            "docs/auto-docs-agent/README.md"
+            "docs/change-documentation-governance.md"
+            "docs/surface-contract-discovery-status.md"
+            "docs/surface-contract-discovery-status.json"
+            "docs/surface-contract-gap-queue.md"
+            "docs/surface-contract-gap-queue.json"
+            "docs/work-maps/README.md"
+            "docs/work-maps/data-model-domain-map.md"
+            "docs/work-maps/observability-release-map.md"
+            "docs/work-maps/work-map-coverage-matrix.md"
+          )
+          printf '%s\n' "${allowed[@]}" | sort -u > /tmp/allowed.txt
+          unexpected="$(comm -23 /tmp/actual.txt /tmp/allowed.txt || true)"
           if [[ -n "${unexpected}" ]]; then
             echo "Unexpected changed files:"
             printf '%s\n' "${unexpected}"
@@ -208,24 +207,26 @@ EOF
             docs/work-maps/work-map-coverage-matrix.md
 
           git diff --cached --name-only | sort -u > /tmp/staged.txt
-          unexpected="$(comm -23 /tmp/staged.txt <(sort /tmp/allowed.txt) || true)"
+          unexpected="$(comm -23 /tmp/staged.txt /tmp/allowed.txt || true)"
           if [[ -n "${unexpected}" ]]; then
             echo "Unexpected staged files:"
             printf '%s\n' "${unexpected}"
             exit 1
           fi
-          for file in \
-            ".github/ops/pr6500-surface-docs-refresh.trigger" \
-            ".github/workflows/pr6500-surface-docs-refresh-once.yml" \
-            "Updating Registry Patch Index.md" \
-            "deployment_parity_checklist.md" \
-            "docs/ai-docs-agent-governance.md" \
-            "docs/auto-docs-agent/README.md" \
-            "docs/change-documentation-governance.md" \
-            "docs/surface-contract-discovery-status.md" \
-            "docs/surface-contract-discovery-status.json" \
-            "docs/surface-contract-gap-queue.md" \
-            "docs/surface-contract-gap-queue.json"; do
+          required=(
+            ".github/ops/pr6500-surface-docs-refresh.trigger"
+            ".github/workflows/pr6500-surface-docs-refresh-once.yml"
+            "Updating Registry Patch Index.md"
+            "deployment_parity_checklist.md"
+            "docs/ai-docs-agent-governance.md"
+            "docs/auto-docs-agent/README.md"
+            "docs/change-documentation-governance.md"
+            "docs/surface-contract-discovery-status.md"
+            "docs/surface-contract-discovery-status.json"
+            "docs/surface-contract-gap-queue.md"
+            "docs/surface-contract-gap-queue.json"
+          )
+          for file in "${required[@]}"; do
             grep -Fxq "${file}" /tmp/staged.txt || { echo "Required staged change missing: ${file}"; exit 1; }
           done
           git diff --cached --check
