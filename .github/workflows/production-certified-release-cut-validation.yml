@@ -14,7 +14,7 @@ concurrency:
 jobs:
   certified-release-cut-ci:
     name: Validate certified immutable release cut
-    if: startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
+    if: "startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     outputs:
@@ -418,7 +418,7 @@ jobs:
 
   finalize:
     name: Publish certified release-cut evidence
-    if: always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')
+    if: "always() && startsWith(github.event.pull_request.title, 'test(release): certify immutable Production candidate ')"
     needs:
       - certified-release-cut-ci
       - syntax

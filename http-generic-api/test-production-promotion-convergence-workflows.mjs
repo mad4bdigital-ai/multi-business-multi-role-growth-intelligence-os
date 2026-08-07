@@ -37,24 +37,30 @@ for (const required of [
   /provider_call_executed: false/,
   /credential_payload_read: false/,
   /secrets_included: false/,
+  /\.head\.repo\.full_name \/\/ ""/,
+  /request PR must originate from this repository/,
 ]) {
   assert.match(launcher, required);
 }
+assert.doesNotMatch(launcher, /headRepositoryOwner/);
 
 for (const required of [
   /workflow_run:/,
   /Governed Production Promotion Request Launcher/,
   /MAX_POST_FINALIZATION_RETRIES: 3/,
   /\.request_pr \| test/,
+  /\.validation_pr \| test/,
   /jq -r '\.request_pr'/,
+  /jq -r '\.validation_pr'/,
   /main_moved_after_finalization/,
   /production_moved_after_finalization/,
   /release_head_changed_after_finalization/,
   /candidate_no_longer_matches_or_contains_main/,
   /candidate_no_longer_contains_pinned_production/,
   /gh pr reopen "\$REQUEST_PR"/,
-  /startswith\(\"release\/production-\"\)/,
-  /startswith\(\"gpt\/validate-production-candidate-\"\)/,
+  /startswith\(\"release: promote pinned main \"\)/,
+  /startswith\(\"ci: validate exact Production candidate \"\)/,
+  /authoritative_validation_pr=/,
   /single_release_surface=true/,
   /final_freshness_readback=true/,
   /merge executed: false/,
@@ -63,12 +69,17 @@ for (const required of [
 ]) {
   assert.match(postFinalizationGuard, required);
 }
+assert.doesNotMatch(
+  postFinalizationGuard,
+  /(?:release\/production-|gpt\/validate-production-candidate-)/,
+  "post-finalization cleanup must select governed PR surfaces independently of work-branch names",
+);
 
 for (const required of [
   /name: Certified Production Release Cut Validation/,
   /pull_request_target:/,
   /contents: read/,
-  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
   /Validate trusted same-repository validation surface/,
   /certified validation requires a same-repository head/,
   /persist-credentials: false/,
@@ -109,8 +120,8 @@ const certifiedJobHeader =
 assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
 assert.match(
   certifiedJobHeader,
-  /if: startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)/,
-  "certified release-cut validation must use a branch-independent governed eligibility selector",
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
+  "certified release-cut validation must use a quoted, branch-independent governed eligibility selector",
 );
 assert.doesNotMatch(certifiedReleaseCut, /issues:\s*write/);
 assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
