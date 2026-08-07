@@ -1,0 +1,8 @@
+version: 1
+contracts:
+  "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core":
+    route_file: routes/resourceApiRoutes.js
+    path_item_ref: './openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{tenant_id}~1assets~1materialize-brand-core'
+    owner: workspace-platform
+    exposure: tenant_user
+    notes: Canonical User-JWT Brand Core materialization mutation; runtime Brand authority, Brand Workspace authority, canonical asset provenance compatibility, transactional readback, and no-provider-fetch boundaries remain authoritative.
