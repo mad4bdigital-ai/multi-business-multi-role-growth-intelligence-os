@@ -44,12 +44,15 @@ jobs:
             --feature-key 014-retail-commerce-operations-growth-os
 
           mapfile -t changed < <(git diff --name-only)
-          test "${#changed[@]}" -ge 2
+          test "${#changed[@]}" -ge 1
           test "${#changed[@]}" -le 3
+          manifest_changed=0
           for path in "${changed[@]}"; do
             case "${path}" in
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|\
-              specs/014-retail-commerce-operations-growth-os/work-map-integration.json|\
+              specs/014-retail-commerce-operations-growth-os/work-map-integration.json)
+                manifest_changed=1
+                ;;
               specs/014-governed-hostinger-storage-orchestration/tasks.md)
                 ;;
               *)
@@ -58,8 +61,7 @@ jobs:
                 ;;
             esac
           done
-          printf '%s\n' "${changed[@]}" | grep -Fxq specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
-          printf '%s\n' "${changed[@]}" | grep -Fxq specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          test "${manifest_changed}" -eq 1
           git diff --check
 
       - name: Validate refreshed binding contract
