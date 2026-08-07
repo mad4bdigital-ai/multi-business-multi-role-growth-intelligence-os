@@ -45,12 +45,13 @@ let exactLedgerVerified = false;
 let metadataReadbackVerified = false;
 
 const redactKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
+const SAFE_EVIDENCE_KEYS = new Set(['secrets_included']);
 const sha256 = (value) => createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
 
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactKey.test(key) ? '[redacted]' : sanitize(child)]));
+  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)]));
 }
 
 function parsed(value) {

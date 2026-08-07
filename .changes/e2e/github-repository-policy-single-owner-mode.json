@@ -71,10 +71,11 @@
           "level": "synthetic_runtime",
           "actor": "repository_admin",
           "entrypoint": "Issue 6612 governed Migration 1049 lifecycle",
-          "terminal_outcome": "Readiness is checksum-bound and write-free, Apply can be attempted exactly once only after separate migration authorization, and verification proves the migration ledger plus single-owner metadata without applying the live GitHub Ruleset.",
+          "terminal_outcome": "Readiness is checksum-bound and write-free, its no-secret evidence remains machine-verifiable after sanitization, Apply can be attempted exactly once only after separate migration authorization, and verification proves the migration ledger plus single-owner metadata without applying the live GitHub Ruleset.",
           "steps": [
             "Pin the exact Production migration blob, checksum, statement count and source merge and prove Runtime parity with current Production.",
             "Create a checksum-bound authorization capability envelope and execute dry-run with zero preflight risks; do not execute SQL during readiness.",
+            "Sanitize the readiness artifact while preserving the explicit safe boolean secrets_included=false and continuing to redact every other sensitive-key value.",
             "Publish readiness to Issue 6612 only from a trusted workflow_run publisher after validating the exact source run, SHA and artifact.",
             "Require the migration-specific Apply confirmation and the exact readiness marker before the single Apply invocation.",
             "Never retry an Apply after transport ambiguity; reconcile through exact migration ledger and read-only metadata readback.",
@@ -83,6 +84,8 @@
           "assertions": [
             "The rollout producer has contents: read only and cannot mutate Issue metadata.",
             "The trusted publisher alone has issues: write and accepts only a successful exact-source readiness artifact.",
+            "The sanitizer preserves only the explicit safe evidence field secrets_included=false while all other sensitive-key values remain redacted.",
+            "The trusted publisher contract remains fail-closed and still requires summary.secrets_included === false.",
             "The runner contains exactly one Apply invocation literal and records apply_retried=false.",
             "The only direct DB operation is a SELECT metadata readback.",
             "The migration-specific confirmation is distinct from APPLY_GITHUB_MAIN_REVIEW_POLICY.",
