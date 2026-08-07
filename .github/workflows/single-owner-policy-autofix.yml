@@ -93,14 +93,21 @@ jobs:
           git add single-owner-autofix-diagnostic.txt
           git commit -m "chore(github): record single-owner autofix diagnostic"
           git push origin HEAD:fix/github-main-single-owner-policy-20260807
-      - name: Validate focused syntax and tests
+      - name: Validate policy controller syntax
         if: success()
-        run: |
-          node --check http-generic-api/githubRepositoryPolicyController.js
-          node --check http-generic-api/scripts/single-owner-review-gate.mjs
-          node http-generic-api/test-single-owner-review-gate.mjs
-          node http-generic-api/test-github-repository-policy-controller.mjs
-          git diff --check
+        run: node --check http-generic-api/githubRepositoryPolicyController.js
+      - name: Validate single-owner gate syntax
+        if: success()
+        run: node --check http-generic-api/scripts/single-owner-review-gate.mjs
+      - name: Run single-owner gate regression
+        if: success()
+        run: node http-generic-api/test-single-owner-review-gate.mjs
+      - name: Run policy controller regression
+        if: success()
+        run: node http-generic-api/test-github-repository-policy-controller.mjs
+      - name: Validate diff hygiene
+        if: success()
+        run: git diff --check
       - name: Commit final bounded patch and remove bootstrap files
         if: success()
         run: |
