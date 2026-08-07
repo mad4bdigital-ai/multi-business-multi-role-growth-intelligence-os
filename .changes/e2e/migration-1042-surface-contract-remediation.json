@@ -11,6 +11,7 @@
       "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
       "http-generic-api/scripts/surface-contract-auto-remediator.mjs",
       "http-generic-api/test-surface-contract-auto-remediation.mjs",
+      "http-generic-api/test-migration-1042-rerun-safety.mjs",
       ".changes/e2e/migration-1042-surface-contract-remediation.json"
     ]
   },
@@ -21,23 +22,26 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Validate Migration 1042 surface-contract safety evidence and fail-closed manual-review routing without applying SQL, connecting to a mutable database, or performing external side effects during CI.",
+      "objective": "Validate Migration 1042 surface-contract safety evidence, rerun-safe backfills, and fail-closed manual-review routing without applying SQL, connecting to a mutable database, or performing external side effects during CI.",
       "e2e_journeys": [
         {
           "id": "validate-migration-1042-manual-review-boundary",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "surface contract governance evaluator",
-          "entrypoint": "The exact pull-request head contains Migration 1042 safety markers, the surface-contract auto-remediator, its regression test, and this phase contract.",
-          "terminal_outcome": "CI proves that Migration 1042 declares its external-safety boundary while CREATE OR REPLACE TRIGGER and preflight risk keep the migration in checksum-bound manual review rather than receiving an automatic safety attestation.",
+          "entrypoint": "The exact pull-request head contains Migration 1042 safety markers, rerun guards, the surface-contract auto-remediator, focused regressions, and this phase contract.",
+          "terminal_outcome": "CI proves that Migration 1042 declares its external-safety boundary, avoids audit-timestamp churn when normalization backfills are already satisfied, and keeps CREATE OR REPLACE TRIGGER plus ALTER TABLE preflight risk in checksum-bound manual review rather than receiving an automatic safety attestation.",
           "steps": [
             "Read Migration 1042 from the exact pull-request head and verify the explicit no-provider, no-credential, no-secret, no-external-send, and no-external-write markers.",
+            "Verify the targeted test-ticket and WordPress linkage backfills update updated_at only when at least one logical normalization value still requires change.",
             "Read the surface-contract forbidden-pattern detector and verify that CREATE OR REPLACE TRIGGER is treated as a manual-review-only SQL surface.",
-            "Execute the surface-contract auto-remediation regression test, including the CREATE OR REPLACE TRIGGER fail-closed assertion.",
+            "Execute the surface-contract auto-remediation regression and the Migration 1042 rerun-safety regression on the exact candidate head.",
             "Record repository evidence only; do not Apply Migration 1042, mutate a live database, read credentials or secrets, call a provider, deploy, or mutate Production."
           ],
           "assertions": [
             "Migration 1042 explicitly distinguishes no external/provider/credential/secret activity from its real internal database write and schema-mutation effects when separately applied.",
+            "Migration 1042 describes itself as additive and re-runnable rather than claiming strict time-independent idempotency because SLA status reconciliation is time-dependent.",
+            "The targeted normalization backfills are no-ops on rerun once their intended logical values are already present, so updated_at is not churned without a data change.",
             "CREATE OR REPLACE TRIGGER matches the forbidden SQL detector and cannot be auto-attested as a safe documentation-only migration surface.",
             "A manual safety attestation, when required, remains checksum-bound and must not be synthesized by CI or inferred from an operator request to begin remediation.",
             "The remediation workflow may update documentation and generated evidence but must not mutate migration SQL or authorize execution.",
@@ -51,12 +55,20 @@
               "working_directory": "http-generic-api",
               "path": "test-surface-contract-auto-remediation.mjs",
               "args": []
+            },
+            {
+              "id": "migration-1042-rerun-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-migration-1042-rerun-safety.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             "http-generic-api/migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
             "http-generic-api/scripts/surface-contract-auto-remediator.mjs",
-            "http-generic-api/test-surface-contract-auto-remediation.mjs"
+            "http-generic-api/test-surface-contract-auto-remediation.mjs",
+            "http-generic-api/test-migration-1042-rerun-safety.mjs"
           ]
         }
       ]
