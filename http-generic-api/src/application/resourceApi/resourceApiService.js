@@ -29,8 +29,12 @@ function requireAssetOperation(resourceKey, operation) {
 }
 
 function requireAssetInput(input = {}) {
-  if (!input.asset_type || !input.display_name) {
-    throw resourceError("asset_fields_required", "asset_type and display_name are required.", 400);
+  if (!input.asset_type || !input.asset_ref || !input.display_name) {
+    throw resourceError(
+      "asset_fields_required",
+      "asset_type, asset_ref, and display_name are required.",
+      400
+    );
   }
 }
 
@@ -365,11 +369,22 @@ export function createResourceApiService({
   }
 
   async function generateSessionSummary(sessionId, input, auth) {
-    if (!summarizeSession) throw resourceError("session_summary_unavailable", "Session summary generation is unavailable.", 503);
-    const session = await getSession(sessionId, auth);
-    const generation = await summarizeSession({ session, force: Boolean(input?.force) });
-    const readback = await getSessionSummary(sessionId, auth);
-    return { generation, summary: readback.summary };
+    const result = requireResource(
+      await repository.getSessionSummary(sessionId),
+      "session_not_found",
+      "Session not found."
+    );
+    ensureSessionAuthorized(auth, result.session);
+    if (!summarizeSession) throw resourceError("summary_generator_unavailable", "Summary generator is unavailable.", 503);
+    const generation = await summarizeSession({ session: result.session, input, force: Boolean(input.force) });
+    return {
+      generation,
+      summary: (await repository.getSessionSummary(sessionId)).summary,
+    };
+  }
+
+  async function getManifestResource(resourceKey) {
+    return getResourceType(resourceKey);
   }
 
   return {
@@ -402,13 +417,6 @@ export function createResourceApiService({
     getSessionEvents,
     getSessionTranscript,
     generateSessionSummary,
+    getManifestResource,
   };
 }
-
-export const _testingResourceApiService = {
-  tenantContext,
-  requireResourceType,
-  requireAssetOperation,
-  requireAssetInput,
-  ensureSessionAuthorized,
-};
