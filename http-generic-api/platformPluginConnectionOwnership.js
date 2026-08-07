@@ -84,11 +84,46 @@ const OWNERSHIP_SCOPED_CONNECTION_SQL = `
     AND v.provider_key = ?
     AND v.owner_scope_type = ?
     AND v.owner_scope_ref = ?
-    AND BINARY v.brand_id <=> BINARY ?
+    AND v.brand_id IS NULL
     AND v.link_status = 'active'
     AND v.ownership_status = 'active'
     AND v.ownership_resolution_status = 'classified'
     AND (? <> 'personal_workspace' OR BINARY v.connection_owner_user_id <=> BINARY ?)
+  ORDER BY c.is_primary DESC, c.last_validated_at DESC, c.connection_id ASC
+  LIMIT 3
+`;
+
+const BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL = `
+  SELECT DISTINCT
+    c.connection_id,
+    c.tenant_id,
+    c.app_key,
+    c.auth_type,
+    c.status,
+    c.validation_status,
+    c.last_validated_at,
+    c.last_used_at,
+    c.is_primary,
+    v.workspace_id,
+    v.owner_scope_type,
+    v.owner_scope_ref,
+    v.brand_id,
+    v.ownership_status,
+    v.ownership_resolution_status
+  FROM v_context_kernel_connection_ownership_compatibility v
+  INNER JOIN user_app_connections c
+    ON BINARY c.connection_id <=> BINARY v.connection_id
+   AND BINARY c.tenant_id <=> BINARY v.tenant_id
+   AND BINARY c.app_key <=> BINARY v.provider_key
+  WHERE v.tenant_id = ?
+    AND v.workspace_id = ?
+    AND v.provider_key = ?
+    AND v.owner_scope_type = 'brand'
+    AND BINARY v.owner_scope_ref <=> BINARY ?
+    AND BINARY v.brand_id <=> BINARY ?
+    AND v.link_status = 'active'
+    AND v.ownership_status = 'active'
+    AND v.ownership_resolution_status = 'classified'
   ORDER BY c.is_primary DESC, c.last_validated_at DESC, c.connection_id ASC
   LIMIT 3
 `;
@@ -210,16 +245,18 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     );
   }
 
-  const [rowsRaw] = await pool.query(OWNERSHIP_SCOPED_CONNECTION_SQL, [
-    tenant,
-    workspace,
-    plugin,
-    ownerScopeType,
-    ownerScopeRef,
-    brandRef,
-    ownerScopeType,
-    user,
-  ]);
+  const connectionQuery = ownerScopeType === "brand"
+    ? pool.query(BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL, [tenant, workspace, plugin, ownerScopeRef, brandRef])
+    : pool.query(OWNERSHIP_SCOPED_CONNECTION_SQL, [
+      tenant,
+      workspace,
+      plugin,
+      ownerScopeType,
+      ownerScopeRef,
+      ownerScopeType,
+      user,
+    ]);
+  const [rowsRaw] = await connectionQuery;
   const rows = Array.isArray(rowsRaw) ? rowsRaw : [];
   const connections = rows.map((row) => Object.freeze({
     connection_id: row.connection_id,
@@ -261,4 +298,5 @@ export const _testingPlatformPluginConnectionOwnership = Object.freeze({
   BRAND_TENANT_MEMBERSHIP_SQL,
   BRAND_RESOURCE_GRANT_SQL,
   OWNERSHIP_SCOPED_CONNECTION_SQL,
+  BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL,
 });
