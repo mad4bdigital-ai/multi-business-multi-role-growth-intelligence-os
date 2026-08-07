@@ -96,7 +96,10 @@ jobs:
               raise SystemExit('dynamic APPLY test anchor count != 1')
           text = text.replace(auth_apply_anchor, auth_apply_anchor + verify_line)
 
-          first_block_end = "  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing ${expected}`);\n}\n\n"
+          runner_block_start = "\n".join([
+              'for (const expected of [',
+              '  "const ISSUE = Number(process.env.CONTROL_ISSUE || 6531)",',
+          ])
           readiness = "\n".join([
               'for (const expected of [',
               "  'issues: write',",
@@ -108,9 +111,9 @@ jobs:
               '}',
               '',
           ])
-          if text.count(first_block_end) != 1:
-              raise SystemExit('workflow expectation block anchor count != 1')
-          text = text.replace(first_block_end, first_block_end + readiness)
+          if text.count(runner_block_start) != 1:
+              raise SystemExit('unique runner expectation block anchor count != 1')
+          text = text.replace(runner_block_start, readiness + runner_block_start)
 
           console_anchor = "console.log('PASS governed Migration 1048 rollout contract');"
           obsolete = "\n".join([
