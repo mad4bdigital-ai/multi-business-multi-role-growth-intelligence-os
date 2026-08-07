@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-brand-asset-create-lifecycle",
+  "title": "Workspace Brand Asset create and import lifecycle",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-brand-asset-create-lifecycle.json",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/workspaceAssetLifecycle.js",
+      "http-generic-api/test-workspace-brand-asset-create.mjs",
+      "http-generic-api/test-workspace-brand-asset-create-operation-governance.mjs",
+      "http-generic-api/test-frontend-operation-governance-generator.mjs",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow an authenticated workspace owner/admin or explicitly delegated Brand manager to persist or idempotently import one Brand Asset through the existing workspace_assets authority, with exact tenant-brand/Brand Workspace validation, bounded provenance and checksum evidence, same-transaction readback, and generated operation governance.",
+      "e2e_journeys": [
+        {
+          "id": "authorized-brand-manager-persists-canonical-brand-asset",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated workspace owner/admin or user with explicit active brand admin/manage/edit grant",
+          "entrypoint": "POST /me/workspaces/{tenant_id}/assets with asset_type, asset_ref, brand_ref, source_type and optional checksum/provenance fields",
+          "terminal_outcome": "The request resolves one active tenant Brand and Brand Workspace, proves mutation authority without workspace-wide leakage, creates or idempotently reuses one workspace_assets row, persists bounded provenance/content identity, verifies exact Brand and provenance readback before commit, and is classified as a tested transactional state change by generated frontend operation governance.",
+          "steps": [
+            "Validate asset type, durable asset_ref, required Brand reference, initial lifecycle state, bounded source type, and optional SHA-256 checksum before database access.",
+            "Revalidate exactly one active actor membership with a locking read inside the transaction.",
+            "Resolve exactly one active tenant_brand_links + brands authority row without cross-tenant fallback.",
+            "Resolve exactly one workspace_registry Brand Workspace with linked_brand_key equal to the canonical Brand target key.",
+            "Authorize workspace owner/admin directly or require an explicit unexpired brand-scoped admin/manage/edit workspace_resource_grants row for delegated mutation.",
+            "Validate any vault_id against the same tenant and active vault state.",
+            "Lock the durable (tenant_id, asset_type, asset_ref) identity and reject deleted, cross-Brand, checksum-conflicting, or provenance-conflicting reuse.",
+            "Insert a new workspace_assets row or boundedly backfill missing compatible provenance while preserving canonical brand_ref.",
+            "Persist workspace-asset-provenance-v1 metadata including source type/provider/URI/revision, checksum when supplied, deterministic content identity, ingestion mode, actor, tenant and Brand target key, with secrets_included=false.",
+            "Read back exactly one persisted asset under lock before commit and verify Brand plus requested provenance/checksum.",
+            "Register exact frontend operation evidence for POST /me/workspaces/{tenant_id}/assets and generate a state_change rule only when all required evidence passes.",
+            "Require generated operation governance, frontend dispatch and runtime route evidence to match the final source tree."
+          ],
+          "assertions": [
+            "Plain workspace membership without owner/admin role or explicit Brand admin/manage/edit grant cannot create or import a Brand Asset.",
+            "A Brand missing from the tenant fails before any workspace_assets identity query, preventing cross-tenant existence leakage.",
+            "Canonical persisted brand_ref is the resolved Brand target_key, not an arbitrary caller string.",
+            "Same tenant/type/ref with the same Brand and compatible provenance is idempotently reused.",
+            "The same tenant/type/ref cannot be silently rebound to another Brand or a different checksum/source provenance.",
+            "A deleted asset identity is not silently reactivated.",
+            "Invalid checksum/source inputs fail before database authority resolution.",
+            "The persisted response exposes only a bounded provenance projection and declares secrets_included=false.",
+            "The operation-governance generator fails closed when Brand Asset authority, conflict, readback or registered test evidence is removed.",
+            "With complete evidence, Brand Asset Create is classified state_change with runtime authorization, transactional readback before commit and transaction rollback.",
+            "No new asset table or Migration Apply is required; the existing workspace_assets schema remains the durable store.",
+            "No live SQL mutation, Production/provider mutation, deployment, credential/secret access, force push or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "workspace-brand-asset-create",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-asset-create.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-brand-asset-create-operation-governance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-asset-create-operation-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-operation-governance-generator-brand-asset-extension",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-brand-asset-create-lifecycle.json",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/workspaceAssetLifecycle.js",
+            "http-generic-api/test-workspace-brand-asset-create.mjs",
+            "http-generic-api/test-workspace-brand-asset-create-operation-governance.mjs",
+            "http-generic-api/test-frontend-operation-governance-generator.mjs",
+            "http-generic-api/frontend-operation-governance-tests.json",
+            "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    }
+  ]
+}
