@@ -1,0 +1,127 @@
+name: Repair Migration 1048 Source Only V5
+
+on:
+  push:
+    branches:
+      - fix/migration-1048-canonical-confirmation-and-readiness-marker
+    paths:
+      - .github/ops/repair-migration-1048-source-only-v5.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: migration-1048-source-only-v5
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Guard exact remote head
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
+          remote="$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')"
+          test "$remote" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Apply validated V4 source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          runner = Path('.github/ops/transport-response-schema-1048-governed-rollout.mjs')
+          text = runner.read_text()
+          replacements = {
+              "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';": "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';",
+              "const APPLY_CONFIRM = 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';": "const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';",
+              "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';": "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'runner replacement count != 1: {old}')
+              text = text.replace(old, new)
+          runner.write_text(text)
+
+          test = Path('http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs')
+          text = test.read_text()
+          old = '''  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",
+  "APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",
+  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",'''
+          new = '''  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",
+  "APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",
+  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",'''
+          if text.count(old) != 1:
+              raise SystemExit('test confirmation tuple replacement count != 1')
+          text = text.replace(old, new)
+
+          anchor = '''for (const expected of [
+  'mode',
+  'migration',
+  'expected_checksum_sha256',
+  'expected_statement_count',
+  'confirmation',
+]) {
+  assert.ok(runner.includes(expected), `Migration 1048 rollout runner is missing ${expected}`);
+}
+'''
+          addition = '''
+for (const expected of [
+  'issues: write',
+  'Publish checksum-bound readiness marker',
+  'actions/github-script@v7',
+  'summary.readiness_marker',
+]) assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);
+
+for (const expected of [
+  "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+  "const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+  "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+]) assert.ok(runner.includes(expected), `Migration 1048 runner is missing canonical confirmation: ${expected}`);
+
+for (const forbidden of [
+  'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
+  'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
+]) {
+  assert.ok(!workflow.includes(forbidden), `Migration 1048 workflow retains obsolete confirmation: ${forbidden}`);
+  assert.ok(!runner.includes(forbidden), `Migration 1048 runner retains obsolete confirmation: ${forbidden}`);
+}
+'''
+          if text.count(anchor) != 1:
+              raise SystemExit('test readiness assertion anchor count != 1')
+          text = text.replace(anchor, anchor + addition)
+          test.write_text(text)
+          PY
+
+          changed="$(git diff --name-only)"
+          expected=$'.github/ops/transport-response-schema-1048-governed-rollout.mjs\nhttp-generic-api/test-transport-response-schema-1048-governed-rollout.mjs'
+          test "$changed" = "$expected"
+
+      - name: Run Migration 1048 regression
+        run: node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Commit bounded source repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- .github/ops/transport-response-schema-1048-governed-rollout.mjs http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          git diff --cached --quiet && { echo 'No source repair changes' >&2; exit 1; }
+          git commit -m 'fix(migration): align 1048 runtime confirmation contract'
+          remote="$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')"
+          test "$remote" = "$GITHUB_SHA"
+          git push origin "HEAD:refs/heads/${branch}"
