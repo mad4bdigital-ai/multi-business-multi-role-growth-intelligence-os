@@ -201,8 +201,28 @@ export function buildWorkspaceResourceRoutes() {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
+      const ownerScoped = isWorkspaceOwnerRole(membership.role);
       const params = [req.params.tenant_id];
       let where = "tenant_id = ? AND lifecycle_status <> 'deleted'";
+      if (!ownerScoped) {
+        params.push(req.auth.user_id, req.params.tenant_id, req.auth.user_id, req.params.tenant_id, req.auth.user_id);
+        where += ` AND (
+          created_by = ?
+          OR asset_id IN (
+            SELECT resource_ref
+              FROM v_workspace_resource_grant_effective
+             WHERE tenant_id=? AND grantee_user_id=? AND resource_type='asset'
+          )
+          OR (
+            visibility <> 'private'
+            AND brand_ref IN (
+              SELECT resource_ref
+                FROM v_workspace_resource_grant_effective
+               WHERE tenant_id=? AND grantee_user_id=? AND resource_type='brand'
+            )
+          )
+        )`;
+      }
       where += optionalFilter(req.query, "asset_type", req.query.asset_type, params);
       where += optionalFilter(req.query, "brand_ref", req.query.brand_ref, params);
       where += optionalFilter(req.query, "site_ref", req.query.site_ref, params);
@@ -214,7 +234,14 @@ export function buildWorkspaceResourceRoutes() {
           LIMIT 200`,
         params
       );
-      return res.json({ ok: true, tenant_id: req.params.tenant_id, assets: rows, count: rows.length, secrets_included: false });
+      return res.json({
+        ok: true,
+        tenant_id: req.params.tenant_id,
+        access_scope: ownerScoped ? "workspace_owner_admin" : "explicit_asset_or_brand_authority",
+        assets: rows,
+        count: rows.length,
+        secrets_included: false,
+      });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "workspace_assets_list_failed", message: err.message }, secrets_included: false });
     }
