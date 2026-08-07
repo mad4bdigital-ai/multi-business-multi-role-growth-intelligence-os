@@ -11,6 +11,8 @@
       "http-generic-api/routes/workspaceResourceRoutes.js",
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/test-workspace-brand-create.mjs",
+      "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+      "http-generic-api/frontend-operation-governance-tests.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
     ]
@@ -41,7 +43,7 @@
             "Create or repair an active workspace_resource_grants brand/admin grant for the creator using the existing owner_assignment source plus bounded metadata provenance.",
             "Read back the tenant link, Brand Workspace binding, and creator grant before commit and return the existing or newly created brand identity without secrets.",
             "Report Brand Core profile setup as a next step unless canonical brand_core_ready is true-like; keep asset attachment and member invitation unavailable until their later lifecycle slices are implemented.",
-            "Require committed generated frontend dispatch and runtime route evidence to match the changed route source tree."
+            "Require the operation-governance registry plus committed generated frontend dispatch and runtime route evidence to match the changed route source tree."
           ],
           "assertions": [
             "A non-owner/admin or missing/inactive workspace membership fails closed before any brand, tenant-link, Brand Workspace, or creator-grant mutation.",
@@ -54,6 +56,7 @@
             "tenant_brand_links uses link_source=workspace_owner_brand_create and authority_implied=true metadata rather than tenant_metadata_brand_key projection provenance.",
             "workspace_resource_grants uses its existing owner_assignment source enum and metadata reason workspace_brand_create; no schema extension is required.",
             "The route owns begin/commit/rollback and the service performs all authority, canonical identity, tenant link, Brand Workspace binding, grant, and readback operations on that same connection.",
+            "The operation-governance registry executes a dedicated workspace-brand-create transaction regression.",
             "The committed frontend-surface dispatch and frontend runtime route generated evidence is current for the changed workspace brand-create route.",
             "No Migration Apply, live SQL mutation, Production/provider mutation, deployment, credential/secret access, force push, or external send occurs in CI."
           ],
@@ -64,6 +67,13 @@
               "working_directory": "http-generic-api",
               "path": "test-workspace-brand-create.mjs",
               "args": []
+            },
+            {
+              "id": "workspace-brand-create-operation-governance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create-operation-governance.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -71,6 +81,8 @@
             "http-generic-api/routes/workspaceResourceRoutes.js",
             "http-generic-api/workspaceBrandLifecycle.js",
             "http-generic-api/test-workspace-brand-create.mjs",
+            "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+            "http-generic-api/frontend-operation-governance-tests.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
           ]
