@@ -18,8 +18,7 @@ const admin = { login: soleHuman, type: "User", permissions: { admin: true, main
       state: "COMMENTED",
       commit_id: sha,
       submitted_at: "2026-08-07T00:00:00Z",
-      body: `OWNER_ATTEST_SINGLE_OWNER
-exact_head_sha: ${sha}`,
+      body: `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}`,
     }],
   });
   assert.equal(result.ok, true);
@@ -36,8 +35,7 @@ exact_head_sha: ${sha}`,
       state: "COMMENTED",
       commit_id: "b".repeat(40),
       submitted_at: "2026-08-07T00:00:00Z",
-      body: `OWNER_ATTEST_SINGLE_OWNER
-exact_head_sha: ${sha}`,
+      body: `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}`,
     }],
   });
   assert.equal(result.ok, false);
@@ -54,8 +52,7 @@ exact_head_sha: ${sha}`,
       state: "COMMENTED",
       commit_id: sha,
       submitted_at: "2026-08-07T00:00:00Z",
-      body: `OWNER_ATTEST_SINGLE_OWNER
-exact_head_sha: ${sha}`,
+      body: `OWNER_ATTEST_SINGLE_OWNER\nexact_head_sha: ${sha}`,
     }],
   });
   assert.equal(result.ok, false);
@@ -79,7 +76,6 @@ exact_head_sha: ${sha}`,
   assert.equal(result.ok, true);
   assert.equal(result.mode, "independent_approval");
 }
-
 
 {
   const result = evaluateReviewGate({
@@ -105,10 +101,15 @@ exact_head_sha: ${sha}`,
   assert.match(gateSource, /collaborators\?affiliation=all/);
   assert.doesNotMatch(gateSource, /collaborators\?affiliation=direct/);
   assert.match(gateSource, /Pagination safety bound exceeded/);
+  assert.doesNotMatch(gateSource, /\/check-runs/);
+  assert.doesNotMatch(gateSource, /method:\s*["']POST["']/);
   assert.match(workflowSource, /pull_request_target:/);
   assert.doesNotMatch(workflowSource, /^  pull_request:/m);
   assert.match(workflowSource, /ref: main/);
   assert.doesNotMatch(workflowSource, /pull_request\.head\.sha \|\| github\.sha/);
+  assert.doesNotMatch(workflowSource, /checks:\s*write/);
+  assert.doesNotMatch(workflowSource, /permissions:\s*write-all/);
+  assert.match(workflowSource, /jobs:\n  evaluate:\n    name: Single Owner Review Gate/);
 }
 
 console.log(JSON.stringify({ ok: true, test: "single_owner_review_gate", secrets_included: false }));

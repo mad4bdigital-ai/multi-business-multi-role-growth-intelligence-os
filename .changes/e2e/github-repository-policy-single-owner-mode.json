@@ -23,29 +23,31 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Allow a repository with exactly one eligible human owner to use exact-head owner attestation without weakening CI, while automatically reverting to independent approval whenever another eligible human collaborator exists.",
+      "objective": "Allow a repository with exactly one eligible human collaborator to use exact-head self-attestation without weakening CI, while automatically reverting to independent approval whenever another eligible human collaborator exists.",
       "e2e_journeys": [
         {
           "id": "single-owner-exact-head-review-gate",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository_owner",
+          "actor": "sole_eligible_human_collaborator",
           "entrypoint": "pull request review plus repository policy plan/apply",
-          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when live collaborator inventory proves exactly one eligible owner and requires the Single Owner Review Gate on the exact head; independent approval resumes automatically otherwise.",
+          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when complete live collaborator and permission readback proves exactly one eligible human and requires the read-only Single Owner Review Gate on the exact head; independent approval resumes automatically otherwise.",
           "steps": [
-            "Read direct collaborator permissions.",
-            "Select single-owner mode only for exactly one eligible human who is also repository owner and PR author.",
-            "Require an exact-head COMMENTED owner attestation because GitHub rejects self-APPROVE.",
-            "Publish Single Owner Review Gate as an exact-head Check Run.",
-            "Require that check in the managed main Ruleset and keep stale-review, thread-resolution, strict status checks, no bypass actors, non-fast-forward and direct-push blocking.",
-            "Reject explicit single_owner_mode when collaborator eligibility is not proven."
+            "Read all effective collaborators with bounded pagination and resolve every collaborator permission.",
+            "Select single-owner mode only when collaborator and permission proof is complete and exactly one eligible human exists.",
+            "For a PR authored by that sole eligible human, require an exact-head COMMENTED owner attestation because GitHub rejects self-APPROVE.",
+            "Evaluate the gate in a read-only pull-request workflow whose native Actions job is named Single Owner Review Gate; do not create a Check Run through a write API.",
+            "Require that native status check in the managed main Ruleset and keep stale-review, thread-resolution, strict status checks, no bypass actors, non-fast-forward and direct-push blocking.",
+            "Reject explicit single_owner_mode when complete collaborator eligibility cannot be proven."
           ],
           "assertions": [
-            "Single owner with exact-head attestation passes.",
+            "Sole eligible human with exact-head attestation passes.",
             "Stale-head attestation fails.",
-            "Adding an eligible independent collaborator disables owner-attestation mode and requires independent APPROVED review.",
+            "Adding an eligible independent collaborator disables self-attestation mode and requires independent APPROVED review.",
+            "Partial collaborator or permission readback fails closed to independent approval mode.",
             "Single-owner Ruleset uses native approval count zero only together with the required Single Owner Review Gate.",
             "Independent mode still requires at least one GitHub-native approval.",
+            "The pull-request gate is read-only and does not request checks:write or invoke the Check Runs write API.",
             "No bypass actors, force push, repository content mutation, secrets, Production mutation or provider action are introduced."
           ],
           "tests": [

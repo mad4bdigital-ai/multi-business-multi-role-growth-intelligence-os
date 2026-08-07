@@ -51,7 +51,7 @@ export function evaluateReviewGate({ owner, author, headSha, collaborators = [],
   const attested = review?.state === "COMMENTED"
     && review?.commit_id === headSha
     && body.includes(SINGLE_OWNER_ATTESTATION_TOKEN)
-   && body.includes(headSha);
+    && body.includes(headSha);
   return {
     ok: attested,
     mode: "single_owner_attestation",
@@ -89,19 +89,6 @@ async function listAll(url, token) {
   throw new Error(`Pagination safety bound exceeded for ${url}`);
 }
 
-async function publishCheck({ apiBase, repo, token, headSha, conclusion, summary }) {
-  return api(`${apiBase}/repos/${repo}/check-runs`, token, {
-    method: "POST",
-    body: JSON.stringify({
-      name: SINGLE_OWNER_CHECK_NAME,
-      head_sha: headSha,
-      status: "completed",
-      conclusion,
-      output: { title: SINGLE_OWNER_CHECK_NAME, summary },
-    }),
-  });
-}
-
 async function main() {
   const eventPath = process.env.GITHUB_EVENT_PATH;
   const token = process.env.GITHUB_TOKEN;
@@ -113,7 +100,14 @@ async function main() {
   if (!prNumber) throw new Error("Pull request number is required");
   const pr = await api(`${apiBase}/repos/${repo}/pulls/${prNumber}`, token);
   if (pr.base?.ref !== "main") {
-    await publishCheck({ apiBase, repo, token, headSha: pr.head.sha, conclusion: "success", summary: "Not a main-targeting pull request; gate is not applicable." });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "not_applicable",
+      reason: "non_main_target",
+      pr_number: Number(prNumber),
+      exact_head_sha: pr.head?.sha || null,
+      secrets_included: false,
+    }));
     return;
   }
   const [collaborators, reviews] = await Promise.all([
@@ -128,7 +122,6 @@ async function main() {
     reviews,
   });
   const summary = JSON.stringify({ ...result, pr_number: Number(prNumber), exact_head_sha: pr.head.sha, secrets_included: false });
-  await publishCheck({ apiBase, repo, token, headSha: pr.head.sha, conclusion: result.ok ? "success" : "failure", summary });
   console.log(summary);
   if (!result.ok) process.exitCode = 1;
 }
