@@ -20,6 +20,7 @@ export const CredentialResolutionState = Object.freeze({
   RESOLVED: "resolved",
   MISSING: "missing",
   SCOPE_DENIED: "scope_denied",
+  AMBIGUOUS: "ambiguous",
 });
 
 export const CredentialUsabilityState = Object.freeze({
@@ -34,6 +35,7 @@ export const CredentialDenialCode = Object.freeze({
   NOT_USABLE: "CREDENTIAL_NOT_USABLE",
   REQUIRED: "CREDENTIAL_REQUIRED",
   DEDICATED_CONNECTION_REQUIRED: "DEDICATED_CONNECTION_REQUIRED",
+  AMBIGUOUS_CONNECTION_SELECTION: "AMBIGUOUS_CONNECTION_SELECTION",
 });
 
 function compactString(value = "", max = 500) {
@@ -169,14 +171,14 @@ function connectionIsUsable(row = {}) {
   return status === "active" && ["validated", "valid", "active", "healthy"].includes(validationStatus);
 }
 
-function pickConnectionForScope(scope, connections = []) {
+function eligibleConnectionsForScope(scope, connections = []) {
   if (scope === "user_connection") {
-    return connections.find((row) => connectionIsUsable(row) && row.user_id) || null;
+    return connections.filter((row) => connectionIsUsable(row) && row.user_id);
   }
   if (scope === "tenant_connection") {
-    return connections.find((row) => connectionIsUsable(row)) || null;
+    return connections.filter((row) => connectionIsUsable(row));
   }
-  return null;
+  return [];
 }
 
 function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections = [], requestedScope = null }) {
@@ -225,7 +227,22 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       };
     }
     if (scope === "user_connection" || scope === "tenant_connection") {
-      const connection = pickConnectionForScope(scope, connections);
+      const eligibleConnections = eligibleConnectionsForScope(scope, connections);
+      if (eligibleConnections.length > 1) {
+        return {
+          ok: false,
+          requirement: CredentialRequirement.REQUIRED,
+          resolution_state: CredentialResolutionState.AMBIGUOUS,
+          usability_state: CredentialUsabilityState.NOT_EVALUATED,
+          credential_source: null,
+          reason: "connection_selection_ambiguous",
+          denial_code: CredentialDenialCode.AMBIGUOUS_CONNECTION_SELECTION,
+          ambiguous_scope: scope,
+          candidate_count: eligibleConnections.length,
+          candidate_scopes: candidateScopes,
+        };
+      }
+      const connection = eligibleConnections[0] || null;
       if (connection) {
         return {
           ok: true,
