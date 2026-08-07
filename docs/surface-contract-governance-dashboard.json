@@ -7,14 +7,14 @@
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
     "migrations_with_surfaces": 463,
-    "docs_complete_count": 459,
-    "docs_gap_count": 4,
-    "docs_completion_percent": 99.14,
+    "docs_complete_count": 460,
+    "docs_gap_count": 3,
+    "docs_completion_percent": 99.35,
     "gap_severity_counts": {
       "high": 0,
       "medium": 0,
-      "low": 4,
-      "none": 459
+      "low": 3,
+      "none": 460
     },
     "surface_totals": {
       "plugins": 15,
@@ -31,11 +31,11 @@
       "routes": 291
     },
     "missing_doc_target_counts": {
-      "Updating Registry Patch Index.md": 4,
-      "deployment_parity_checklist.md": 4,
-      "docs/ai-docs-agent-governance.md": 4,
-      "docs/auto-docs-agent/README.md": 4,
-      "docs/change-documentation-governance.md": 4
+      "Updating Registry Patch Index.md": 3,
+      "deployment_parity_checklist.md": 3,
+      "docs/ai-docs-agent-governance.md": 3,
+      "docs/auto-docs-agent/README.md": 3,
+      "docs/change-documentation-governance.md": 3
     },
     "safety_marker_counts": {
       "no_provider_call": 462,
@@ -66,27 +66,27 @@
     }
   },
   "queue": {
-    "total_items": 4,
+    "total_items": 3,
     "class_counts": {
       "critical_review": 0,
       "high_review": 0,
-      "medium_review": 4,
+      "medium_review": 3,
       "low_review": 0
     }
   },
   "triage": {
-    "total_items": 4,
+    "total_items": 3,
     "class_counts": {
       "safety_marker_review": 2,
-      "standard_backlog_review": 2
+      "standard_backlog_review": 1
     },
     "gate_candidate_count": 0
   },
   "gate": {
     "ok": false,
     "mode": "future_only_all_new_gaps",
-    "new_item_count": 2,
-    "blocking_new_item_count": 2
+    "new_item_count": 1,
+    "blocking_new_item_count": 1
   },
   "top_immediate_items": [],
   "safety": {
