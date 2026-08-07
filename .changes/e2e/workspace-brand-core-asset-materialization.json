@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-brand-core-asset-materialization",
+  "title": "Workspace Brand Core asset materialization with durable provenance",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-brand-core-asset-materialization.json",
+      "http-generic-api/migrations/1050_workspace_asset_provenance_content_identity.sql",
+      "http-generic-api/routes/brandCoreAssetMaterializationRoutes.js",
+      "http-generic-api/routes/resourceApiRoutes.js",
+      "http-generic-api/workspaceBrandCoreAssetMaterialization.js",
+      "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/test-brand-core-asset-materialization-operation-governance.mjs",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+      "http-generic-api/test-frontend-operation-governance-generator.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Turn an already-known active Brand Core context source into a durable workspace asset with canonical tenant/Brand/Brand-Workspace authority, queryable provenance identity, exact transactional readback, and truthful nullable content checksum semantics without fetching provider content.",
+      "e2e_journeys": [
+        {
+          "id": "materialize-known-brand-core-context-source",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated workspace owner/admin or delegated Brand editor/manager",
+          "entrypoint": "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core with brand_ref and source_ref",
+          "terminal_outcome": "Exactly one active Brand Core source belonging to the canonical tenant Brand is resolved, materialized idempotently into workspace_assets with Brand Workspace ownership plus source/provenance identity, read back under lock before commit, and classified as a governed state change; content_sha256 remains null unless a real content hash exists.",
+          "steps": [
+            "Require Migration 1050 provenance schema before any materialization write.",
+            "Authenticate through canonical User JWT middleware rather than Resource API fallback JWT compatibility.",
+            "Resolve Brand authority through the existing canonical Brand asset authority helper and require the canonical Brand Workspace binding.",
+            "Resolve exactly one active/validated Brand Core source by stable asset/doc/file/Google identity inside the canonical Brand.",
+            "Normalize source identity to asset_key, doc_key, or Google file identity and derive source_ref_sha256.",
+            "Derive provenance_sha256 from tenant, Brand Workspace, canonical Brand, source identity, source revision, and validation status.",
+            "Persist or idempotently refresh one workspace_assets row through the unique provenance key without provider content fetch.",
+            "Keep content_sha256 null when no actual content digest exists instead of hashing metadata and calling it content.",
+            "Read back exact persisted workspace/Brand/source/provenance fields under lock before commit and roll back on mismatch.",
+            "Generate operation-governance and frontend/OpenAPI evidence from the final exact source tree."
+          ],
+          "assertions": [
+            "Legacy Brand Core rows with only a Google document/file identity can still produce a deterministic source_ref.",
+            "Missing Migration 1050 fails 503 before persistence.",
+            "Missing/ambiguous/inactive Brand Core sources fail closed.",
+            "Missing/ambiguous Brand Workspace authority fails closed.",
+            "Retry converges on the same provenance identity rather than producing duplicate persisted assets.",
+            "The provenance dedupe index uses source_ref_sha256 rather than indexing an unbounded source_ref string.",
+            "Provider content is not fetched and content_sha256 is not fabricated from provenance metadata.",
+            "The generated operation rule is state_change only when canonical JWT, Brand authority, schema, source identity, transaction/readback and registered test evidence all pass.",
+            "No Migration Apply, Production/Hostinger/provider mutation, deployment, credential/secret access, force push or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "workspace-brand-core-asset-materialization",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-core-asset-materialization.mjs",
+              "args": []
+            },
+            {
+              "id": "brand-core-asset-materialization-operation-governance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-brand-core-asset-materialization-operation-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-operation-governance-materialization-extension",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-brand-core-asset-materialization.json",
+            "http-generic-api/migrations/1050_workspace_asset_provenance_content_identity.sql",
+            "http-generic-api/routes/brandCoreAssetMaterializationRoutes.js",
+            "http-generic-api/routes/resourceApiRoutes.js",
+            "http-generic-api/workspaceBrandCoreAssetMaterialization.js",
+            "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+            "http-generic-api/test-brand-core-asset-materialization-operation-governance.mjs",
+            "http-generic-api/frontend-operation-governance-tests.json",
+            "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+            "http-generic-api/test-frontend-operation-governance-generator.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    }
+  ]
+}
