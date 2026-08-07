@@ -90,11 +90,19 @@ jobs:
 
           gate_path = Path('http-generic-api/scripts/single-owner-review-gate.mjs')
           gate = gate_path.read_text()
-          bad = 'const independent = eligible.filter((item) => item.login !== author){'
-          good = 'const independent = eligible.filter((item) => item.login !== author);'
-          if gate.count(bad) != 1:
-              raise SystemExit(f'generated gate syntax anchor count={gate.count(bad)}')
-          gate_path.write_text(gate.replace(bad, good))
+          bad_gate = 'const independent = eligible.filter((item) => item.login !== author){'
+          good_gate = 'const independent = eligible.filter((item) => item.login !== author);'
+          if gate.count(bad_gate) != 1:
+              raise SystemExit(f'generated gate syntax anchor count={gate.count(bad_gate)}')
+          gate_path.write_text(gate.replace(bad_gate, good_gate))
+
+          controller_path = Path('http-generic-api/githubRepositoryPolicyController.js')
+          controller = controller_path.read_text()
+          bad_context = 'required_status_checks: checks.map((context) => ({ contex })),'
+          good_context = 'required_status_checks: checks.map((context) => ({ context })),'
+          if controller.count(bad_context) != 1:
+              raise SystemExit(f'generated status-check context anchor count={controller.count(bad_context)}')
+          controller_path.write_text(controller.replace(bad_context, good_context))
           PY
       - name: Persist bounded diagnostic on generator failure
         if: failure() && steps.autofix.outcome == 'failure'
