@@ -3,9 +3,10 @@ import { getPool } from "../db.js";
 import {
   buildRepositoryAutomationPlan,
   readRepositoryAutomationRun,
+  runGithubRepositoryPolicyController,
   runRepositoryAutomation,
   scanRepositoryAutomationHygiene,
-} from "../repositoryAutomationControlPlane.js";
+} from "../repositoryAutomationPolicyFacade.js";
 import { runRepositoryReconciliationLeaseControl } from "../repositoryReconciliationLeaseControl.js";
 import { dispatchToolForCaller, resolveCallerTypeForRequest } from "./gptToolsRoutes.js";
 import { buildOperationObservabilityRoutes } from "./operationObservabilityRoutes.js";
@@ -36,6 +37,9 @@ function automationDeps(req) {
     auth: {
       tenant_id: req.auth?.tenant_id || null,
       user_id: req.auth?.user_id || req.auth?.admin_id || null,
+      admin_id: req.auth?.admin_id || null,
+      role: req.auth?.role || req.auth?.admin_role || null,
+      is_admin: req.auth?.is_admin === true,
       caller_type: callerType,
     },
     dispatch: (toolKey, args) => dispatchToolForCaller(callerType, toolKey, args, req),
@@ -67,6 +71,15 @@ export function buildRepositoryAutomationRoutes({ requireBackendApiKey, requireA
       return res.status(status).json(result);
     } catch (error) {
       return errorResponse(res, error, "repository_automation_run_failed");
+    }
+  });
+
+  router.post("/admin/repository-automation/policy-controller", ...requireAdmin, async (req, res) => {
+    try {
+      const result = await runGithubRepositoryPolicyController(bodyOf(req), automationDeps(req));
+      return res.status(200).json(result);
+    } catch (error) {
+      return errorResponse(res, error, "github_repository_policy_controller_failed");
     }
   });
 
