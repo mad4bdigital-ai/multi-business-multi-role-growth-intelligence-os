@@ -1,0 +1,52 @@
+name: PR 6502 E2E Maintenance Diagnostic
+
+on:
+  push:
+    branches:
+      - fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Diagnose single-PR maintenance resolution
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          import { matchesPattern } from './http-generic-api/scripts/e2e-phase-governance.mjs';
+          const changed = execFileSync('git', ['diff','--name-only','origin/main...HEAD'], {encoding:'utf8'})
+            .split(/\r?\n/).filter(Boolean)
+            .filter((p) => p !== '.github/workflows/pr6502-e2e-maintenance-diagnostic.yml');
+          const policy = JSON.parse(fs.readFileSync('.specify/e2e-phase-governance.json','utf8'));
+          const runtimeFiles = changed.filter((file) => policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern)));
+          const parallelPath = 'specs/014-governed-hostinger-storage-orchestration/e2e-phases.json';
+          const parallel = JSON.parse(fs.readFileSync(parallelPath,'utf8'));
+          const current = (parallel.phases || []).find((p) => p.id === parallel.current_phase);
+          const byId = new Map((parallel.parallel_work?.workstreams || []).map((row) => [row.id,row]));
+          const required = parallel.parallel_work?.integration?.required_workstreams || [];
+          const workstreamStates = required.map((id) => ({id,status:byId.get(id)?.status || null}));
+          const allIntegrated = current?.status === 'implemented' && required.length > 0 && workstreamStates.every((row) => row.status === 'integrated');
+          const root = policy.non_spec_contract_root || '.changes/e2e';
+          const candidatePaths = changed.filter((file) => file.startsWith(`${root}/`) && file.endsWith('.json')).sort();
+          const candidates = candidatePaths.map((contractPath) => {
+            const contract = JSON.parse(fs.readFileSync(contractPath,'utf8'));
+            const phase = (contract.phases || []).find((p) => p.id === contract.current_phase);
+            const scope = contract.scope?.include || [];
+            const coverage = runtimeFiles.map((file) => ({file,covered:scope.some((pattern) => matchesPattern(file,pattern))}));
+            const matches = contract.delivery_mode === 'single_pr' && phase?.status === 'implemented' && contract.secrets_included === false && Array.isArray(scope) && coverage.every((row) => row.covered);
+            return {contractPath,feature_key:contract.feature_key,delivery_mode:contract.delivery_mode,current_phase:contract.current_phase,current_status:phase?.status || null,secrets_included:contract.secrets_included,coverage,matches};
+          });
+          console.log(JSON.stringify({head:process.env.GITHUB_SHA,changed,runtimeFiles,parallel:{parallelPath,current_phase:parallel.current_phase,current_status:current?.status || null,required,workstreamStates,allIntegrated},candidates,matchingCandidates:candidates.filter((row)=>row.matches).map((row)=>row.contractPath)}, null, 2));
+          NODE
