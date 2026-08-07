@@ -10,9 +10,6 @@ permissions:
 jobs:
   readiness:
     name: Authorize and dry-run Migration 1048
-    permissions:
-      contents: read
-      issues: write
     if: >-
       github.event.issue.number == 6531 &&
       !github.event.issue.pull_request &&
@@ -45,30 +42,6 @@ jobs:
 
       - name: Execute Production-bound authorization and dry-run
         run: node .github/ops/transport-response-schema-1048-governed-rollout.mjs
-
-      - name: Publish checksum-bound readiness marker
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('node:fs');
-            const summaryPath = `${process.env.EVIDENCE_DIR}/summary.json`;
-            const summary = JSON.parse(fs.readFileSync(summaryPath, 'utf8'));
-            if (summary.result === 'ready_for_apply') {
-              const marker = String(summary.readiness_marker || '');
-              if (!marker.startsWith('TRANSPORT_RESPONSE_SCHEMA_1048_READINESS result=pass ')) {
-                core.setFailed('Malformed Migration 1048 readiness marker');
-                return;
-              }
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: 6531,
-                body: marker,
-              });
-            } else if (summary.result !== 'already_applied') {
-              core.setFailed(`Unexpected Migration 1048 readiness result: ${summary.result}`);
-            }
 
       - name: Upload no-secret readiness evidence
         if: always()
