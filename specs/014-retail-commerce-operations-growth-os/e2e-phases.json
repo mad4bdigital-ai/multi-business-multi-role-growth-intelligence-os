@@ -10,10 +10,12 @@
       "specs/014-retail-commerce-operations-growth-os/**",
       ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml",
       "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+      "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
       "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
       "http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs",
-      "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+      "http-generic-api/test-retail-commerce-specification-baseline.mjs",
+      "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
     ]
   },
   "merge_contract": {
@@ -35,6 +37,7 @@
           "steps": [
             "Load the Retail Commerce package and resolve its bounded feature identity independently from its numeric display label.",
             "Validate the Work Map integration against the current registry, coverage matrix, reuse-first policy, and zero-unresolved-dimension requirement.",
+            "Execute the generalized final Work Map binding producer in read-only mode for both its default Hostinger target and the explicit Retail feature, then prove the canonical Retail binding is current and the check path performs no repository mutation.",
             "Validate the Spec Kit completion contract and confirm that implementation, migration, deployment, provider, WordPress, WooCommerce, Google Drive, payment, publication, and Production mutation effects remain unclaimed.",
             "Validate the specification package structure, JSON and YAML contracts, required artifacts, planned later phases, and absence of implementation files inside the bounded spec directory.",
             "Execute the Production schema baseline collector against an injected fake pool and prove that every direct database statement is parameterized SELECT-only, no row data or credential values are returned, and no migration, database, provider, deployment, or external-business-write action occurs.",
@@ -51,6 +54,7 @@
             "Free-text onboarding data, capability recommendations, and solution Blueprints remain evidence or proposals and never become execution authority.",
             "All current Work Maps and schema domains have explicit decisions, with zero unresolved dimensions and no new Work Map candidate.",
             "The package reuses the existing platform runtime, policy, resource, provider, workflow, evidence, migration, observability, repository, delivery, and support authorities rather than creating parallel kernels.",
+            "The shared final Work Map binding producer preserves its Hostinger default, accepts only bounded feature keys, supports read-only check mode, and refreshes the Retail manifest from the canonical registry without manual hash editing.",
             "The specification package contains no runtime, migration, or execution scripts inside its bounded directory.",
             "The direct Production schema source accepts no free-form SQL, executes only parameterized SELECT statements, reads schema and migration-ledger metadata only, hashes the database identity, and never returns credential values.",
             "The governed runtime source is pinned to https://auth.mad4b.com and governed_migration_schema_readback, derives all expectations from reviewed repository migrations, executes no local SQL, and never returns BACKEND_API_KEY or raw capability-envelope identifiers.",
@@ -66,6 +70,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "retail-commerce-final-work-map-binding-refresh",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-refresh-final-work-map-binding.mjs",
               "args": []
             },
             {
@@ -115,10 +126,12 @@
             "specs/014-retail-commerce-operations-growth-os/e2e-phases.json",
             ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml",
             "http-generic-api/scripts/retail-commerce-production-schema-baseline.mjs",
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/test-retail-commerce-production-schema-baseline.mjs",
             "http-generic-api/test-retail-commerce-production-schema-runtime-gap-readback.mjs",
             "http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs",
-            "http-generic-api/test-retail-commerce-specification-baseline.mjs"
+            "http-generic-api/test-retail-commerce-specification-baseline.mjs",
+            "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
         }
       ]

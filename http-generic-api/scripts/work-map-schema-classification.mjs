@@ -219,7 +219,7 @@ export function applySchemaClassificationRegistry(workMapRegistry, options = {})
   const taxonomyGapClusters = [...clusterMap.entries()]
     .map(([id, names]) => ({ id, count: names.length, sample: names.slice(0, 8) }))
     .sort((left, right) => left.id.localeCompare(right.id));
-  const signature = {
+  const schemaClassificationSignature = {
     ...workMapRegistry.signature,
     uncategorized_count: result.unresolved.length,
     taxonomy_gap_cluster_ids: taxonomyGapClusters.map((row) => row.id),
@@ -233,8 +233,8 @@ export function applySchemaClassificationRegistry(workMapRegistry, options = {})
     globally_classified_schema_objects: result.classified,
     intentionally_unclassified_schema_objects: result.intentional_unclassified,
     schema_classification_findings: result.findings,
-    signature,
-    fingerprint: sha256(JSON.stringify(signature)),
+    schema_classification_signature: schemaClassificationSignature,
+    schema_classification_fingerprint: sha256(JSON.stringify(schemaClassificationSignature)),
   };
 }
 
