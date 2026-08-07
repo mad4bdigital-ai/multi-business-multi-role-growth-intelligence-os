@@ -1,4 +1,4 @@
 pr=6534
 scope=spec014-final-work-map-bindings
-previous_head=8a9d14b324dccba69631a7b9385cd9b1f7b1fca4
-repair_contract=final-worktree-before-work-map-check-v2
+previous_head=d8c38aefb2e597b1270562c7e5f02b157a805ee5
+repair_contract=final-worktree-supported-spec014-cli-v3
