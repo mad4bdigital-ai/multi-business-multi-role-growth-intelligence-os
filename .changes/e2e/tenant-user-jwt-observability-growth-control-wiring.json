@@ -1,0 +1,78 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-user-jwt-observability-growth-control-wiring",
+  "title": "Tenant User-JWT observability and Growth Control runtime wiring",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-user-jwt-observability-growth-control-wiring.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/routes/operationObservabilityRoutes.js",
+      "http-generic-api/routes/tenantGrowthControlPlaneRoutes.js",
+      "http-generic-api/scripts/test-operation-observability-service.mjs",
+      "http-generic-api/test-growth-control-openapi-auth-contracts.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Parse the canonical mixed-auth principal before tenant-only membership and scope guards on observability and Growth Control Plane routes, while retaining fail-closed User-JWT-only tenant authority and committing the generator-produced frontend dispatch evidence for the same source tree.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-user-jwt-reaches-observability-and-growth-control-scope-guards",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user",
+          "entrypoint": "Bearer User JWT request to tenant observability or Growth Control Plane",
+          "terminal_outcome": "The canonical authentication parser populates req.auth before the tenant guard, active membership remains authoritative, non-tenant principals or invalid scope fail closed without secret or cross-tenant leakage, and the generated frontend dispatch artifact describes the same guard chain.",
+          "steps": [
+            "Enter the tenant observability or Growth Control Plane route with an Authorization Bearer token.",
+            "Run the canonical mixed-auth parser before the tenant-only scope guard.",
+            "Require user_jwt mode and resolve active membership from authoritative tenant state.",
+            "Execute only the tenant-safe projection after principal and tenant scope are established.",
+            "Generate the frontend surface dispatch artifact through the governed generator and commit its exact source digest/guard-chain evidence.",
+            "Exercise regressions that verify parser-before-guard ordering and preserve existing OpenAPI/auth contracts."
+          ],
+          "assertions": [
+            "Tenant observability invokes the injected canonical authentication middleware before requireTenantObservabilityPrincipal.",
+            "Tenant Growth Control Plane invokes the injected canonical authentication middleware before requireTenantUserJwt.",
+            "The tenant guards still require user_jwt mode and active tenant membership after parsing.",
+            "Admin/backend-only identity is not silently converted into tenant identity.",
+            "The committed frontend-surface-dispatch generated artifact is produced by the repository generator and is covered by this E2E contract.",
+            "No credential value, authorization header, provider payload, database mutation, migration, Production mutation, deployment, external send, or secret is produced by this repair."
+          ],
+          "tests": [
+            {
+              "id": "tenant-operation-observability-auth-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-operation-observability-service.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-growth-control-auth-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-growth-control-openapi-auth-contracts.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-user-jwt-observability-growth-control-wiring.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/operationObservabilityRoutes.js",
+            "http-generic-api/routes/tenantGrowthControlPlaneRoutes.js",
+            "http-generic-api/scripts/test-operation-observability-service.mjs",
+            "http-generic-api/test-growth-control-openapi-auth-contracts.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
