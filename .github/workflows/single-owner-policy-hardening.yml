@@ -1,0 +1,217 @@
+name: Single Owner Policy Hardening
+
+on:
+  push:
+    branches:
+      - fix/github-main-single-owner-policy-20260807
+    paths:
+      - .github/workflows/single-owner-policy-hardening.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/github-main-single-owner-policy-20260807
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Download and verify validated patch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: "8988288801"
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/single-owner-input
+          mkdir -p /tmp/single-owner-input
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/single-owner.zip
+          unzip -q /tmp/single-owner.zip -d /tmp/single-owner-input
+          (cd /tmp/single-owner-input && sha256sum -c MANIFEST.sha256)
+          test "$(find /tmp/single-owner-input -type f ! -name MANIFEST.sha256 | wc -l)" -eq 7
+      - name: Overlay bounded patch
+        run: |
+          set -euo pipefail
+          while IFS= read -r path; do
+            mkdir -p "$(dirname "$path")"
+            cp -- "/tmp/single-owner-input/$path" "$path"
+          done < <(cd /tmp/single-owner-input && find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort)
+      - name: Harden collaborator proof and trusted gate execution
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gate_path = Path('http-generic-api/scripts/single-owner-review-gate.mjs')
+          gate = gate_path.read_text()
+          old_loop = '''    if (batch.length < 100) break;
+          }
+          return items;
+          }'''.replace('          ', '')
+          new_loop = '''    if (batch.length < 100) return items;
+          }
+          throw new Error(`Pagination safety bound exceeded for ${url}`);
+          }'''.replace('          ', '')
+          if gate.count(old_loop) != 1:
+              raise SystemExit(f'gate pagination anchor count={gate.count(old_loop)}')
+          gate = gate.replace(old_loop, new_loop)
+          if gate.count('collaborators?affiliation=direct') != 1:
+              raise SystemExit('gate direct-affiliation anchor must occur exactly once')
+          gate_path.write_text(gate.replace('collaborators?affiliation=direct', 'collaborators?affiliation=all'))
+
+          workflow_path = Path('.github/workflows/single-owner-review-gate.yml')
+          workflow = workflow_path.read_text()
+          if workflow.count('  pull_request:\n') != 1:
+              raise SystemExit('pull_request trigger anchor must occur exactly once')
+          workflow = workflow.replace('  pull_request:\n', '  pull_request_target:\n', 1)
+          old_ref = '          ref: ${{ github.event.pull_request.head.sha || github.sha }}'
+          if workflow.count(old_ref) != 1:
+              raise SystemExit('untrusted checkout ref anchor must occur exactly once')
+          workflow_path.write_text(workflow.replace(old_ref, '          ref: main', 1))
+
+          controller_path = Path('http-generic-api/githubRepositoryPolicyController.js')
+          controller = controller_path.read_text()
+          old_eligible = '  return (Array.isArray(readback?.direct_collaborators) ? readback.direct_collaborators : []).filter((item) =>'
+          new_eligible = '  const collaborators = Array.isArray(readback?.collaborators) ? readback.collaborators : readback?.direct_collaborators;\n  return (Array.isArray(collaborators) ? collaborators : []).filter((item) =>'
+          if controller.count(old_eligible) != 1:
+              raise SystemExit('eligible collaborator anchor must occur exactly once')
+          controller = controller.replace(old_eligible, new_eligible, 1)
+          permission_anchor = 'async function readCollaboratorPermissions({ owner, repo, collaborators, token, fetchImpl }) {'
+          helper = '''async function readAllCollaborators({ owner, repo, token, fetchImpl }) {
+            const items = [];
+            for (let page = 1; page <= 10; page += 1) {
+              const result = await githubRequest({
+                apiPath: `/repos/${encode(owner)}/${encode(repo)}/collaborators?affiliation=all&per_page=100&page=${page}`,
+                token,
+                fetchImpl,
+              });
+              if (!result.ok || !Array.isArray(result.payload)) {
+                return { ok: false, status: result.status, payload: [], complete: false };
+              }
+              items.push(...result.payload);
+              if (result.payload.length < 100) return { ok: true, status: result.status, payload: items, complete: true };
+            }
+            return { ok: false, status: 409, payload: [], complete: false };
+          }
+
+          '''.replace('          ', '') + permission_anchor
+          if controller.count(permission_anchor) != 1:
+              raise SystemExit('permission helper anchor must occur exactly once')
+          controller = controller.replace(permission_anchor, helper, 1)
+          old_request = 'githubRequest({ apiPath: `${base}/collaborators?affiliation=direct&per_page=100`, token, fetchImpl }),'
+          if controller.count(old_request) != 1:
+              raise SystemExit('controller direct collaborator request anchor must occur exactly once')
+          controller = controller.replace(old_request, 'readAllCollaborators({ owner: target.owner, repo: target.repo, token, fetchImpl }),', 1)
+          old_output = '    direct_collaborators: collaboratorPermissions,\n    eligible_human_collaborators:'
+          new_output = '    collaborators: collaboratorPermissions,\n    direct_collaborators: collaboratorPermissions,\n    eligible_human_collaborators:'
+          if controller.count(old_output) != 1:
+              raise SystemExit('collaborator output anchor must occur exactly once')
+          controller_path.write_text(controller.replace(old_output, new_output, 1))
+
+          gate_test_path = Path('http-generic-api/test-single-owner-review-gate.mjs')
+          gate_test = gate_test_path.read_text()
+          if gate_test.count('import assert from "node:assert/strict";\n') != 1:
+              raise SystemExit('gate test import anchor must occur exactly once')
+          gate_test = gate_test.replace('import assert from "node:assert/strict";\n', 'import assert from "node:assert/strict";\nimport fs from "node:fs";\n', 1)
+          marker = '\nconsole.log(JSON.stringify({ ok: true, test: "single_owner_review_gate", secrets_included: false }));\n'
+          security_test = '''
+          {
+            const gateSource = fs.readFileSync(new URL("./scripts/single-owner-review-gate.mjs", import.meta.url), "utf8");
+            const workflowSource = fs.readFileSync(new URL("../.github/workflows/single-owner-review-gate.yml", import.meta.url), "utf8");
+            assert.match(gateSource, /collaborators\\?affiliation=all/);
+            assert.doesNotMatch(gateSource, /collaborators\\?affiliation=direct/);
+            assert.match(gateSource, /Pagination safety bound exceeded/);
+            assert.match(workflowSource, /pull_request_target:/);
+            assert.doesNotMatch(workflowSource, /^  pull_request:/m);
+            assert.match(workflowSource, /ref: main/);
+          }
+
+          '''.replace('          ', '')
+          if gate_test.count(marker) != 1:
+              raise SystemExit('gate test final marker must occur exactly once')
+          gate_test_path.write_text(gate_test.replace(marker, '\n' + security_test + marker.lstrip('\n'), 1))
+
+          controller_test_path = Path('http-generic-api/test-github-repository-policy-controller.mjs')
+          controller_test = controller_test_path.read_text()
+          route = '''    if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") {
+              return response(200, [{ login: OWNER, type: "User" }]);
+            }'''.replace('            ', '')
+          hardened_route = '''    if (path === `/repos/${OWNER}/${REPO}/collaborators` && method === "GET") {
+              assert.equal(parsed.searchParams.get("affiliation"), "all");
+              assert.equal(parsed.searchParams.get("per_page"), "100");
+              assert.ok(Number(parsed.searchParams.get("page")) >= 1);
+              return response(200, [{ login: OWNER, type: "User" }]);
+            }'''.replace('            ', '')
+          if controller_test.count(route) != 1:
+              raise SystemExit(f'controller collaborator mock anchor count={controller_test.count(route)}')
+          controller_test_path.write_text(controller_test.replace(route, hardened_route, 1))
+          PY
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+      - name: Validate hardened bounded patch
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/scripts/single-owner-review-gate.mjs
+          node http-generic-api/test-single-owner-review-gate.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          node http-generic-api/test-repository-automation-policy-facade.mjs
+          git diff --check
+      - name: Package exact hardened seven-file patch
+        run: |
+          set -euo pipefail
+          rm -rf hardened-patch
+          mkdir hardened-patch
+          cat > /tmp/expected <<'EOF'
+          .changes/e2e/github-repository-policy-single-owner-mode.json
+          .github/workflows/single-owner-review-gate.yml
+          http-generic-api/githubRepositoryPolicyController.js
+          http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql
+          http-generic-api/scripts/single-owner-review-gate.mjs
+          http-generic-api/test-github-repository-policy-controller.mjs
+          http-generic-api/test-single-owner-review-gate.mjs
+          EOF
+          sort -o /tmp/expected /tmp/expected
+          while IFS= read -r path; do
+            mkdir -p "hardened-patch/$(dirname "$path")"
+            cp -- "$path" "hardened-patch/$path"
+          done < /tmp/expected
+          (cd hardened-patch && find . -type f -print0 | sort -z | xargs -0 sha256sum > MANIFEST.sha256)
+          test "$(find hardened-patch -type f ! -name MANIFEST.sha256 | wc -l)" -eq 7
+      - name: Create Git blobs from hardened files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd hardened-patch
+          : > GIT_BLOBS.ndjson
+          while IFS= read -r path; do
+            encoded="$(base64 -w0 -- "$path")"
+            sha="$(gh api --method POST "/repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$encoded" -f encoding=base64 --jq .sha)"
+            printf '{"path":"%s","sha":"%s"}\n' "$path" "$sha" >> GIT_BLOBS.ndjson
+          done < <(find . -type f ! -name MANIFEST.sha256 ! -name GIT_BLOBS.ndjson -printf '%P\n' | sort)
+          test "$(wc -l < GIT_BLOBS.ndjson)" -eq 7
+          cp GIT_BLOBS.ndjson ../GIT_BLOBS.ndjson
+      - name: Upload hardened patch
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-owner-hardened-patch-${{ github.sha }}
+          path: hardened-patch
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload hardened Git blob map
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-owner-hardened-git-blobs-${{ github.sha }}
+          path: GIT_BLOBS.ndjson
+          if-no-files-found: error
+          retention-days: 3
