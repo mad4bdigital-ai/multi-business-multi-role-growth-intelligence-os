@@ -22,6 +22,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p "${RUNNER_TEMP}/pr6502-e2e-maintenance-diagnostic"
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { execFileSync } from 'node:child_process';
@@ -46,7 +47,17 @@ jobs:
             const scope = contract.scope?.include || [];
             const coverage = runtimeFiles.map((file) => ({file,covered:scope.some((pattern) => matchesPattern(file,pattern))}));
             const matches = contract.delivery_mode === 'single_pr' && phase?.status === 'implemented' && contract.secrets_included === false && Array.isArray(scope) && coverage.every((row) => row.covered);
-            return {contractPath,feature_key:contract.feature_key,delivery_mode:contract.delivery_mode,current_phase:contract.current_phase,current_status:phase?.status || null,secrets_included:contract.secrets_included,coverage,matches};
+            return {contractPath,feature_key:contract.feature_key,delivery_mode:contract.delivery_mode,current_phase:contract.current_phase,current_status:phase?.status || null,secrets_included:contract.secrets_included,scope,coverage,matches};
           });
-          console.log(JSON.stringify({head:process.env.GITHUB_SHA,changed,runtimeFiles,parallel:{parallelPath,current_phase:parallel.current_phase,current_status:current?.status || null,required,workstreamStates,allIntegrated},candidates,matchingCandidates:candidates.filter((row)=>row.matches).map((row)=>row.contractPath)}, null, 2));
+          const report = {head:process.env.GITHUB_SHA,changed,runtimeFiles,parallel:{parallelPath,current_phase:parallel.current_phase,current_status:current?.status || null,required,workstreamStates,allIntegrated},candidates,matchingCandidates:candidates.filter((row)=>row.matches).map((row)=>row.contractPath)};
+          const output = `${JSON.stringify(report, null, 2)}\n`;
+          console.log(output);
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/pr6502-e2e-maintenance-diagnostic/diagnostic.json`, output);
           NODE
+      - name: Upload diagnostic
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6502-e2e-maintenance-diagnostic-${{ github.sha }}
+          path: ${{ runner.temp }}/pr6502-e2e-maintenance-diagnostic/diagnostic.json
+          if-no-files-found: error
+          retention-days: 7
