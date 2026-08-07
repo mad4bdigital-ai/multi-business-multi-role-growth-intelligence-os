@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
 const migration = readFileSync("migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql", "utf8");
+const canonicalMigration = migration.replace(/\r\n?/g, "\n");
+const migrationSha256 = createHash("sha256").update(canonicalMigration, "utf8").digest("hex");
+const canonicalStatements = splitMigrationSqlStatements(migration);
 const statements = migration
   .split(/;\s*(?:\r?\n|$)/)
   .map((statement) => statement.trim())
@@ -12,6 +17,9 @@ function statementContaining(token) {
   assert.equal(matches.length, 1, `expected exactly one Migration 1042 statement containing ${token}`);
   return matches[0];
 }
+
+assert.equal(canonicalStatements.length, 12, "Migration 1042 canonical statement count must remain 12");
+assert.match(migrationSha256, /^[0-9a-f]{64}$/, "Migration 1042 canonical checksum must be SHA-256");
 
 assert.match(
   migration,
@@ -34,4 +42,13 @@ assert.match(wordpressTicketBackfill, /target_capability\s+IS\s+NULL/, "WordPres
 const resolvedBackfill = statementContaining("685dc4d9-c137-4941-81f4-de13306a8508");
 assert.match(resolvedBackfill, /status\s+IN\s*\('open',\s*'in_review',\s*'awaiting_approval'\)/, "resolved-ticket backfill must already be state-guarded on rerun");
 
+console.log(JSON.stringify({
+  contract: "mad4b.migration-1042-rerun-safety.v1",
+  migration_sha256: migrationSha256,
+  checksum_canonicalization: "utf8_lf_v1",
+  statement_count: canonicalStatements.length,
+  live_database_connected: false,
+  migration_apply_executed: false,
+  secrets_included: false,
+}));
 console.log("Migration 1042 rerun safety tests passed");
