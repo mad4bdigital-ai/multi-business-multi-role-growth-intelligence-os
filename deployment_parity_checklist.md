@@ -557,3 +557,10 @@ Safety contract: `no_provider_call`, `no_credential_payload_read`, `no_raw_secre
 - [ ] Historical correlation selects only the newest observation at or before the request time, ignores later observations, scopes by environment, processes at most 256 observations, bounds evidence to 32,768 bytes, and removes secret-like metadata keys.
 - [ ] The T024 foundation reports evidence completeness and `classification_status=not_computed`; it does not infer `current`, `deploying`, `stale`, `diverged`, or `unknown`, does not expose a public response projection, and does not replace direct `/health`, `/version`, and `/deployment-info` parity readback.
 - [ ] Repository merge or documentation does not authorize deployment, restart, migration apply, provider access, credential reads, external writes, or Production promotion. T024A classification/exposure, T024B policy, T026 persistence/apply/readback, public runtime wiring, and rollback certification remain separately gated.
+
+
+### Migration 1048 transport response chunk schema recovery
+
+- Repository contract: `1048_transport_response_chunk_schema_recovery.sql` restores the durable governed response-chunk transport schema additively and idempotently.
+- Safety boundary: repository documentation/readiness only; no provider call, credential read, external send/write, secret payload, deployment, or database Apply is authorized by this documentation entry.
+- Production dependency: any Apply or promotion remains separately governed and requires checksum-bound preflight plus same-cycle schema readback.
