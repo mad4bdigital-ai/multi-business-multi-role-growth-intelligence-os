@@ -1,4 +1,0 @@
-pr=6534
-source_head=2b847bd7ea1dd7ff0adb39e0abfc42806ceb0b4a
-base_main=398aed2b60f51ac7f1062e733fb4833918a5a735
-purpose=final-user-authored-exact-head-pr-gates
