@@ -102,7 +102,12 @@ jobs:
           good_context = 'required_status_checks: checks.map((context) => ({ context })),'
           if controller.count(bad_context) != 1:
               raise SystemExit(f'generated status-check context anchor count={controller.count(bad_context)}')
-          controller_path.write_text(controller.replace(bad_context, good_context))
+          controller = controller.replace(bad_context, good_context)
+          bad_trailing = '    name: GITHUB_REPOSITORY_POLICY_RULESET_NAME, \n'
+          good_trailing = '    name: GITHUB_REPOSITORY_POLICY_RULESET_NAME,\n'
+          if controller.count(bad_trailing) != 1:
+              raise SystemExit(f'generated trailing-whitespace anchor count={controller.count(bad_trailing)}')
+          controller_path.write_text(controller.replace(bad_trailing, good_trailing))
           PY
       - name: Persist bounded diagnostic on generator failure
         if: failure() && steps.autofix.outcome == 'failure'
