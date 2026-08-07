@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
-    "id": "frontend-operation-governance-generator-v3-brand-create-extension",
-    "source_digest": "352129911324805d0832084989b098b2997399453881ced2509c5f1255ed0261",
+    "id": "frontend-operation-governance-generator-v4-brand-asset-extension",
+    "source_digest": "1416be1c7039d33f08cf5c887851986032183239032c5f01dad29b7aa84ec465",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "edf94a8fda16a2e40f20b3dbdb7f1192648231b6dafa9d1e4ffcf8c501cafa54",
+      "sha256": "9fb319a5df58d29d4aa832c22cdddf0cd155977f4056854a83e08c256c3abb38",
       "present": true
     },
     {
@@ -48,7 +48,7 @@
     },
     {
       "file": "routes/workspaceResourceRoutes.js",
-      "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "sha256": "fdc2cca143a5e46ab939a5dea24928c600a3b3345e94d0f266a31628c3938e1d",
       "present": true
     },
     {
@@ -58,7 +58,7 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "7df955ff548bc209059bad215b4730b0262d7ac1a7f792d1c6350343c8661e3a",
+      "sha256": "7e88eae84359924740c4d7d0ce7f9773923f3a8858b03edfbac3236a52662eda",
       "present": true
     },
     {
@@ -93,7 +93,7 @@
     },
     {
       "file": "test-frontend-operation-governance-generator.mjs",
-      "sha256": "d41deed3b3a7bbfd620f149c9fe5e12a1d0d810a48497be769bae164ab8cc91e",
+      "sha256": "174116ce3548f1294360aaf6428ed95945776cd120cf7487ecd464e388202150",
       "present": true
     },
     {
@@ -112,8 +112,18 @@
       "present": true
     },
     {
+      "file": "test-workspace-brand-asset-create-operation-governance.mjs",
+      "sha256": "1643b7fdb824e9cb6834471309902acbbb69901061a35795898b9a83abe7c2b8",
+      "present": true
+    },
+    {
       "file": "test-workspace-brand-create-operation-governance.mjs",
       "sha256": "3f2e3665b2d456c0076988b79f766b26d2411c263f754d44b0f9907ad2321d49",
+      "present": true
+    },
+    {
+      "file": "workspaceAssetLifecycle.js",
+      "sha256": "eb8068222273904e37ce58698aa23009a2c393d0afb85e6b06aa915d6b7150f0",
       "present": true
     },
     {
@@ -123,8 +133,8 @@
     }
   ],
   "coverage": {
-    "candidate_count": 10,
-    "generated_rule_count": 10,
+    "candidate_count": 11,
+    "generated_rule_count": 11,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -252,7 +262,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "1eebc59a7ba546a796accdbcfc56f2942e5fde531adb8d7c1b59d1633d11299a",
         "fail_closed": true
       }
     },
@@ -296,7 +306,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "1eebc59a7ba546a796accdbcfc56f2942e5fde531adb8d7c1b59d1633d11299a",
         "fail_closed": true
       }
     },
@@ -341,7 +351,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "1eebc59a7ba546a796accdbcfc56f2942e5fde531adb8d7c1b59d1633d11299a",
         "fail_closed": true
       }
     },
@@ -436,6 +446,55 @@
       }
     },
     {
+      "rule_id": "generated-workspace-brand-asset-create-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/assets",
+      "source_file": "routes/workspaceResourceRoutes.js",
+      "classification": "state_change",
+      "owner": "workspace-platform",
+      "rationale": "Creates or idempotently reuses one persisted Brand Asset only after locked active membership, exact tenant-brand and Brand Workspace resolution, and workspace-owner or explicit brand-scoped management authority; durable identity, source provenance, checksum/content identity, and the authorized Brand binding are read back in the same transaction before commit.",
+      "preflight": {
+        "mode": "locked_brand_scoped_authority_and_asset_identity"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "request.path.tenant_id",
+        "asset_type": "request.body.asset_type",
+        "asset_ref": "request.body.asset_ref",
+        "brand_ref": "request.body.brand_ref",
+        "source_type": "request.body.source_type",
+        "content_sha256": "request.body.content_sha256",
+        "actor_user_id": "authenticated_user.user_id",
+        "asset_id": "response.asset.asset_id",
+        "brand_target_key": "response.asset.brand_ref",
+        "brand_workspace_id": "response.brand_workspace.workspace_id",
+        "content_identity": "response.asset.provenance.content_identity"
+      },
+      "evidence_refs": [
+        "routes/workspaceResourceRoutes.js",
+        "workspaceAssetLifecycle.js",
+        "test-workspace-brand-asset-create-operation-governance.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "workspace-brand-asset-create-v1",
+        "source_digest": "bc626c912edbdfa3d9584f8fd89b26910ddc4a8133ada87721c06f892bacccbe",
+        "fail_closed": true
+      }
+    },
+    {
       "rule_id": "generated-workspace-brand-create-governance",
       "operation": "POST /me/workspaces/{tenant_id}/brands",
       "source_file": "routes/workspaceResourceRoutes.js",
@@ -475,7 +534,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "05d4a479575f9ab59fda8179d41847b6159ce34b6a1bfd556f731108357eb150",
+        "source_digest": "8fb89f6bdee846375e6c1facb8853eeffec0fa74457e34ed010f71aacd3edb95",
         "fail_closed": true
       }
     },

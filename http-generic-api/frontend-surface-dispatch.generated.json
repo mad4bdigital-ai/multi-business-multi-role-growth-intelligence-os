@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "62224451a352274e9a0c6c71d457d47a3946aade1b44b4a57b52af2fea89fddb",
+    "source_digest": "066ce392374e36803cecdf3f381c01fdf795f9b9edb09adfda9c8708d103a069",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "0c67187cd6faaae38cce6f5f71972459003001f1705d9e25be0d276d9ca4bbbc",
+        "sha256": "df0ce9b45139c24f17071d60028f1282861b4064c74d6b45414624b0fe2fa801",
         "present": true
       },
       {
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "e69e386cce8cf57d3dfc02ae369ac8a18ffedac65f01287a6b13b6ba9e24e755",
+        "sha256": "50ce66192e1d2f5444a2477c9b6e7b03c77fa764e02758da4a3d4367186ed6f8",
         "present": true
       },
       {
@@ -1026,12 +1026,12 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+        "sha256": "fdc2cca143a5e46ab939a5dea24928c600a3b3345e94d0f266a31628c3938e1d",
         "present": true
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "7df955ff548bc209059bad215b4730b0262d7ac1a7f792d1c6350343c8661e3a",
+        "sha256": "7e88eae84359924740c4d7d0ce7f9773923f3a8858b03edfbac3236a52662eda",
         "present": true
       },
       {
@@ -1051,7 +1051,7 @@
       },
       {
         "file": "test-frontend-operation-governance-generator.mjs",
-        "sha256": "d41deed3b3a7bbfd620f149c9fe5e12a1d0d810a48497be769bae164ab8cc91e",
+        "sha256": "174116ce3548f1294360aaf6428ed95945776cd120cf7487ecd464e388202150",
         "present": true
       },
       {
@@ -1089,29 +1089,29 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1052,
-    "openapi_documented_count": 1036,
+    "operation_count": 1053,
+    "openapi_documented_count": 1037,
     "openapi_canonical_documented_count": 719,
-    "openapi_generated_index_count": 317,
+    "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 317,
+    "openapi_detail_gap_count": 318,
     "auth_parity_counts": {
-      "equivalent": 1036,
+      "equivalent": 1037,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 636,
+    "non_get_candidate_count": 637,
     "unresolved_operation_class_count": 575,
-    "classified_mutation_count": 12,
-    "governed_mutation_operation_count": 12,
+    "classified_mutation_count": 13,
+    "governed_mutation_operation_count": 13,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 163,
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1049,
+    "untested_operation_count": 1050,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -30735,7 +30735,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "source_digest": "fdc2cca143a5e46ab939a5dea24928c600a3b3345e94d0f266a31628c3938e1d",
       "mount_prefix": "/",
       "mount_order": 16754,
       "split_from_mixed_scope_file": false,
@@ -30998,6 +30998,107 @@
         },
         {
           "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/assets",
+          "signature": "POST /me/workspaces/{tenant_id}/assets",
+          "source_file": "routes/workspaceResourceRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt",
+              "requireWorkspaceOwner"
+            ],
+            "evidence": [
+              "route:requireUserJwt",
+              "route:requireWorkspaceOwner"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "locked_brand_scoped_authority_and_asset_identity"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "tenant_id": "request.path.tenant_id",
+              "asset_type": "request.body.asset_type",
+              "asset_ref": "request.body.asset_ref",
+              "brand_ref": "request.body.brand_ref",
+              "source_type": "request.body.source_type",
+              "content_sha256": "request.body.content_sha256",
+              "actor_user_id": "authenticated_user.user_id",
+              "asset_id": "response.asset.asset_id",
+              "brand_target_key": "response.asset.brand_ref",
+              "brand_workspace_id": "response.brand_workspace.workspace_id",
+              "content_identity": "response.asset.provenance.content_identity"
+            },
+            "blockers": [],
+            "rule_id": "generated-workspace-brand-asset-create-governance",
+            "owner": "workspace-platform",
+            "rationale": "Creates or idempotently reuses one persisted Brand Asset only after locked active membership, exact tenant-brand and Brand Workspace resolution, and workspace-owner or explicit brand-scoped management authority; durable identity, source provenance, checksum/content identity, and the authorized Brand binding are read back in the same transaction before commit.",
+            "evidence_refs": [
+              "routes/workspaceResourceRoutes.js",
+              "test-workspace-brand-asset-create-operation-governance.mjs",
+              "workspaceAssetLifecycle.js"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        },
+        {
+          "method": "POST",
           "path": "/me/workspaces/{tenant_id}/brands",
           "signature": "POST /me/workspaces/{tenant_id}/brands",
           "source_file": "routes/workspaceResourceRoutes.js",
@@ -31224,6 +31325,7 @@
         "POST /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
         "GET /me/workspaces/{tenant_id}/assets",
+        "POST /me/workspaces/{tenant_id}/assets",
         "POST /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
@@ -31235,6 +31337,7 @@
         "POST /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
         "GET /me/workspaces/{tenant_id}/assets",
+        "POST /me/workspaces/{tenant_id}/assets",
         "POST /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
