@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ff29b2feb39dc4b9d98bdcac05c2e370480bbdaed7227f41ab1e520905ab244b",
+    "source_digest": "62224451a352274e9a0c6c71d457d47a3946aade1b44b4a57b52af2fea89fddb",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "bf9dee470dfea146249f05c9e08584a9d2962d426d155968bad5006a632c6bf8",
+        "sha256": "0c67187cd6faaae38cce6f5f71972459003001f1705d9e25be0d276d9ca4bbbc",
         "present": true
       },
       {
@@ -1031,7 +1031,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "f604d50e0a311ec22037b5cec19b4f126209c36615aac8351c33ada291410bbc",
+        "sha256": "7df955ff548bc209059bad215b4730b0262d7ac1a7f792d1c6350343c8661e3a",
         "present": true
       },
       {
@@ -1051,7 +1051,7 @@
       },
       {
         "file": "test-frontend-operation-governance-generator.mjs",
-        "sha256": "166a9dffbba8b1bf5999359674624c915c83d7a90654307c089a776895541677",
+        "sha256": "d41deed3b3a7bbfd620f149c9fe5e12a1d0d810a48497be769bae164ab8cc91e",
         "present": true
       },
       {
@@ -1103,9 +1103,9 @@
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
     "non_get_candidate_count": 636,
-    "unresolved_operation_class_count": 576,
-    "classified_mutation_count": 11,
-    "governed_mutation_operation_count": 11,
+    "unresolved_operation_class_count": 575,
+    "classified_mutation_count": 12,
+    "governed_mutation_operation_count": 12,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 163,
     "test_owned_family_count": 0,
@@ -31045,18 +31045,50 @@
           "delivery_kind": "api",
           "tests": [],
           "governance": {
-            "classification": "unresolved",
-            "classification_source": "fail_closed",
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
             "mutation_candidate": true,
-            "governed": false,
-            "controls": null,
-            "blockers": [
-              "operation_classification_gap"
-            ],
-            "rule_id": null
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "locked_workspace_owner_authority_and_canonical_identity"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "tenant_id": "request.path.tenant_id",
+              "display_name": "request.body.display_name|request.body.brand_name",
+              "actor_user_id": "authenticated_user.user_id",
+              "brand_target_key": "response.brand.target_key",
+              "brand_workspace_id": "response.workspace_link.workspace_id",
+              "creator_grant_id": "response.creator_grant.grant_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-workspace-brand-create-governance",
+            "owner": "workspace-platform",
+            "rationale": "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+            "evidence_refs": [
+              "routes/workspaceResourceRoutes.js",
+              "test-workspace-brand-create-operation-governance.mjs",
+              "workspaceBrandLifecycle.js"
+            ]
           },
           "mutation_candidate": true,
-          "mutation": false
+          "mutation": true
         },
         {
           "method": "GET",
@@ -31254,17 +31286,11 @@
           "blockers": [
             "operation_classification_gap"
           ]
-        },
-        {
-          "signature": "POST /me/workspaces/{tenant_id}/brands",
-          "blockers": [
-            "operation_classification_gap"
-          ]
         }
       ],
       "risk": {
-        "score": 7,
-        "class": "high"
+        "score": 9,
+        "class": "critical"
       },
       "wave": "F1-tenant-shell"
     },
@@ -90297,7 +90323,9 @@
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -90326,7 +90354,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
