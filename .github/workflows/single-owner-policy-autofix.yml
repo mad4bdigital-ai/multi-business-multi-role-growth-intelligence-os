@@ -1,0 +1,41 @@
+name: Single Owner Policy Autofix
+
+on:
+  push:
+    branches:
+      - fix/github-main-single-owner-policy-20260807
+    paths:
+      - .github/workflows/single-owner-policy-autofix.yml
+      - http-generic-api/scripts/apply-single-owner-policy-autofix.mjs
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/github-main-single-owner-policy-20260807
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Apply bounded policy patch
+        run: node http-generic-api/scripts/apply-single-owner-policy-autofix.mjs
+      - name: Validate focused syntax and tests
+        run: |
+          node --check http-generic-api/githubRepositoryPolicyController.js
+          node --check http-generic-api/scripts/single-owner-review-gate.mjs
+          node http-generic-api/test-single-owner-review-gate.mjs
+          node http-generic-api/test-github-repository-policy-controller.mjs
+          git diff --check
+      - name: Commit final bounded patch and remove bootstrap files
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(github): support governed single-owner review mode"
+          git push origin HEAD:fix/github-main-single-owner-policy-20260807
