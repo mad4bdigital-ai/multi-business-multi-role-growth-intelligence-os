@@ -33,7 +33,8 @@ assert.match(publisherWorkflow, /Governed GitHub Main Review Policy Live Activat
 assert.match(publisherWorkflow, /actions: read/);
 assert.match(publisherWorkflow, /contents: read/);
 assert.match(publisherWorkflow, /issues: write/);
-assert.match(publisherWorkflow, /github-main-review-policy-readiness-\$\{\{ github\.event\.workflow_run\.id \}\}/);
+assert.match(publisherWorkflow, /const expected = `github-main-review-policy-readiness-\$\{context\.payload\.workflow_run\.id\}`;/);
+assert.match(publisherWorkflow, /run-id: \$\{\{ github\.event\.workflow_run\.id \}\}/);
 assert.match(publisherWorkflow, /persist-credentials: false/);
 
 assert.equal((migrationRunner.match(/name: 'governed_migration_execute'/g) || []).length, 2, 'Migration 1050 runner should contain one dry-run and one Apply transport call');
