@@ -1,4 +1,4 @@
 pr=6509
-materializer_base=7d7f9d68c5fdf73ca5266d8d9a5bcb53ff529a94
-purpose=isolate exact failing Spec 014 binding validation command before bounded repair
+materializer_base=0b47de266c40e32b73b874e5557e8f49fa4c2470
+purpose=retire materializer before canonical Work Map validation and publish bounded Spec 014 binding repair
 secrets_included=false
