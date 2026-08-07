@@ -38,6 +38,9 @@ assert.ok(runner.includes("import { buildAdminControlDbReadRequest } from './lib
 assert.equal((runner.match(/tool:\s*'db'/g) || []).length, 0, 'Migration 1049 runner must not handcraft Admin DB control requests');
 assert.equal((runner.match(/buildAdminControlDbReadRequest\(\{/g) || []).length, 1, 'Migration 1049 runner must use the shared Admin DB request builder exactly once');
 assert.match(runner, /const READBACK_SQL = `SELECT\s+/);
+assert.ok(runner.includes("const SAFE_EVIDENCE_KEYS = new Set(['secrets_included']);"), 'Migration 1049 runner must preserve the safe secrets_included evidence boolean');
+assert.ok(runner.includes("redactKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)"), 'Migration 1049 sanitizer must redact sensitive keys except explicitly safe evidence flags');
+assert.ok(publisher.includes("assert.equal(summary?.secrets_included, false);"), 'Trusted publisher must continue to require explicit no-secret evidence');
 for (const forbidden of [
   /mysql\s+-/i, /mariadb\s+-/i,
   /tool:\s*'db'[\s\S]{0,500}\b(?:INSERT|UPDATE|DELETE|ALTER|CREATE|DROP|TRUNCATE|REPLACE)\b/i,
