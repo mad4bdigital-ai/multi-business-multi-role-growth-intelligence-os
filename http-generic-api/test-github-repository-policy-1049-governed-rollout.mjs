@@ -43,6 +43,12 @@ for (const forbidden of [
   /APPLY_GITHUB_MAIN_REVIEW_POLICY/,
 ]) assert.doesNotMatch(runner, forbidden, `Migration 1049 rollout violates safety contract: ${forbidden}`);
 
+const authorizationStage = runner.indexOf("stage = 'authorization_bootstrap'; await bootstrapAuthorization(envelopeId);");
+const dryRunStage = runner.indexOf("stage = 'dry_run'; await dryRun();");
+const readySummaryStage = runner.indexOf("result: 'ready_for_apply'");
+assert.ok(authorizationStage >= 0 && dryRunStage > authorizationStage && readySummaryStage > dryRunStage,
+  'ready_for_apply must be emitted only after successful authorization bootstrap and dry-run');
+
 assert.ok(!workflow.includes('issues: write'), 'Rollout producer must remain read-only to GitHub issue metadata');
 assert.ok(publisherWorkflow.includes('workflow_run:'));
 assert.ok(publisherWorkflow.includes('issues: write'));
@@ -58,7 +64,6 @@ for (const expected of [
   "sourceRun?.event, 'issue_comment'",
   "sourceRun?.conclusion, 'success'",
   "summary?.result, 'ready_for_apply'",
-  "summary?.authorization, 'pass'",
   "summary?.dry_run, 'pass'",
   "summary?.source_merge_status",
   'source_merge=${EXPECTED_SOURCE_MERGE_SHA}',
@@ -67,6 +72,7 @@ for (const expected of [
   "action: 'unchanged'",
 ]) assert.ok(publisher.includes(expected), `Migration 1049 publisher missing ${expected}`);
 
+assert.ok(!publisher.includes('summary?.authorization'), 'Trusted publisher must not depend on a sanitizer-redacted authorization field');
 assert.ok(!publisher.includes('summary?.source_merge_sha'), 'Trusted publisher must not depend on an optional source_merge_sha field from readiness summary');
 
 console.log('PASS governed Migration 1049 repository-policy rollout contract');
