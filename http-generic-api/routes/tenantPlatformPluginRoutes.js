@@ -162,18 +162,28 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   const pluginKey = tenantValueFromAliases(input, "plugin_key", "pluginKey");
   const action = tenantValueFromAliases(input, "action_key", "actionKey");
   const tool = tenantValueFromAliases(input, "tool_key", "toolKey");
+  const workspace = tenantValueFromAliases(input, "workspace_id", "workspaceId");
+  if (!workspace.value) {
+    throw tenantResolveContractError(
+      "TENANT_WORKSPACE_CONTEXT_REQUIRED",
+      "workspace_id is required for tenant platform plugin resolution.",
+      { required_field: "workspace_id" }
+    );
+  }
   const selector = validateCapabilitySelectorContract({ actionKey: action.value, toolKey: tool.value });
   const legacyFields = [];
   if (pluginKey.legacyUsed) legacyFields.push("pluginKey");
   if (action.legacyUsed) legacyFields.push("actionKey");
   if (tool.legacyUsed) legacyFields.push("toolKey");
+  if (workspace.legacyUsed) legacyFields.push("workspaceId");
   return {
     pluginKey: pluginKey.value,
+    workspaceId: workspace.value,
     selector,
     compatibilityTelemetry: {
       legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
       legacy_fields: legacyFields,
-      contract_version: "one-selector-v1",
+      contract_version: "one-selector-workspace-v2",
     },
   };
 }
@@ -370,7 +380,7 @@ export function buildTenantPlatformPluginRoutes() {
         actionKey: contract.selector.actionKey,
         toolKey: contract.selector.toolKey,
         tenantId: req.auth.tenant_id,
-        workspaceId: input.workspace_id || input.workspaceId || null,
+        workspaceId: contract.workspaceId,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "tenant",

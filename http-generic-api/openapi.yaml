@@ -21107,120 +21107,6 @@ paths:
       security:
         - userJwtAuth: []
 
-  /tenant/platform/plugins/resolve:
-    post:
-      x-openai-isConsequential: false
-      tags: [platform-plugins]
-      operationId: tenantPlatformPluginResolve
-      summary: Resolve tenant readiness for a Platform Plugin action/tool
-      description: Checks tenant plugin readiness without executing actions or returning secrets.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              additionalProperties: false
-              required: [plugin_key]
-              oneOf:
-                - required: [action_key]
-                  not:
-                    required: [tool_key]
-                - required: [tool_key]
-                  not:
-                    required: [action_key]
-              properties:
-                plugin_key: { type: string }
-                action_key: { type: string }
-                tool_key: { type: string }
-                agent_id: { type: string }
-                requested_credential_scope:
-                  type: string
-                  enum: [user_connection, tenant_connection, platform_managed, device_connector, none]
-                target_resource_type:
-                  type: string
-                  description: Resource family used for scoped platform-managed target authority resolution.
-                target_resource_uri:
-                  type: string
-                  description: Canonical target reference used only for authority lookup; the response returns a SHA-256 hash instead of this value.
-                target_mode:
-                  type: string
-                  default: read_only
-                  enum: [read_only, diagnostic, comment, label, close, patch, merge, apply, admin]
-      responses:
-        "200":
-          description: Tenant-scoped plugin readiness result
-          content:
-            application/json:
-              schema:
-                type: object
-                additionalProperties: true
-                properties:
-                  ok: { type: boolean }
-                  allowed: { type: boolean }
-                  reason: { type: string }
-                  security_decision:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      metrics: { $ref: "#/components/schemas/SecurityDecisionMetrics" }
-                  security_decision_trace_public:
-                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
-                  selector:
-                    type: object
-                    additionalProperties: false
-                    properties:
-                      type: { type: string, enum: [action_key, tool_key] }
-                      value: { type: string }
-                  compatibility_telemetry:
-                    type: object
-                    additionalProperties: false
-                    properties:
-                      legacy_selector_alias_used: { type: boolean }
-                      legacy_fields:
-                        type: array
-                        items: { type: string }
-                      contract_version: { type: string, enum: [one-selector-v1] }
-                  target_authorization:
-                    type: object
-                    additionalProperties: true
-                    properties:
-                      ok: { type: boolean }
-                      required: { type: boolean }
-                      state: { type: string, enum: [pass, deny, not_applicable] }
-                      reason: { type: string }
-                      denial_code: { type: string }
-                      target_resource_type: { type: [string, "null"] }
-                      target_reference_hash:
-                        type: [string, "null"]
-                        pattern: "^[a-f0-9]{64}$"
-                      requested_mode: { type: [string, "null"] }
-                      authority_binding_present: { type: boolean }
-                      lookup_attempted: { type: boolean }
-                      authority_source: { type: [string, "null"] }
-                      permission_level: { type: [string, "null"] }
-                      secrets_included: { type: boolean, enum: [false] }
-                  security_alerts:
-                    type: object
-                    additionalProperties: false
-                    required: [scheduled_count, reason_codes, temporary_control, secrets_included]
-                    properties:
-                      scheduled_count: { type: integer, minimum: 0, maximum: 2 }
-                      severity: { type: string, nullable: true, enum: [high] }
-                      reason_codes:
-                        type: array
-                        maxItems: 2
-                        uniqueItems: true
-                        items:
-                          type: string
-                          enum: [TENANT_TO_ADMIN_CAPABILITY_REQUEST, SELECTOR_PARITY_MISMATCH]
-                      temporary_control: { type: boolean, enum: [true] }
-                      secrets_included: { type: boolean, enum: [false] }
-                  tenant_facing: { type: boolean }
-                  secrets_included: { type: boolean, enum: [false] }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-      security:
-        - userJwtAuth: []
   /tenant/resolution/cases/{caseId}/task-source-repair/verify:
     post:
       tags: [activation]
@@ -22402,7 +22288,324 @@ paths:
     $ref: ./openapi/support-ticket-runtime-completion.yaml#/getTenantRequest
   /tenant/storage-operations/apply-plan:
     $ref: ./openapi/hostinger-storage-tenant-runtime.yaml#/hostingerStorageTenantApplyPlanPath
-  /me/workspaces/{tenant_id}/assets/materialize-brand-core:
-    $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{tenant_id}~1assets~1materialize-brand-core
-  /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
-    $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core
+  /tenant/platform/plugins/resolve:
+    post:
+      x-openai-isConsequential: false
+      x-runtime-contract-source: routes/tenantPlatformPluginRoutes.js
+      x-runtime-auth-profile: user_jwt
+      x-contract-completeness: precise-runtime-contract
+      tags:
+        - platform-plugins
+      operationId: tenantPlatformPluginResolve
+      summary: Resolve tenant readiness for a Platform Plugin action/tool in one exact workspace
+      description: Checks tenant plugin readiness without executing actions or returning secrets. The exact workspace_id is mandatory and is resolved against canonical Context Kernel ownership. Personal workspaces may resolve only the authenticated owner's personal connection; company workspaces may resolve only company-workspace connections. Brand-owned connections remain excluded until canonical Brand-management authority is composed.
+      security:
+        - userJwtAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - plugin_key
+                - workspace_id
+              oneOf:
+                - required:
+                    - action_key
+                  not:
+                    required:
+                      - tool_key
+                - required:
+                    - tool_key
+                  not:
+                    required:
+                      - action_key
+              properties:
+                plugin_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                workspace_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
+                  description: Exact authenticated tenant workspace used for Context Kernel connection ownership resolution. It is not an authority grant and cannot widen tenant, user, or Brand scope.
+                action_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+                tool_key:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+                agent_id:
+                  type: string
+                requested_credential_scope:
+                  type: string
+                  enum:
+                    - user_connection
+                    - tenant_connection
+                    - platform_managed
+                    - device_connector
+                    - none
+                target_resource_type:
+                  type: string
+                  description: Resource family used for scoped platform-managed target authority resolution.
+                target_resource_uri:
+                  type: string
+                  description: Canonical target reference used only for authority lookup; the response returns a SHA-256 hash instead of this value.
+                target_mode:
+                  type: string
+                  default: read_only
+                  enum:
+                    - read_only
+                    - diagnostic
+                    - comment
+                    - label
+                    - close
+                    - patch
+                    - merge
+                    - apply
+                    - admin
+      responses:
+        "200":
+          description: Tenant-scoped plugin readiness result. A denied readiness decision is still a successful read.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  ok:
+                    type: boolean
+                  allowed:
+                    type: boolean
+                  reason:
+                    type: string
+                  security_decision:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      metrics:
+                        $ref: "#/components/schemas/SecurityDecisionMetrics"
+                  security_decision_trace_public:
+                    $ref: "#/components/schemas/SecurityDecisionTracePublic"
+                  selector:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - action_key
+                          - tool_key
+                      value:
+                        type: string
+                  compatibility_telemetry:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      legacy_selector_alias_used:
+                        type: boolean
+                      legacy_fields:
+                        type: array
+                        items:
+                          type: string
+                      contract_version:
+                        type: string
+                        enum:
+                          - one-selector-workspace-v2
+                  credential_lookup:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      required:
+                        type: boolean
+                      attempted:
+                        type: boolean
+                      authorized:
+                        type: boolean
+                      ownership_scoped:
+                        type: boolean
+                      reason:
+                        type: string
+                      row_count:
+                        type: integer
+                        minimum: 0
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  connection_ownership_resolution:
+                    type:
+                      - object
+                      - "null"
+                    additionalProperties: false
+                    properties:
+                      ok:
+                        type: boolean
+                      reason:
+                        type: string
+                      credential_scope:
+                        type:
+                          - string
+                          - "null"
+                        enum:
+                          - user_connection
+                          - tenant_connection
+                          - null
+                      workspace_ownership_type:
+                        type:
+                          - string
+                          - "null"
+                        enum:
+                          - personal
+                          - company
+                          - null
+                      owner_scope_type:
+                        type:
+                          - string
+                          - "null"
+                        enum:
+                          - personal_workspace
+                          - company_workspace
+                          - null
+                      row_count:
+                        type: integer
+                        minimum: 0
+                      brand_connections_included:
+                        type: boolean
+                        enum:
+                          - false
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  credential_resolution:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      resolution_state:
+                        type: string
+                        enum:
+                          - not_evaluated
+                          - not_required
+                          - resolved
+                          - missing
+                          - scope_denied
+                          - ambiguous
+                      denial_code:
+                        type:
+                          - string
+                          - "null"
+                        description: Stable denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH or AMBIGUOUS_CONNECTION_SELECTION.
+                  target_authorization:
+                    type: object
+                    additionalProperties: true
+                    properties:
+                      ok:
+                        type: boolean
+                      required:
+                        type: boolean
+                      state:
+                        type: string
+                        enum:
+                          - pass
+                          - deny
+                          - not_applicable
+                      reason:
+                        type: string
+                      denial_code:
+                        type: string
+                      target_resource_type:
+                        type:
+                          - string
+                          - "null"
+                      target_reference_hash:
+                        type:
+                          - string
+                          - "null"
+                        pattern: ^[a-f0-9]{64}$
+                      requested_mode:
+                        type:
+                          - string
+                          - "null"
+                      authority_binding_present:
+                        type: boolean
+                      lookup_attempted:
+                        type: boolean
+                      authority_source:
+                        type:
+                          - string
+                          - "null"
+                      permission_level:
+                        type:
+                          - string
+                          - "null"
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  security_alerts:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - scheduled_count
+                      - reason_codes
+                      - temporary_control
+                      - secrets_included
+                    properties:
+                      scheduled_count:
+                        type: integer
+                        minimum: 0
+                        maximum: 2
+                      severity:
+                        type:
+                          - string
+                          - "null"
+                        enum:
+                          - high
+                          - null
+                      reason_codes:
+                        type: array
+                        maxItems: 2
+                        uniqueItems: true
+                        items:
+                          type: string
+                          enum:
+                            - TENANT_TO_ADMIN_CAPABILITY_REQUEST
+                            - SELECTOR_PARITY_MISMATCH
+                      temporary_control:
+                        type: boolean
+                        enum:
+                          - true
+                      secrets_included:
+                        type: boolean
+                        enum:
+                          - false
+                  tenant_facing:
+                    type: boolean
+                  secrets_included:
+                    type: boolean
+                    enum:
+                      - false
+        "400":
+          description: Missing workspace_id, invalid selector, conflicting alias, or unknown security-contract field.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Canonical signed user JWT is required.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Active tenant membership or canonical workspace ownership scope is not authorized.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
