@@ -10,7 +10,7 @@
   },
   "provider_error_codes": {
     "unsupported_action": "unsupported_db_action",
-    "missing_sql": "db_sql_required"
+    "missing_sql": "missing_sql"
   },
   "legacy_aliases": {
     "actions": ["query"],
