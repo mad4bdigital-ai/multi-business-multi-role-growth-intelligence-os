@@ -73,6 +73,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-parity-refresh-dispatch.yml`
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -137,6 +138,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
+- `.github/workflows/migration-1049-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
@@ -170,6 +172,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec014-wave1-runtime-readiness.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
+- `.github/workflows/sprint69-1043-readback-certify.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`

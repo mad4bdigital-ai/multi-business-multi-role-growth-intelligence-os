@@ -109,6 +109,13 @@ assert.match(runner, /exactApplyLedger/);
 assert.match(runner, /exactObjects/);
 assert.match(runner, /final_readback/);
 
+const exactObjectsBody = runner.match(/function exactObjects\(readback\) \{([\s\S]*?)\n\}\n\nasync function readinessViewProbe/)?.[1] || '';
+assert.match(exactObjectsBody, /readback\?\.schema\?\.tables/);
+assert.match(exactObjectsBody, /readback\?\.expectations\?\.missing\?\.tables/);
+assert.match(exactObjectsBody, /row\?\.TABLE_NAME/);
+assert.doesNotMatch(exactObjectsBody, /readback\?\.tables/);
+assert.match(exactObjectsBody, /missing\.length !== 0/);
+
 const mainBody = runner.slice(runner.indexOf('async function main()'));
 const order = [
   "stage = 'repository_and_runtime_parity'",
@@ -150,6 +157,7 @@ console.log(JSON.stringify({
   readiness_authorization_must_preexist: true,
   same_cycle_dry_run_required: true,
   admin_db_control_contract: 'action_run_sql',
+  canonical_readback_shape: 'schema.tables[].TABLE_NAME',
   apply_request_count: 1,
   apply_retry_allowed: false,
   exact_ledger_and_readiness_required: true,
