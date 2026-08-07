@@ -1,0 +1,64 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-plugin-connection-ambiguity",
+  "title": "Fail closed on ambiguous platform plugin connection selection",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/platformPluginResolver.js",
+      "http-generic-api/test-platform-plugin-resolver.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve platform-plugin credentials without silently selecting the first eligible connection when the active user or tenant scope contains more than one usable candidate.",
+      "e2e_journeys": [
+        {
+          "id": "ambiguous-platform-plugin-connection-selection-fails-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user resolving a platform-plugin action",
+          "entrypoint": "resolvePlatformPluginExecution runtime resolver invocation for a tenant, user, plugin and action",
+          "terminal_outcome": "Multiple eligible connections in the selected scope produce a typed ambiguity denial before any connection is selected, while zero and exactly one eligible connection retain their existing outcomes.",
+          "steps": [
+            "Invoke the platform-plugin runtime resolver with authoritative plugin, policy, binding and connection rows for the requested tenant and user.",
+            "Collect all usable candidates for the active credential scope instead of selecting the first row.",
+            "Fail closed with AMBIGUOUS_CONNECTION_SELECTION when candidate cardinality exceeds one before exposing a selected connection identifier.",
+            "Repeat with reversed row order and with tenant fallback ambiguity, then exercise exactly-one and zero-candidate paths.",
+            "Assert the returned decision is deterministic and does not disclose candidate connection identifiers or secret-backed values."
+          ],
+          "assertions": [
+            "Two eligible user-scoped connections return resolution_state=ambiguous and denial_code=AMBIGUOUS_CONNECTION_SELECTION.",
+            "Reversing ambiguous connection row order does not change the fail-closed result.",
+            "When no user-scoped candidate exists, two eligible tenant-scoped fallback connections fail closed as tenant_connection ambiguity.",
+            "Ambiguity responses expose candidate count and scope but no selected connection_id, candidate identifiers or mock secret values.",
+            "Exactly one eligible connection preserves the existing resolved and allowed behavior.",
+            "Zero eligible connections preserves the existing DEDICATED_CONNECTION_REQUIRED behavior where dedicated credentials are required.",
+            "The change performs no database migration, Production mutation, provider call, credential/secret mutation, generated-artifact edit or force push."
+          ],
+          "tests": [
+            {
+              "id": "platform-plugin-resolver-ambiguity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-resolver.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-plugin-connection-ambiguity.json",
+            "http-generic-api/platformPluginResolver.js",
+            "http-generic-api/test-platform-plugin-resolver.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
