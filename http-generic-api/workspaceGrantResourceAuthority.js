@@ -1,5 +1,3 @@
-const UNVERIFIABLE_RESOURCE_TYPES = new Set(["workflow", "agent"]);
-
 function authorityError(status, code, message) {
   return Object.assign(new Error(message), { status, code });
 }
@@ -25,17 +23,61 @@ function requireTenantMatch(row, tenantId, resourceType) {
   }
 }
 
-export async function assertGrantResourceInWorkspace(connection, { tenantId, resourceType, resourceRef }) {
-  if (!connection || typeof connection.query !== "function") {
-    throw authorityError(500, "workspace_resource_authority_unavailable", "Workspace resource authority connection is unavailable.");
-  }
+function activeValue(value) {
+  return new Set(["active", "enabled", "true", "1", "yes"]).has(String(value ?? "").trim().toLowerCase());
+}
 
-  if (UNVERIFIABLE_RESOURCE_TYPES.has(resourceType)) {
+function uniqueRefs(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+async function requireExplicitTenantResourceBinding(connection, {
+  tenantId,
+  dimension,
+  resourceType,
+  resourceRefs,
+}) {
+  const refs = uniqueRefs(resourceRefs);
+  if (refs.length === 0) {
+    throw authorityError(422, "workspace_resource_reference_unverifiable", `${resourceType} resource has no canonical binding reference.`);
+  }
+  const placeholders = refs.map(() => "?").join(",");
+  const [rows] = await connection.query(
+    `SELECT crb.binding_id, crb.resource_ref, crb.effect, crb.status,
+            c.container_id, c.status AS container_status,
+            d.dimension_key, d.status AS dimension_status
+       FROM container_resource_bindings crb
+       JOIN containers c
+         ON c.container_id = crb.container_id
+        AND c.tenant_id = crb.tenant_id
+       JOIN container_resource_dimension_registry d
+         ON d.dimension_key = crb.dimension_key
+      WHERE crb.tenant_id = ?
+        AND crb.dimension_key = ?
+        AND crb.resource_type = ?
+        AND crb.resource_ref IN (${placeholders})
+        AND crb.status = 'active'
+        AND c.status = 'active'
+        AND d.status = 'active'
+        AND crb.effect = 'allow'
+        AND (crb.valid_from IS NULL OR crb.valid_from <= UTC_TIMESTAMP())
+        AND (crb.valid_until IS NULL OR crb.valid_until > UTC_TIMESTAMP())
+      LIMIT 20 FOR UPDATE`,
+    [tenantId, dimension, resourceType, ...refs]
+  );
+  if (!Array.isArray(rows) || rows.length === 0) {
     throw authorityError(
       422,
       "workspace_resource_reference_unverifiable",
-      `${resourceType} grants are fail-closed until a tenant-scoped canonical authority source exists.`
+      `${resourceType} resource has no current explicit direct tenant authority binding.`
     );
+  }
+  return rows;
+}
+
+export async function assertGrantResourceInWorkspace(connection, { tenantId, resourceType, resourceRef }) {
+  if (!connection || typeof connection.query !== "function") {
+    throw authorityError(500, "workspace_resource_authority_unavailable", "Workspace resource authority connection is unavailable.");
   }
 
   if (resourceType === "workspace") {
@@ -122,6 +164,46 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
     return { resource_ref: String(vault.vault_id), authority_source: "workspace_vaults" };
   }
 
+  if (resourceType === "agent") {
+    const [rows] = await connection.query(
+      "SELECT agent_id, status, health_status FROM agents WHERE agent_id=? LIMIT 2 FOR UPDATE",
+      [resourceRef]
+    );
+    const agent = requireExactlyOne(rows, "agent");
+    if (String(agent.status || "").toLowerCase() !== "active") {
+      throw authorityError(409, "workspace_resource_inactive", "Only active canonical agents can receive workspace grants.");
+    }
+    await requireExplicitTenantResourceBinding(connection, {
+      tenantId,
+      dimension: "agents",
+      resourceType: "agent",
+      resourceRefs: [agent.agent_id],
+    });
+    return { resource_ref: String(agent.agent_id), authority_source: "agents+container_resource_bindings" };
+  }
+
+  if (resourceType === "workflow") {
+    const [rows] = await connection.query(
+      `SELECT workflow_id, workflow_key, status, active
+         FROM workflows
+        WHERE workflow_id=? OR workflow_key=?
+        LIMIT 3 FOR UPDATE`,
+      [resourceRef, resourceRef]
+    );
+    const workflow = requireExactlyOne(rows, "workflow");
+    if (!activeValue(workflow.active) && !activeValue(workflow.status)) {
+      throw authorityError(409, "workspace_resource_inactive", "Only active canonical workflows can receive workspace grants.");
+    }
+    const canonicalWorkflowRef = String(workflow.workflow_key || workflow.workflow_id);
+    await requireExplicitTenantResourceBinding(connection, {
+      tenantId,
+      dimension: "workflows",
+      resourceType: "workflow",
+      resourceRefs: [canonicalWorkflowRef, workflow.workflow_id],
+    });
+    return { resource_ref: canonicalWorkflowRef, authority_source: "workflows+container_resource_bindings" };
+  }
+
   if (resourceType === "brand") {
     const normalizedRef = normalizeBrandRef(resourceRef);
     const [rows] = await connection.query(
@@ -158,5 +240,6 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
 
 export const _testingWorkspaceGrantResourceAuthority = {
   normalizeBrandRef,
-  UNVERIFIABLE_RESOURCE_TYPES,
+  activeValue,
+  uniqueRefs,
 };
