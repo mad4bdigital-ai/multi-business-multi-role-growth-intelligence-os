@@ -100,7 +100,7 @@ Trace projections never copy raw gate detail payloads. Admin diagnostic detail i
 - Tenant client migration requirement: send exact `workspace_id` and remove camelCase selectors, camelCase workspace aliases, and unknown fields before enforcement-only clients are certified.
 - Deprecation trigger: after Production rollout stability and telemetry shows no active legacy alias usage, remove camelCase alias support in a follow-up contract PR.
 - Brand connection eligibility is a separate authority milestone and must not be enabled by this migration.
-- Merge rule: no contract PR is merged until exact-head Runtime, OpenAPI generation, E2E, governance, and CI evidence is green.
+- Merge rule: no contract PR is merged until the full hardening plan is complete and CI evidence is green, including exact-head Runtime, OpenAPI generation, E2E, and governance checks.
 
 ## Client checklist
 
