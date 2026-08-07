@@ -13,15 +13,32 @@ const CONTRACT_REGISTRY_PATH = path.join(ROOT, "openapi-route-contracts.yaml");
 const CONTRACT_REGISTRY_FRAGMENT_DIR = path.join(ROOT, "openapi-route-contracts.d");
 const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const HTTP_METHOD_KEYS = new Set([...HTTP_METHODS].map((method) => method.toLowerCase()));
+const COMPOSITION_MODES = new Set(["ref", "inline"]);
 const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
 const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
     {
+      route_file: SUPPORT_TICKET_ROUTE_FILE,
       operation_id: "supportTicketExternalDeliveryCompletionCertify",
       auth_profile: "admin_backend",
       consequential: false,
+      composition_mode: "ref",
       path_item_ref: "./openapi/support-ticket-runtime-completion.yaml#/certifyAdminSupportTicketExternalDeliveryCompletion",
+    },
+  ],
+  [
+    "POST /tenant/platform/plugins/resolve",
+    {
+      route_file: "routes/tenantPlatformPluginRoutes.js",
+      operation_id: "tenantPlatformPluginResolve",
+      auth_profile: null,
+      consequential: false,
+      composition_mode: "inline",
+      path_item_ref: "./openapi/platform-plugin-tenant-resolve.yaml#/tenantPlatformPluginResolvePath",
+      legacy_request_required: ["plugin_key"],
+      legacy_request_absent_properties: ["workspace_id"],
+      legacy_contract_version: "one-selector-v1",
     },
   ],
 ]);
@@ -81,6 +98,7 @@ function normalizeRegistry(input) {
   const entries = input?.contracts && typeof input.contracts === "object" ? input.contracts : {};
   const contracts = [];
   const pathRefs = new Map();
+  const pathModes = new Map();
   for (const [rawSignature, rawContract] of Object.entries(entries)) {
     const signature = String(rawSignature || "").trim();
     const match = signature.match(/^(GET|POST|PUT|PATCH|DELETE)\s+(.+)$/);
@@ -89,21 +107,29 @@ function normalizeRegistry(input) {
     const routePath = normalizePath(match[2]);
     const pathItemRef = String(rawContract?.path_item_ref || "").trim();
     const routeFile = String(rawContract?.route_file || "").trim();
+    const compositionMode = String(rawContract?.composition_mode || "ref").trim().toLowerCase();
     if (!pathItemRef.startsWith("./openapi/") || !pathItemRef.includes("#/")) {
       throw new Error(`OpenAPI route contract ${method} ${routePath} requires a local ./openapi/...#/ path_item_ref.`);
     }
+    if (!COMPOSITION_MODES.has(compositionMode)) {
+      throw new Error(`OpenAPI route contract ${method} ${routePath} has unsupported composition_mode ${compositionMode}.`);
+    }
     const existingRef = pathRefs.get(routePath);
     if (existingRef && existingRef !== pathItemRef) throw new Error(`OpenAPI route contracts for ${routePath} must share one path-item ref.`);
+    const existingMode = pathModes.get(routePath);
+    if (existingMode && existingMode !== compositionMode) throw new Error(`OpenAPI route contracts for ${routePath} must share one composition_mode.`);
     pathRefs.set(routePath, pathItemRef);
+    pathModes.set(routePath, compositionMode);
     contracts.push({
       signature: `${method} ${routePath}`,
       method,
       path: routePath,
       path_item_ref: pathItemRef,
       route_file: routeFile,
+      composition_mode: compositionMode,
     });
   }
-  return { contracts, pathRefs };
+  return { contracts, pathRefs, pathModes };
 }
 
 function canonicalSecurity(value) {
@@ -116,6 +142,49 @@ function expectedSecurity(profile) {
   if (profile === "admin_backend") return [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }];
   if (profile === "user_jwt") return [{ userJwtAuth: [] }];
   return null;
+}
+
+function canonicalValue(value) {
+  if (Array.isArray(value)) return value.map(canonicalValue);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalValue(value[key])]));
+}
+
+function equivalent(left, right) {
+  return JSON.stringify(canonicalValue(left)) === JSON.stringify(canonicalValue(right));
+}
+
+function resolveJsonPointer(document, pointer, sourceLabel) {
+  const normalized = String(pointer || "");
+  if (!normalized.startsWith("/")) throw new Error(`OpenAPI precise contract ${sourceLabel} requires a JSON pointer fragment.`);
+  let current = document;
+  for (const rawPart of normalized.slice(1).split("/")) {
+    const part = rawPart.replace(/~1/gu, "/").replace(/~0/gu, "~");
+    if (!current || typeof current !== "object" || !(part in current)) {
+      throw new Error(`OpenAPI precise contract ${sourceLabel} cannot resolve pointer #${normalized}.`);
+    }
+    current = current[part];
+  }
+  return current;
+}
+
+function loadReferencedPathItem(pathItemRef) {
+  const separator = pathItemRef.indexOf("#");
+  if (separator <= 0) throw new Error(`Invalid OpenAPI path_item_ref ${pathItemRef}.`);
+  const relativeFile = pathItemRef.slice(0, separator);
+  const pointer = pathItemRef.slice(separator + 1);
+  const sourcePath = path.resolve(ROOT, relativeFile.replace(/^\.\//u, ""));
+  const openApiDir = path.resolve(ROOT, "openapi");
+  if (sourcePath !== openApiDir && !sourcePath.startsWith(`${openApiDir}${path.sep}`)) {
+    throw new Error(`OpenAPI precise contract ${pathItemRef} must remain within http-generic-api/openapi/.`);
+  }
+  const document = loadYaml(sourcePath, null);
+  if (!document) throw new Error(`Missing OpenAPI precise contract source ${relativeSource(sourcePath)}.`);
+  const pathItem = resolveJsonPointer(document, pointer, pathItemRef);
+  if (!pathItem || typeof pathItem !== "object" || Array.isArray(pathItem)) {
+    throw new Error(`OpenAPI precise contract ${pathItemRef} must resolve to one path-item object.`);
+  }
+  return JSON.parse(JSON.stringify(pathItem));
 }
 
 function isRuntimeDerivedRegisteredOperation(operation, method) {
@@ -135,20 +204,39 @@ function isRuntimeDerivedRegisteredOperation(operation, method) {
     && canonicalSecurity(operation.security) === canonicalSecurity(security);
 }
 
+function legacyRequestShapeMatches(operation, transition) {
+  const schema = operation?.requestBody?.content?.["application/json"]?.schema;
+  const required = Array.isArray(schema?.required) ? schema.required : [];
+  const properties = schema?.properties && typeof schema.properties === "object" ? schema.properties : {};
+  if ((transition.legacy_request_required || []).some((field) => !required.includes(field))) return false;
+  if ((transition.legacy_request_absent_properties || []).some((field) => Object.hasOwn(properties, field))) return false;
+  if (transition.legacy_contract_version) {
+    const versions = operation?.responses?.["200"]?.content?.["application/json"]?.schema
+      ?.properties?.compatibility_telemetry?.properties?.contract_version?.enum;
+    if (!Array.isArray(versions) || !versions.includes(transition.legacy_contract_version)) return false;
+  }
+  return true;
+}
+
 function isKnownLegacyRegisteredOperation(operation, contract) {
   if (!operation || typeof operation !== "object") return false;
   const transition = LEGACY_REGISTERED_PATH_TRANSITIONS.get(contract.signature);
   if (!transition) return false;
-  const security = expectedSecurity(transition.auth_profile);
-  return contract.route_file === SUPPORT_TICKET_ROUTE_FILE
+  const security = transition.auth_profile ? expectedSecurity(transition.auth_profile) : null;
+  const securityMatches = transition.auth_profile
+    ? security !== null && canonicalSecurity(operation.security) === canonicalSecurity(security)
+    : true;
+  return contract.route_file === transition.route_file
     && contract.path_item_ref === transition.path_item_ref
+    && contract.composition_mode === transition.composition_mode
     && operation.operationId === transition.operation_id
     && typeof operation.summary === "string"
     && operation.summary.length > 0
     && operation.responses
     && typeof operation.responses === "object"
     && operation["x-openai-isConsequential"] === transition.consequential
-    && canonicalSecurity(operation.security) === canonicalSecurity(security)
+    && securityMatches
+    && legacyRequestShapeMatches(operation, transition)
     && operation["x-runtime-contract-source"] == null
     && operation["x-source-file"] == null
     && operation["x-runtime-auth-profile"] == null
@@ -162,8 +250,7 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
 
   const expected = contracts.filter((contract) =>
     contract.path === routePath
-    && contract.path_item_ref === pathItemRef
-    && contract.route_file === SUPPORT_TICKET_ROUTE_FILE);
+    && contract.path_item_ref === pathItemRef);
   if (expected.length === 0) return null;
 
   const expectedMethods = new Set(expected.map((contract) => contract.method));
@@ -179,24 +266,33 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
   return {
     path: routePath,
     path_item_ref: pathItemRef,
+    composition_mode: expected[0].composition_mode,
     signatures: expected.map((contract) => contract.signature).sort(),
   };
 }
 
-function inspectRegistry(doc, pathRefs, contracts) {
+function inspectRegistry(doc, pathRefs, contracts, pathModes) {
   const missing = [];
   const replaceable = [];
   const synced = [];
   const conflicts = [];
   for (const [routePath, pathItemRef] of [...pathRefs.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const compositionMode = pathModes.get(routePath) || "ref";
     const current = doc.paths?.[routePath];
     if (!current || Object.keys(current).length === 0) {
-      missing.push({ path: routePath, path_item_ref: pathItemRef });
+      missing.push({ path: routePath, path_item_ref: pathItemRef, composition_mode: compositionMode });
       continue;
     }
-    if (current.$ref === pathItemRef && Object.keys(current).length === 1) {
-      synced.push({ path: routePath, path_item_ref: pathItemRef });
+    if (compositionMode === "ref" && current.$ref === pathItemRef && Object.keys(current).length === 1) {
+      synced.push({ path: routePath, path_item_ref: pathItemRef, composition_mode: compositionMode });
       continue;
+    }
+    if (compositionMode === "inline") {
+      const canonicalPathItem = loadReferencedPathItem(pathItemRef);
+      if (equivalent(current, canonicalPathItem)) {
+        synced.push({ path: routePath, path_item_ref: pathItemRef, composition_mode: compositionMode });
+        continue;
+      }
     }
     const replaceableEntry = inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts);
     if (replaceableEntry) {
@@ -207,6 +303,7 @@ function inspectRegistry(doc, pathRefs, contracts) {
       path: routePath,
       code: "registered_path_inline_contract_not_replaceable",
       expected_path_item_ref: pathItemRef,
+      expected_composition_mode: compositionMode,
       current,
     });
   }
@@ -293,6 +390,12 @@ function mergeRuntimeOperationsByPath(beforeRuntime) {
   return operationsByPath;
 }
 
+function buildRegisteredPathItem(entry) {
+  return entry.composition_mode === "inline"
+    ? loadReferencedPathItem(entry.path_item_ref)
+    : { $ref: entry.path_item_ref };
+}
+
 function main() {
   const write = process.argv.includes("--write");
   const check = process.argv.includes("--check");
@@ -300,9 +403,9 @@ function main() {
   const doc = YAML.parse(openApiSource) || {};
   doc.paths ||= {};
   const combinedRegistry = loadCombinedRegistry();
-  const { contracts, pathRefs } = normalizeRegistry(combinedRegistry);
+  const { contracts, pathRefs, pathModes } = normalizeRegistry(combinedRegistry);
   const runtimeOperations = collectSupportTicketRuntimeOperations(ROOT);
-  const beforeRegistry = inspectRegistry(doc, pathRefs, contracts);
+  const beforeRegistry = inspectRegistry(doc, pathRefs, contracts, pathModes);
   const beforeRuntime = inspectSupportTicketRuntimeContracts(doc, runtimeOperations, contracts, pathRefs);
   const conflicts = [...beforeRegistry.conflicts, ...beforeRuntime.conflicts];
   if (conflicts.length > 0) {
@@ -329,7 +432,7 @@ function main() {
   const entries = new Map([
     ...beforeRegistry.missing,
     ...beforeRegistry.replaceable,
-  ].map((entry) => [entry.path, { $ref: entry.path_item_ref }]));
+  ].map((entry) => [entry.path, buildRegisteredPathItem(entry)]));
   for (const [routePath, pathItem] of buildSupportTicketRuntimePathItems(mergeRuntimeOperationsByPath(beforeRuntime))) {
     if (entries.has(routePath)) throw new Error(`Duplicate precise OpenAPI path composition requested for ${routePath}.`);
     entries.set(routePath, pathItem);
@@ -345,7 +448,7 @@ function main() {
     const withoutLegacyIndexes = removePathEntriesWithoutReformatting(openApiSource, replacementPaths);
     const updatedSource = applyPathEntriesWithoutReformatting(withoutLegacyIndexes, entries);
     const updatedDoc = YAML.parse(updatedSource) || {};
-    afterRegistry = inspectRegistry(updatedDoc, pathRefs, contracts);
+    afterRegistry = inspectRegistry(updatedDoc, pathRefs, contracts, pathModes);
     afterRuntime = inspectSupportTicketRuntimeContracts(updatedDoc, runtimeOperations, contracts, pathRefs);
     if (afterRegistry.missing.length
       || afterRegistry.replaceable.length
@@ -370,6 +473,7 @@ function main() {
     registry_source_count: combinedRegistry.source_files.length,
     registry_sources: combinedRegistry.source_files,
     precise_contract_count: contracts.length,
+    inline_contract_count: contracts.filter((contract) => contract.composition_mode === "inline").length,
     applied_precise_contracts: appliedPreciseContracts,
     applied_registered_path_replacements: appliedRegisteredPathReplacements,
     support_ticket_runtime_operation_count: runtimeOperations.length,
