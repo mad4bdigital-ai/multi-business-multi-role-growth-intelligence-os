@@ -265,21 +265,33 @@ assert.equal(summaryInput.force, true);
 
 function createTransactionPool() {
   const calls = [];
+  let persistedAsset = null;
   const connection = {
     async beginTransaction() { calls.push("begin"); },
     async commit() { calls.push("commit"); },
     async rollback() { calls.push("rollback"); },
     release() { calls.push("release"); },
-    async query(sql) {
+    async query(sql, params = []) {
       calls.push(sql.trim().split(/\s+/).slice(0, 3).join(" "));
-      if (/^SELECT\s+/i.test(sql)) {
-        return [[{
-          asset_id: "asset-transaction",
-          tenant_id: "tenant-1",
-          created_by: "user-1",
-          lifecycle_status: "active",
+      if (sql.includes("FROM workspace_assets") && sql.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?")) {
+        return [[]];
+      }
+      if (sql.includes("INSERT INTO workspace_assets")) {
+        persistedAsset = {
+          asset_id: params[0],
+          tenant_id: params[1],
+          asset_type: params[3],
+          asset_ref: params[4],
+          brand_ref: params[6],
+          lifecycle_status: params[11],
+          metadata_json: params[12],
+          created_by: params[13],
           created_at: "2026-06-22T00:00:00Z",
-        }]];
+        };
+        return [{ affectedRows: 1 }];
+      }
+      if (/^SELECT\s+/i.test(sql) && sql.includes("FROM workspace_assets")) {
+        return [persistedAsset ? [persistedAsset] : []];
       }
       return [{ affectedRows: 1 }];
     },
