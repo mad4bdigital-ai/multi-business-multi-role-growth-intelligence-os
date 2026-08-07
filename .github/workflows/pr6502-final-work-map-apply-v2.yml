@@ -23,9 +23,11 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: e6f34e90d4323d2b0559f69f01112ae26a1c3dbb
+      AUTHORIZED_PARENT_SHA: cbf2dd82a2cd5031ef20d706559b4bd87cb32833
       EXPECTED_MAIN_SHA: 852696e8fe90d7121ff4c333654e9b0d8b244a68
       ARTIFACT_ID: "8982237350"
+      ARTIFACT_RUN_ID: "31148087761"
+      ARTIFACT_NAME: work-map-repair-candidate-6502-e6f34e90d4323d2b0559f69f01112ae26a1c3dbb
       ARTIFACT_EXPECTED_HEAD: e6f34e90d4323d2b0559f69f01112ae26a1c3dbb
       EXPECTED_SOURCE_HASH: af2ee6ec1a50297e146da59b41dff62ab18ccba7b2ad83572f9aa1b46019819b
       EXPECTED_README_SHA256: 00bebccae0c115e349134a1ae6ca01b4a0a9264a05f12a57211842b70cd3e441
@@ -71,14 +73,17 @@ jobs:
           rm -- "${ONE_SHOT_PATH}"
           test ! -e "${ONE_SHOT_PATH}"
 
-          mkdir -p .tmp/pr6502-work-map
-          curl -fsSL \
-            -H "Authorization: Bearer ${GH_TOKEN}" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
-            -o .tmp/pr6502-work-map/candidate.zip
-          unzip -q .tmp/pr6502-work-map/candidate.zip -d .tmp/pr6502-work-map/candidate
+          artifact_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}")"
+          test "$(jq -r '.expired' <<<"${artifact_json}")" = "false"
+          test "$(jq -r '.name' <<<"${artifact_json}")" = "${ARTIFACT_NAME}"
+          test "$(jq -r '.workflow_run.id' <<<"${artifact_json}")" = "${ARTIFACT_RUN_ID}"
+          test "$(jq -r '.workflow_run.head_sha' <<<"${artifact_json}")" = "${ARTIFACT_EXPECTED_HEAD}"
+
+          mkdir -p .tmp/pr6502-work-map/candidate
+          gh run download "${ARTIFACT_RUN_ID}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --name "${ARTIFACT_NAME}" \
+            --dir .tmp/pr6502-work-map/candidate
 
           report=.tmp/pr6502-work-map/candidate/report.json
           test "$(jq -r '.contract' "${report}")" = "mad4b.work-map-repair-candidate.v1"
