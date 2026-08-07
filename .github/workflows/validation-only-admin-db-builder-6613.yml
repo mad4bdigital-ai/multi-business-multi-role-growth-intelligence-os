@@ -1,0 +1,140 @@
+name: Validation-only Admin DB Builder Patch 6613
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-admin-db-builder-6613.yml"
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch:
+    name: Patch exact-head 1049 DB readback to shared builder
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_PR: "6613"
+      TARGET_BRANCH: "gpt/migration-1049-governed-rollout-20260807"
+      EXPECTED_HEAD_SHA: "9e639bbb32e7e7d879cd270ccd8605fe85761212"
+      EXPECTED_BASE_SHA: "ce89a5f3df3ca0b83e4a1f79a15cbead0d378378"
+    steps:
+      - name: Validate exact target identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" > "${RUNNER_TEMP}/target-pr.json"
+          jq -e --arg branch "${TARGET_BRANCH}" --arg head "${EXPECTED_HEAD_SHA}" --arg base "${EXPECTED_BASE_SHA}" '
+            .state == "open" and
+            .head.repo.full_name == env.GITHUB_REPOSITORY and
+            .head.ref == $branch and
+            .head.sha == $head and
+            .base.ref == "main" and
+            .base.sha == $base
+          ' "${RUNNER_TEMP}/target-pr.json" >/dev/null
+
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Apply bounded shared-builder patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const runnerPath = '.github/ops/github-repository-policy-1049-governed-rollout.mjs';
+          const testPath = 'http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs';
+
+          let runner = fs.readFileSync(runnerPath, 'utf8');
+          const importAnchor = "import { splitMigrationSqlStatements } from '../../http-generic-api/migrationSqlStatements.js';";
+          const importLine = "import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';";
+          if (!runner.includes(importLine)) {
+            if (!runner.includes(importAnchor)) throw new Error('runner import anchor missing');
+            runner = runner.replace(importAnchor, `${importAnchor}\n${importLine}`);
+          }
+
+          const rawReadback = "const payload = requireSuccess(await requestRaw('/admin/control', { tool: 'db', action: 'run', sql: READBACK_SQL, params: [], authority_context: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_single_owner_mode', operation_mode: 'read_only_readiness_probe', required: true } }, 120000), 'github_repository_policy_1049_readback');";
+          const governedReadback = `const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({\n    sql: READBACK_SQL,\n    params: [],\n    maxRows: 1,\n    authorityContext: {\n      resource_type: 'database_metadata',\n      resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_single_owner_mode',\n      operation_mode: 'read_only_readiness_probe',\n      required: true,\n    },\n  }), 120000), 'github_repository_policy_1049_readback');`;
+          if (!runner.includes(rawReadback)) throw new Error('raw readback anchor missing');
+          runner = runner.replace(rawReadback, governedReadback);
+          fs.writeFileSync(runnerPath, runner);
+
+          let test = fs.readFileSync(testPath, 'utf8');
+          const oldAssertion = "assert.equal((runner.match(/tool:\\s*'db'/g) || []).length, 1, 'Migration 1049 runner must contain exactly one direct DB operation');";
+          const newAssertions = `assert.ok(runner.includes("import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';"), 'Migration 1049 runner must import the shared Admin DB request builder');\nassert.equal((runner.match(/tool:\\s*'db'/g) || []).length, 0, 'Migration 1049 runner must not handcraft Admin DB control requests');\nassert.equal((runner.match(/buildAdminControlDbReadRequest\\(\\{/g) || []).length, 1, 'Migration 1049 runner must use the shared Admin DB request builder exactly once');`;
+          if (!test.includes(oldAssertion)) throw new Error('regression assertion anchor missing');
+          test = test.replace(oldAssertion, newAssertions);
+          fs.writeFileSync(testPath, test);
+          NODE
+
+      - name: Verify exact two-file scope and governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .github/ops/github-repository-policy-1049-governed-rollout.mjs
+          http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          EOF
+          git diff --name-only | sort > "${RUNNER_TEMP}/actual-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+          node --check .github/ops/github-repository-policy-1049-governed-rollout.mjs
+          node --check http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          cd http-generic-api
+          npm ci
+          node scripts/admin-control-db-contract-governance.mjs
+          node test-github-repository-policy-1049-governed-rollout.mjs
+          cd ..
+          git diff --check
+
+      - name: Fast-forward exact target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            .github/ops/github-repository-policy-1049-governed-rollout.mjs \
+            http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          git commit -m "fix(migration): use shared Admin DB read request builder for 1049"
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_head}"
+          echo "RESULT_HEAD_SHA=${result_head}" >> "${GITHUB_ENV}"
+
+      - name: Publish bounded evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg contract "mad4b.validation-only-admin-db-builder-patch.v1" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
+            '{contract:$contract,expected_head_sha:$expected_head_sha,result_head_sha:$result_head_sha,changed_files:[".github/ops/github-repository-policy-1049-governed-rollout.mjs","http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs"],shared_builder:".github/ops/lib/admin-control-db-request.mjs",force_push:false,protected_ref_mutation:false,runtime_contact:false,database_access:false,migration_apply:false,provider_action:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/admin-db-builder-6613.json"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-db-builder-6613-${{ github.run_id }}
+          path: ${{ runner.temp }}/admin-db-builder-6613.json
+          if-no-files-found: error
+          retention-days: 14
