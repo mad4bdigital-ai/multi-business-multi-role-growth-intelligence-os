@@ -38,7 +38,7 @@
           "steps": [
             "Load the canonical admin-control DB contract manifest.",
             "Verify the runtime provider still defaults to and permits only action=run and reads SQL from body.sql.",
-            "Verify the provider retains unsupported_db_action and db_sql_required fail-closed errors and does not accept legacy query aliases.",
+            "Verify the provider retains unsupported_db_action and missing_sql fail-closed errors and does not accept legacy query aliases.",
             "Load the shared request builder and prove it emits the canonical tool, action, and SQL field without a legacy alias.",
             "Scan all JavaScript operational callers under .github/ops for raw tool=db payloads.",
             "Reject any new raw caller that is not in the migration-only legacy allowlist and require the shared builder instead.",
