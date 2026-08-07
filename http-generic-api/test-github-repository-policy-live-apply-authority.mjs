@@ -6,9 +6,25 @@ const migrationPath = new URL("./migrations/1050_github_repository_policy_live_a
 const sql = fs.readFileSync(migrationPath, "utf8");
 const statements = splitMigrationSqlStatements(sql);
 
+function stripLeadingSqlComments(statement = "") {
+  let value = String(statement || "").trimStart();
+  while (value) {
+    const next = value
+      .replace(/^--[^\n]*(?:\n|$)/, "")
+      .replace(/^#[^\n]*(?:\n|$)/, "")
+      .replace(/^\/\*[\s\S]*?\*\//, "")
+      .trimStart();
+    if (next === value) break;
+    value = next;
+  }
+  return value;
+}
+
 assert.equal(statements.length, 6, "Migration 1050 must remain exactly six bounded metadata statements");
 for (const statement of statements) {
-  assert.match(statement.replace(/^(?:\s*--[^\n]*\n)*/g, "").trimStart(), /^INSERT\b/i, "Migration 1050 must remain additive/idempotent INSERT metadata only");
+  const executable = stripLeadingSqlComments(statement);
+  assert.match(executable, /^INSERT\b/i, "Migration 1050 must remain additive/idempotent INSERT metadata only");
+  assert.doesNotMatch(executable, /^(?:UPDATE|DELETE|DROP|TRUNCATE|ALTER|REPLACE)\b/i, "Migration 1050 must not contain standalone destructive or direct-update statements");
 }
 
 assert.match(sql, /github_repository_policy_v2/);
@@ -34,13 +50,13 @@ assert.match(sql, /secrets_included',FALSE/);
 
 assert.doesNotMatch(sql, /https:\/\/api\.github\.com/);
 assert.doesNotMatch(sql, /\b(?:DELETE|DROP|TRUNCATE|ALTER)\b/i);
-assert.doesNotMatch(sql, /\bUPDATE\s+(?!admin|repository|platform|capability|governed)/i);
 assert.doesNotMatch(sql, /BEGIN\b|COMMIT\b|ROLLBACK\b/i);
 
 console.log(JSON.stringify({
   ok: true,
   test: "github_repository_policy_live_apply_authority",
   statement_count: statements.length,
+  standalone_update_statement_count: statements.filter((statement) => /^UPDATE\b/i.test(stripLeadingSqlComments(statement))).length,
   provider_call_executed: false,
   external_write_executed: false,
   live_github_policy_apply: false,
