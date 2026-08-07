@@ -7,6 +7,10 @@ import {
   parsePageSize,
   resourceTimestamp,
 } from "../../domain/resourceApi/resourceCatalog.js";
+import {
+  assertWorkspaceAssetBrandPatchSafe,
+  resolveWorkspaceAssetBrandRef,
+} from "../../../workspaceAssetBrandAuthority.js";
 
 function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   const params = [];
@@ -175,6 +179,11 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
 
   async function insertAsset({ tenantId, actorId, input }) {
     const assetId = String(input.asset_id || randomUUID()).slice(0, 64);
+    const canonicalBrandRef = await resolveWorkspaceAssetBrandRef(activeExecutor(), {
+      tenantId,
+      actorId: actorId || "platform_admin",
+      brandRef: input.brand_ref,
+    });
     await executeQuery(
       `INSERT INTO workspace_assets
         (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
@@ -187,7 +196,7 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         String(input.asset_type),
         input.asset_ref || null,
         String(input.display_name),
-        input.brand_ref || null,
+        canonicalBrandRef,
         input.site_ref || null,
         input.workflow_ref || null,
         input.session_ref || null,
@@ -201,10 +210,10 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
   }
 
   async function updateAssetFields(assetId, input = {}) {
+    assertWorkspaceAssetBrandPatchSafe(input);
     const allowed = [
       "display_name",
       "asset_ref",
-      "brand_ref",
       "site_ref",
       "workflow_ref",
       "session_ref",
