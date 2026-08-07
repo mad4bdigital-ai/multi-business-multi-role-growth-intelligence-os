@@ -14,6 +14,7 @@ import {
   storeIdempotentResult,
   withContainerAuthorityMutation
 } from "./dynamicContainerAuthorityRepository.js";
+import { resolveCanonicalContainerBindingResource } from "./dynamicContainerBindingResourceAuthority.js";
 import { invalidateContainerAuthorityCache } from "./dynamicContainerAuthorityResolver.js";
 
 function serviceError(status, code, message, details = []) {
@@ -214,7 +215,29 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
       if (!dimensions[0]) throw serviceError(422,"resource_dimension_not_registered","Resource dimension was not found or inactive.");
       if (effect === "share" && !dimensions[0].supports_sharing) throw serviceError(422,"container_relationship_not_allowed","Dimension does not support sharing.");
       if (effect === "delegate" && !dimensions[0].supports_delegation) throw serviceError(422,"container_relationship_not_allowed","Dimension does not support delegation.");
+
+      const canonicalResource = await resolveCanonicalContainerBindingResource(connection, {
+        dimension:request.dimension,
+        resourceType:request.resourceType,
+        resourceRef:request.resourceRef
+      });
+      const resolvedResourceRef = canonicalResource?.resourceRef ?? request.resourceRef;
+      const resolvedSourceTable = canonicalResource?.sourceTable ?? input.sourceTable ?? null;
+      const resolvedSourcePk = canonicalResource?.sourcePk ?? input.sourcePk ?? null;
+      if (canonicalResource) {
+        if (input.sourceTable && String(input.sourceTable) !== canonicalResource.sourceTable) {
+          throw serviceError(422,"container_binding_source_provenance_mismatch","Caller sourceTable conflicts with canonical resource provenance.",[{ expected:canonicalResource.sourceTable,received:String(input.sourceTable) }]);
+        }
+        if (input.sourcePk && String(input.sourcePk) !== canonicalResource.sourcePk) {
+          throw serviceError(422,"container_binding_source_provenance_mismatch","Caller sourcePk conflicts with canonical resource provenance.",[{ expected:canonicalResource.sourcePk,received:String(input.sourcePk) }]);
+        }
+      }
+
       if (effect === "delegate") {
+        for (const operation of operations) {
+          const canonicalDelegationCheck = validateDelegationAgainstResolution({ delegation:{ dimension:request.dimension,resourceType:request.resourceType,resourceRef:resolvedResourceRef,operation },delegatorResolution });
+          if (!canonicalDelegationCheck.ok) throw serviceError(403,canonicalDelegationCheck.code,"Delegation does not cover the canonical resolved resource.",[{ operation,resourceRef:resolvedResourceRef }]);
+        }
         const [delegationRows] = await connection.query(
           `SELECT relationship_id FROM container_relationships
             WHERE relationship_id=? AND tenant_id=? AND from_container_id=? AND to_container_id=?
@@ -230,10 +253,10 @@ export async function createContainerResourceBinding(input, { idempotencyKey, if
         `INSERT INTO container_resource_bindings
           (binding_id,tenant_id,container_id,dimension_key,resource_type,resource_ref,effect,permission_key,operation_patterns_json,capability_keys_json,inheritance_mode,merge_priority,conditions_json,valid_from,valid_until,status,version,source_table,source_pk,delegated_by_principal_type,delegated_by_principal_id,delegator_resolution_id,delegation_relationship_id,created_by,approved_by,metadata_json)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,UTC_TIMESTAMP(),?,'active',1,?,?,?,?,?,?,?,?,?)`,
-        [bindingId,tenantId,request.containerId,request.dimension,request.resourceType,request.resourceRef,effect,request.permissionKey,JSON.stringify(operations),JSON.stringify(request.capabilityKeys),request.inheritanceMode,Number(input.mergePriority || 0),JSON.stringify(request.conditions),request.validUntil,
-         input.sourceTable || null,input.sourcePk || null,request.delegatedByPrincipalType,request.delegatedByPrincipalId,request.delegatorResolutionId,request.delegationRelationshipId,actorId,input.approvedBy || null,JSON.stringify(input.metadata || {})]
+        [bindingId,tenantId,request.containerId,request.dimension,request.resourceType,resolvedResourceRef,effect,request.permissionKey,JSON.stringify(operations),JSON.stringify(request.capabilityKeys),request.inheritanceMode,Number(input.mergePriority || 0),JSON.stringify(request.conditions),request.validUntil,
+         resolvedSourceTable,resolvedSourcePk,request.delegatedByPrincipalType,request.delegatedByPrincipalId,request.delegatorResolutionId,request.delegationRelationshipId,actorId,input.approvedBy || null,JSON.stringify(input.metadata || {})]
       );
-      return { bindingId,tenantId,containerId:request.containerId,dimension:request.dimension,resourceType:request.resourceType,resourceRef:request.resourceRef,effect,status:"active" };
+      return { bindingId,tenantId,containerId:request.containerId,dimension:request.dimension,resourceType:request.resourceType,resourceRef:resolvedResourceRef,effect,status:"active" };
     }
   });
   invalidateContainerAuthorityCache(tenantId);

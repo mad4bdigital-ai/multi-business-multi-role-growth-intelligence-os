@@ -73,6 +73,17 @@ assert.match(runner, /metadata\.pull_request/);
 assert.match(runner, /metadata\.merge_sha/);
 assert.doesNotMatch(runner, /governed_migration_authorization_bootstrap/);
 
+assert.match(
+  runner,
+  /tool: 'db',\s*action: 'run',\s*sql: query,/,
+  'Migration 1043 Apply fixed DB readback must use the canonical admin DB action=run + sql contract.',
+);
+assert.doesNotMatch(
+  runner,
+  /tool: 'db',\s*action: 'query'/,
+  'Migration 1043 Apply must not use the unsupported admin DB action=query contract.',
+);
+
 assert.match(runner, /name: 'governed_migration_schema_readback'/);
 assert.match(runner, /name: 'governed_migration_execute'/);
 assert.match(runner, /mode: 'dry_run'/);
@@ -138,6 +149,7 @@ console.log(JSON.stringify({
   issue: 4449,
   readiness_authorization_must_preexist: true,
   same_cycle_dry_run_required: true,
+  admin_db_control_contract: 'action_run_sql',
   apply_request_count: 1,
   apply_retry_allowed: false,
   exact_ledger_and_readiness_required: true,

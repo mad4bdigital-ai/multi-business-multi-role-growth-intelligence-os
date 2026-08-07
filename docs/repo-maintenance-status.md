@@ -136,6 +136,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation-apply.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
+- `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
@@ -154,6 +155,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/retail-commerce-production-schema-baseline.yml`
 - `.github/workflows/retail-commerce-specification-baseline.yml`
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
+- `.github/workflows/single-owner-review-gate.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-011-evidence-auto-closeout.yml`
 - `.github/workflows/spec-011-goal-filtered-operational-intelligence.yml`

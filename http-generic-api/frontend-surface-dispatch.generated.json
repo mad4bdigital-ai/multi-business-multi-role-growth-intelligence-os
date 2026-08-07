@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "bd5b7233c554d92afed162515f908f19c7903d9ceef54ea2331947068d486b70",
+    "source_digest": "e3c01ee5e1b35ed4b550043068b7af7d15904a02e63212435435731eac6fca36",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "bf9dee470dfea146249f05c9e08584a9d2962d426d155968bad5006a632c6bf8",
+        "sha256": "4cd142b35bfda3200baa76b459d5ba5343921a3746672d954bc3d991e31bd4eb",
         "present": true
       },
       {
@@ -71,7 +71,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ac131920047bcf184d39d5276fd1a808f2b25bc49fdc53d29f03ca7485183a7a",
+        "sha256": "e69e386cce8cf57d3dfc02ae369ac8a18ffedac65f01287a6b13b6ba9e24e755",
         "present": true
       },
       {
@@ -1026,12 +1026,12 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "8eeaef6c7bd64f996181425a9e1567353f3c405b296dd4f2b4d2ac86d251f240",
+        "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
         "present": true
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "f604d50e0a311ec22037b5cec19b4f126209c36615aac8351c33ada291410bbc",
+        "sha256": "7df955ff548bc209059bad215b4730b0262d7ac1a7f792d1c6350343c8661e3a",
         "present": true
       },
       {
@@ -1051,7 +1051,7 @@
       },
       {
         "file": "test-frontend-operation-governance-generator.mjs",
-        "sha256": "166a9dffbba8b1bf5999359674624c915c83d7a90654307c089a776895541677",
+        "sha256": "d41deed3b3a7bbfd620f149c9fe5e12a1d0d810a48497be769bae164ab8cc91e",
         "present": true
       },
       {
@@ -1089,29 +1089,29 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1051,
-    "openapi_documented_count": 1035,
+    "operation_count": 1052,
+    "openapi_documented_count": 1036,
     "openapi_canonical_documented_count": 719,
-    "openapi_generated_index_count": 316,
+    "openapi_generated_index_count": 317,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 316,
+    "openapi_detail_gap_count": 317,
     "auth_parity_counts": {
-      "equivalent": 1035,
+      "equivalent": 1036,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
     "operation_policy_issue_count": 0,
-    "non_get_candidate_count": 635,
+    "non_get_candidate_count": 636,
     "unresolved_operation_class_count": 575,
-    "classified_mutation_count": 11,
-    "governed_mutation_operation_count": 11,
+    "classified_mutation_count": 12,
+    "governed_mutation_operation_count": 12,
     "embedded_ui_family_count": 7,
     "unresolved_surface_decision_count": 163,
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 3,
-    "untested_operation_count": 1048,
+    "untested_operation_count": 1049,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -30735,7 +30735,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "8eeaef6c7bd64f996181425a9e1567353f3c405b296dd4f2b4d2ac86d251f240",
+      "source_digest": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
       "mount_prefix": "/",
       "mount_order": 16754,
       "split_from_mixed_scope_file": false,
@@ -30997,6 +30997,100 @@
           "mutation": false
         },
         {
+          "method": "POST",
+          "path": "/me/workspaces/{tenant_id}/brands",
+          "signature": "POST /me/workspaces/{tenant_id}/brands",
+          "source_file": "routes/workspaceResourceRoutes.js",
+          "scope": "tenant",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "user_jwt",
+            "alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "principal": "tenant_user",
+            "guard_chain": [
+              "requireUserJwt"
+            ],
+            "evidence": [
+              "route:requireUserJwt"
+            ],
+            "configuration_dependencies": [
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "userJwtAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "state_change",
+            "classification_source": "generated_operation_rule",
+            "mutation_candidate": true,
+            "governed": true,
+            "controls": {
+              "preflight": {
+                "mode": "locked_workspace_owner_authority_and_canonical_identity"
+              },
+              "approval": {
+                "mode": "runtime_authorization"
+              },
+              "readback": {
+                "mode": "transactional_readback",
+                "same_cycle": true,
+                "before_commit": true
+              },
+              "rollback": {
+                "mode": "transaction",
+                "on": [
+                  "mutation_failure",
+                  "readback_failure"
+                ]
+              }
+            },
+            "parameter_bindings": {
+              "tenant_id": "request.path.tenant_id",
+              "display_name": "request.body.display_name|request.body.brand_name",
+              "actor_user_id": "authenticated_user.user_id",
+              "brand_target_key": "response.brand.target_key",
+              "brand_workspace_id": "response.workspace_link.workspace_id",
+              "creator_grant_id": "response.creator_grant.grant_id"
+            },
+            "blockers": [],
+            "rule_id": "generated-workspace-brand-create-governance",
+            "owner": "workspace-platform",
+            "rationale": "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+            "evidence_refs": [
+              "routes/workspaceResourceRoutes.js",
+              "test-workspace-brand-create-operation-governance.mjs",
+              "workspaceBrandLifecycle.js"
+            ]
+          },
+          "mutation_candidate": true,
+          "mutation": true
+        },
+        {
           "method": "GET",
           "path": "/me/workspaces/{tenant_id}/brands",
           "signature": "GET /me/workspaces/{tenant_id}/brands",
@@ -31130,6 +31224,7 @@
         "POST /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
         "GET /me/workspaces/{tenant_id}/assets",
+        "POST /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
       "auth_contract_gaps": [],
@@ -31140,6 +31235,7 @@
         "POST /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
         "GET /me/workspaces/{tenant_id}/assets",
+        "POST /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
@@ -31193,8 +31289,8 @@
         }
       ],
       "risk": {
-        "score": 7,
-        "class": "high"
+        "score": 9,
+        "class": "critical"
       },
       "wave": "F1-tenant-shell"
     },
@@ -90227,7 +90323,9 @@
       "dependencies": [
         "F0-source-baseline",
         "F1-tenant-workspace-context",
-        "operation-classification"
+        "mutation-preflight",
+        "operation-classification",
+        "same-cycle-readback"
       ],
       "source_refs": [
         "frontend-operation-governance.generated.json",
@@ -90256,7 +90354,8 @@
         "openapi_or_explicit_exemption",
         "surface_policy_resolved",
         "tests_registered",
-        "operation_classification_explicit"
+        "operation_classification_explicit",
+        "preflight_approval_readback_rollback"
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",

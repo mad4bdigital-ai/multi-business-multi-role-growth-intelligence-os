@@ -8,7 +8,7 @@ import {
 } from "./capabilityResolutionEnvelopeGuard.js";
 import { getPool } from "./db.js";
 
-export const GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION = "github-repository-policy-controller-v1";
+export const GITHUB_REPOSITORY_POLICY_CONTROLLER_VERSION = "github-repository-policy-controller-v2";
 export const GITHUB_REPOSITORY_POLICY_CONFIRMATION = "APPLY_GITHUB_MAIN_REVIEW_POLICY";
 export const GITHUB_REPOSITORY_POLICY_RULESET_NAME = "MAD4B main review policy";
 export const GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS = Object.freeze([
@@ -18,6 +18,7 @@ export const GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS = Object.freeze([
   "Execution Resolver Gate",
   "Evaluate changed feature phases",
   "Execute current phase journeys",
+  "Single Owner Review Gate",
 ]);
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -175,12 +176,20 @@ function normalizeRequiredChecks(value) {
   return expected;
 }
 
-function assertSecurePolicyOverrides(args = {}) {
+function assertSecurePolicyOverrides(args = {}, { singleOwnerMode = false } = {}) {
   const failures = [];
-  if (args.required_approving_review_count !== undefined && Number(args.required_approving_review_count) < 1) failures.push("required_approving_review_count_below_one");
+  if (args.required_approving_review_count !== undefined) {
+    const requested = Number(args.required_approving_review_count);
+    if (singleOwnerMode ? requested !== 0 : requested < 1) {
+      failures.push(singleOwnerMode ? "single_owner_review_count_must_be_zero" : "required_approving_review_count_below_one");
+    }
+  }
   if (args.dismiss_stale_reviews_on_push !== undefined && !bool(args.dismiss_stale_reviews_on_push)) failures.push("dismiss_stale_reviews_must_be_enabled");
   if (args.required_review_thread_resolution !== undefined && !bool(args.required_review_thread_resolution)) failures.push("review_thread_resolution_must_be_enabled");
-  if (args.require_last_push_approval !== undefined && !bool(args.require_last_push_approval)) failures.push("last_push_approval_must_be_enabled");
+  if (args.require_last_push_approval !== undefined) {
+    const requested = bool(args.require_last_push_approval);
+    if (singleOwnerMode ? requested : !requested) failures.push(singleOwnerMode ? "single_owner_last_push_native_approval_must_be_disabled" : "last_push_approval_must_be_enabled");
+  }
   if (args.allow_direct_pushes !== undefined && bool(args.allow_direct_pushes)) failures.push("direct_pushes_must_be_blocked");
   if (args.bypass_actors !== undefined && (!Array.isArray(args.bypass_actors) || args.bypass_actors.length > 0)) failures.push("bypass_actors_must_be_empty");
   if (args.merge_queue_enabled !== undefined && bool(args.merge_queue_enabled)) failures.push("merge_queue_must_remain_disabled");
@@ -295,7 +304,25 @@ function pullRequestRuleEvidence(rules = []) {
   };
 }
 
-function buildDesiredRuleset(checks) {
+function eligibleHumanCollaborators(readback = {}) {
+  const collaborators = Array.isArray(readback?.collaborators) ? readback.collaborators : readback?.direct_collaborators;
+  return (Array.isArray(collaborators) ? collaborators : []).filter((item) =>
+    item?.type === "User" && ["write", "maintain", "admin"].includes(compact(item?.permission || item?.role_name || "", 32).toLowerCase())
+  );
+}
+
+function singleOwnerModeEligible(readback = {}, target = {}) {
+  const eligible = eligibleHumanCollaborators(readback);
+  return readback?.proof?.collaborator_ownership_complete === true && eligible.length === 1;
+}
+
+function resolveSingleOwnerMode(args = {}, readback = null, target = {}) {
+  const eligible = singleOwnerModeEligible(readback || {}, target);
+  if (args.single_owner_mode === undefined || args.single_owner_mode === null || args.single_owner_mode === "") return eligible;
+  return bool(args.single_owner_mode) && eligible;
+}
+
+function buildDesiredRuleset(checks, { singleOwnerMode = false } = {}) {
   return writableRulesetPayload({
     name: GITHUB_REPOSITORY_POLICY_RULESET_NAME,
     bypass_actors: [],
@@ -307,8 +334,8 @@ function buildDesiredRuleset(checks) {
           allowed_merge_methods: ["merge", "squash", "rebase"],
           dismiss_stale_reviews_on_push: true,
           require_code_owner_review: false,
-          require_last_push_approval: true,
-          required_approving_review_count: 1,
+          require_last_push_approval: !singleOwnerMode,
+          required_approving_review_count: singleOwnerMode ? 0 : 1,
           required_review_thread_resolution: true,
         },
       },
@@ -399,6 +426,25 @@ async function readRulesetDetails({ owner, repo, index, token, fetchImpl }) {
   return details;
 }
 
+async function readAllCollaborators({ owner, repo, token, fetchImpl }) {
+  const items = [];
+  for (let page = 1; page <= 10; page += 1) {
+    const result = await githubRequest({
+      apiPath: `/repos/${encode(owner)}/${encode(repo)}/collaborators?affiliation=all&per_page=100&page=${page}`,
+      token,
+      fetchImpl,
+    });
+    if (!result.ok || !Array.isArray(result.payload)) {
+      return { ok: false, status: result.status, payload: [], complete: false };
+    }
+    items.push(...result.payload);
+    if (result.payload.length < 100) {
+      return { ok: true, status: result.status, payload: items, complete: true };
+    }
+  }
+  return { ok: false, status: 409, payload: [], complete: false };
+}
+
 async function readCollaboratorPermissions({ owner, repo, collaborators, token, fetchImpl }) {
   const output = [];
   for (const collaborator of Array.isArray(collaborators) ? collaborators : []) {
@@ -433,7 +479,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     githubRequest({ apiPath: `${base}/rules/branches/${encode(target.default_branch)}`, token, fetchImpl }),
     githubRequest({ apiPath: `${base}/rulesets?includes_parents=true&per_page=100`, token, fetchImpl }),
     githubRequest({ apiPath: `${base}/branches/${encode(target.default_branch)}/protection`, token, fetchImpl }),
-    githubRequest({ apiPath: `${base}/collaborators?affiliation=direct&per_page=100`, token, fetchImpl }),
+    readAllCollaborators({ owner: target.owner, repo: target.repo, token, fetchImpl }),
   ]);
 
   const rulesetsIndexReadable = rulesetsIndex.ok && Array.isArray(rulesetsIndex.payload);
@@ -446,9 +492,22 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     && indexedRulesetIds.length === rulesetIndex.length
     && rulesetDetails.length === indexedRulesetIds.length
     && rulesetDetails.every((item) => item.status === 200 && item.detail);
-  const collaboratorPermissions = collaborators.ok
+  const collaboratorPermissions = collaborators.ok && collaborators.complete === true
     ? await readCollaboratorPermissions({ owner: target.owner, repo: target.repo, collaborators: collaborators.payload, token, fetchImpl })
     : [];
+  const collaboratorPermissionsReadable = collaborators.ok
+    && collaborators.complete === true
+    && Array.isArray(collaborators.payload)
+    && collaboratorPermissions.length === collaborators.payload.length
+    && collaboratorPermissions.every((item) =>
+      item?.status === 200 && Boolean(compact(item?.permission || item?.role_name || "", 32))
+    );
+  const eligibleHumans = collaboratorPermissionsReadable
+    ? collaboratorPermissions.filter((item) =>
+      item?.type === "User" && ["write", "maintain", "admin"].includes(compact(item?.permission || item?.role_name || "", 32).toLowerCase())
+    )
+    : [];
+  const singleOwnerEligible = collaboratorPermissionsReadable && eligibleHumans.length === 1;
 
   const config = resolveGitHubAppConfig(args.action || {});
   const finalizerAppId = /^\d+$/.test(String(config.appId || "")) ? Number(config.appId) : null;
@@ -489,6 +548,11 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     ...activeStatusRules.flatMap((item) => (item?.parameters?.required_status_checks || []).map((entry) => entry?.context)),
   ]).sort();
   const missingChecks = checks.filter((check) => !observedChecks.includes(check));
+  const singleOwnerGateObserved = observedChecks.includes("Single Owner Review Gate");
+  const singleOwnerModeObserved = singleOwnerEligible
+    && requiredReviewCount === 0
+    && singleOwnerGateObserved
+    && mainRulesets.some((item) => item.pull_request.present);
   const branchReadable = branch.ok
     && SHA_PATTERN.test(String(branch.payload?.commit?.sha || ""))
     && typeof branch.payload?.protected === "boolean";
@@ -510,12 +574,13 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
 
   const proof = {
     policy_state_readable: protectionReadable,
+    collaborator_ownership_complete: collaboratorPermissionsReadable,
     ruleset_details_readable: rulesetDetailsReadable,
-    required_reviews_proven: requiredReviewCount >= 1,
-    required_approving_review_count: requiredReviewCount || null,
+    required_reviews_proven: requiredReviewCount >= 1 || singleOwnerModeObserved,
+    required_approving_review_count: requiredReviewCount,
     dismiss_stale_reviews_proven: dismissStale,
     required_review_thread_resolution_proven: threadResolution,
-    require_last_push_approval_observed: lastPushApproval,
+    require_last_push_approval_observed: lastPushApproval || singleOwnerModeObserved,
     required_status_checks_proven: missingChecks.length === 0,
     missing_required_status_checks: missingChecks,
     direct_push_block_proven: directPushBlocked,
@@ -530,6 +595,7 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
 
   const findings = [];
   if (!proof.policy_state_readable) findings.push("policy_state_unreadable");
+  if (!proof.collaborator_ownership_complete) findings.push("collaborator_ownership_incomplete");
   if (!proof.ruleset_details_readable) findings.push("ruleset_details_unreadable");
   if (!proof.required_reviews_proven) findings.push("required_review_missing");
   if (!proof.dismiss_stale_reviews_proven) findings.push("stale_review_dismissal_missing");
@@ -565,8 +631,13 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
     repository_managed_ruleset_count: repositoryManagedRulesets.length,
     active_managed_ruleset_count: activeManagedRulesets.length,
     bypass_actors: allBypassActors,
+    collaborators: collaboratorPermissions,
     direct_collaborators: collaboratorPermissions,
+    eligible_human_collaborators: eligibleHumans,
+    single_owner_mode_eligible: singleOwnerEligible,
+    review_policy_mode: singleOwnerModeObserved ? "single_owner_attestation" : requiredReviewCount >= 1 ? "independent_approval" : "incomplete",
     finalizer_identity: {
+
       app_id: finalizerAppId,
       installation_id: finalizerInstallationId,
       resolved: finalizerAppId !== null,
@@ -584,7 +655,6 @@ export async function readGithubRepositoryPolicy(args = {}, deps = {}) {
 
 export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
   assertSecretFree(args);
-  assertSecurePolicyOverrides(args);
   const checks = normalizeRequiredChecks(args.required_checks);
   const target = readback?.target || {
     owner: compact(args.owner || "", 191),
@@ -594,7 +664,15 @@ export function buildGithubRepositoryPolicyPlan(args = {}, readback = null) {
   if (target.default_branch !== "main") {
     throw controllerError(400, "github_repository_policy_main_only", "The governed repository policy controller is restricted to the main branch.");
   }
-  const desiredRuleset = buildDesiredRuleset(checks);
+  const singleOwnerMode = resolveSingleOwnerMode(args, readback, target);
+  if (bool(args.single_owner_mode) && !singleOwnerModeEligible(readback || {}, target)) {
+    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "single_owner_mode requires complete collaborator permission proof and exactly one eligible human collaborator.", {
+      eligible_human_collaborators: eligibleHumanCollaborators(readback || {}).map((item) => ({ login: item.login, permission: item.permission, role_name: item.role_name })),
+      secrets_included: false,
+    });
+  }
+  assertSecurePolicyOverrides(args, { singleOwnerMode });
+  const desiredRuleset = buildDesiredRuleset(checks, { singleOwnerMode });
   const managedRulesets = (readback?.ruleset_details || []).filter((item) => item.name === GITHUB_REPOSITORY_POLICY_RULESET_NAME && item.applies_to_main);
   const repositoryManagedRulesets = managedRulesets.filter((item) => item.repository_owned === true);
   const existingManagedRuleset = managedRulesets.length === 1 && repositoryManagedRulesets.length === 1
@@ -621,6 +699,8 @@ const capabilityAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
     desired_ruleset: desiredRuleset,
     desired_ruleset_fingerprint: githubRepositoryPolicyFingerprint(desiredRuleset),
     policy_fingerprint: policyFingerprint,
+    review_policy_mode: singleOwnerMode ? "single_owner_attestation" : "independent_approval",
+    single_owner_mode: singleOwnerMode,
     capability_authorization: capabilityAuthorization,
     operation: managedRulesetBlocked ? "blocked" : existingManagedRuleset ? "update_ruleset" : "create_ruleset",
     existing_ruleset_id: existingManagedRuleset?.id || null,
@@ -632,6 +712,7 @@ const capabilityAuthorization = buildGithubRepositoryPolicyCapabilityBinding({
       managed_ruleset_repository_owned: managedRulesets.length === 0 || (managedRulesets.length === 1 && repositoryManagedRulesets.length === 1),
       repository_auto_merge_disabled: readback?.proof?.auto_merge_disabled === true,
       merge_queue_disabled: readback?.proof?.merge_queue_disabled_or_equivalent === true,
+      review_policy_mode_eligible: !singleOwnerMode || readback?.single_owner_mode_eligible === true,
     },
     mutation_executed: false,
     force_push_allowed: false,
@@ -775,6 +856,9 @@ function validateApplyInputs(args, preReadback, plan) {
   }
   if (!plan.preconditions.managed_ruleset_repository_owned) {
     throw controllerError(409, "github_repository_policy_managed_ruleset_not_repository_owned", "The matching managed Ruleset is inherited and cannot be mutated by the repository controller.");
+  }
+  if (plan.review_policy_mode === "single_owner_attestation" && plan.preconditions.review_policy_mode_eligible !== true) {
+    throw controllerError(409, "github_repository_policy_single_owner_mode_ineligible", "Single-owner policy apply is blocked because the live collaborator readback does not prove exactly one eligible human collaborator.");
   }
   if (!preReadback.proof.auto_merge_disabled || !preReadback.proof.merge_queue_disabled_or_equivalent) {
     throw controllerError(409, "github_repository_policy_alternate_merge_path_blocked", "Auto-merge or merge queue must be disabled before applying the governed policy.");

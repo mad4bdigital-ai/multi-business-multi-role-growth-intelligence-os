@@ -7,6 +7,10 @@ import {
   parsePageSize,
   resourceTimestamp,
 } from "../../domain/resourceApi/resourceCatalog.js";
+import {
+  assertWorkspaceAssetBrandPatchSafe,
+  resolveWorkspaceAssetBrandRef,
+} from "../../../workspaceAssetBrandAuthority.js";
 
 function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   const params = [];
@@ -48,6 +52,10 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
     params.push(token.time);
   }
   return { clauses, params };
+}
+
+function resourceRepositoryInvariantError(code, message, status = 409) {
+  return Object.assign(new Error(message), { code, status });
 }
 
 export function createResourceRepository({ pool = null, resolvePool = null, transactionConnection = false }) {
@@ -175,6 +183,11 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
 
   async function insertAsset({ tenantId, actorId, input }) {
     const assetId = String(input.asset_id || randomUUID()).slice(0, 64);
+    const canonicalBrandRef = await resolveWorkspaceAssetBrandRef(activeExecutor(), {
+      tenantId,
+      actorId: actorId || "platform_admin",
+      brandRef: input.brand_ref,
+    });
     await executeQuery(
       `INSERT INTO workspace_assets
         (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
@@ -187,7 +200,7 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         String(input.asset_type),
         input.asset_ref || null,
         String(input.display_name),
-        input.brand_ref || null,
+        canonicalBrandRef,
         input.site_ref || null,
         input.workflow_ref || null,
         input.session_ref || null,
@@ -197,14 +210,36 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         actorId || "platform_admin",
       ]
     );
+    const [readbackRows] = await executeQuery(
+      `SELECT asset_id,tenant_id,brand_ref
+         FROM workspace_assets
+        WHERE asset_id=? AND tenant_id=?
+        LIMIT 2 FOR UPDATE`,
+      [assetId, tenantId]
+    );
+    if (!Array.isArray(readbackRows) || readbackRows.length !== 1) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_brand_readback_invalid",
+        "Created workspace asset did not resolve exactly once before commit."
+      );
+    }
+    const [readback] = readbackRows;
+    const persistedBrandRef = String(readback.brand_ref || "").trim();
+    const expectedBrandRef = String(canonicalBrandRef || "").trim();
+    if (persistedBrandRef !== expectedBrandRef) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_brand_readback_mismatch",
+        "Created workspace asset Brand attachment did not match canonical authority before commit."
+      );
+    }
     return assetId;
   }
 
   async function updateAssetFields(assetId, input = {}) {
+    assertWorkspaceAssetBrandPatchSafe(input);
     const allowed = [
       "display_name",
       "asset_ref",
-      "brand_ref",
       "site_ref",
       "workflow_ref",
       "session_ref",
