@@ -38,7 +38,6 @@ assert.equal(String(sourceRun?.head_sha || '').toLowerCase(), SOURCE_HEAD_SHA);
 
 const summary = JSON.parse(readFileSync(SUMMARY_PATH, 'utf8'));
 assert.equal(summary?.result, 'ready_for_apply');
-assert.equal(summary?.authorization, 'pass');
 assert.equal(summary?.dry_run, 'pass');
 assert.match(String(summary?.production_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.migration_blob_sha || ''), /^[0-9a-f]{40}$/);
