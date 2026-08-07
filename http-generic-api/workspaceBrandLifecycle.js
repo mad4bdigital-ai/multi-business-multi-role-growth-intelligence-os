@@ -22,6 +22,11 @@ export function canonicalWorkspaceBrandTargetKey(tenantId, normalizedBrandName) 
   return `workspace_brand_${digest.slice(0, 32)}`;
 }
 
+function isBrandCoreReady(value) {
+  if (value === true || value === 1) return true;
+  return new Set(["true", "1", "yes", "ready"]).has(String(value ?? "").trim().toLowerCase());
+}
+
 function requireExactlyOne(rows, code, message) {
   if (!Array.isArray(rows) || rows.length !== 1) {
     throw lifecycleError(rows?.length ? 409 : 404, code, message, [{ count: Array.isArray(rows) ? rows.length : 0 }]);
@@ -47,7 +52,13 @@ async function requireOwnerAuthority(connection, tenantId, actorUserId) {
       LIMIT 2 FOR UPDATE`,
     [tenantId, actorUserId]
   );
-  const authority = requireExactlyOne(rows, "workspace_owner_authority_invalid", "Workspace owner authority did not resolve exactly once.");
+  if (!Array.isArray(rows) || rows.length === 0) {
+    throw lifecycleError(403, "active_membership_required", "Active workspace membership required.");
+  }
+  if (rows.length !== 1) {
+    throw lifecycleError(409, "workspace_owner_authority_invalid", "Workspace owner authority did not resolve exactly once.", [{ count: rows.length }]);
+  }
+  const [authority] = rows;
   if (String(authority.status || "").toLowerCase() !== "active" || String(authority.tenant_status || "").toLowerCase() !== "active") {
     throw lifecycleError(403, "active_membership_required", "Active workspace membership required.");
   }
@@ -201,6 +212,7 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
 
   const link = await ensureTenantBrandLink(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
   const grant = await ensureCreatorBrandGrant(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
+  const brandCoreReady = isBrandCoreReady(brand.brand_core_ready);
 
   return {
     created,
@@ -214,7 +226,7 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
     link,
     grant,
     next_steps: {
-      brand_core_profile_required: !brand.brand_core_ready,
+      brand_core_profile_required: !brandCoreReady,
       asset_attachment_available: true,
       member_invitation_available: false,
     },
@@ -224,4 +236,5 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
 export const _testingWorkspaceBrandLifecycle = {
   OWNER_ROLES,
   requireDisplayName,
+  isBrandCoreReady,
 };
