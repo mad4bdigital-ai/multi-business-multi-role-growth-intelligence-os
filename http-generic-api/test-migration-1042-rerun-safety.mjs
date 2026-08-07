@@ -2,11 +2,20 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
+import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
-const migration = readFileSync("migrations/1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql", "utf8");
+const migrationFile = "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql";
+const migration = readFileSync(`migrations/${migrationFile}`, "utf8");
 const canonicalMigration = migration.replace(/\r\n?/g, "\n");
 const migrationSha256 = createHash("sha256").update(canonicalMigration, "utf8").digest("hex");
 const canonicalStatements = splitMigrationSqlStatements(migration);
+const preflight = assessMigrationSqlPreflight(migrationFile, migration);
+const preflightRiskCounts = Object.fromEntries(
+  Object.entries((preflight.risks || []).reduce((counts, risk) => {
+    counts[risk.code] = (counts[risk.code] || 0) + 1;
+    return counts;
+  }, {})).sort(([left], [right]) => left.localeCompare(right)),
+);
 const statements = migration
   .split(/;\s*(?:\r?\n|$)/)
   .map((statement) => statement.trim())
@@ -19,6 +28,7 @@ function statementContaining(token) {
 }
 
 assert.equal(canonicalStatements.length, 12, "Migration 1042 canonical statement count must remain 12");
+assert.equal(Number(preflight.counts?.statements || 0), canonicalStatements.length, "Migration 1042 preflight and canonical parser statement counts must agree");
 assert.match(migrationSha256, /^[0-9a-f]{64}$/, "Migration 1042 canonical checksum must be SHA-256");
 
 assert.match(
@@ -47,6 +57,9 @@ console.log(JSON.stringify({
   migration_sha256: migrationSha256,
   checksum_canonicalization: "utf8_lf_v1",
   statement_count: canonicalStatements.length,
+  preflight_status: preflight.status,
+  preflight_risk_count: Number(preflight.risk_count || 0),
+  preflight_risks: preflightRiskCounts,
   live_database_connected: false,
   migration_apply_executed: false,
   secrets_included: false,
