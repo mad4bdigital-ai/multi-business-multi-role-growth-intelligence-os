@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs';
 
 // Final integrated checkpoint: readiness, single-apply, Production promotion closure, and live durable recovery stay one governed phase.
 const workflow = await fs.readFile('../.github/workflows/response-chunk-ownership-governed-rollout.yml', 'utf8');
+const pushBridge = await fs.readFile('../.github/workflows/response-chunk-ownership-governed-rollout-push.yml', 'utf8');
 const runner = await fs.readFile('../.github/ops/response-chunk-ownership-governed-rollout.mjs', 'utf8');
 const runtimeClosure = await fs.readFile('../.github/ops/response-chunk-ownership-runtime-closure.mjs', 'utf8');
 const registeredPromotionSuite = await fs.readFile('./test-production-promotion-convergence-workflows.mjs', 'utf8');
@@ -25,6 +26,14 @@ assert.doesNotMatch(workflow, /EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/);
 assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-readiness/);
 assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-apply/);
 assert.match(workflow, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-runtime-closure/);
+
+const pushBridgeJobGraph = pushBridge.split('    steps:')[0];
+assert.match(pushBridge, /push:\s*\n\s*branches: \[main\]/);
+assert.doesNotMatch(pushBridgeJobGraph, /\$\{\{\s*runner\./);
+assert.doesNotMatch(pushBridge, /EVIDENCE_DIR:\s*\$\{\{\s*runner\.temp\s*\}\}/);
+assert.match(pushBridge, /EVIDENCE_DIR: \.artifacts\/response-chunk-ownership-push/);
+assert.match(pushBridge, /EVIDENCE_DIR=\.artifacts\/response-chunk-ownership-\$\{PHASE\}/);
+assert.match(pushBridge, /path: \$\{\{ env\.EVIDENCE_DIR \}\}/);
 
 assert.match(runner, /MIGRATION_BLOB_SHA = '930b29dbf9f3d360ef6f76b52427585c31fa37a0'/);
 assert.match(runner, /SOURCE_MERGE_SHA = 'd21c26fbb94a857b4727b583df74e2aab54303cc'/);
