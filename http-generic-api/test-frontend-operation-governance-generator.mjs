@@ -64,7 +64,6 @@ const EVIDENCE_FILES = [
   "routes/workspaceResourceRoutes.js",
   "workspaceBrandLifecycle.js",
   "test-workspace-brand-create-operation-governance.mjs",
-  ".changes/e2e/workspace-brand-create-lifecycle.json",
 ];
 
 function createFixture() {
