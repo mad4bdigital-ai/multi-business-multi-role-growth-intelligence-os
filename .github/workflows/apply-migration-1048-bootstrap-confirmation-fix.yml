@@ -20,12 +20,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Apply transparent bounded patch
+      - name: Apply transparent bounded repair script
         shell: bash
         run: |
           set -euo pipefail
-          git apply --check --recount .changes/migration-1048-authorization-handshake.patch
-          git apply --recount .changes/migration-1048-authorization-handshake.patch
+          python .changes/migration-1048-authorization-handshake-repair.py
 
       - name: Validate bounded contract
         shell: bash
@@ -39,9 +38,17 @@ jobs:
         run: |
           set -euo pipefail
           git rm .changes/migration-1048-authorization-handshake.patch
+          git rm .changes/migration-1048-authorization-handshake-repair.py
           git rm .github/workflows/repair-migration-1048-bootstrap-confirmation.yml
           git rm .github/workflows/apply-migration-1048-bootstrap-confirmation-fix.yml
-          git status --short
+          changed="$(git status --short | sed -E 's/^...//')"
+          printf '%s\n' "$changed"
+          test "$(printf '%s\n' "$changed" | sed '/^$/d' | wc -l)" -eq 5
+          printf '%s\n' "$changed" | grep -Fx '.github/ops/transport-response-schema-1048-governed-rollout.mjs'
+          printf '%s\n' "$changed" | grep -Fx '.changes/migration-1048-authorization-handshake.patch'
+          printf '%s\n' "$changed" | grep -Fx '.changes/migration-1048-authorization-handshake-repair.py'
+          printf '%s\n' "$changed" | grep -Fx '.github/workflows/repair-migration-1048-bootstrap-confirmation.yml'
+          printf '%s\n' "$changed" | grep -Fx '.github/workflows/apply-migration-1048-bootstrap-confirmation-fix.yml'
 
       - name: Commit bounded repair
         shell: bash
