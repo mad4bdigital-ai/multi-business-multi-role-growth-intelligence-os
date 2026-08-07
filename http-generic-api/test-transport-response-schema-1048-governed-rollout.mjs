@@ -5,8 +5,16 @@ const workflow = readFileSync(
   new URL('../.github/workflows/transport-response-schema-1048-governed-rollout.yml', import.meta.url),
   'utf8',
 );
+const publisherWorkflow = readFileSync(
+  new URL('../.github/workflows/migration-1048-readiness-evidence-publisher.yml', import.meta.url),
+  'utf8',
+);
 const runner = readFileSync(
   new URL('../.github/ops/transport-response-schema-1048-governed-rollout.mjs', import.meta.url),
+  'utf8',
+);
+const publisher = readFileSync(
+  new URL('./scripts/migration-1048-readiness-issue-publisher.mjs', import.meta.url),
   'utf8',
 );
 
@@ -45,15 +53,42 @@ for (const expected of [
 }
 
 for (const expected of [
+  'workflow_run:',
+  'Governed Migration 1048 Transport Response Schema Rollout',
   'issues: write',
-  'Publish checksum-bound readiness marker',
-  'actions/github-script@v7',
-  'summary.readiness_marker',
-  'TRANSPORT_RESPONSE_SCHEMA_1048_READINESS result=pass ',
-  'issue_number: 6531',
+  'github.event.workflow_run.conclusion == \'success\'',
+  'transport-response-schema-1048-readiness-${context.payload.workflow_run.id}',
+  'actions/download-artifact@v4',
+  'Publish checksum-bound readiness marker to control issue',
+  'migration-1048-readiness-issue-publisher.mjs',
 ]) {
-  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);
+  assert.ok(publisherWorkflow.includes(expected), `Migration 1048 publisher workflow is missing ${expected}`);
 }
+
+for (const expected of [
+  "const EXPECTED_WORKFLOW = 'Governed Migration 1048 Transport Response Schema Rollout'",
+  'const EXPECTED_ISSUE = 6531',
+  "const READY_PREFIX = 'TRANSPORT_RESPONSE_SCHEMA_1048_READINESS result=pass '",
+  "sourceRun?.event, 'issue_comment'",
+  "sourceRun?.conclusion, 'success'",
+  'sourceRun?.head_sha, sourceHeadSha',
+  "summary?.result, 'ready_for_apply'",
+  "summary?.authorization, 'pass'",
+  "summary?.dry_run, 'pass'",
+  '`production_sha=${summary.production_sha}`',
+  '`migration_blob=${summary.migration_blob_sha}`',
+  '`checksum=${summary.checksum}`',
+  '`statement_count=${summary.statement_count}`',
+  "method: 'POST'",
+  'issues/${issue}/comments',
+  "action: 'unchanged'",
+]) {
+  assert.ok(publisher.includes(expected), `Migration 1048 readiness publisher is missing ${expected}`);
+}
+
+assert.ok(!workflow.includes('issues: write'), 'The issue-comment rollout producer must remain read-only to GitHub repository metadata');
+assert.ok(!workflow.includes('github.rest.issues.createComment'), 'The rollout producer must not write readiness comments directly');
+assert.ok(!publisherWorkflow.includes('github.rest.issues.createComment'), 'The trusted publisher workflow must delegate issue mutation to its validated publisher module');
 
 for (const forbidden of [
   'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
