@@ -34,7 +34,9 @@ for (const expected of [
 ]) assert.ok(runner.includes(expected), `Migration 1049 runner is missing ${expected}`);
 
 assert.equal((runner.match(/mode:\s*'apply'/g) || []).length, 1, 'Migration 1049 runner must contain exactly one Apply invocation literal');
-assert.equal((runner.match(/tool:\s*'db'/g) || []).length, 1, 'Migration 1049 runner must contain exactly one direct DB operation');
+assert.ok(runner.includes("import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';"), 'Migration 1049 runner must import the shared Admin DB request builder');
+assert.equal((runner.match(/tool:\s*'db'/g) || []).length, 0, 'Migration 1049 runner must not handcraft Admin DB control requests');
+assert.equal((runner.match(/buildAdminControlDbReadRequest\(\{/g) || []).length, 1, 'Migration 1049 runner must use the shared Admin DB request builder exactly once');
 assert.match(runner, /const READBACK_SQL = `SELECT\s+/);
 for (const forbidden of [
   /mysql\s+-/i, /mariadb\s+-/i,

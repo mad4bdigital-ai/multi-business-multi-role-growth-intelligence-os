@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { splitMigrationSqlStatements } from '../../http-generic-api/migrationSqlStatements.js';
+import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const PHASE = String(process.env.ROLLOUT_PHASE || '').trim();
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
@@ -227,7 +228,17 @@ function ledgerPass(readback) {
 }
 
 async function metadataReadback() {
-  const payload = requireSuccess(await requestRaw('/admin/control', { tool: 'db', action: 'run', sql: READBACK_SQL, params: [], authority_context: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_single_owner_mode', operation_mode: 'read_only_readiness_probe', required: true } }, 120000), 'github_repository_policy_1049_readback');
+  const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({
+    sql: READBACK_SQL,
+    params: [],
+    maxRows: 1,
+    authorityContext: {
+      resource_type: 'database_metadata',
+      resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_single_owner_mode',
+      operation_mode: 'read_only_readiness_probe',
+      required: true,
+    },
+  }), 120000), 'github_repository_policy_1049_readback');
   const row = findObject(payload, (candidate) => Array.isArray(candidate.rows))?.rows?.[0];
   assert.equal(row?.review_policy_mode, 'auto_single_owner_or_independent');
   assert.equal(row?.single_owner_gate_check, 'Single Owner Review Gate');
