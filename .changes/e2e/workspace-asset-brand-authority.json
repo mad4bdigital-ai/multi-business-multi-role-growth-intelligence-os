@@ -1,0 +1,79 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-asset-brand-authority",
+  "title": "Workspace asset canonical Brand attachment authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-asset-brand-authority.json",
+      "http-generic-api/workspaceAssetBrandAuthority.js",
+      "http-generic-api/src/infrastructure/resourceApi/resourceRepository.js",
+      "http-generic-api/test-workspace-asset-brand-authority.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent orphan, cross-tenant, and unauthorized Brand attachment through the existing tenant asset create path while preserving generic workspace-scoped assets and blocking ungoverned Brand reassignment through generic PATCH.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-asset-create-resolves-canonical-brand-authority-before-insert",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated active workspace member",
+          "entrypoint": "POST /me/workspaces/{tenant_id}/resources/assets with optional brand_ref",
+          "terminal_outcome": "When brand_ref is supplied it resolves through canonical tenant Brand authority, non-owner actors prove a mutation-capable effective Brand grant, the canonical Brand target key is persisted and read back exactly before commit, and unsafe generic Brand reassignment remains fail-closed.",
+          "steps": [
+            "Resolve supplied brand_ref with the existing canonical workspace Brand resolver inside the resource mutation transaction.",
+            "Normalize aliases/display names to the canonical tenant-linked Brand target key before workspace_assets INSERT.",
+            "Permit active workspace owner/admin after canonical tenant Brand resolution without requiring a redundant Brand grant.",
+            "Require delegated non-owner actors to hold an effective Brand permission in owner/admin/manage/operate/edit before asset persistence.",
+            "Reject view/comment/no-grant, cross-tenant, missing, inactive, or ambiguous Brand authority before INSERT.",
+            "Read the created asset back under lock inside the same transaction and require persisted brand_ref to equal the canonical resolved Brand key before commit.",
+            "Preserve existing workspace-scoped asset creation when brand_ref is absent.",
+            "Reject generic PATCH attempts that include brand_ref until a dedicated governed Brand asset rebind lifecycle exists.",
+            "Refresh generated resource operation-governance and frontend dispatch evidence for the changed persistence authority source."
+          ],
+          "assertions": [
+            "Delegated edit authority persists the canonical Brand target key rather than the caller alias.",
+            "Legacy effective Brand owner permission remains mutation-capable for compatibility.",
+            "Workspace owner/admin can attach to an active Brand explicitly linked to the same tenant.",
+            "View-only and missing Brand grants fail before INSERT.",
+            "Cross-tenant Brand references fail before INSERT.",
+            "A persisted Brand readback mismatch fails typed before commit so the enclosing transaction can roll back.",
+            "Platform-admin resource creation retains its existing system authority boundary while still canonicalizing Brand identity.",
+            "Assets without brand_ref remain supported and do not perform unnecessary Brand authority queries.",
+            "Generic asset PATCH cannot change brand_ref through an ungoverned path.",
+            "No new asset/Brand registry or migration is introduced.",
+            "No live SQL Apply, Production/provider mutation, deployment, secret access, force push, or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "workspace-asset-brand-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-asset-brand-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-asset-brand-authority.json",
+            "http-generic-api/workspaceAssetBrandAuthority.js",
+            "http-generic-api/src/infrastructure/resourceApi/resourceRepository.js",
+            "http-generic-api/test-workspace-asset-brand-authority.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
