@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v2-lease-extension",
-    "source_digest": "13c64564f03df87b98222a4a8f1ab30fecdccbd6a64750590cacc019929720d0",
+    "source_digest": "4cb6d3616a62eee2eadc9d91846188918e0f6e564e3f0c3c7df4e177ac0c5ee4",
     "fail_closed": true
   },
   "source_authority": [
@@ -38,7 +38,7 @@
     },
     {
       "file": "routes/repositoryAutomationRoutes.js",
-      "sha256": "5750e4d72089ce87eda2856cd8c7012110943036c5661125ac9a2b2c44fb3b3e",
+      "sha256": "91ca91020f92abefd5a6a97223d489e6d73f2983c4fab1e128e03628c442d7cb",
       "present": true
     },
     {
@@ -58,7 +58,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "2fac285c470cba453564baffc4f3a3f68bb30392af92eb395b004df9397ba0d7",
+      "sha256": "edd603f839aa5c5c0a708b5a8d44d32c552a3989f9afd286df5121f922a47f12",
       "present": true
     },
     {
@@ -237,7 +237,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "049c77ea30cc4625cb9d448808ac57b8378e7f1a1aca93d00005fb8759a7d6ac",
+        "source_digest": "c4106cdeb9974ad4e82098e29d6eb20377bbdd09502ade5d71a0e4e909d98f14",
         "fail_closed": true
       }
     },
@@ -281,7 +281,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "049c77ea30cc4625cb9d448808ac57b8378e7f1a1aca93d00005fb8759a7d6ac",
+        "source_digest": "c4106cdeb9974ad4e82098e29d6eb20377bbdd09502ade5d71a0e4e909d98f14",
         "fail_closed": true
       }
     },
@@ -326,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "049c77ea30cc4625cb9d448808ac57b8378e7f1a1aca93d00005fb8759a7d6ac",
+        "source_digest": "c4106cdeb9974ad4e82098e29d6eb20377bbdd09502ade5d71a0e4e909d98f14",
         "fail_closed": true
       }
     },
@@ -374,7 +374,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "repository-reconciliation-lease-control-v1",
-        "source_digest": "588958578975f184f74a57c711115a88ba9cecc92433dc9d1ab1ea0f358e8fa1",
+        "source_digest": "1a930d0471d12ecd2a6a468e0d84377a7aa6212361a0ddad63f03620629a88cf",
         "fail_closed": true
       }
     },

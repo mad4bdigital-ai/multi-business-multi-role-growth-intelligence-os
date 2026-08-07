@@ -37,14 +37,20 @@ on:
 permissions:
   contents: read
 
+env:
+  CI_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   safety-contract:
     name: Validate governed storage orchestration contract
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Checkout exact head
+      - name: Checkout exact head with comparison history
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CI_CANDIDATE_SHA }}
+          fetch-depth: 0
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v4

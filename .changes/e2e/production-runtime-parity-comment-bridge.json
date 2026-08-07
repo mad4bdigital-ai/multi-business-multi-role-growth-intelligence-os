@@ -2,83 +2,85 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "production-runtime-parity-comment-bridge",
-  "title": "Governed current Production runtime parity comment bridge",
+  "title": "Retired Production runtime parity comment bridge tombstone",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
-      ".changes/e2e/production-runtime-parity-comment-bridge.json",
-      ".github/workflows/production-runtime-parity-comment-bridge.yml",
-      "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
-      "http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs",
-      "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
-      "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
-      "http-generic-api/scripts/e2e-phase-governance.mjs",
-      "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
-      "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
-      "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+      ".changes/e2e/production-runtime-parity-comment-bridge.json"
     ]
   },
-  "merge_contract": { "minimum_phase": "mvp" },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Expose one registered, secret-free, issue-comment-triggered route for executing the existing canonical Production runtime parity reporter against the exact current protected Production SHA when direct workflow_dispatch is unavailable to the governed repository connector, while ensuring that a generated Work Map binding alone does not falsely claim either parallel Spec ownership or direct Spec phase-contract ownership of this independently governed single-PR runtime change.",
+      "objective": "Retain a governance-valid tombstone for the removed Issue #4953 comment bridge while the executable workflow and its bridge-specific test remain absent and Hostinger Production Runtime Readback R7 remains the sole supported runtime-parity entrypoint.",
       "e2e_journeys": [
         {
-          "id": "run-current-production-runtime-parity-from-governed-incident-comment",
+          "id": "verify-production-runtime-parity-bridge-retirement-tombstone",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository owner on the open Production incident",
-          "entrypoint": "An exact RUN_PRODUCTION_RUNTIME_PARITY comment on issue 4953 containing current protected Production and main tooling SHAs",
-          "terminal_outcome": "The workflow verifies immutable repository bindings, executes the canonical auth.mad4b.com public runtime parity reporter from exact current main tooling, uploads bounded evidence, and passes only when the exact Production SHA and branch identity are live.",
+          "actor": "repository governance runner",
+          "entrypoint": "A pull request changes or validates the historical production-runtime-parity-comment-bridge contract path.",
+          "terminal_outcome": "The historical contract remains as a non-executable retirement tombstone, the retired workflow and test remain absent, and canonical R7 remains present, exact-SHA-bound, read-only, public-GET-only, and secret-free.",
           "steps": [
-            "Accept only issue_comment created events on open non-PR issue 4953 from repository user ID 271942579 with an OWNER, MEMBER, or COLLABORATOR association.",
-            "Parse exactly one lowercase 40-character expected Production SHA and one lowercase 40-character tooling SHA; reject missing, additional, uppercase, malformed, or URL-bearing input.",
-            "Checkout the exact requested tooling SHA without persisted credentials.",
-            "Require the requested tooling SHA to equal current protected main and the requested expected SHA to equal current protected Production.",
-            "Run the existing canonical runtime parity reporter contract test.",
-            "Probe only the fixed public HTTPS endpoint auth.mad4b.com/version using the canonical reporter.",
-            "Upload bounded structured evidence and fail closed unless exact SHA, Production branch, service identity, DNS, TLS, HTTP, and no-side-effect assertions pass.",
-            "Classify an exact generated specs/<feature>/work-map-integration.json update as ownership-neutral when it accompanies an independently governed single-PR runtime contract.",
-            "Retain fail-closed parallel and direct phase-contract ownership when any non-neutral file under the same Spec changes."
+            "Load the historical bridge contract as a retirement tombstone.",
+            "Require its scope to contain only the tombstone contract path.",
+            "Verify the retired Issue #4953 workflow and bridge-specific executable test are absent.",
+            "Scan live workflows for the retired command and historical issue binding.",
+            "Require the canonical R7 workflow, contract, and regression test to remain present.",
+            "Verify R7 retains fixed public HTTPS GET endpoints and false mutation-effect flags."
           ],
           "assertions": [
-            "The bridge has contents read and issues read only and declares no write permission.",
-            "No workflow_dispatch, pull_request_target, push, schedule, deployment, arbitrary URL, secret, credential, provider mutation, build creation, deployment, activation, restart, SQL, Migration Apply, database mutation, repository mutation, or external send authority is introduced.",
-            "The runtime endpoint is fixed to https://auth.mad4b.com/version and cannot be supplied by the comment.",
-            "Both main tooling and Production identities are reread from protected refs before the public request.",
-            "The existing mad4b.production-runtime-parity-evidence.v1 reporter remains the only runtime parity implementation.",
-            "An exact work-map-integration.json binding is neutral only for E2E ownership discovery; Work Map generation, binding, schema, and readback guards still validate it.",
-            "A real Spec source or contract change still activates the Spec contract and rejects an undeclared or unchanged contract.",
-            "The artifact declares secrets_included=false and all mutation/effect flags false."
+            "The tombstone grants no workflow trigger, repository write, provider, credential, deployment, restart, SQL, migration, database, or external-send authority.",
+            "The retired workflow and bridge-specific executable test remain absent.",
+            "No live workflow contains RUN_PRODUCTION_RUNTIME_PARITY or binds execution to Issue #4953.",
+            "Hostinger Production Runtime Readback R7 remains the sole supported runtime-parity entrypoint.",
+            "secrets_included is false."
           ],
           "tests": [
-            {"id":"production-runtime-parity-comment-bridge-contract","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-comment-bridge.mjs","args":[]},
-            {"id":"production-runtime-parity-canonical-reporter","runner":"node","working_directory":"http-generic-api","path":"scripts/test-production-runtime-parity-evidence.mjs","args":[]},
-            {"id":"parallel-pr-generated-binding-ownership-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-parallel-pr-flow-self-test.mjs","args":[]},
-            {"id":"parallel-work-governance-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-parallel-work-governance-self-test.mjs","args":[]},
-            {"id":"phase-governance-generated-binding-ownership-regression","runner":"node","working_directory":"http-generic-api","path":"scripts/e2e-phase-governance-self-test.mjs","args":[]}
+            {
+              "id": "production-runtime-parity-comment-bridge-retirement-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs",
+              "args": []
+            }
           ],
           "evidence_paths": [
-            ".github/workflows/production-runtime-parity-comment-bridge.yml",
-            "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
-            "http-generic-api/scripts/e2e-parallel-work-governance-self-test.mjs",
-            "http-generic-api/scripts/e2e-parallel-work-governance.mjs",
-            "http-generic-api/scripts/e2e-phase-governance-self-test.mjs",
-            "http-generic-api/scripts/e2e-phase-governance.mjs",
-            "http-generic-api/scripts/test-production-runtime-parity-comment-bridge.mjs",
-            "http-generic-api/scripts/production-runtime-parity-evidence.mjs",
-            "http-generic-api/scripts/test-production-runtime-parity-evidence.mjs"
+            ".changes/e2e/production-runtime-parity-comment-bridge.json",
+            ".changes/e2e/production-runtime-parity-comment-bridge-retirement.json",
+            "http-generic-api/scripts/production-runtime-parity-comment-bridge-retirement-self-test.mjs",
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs"
           ]
         }
       ]
     },
-    {"id":"operational","status":"planned","objective":"Execute one exact run for the current protected Production SHA and attach the run-bound classification to incident 4953 without mutating the provider or runtime."},
-    {"id":"resilient","status":"planned","objective":"Keep replay, stale main, stale Production, malformed comments, unauthorized actors, unavailable artifacts, DNS/TLS/HTTP failures, identity mismatch, false generated-binding ownership, and undeclared real Spec changes fail-closed."},
-    {"id":"canary","status":"not_applicable","objective":"This bridge probes only the current protected Production identity and introduces no deployment or canary authority."},
-    {"id":"production","status":"planned","objective":"Require a passing exact-sha parity Artifact after every protected Production promotion before declaring Hostinger runtime activation complete."}
+    {
+      "id": "operational",
+      "status": "not_applicable",
+      "objective": "The tombstone is non-executable and introduces no operational runtime path."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reject reintroduction of the retired command, workflow identity, executable test, or Issue #4953 control binding."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Retirement validation performs no runtime probe or provider canary."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Prove protected main retains the tombstone and one authoritative R7 runtime-parity entrypoint after merge."
+    }
   ],
   "secrets_included": false
 }
