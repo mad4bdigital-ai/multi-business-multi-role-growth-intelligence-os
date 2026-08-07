@@ -6,6 +6,7 @@ import {
 } from "../src/api/resourceApi/resourceApiController.js";
 import { createDefaultResourceApiService } from "../src/infrastructure/resourceApi/resourceApiComposition.js";
 import { createResourceApiContextShadowMiddleware } from "../contextKernel/integration/index.js";
+import { buildBrandCoreAssetMaterializationRoutes } from "./brandCoreAssetMaterializationRoutes.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
@@ -64,6 +65,10 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-changes", requireBackend, requireAdmin, controller.adminResourceChanges);
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
+
+  // Brand Core materialization owns canonical User-JWT auth internally and must mount
+  // before the generic tenant resource routes that still retain legacy JWT compatibility.
+  router.use(buildBrandCoreAssetMaterializationRoutes());
 
   router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));
