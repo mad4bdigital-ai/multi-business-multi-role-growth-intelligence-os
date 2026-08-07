@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const VALID_RESOURCE_TYPES = new Set(["workspace", "brand", "site", "app", "asset", "workflow", "agent", "vault"]);
 const VALID_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit", "comment", "view"]);
@@ -97,13 +99,10 @@ function jsonMeta(value) {
   return JSON.stringify(value);
 }
 
-export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
-  if (typeof requireBackendApiKey !== "function") {
-    throw new Error("Canonical authentication middleware is required for workspace resource routes.");
-  }
+export function buildWorkspaceResourceRoutes() {
   const router = Router();
 
-  router.get("/me/workspaces/:tenant_id/resource-grants", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/resource-grants", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -126,7 +125,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_create
-  router.post("/me/workspaces/:tenant_id/resource-grants", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/resource-grants", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -165,7 +164,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_revoke
-  router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -189,7 +188,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/me/workspaces/:tenant_id/assets", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/assets", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -213,7 +212,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_brands_list
-  router.get("/me/workspaces/:tenant_id/brands", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/brands", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -327,7 +326,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/me/workspaces/:tenant_id/vaults", requireBackendApiKey, requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/vaults", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -350,6 +349,7 @@ export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
 
 export const _testingWorkspaceResourceRoutes = {
   requireUserJwt,
+  requireCanonicalUserJwt,
   optionalFilter,
   normalizeResourceType,
   normalizePermission,
