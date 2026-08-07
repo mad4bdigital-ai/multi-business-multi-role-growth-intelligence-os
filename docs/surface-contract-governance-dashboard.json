@@ -39,10 +39,10 @@
     },
     "safety_marker_counts": {
       "no_provider_call": 462,
-      "no_credential_payload_read": 460,
-      "no_raw_secrets": 460,
-      "no_external_send": 460,
-      "no_external_write": 460,
+      "no_credential_payload_read": 461,
+      "no_raw_secrets": 461,
+      "no_external_send": 461,
+      "no_external_write": 461,
       "secrets_included_false": 462
     },
     "safety_marker_gap_migrations": 1,
@@ -77,8 +77,8 @@
   "triage": {
     "total_items": 4,
     "class_counts": {
-      "safety_marker_review": 3,
-      "standard_backlog_review": 1
+      "safety_marker_review": 2,
+      "standard_backlog_review": 2
     },
     "gate_candidate_count": 0
   },

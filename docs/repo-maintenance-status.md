@@ -90,8 +90,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml`
 - `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml`
 - `.github/workflows/hostinger-nodejs-build-evidence.yml`
-- `.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml`
-- `.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml`
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
 - `.github/workflows/hostinger-production-release-evidence-r5.yml`
 - `.github/workflows/hostinger-production-release-evidence-r6.yml`
@@ -151,7 +149,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
-- `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml`
 - `.github/workflows/retail-commerce-production-schema-baseline.yml`
@@ -181,7 +178,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
-- `.github/workflows/ueacp-live-authority-evidence-one-shot.yml`
 - `.github/workflows/verify-runtime.yml`
 
 ## Maintenance Scripts
