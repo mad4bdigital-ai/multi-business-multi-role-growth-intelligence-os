@@ -17,7 +17,9 @@
       "http-generic-api/platformPluginResolver.js",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+      "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
       "http-generic-api/test-platform-plugin-connection-ownership.mjs",
       "http-generic-api/test-platform-plugin-resolver.mjs",
       "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
@@ -31,24 +33,27 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace ownership and publish the same exact-workspace rule through the governed precise OpenAPI source, while preserving fail-closed ambiguity and preventing user, workspace, or brand scope expansion.",
+      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace and Brand ownership authority, publish the same exact-scope rule through the governed precise OpenAPI source, preserve fail-closed ambiguity, and prevent caller-controlled user, workspace, or Brand scope expansion.",
       "e2e_journeys": [
         {
           "id": "workspace-owned-platform-plugin-connections-fail-closed",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authenticated tenant user resolving a platform-plugin action in an exact workspace",
+          "actor": "Authenticated tenant user resolving a platform-plugin action in an exact personal, company, or Brand workspace",
           "entrypoint": "POST /tenant/platform/plugins/resolve and resolvePlatformPluginExecution for an authenticated tenant/user/workspace",
-          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; the generated Tenant OpenAPI requires the same exact workspace; missing, mismatched, ambiguous, unclassified, cross-workspace, or brand ownership remains blocked without exposing candidate identifiers or secrets.",
+          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; Brand workspaces derive their Brand from canonical workspace binding and resolve Brand-owned connections only for tenant owner/admin or an exact operate-or-stronger Brand grant; missing, mismatched, ambiguous, unclassified, cross-workspace, cross-Brand, or under-privileged ownership remains blocked without exposing candidate identifiers or secrets.",
           "steps": [
             "Require an explicit workspace_id on the tenant resolve contract and derive tenant_id/user_id only from authenticated context.",
             "Read workspace ownership for the exact tenant and workspace, then query the Context Kernel compatibility view for classified active ownership in that same workspace.",
             "Map personal_workspace ownership to user_connection only when the authenticated user is the personal workspace owner.",
             "Map company_workspace ownership to tenant_connection without treating the user who originally connected the provider as the credential owner.",
-            "Exclude brand-owned connections until canonical Brand-management authority is composed into this resolver.",
+            "For a Brand workspace, derive the exact Brand from workspace_registry.linked_brand_key instead of accepting caller-supplied Brand authority.",
+            "Require exactly one active tenant membership; allow tenant owner/admin directly, otherwise require an exact effective Brand grant with operate, manage, admin, or owner permission.",
+            "Resolve Brand-owned credentials as tenant_connection while retaining owner_scope_type=brand and exact owner_scope_ref/brand_id filtering in the Context Kernel ownership view.",
+            "Reject view, comment, and edit Brand grants before credential lookup because Provider credential use is an operation-authority boundary, not a read/edit grant.",
             "Apply the existing cardinality guard so multiple usable candidates fail closed before any connection identifier is selected.",
             "Publish the workspace-aware request and sanitized ownership evidence from one precise OpenAPI path-item source using governed inline composition into openapi.yaml and the generated Tenant Core surface.",
-            "Assert scope mismatch and ambiguity responses contain no credential payload or candidate connection identifiers."
+            "Assert scope mismatch, Brand authority denial, and ambiguity responses contain no credential payload, Brand identity leak, or candidate connection identifiers."
           ],
           "assertions": [
             "Tenant plugin resolution requires an exact workspace_id before credential resolution.",
@@ -56,16 +61,27 @@
             "Company Workspace ownership resolves only to tenant_connection for the exact workspace, independent of the legacy connected user field.",
             "A caller-requested user_connection cannot downgrade or widen a company-workspace connection and returns CONNECTION_OWNERSHIP_SCOPE_MISMATCH.",
             "Unknown, ambiguous, unclassified, or personal-owner-mismatched workspace ownership fails closed before connection lookup.",
-            "Brand connections are excluded from this bounded change and cannot become eligible without the separate canonical Brand authority path.",
+            "Brand identity is derived from the exact workspace binding and cannot be widened by a caller-provided Brand selector.",
+            "Brand connections require an active tenant membership plus tenant owner/admin authority or an exact effective Brand grant at operate or stronger; view, comment, and edit grants remain denied.",
+            "Brand-owned connections use tenant_connection as the credential source while retaining owner_scope_type=brand and exact Brand filtering.",
+            "Missing Brand binding, missing membership, insufficient Brand grant, or cross-Brand ownership returns BRAND_CONNECTION_AUTHORITY_REQUIRED before connection lookup and without revealing the canonical Brand reference.",
             "Two eligible connections in the resolved ownership scope return AMBIGUOUS_CONNECTION_SELECTION without a selected connection_id.",
             "Reversing ambiguous connection row order does not change the fail-closed result covered by the existing ambiguity regression.",
             "The precise tenant resolver contract requires plugin_key plus workspace_id, publishes one-selector-workspace-v2, and documents sanitized connection_ownership_resolution evidence.",
             "The precise registry transition is opt-in with composition_mode=inline; default registry contracts remain ref-based and unrecognized occupied inline operations remain fail-closed.",
-            "Generated Tenant Core OpenAPI and root OpenAPI must retain workspace_id, one-selector-workspace-v2, Brand exclusion evidence, and stable ownership denial codes.",
-            "No access token, refresh token, password, API key, encrypted credential, candidate connection identifier, or secret-backed value is exposed by ambiguity/scope denials.",
+            "Generated Tenant Core OpenAPI and root OpenAPI must retain workspace_id, one-selector-workspace-v2, explicit exact-Brand authority evidence, and stable ownership denial codes after the canonical writer runs.",
+            "No access token, refresh token, password, API key, encrypted credential, candidate connection identifier, unauthorized Brand identifier, or secret-backed value is exposed by ambiguity/scope/Brand-authority denials.",
+            "The Brand authority regression is registered in the canonical test manifest as well as this E2E journey.",
             "The change performs no database migration, Production mutation, provider call, credential/secret mutation, manual generated-artifact edit or force push."
           ],
           "tests": [
+            {
+              "id": "platform-plugin-brand-connection-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-brand-connection-authority.mjs",
+              "args": []
+            },
             {
               "id": "platform-plugin-workspace-ownership-regression",
               "runner": "node",
@@ -114,7 +130,9 @@
             "http-generic-api/platformPluginResolver.js",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
             "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+            "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
             "http-generic-api/test-platform-plugin-connection-ownership.mjs",
             "http-generic-api/test-platform-plugin-resolver.mjs",
             "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
