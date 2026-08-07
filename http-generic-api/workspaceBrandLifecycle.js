@@ -22,6 +22,17 @@ export function canonicalWorkspaceBrandTargetKey(tenantId, normalizedBrandName) 
   return `workspace_brand_${digest.slice(0, 32)}`;
 }
 
+export function canonicalBrandWorkspaceIdentity(tenantId, targetKey) {
+  const tenant = String(tenantId || "").trim();
+  const target = String(targetKey || "").trim();
+  if (!tenant || !target) return { workspaceId: "", workspaceKey: "" };
+  const digest = createHash("sha256").update(`brand-workspace|${tenant}|${target}`).digest("hex");
+  return {
+    workspaceId: `${digest.slice(0, 8)}-${digest.slice(8, 12)}-4${digest.slice(13, 16)}-a${digest.slice(17, 20)}-${digest.slice(20, 32)}`,
+    workspaceKey: `brand_workspace_${digest.slice(0, 32)}`,
+  };
+}
+
 function isBrandCoreReady(value) {
   if (value === true || value === 1) return true;
   return new Set(["true", "1", "yes", "ready"]).has(String(value ?? "").trim().toLowerCase());
@@ -158,6 +169,85 @@ async function ensureTenantBrandLink(connection, { tenantId, targetKey, actorUse
   return requireExactlyOne(rows, "workspace_brand_link_readback_invalid", "Workspace brand link did not resolve exactly once.");
 }
 
+function validateBrandWorkspaceRow(row, targetKey) {
+  if (String(row.workspace_type || "").toLowerCase() !== "brand") {
+    throw lifecycleError(409, "workspace_brand_workspace_collision", "Canonical brand workspace identity conflicts with a non-brand workspace.");
+  }
+  const linkedBrandKey = String(row.linked_brand_key || "").trim();
+  if (linkedBrandKey && linkedBrandKey !== targetKey) {
+    throw lifecycleError(409, "workspace_brand_workspace_collision", "Canonical brand workspace is linked to a different brand.");
+  }
+  return row;
+}
+
+async function ensureBrandWorkspace(connection, { tenantId, targetKey, displayName, actorUserId }) {
+  const identity = canonicalBrandWorkspaceIdentity(tenantId, targetKey);
+  const [candidateRows] = await connection.query(
+    `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status, linked_brand_key
+       FROM workspace_registry
+      WHERE tenant_id=? AND workspace_type='brand' AND (workspace_key=? OR linked_brand_key=?)
+      LIMIT 3 FOR UPDATE`,
+    [tenantId, identity.workspaceKey, targetKey]
+  );
+  if (candidateRows.length > 1) {
+    throw lifecycleError(409, "workspace_brand_workspace_ambiguous", "Brand workspace binding resolves to multiple active candidates.", [{ count: candidateRows.length }]);
+  }
+  if (candidateRows.length === 1) {
+    const existing = validateBrandWorkspaceRow(candidateRows[0], targetKey);
+    if (!String(existing.linked_brand_key || "").trim()) {
+      await connection.query(
+        `UPDATE workspace_registry
+            SET linked_brand_key=?,
+                bootstrap_status=CASE WHEN bootstrap_status='not_started' THEN 'in_progress' ELSE bootstrap_status END,
+                updated_at=CURRENT_TIMESTAMP
+          WHERE tenant_id=? AND workspace_id=? AND (linked_brand_key IS NULL OR linked_brand_key='' OR linked_brand_key=?)`,
+        [targetKey, tenantId, existing.workspace_id, targetKey]
+      );
+    }
+    const [readbackRows] = await connection.query(
+      `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status, linked_brand_key
+         FROM workspace_registry
+        WHERE tenant_id=? AND workspace_id=?
+        LIMIT 2 FOR UPDATE`,
+      [tenantId, existing.workspace_id]
+    );
+    return validateBrandWorkspaceRow(
+      requireExactlyOne(readbackRows, "workspace_brand_workspace_readback_invalid", "Brand workspace binding did not resolve exactly once."),
+      targetKey
+    );
+  }
+
+  const config = JSON.stringify({
+    lifecycle_source: "workspace_owner_brand_create",
+    created_by_user_id: actorUserId,
+    brand_target_key: targetKey,
+    brand_core_ready: false,
+    secrets_included: false,
+  });
+  await connection.query(
+    `INSERT INTO workspace_registry
+      (workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status, linked_brand_key, config_json)
+     VALUES (?, ?, ?, ?, 'brand', 'in_progress', ?, ?)
+     ON DUPLICATE KEY UPDATE updated_at=CURRENT_TIMESTAMP`,
+    [identity.workspaceId, tenantId, identity.workspaceKey, displayName, targetKey, config]
+  );
+  const [readbackRows] = await connection.query(
+    `SELECT workspace_id, tenant_id, workspace_key, display_name, workspace_type, bootstrap_status, linked_brand_key
+       FROM workspace_registry
+      WHERE tenant_id=? AND workspace_key=?
+      LIMIT 2 FOR UPDATE`,
+    [tenantId, identity.workspaceKey]
+  );
+  const workspace = validateBrandWorkspaceRow(
+    requireExactlyOne(readbackRows, "workspace_brand_workspace_readback_invalid", "Brand workspace binding did not resolve exactly once."),
+    targetKey
+  );
+  if (workspace.workspace_id !== identity.workspaceId) {
+    throw lifecycleError(409, "workspace_brand_workspace_collision", "Canonical brand workspace key conflicts with a different workspace identity.");
+  }
+  return workspace;
+}
+
 async function ensureCreatorBrandGrant(connection, { tenantId, targetKey, actorUserId }) {
   const grantId = randomUUID();
   const metadata = JSON.stringify({
@@ -210,7 +300,13 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
     created = canonical.created;
   }
 
-  const link = await ensureTenantBrandLink(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
+  const tenantBrandLink = await ensureTenantBrandLink(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
+  const workspace = await ensureBrandWorkspace(connection, {
+    tenantId: tenant,
+    targetKey: brand.target_key,
+    displayName: brand.brand_name || canonicalDisplayName,
+    actorUserId: actor,
+  });
   const grant = await ensureCreatorBrandGrant(connection, { tenantId: tenant, targetKey: brand.target_key, actorUserId: actor });
   const brandCoreReady = isBrandCoreReady(brand.brand_core_ready);
 
@@ -223,11 +319,12 @@ export async function createWorkspaceBrand(connection, { tenantId, actorUserId, 
       status: brand.status,
       brand_core_ready: brand.brand_core_ready ?? null,
     },
-    link,
+    link: workspace,
+    tenant_brand_link: tenantBrandLink,
     grant,
     next_steps: {
       brand_core_profile_required: !brandCoreReady,
-      asset_attachment_available: true,
+      asset_attachment_available: false,
       member_invitation_available: false,
     },
   };
@@ -237,4 +334,5 @@ export const _testingWorkspaceBrandLifecycle = {
   OWNER_ROLES,
   requireDisplayName,
   isBrandCoreReady,
+  validateBrandWorkspaceRow,
 };
