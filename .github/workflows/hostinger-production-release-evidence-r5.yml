@@ -52,9 +52,17 @@ jobs:
       EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id || '' }}
       EVENT_COMMENT_ID: ${{ github.event.comment.id || 'workflow-dispatch' }}
       INPUT_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
-      EVIDENCE_DIR: ${{ runner.temp }}/hostinger-production-release-evidence-r5
 
     steps:
+      - name: Initialize bounded R5 evidence directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence_dir="${RUNNER_TEMP}/hostinger-production-release-evidence-r5"
+          rm -rf "${evidence_dir}"
+          mkdir -p "${evidence_dir}"
+          echo "EVIDENCE_DIR=${evidence_dir}" >> "${GITHUB_ENV}"
+
       - name: Resolve explicit expected main head
         id: expected
         shell: bash
