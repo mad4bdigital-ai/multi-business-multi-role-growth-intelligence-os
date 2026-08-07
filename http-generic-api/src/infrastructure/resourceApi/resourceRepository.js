@@ -215,11 +215,11 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
 
   async function insertAsset({ tenantId, actorId, input }) {
     const assetType = String(input.asset_type || "").trim();
-    const assetRef = String(input.asset_ref || "").trim();
+    const assetRef = String(input.asset_ref || input.asset_id || "").trim();
     if (!assetRef || assetRef.length > 512) {
       throw resourceRepositoryInvariantError(
         "workspace_asset_ref_required",
-        "asset_ref is required and must not exceed 512 characters.",
+        "asset_ref or an explicit asset_id is required and must not exceed 512 characters.",
         400
       );
     }
