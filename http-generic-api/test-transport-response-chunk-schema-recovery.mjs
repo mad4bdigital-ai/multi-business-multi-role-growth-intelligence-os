@@ -35,6 +35,35 @@ for (const marker of [
   assert.ok(migration.includes(marker), `Transport recovery migration is missing ${marker}.`);
 }
 
+for (const safetyMarker of [
+  "no_provider_call",
+  "no_credential_payload_read",
+  "no_raw_secrets",
+  "no_external_send",
+  "no_external_write",
+  "secrets_included_false",
+]) {
+  assert.match(
+    migration,
+    new RegExp(`^\\s*--\\s*${safetyMarker}\\s*$`, "mi"),
+    `Transport recovery migration is missing independent safety marker ${safetyMarker}.`,
+  );
+}
+
+for (const zeroAuthorityProjection of [
+  "provider_calls",
+  "credential_payload_reads",
+  "external_sends",
+  "external_writes",
+  "secrets_included",
+]) {
+  assert.match(
+    migration,
+    new RegExp(`\\b0\\s+AS\\s+${zeroAuthorityProjection}\\b`, "i"),
+    `Transport readiness view must project ${zeroAuthorityProjection}=0.`,
+  );
+}
+
 for (const unrelatedSurface of [
   "tenant_resolution_cases",
   "tenant_resolution_case_events",
