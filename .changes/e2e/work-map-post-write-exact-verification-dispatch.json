@@ -10,6 +10,7 @@
       ".github/workflows/spec-kit-work-map-autofix.yml",
       ".specify/pipeline-connectivity-contract.json",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
       "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
       ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
     ]
@@ -40,13 +41,14 @@
             "Keep current CI receiver semantics that check out the pull-request head or workflow-dispatch event SHA.",
             "Keep current Work Map Integration receiver semantics that check out its event SHA and resolve the unique same-repository open PR identity for workflow dispatch.",
             "Publish V3 writer diagnostics containing the dispatch exits and exact verification run IDs.",
-            "Require the Pipeline Connectivity contract to reject legacy opaque CLI verification dispatch."
+            "Require the Pipeline Connectivity contract and all repository write-boundary regressions to reject legacy V2 opaque CLI verification dispatch."
           ],
           "assertions": [
             "The writer contains no gh workflow run call for CI or Work Map Integration verification.",
             "The writer refuses stale branch movement before dispatch and filters observed runs by exact result_head_sha.",
             "CI and Work Map Integration do not need stale branch/SHA input contracts because workflow_dispatch event SHA is the dispatched ref identity and the writer independently verifies the resulting run head SHA.",
             "Pipeline governance requires V3 REST dispatch, dispatch exit codes, exact-head filtering, and numeric run identities and forbids V2/opaque dispatch signatures.",
+            "The repository write-boundary regression suite requires V3 markers and rejects V2 and gh workflow run verification signatures.",
             "No direct main or Production mutation, force push, provider call, deployment, database mutation, migration Apply, credential payload read, external business send, or secret inclusion is introduced."
           ],
           "tests": [
@@ -63,6 +65,13 @@
               "working_directory": "http-generic-api",
               "path": "test-pipeline-connectivity-check.mjs",
               "args": []
+            },
+            {
+              "id": "supervisor-runtime-assurance-work-map-v3-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-supervisor-runtime-assurance-automation.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -71,6 +80,7 @@
             ".github/workflows/spec-kit-work-map-integration.yml",
             ".specify/pipeline-connectivity-contract.json",
             "http-generic-api/test-pipeline-connectivity-check.mjs",
+            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
             "http-generic-api/test-work-map-post-write-exact-verification-dispatch.mjs",
             ".changes/e2e/work-map-post-write-exact-verification-dispatch.json"
           ]

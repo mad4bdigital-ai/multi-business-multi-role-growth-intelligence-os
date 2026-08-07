@@ -65,18 +65,24 @@ for (const marker of [
   "Dispatch exact-head verification",
   "Finalize diagnostic evidence",
   "${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}",
-  "mad4b.spec-kit-work-map-autofix.v2",
-  "WORK_MAP_AUTOFIX_V2",
+  "mad4b.spec-kit-work-map-autofix.v3",
+  "WORK_MAP_AUTOFIX_V3",
   "work-map-autofix-diagnostics-",
   "actions/upload-artifact@v4",
   "git check-ref-format --branch",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
-  "gh workflow run ci.yml",
-  "gh workflow run spec-kit-work-map-integration.yml",
+  "gh api --method POST",
+  "actions/workflows/ci.yml/dispatches",
+  "actions/workflows/spec-kit-work-map-integration.yml/dispatches",
+  "ci_dispatch_exit_code",
+  "integration_dispatch_exit_code",
+  "ci_run_id",
+  "integration_run_id",
+  "RESULT_HEAD_SHA",
 ]) {
-  assert.ok(workMapAutofix.includes(marker), `Work Map Autofix v2 missing ${marker}`);
+  assert.ok(workMapAutofix.includes(marker), `Work Map Autofix v3 missing ${marker}`);
 }
 assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
@@ -88,6 +94,10 @@ assert.match(workMapAutofix, /-f base=main/);
 assert.match(workMapAutofix, /head="\$\{GITHUB_REPOSITORY_OWNER\}:\$\{TARGET_BRANCH\}"/);
 assert.doesNotMatch(workMapAutofix, /types: \[reopened\]/);
 assert.doesNotMatch(workMapAutofix, /work-map-autofix:authorized/);
+assert.doesNotMatch(workMapAutofix, /gh workflow run ci\.yml/);
+assert.doesNotMatch(workMapAutofix, /gh workflow run spec-kit-work-map-integration\.yml/);
+assert.doesNotMatch(workMapAutofix, /mad4b\.spec-kit-work-map-autofix\.v2/);
+assert.doesNotMatch(workMapAutofix, /WORK_MAP_AUTOFIX_V2/);
 assert.doesNotMatch(workMapAutofix, /--force(?:-with-lease)?/);
 
 for (const marker of [
@@ -111,6 +121,12 @@ assert.deepEqual(
   writerPolicy.non_writer_pipelines.map((row) => row.pipeline).sort(),
   ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
 );
+assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));
+assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));
+assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));
+assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));
+assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run ci.yml"));
+assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run spec-kit-work-map-integration.yml"));
 
 const recoveryBridgePolicy = writerPolicy.non_writer_pipelines.find(
   (row) => row.pipeline === "work-map-recovery-bridge",
