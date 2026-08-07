@@ -28,12 +28,16 @@ jobs:
 
       - name: Guard exact remote head
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
-          remote="$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')"
+          remote="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
+          local_head="$(git rev-parse HEAD)"
+          printf 'remote=%s\nevent=%s\ncheckout=%s\n' "$remote" "$GITHUB_SHA" "$local_head"
           test "$remote" = "$GITHUB_SHA"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$local_head" = "$GITHUB_SHA"
 
       - name: Apply validated V4 source patch
         shell: bash
@@ -121,6 +125,8 @@ jobs:
 
       - name: Commit bounded source repair
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           branch='fix/migration-1048-canonical-confirmation-and-readiness-marker'
@@ -129,6 +135,7 @@ jobs:
           git add -- .github/ops/transport-response-schema-1048-governed-rollout.mjs http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
           git diff --cached --quiet && { echo 'No source repair changes' >&2; exit 1; }
           git commit -m 'fix(migration): align 1048 runtime confirmation contract'
-          remote="$(git ls-remote origin "refs/heads/${branch}" | awk '{print $1}')"
+          remote="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
+          printf 'remote-before-push=%s\ntrigger=%s\n' "$remote" "$GITHUB_SHA"
           test "$remote" = "$GITHUB_SHA"
           git push origin "HEAD:refs/heads/${branch}"
