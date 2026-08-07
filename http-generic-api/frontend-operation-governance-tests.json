@@ -20,6 +20,10 @@
     {
       "file": "test-workspace-brand-create-operation-governance.mjs",
       "evidence_scope": "workspace-brand-create-transaction"
+    },
+    {
+      "file": "test-brand-core-asset-materialization-operation-governance.mjs",
+      "evidence_scope": "workspace-brand-core-asset-materialization-transaction"
     }
   ]
 }
