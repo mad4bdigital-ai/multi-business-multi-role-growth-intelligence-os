@@ -17,20 +17,23 @@ export { extractFunctionBlock };
 const DEFAULT_OUTPUT = "frontend-operation-governance.generated.json";
 const WRAPPER_FILE = "scripts/frontend-operation-governance-generator.mjs";
 const BASE_GENERATOR_FILE = "scripts/frontend-operation-governance-base.mjs";
+const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
+
 const LEASE_ROUTE_FILE = "routes/repositoryAutomationRoutes.js";
 const LEASE_CONTROL_FILE = "repositoryReconciliationLeaseControl.js";
 const LEASE_SERVICE_FILE = "repositoryOperationLeaseService.js";
 const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
+const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
+
 const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
 const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
 const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
+const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
+
 const MATERIALIZE_ROUTE_FILE = "routes/resourceApiRoutes.js";
 const MATERIALIZE_SERVICE_FILE = "workspaceBrandCoreAssetMaterialization.js";
-const MATERIALIZE_MIGRATION_FILE = "migrations/1050_workspace_asset_provenance_content_identity.sql";
+const MATERIALIZE_REPOSITORY_FILE = "src/infrastructure/resourceApi/resourceRepository.js";
 const MATERIALIZE_TEST_FILE = "test-brand-core-asset-materialization-operation-governance.mjs";
-const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
-const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
-const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
 const BRAND_CORE_MATERIALIZE_OPERATION = "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core";
 
 function canonicalText(value = "") {
@@ -194,14 +197,15 @@ function evaluateBrandCreateRecipe(apiRoot) {
 function evaluateBrandCoreMaterializeRecipe(apiRoot) {
   const routeSource = readText(apiRoot, MATERIALIZE_ROUTE_FILE);
   const serviceSource = readText(apiRoot, MATERIALIZE_SERVICE_FILE);
-  const migrationSource = readText(apiRoot, MATERIALIZE_MIGRATION_FILE);
+  const repositorySource = readText(apiRoot, MATERIALIZE_REPOSITORY_FILE);
   const route = routeRegistry(routeSource, MATERIALIZE_ROUTE_FILE).get(BRAND_CORE_MATERIALIZE_OPERATION);
   const materializeBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAsset");
-  const schemaBlock = extractFunctionBlock(serviceSource, "assertProvenanceSchema");
+  const inputBlock = extractFunctionBlock(serviceSource, "materializedAssetInput");
   const brandBlock = extractFunctionBlock(serviceSource, "resolveCanonicalBrand");
   const workspaceBlock = extractFunctionBlock(serviceSource, "resolveBrandWorkspace");
   const sourceBlock = extractFunctionBlock(serviceSource, "resolveBrandCoreSource");
-  const persistBlock = extractFunctionBlock(serviceSource, "materializeAsset");
+  const persistBlock = extractFunctionBlock(serviceSource, "persistMaterializedAsset");
+  const insertAssetBlock = extractFunctionBlock(repositorySource, "insertAsset");
   const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CORE_MATERIALIZE_OPERATION) || [];
   const gates = [
     evidenceGate("route_present", route, MATERIALIZE_ROUTE_FILE),
@@ -214,33 +218,35 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
     ),
     evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAsset"),
     evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && routeSource.includes("await connection.beginTransaction()") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "transaction begin/commit/rollback"),
-    evidenceGate("route_readback_marker", routeSource.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && routeSource.includes("provenance_sha256"), "exact materialization readback marker"),
+    evidenceGate("route_readback_marker", routeSource.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && routeSource.includes("source_provider") && routeSource.includes("content_identity"), "canonical asset projection readback marker"),
     evidenceGate("service_present", materializeBlock, "materializeWorkspaceBrandCoreAsset"),
-    evidenceGate("schema_preflight", schemaBlock.includes("information_schema.columns") && schemaBlock.includes("1050_workspace_asset_provenance_content_identity.sql"), "Migration 1050 schema preflight"),
     evidenceGate("canonical_brand_authority", brandBlock.includes("resolveWorkspaceAssetBrandRef") && brandBlock.includes("FOR UPDATE"), "canonical tenant Brand authority"),
     evidenceGate("brand_workspace_authority", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "canonical Brand Workspace authority"),
     evidenceGate("canonical_source_resolution", sourceBlock.includes("FROM brand_core") && sourceBlock.includes("LIMIT 3 FOR UPDATE") && sourceBlock.includes("sourceActive"), "Brand Core source identity/status resolution"),
-    evidenceGate("provenance_identity", persistBlock.includes("source_ref_sha256") && persistBlock.includes("provenance_sha256") && persistBlock.includes("content_sha256") && persistBlock.includes("brand_core"), "durable provenance/content identity fields"),
-    evidenceGate("transactional_readback", persistBlock.includes("FROM workspace_assets") && persistBlock.includes("LIMIT 2 FOR UPDATE") && persistBlock.includes("brand_core_asset_materialize_readback_mismatch"), "exact persisted provenance readback"),
+    evidenceGate("canonical_provenance_adapter", inputBlock.includes('source_type: "import"') && inputBlock.includes('source_provider: "brand_core"') && inputBlock.includes("content_sha256: null") && inputBlock.includes("brand_workspace_id"), "Brand Core source mapped into canonical workspace asset provenance"),
+    evidenceGate("canonical_asset_persistence", persistBlock.includes("createResourceRepository") && persistBlock.includes("repository.insertAsset"), "canonical Resource API repository insertAsset"),
+    evidenceGate("atomic_asset_serialization", insertAssetBlock.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id") && insertAssetBlock.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?") && insertAssetBlock.includes("LIMIT 2 FOR UPDATE"), "existing workspace asset UNIQUE identity serialization and locked reread"),
+    evidenceGate("provenance_conflict_guard", insertAssetBlock.includes("assertWorkspaceAssetIdentityCompatible") && insertAssetBlock.includes("workspace_asset_provenance_readback_mismatch"), "canonical provenance compatibility/readback"),
+    evidenceGate("transactional_lineage_readback", persistBlock.includes("FROM workspace_assets") && persistBlock.includes("LIMIT 2 FOR UPDATE") && persistBlock.includes("brand_core_asset_materialize_readback_mismatch"), "exact Brand Core lineage readback"),
+    evidenceGate("no_parallel_schema_preflight", !serviceSource.includes("information_schema") && !serviceSource.includes("workspace_asset_provenance_schema_required"), "no second provenance schema authority"),
     evidenceGate("no_provider_content_fetch", serviceSource.includes("provider_content_fetched: false") && !serviceSource.includes("fetch("), "no provider content fetch"),
-    evidenceGate("migration_contract", migrationSource.includes("v_workspace_asset_provenance_schema_readiness") && migrationSource.includes("uq_workspace_asset_provenance") && migrationSource.includes("content_sha256 CHAR(64)"), "Migration 1050 provenance readiness"),
     evidenceGate("registered_operation_test", claimedTests.includes(MATERIALIZE_TEST_FILE), MATERIALIZE_TEST_FILE),
   ];
   const recipe = {
-    recipe_id: "workspace-brand-core-asset-materialize-v1",
+    recipe_id: "workspace-brand-core-asset-materialize-v2",
     rule_id: "generated-workspace-brand-core-asset-materialize-governance",
     operation: BRAND_CORE_MATERIALIZE_OPERATION,
     source_file: MATERIALIZE_ROUTE_FILE,
     owner: "workspace-platform",
-    rationale: "Materializes exactly one active Brand Core context source into durable workspace_assets only after canonical User-JWT, tenant Brand authority, Brand Workspace authority, Migration 1050 provenance readiness, deterministic source identity, and transactional persisted-provenance readback; no provider content is fetched or falsely checksummed.",
-    preflight_mode: "canonical_user_jwt_brand_authority_and_provenance_schema",
+    rationale: "Materializes exactly one active Brand Core context source only after canonical User-JWT, tenant Brand authority and Brand Workspace authority; persistence is delegated to the canonical Resource API workspace asset lifecycle, whose existing unique identity serializes retries/concurrency and whose provenance compatibility/readback fails closed on conflicting source identity. No provider content is fetched or falsely checksummed.",
+    preflight_mode: "canonical_user_jwt_brand_authority_and_resource_asset_provenance",
     approval_mode: "runtime_authorization",
     parameter_bindings: {
       tenant_id: "request.path.tenant_id",
       brand_ref: "request.body.brand_ref",
       source_ref: "request.body.source_ref",
       asset_id: "response.asset.asset_id",
-      provenance_sha256: "response.asset.provenance_sha256",
+      content_identity: "response.asset.content_identity",
       brand_workspace_id: "response.workspace.workspace_id",
     },
   };
@@ -250,7 +256,7 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
     evidenceFiles: [
       MATERIALIZE_ROUTE_FILE,
       MATERIALIZE_SERVICE_FILE,
-      MATERIALIZE_MIGRATION_FILE,
+      MATERIALIZE_REPOSITORY_FILE,
       MATERIALIZE_TEST_FILE,
     ],
   };
@@ -279,8 +285,7 @@ function generatedStateChangeRule(recipe, evidenceFiles, apiRoot) {
 }
 
 function withSourceAuthority(plan, apiRoot) {
-  const files = unique([
-    ...plan.source_authority.map((entry) => entry.file),
+  const extensionFiles = [
     WRAPPER_FILE,
     BASE_GENERATOR_FILE,
     TEST_REGISTRY_FILE,
@@ -293,8 +298,12 @@ function withSourceAuthority(plan, apiRoot) {
     BRAND_TEST_FILE,
     MATERIALIZE_ROUTE_FILE,
     MATERIALIZE_SERVICE_FILE,
-    MATERIALIZE_MIGRATION_FILE,
+    MATERIALIZE_REPOSITORY_FILE,
     MATERIALIZE_TEST_FILE,
+  ];
+  const files = unique([
+    ...plan.source_authority.map((entry) => entry.file),
+    ...extensionFiles,
   ]);
   const sourceAuthority = files.map((file) => ({
     file,
@@ -305,7 +314,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v4-brand-core-asset-materialization",
+      id: "frontend-operation-governance-generator-v5-brand-core-canonical-asset-lifecycle",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
@@ -337,9 +346,9 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
         missing_evidence: missingEvidence,
         gates: evaluation.gates,
       });
-    } else {
-      operationRules.push(generatedStateChangeRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
+      continue;
     }
+    operationRules.push(generatedStateChangeRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
   }
 
   operationRules.sort((left, right) => left.operation.localeCompare(right.operation));
