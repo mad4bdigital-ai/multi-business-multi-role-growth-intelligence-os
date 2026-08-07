@@ -89,6 +89,7 @@ export function buildOperationObservabilityRoutes({
 } = {}) {
   const router = Router();
   const requireAdmin = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const requireTenant = [requireBackendApiKey, requireTenantObservabilityPrincipal].filter(Boolean);
 
   router.get(
     "/admin/operations/observability",
@@ -97,7 +98,7 @@ export function buildOperationObservabilityRoutes({
   );
   router.get(
     "/tenant/operations/observability",
-    requireTenantObservabilityPrincipal,
+    ...requireTenant,
     dashboardHandler,
   );
 
