@@ -1,12 +1,12 @@
 # Surface Contract Gap Trends
 
 - Baseline items: 125
-- Current queue items: 4
-- Current triaged items: 4
+- Current queue items: 3
+- Current triaged items: 3
 - Gate candidates: 0
-- Blocking new items: 2
+- Blocking new items: 1
 - Trend quality gate: fail
-- Docs completion: 99.14%
+- Docs completion: 99.35%
 - SQL route OpenAPI coverage: 100%
 - OpenAPI-exempt SQL route-like literals: 674/705
 - Safety marker gap migrations: 1
