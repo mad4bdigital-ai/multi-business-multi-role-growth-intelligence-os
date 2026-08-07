@@ -1,0 +1,112 @@
+name: Repair Migration 1048 Rollout Contract V3
+
+on:
+  push:
+    branches:
+      - fix/migration-1048-canonical-confirmation-and-readiness-marker
+    paths:
+      - .github/ops/repair-migration-1048-rollout-contract-v3.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-migration-1048-rollout-contract-v3
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: fix/migration-1048-canonical-confirmation-and-readiness-marker
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify exact repair head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          git fetch origin "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+
+      - name: Patch canonical Migration 1048 contract
+        run: node .github/ops/repair-migration-1048-rollout-contract-v3.mjs
+
+      - name: Verify patched rollout regression contract
+        run: node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Remove temporary repair scaffolding
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f --ignore-unmatch \
+            .github/workflows/repair-migration-1048-rollout-contract.yml \
+            .github/ops/repair-migration-1048-rollout-contract.trigger \
+            .github/workflows/repair-migration-1048-rollout-contract-v2.yml \
+            .github/ops/repair-migration-1048-rollout-contract-v2.trigger \
+            .github/workflows/repair-migration-1048-rollout-contract-v3.yml \
+            .github/ops/repair-migration-1048-rollout-contract-v3.trigger \
+            .github/ops/repair-migration-1048-rollout-contract-v3.mjs
+
+      - name: Refresh final Work Maps and Spec014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+
+      - name: Verify exact final generated state
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+      - name: Enforce bounded repair diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t CHANGED < <(git status --short | sed -E 's/^.. //' | sort)
+          printf '%s\n' "${CHANGED[@]}"
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              .github/ops/repair-migration-1048-rollout-contract-v3.mjs|.github/ops/repair-migration-1048-rollout-contract-v3.trigger|.github/ops/repair-migration-1048-rollout-contract.trigger|.github/ops/repair-migration-1048-rollout-contract-v2.trigger|.github/ops/transport-response-schema-1048-governed-rollout.mjs|.github/workflows/repair-migration-1048-rollout-contract.yml|.github/workflows/repair-migration-1048-rollout-contract-v2.yml|.github/workflows/repair-migration-1048-rollout-contract-v3.yml|.github/workflows/transport-response-schema-1048-governed-rollout.yml|http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs|docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json)
+                ;;
+              *) echo "Unexpected repair write: $file"; exit 1 ;;
+            esac
+          done
+
+      - name: Commit and push exact repaired head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo 'Repair produced no staged changes'; exit 1; }
+          git commit -m "fix(migration): align 1048 canonical rollout confirmations"
+          NEW_HEAD="$(git rev-parse HEAD)"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          test -z "$(git status --porcelain)"
+          git fetch origin "${EXPECTED_BRANCH}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
+          echo "result_head=${NEW_HEAD}" >> "$GITHUB_STEP_SUMMARY"
