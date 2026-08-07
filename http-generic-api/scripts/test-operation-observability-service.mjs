@@ -75,6 +75,16 @@ const route = readFileSync(
 assert.match(route, /"\/admin\/operations\/observability"/);
 assert.match(route, /"\/tenant\/operations\/observability"/);
 assert.match(route, /ACTIVE_TENANT_MEMBERSHIP_REQUIRED/);
+assert.match(
+  route,
+  /const requireTenant = \[requireBackendApiKey, requireTenantObservabilityPrincipal\]\.filter\(Boolean\)/,
+  "Tenant observability must parse and validate the bearer credential before membership scoping.",
+);
+assert.match(
+  route,
+  /"\/tenant\/operations\/observability",\s*\.\.\.requireTenant,/,
+  "Tenant observability must use the authenticated tenant guard chain.",
+);
 
 const mount = readFileSync(
   new URL("../routes/repositoryAutomationRoutes.js", import.meta.url),
