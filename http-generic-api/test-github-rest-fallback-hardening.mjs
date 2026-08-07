@@ -23,6 +23,16 @@ assert(adminCliRoutes.includes('allowedContentsMutation'), 'GitHub REST fallback
 assert(adminCliRoutes.includes('toUpperCase() === "PUT"'), 'GitHub REST fallback contents mutation must be limited to non-destructive PUT writes');
 assert(!adminCliRoutes.includes('["PUT", "DELETE"].includes'), 'GitHub REST fallback must not allow contents DELETE through the write fallback');
 assert(adminCliRoutes.includes('github_rest_contents_workflow_blocked'), 'GitHub REST fallback must block workflow file mutation through contents writes');
+assert(adminCliRoutes.includes('assertGithubContentsMutationIntent'), 'GitHub contents writes must validate explicit target intent');
+assert(adminCliRoutes.includes('github_rest_contents_branch_required'), 'GitHub contents writes must reject an omitted branch instead of using the default branch');
+assert(adminCliRoutes.includes('github_rest_contents_protected_branch'), 'GitHub contents writes must reject protected and default branches');
+assert(adminCliRoutes.includes('github_rest_contents_branch_prefix_blocked'), 'GitHub contents writes must require a governed work-branch prefix');
+assert(adminCliRoutes.includes('github_rest_contents_expected_head_required'), 'GitHub contents writes must require an expected target head');
+assert(adminCliRoutes.includes('github_rest_contents_branch_not_found'), 'GitHub contents writes must fail closed when the requested branch does not exist');
+assert(adminCliRoutes.includes('github_rest_contents_stale_branch'), 'GitHub contents writes must reject target-ref movement before mutation');
+assert(adminCliRoutes.includes('delete body.expected_branch_sha'), 'Expected-head governance fields must not be sent to the GitHub contents endpoint');
+assert(adminCliRoutes.includes('github_rest_contents_branch_readback_failed'), 'GitHub contents writes must verify the exact resulting branch head');
+assert(adminCliRoutes.includes('content_write: true'), 'GitHub contents writes must return bounded mutation evidence');
 assert(adminCliRoutes.includes('command === "graphql"'), 'GitHub REST fallback must support explicit GraphQL API calls');
 assert(adminCliRoutes.includes('assertGithubGraphqlReadOnly'), 'GitHub GraphQL fallback must enforce read-only queries');
 assert(adminCliRoutes.includes('github_rest_graphql_mutation_blocked'), 'GitHub GraphQL fallback must block mutations and subscriptions');
