@@ -59,7 +59,7 @@ async function requireExplicitTenantResourceBinding(connection, {
         AND crb.status = 'active'
         AND c.status = 'active'
         AND d.status = 'active'
-        AND crb.effect IN ('allow','share','delegate')
+        AND crb.effect = 'allow'
         AND (crb.valid_from IS NULL OR crb.valid_from <= UTC_TIMESTAMP())
         AND (crb.valid_until IS NULL OR crb.valid_until > UTC_TIMESTAMP())
       LIMIT 20 FOR UPDATE`,
@@ -69,7 +69,7 @@ async function requireExplicitTenantResourceBinding(connection, {
     throw authorityError(
       422,
       "workspace_resource_reference_unverifiable",
-      `${resourceType} resource has no current explicit tenant authority binding.`
+      `${resourceType} resource has no current explicit direct tenant authority binding.`
     );
   }
   return rows;
