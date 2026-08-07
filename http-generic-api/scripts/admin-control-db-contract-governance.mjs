@@ -48,7 +48,7 @@ function quoted(value) {
 }
 
 function objectFieldPattern(field) {
-  return new RegExp(`\\b${quoted(field)}\\s*(?::|(?=[,}]))`);
+  return new RegExp(`(?:^|[{,])\\s*${quoted(field)}\\s*(?::|(?=[,}]))`);
 }
 
 function providerEntrypointIndex(source) {
@@ -64,7 +64,7 @@ export function scanRawDbCallerSource(source, contract, file = '<fixture>') {
     const start = positions[index];
     const next = positions[index + 1] ?? Math.min(source.length, start + 2200);
     const segment = source.slice(start, Math.min(next, start + 2200));
-    const actionMatch = /action\s*:\s*['\"]([^'\"]+)['\"]/.exec(segment);
+    const actionMatch = /(?:^|[{,])\s*action\s*:\s*['\"]([^'\"]+)['\"]/.exec(segment);
     if (!actionMatch) {
       findings.push({ code: 'admin_db_raw_caller_missing_action', file, offset: start });
       continue;
@@ -290,7 +290,7 @@ function runSelfTest() {
     provider_path: '<provider-fixture>',
     provider_error_codes: {
       unsupported_action: 'unsupported_db_action',
-      missing_sql: 'db_sql_required',
+      missing_sql: 'missing_sql',
     },
     legacy_aliases: { sql_fields: ['query'], actions: ['query'] },
     ratchet: { provider_compatibility_aliases_allowed: false },
@@ -306,7 +306,7 @@ function runSelfTest() {
       const sql = typeof body.sql === 'string' ? body.sql : '';
       if (!sql.trim()) {
         const err = new Error('sql is required');
-        err.code = 'db_sql_required';
+        err.code = 'missing_sql';
         throw err;
       }
       return { sql };
