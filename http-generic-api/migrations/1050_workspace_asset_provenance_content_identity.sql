@@ -2,7 +2,7 @@
 -- Purpose: add durable, queryable provenance/content-identity fields required by the
 -- Brand Core -> workspace asset materialization lifecycle without rewriting legacy rows.
 -- Safety: additive and idempotent. No provider calls, credential reads, external sends,
--- destructive DDL, live content fetch, or secret-bearing payloads. secrets_included=false.
+-- destructive row DDL, live content fetch, or secret-bearing payloads. secrets_included=false.
 -- This migration is repository delivery only; apply requires the normal governed DB path.
 -- no_provider_call
 -- no_credential_payload_read
@@ -110,10 +110,23 @@ PREPARE wa_content_sha_stmt FROM @wa_content_sha_sql;
 EXECUTE wa_content_sha_stmt;
 DEALLOCATE PREPARE wa_content_sha_stmt;
 
+-- Canonical provenance uniqueness must compare the complete canonical Brand key.
+-- A prefix index such as brand_ref(96) can collapse distinct long Brand identities into
+-- a false duplicate, so any pre-existing non-canonical shape is repaired before use.
 SET @wa_provenance_index_sql := (
-  SELECT CASE WHEN COUNT(*) = 0
-    THEN 'ALTER TABLE workspace_assets ADD UNIQUE KEY uq_workspace_asset_provenance (tenant_id, brand_ref(96), source_type, source_ref_sha256)'
-    ELSE 'SELECT 1 AS workspace_asset_provenance_index_present' END
+  SELECT CASE
+    WHEN COUNT(*) = 0 THEN
+      'ALTER TABLE workspace_assets ADD UNIQUE KEY uq_workspace_asset_provenance (tenant_id, brand_ref, source_type, source_ref_sha256)'
+    WHEN COUNT(*) = 4
+      AND SUM(seq_in_index = 1 AND column_name = 'tenant_id' AND sub_part IS NULL) = 1
+      AND SUM(seq_in_index = 2 AND column_name = 'brand_ref' AND sub_part IS NULL) = 1
+      AND SUM(seq_in_index = 3 AND column_name = 'source_type' AND sub_part IS NULL) = 1
+      AND SUM(seq_in_index = 4 AND column_name = 'source_ref_sha256' AND sub_part IS NULL) = 1
+      AND MIN(non_unique) = 0 AND MAX(non_unique) = 0
+      THEN 'SELECT 1 AS workspace_asset_provenance_index_present'
+    ELSE
+      'ALTER TABLE workspace_assets DROP INDEX uq_workspace_asset_provenance, ADD UNIQUE KEY uq_workspace_asset_provenance (tenant_id, brand_ref, source_type, source_ref_sha256)'
+    END
   FROM information_schema.statistics
   WHERE table_schema = DATABASE() AND table_name = 'workspace_assets' AND index_name = 'uq_workspace_asset_provenance'
 );
@@ -137,9 +150,15 @@ SELECT
   'workspace_asset_provenance_v1' AS contract_key,
   9 AS required_column_count,
   metrics.present_column_count,
-  CASE WHEN metrics.present_column_count = 9 AND metrics.provenance_index_count = 1
+  CASE WHEN metrics.present_column_count = 9
+             AND metrics.provenance_index_column_count = 4
+             AND metrics.provenance_index_exact_count = 4
+             AND metrics.provenance_index_unique_count = 4
        THEN 'ready' ELSE 'blocked' END AS readiness_status,
-  metrics.provenance_index_count,
+  CASE WHEN metrics.provenance_index_column_count = 4
+             AND metrics.provenance_index_exact_count = 4
+             AND metrics.provenance_index_unique_count = 4
+       THEN 1 ELSE 0 END AS provenance_index_count,
   metrics.content_index_count,
   0 AS provider_calls,
   0 AS credential_payload_reads,
@@ -154,9 +173,20 @@ FROM (
           'workspace_id','source_type','source_ref','source_ref_sha256','source_revision','source_updated_at',
           'source_validation_status','provenance_sha256','content_sha256'
         )) AS present_column_count,
-    (SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
+    (SELECT COUNT(*) FROM information_schema.statistics
       WHERE table_schema = DATABASE() AND table_name = 'workspace_assets'
-        AND index_name = 'uq_workspace_asset_provenance') AS provenance_index_count,
+        AND index_name = 'uq_workspace_asset_provenance') AS provenance_index_column_count,
+    (SELECT COUNT(*) FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'workspace_assets'
+        AND index_name = 'uq_workspace_asset_provenance'
+        AND sub_part IS NULL
+        AND ((seq_in_index = 1 AND column_name = 'tenant_id')
+          OR (seq_in_index = 2 AND column_name = 'brand_ref')
+          OR (seq_in_index = 3 AND column_name = 'source_type')
+          OR (seq_in_index = 4 AND column_name = 'source_ref_sha256'))) AS provenance_index_exact_count,
+    (SELECT COUNT(*) FROM information_schema.statistics
+      WHERE table_schema = DATABASE() AND table_name = 'workspace_assets'
+        AND index_name = 'uq_workspace_asset_provenance' AND non_unique = 0) AS provenance_index_unique_count,
     (SELECT COUNT(DISTINCT index_name) FROM information_schema.statistics
       WHERE table_schema = DATABASE() AND table_name = 'workspace_assets'
         AND index_name = 'idx_workspace_asset_content_sha256') AS content_index_count
