@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const BRAND_ASSET_PERMISSIONS = new Set(["admin", "manage", "edit"]);
+const BRAND_ASSET_PERMISSION_RANK = new Map([["admin", 3], ["manage", 2], ["edit", 1]]);
 const ASSET_TYPES = new Set([
   "drive_file",
   "drive_folder",
@@ -18,6 +19,7 @@ const ASSET_TYPES = new Set([
 const VISIBILITIES = new Set(["workspace", "restricted", "private", "public"]);
 const INITIAL_STATUSES = new Set(["active", "draft"]);
 const SOURCE_TYPES = new Set(["manual", "import", "provider", "generated", "external"]);
+const SECRET_QUERY_KEY = /^(?:access[_-]?token|api[_-]?key|secret|signature|sig|credential|authorization|auth|password|passwd|key)$/i;
 
 function lifecycleError(status, code, message, details = []) {
   return Object.assign(new Error(message), { status, code, details });
@@ -26,6 +28,21 @@ function lifecycleError(status, code, message, details = []) {
 function normalizedString(value, max = 512) {
   const normalized = String(value ?? "").normalize("NFKC").trim();
   return normalized.length <= max ? normalized : "";
+}
+
+function containsCredentialLikeUrlMaterial(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  try {
+    const url = new URL(raw);
+    if (url.username || url.password) return true;
+    for (const key of url.searchParams.keys()) {
+      if (SECRET_QUERY_KEY.test(key)) return true;
+    }
+    return false;
+  } catch {
+    return /(?:^|[?&;\s])(access[_-]?token|api[_-]?key|secret|signature|credential|authorization|password|passwd)=/i.test(raw);
+  }
 }
 
 function normalizeBrandRef(value) {
@@ -44,6 +61,9 @@ function requireAssetRef(value) {
   const normalized = normalizedString(value, 512);
   if (!normalized) {
     throw lifecycleError(400, "workspace_asset_ref_required", "asset_ref is required and must not exceed 512 characters.");
+  }
+  if (containsCredentialLikeUrlMaterial(normalized)) {
+    throw lifecycleError(400, "workspace_asset_ref_secret_material_forbidden", "asset_ref must not contain credentials, signed tokens, or secret query parameters.");
   }
   return normalized;
 }
@@ -104,7 +124,26 @@ function normalizeOptionalProvenanceString(value, max = 512) {
   if (!normalized) {
     throw lifecycleError(400, "workspace_asset_provenance_invalid", "Asset provenance field is invalid or exceeds its allowed length.");
   }
+  if (containsCredentialLikeUrlMaterial(normalized)) {
+    throw lifecycleError(400, "workspace_asset_provenance_secret_material_forbidden", "Asset provenance must not contain credentials, signed tokens, or secret query parameters.");
+  }
   return normalized;
+}
+
+function normalizeSourceUri(value) {
+  const normalized = normalizeOptionalProvenanceString(value, 1024);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    if (!new Set(["http:", "https:"]).has(url.protocol)) return normalized;
+    url.username = "";
+    url.password = "";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return normalized;
+  }
 }
 
 function parseMetadata(value) {
@@ -215,17 +254,22 @@ async function requireBrandAssetAuthority(connection, tenantId, actorUserId, mem
       WHERE tenant_id=? AND grantee_user_id=? AND resource_type='brand' AND resource_ref=?
         AND status='active' AND (expires_at IS NULL OR expires_at>NOW())
       ORDER BY updated_at DESC
-      LIMIT 4 FOR UPDATE`,
+      LIMIT 20 FOR UPDATE`,
     [tenantId, actorUserId, brandTargetKey]
   );
-  const eligible = (grantRows || []).filter((row) => BRAND_ASSET_PERMISSIONS.has(String(row.permission || "").toLowerCase()));
+  const eligible = (grantRows || [])
+    .filter((row) => BRAND_ASSET_PERMISSIONS.has(String(row.permission || "").toLowerCase()))
+    .sort((left, right) => (BRAND_ASSET_PERMISSION_RANK.get(String(right.permission || "").toLowerCase()) || 0) - (BRAND_ASSET_PERMISSION_RANK.get(String(left.permission || "").toLowerCase()) || 0));
   if (eligible.length === 0) {
     throw lifecycleError(403, "workspace_asset_brand_authority_required", "Brand admin, manage, or edit authority is required.");
   }
-  if (eligible.length > 1) {
-    throw lifecycleError(409, "workspace_asset_brand_authority_ambiguous", "Brand Asset authority resolves to multiple active management grants.", [{ count: eligible.length }]);
-  }
-  return { mode: "brand_grant", permission: String(eligible[0].permission || "").toLowerCase(), grant_id: eligible[0].grant_id };
+  const selected = eligible[0];
+  return {
+    mode: "brand_grant",
+    permission: String(selected.permission || "").toLowerCase(),
+    grant_id: selected.grant_id,
+    effective_grant_count: eligible.length,
+  };
 }
 
 async function requireVaultOwnership(connection, tenantId, vaultId) {
@@ -243,7 +287,7 @@ async function requireVaultOwnership(connection, tenantId, vaultId) {
   return rows[0];
 }
 
-function assertExistingAssetCompatible(existing, { brandTargetKey, sourceType, contentSha256 }) {
+function assertExistingAssetCompatible(existing, { brandTargetKey, provenance }) {
   if (String(existing.lifecycle_status || "").toLowerCase() === "deleted") {
     throw lifecycleError(409, "workspace_asset_identity_deleted", "Asset identity already exists in deleted state and cannot be silently reactivated.");
   }
@@ -251,11 +295,13 @@ function assertExistingAssetCompatible(existing, { brandTargetKey, sourceType, c
     throw lifecycleError(409, "workspace_asset_identity_brand_conflict", "Asset identity already belongs to a different Brand.");
   }
   const metadata = parseMetadata(existing.metadata_json);
-  if (metadata.source_type && metadata.source_type !== sourceType) {
-    throw lifecycleError(409, "workspace_asset_identity_provenance_conflict", "Asset identity already has a different source_type.");
-  }
-  if (metadata.content_sha256 && contentSha256 && String(metadata.content_sha256).toLowerCase() !== contentSha256) {
-    throw lifecycleError(409, "workspace_asset_identity_checksum_conflict", "Asset identity already has a different content checksum.");
+  for (const field of ["source_type", "source_provider", "source_uri", "source_revision", "content_sha256"]) {
+    const existingValue = metadata[field] == null || metadata[field] === "" ? null : String(metadata[field]).toLowerCase();
+    const requestedValue = provenance[field] == null || provenance[field] === "" ? null : String(provenance[field]).toLowerCase();
+    if (existingValue && requestedValue && existingValue !== requestedValue) {
+      const code = field === "content_sha256" ? "workspace_asset_identity_checksum_conflict" : "workspace_asset_identity_provenance_conflict";
+      throw lifecycleError(409, code, `Asset identity already has incompatible ${field} provenance.`);
+    }
   }
   return metadata;
 }
@@ -327,7 +373,7 @@ export async function createWorkspaceAsset(connection, {
   const status = normalizeInitialStatus(lifecycleStatus);
   const normalizedSourceType = normalizeSourceType(sourceType);
   const normalizedSourceProvider = normalizeOptionalProvenanceString(sourceProvider, 128);
-  const normalizedSourceUri = normalizeOptionalProvenanceString(sourceUri, 1024);
+  const normalizedSourceUri = normalizeSourceUri(sourceUri);
   const normalizedSourceRevision = normalizeOptionalProvenanceString(sourceRevision, 255);
   const checksum = normalizeSha256(contentSha256);
 
@@ -366,16 +412,20 @@ export async function createWorkspaceAsset(connection, {
   if (existingRows.length === 1) {
     const existingMetadata = assertExistingAssetCompatible(existingRows[0], {
       brandTargetKey: brand.target_key,
-      sourceType: normalizedSourceType,
-      contentSha256: checksum,
+      provenance,
     });
-    const needsProvenanceBackfill = !existingMetadata.source_type || (!existingMetadata.content_sha256 && checksum);
+    const needsProvenanceBackfill = ["source_type", "source_provider", "source_uri", "source_revision", "content_sha256", "content_identity"]
+      .some((field) => !existingMetadata[field] && provenance[field]);
     if (needsProvenanceBackfill) {
+      const mergedMetadata = { ...provenance, ...existingMetadata };
+      for (const [key, value] of Object.entries(provenance)) {
+        if ((mergedMetadata[key] == null || mergedMetadata[key] === "") && value != null) mergedMetadata[key] = value;
+      }
       await connection.query(
         `UPDATE workspace_assets
             SET metadata_json=?, updated_at=CURRENT_TIMESTAMP
           WHERE tenant_id=? AND asset_id=? AND brand_ref=?`,
-        [JSON.stringify({ ...existingMetadata, ...provenance }), tenant, existingRows[0].asset_id, brand.target_key]
+        [JSON.stringify(mergedMetadata), tenant, existingRows[0].asset_id, brand.target_key]
       );
     }
   } else {
@@ -394,8 +444,11 @@ export async function createWorkspaceAsset(connection, {
     throw lifecycleError(409, "workspace_asset_create_readback_invalid", "Persisted asset readback does not match the authorized Brand.");
   }
   const readbackMetadata = parseMetadata(readback.metadata_json);
-  if (readbackMetadata.source_type !== normalizedSourceType || (checksum && String(readbackMetadata.content_sha256 || "").toLowerCase() !== checksum)) {
-    throw lifecycleError(409, "workspace_asset_provenance_readback_invalid", "Persisted asset provenance readback does not match the request.");
+  for (const field of ["source_type", "source_provider", "source_uri", "source_revision", "content_sha256"]) {
+    const requestedValue = provenance[field];
+    if (requestedValue != null && requestedValue !== "" && String(readbackMetadata[field] ?? "").toLowerCase() !== String(requestedValue).toLowerCase()) {
+      throw lifecycleError(409, "workspace_asset_provenance_readback_invalid", `Persisted asset ${field} provenance readback does not match the request.`);
+    }
   }
 
   return {
@@ -423,6 +476,8 @@ export const _testingWorkspaceAssetLifecycle = {
   BRAND_ASSET_PERMISSIONS,
   normalizeBrandRef,
   normalizeSha256,
+  normalizeSourceUri,
+  containsCredentialLikeUrlMaterial,
   parseMetadata,
   safeProvenanceProjection,
   assertExistingAssetCompatible,
