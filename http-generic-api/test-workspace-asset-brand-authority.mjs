@@ -29,6 +29,7 @@ function buildExecutor({
 } = {}) {
   const calls = [];
   const inserted = [];
+  let assetState = null;
   return {
     calls,
     inserted,
@@ -37,17 +38,28 @@ function buildExecutor({
       if (sql.includes("FROM tenant_brand_links tbl")) return [canonicalRows];
       if (sql.includes("FROM memberships m") && sql.includes("FOR UPDATE")) return [membershipRows];
       if (sql.includes("FROM v_workspace_resource_grant_effective")) return [grantRows];
+      if (sql.includes("FROM workspace_assets") && sql.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?")) {
+        return [assetState ? [assetState] : []];
+      }
       if (sql.includes("INSERT INTO workspace_assets")) {
         inserted.push(params);
+        assetState = {
+          asset_id: params[0],
+          tenant_id: params[1],
+          asset_type: params[3],
+          asset_ref: params[4],
+          brand_ref: params[6],
+          lifecycle_status: params[11],
+          metadata_json: params[12],
+          created_by: params[13],
+        };
         return [{ affectedRows: 1 }];
       }
-      if (sql.includes("SELECT asset_id,tenant_id,brand_ref") && sql.includes("FROM workspace_assets")) {
-        const latest = inserted.at(-1);
-        if (!latest) return [[]];
+      if (sql.includes("FROM workspace_assets") && sql.includes("WHERE asset_id=? AND tenant_id=?")) {
+        if (!assetState) return [[]];
         return [[{
-          asset_id: latest[0],
-          tenant_id: latest[1],
-          brand_ref: readbackBrandRef === undefined ? latest[6] : readbackBrandRef,
+          ...assetState,
+          brand_ref: readbackBrandRef === undefined ? assetState.brand_ref : readbackBrandRef,
         }]];
       }
       throw new Error(`Unexpected SQL in workspace asset Brand authority test: ${sql}`);
@@ -62,7 +74,8 @@ async function insert(executor, overrides = {}) {
     actorId: overrides.actorId || "user-a",
     input: {
       asset_id: overrides.assetId || "asset-a",
-      asset_type: "document",
+      asset_type: "doc",
+      asset_ref: "brand-brief-doc-a",
       display_name: "Brand brief",
       brand_ref: overrides.brandRef === undefined ? "Brand Alias" : overrides.brandRef,
     },
@@ -75,7 +88,7 @@ async function insert(executor, overrides = {}) {
   assert.equal(executor.inserted.length, 1);
   assert.equal(executor.inserted[0][6], "brand-key", "delegated edit authority must persist the canonical Brand target key");
   assert(executor.calls.some((call) => call.sql.includes("v_workspace_resource_grant_effective")), "delegated member must prove an effective Brand grant");
-  assert(executor.calls.some((call) => call.sql.includes("SELECT asset_id,tenant_id,brand_ref") && call.sql.includes("FOR UPDATE")), "asset persistence must be read back under lock before commit");
+  assert(executor.calls.some((call) => call.sql.includes("WHERE asset_id=? AND tenant_id=?") && call.sql.includes("FOR UPDATE")), "asset persistence must be read back under lock before commit");
 }
 
 {
