@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       "http-generic-api/migrations/1048_transport_response_chunk_schema_recovery.sql",
+      "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
       ".changes/e2e/transport-response-schema-promotion-readiness.json"
     ]
   },
