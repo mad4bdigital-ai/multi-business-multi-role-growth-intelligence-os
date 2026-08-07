@@ -209,7 +209,7 @@ for (const malformed of [
   legacyOperation({ responses: { "200": { description: "wrong version", content: { "application/json": { schema: {
     type: "object",
     properties: { compatibility_telemetry: { type: "object", properties: { contract_version: { enum: ["unexpected-v9"] } } } },
-  } } } } }),
+  } } } } } }),
 ]) {
   const blockedRoot = await createFixture(malformed);
   try {
