@@ -136,6 +136,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation-apply.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
+- `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
