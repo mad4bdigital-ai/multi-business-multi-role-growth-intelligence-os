@@ -2335,6 +2335,11 @@ paths:
                         type: boolean
                       reason:
                         type: string
+                      denial_code:
+                        type:
+                          - string
+                          - "null"
+                        description: Stable ownership denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH or BRAND_CONNECTION_AUTHORITY_REQUIRED.
                       credential_scope:
                         type:
                           - string
@@ -2358,14 +2363,22 @@ paths:
                         enum:
                           - personal_workspace
                           - company_workspace
+                          - brand
                           - null
                       row_count:
                         type: integer
                         minimum: 0
                       brand_connections_included:
                         type: boolean
+                        description: True only when the exact Brand workspace and canonical Brand operate-or-stronger authority were resolved before credential lookup.
+                      brand_authority_source:
+                        type:
+                          - string
+                          - "null"
                         enum:
-                          - false
+                          - tenant_owner_membership
+                          - workspace_resource_grant
+                          - null
                       secrets_included:
                         type: boolean
                         enum:
@@ -2387,7 +2400,7 @@ paths:
                         type:
                           - string
                           - "null"
-                        description: Stable denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH or AMBIGUOUS_CONNECTION_SELECTION.
+                        description: Stable denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH, BRAND_CONNECTION_AUTHORITY_REQUIRED, or AMBIGUOUS_CONNECTION_SELECTION.
                   target_authorization:
                     type: object
                     additionalProperties: true
@@ -2491,7 +2504,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Active tenant membership or canonical workspace ownership scope is not authorized.
+          description: Active tenant membership, canonical workspace ownership, or exact Brand operation authority is not authorized.
           content:
             application/json:
               schema:
