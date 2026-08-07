@@ -1,0 +1,86 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-asset-provenance-read-authority",
+  "title": "Workspace asset provenance, idempotency, and object-level read authority",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-asset-provenance-read-authority.json",
+      "http-generic-api/workspaceAssetProvenance.js",
+      "http-generic-api/src/domain/resourceApi/resourceCatalog.js",
+      "http-generic-api/src/infrastructure/resourceApi/resourceRepository.js",
+      "http-generic-api/test-workspace-asset-brand-authority.mjs",
+      "http-generic-api/test-workspace-asset-provenance-read-authority.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Complete the canonical Resource API asset slice by making the existing durable asset identity idempotent with typed provenance conflicts and by preventing non-owner tenant members from reading Brand-scoped assets without an effective Brand or direct Asset grant.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-assets-use-durable-provenance-and-effective-read-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated active workspace member",
+          "entrypoint": "POST/GET /me/workspaces/{tenant_id}/resources/assets through the existing Resource API",
+          "terminal_outcome": "Asset create reuses the unique tenant/type/ref identity only when canonical Brand and provenance are compatible, rejects conflicting checksum/provenance before duplicate persistence, returns only a safe provenance projection, and tenant reads hide Brand-scoped assets unless the member owns/administers the workspace or holds an effective Brand or Asset grant.",
+          "steps": [
+            "Require a durable asset_ref and resolve canonical Brand attachment through the already-merged workspace asset Brand authority.",
+            "Lock the existing (tenant_id, asset_type, asset_ref) identity before insert and reuse the row only when Brand and provenance are compatible.",
+            "Persist normalized source_type/provider/revision, credential-free source locator, checksum/content identity, ingestion mode, canonical Brand key and original creator evidence in metadata_json.",
+            "Reject deleted identity reuse, Brand mismatch, checksum mismatch, source provenance mismatch and sensitive source_uri values with typed failures.",
+            "Read the final row back under lock inside the same transaction and prove identity, Brand and content identity before commit.",
+            "Expose a safe provenance projection without returning raw metadata_json or raw source_uri.",
+            "For non-owner tenant reads, preserve unbranded workspace asset visibility while requiring an effective Brand grant or direct Asset grant for Brand-scoped rows.",
+            "Keep owner/admin tenant read authority unchanged and leave the platform-admin surface unchanged."
+          ],
+          "assertions": [
+            "The schema-provided unique identity (tenant_id, asset_type, asset_ref) is used as the idempotency key without a migration.",
+            "Compatible replay does not issue a second INSERT.",
+            "Checksum or source provenance conflict fails closed without duplicate persistence.",
+            "Sensitive or signed source_uri material is rejected rather than persisted as provenance.",
+            "Brand-scoped list/get queries for non-owner members contain effective Brand and direct Asset grant predicates.",
+            "Workspace owner/admin list/get queries do not require redundant object grants.",
+            "Raw metadata_json and raw source_uri are not part of the Resource API asset projection.",
+            "No new asset endpoint, registry, migration, live SQL Apply, deployment, Production/provider mutation, secret access, external send, or force push is introduced."
+          ],
+          "tests": [
+            {
+              "id": "workspace-asset-brand-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-asset-brand-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-asset-provenance-read-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-asset-provenance-read-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-asset-provenance-read-authority.json",
+            "http-generic-api/workspaceAssetProvenance.js",
+            "http-generic-api/src/domain/resourceApi/resourceCatalog.js",
+            "http-generic-api/src/infrastructure/resourceApi/resourceRepository.js",
+            "http-generic-api/test-workspace-asset-brand-authority.mjs",
+            "http-generic-api/test-workspace-asset-provenance-read-authority.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
+          ]
+        }
+      ]
+    }
+  ]
+}
