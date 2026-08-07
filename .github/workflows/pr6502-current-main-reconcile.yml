@@ -1,0 +1,130 @@
+name: PR 6502 Current Main Reconcile
+run-name: PR 6502 Current Main Reconcile · ${{ github.sha }}
+
+on:
+  push:
+    paths:
+      - .github/workflows/pr6502-current-main-reconcile.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: pr-6502-current-main-reconcile
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    name: Merge exact current main, regenerate maps, and retire one-shot
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TARGET_PR: "6502"
+      TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
+      AUTHORIZED_PARENT_SHA: 5915968ada54d711419599604293a16d5a312c89
+      EXPECTED_MAIN_SHA: 343e4a37ba8023311922b97483ff28988f7ef13d
+      ONE_SHOT_PATH: .github/workflows/pr6502-current-main-reconcile.yml
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Validate exact PR head and main authority
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${GITHUB_REPOSITORY}" = "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"
+          test "${GITHUB_REF_NAME}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_PARENT_SHA}"
+          test "$(git diff --name-only HEAD^ HEAD | sort)" = "${ONE_SHOT_PATH}"
+
+          pr_json="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${pr_json}")" = "open"
+          test "$(jq -r '.draft' <<<"${pr_json}")" = "true"
+          test "$(jq -r '.base.ref' <<<"${pr_json}")" = "main"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr_json}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr_json}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr_json}")" = "${GITHUB_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Three-way merge exact main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin "${EXPECTED_MAIN_SHA}"
+          git merge --no-commit --no-ff "${EXPECTED_MAIN_SHA}" || {
+            echo "Three-way merge reported conflicts:" >&2
+            git status --short >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          }
+          test "$(git rev-parse MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test -z "$(git diff --name-only --diff-filter=U)"
+
+      - name: Retire one-shot and regenerate canonical Work Maps
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          git rm -- "${ONE_SHOT_PATH}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+
+          expected_maps="$(printf '%s\n' \
+            'docs/work-maps/README.md' \
+            'docs/work-maps/repository-automation-map.md' | sort)"
+          test "$(git diff --name-only | sort)" = "${expected_maps}"
+
+          before="$(git diff --binary | sha256sum | awk '{print $1}')"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          after="$(git diff --binary | sha256sum | awk '{print $1}')"
+          test "${before}" = "${after}"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git add -- docs/work-maps/README.md docs/work-maps/repository-automation-map.md
+          test -z "$(git diff --name-only)"
+
+      - name: Run focused reconciliation regressions
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/test-push-workflow-runner-context-registration.mjs
+          (cd http-generic-api && node test-production-promotion-convergence-workflows.mjs)
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Commit and fast-forward branch only
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          live_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}")"
+          test "$(jq -r '.state' <<<"${live_pr}")" = "open"
+          test "$(jq -r '.draft' <<<"${live_pr}")" = "true"
+          test "$(jq -r '.head.sha' <<<"${live_pr}")" = "${GITHUB_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${GITHUB_SHA}"
+          test "$(git rev-parse MERGE_HEAD)" = "${EXPECTED_MAIN_SHA}"
+
+          git commit -m "chore(pr6502): reconcile onto current main and refresh Work Maps"
+          result_sha="$(git rev-parse HEAD)"
+          parents="$(git rev-list --parents -n 1 HEAD)"
+          test "$(awk '{print $2}' <<<"${parents}")" = "${GITHUB_SHA}"
+          test "$(awk '{print $3}' <<<"${parents}")" = "${EXPECTED_MAIN_SHA}"
+          if git cat-file -e "HEAD:${ONE_SHOT_PATH}" 2>/dev/null; then
+            echo "one-shot workflow remains in final tree" >&2
+            exit 1
+          fi
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_sha}"
+
+          echo "result_head_sha=${result_sha}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "merged_main_sha=${EXPECTED_MAIN_SHA}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "one_shot_retired=true" >> "${GITHUB_STEP_SUMMARY}"
+          echo "force_push=false" >> "${GITHUB_STEP_SUMMARY}"
