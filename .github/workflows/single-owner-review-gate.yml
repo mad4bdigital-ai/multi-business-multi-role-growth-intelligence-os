@@ -1,0 +1,34 @@
+name: Single Owner Review Gate
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+concurrency:
+  group: single-owner-review-gate-${{ github.event.pull_request.number || github.event.review.pull_request_url }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: Evaluate review policy
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Evaluate collaborator-aware exact-head review gate
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node http-generic-api/scripts/single-owner-review-gate.mjs

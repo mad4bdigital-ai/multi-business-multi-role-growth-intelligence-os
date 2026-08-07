@@ -1,0 +1,79 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-single-owner-mode",
+  "title": "GitHub main single-owner review policy mode",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-single-owner-mode.json",
+      ".github/workflows/single-owner-review-gate.yml",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql",
+      "http-generic-api/scripts/single-owner-review-gate.mjs",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-single-owner-review-gate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow a repository with exactly one eligible human owner to use exact-head owner attestation without weakening CI, while automatically reverting to independent approval whenever another eligible human collaborator exists.",
+      "e2e_journeys": [
+        {
+          "id": "single-owner-exact-head-review-gate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_owner",
+          "entrypoint": "pull request review plus repository policy plan/apply",
+          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when live collaborator inventory proves exactly one eligible owner and requires the Single Owner Review Gate on the exact head; independent approval resumes automatically otherwise.",
+          "steps": [
+            "Read direct collaborator permissions.",
+            "Select single-owner mode only for exactly one eligible human who is also repository owner and PR author.",
+            "Require an exact-head COMMENTED owner attestation because GitHub rejects self-APPROVE.",
+            "Publish Single Owner Review Gate as an exact-head Check Run.",
+            "Require that check in the managed main Ruleset and keep stale-review, thread-resolution, strict status checks, no bypass actors, non-fast-forward and direct-push blocking.",
+            "Reject explicit single_owner_mode when collaborator eligibility is not proven."
+          ],
+          "assertions": [
+            "Single owner with exact-head attestation passes.",
+            "Stale-head attestation fails.",
+            "Adding an eligible independent collaborator disables owner-attestation mode and requires independent APPROVED review.",
+            "Single-owner Ruleset uses native approval count zero only together with the required Single Owner Review Gate.",
+            "Independent mode still requires at least one GitHub-native approval.",
+            "No bypass actors, force push, repository content mutation, secrets, Production mutation or provider action are introduced."
+          ],
+          "tests": [
+            {
+              "id": "single-owner-review-gate-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-single-owner-review-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-controller-single-owner-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/single-owner-review-gate.yml",
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/scripts/single-owner-review-gate.mjs",
+            "http-generic-api/test-single-owner-review-gate.mjs",
+            "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
