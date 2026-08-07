@@ -1,0 +1,128 @@
+name: PR 6500 Surface and Work Map Refresh Once
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-20260806
+    paths:
+      - .github/ops/pr6500-surface-workmap-refresh.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6500-surface-workmap-refresh-once-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_BRANCH: fix/transport-response-schema-promotion-readiness-20260806
+      EXPECTED_MAIN_SHA: 90265c55dd327a313ddac4c50ac08c3984fcf54b
+      WORKFLOW_PATH: .github/workflows/pr6500-surface-workmap-refresh-once.yml
+      TRIGGER_PATH: .github/ops/pr6500-surface-workmap-refresh.trigger
+    steps:
+      - name: Checkout exact writer head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify exact branch and pinned main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
+          test -f "${WORKFLOW_PATH}"
+          test -f "${TRIGGER_PATH}"
+
+      - name: Remove temporary writer before deterministic generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm "${WORKFLOW_PATH}" "${TRIGGER_PATH}"
+
+      - name: Regenerate Surface Contract and Work Maps
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/surface-contract-discovery.mjs --write
+          node http-generic-api/scripts/surface-contract-discovery.mjs --check
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Enforce exact bounded generated diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          git diff --name-only | sort > /tmp/actual.txt
+          cat > /tmp/expected.txt <<'EOF'
+          .github/ops/pr6500-surface-workmap-refresh.trigger
+          .github/workflows/pr6500-surface-workmap-refresh-once.yml
+          docs/connector-capability-runtime-boundary.generated.md
+          docs/external-api-entrypoints.generated.md
+          docs/frontend-surface-backend-binding-map.generated.json
+          docs/frontend-write-surface-report.generated.md
+          docs/work-maps/README.md
+          docs/work-maps/data-model-domain-map.md
+          docs/work-maps/observability-release-map.md
+          docs/work-maps/work-map-coverage-matrix.md
+          EOF
+          sed -i 's/^          //' /tmp/expected.txt
+          sort -o /tmp/expected.txt /tmp/expected.txt
+          diff -u /tmp/expected.txt /tmp/actual.txt
+
+      - name: Run focused exact-head governance checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/surface-contract-discovery.mjs --check
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          (
+            cd http-generic-api
+            node test-transport-response-chunk-schema-recovery.mjs
+            node test-work-map-schema-classification.mjs
+            node test-work-map-schema-classification-contract.mjs
+            node test-work-map-autofix-diagnostics.mjs
+            node test-spec-kit-work-map-governance-gate.mjs
+            node test-spec-kit-completion-gate.mjs
+          )
+
+      - name: Commit and push bounded generated refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote origin "refs/heads/${EXPECTED_BRANCH}" | awk '{print $1}')"
+          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+          test "${remote_main}" = "${EXPECTED_MAIN_SHA}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            docs/connector-capability-runtime-boundary.generated.md \
+            docs/external-api-entrypoints.generated.md \
+            docs/frontend-surface-backend-binding-map.generated.json \
+            docs/frontend-write-surface-report.generated.md \
+            docs/work-maps/README.md \
+            docs/work-maps/data-model-domain-map.md \
+            docs/work-maps/observability-release-map.md \
+            docs/work-maps/work-map-coverage-matrix.md
+
+          git diff --cached --name-only | sort > /tmp/staged.txt
+          cp /tmp/expected.txt /tmp/expected-staged.txt
+          diff -u /tmp/expected-staged.txt /tmp/staged.txt
+          git diff --cached --check
+          git commit -m "chore(generated): refresh PR 6500 surface and Work Maps"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
