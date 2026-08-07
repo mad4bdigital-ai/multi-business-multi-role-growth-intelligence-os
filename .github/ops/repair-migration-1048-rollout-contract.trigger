@@ -1,4 +1,0 @@
-issue=6531
-failed_readiness_run=31168080602
-base_main=afcec1f471be22ccdd96c204d02ccb1fc7fca1f9
-scope=canonical-confirmations-readiness-marker-work-map-convergence
