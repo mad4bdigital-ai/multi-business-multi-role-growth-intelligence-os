@@ -180,8 +180,8 @@
             {
               "id": "reject-runner-context-and-automation-lifecycle-regression-production-promotion-convergence",
               "runner": "node",
-              "working_directory": ".",
-              "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
               "args": []
             },
             {
