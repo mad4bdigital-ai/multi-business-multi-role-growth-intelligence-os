@@ -4,15 +4,15 @@
 
 ## Summary
 
-- Triaged items: 4
+- Triaged items: 3
 - Gate candidates: 0
 - New-gap gate: fail
-- Blocking new items: 2
+- Blocking new items: 1
 
 ## Class counts
 
 - safety_marker_review: 2
-- standard_backlog_review: 2
+- standard_backlog_review: 1
 
 ## Immediate review candidates
 

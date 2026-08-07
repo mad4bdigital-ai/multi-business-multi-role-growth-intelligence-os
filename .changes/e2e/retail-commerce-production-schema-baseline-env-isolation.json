@@ -1,0 +1,80 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "retail-commerce-production-schema-baseline-env-isolation",
+  "title": "Retail commerce Production schema baseline environment isolation regression",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/retail-commerce-production-schema-baseline-env-isolation.json",
+      "http-generic-api/test-retail-commerce-production-schema-baseline.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that the missing BACKEND_API_KEY regression is isolated from any GitHub Environment binding and restores the process environment after the assertion.",
+      "e2e_journeys": [
+        {
+          "id": "isolate-missing-runtime-key-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository test runner",
+          "entrypoint": "Retail commerce Production schema baseline contract test on the exact candidate head",
+          "terminal_outcome": "The true missing-key case fails closed even when the parent runner has a BACKEND_API_KEY binding, and the original process environment is restored without exposing the secret value.",
+          "steps": [
+            "Preserve whether BACKEND_API_KEY was present in the test process.",
+            "Remove the binding only for the missing-key assertion.",
+            "Assert that the collector rejects the absent runtime key before any Production operation.",
+            "Restore the original process environment in a finally block.",
+            "Retain all SELECT-only, no-row-data, no-mutation, and no-secret-return assertions."
+          ],
+          "assertions": [
+            "The regression does not log, return, compare, or persist the BACKEND_API_KEY value.",
+            "The missing-key assertion cannot fall through to a GitHub Environment binding.",
+            "The process environment is restored after both success and failure paths.",
+            "No Production connection, SQL execution, migration apply, row-data read, deployment, restart, or external send is performed by this synthetic test."
+          ],
+          "tests": [
+            {
+              "id": "retail-commerce-production-schema-baseline-env-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-retail-commerce-production-schema-baseline.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-retail-commerce-production-schema-baseline.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Retain the isolated missing-key regression in the canonical ordered test suite."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise restoration behavior across assertion and adapter failures."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Revalidate the contract in a separately authorized read-only baseline trigger after protected-main integration."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require exact-main tooling and separate authorization before any Production schema baseline read."
+    }
+  ],
+  "secrets_included": false
+}

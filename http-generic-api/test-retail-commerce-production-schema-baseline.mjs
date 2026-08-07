@@ -238,10 +238,17 @@ const runtimeSerialized = JSON.stringify(runtimeResult);
 assert.equal(runtimeSerialized.includes(backendApiKey), false);
 assert.equal(runtimeSerialized.includes("runtime-envelope-must-not-be-returned"), false);
 
-await assert.rejects(
-  () => collectRetailCommerceProductionSchemaRuntimeBaseline({ readFile, fetchFn: fakeFetch, backendApiKey: "" }),
-  /BACKEND_API_KEY is required/u,
-);
+const originalBackendApiKey = process.env.BACKEND_API_KEY;
+delete process.env.BACKEND_API_KEY;
+try {
+  await assert.rejects(
+    () => collectRetailCommerceProductionSchemaRuntimeBaseline({ readFile, fetchFn: fakeFetch, backendApiKey: "" }),
+    /BACKEND_API_KEY is required/u,
+  );
+} finally {
+  if (originalBackendApiKey === undefined) delete process.env.BACKEND_API_KEY;
+  else process.env.BACKEND_API_KEY = originalBackendApiKey;
+}
 await assert.rejects(
   () => collectRetailCommerceProductionSchemaRuntimeBaseline({ readFile, fetchFn: fakeFetch, backendApiKey, runtimeBaseUrl: "https://example.com" }),
   /canonical https:\/\/auth\.mad4b\.com origin/u,
