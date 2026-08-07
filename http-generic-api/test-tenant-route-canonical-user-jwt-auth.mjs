@@ -14,6 +14,61 @@ for (const [name, source] of [["workspaceResourceRoutes", workspaceSource], ["te
   assert.match(source, /requireCanonicalUserJwt/, `${name} must parse the bearer token before tenant scope guards`);
 }
 
+// Stale token claims must never become effective tenant authority. The canonical parser
+// establishes identity only; both tenant-facing route families must resolve role/scope from
+// authoritative membership state after parsing.
+assert.match(
+  pluginSource,
+  /const requestedTenantId = payload\.tenant_id \|\| req\.headers\["x-tenant-id"\] \|\| null;/,
+  "tenant platform routes must derive one requested tenant selector before membership lookup",
+);
+assert.match(
+  pluginSource,
+  /fetchActiveMembershipForTenant\(\{ userId: payload\.user_id, tenantId: requestedTenantId \}\)/,
+  "tenant platform routes must resolve the parsed user against authoritative active membership",
+);
+assert.match(
+  pluginSource,
+  /tenant_id: membership\.tenant_id,[\s\S]*tenant_role: membership\.role/,
+  "tenant platform effective tenant and role must come from DB membership, never stale JWT role claims",
+);
+assert.doesNotMatch(
+  pluginSource,
+  /tenant_role:\s*payload\.role/,
+  "tenant platform routes must not promote token role claims into effective tenant authority",
+);
+assert.match(
+  pluginSource,
+  /tenantClause = "AND m\.tenant_id = \?";[\s\S]*params\.push\(tenantId\);/,
+  "tenant platform membership lookup must bind an explicitly requested tenant instead of widening scope",
+);
+assert.match(
+  pluginSource,
+  /WHERE m\.user_id = \?[\s\S]*AND m\.status = 'active'[\s\S]*AND t\.status = 'active'/,
+  "tenant platform membership lookup must require the parsed user plus active membership and tenant state",
+);
+
+assert.match(
+  workspaceSource,
+  /WHERE m\.user_id = \? AND m\.tenant_id = \?[\s\S]*\[req\.auth\.user_id, tenantId\]/,
+  "workspace membership lookup must be object-scoped by parsed user_id and exact tenant_id",
+);
+assert.match(
+  workspaceSource,
+  /membership\.status !== "active" \|\| membership\.tenant_status !== "active"/,
+  "workspace authority must reject inactive membership or tenant state",
+);
+assert.match(
+  workspaceSource,
+  /OWNER_ROLES\.has\(String\(membership\.role \|\| ""\)\.toLowerCase\(\)\)/,
+  "workspace owner/admin authority must use the DB membership role rather than a stale JWT role claim",
+);
+assert.doesNotMatch(
+  workspaceSource,
+  /OWNER_ROLES\.has\(String\(req\.auth\.role/,
+  "workspace owner/admin authority must not trust token role claims",
+);
+
 const originalSecret = process.env.JWT_SECRET;
 process.env.JWT_SECRET = "tenant-canonical-auth-regression-secret-20260807";
 try {
