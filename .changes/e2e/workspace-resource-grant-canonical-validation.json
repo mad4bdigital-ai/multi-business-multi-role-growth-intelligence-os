@@ -10,7 +10,8 @@
       ".changes/e2e/workspace-resource-grant-canonical-validation.json",
       "http-generic-api/routes/workspaceResourceRoutes.js",
       "http-generic-api/workspaceGrantResourceAuthority.js",
-      "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs"
+      "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
     ]
   },
   "merge_contract": {
@@ -35,6 +36,7 @@
             "Reject a resource that is missing, cross-tenant, inactive, deleted, ambiguous, or otherwise not canonically resolvable.",
             "Fail closed for site, app, workflow, and agent grants until a canonical tenant-scoped authority source exists for those resource types.",
             "Use only the canonical resolved resource_ref in the workspace_resource_grants write and exact active-grant readback.",
+            "Regenerate frontend surface dispatch evidence from the same route source tree and require the committed source digest to match.",
             "Exercise the canonical authority resolver regression without connecting to or mutating a live database."
           ],
           "assertions": [
@@ -44,6 +46,7 @@
             "Brand grants resolve through active tenant_brand_links plus an active canonical brand, reject cross-tenant links, and reject ambiguous active matches.",
             "Site, app, workflow, and agent references fail closed before any guessed authority query is attempted.",
             "The route writes and reads back only the canonical resource_ref returned by the authority resolver.",
+            "The committed frontend-surface-dispatch generated evidence is current for the changed workspace resource route and is covered by this E2E contract.",
             "CI performs no live database mutation, SQL migration, Migration Apply, Production mutation, deployment, provider call, credential or secret access, restart, external send, or force push."
           ],
           "tests": [
@@ -59,7 +62,8 @@
             ".changes/e2e/workspace-resource-grant-canonical-validation.json",
             "http-generic-api/routes/workspaceResourceRoutes.js",
             "http-generic-api/workspaceGrantResourceAuthority.js",
-            "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs"
+            "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs",
+            "http-generic-api/frontend-surface-dispatch.generated.json"
           ]
         }
       ]
