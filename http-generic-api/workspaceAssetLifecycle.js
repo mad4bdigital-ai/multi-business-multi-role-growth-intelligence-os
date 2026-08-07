@@ -224,7 +224,8 @@ async function resolveTenantBrand(connection, tenantId, requestedBrandRef) {
   if (rows.length !== 1) {
     throw lifecycleError(409, "workspace_asset_brand_ambiguous", "Brand reference is ambiguous in this workspace.", [{ count: rows.length }]);
   }
-  return rows[0];
+  const [brand] = rows;
+  return brand;
 }
 
 async function requireBrandWorkspaceBinding(connection, tenantId, brandTargetKey) {
@@ -241,7 +242,8 @@ async function requireBrandWorkspaceBinding(connection, tenantId, brandTargetKey
   if (rows.length !== 1) {
     throw lifecycleError(409, "workspace_asset_brand_workspace_ambiguous", "Brand Workspace binding is ambiguous.", [{ count: rows.length }]);
   }
-  return rows[0];
+  const [brandWorkspace] = rows;
+  return brandWorkspace;
 }
 
 async function requireBrandAssetAuthority(connection, tenantId, actorUserId, membership, brandTargetKey) {
@@ -318,7 +320,8 @@ async function readAssetExactly(connection, tenantId, assetType, assetRef) {
   if (!Array.isArray(rows) || rows.length !== 1) {
     throw lifecycleError(409, "workspace_asset_create_readback_invalid", "Persisted asset readback did not resolve exactly once.", [{ count: rows?.length || 0 }]);
   }
-  return rows[0];
+  const [asset] = rows;
+  return asset;
 }
 
 function safeAssetProjection(row) {
