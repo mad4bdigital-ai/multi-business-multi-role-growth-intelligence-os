@@ -75,6 +75,7 @@ const staticDiscoveryCommands = [
   "node test-platform-endpoint-tool-facade.mjs",
   "node test-platform-plugin-contract-docs.mjs",
   "node test-platform-plugin-resolver.mjs",
+  "node test-platform-plugin-connection-ambiguity.mjs",
   "node test-platform-resource-recipe-capability.mjs",
   "node test-production-promotion-convergence-workflows.mjs",
   "node test-registry-data-management-service.mjs",
