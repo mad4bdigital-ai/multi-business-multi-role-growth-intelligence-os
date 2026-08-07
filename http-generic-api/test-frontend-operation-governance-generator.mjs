@@ -26,7 +26,6 @@ const {
 
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
 const BRAND_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
-const ASSET_OPERATION = "POST /me/workspaces/{tenant_id}/assets";
 const EXPECTED_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
@@ -35,7 +34,6 @@ const EXPECTED_OPERATIONS = [
   "POST /admin/container-authority/canary-rollbacks",
   LEASE_OPERATION,
   "POST /connect/bootstrap",
-  ASSET_OPERATION,
   BRAND_OPERATION,
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
@@ -66,12 +64,10 @@ const EVIDENCE_FILES = [
   "routes/workspaceResourceRoutes.js",
   "workspaceBrandLifecycle.js",
   "test-workspace-brand-create-operation-governance.mjs",
-  "workspaceAssetLifecycle.js",
-  "test-workspace-brand-asset-create-operation-governance.mjs",
 ];
 
 function createFixture() {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-operation-governance-brand-asset-extension-"));
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-operation-governance-brand-extension-"));
   for (const relativeFile of EVIDENCE_FILES) {
     const target = path.join(fixture, relativeFile);
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -98,15 +94,14 @@ if (plan.rejected_candidates.length) {
 }
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 11,
-  generated_rule_count: 11,
+  candidate_count: 10,
+  generated_rule_count: 10,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
 assert(plan.source_authority.every((entry) => entry.present), "every generated decision must be checksum-bound to present evidence");
 assert(plan.source_authority.some((entry) => entry.file === "scripts/frontend-operation-governance-base.mjs"));
 assert(plan.source_authority.some((entry) => entry.file === "scripts/frontend-operation-governance-generator.mjs"));
-assert(plan.source_authority.some((entry) => entry.file === "workspaceAssetLifecycle.js"));
 
 const leaseRule = plan.operation_rules.find((rule) => rule.operation === LEASE_OPERATION);
 assert(leaseRule, "Lease operation must have a generated rule");
@@ -142,28 +137,6 @@ assert.equal(brandRule.parameter_bindings.brand_workspace_id, "response.workspac
 assert(brandRule.evidence_refs.includes("test-workspace-brand-create-operation-governance.mjs"));
 assert.match(brandRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
 
-const assetRule = plan.operation_rules.find((rule) => rule.operation === ASSET_OPERATION);
-assert(assetRule, "Brand Asset Create operation must have a generated rule");
-assert.equal(assetRule.rule_id, "generated-workspace-brand-asset-create-governance");
-assert.equal(assetRule.classification, "state_change");
-assert.equal(assetRule.owner, "workspace-platform");
-assert.equal(assetRule.preflight.mode, "locked_brand_scoped_authority_and_asset_identity");
-assert.equal(assetRule.approval.mode, "runtime_authorization");
-assert.equal(assetRule.readback.mode, "transactional_readback");
-assert.equal(assetRule.readback.same_cycle, true);
-assert.equal(assetRule.readback.before_commit, true);
-assert.deepEqual(assetRule.rollback, { mode: "transaction", on: ["mutation_failure", "readback_failure"] });
-assert.equal(assetRule.parameter_bindings.asset_id, "response.asset.asset_id");
-assert.equal(assetRule.parameter_bindings.brand_target_key, "response.asset.brand_ref");
-assert.equal(assetRule.parameter_bindings.brand_workspace_id, "response.brand_workspace.workspace_id");
-assert.equal(assetRule.parameter_bindings.content_identity, "response.asset.provenance.content_identity");
-assert.deepEqual(assetRule.evidence_refs, [
-  "routes/workspaceResourceRoutes.js",
-  "workspaceAssetLifecycle.js",
-  "test-workspace-brand-asset-create-operation-governance.mjs",
-]);
-assert.match(assetRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
-
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
   writes_database: false,
@@ -175,13 +148,13 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 11);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 10);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
-fs.appendFileSync(path.join(deterministicFixture, "workspaceAssetLifecycle.js"), "\n// Brand Asset evidence drift\n");
+fs.appendFileSync(path.join(deterministicFixture, "workspaceBrandLifecycle.js"), "\n// Brand Create evidence drift\n");
 const driftResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
-assert.equal(driftResult.ok, false, "Brand Asset source drift must invalidate committed generated governance");
+assert.equal(driftResult.ok, false, "Brand source drift must invalidate committed generated governance");
 
 const noLeaseApplyFixture = createFixture();
 replaceEvidence(noLeaseApplyFixture, "repositoryReconciliationLeaseControl.js", "resolved.apply_allowed !== true", "resolved.applyEvidenceRemoved !== true");
@@ -223,24 +196,4 @@ replaceEvidence(noBrandRegistrationFixture, "frontend-operation-governance-tests
 const noBrandRegistrationPlan = buildOperationGovernance({ apiRoot: noBrandRegistrationFixture });
 assert(rejection(noBrandRegistrationPlan, BRAND_OPERATION).missing_evidence.includes("registered_operation_test"));
 
-const noAssetAuthorityFixture = createFixture();
-replaceEvidence(noAssetAuthorityFixture, "workspaceAssetLifecycle.js", "BRAND_ASSET_PERMISSIONS", "assetPermissionEvidenceRemoved");
-const noAssetAuthorityPlan = buildOperationGovernance({ apiRoot: noAssetAuthorityFixture });
-assert(rejection(noAssetAuthorityPlan, ASSET_OPERATION).missing_evidence.includes("brand_scoped_mutation_authority"));
-
-const noAssetChecksumFixture = createFixture();
-replaceEvidence(noAssetChecksumFixture, "workspaceAssetLifecycle.js", "workspace_asset_identity_checksum_conflict", "assetChecksumConflictEvidenceRemoved");
-const noAssetChecksumPlan = buildOperationGovernance({ apiRoot: noAssetChecksumFixture });
-assert(rejection(noAssetChecksumPlan, ASSET_OPERATION).missing_evidence.includes("idempotency_conflict_guards"));
-
-const noAssetTestFixture = createFixture();
-replaceEvidence(noAssetTestFixture, "test-workspace-brand-asset-create-operation-governance.mjs", `// frontend-surface-operation: ${ASSET_OPERATION}`, "// Brand Asset operation claim removed");
-const noAssetTestPlan = buildOperationGovernance({ apiRoot: noAssetTestFixture });
-assert(rejection(noAssetTestPlan, ASSET_OPERATION).missing_evidence.includes("registered_operation_test"));
-
-const noAssetRegistrationFixture = createFixture();
-replaceEvidence(noAssetRegistrationFixture, "frontend-operation-governance-tests.json", '"file": "test-workspace-brand-asset-create-operation-governance.mjs"', '"file": "test-unregistered-workspace-brand-asset-create-operation-governance.mjs"');
-const noAssetRegistrationPlan = buildOperationGovernance({ apiRoot: noAssetRegistrationFixture });
-assert(rejection(noAssetRegistrationPlan, ASSET_OPERATION).missing_evidence.includes("registered_operation_test"));
-
-console.log("generated frontend operation governance Lease + Brand Create + Brand Asset extension tests passed");
+console.log("generated frontend operation governance Lease + Brand Create extension tests passed");
