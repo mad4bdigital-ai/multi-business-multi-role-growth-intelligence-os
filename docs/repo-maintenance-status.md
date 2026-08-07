@@ -235,6 +235,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
 - `http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs`
+- `http-generic-api/test-openapi-precise-inline-registry-transition.mjs`
 - `http-generic-api/test-openapi-precise-legacy-registry-transition.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
@@ -247,6 +248,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
+- `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
 - `http-generic-api/test-platform-plugin-contribution.mjs`
 - `http-generic-api/test-platform-plugin-install.mjs`
