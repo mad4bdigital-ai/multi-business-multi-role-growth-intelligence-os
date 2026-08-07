@@ -59,6 +59,8 @@ assert.match(requestWorkflow, /job_logs_role:\s*"diagnostic_only"/u);
 assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
 assert.match(requestWorkflow, /secrets_included:\s*false/u);
 assert.match(requestWorkflow, /Upload exact-head refresh request/u);
+assert.doesNotMatch(requestWorkflow, /reason:\(\$reason\|select\(length>0\)\)/u, "eligible requests must not be filtered into an empty JSON document");
+assert.match(requestWorkflow, /reason:\(if \(\$reason\|length\)>0 then \$reason else null end\)/u, "eligible requests must encode an absent reason as JSON null while preserving the request object");
 
 assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
@@ -115,7 +117,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 91,
+  tests: 93,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
