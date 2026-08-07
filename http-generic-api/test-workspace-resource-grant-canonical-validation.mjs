@@ -221,13 +221,118 @@ await expectAuthorityError(
   "workspace_resource_ambiguous"
 );
 
-for (const resourceType of ["workflow", "agent"]) {
+{
+  const connection = fakeConnection([
+    [{ agent_id: "agent-one", status: "active", health_status: "degraded" }],
+    [
+      { binding_id: "agent-binding-1", resource_ref: "agent-one", effect: "allow", status: "active", container_id: "container-a", container_status: "active", dimension_key: "agents", dimension_status: "active" },
+      { binding_id: "agent-binding-2", resource_ref: "agent-one", effect: "share", status: "active", container_id: "container-b", container_status: "active", dimension_key: "agents", dimension_status: "active" },
+    ],
+  ]);
+  const result = await assertGrantResourceInWorkspace(connection, {
+    tenantId: "tenant-a",
+    resourceType: "agent",
+    resourceRef: "agent-one",
+  });
+  assert.deepEqual(result, { resource_ref: "agent-one", authority_source: "agents+container_resource_bindings" });
+  assert.equal(connection.queries.length, 2);
+  assert.deepEqual(connection.queries[0].params, ["agent-one"]);
+  assert.deepEqual(connection.queries[1].params, ["tenant-a", "agents", "agent", "agent-one"]);
+  assert.match(connection.queries[1].sql, /container_resource_bindings/);
+  assert.match(connection.queries[1].sql, /JOIN containers/);
+  assert.match(connection.queries[1].sql, /container_resource_dimension_registry/);
+  assert.match(connection.queries[1].sql, /effect IN \('allow','share','delegate'\)/);
+  assert.match(connection.queries[1].sql, /valid_until IS NULL OR crb\.valid_until > UTC_TIMESTAMP\(\)/);
+  assert.match(connection.queries[1].sql, /FOR UPDATE/);
+  assert.doesNotMatch(connection.queries[1].sql, /v_activation_agent_catalog/);
+}
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "agent", resourceRef: "agent-missing" },
+  [[]],
+  "workspace_resource_not_found"
+);
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "agent", resourceRef: "agent-draft" },
+  [[{ agent_id: "agent-draft", status: "draft", health_status: "active" }]],
+  "workspace_resource_inactive"
+);
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "agent", resourceRef: "agent-ambiguous" },
+  [[
+    { agent_id: "agent-ambiguous", status: "active", health_status: "active" },
+    { agent_id: "agent-ambiguous", status: "active", health_status: "active" },
+  ]],
+  "workspace_resource_ambiguous"
+);
+
+{
   const connection = await expectAuthorityError(
-    { tenantId: "tenant-a", resourceType, resourceRef: `${resourceType}-one` },
-    [],
+    { tenantId: "tenant-a", resourceType: "agent", resourceRef: "agent-unbound" },
+    [
+      [{ agent_id: "agent-unbound", status: "active", health_status: "active" }],
+      [],
+    ],
     "workspace_resource_reference_unverifiable"
   );
-  assert.equal(connection.queries.length, 0, `${resourceType} must fail closed before any guessed authority query`);
+  assert.equal(connection.queries.length, 2);
+}
+
+{
+  const connection = fakeConnection([
+    [{ workflow_id: "workflow-id-one", workflow_key: "workflow-key-one", status: "active", active: "TRUE" }],
+    [
+      { binding_id: "workflow-binding-1", resource_ref: "workflow-key-one", effect: "allow", status: "active", container_id: "container-a", container_status: "active", dimension_key: "workflows", dimension_status: "active" },
+      { binding_id: "workflow-binding-2", resource_ref: "workflow-id-one", effect: "delegate", status: "active", container_id: "container-b", container_status: "active", dimension_key: "workflows", dimension_status: "active" },
+    ],
+  ]);
+  const result = await assertGrantResourceInWorkspace(connection, {
+    tenantId: "tenant-a",
+    resourceType: "workflow",
+    resourceRef: "workflow-id-one",
+  });
+  assert.deepEqual(result, { resource_ref: "workflow-key-one", authority_source: "workflows+container_resource_bindings" });
+  assert.equal(connection.queries.length, 2);
+  assert.deepEqual(connection.queries[0].params, ["workflow-id-one", "workflow-id-one"]);
+  assert.deepEqual(connection.queries[1].params, ["tenant-a", "workflows", "workflow", "workflow-key-one", "workflow-id-one"]);
+  assert.match(connection.queries[1].sql, /container_resource_bindings/);
+  assert.doesNotMatch(connection.queries[1].sql, /v_activation_workflow_catalog/);
+}
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "workflow", resourceRef: "workflow-missing" },
+  [[]],
+  "workspace_resource_not_found"
+);
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "workflow", resourceRef: "workflow-disabled" },
+  [[{ workflow_id: "workflow-disabled", workflow_key: "workflow-disabled", status: "disabled", active: "FALSE" }]],
+  "workspace_resource_inactive"
+);
+
+await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "workflow", resourceRef: "workflow-ambiguous" },
+  [[
+    { workflow_id: "workflow-ambiguous", workflow_key: "workflow-a", status: "active", active: "TRUE" },
+    { workflow_id: "workflow-b", workflow_key: "workflow-ambiguous", status: "active", active: "TRUE" },
+  ]],
+  "workspace_resource_ambiguous"
+);
+
+{
+  const connection = await expectAuthorityError(
+    { tenantId: "tenant-a", resourceType: "workflow", resourceRef: "workflow-unbound-id" },
+    [
+      [{ workflow_id: "workflow-unbound-id", workflow_key: "workflow-unbound-key", status: "active", active: "TRUE" }],
+      [],
+    ],
+    "workspace_resource_reference_unverifiable"
+  );
+  assert.equal(connection.queries.length, 2);
+  assert.deepEqual(connection.queries[1].params, ["tenant-a", "workflows", "workflow", "workflow-unbound-key", "workflow-unbound-id"]);
 }
 
 console.log("workspace resource grant canonical validation tests passed");
