@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "79fb6dec196d1e376dd7ceced6092a792baa42d7d7f8f54b7e9b660a37fa481b",
+    "source_digest": "d665faa0a37279505ec252f966fb4002a577dfddc841f8afad4c5b2b4a11c734",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "b6b44ef0c07a12e08da1da8ca6907705a3657f6300e02c3fda32a00b0e34da2b",
+        "sha256": "dc5756adeebbc7d5af5aff7298ca8fcb1d03315f22b881c351c4fdc70d9ec4c6",
         "present": true
       },
       {
@@ -26,7 +26,7 @@
       },
       {
         "file": "openapi.yaml",
-        "sha256": "4893a474017395b5edae40f7155f1dde284aac5cb034b6d25a39c6520d1b35c7",
+        "sha256": "121dcdf27e65b9e9c7fd6a501b51c88005291384abb6aae6488c270c76a18f48",
         "present": true
       },
       {
@@ -46,7 +46,7 @@
       },
       {
         "file": "openapi/brand-core-asset-materialization.yaml",
-        "sha256": "3eaaa85e6f82a3e0f857f66eaba5d0b3e0f7742aee7f78fdcad195dd88cc52e7",
+        "sha256": "62f8d8ead3ece6bd360503e4fc9b6d02c132dd583f9b0baf8337037622903423",
         "present": true
       },
       {
@@ -791,7 +791,7 @@
       },
       {
         "file": "routes/resourceApiRoutes.js",
-        "sha256": "7d3bef316e221a38e548da5668a7e43737610ca05516e4923de6cccc2eadc782",
+        "sha256": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
         "present": true
       },
       {
@@ -1036,7 +1036,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "40a5eec66a517feee811ca780bc878e2eda50abf0eee07cf23804a89993e216e",
+        "sha256": "268a5d4882ac6f713276dfad54ef94d06cdd8f156eb52d84ea3d2a8d1a9d71b5",
         "present": true
       },
       {
@@ -1056,7 +1056,7 @@
       },
       {
         "file": "test-frontend-operation-governance-generator.mjs",
-        "sha256": "9c3ba2439e62d10f2baddcd7f3cf94ae6dfaf3a4868be723f2079b3664640edb",
+        "sha256": "0bb6f07ece465476b5ad63f069379b7925e921e53e5bed65c2db75407ae4d71d",
         "present": true
       },
       {
@@ -31646,7 +31646,7 @@
       "family_key": "resource-api.admin",
       "label": "resource api (admin)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "7d3bef316e221a38e548da5668a7e43737610ca05516e4923de6cccc2eadc782",
+      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,
@@ -32821,7 +32821,7 @@
       "family_key": "resource-api.tenant",
       "label": "resource api (tenant)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "7d3bef316e221a38e548da5668a7e43737610ca05516e4923de6cccc2eadc782",
+      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,
@@ -32832,8 +32832,8 @@
       "operations": [
         {
           "method": "POST",
-          "path": "/me/workspaces/{tenant_id}/assets/materialize-brand-core",
-          "signature": "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core",
+          "path": "/me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core",
+          "signature": "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core",
           "source_file": "routes/resourceApiRoutes.js",
           "scope": "tenant",
           "runtime_auth": {
@@ -32885,7 +32885,7 @@
             "governed": true,
             "controls": {
               "preflight": {
-                "mode": "canonical_user_jwt_brand_authority_and_resource_asset_provenance"
+                "mode": "canonical_user_jwt_root_workspace_brand_container_and_resource_asset_provenance"
               },
               "approval": {
                 "mode": "runtime_authorization"
@@ -32904,18 +32904,23 @@
               }
             },
             "parameter_bindings": {
-              "tenant_id": "request.path.tenant_id",
-              "brand_ref": "request.body.brand_ref",
+              "workspace_id": "request.path.workspace_id",
+              "brand_key": "request.path.brand_key",
+              "tenant_id": "response.tenant_id",
               "source_ref": "request.body.source_ref",
               "asset_id": "response.asset.asset_id",
               "content_identity": "response.asset.content_identity",
-              "brand_workspace_id": "response.workspace.workspace_id"
+              "brand_workspace_id": "response.workspace.brand_workspace_id",
+              "brand_container_id": "response.workspace.brand_container_id",
+              "containment_relationship_id": "response.workspace.containment_relationship_id"
             },
             "blockers": [],
             "rule_id": "generated-workspace-brand-core-asset-materialize-governance",
             "owner": "workspace-platform",
-            "rationale": "Materializes exactly one active Brand Core context source only after canonical User-JWT, tenant Brand authority and Brand Workspace authority; persistence is delegated to the canonical Resource API workspace asset lifecycle, whose existing unique identity serializes retries/concurrency and whose provenance compatibility/readback fails closed on conflicting source identity. No provider content is fetched or falsely checksummed.",
+            "rationale": "Materializes exactly one active Brand Core context source only after canonical User-JWT, a personal/company Root Workspace that derives tenant scope, existing Brand mutation authority, one workspace_type=brand child operational binding, and one direct inheritance-bearing Root Workspace contains Brand container path. Missing, ambiguous, or cross-workspace topology fails closed without self-healing the authority graph. Persistence stays on the canonical Resource API workspace asset lifecycle and no provider content is fetched or falsely checksummed.",
             "evidence_refs": [
+              "migrations/20260730_context_kernel_connection_ownership_persistence.sql",
+              "migrations/319_sprint69_dynamic_container_authority_foundation.sql",
               "routes/resourceApiRoutes.js",
               "src/infrastructure/resourceApi/resourceRepository.js",
               "test-brand-core-asset-materialization-operation-governance.mjs",
@@ -33785,7 +33790,7 @@
       ],
       "tests": [],
       "untested_operations": [
-        "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core",
+        "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core",
         "GET /me/workspaces/{tenant_id}/resources",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
@@ -33845,7 +33850,7 @@
       "family_key": "resource-api.unresolved",
       "label": "resource api (unresolved)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "7d3bef316e221a38e548da5668a7e43737610ca05516e4923de6cccc2eadc782",
+      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,

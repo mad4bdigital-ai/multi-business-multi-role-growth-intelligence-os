@@ -22404,3 +22404,5 @@ paths:
     $ref: ./openapi/hostinger-storage-tenant-runtime.yaml#/hostingerStorageTenantApplyPlanPath
   /me/workspaces/{tenant_id}/assets/materialize-brand-core:
     $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{tenant_id}~1assets~1materialize-brand-core
+  /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
+    $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core
