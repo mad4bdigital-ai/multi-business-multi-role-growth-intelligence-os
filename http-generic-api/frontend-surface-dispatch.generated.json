@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f77c0a05adf2df0c76106c4bfe435b2a2104e3e4be4067c46b61a0ae10fb0db1",
+    "source_digest": "66c3d2b594c7eed201f797f3974ef5b27f21b322a8432531265fdfa395a6a7ce",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -986,7 +986,7 @@
       },
       {
         "file": "routes/tenantGrowthControlPlaneRoutes.js",
-        "sha256": "fbde167c3090f3a300ea4f2a268397c50fc5085206d206d7a83e12ad3ddb3d11",
+        "sha256": "56d6edec51ba97a7eca4d7cef5d075442f48b9e0ae140108b3ee674ff89295ee",
         "present": true
       },
       {
@@ -27450,7 +27450,7 @@
       "family_key": "tenant-growth-control-plane",
       "label": "tenant growth control plane",
       "source_file": "routes/tenantGrowthControlPlaneRoutes.js",
-      "source_digest": "fbde167c3090f3a300ea4f2a268397c50fc5085206d206d7a83e12ad3ddb3d11",
+      "source_digest": "56d6edec51ba97a7eca4d7cef5d075442f48b9e0ae140108b3ee674ff89295ee",
       "mount_prefix": "/",
       "mount_order": 16295,
       "split_from_mixed_scope_file": false,
@@ -27475,12 +27475,15 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireTenantUserJwt"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
+              "BACKEND_API_KEY",
               "JWT_SECRET"
             ]
           },
@@ -27535,12 +27538,15 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireTenantUserJwt"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
+              "BACKEND_API_KEY",
               "JWT_SECRET"
             ]
           },
