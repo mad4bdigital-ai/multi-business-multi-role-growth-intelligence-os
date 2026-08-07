@@ -9,7 +9,8 @@ function requireExactlyOne(rows, resourceType) {
   if (rows.length !== 1) {
     throw bindingAuthorityError(409, "container_binding_resource_ambiguous", `${resourceType} resource reference did not resolve uniquely.`);
   }
-  return rows[0];
+  const [resolved] = rows;
+  return resolved;
 }
 
 function activeValue(value) {
