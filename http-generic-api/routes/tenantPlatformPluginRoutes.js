@@ -1,6 +1,6 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import {
   resolvePlatformPluginExecution,
@@ -11,7 +11,7 @@ import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
 const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
   "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
@@ -37,15 +37,6 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "target_mode",
   "targetMode",
 ]);
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   const pool = getPool();
@@ -96,9 +87,7 @@ function tenantIntakeUnknownFields(input = {}) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
@@ -192,7 +181,7 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
 export function buildTenantPlatformPluginRoutes() {
   const router = Router();
 
-  router.get("/tenant/platform/plugins/catalog", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/platform/plugins/catalog", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const result = await loadPlatformPluginCatalog({
         tenantId: req.auth.tenant_id,
@@ -215,7 +204,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_catalog_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/install", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/install", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const result = await installPlatformPluginForTenant({
@@ -244,7 +233,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_install_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/credential-intake-sessions", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/credential-intake-sessions", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       if (!tenantCanManageConnections(req.auth.tenant_role)) {
         return res.status(403).json({
@@ -372,7 +361,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_credential_intake_session_create_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/resolve", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/resolve", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const contract = parseTenantPlatformPluginResolveContract(input);
@@ -412,7 +401,8 @@ export function buildTenantPlatformPluginRoutes() {
 }
 
 export const _testingTenantPlatformPluginRoutes = {
-  verifyUserJwt,
+  requireTenantUserJwt,
+  requireCanonicalUserJwt,
   boundedInt,
   bool,
   parseTenantPlatformPluginResolveContract,
