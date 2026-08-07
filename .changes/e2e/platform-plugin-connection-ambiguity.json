@@ -7,11 +7,17 @@
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "docs/platform-plugin-contract-migration-guide.md",
+      "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
+      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
       "http-generic-api/platformPluginConnectionOwnership.js",
       "http-generic-api/platformPluginResolver.js",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
       "http-generic-api/test-platform-plugin-connection-ownership.mjs",
       "http-generic-api/test-platform-plugin-resolver.mjs",
+      "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
       "http-generic-api/test-tenant-platform-plugin-routes.mjs"
     ]
   },
@@ -22,7 +28,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace ownership, while preserving fail-closed ambiguity and preventing user, workspace, or brand scope expansion.",
+      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace ownership and publish the same exact-workspace rule through the governed precise OpenAPI source, while preserving fail-closed ambiguity and preventing user, workspace, or brand scope expansion.",
       "e2e_journeys": [
         {
           "id": "workspace-owned-platform-plugin-connections-fail-closed",
@@ -30,7 +36,7 @@
           "level": "synthetic_runtime",
           "actor": "Authenticated tenant user resolving a platform-plugin action in an exact workspace",
           "entrypoint": "POST /tenant/platform/plugins/resolve and resolvePlatformPluginExecution for an authenticated tenant/user/workspace",
-          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; missing, mismatched, ambiguous, unclassified, cross-workspace, or brand ownership remains blocked without exposing candidate identifiers or secrets.",
+          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; the generated Tenant OpenAPI requires the same exact workspace; missing, mismatched, ambiguous, unclassified, cross-workspace, or brand ownership remains blocked without exposing candidate identifiers or secrets.",
           "steps": [
             "Require an explicit workspace_id on the tenant resolve contract and derive tenant_id/user_id only from authenticated context.",
             "Read workspace ownership for the exact tenant and workspace, then query the Context Kernel compatibility view for classified active ownership in that same workspace.",
@@ -38,6 +44,7 @@
             "Map company_workspace ownership to tenant_connection without treating the user who originally connected the provider as the credential owner.",
             "Exclude brand-owned connections until canonical Brand-management authority is composed into this resolver.",
             "Apply the existing cardinality guard so multiple usable candidates fail closed before any connection identifier is selected.",
+            "Publish the workspace-aware request and sanitized ownership evidence from one precise OpenAPI path-item source using governed inline composition into openapi.yaml and the generated Tenant Core surface.",
             "Assert scope mismatch and ambiguity responses contain no credential payload or candidate connection identifiers."
           ],
           "assertions": [
@@ -49,6 +56,9 @@
             "Brand connections are excluded from this bounded change and cannot become eligible without the separate canonical Brand authority path.",
             "Two eligible connections in the resolved ownership scope return AMBIGUOUS_CONNECTION_SELECTION without a selected connection_id.",
             "Reversing ambiguous connection row order does not change the fail-closed result covered by the existing ambiguity regression.",
+            "The precise tenant resolver contract requires plugin_key plus workspace_id, publishes one-selector-workspace-v2, and documents sanitized connection_ownership_resolution evidence.",
+            "The precise registry transition is opt-in with composition_mode=inline; default registry contracts remain ref-based and unrecognized occupied inline operations remain fail-closed.",
+            "Generated Tenant Core OpenAPI and root OpenAPI must retain workspace_id, one-selector-workspace-v2, Brand exclusion evidence, and stable ownership denial codes.",
             "No access token, refresh token, password, API key, encrypted credential, candidate connection identifier, or secret-backed value is exposed by ambiguity/scope denials.",
             "The change performs no database migration, Production mutation, provider call, credential/secret mutation, manual generated-artifact edit or force push."
           ],
@@ -73,15 +83,35 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-platform-plugin-routes.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-openapi-workspace-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-openapi.mjs",
+              "args": []
+            },
+            {
+              "id": "precise-inline-openapi-transition-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-inline-registry-transition.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-plugin-connection-ambiguity.json",
+            "docs/platform-plugin-contract-migration-guide.md",
+            "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
+            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
             "http-generic-api/platformPluginConnectionOwnership.js",
             "http-generic-api/platformPluginResolver.js",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
             "http-generic-api/test-platform-plugin-connection-ownership.mjs",
             "http-generic-api/test-platform-plugin-resolver.mjs",
+            "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
             "http-generic-api/test-tenant-platform-plugin-routes.mjs"
           ]
         }
