@@ -50,6 +50,15 @@ await expectAuthorityError(
 );
 
 await expectAuthorityError(
+  { tenantId: "tenant-a", resourceType: "asset", resourceRef: "asset-ambiguous" },
+  [
+    { asset_id: "asset-ambiguous", tenant_id: "tenant-a", lifecycle_status: "active" },
+    { asset_id: "asset-ambiguous", tenant_id: "tenant-a", lifecycle_status: "active" },
+  ],
+  "workspace_resource_ambiguous"
+);
+
+await expectAuthorityError(
   { tenantId: "tenant-a", resourceType: "asset", resourceRef: "asset-deleted" },
   [{ asset_id: "asset-deleted", tenant_id: "tenant-a", lifecycle_status: "deleted" }],
   "workspace_resource_inactive"
