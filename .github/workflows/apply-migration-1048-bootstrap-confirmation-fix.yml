@@ -24,8 +24,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git apply --check .changes/migration-1048-authorization-handshake.patch
-          git apply .changes/migration-1048-authorization-handshake.patch
+          git apply --check --recount .changes/migration-1048-authorization-handshake.patch
+          git apply --recount .changes/migration-1048-authorization-handshake.patch
 
       - name: Validate bounded contract
         shell: bash
