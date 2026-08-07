@@ -1,0 +1,67 @@
+name: Single Owner Policy Blob Export
+
+on:
+  push:
+    branches:
+      - fix/github-main-single-owner-policy-20260807
+    paths:
+      - .github/workflows/single-owner-policy-blob-export.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download validated bounded artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: "8988288801"
+        run: |
+          set -euo pipefail
+          mkdir -p patch
+          gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" > /tmp/patch.zip
+          unzip -q /tmp/patch.zip -d patch
+      - name: Verify manifest and exact seven-file allowlist
+        run: |
+          set -euo pipefail
+          cd patch
+          sha256sum -c MANIFEST.sha256
+          expected="$(mktemp)"
+          actual="$(mktemp)"
+          cat > "$expected" <<'EOF'
+          .changes/e2e/github-repository-policy-single-owner-mode.json
+          .github/workflows/single-owner-review-gate.yml
+          http-generic-api/githubRepositoryPolicyController.js
+          http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql
+          http-generic-api/scripts/single-owner-review-gate.mjs
+          http-generic-api/test-github-repository-policy-controller.mjs
+          http-generic-api/test-single-owner-review-gate.mjs
+          EOF
+          sort -o "$expected" "$expected"
+          find . -type f ! -name MANIFEST.sha256 -printf '%P\n' | sort > "$actual"
+          diff -u "$expected" "$actual"
+          test "$(wc -l < "$actual")" -eq 7
+      - name: Create immutable Git blobs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          cd patch
+          : > GIT_BLOBS.ndjson
+          while IFS= read -r path; do
+            encoded="$(base64 -w0 -- "$path")"
+            sha="$(gh api --method POST "/repos/${GITHUB_REPOSITORY}/git/blobs" -f content="$encoded" -f encoding=base64 --jq .sha)"
+            printf '{"path":"%s","sha":"%s"}\n' "$path" "$sha" >> GIT_BLOBS.ndjson
+          done < <(find . -type f ! -name MANIFEST.sha256 ! -name GIT_BLOBS.ndjson -printf '%P\n' | sort)
+          test "$(wc -l < GIT_BLOBS.ndjson)" -eq 7
+          cp GIT_BLOBS.ndjson ../GIT_BLOBS.ndjson
+      - name: Upload Git blob map
+        uses: actions/upload-artifact@v4
+        with:
+          name: single-owner-git-blobs-${{ github.sha }}
+          path: GIT_BLOBS.ndjson
+          if-no-files-found: error
+          retention-days: 3
