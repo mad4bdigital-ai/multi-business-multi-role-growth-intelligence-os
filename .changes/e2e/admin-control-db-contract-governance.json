@@ -14,7 +14,9 @@
       "docs/governance/admin-control-db-contract-policy.md",
       "http-generic-api/package.json",
       "http-generic-api/scripts/admin-control-db-contract-governance.mjs",
-      "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+      "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+      "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+      "http-generic-api/test-test-manifest-runner.mjs"
     ]
   },
   "merge_contract": {
@@ -42,6 +44,7 @@
             "Reject any new raw caller that is not in the migration-only legacy allowlist and require the shared builder instead.",
             "Validate every allowlisted raw caller still uses action=run and sql.",
             "On CI, compare the legacy allowlist to the base branch and reject additions so the ratchet may only shrink.",
+            "Run the DB governance phase first inside the shell-free Node test orchestrator, before the canonical test manifest.",
             "Run self-tests proving action=query, query-as-SQL-field, and missing action are rejected.",
             "Run the Migration 1043 Apply contract test to retain the exact caller repair and no-retry safety boundary."
           ],
@@ -50,7 +53,7 @@
             "New raw operational DB callers are forbidden; the shared builder is the required path for new callers.",
             "The legacy raw-caller allowlist is a monotonic ratchet that may only shrink relative to the base branch.",
             "The provider must not gain compatibility handling for action=query or body.query to repair a caller mismatch.",
-            "The governance check runs before the normal test manifest through npm test and is therefore CI merge-blocking wherever the repository CI test job is required.",
+            "npm test remains a single shell-free Node orchestrator command; the governance phase executes first with --ci and fails closed before the canonical test manifest.",
             "Migration 1043 continues to use the canonical action=run and sql shape and retains its exact-once/readback/no-retry controls.",
             "No database migration, provider call, credential payload read, external business write, deployment, Production ref mutation, or secret evidence occurs during policy validation."
           ],
@@ -61,6 +64,13 @@
               "working_directory": "http-generic-api",
               "path": "scripts/admin-control-db-contract-governance.mjs",
               "args": ["--self-test"]
+            },
+            {
+              "id": "test-orchestrator-governance-order",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-test-manifest-runner.mjs",
+              "args": []
             },
             {
               "id": "migration-1043-db-control-contract",
@@ -76,7 +86,9 @@
             ".github/ops/lib/admin-control-db-request.mjs",
             "docs/governance/admin-control-db-contract-policy.md",
             "http-generic-api/scripts/admin-control-db-contract-governance.mjs",
-            "http-generic-api/test-sprint69-1043-apply-contract.mjs"
+            "http-generic-api/scripts/run-test-and-run-adaptive-authorization-verification-manifest.mjs",
+            "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+            "http-generic-api/test-test-manifest-runner.mjs"
           ]
         }
       ]
