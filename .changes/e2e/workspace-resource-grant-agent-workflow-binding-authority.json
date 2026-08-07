@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-resource-grant-agent-workflow-binding-authority",
+  "title": "Explicit tenant binding authority for shared agent and workflow grants",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-resource-grant-agent-workflow-binding-authority.json",
+      "http-generic-api/workspaceGrantResourceAuthority.js",
+      "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Permit workspace grants for shared canonical agents and workflows only when the global resource exists and the requested tenant has a current explicit Dynamic Container resource binding, without treating availability catalogs or legacy projections as ownership authority.",
+      "e2e_journeys": [
+        {
+          "id": "workspace-grant-requires-shared-resource-and-explicit-tenant-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated workspace owner or admin",
+          "entrypoint": "Workspace resource grant creation for resource_type agent or workflow",
+          "terminal_outcome": "The global canonical resource resolves exactly once and is active, then at least one current allow-like tenant-scoped container_resource_bindings row proves explicit tenant authority before the grant write can continue.",
+          "steps": [
+            "Resolve an agent directly from the global agents registry or a workflow by workflow_id/workflow_key from the global workflows registry.",
+            "Reject missing, inactive, or ambiguous global resources before consulting tenant bindings.",
+            "Normalize workflow grants to the canonical workflow_key while accepting a binding recorded against the canonical key or workflow_id.",
+            "Require a current active container_resource_bindings row for the requested tenant, active container, active dimension, matching agents/workflows dimension and agent/workflow resource type, and allow/share/delegate effect.",
+            "Accept multiple valid bindings for one tenant/resource because they represent multiple authorized container placements rather than resource identity ambiguity.",
+            "Reject an active global resource with no current explicit tenant binding as workspace_resource_reference_unverifiable.",
+            "Exercise the resolver contract without connecting to or mutating a live database."
+          ],
+          "assertions": [
+            "Activation catalog cross-joins are availability/readback surfaces and are never accepted as tenant ownership authority.",
+            "Legacy Dynamic Container projection does not become grant authority merely because it projects workflow context; explicit container resource bindings are required.",
+            "Agent lifecycle authority comes from agents.status=active; transient health_status does not redefine ownership identity.",
+            "Workflow lifecycle is active when canonical active/status fields satisfy the repository active-value contract.",
+            "Binding eligibility is tenant-scoped, current, active, attached to an active tenant container and active dimension, and limited to allow/share/delegate effects.",
+            "Multiple valid tenant bindings are allowed while multiple canonical resource identities fail closed as ambiguous.",
+            "No Migration Apply, SQL mutation, Production/provider mutation, deployment, credential or secret access, force push, or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "workspace-resource-grant-canonical-validation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-resource-grant-canonical-validation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-resource-grant-agent-workflow-binding-authority.json",
+            "http-generic-api/workspaceGrantResourceAuthority.js",
+            "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
