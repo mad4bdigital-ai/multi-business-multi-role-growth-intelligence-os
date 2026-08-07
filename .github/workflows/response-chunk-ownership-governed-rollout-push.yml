@@ -28,7 +28,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '4191'
-      EVIDENCE_DIR: ${{ runner.temp }}/response-chunk-ownership-push
+      EVIDENCE_DIR: .artifacts/response-chunk-ownership-push
     steps:
       - name: Checkout exact trusted main push
         uses: actions/checkout@v5
@@ -83,7 +83,7 @@ jobs:
           echo "marker=$MARKER" >> "$GITHUB_OUTPUT"
           echo "phase=$PHASE" >> "$GITHUB_ENV"
           echo "ROLLOUT_PHASE=$PHASE" >> "$GITHUB_ENV"
-          echo "EVIDENCE_DIR=${RUNNER_TEMP}/response-chunk-ownership-${PHASE}" >> "$GITHUB_ENV"
+          echo "EVIDENCE_DIR=.artifacts/response-chunk-ownership-${PHASE}" >> "$GITHUB_ENV"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
