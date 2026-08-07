@@ -13,6 +13,7 @@
       "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
       "http-generic-api/migrations/193_sprint67_workspace_resource_authority_foundation.sql",
       "http-generic-api/openapi/brand-core-asset-materialization.yaml",
+      "http-generic-api/openapi-route-contracts.d/brand-core-asset-materialization.yaml",
       "http-generic-api/test-brand-core-asset-materialization-operation-governance.mjs",
       "http-generic-api/frontend-operation-governance-tests.json",
       "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
@@ -48,6 +49,7 @@
             "Reject a changed Brand Core revision for the same durable asset identity when canonical provenance compatibility fails instead of silently refreshing lineage.",
             "Read the persisted lineage under lock and project it through canonical Resource Repository read authority before commit.",
             "Keep content_sha256 null when provider content was not fetched instead of hashing metadata and calling it content.",
+            "Compose the canonical OpenAPI path through the precise-contract registry fragment before generated frontend/OpenAPI parity is enforced.",
             "Generate operation-governance and frontend/OpenAPI evidence from the final exact source tree."
           ],
           "assertions": [
@@ -60,6 +62,7 @@
             "Materialization does not query information_schema and does not require a separate workspace_assets provenance migration or second authority model.",
             "Only the canonical Resource API route family exposes the materialization mutation; no parallel materialization router is introduced.",
             "The canonical OpenAPI authority documents POST /me/workspaces/{tenant_id}/assets/materialize-brand-core with User JWT and consequential mutation semantics.",
+            "The precise OpenAPI registry binds that runtime route to the canonical modular Brand Core materialization path item rather than allowlisting the route gap.",
             "Provider content is not fetched and content_sha256 is not fabricated from provenance metadata.",
             "The generated operation rule is state_change only when canonical JWT, Brand authority, source identity, transaction/readback and registered test evidence all pass.",
             "No Migration Apply, Production/Hostinger/provider mutation, deployment, credential/secret access, force push or external send occurs in CI."
@@ -94,6 +97,7 @@
             "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
             "http-generic-api/migrations/193_sprint67_workspace_resource_authority_foundation.sql",
             "http-generic-api/openapi/brand-core-asset-materialization.yaml",
+            "http-generic-api/openapi-route-contracts.d/brand-core-asset-materialization.yaml",
             "http-generic-api/test-brand-core-asset-materialization-operation-governance.mjs",
             "http-generic-api/frontend-operation-governance-tests.json",
             "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
