@@ -21,8 +21,12 @@ const LEASE_ROUTE_FILE = "routes/repositoryAutomationRoutes.js";
 const LEASE_CONTROL_FILE = "repositoryReconciliationLeaseControl.js";
 const LEASE_SERVICE_FILE = "repositoryOperationLeaseService.js";
 const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
+const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
+const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
+const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
+const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -137,7 +141,52 @@ function evaluateLeaseRecipe(apiRoot) {
   return { recipe, gates, evidenceFiles: [LEASE_ROUTE_FILE, LEASE_CONTROL_FILE, LEASE_SERVICE_FILE, LEASE_TEST_FILE] };
 }
 
-function generatedLeaseRule(recipe, evidenceFiles, apiRoot) {
+function evaluateBrandCreateRecipe(apiRoot) {
+  const routeSource = readText(apiRoot, BRAND_ROUTE_FILE);
+  const serviceSource = readText(apiRoot, BRAND_SERVICE_FILE);
+  const route = routeRegistry(routeSource, BRAND_ROUTE_FILE).get(BRAND_CREATE_OPERATION);
+  const createBlock = extractFunctionBlock(serviceSource, "createWorkspaceBrand");
+  const ownerBlock = extractFunctionBlock(serviceSource, "requireOwnerAuthority");
+  const linkBlock = extractFunctionBlock(serviceSource, "ensureTenantBrandLink");
+  const workspaceBlock = extractFunctionBlock(serviceSource, "ensureBrandWorkspace");
+  const grantBlock = extractFunctionBlock(serviceSource, "ensureCreatorBrandGrant");
+  const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CREATE_OPERATION) || [];
+  const gates = [
+    evidenceGate("route_present", route, BRAND_ROUTE_FILE),
+    evidenceGate("user_jwt_guard", route?.route_guards?.includes("requireUserJwt"), "requireUserJwt"),
+    evidenceGate("route_service_binding", route?.declaration?.includes("createWorkspaceBrand"), "createWorkspaceBrand"),
+    evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_create") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "begin/commit/rollback"),
+    evidenceGate("service_present", createBlock, "createWorkspaceBrand"),
+    evidenceGate("locked_owner_authority", ownerBlock.includes("LIMIT 2 FOR UPDATE") && ownerBlock.includes("OWNER_ROLES.has"), "owner/admin locked membership"),
+    evidenceGate("canonical_identity", serviceSource.includes("canonicalWorkspaceBrandTargetKey") && serviceSource.includes("normalizeWorkspaceBrandName"), "deterministic canonical identity"),
+    evidenceGate("explicit_tenant_link", linkBlock.includes("workspace_owner_brand_create") && linkBlock.includes("tenant_brand_links") && linkBlock.includes("FOR UPDATE"), "tenant_brand_links explicit authority/readback"),
+    evidenceGate("brand_workspace_binding", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "brand workspace registry/readback"),
+    evidenceGate("creator_admin_grant", grantBlock.includes("workspace_resource_grants") && grantBlock.includes("'brand'") && grantBlock.includes("'admin'") && grantBlock.includes("FOR UPDATE"), "creator brand/admin grant/readback"),
+    evidenceGate("no_secret_response", routeSource.includes("secrets_included: false"), "secrets_included=false"),
+    evidenceGate("registered_operation_test", claimedTests.includes(BRAND_TEST_FILE), BRAND_TEST_FILE),
+  ];
+  const recipe = {
+    recipe_id: "workspace-brand-create-v1",
+    rule_id: "generated-workspace-brand-create-governance",
+    operation: BRAND_CREATE_OPERATION,
+    source_file: BRAND_ROUTE_FILE,
+    owner: "workspace-platform",
+    rationale: "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+    preflight_mode: "locked_workspace_owner_authority_and_canonical_identity",
+    approval_mode: "runtime_authorization",
+    parameter_bindings: {
+      tenant_id: "request.path.tenant_id",
+      display_name: "request.body.display_name|request.body.brand_name",
+      actor_user_id: "authenticated_user.user_id",
+      brand_target_key: "response.brand.target_key",
+      brand_workspace_id: "response.workspace_link.workspace_id",
+      creator_grant_id: "response.creator_grant.grant_id",
+    },
+  };
+  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE] };
+}
+
+function generatedStateChangeRule(recipe, evidenceFiles, apiRoot) {
   return {
     rule_id: recipe.rule_id,
     operation: recipe.operation,
@@ -164,10 +213,14 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan.source_authority.map((entry) => entry.file),
     WRAPPER_FILE,
     BASE_GENERATOR_FILE,
+    TEST_REGISTRY_FILE,
     LEASE_ROUTE_FILE,
     LEASE_CONTROL_FILE,
     LEASE_SERVICE_FILE,
     LEASE_TEST_FILE,
+    BRAND_ROUTE_FILE,
+    BRAND_SERVICE_FILE,
+    BRAND_TEST_FILE,
   ]);
   const sourceAuthority = files.map((file) => ({
     file,
@@ -178,7 +231,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v2-lease-extension",
+      id: "frontend-operation-governance-generator-v3-brand-create-extension",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
@@ -190,30 +243,33 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const basePlan = buildBaseOperationGovernance({ apiRoot });
   if (process.env.FRONTEND_OPERATION_GOVERNANCE_BASE_TEST === "1") return basePlan;
 
-  const evaluation = evaluateLeaseRecipe(apiRoot);
-  const missingEvidence = evaluation.gates.filter((gate) => !gate.passed).map((gate) => gate.code);
+  const evaluations = [evaluateLeaseRecipe(apiRoot), evaluateBrandCreateRecipe(apiRoot)];
   const plan = withSourceAuthority(basePlan, apiRoot);
   const operationRules = [...plan.operation_rules];
   const rejectedCandidates = [...plan.rejected_candidates];
 
-  if (missingEvidence.length) {
-    rejectedCandidates.push({
-      recipe_id: evaluation.recipe.recipe_id,
-      operation: evaluation.recipe.operation,
-      source_file: evaluation.recipe.source_file,
-      reason: "required_evidence_missing",
-      missing_evidence: missingEvidence,
-      gates: evaluation.gates,
-    });
-  } else {
-    operationRules.push(generatedLeaseRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
+  for (const evaluation of evaluations) {
+    const missingEvidence = evaluation.gates.filter((gate) => !gate.passed).map((gate) => gate.code);
+    if (missingEvidence.length) {
+      rejectedCandidates.push({
+        recipe_id: evaluation.recipe.recipe_id,
+        operation: evaluation.recipe.operation,
+        source_file: evaluation.recipe.source_file,
+        reason: "required_evidence_missing",
+        missing_evidence: missingEvidence,
+        gates: evaluation.gates,
+      });
+    } else {
+      operationRules.push(generatedStateChangeRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
+    }
   }
+
   operationRules.sort((left, right) => left.operation.localeCompare(right.operation));
   rejectedCandidates.sort((left, right) => left.operation.localeCompare(right.operation));
   return {
     ...plan,
     coverage: {
-      candidate_count: basePlan.coverage.candidate_count + 1,
+      candidate_count: basePlan.coverage.candidate_count + evaluations.length,
       generated_rule_count: operationRules.length,
       rejected_candidate_count: rejectedCandidates.length,
     },

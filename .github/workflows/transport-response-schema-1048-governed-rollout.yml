@@ -13,7 +13,7 @@ jobs:
     if: >-
       github.event.issue.number == 6531 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY' &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
@@ -29,10 +29,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-readiness
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
@@ -75,7 +75,7 @@ jobs:
     if: >-
       github.event.issue.number == 6531 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY' &&
+      github.event.comment.body == 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
@@ -91,10 +91,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-apply
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
@@ -137,7 +137,7 @@ jobs:
     if: >-
       github.event.issue.number == 6531 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY' &&
+      github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
@@ -153,10 +153,10 @@ jobs:
       CONTROL_ISSUE: '6531'
       EVIDENCE_DIR: .artifacts/transport-response-schema-1048-verify
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 1
 
       - name: Set up Node.js 22
