@@ -22,6 +22,11 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install API dependencies
+        working-directory: http-generic-api
+        run: npm ci
       - name: Repair bootstrap text decoder and legacy test anchor
         shell: bash
         run: |
