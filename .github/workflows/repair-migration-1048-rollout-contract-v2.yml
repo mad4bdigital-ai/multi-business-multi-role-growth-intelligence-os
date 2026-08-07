@@ -1,0 +1,164 @@
+name: Repair Migration 1048 Rollout Contract V2
+
+on:
+  push:
+    branches:
+      - fix/migration-1048-canonical-confirmation-and-readiness-marker
+    paths:
+      - .github/ops/repair-migration-1048-rollout-contract-v2.trigger
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-migration-1048-rollout-contract-v2
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    env:
+      EXPECTED_BRANCH: fix/migration-1048-canonical-confirmation-and-readiness-marker
+      OLD_WORKFLOW: .github/workflows/repair-migration-1048-rollout-contract.yml
+      OLD_TRIGGER: .github/ops/repair-migration-1048-rollout-contract.trigger
+      WORKFLOW_FILE: .github/workflows/repair-migration-1048-rollout-contract-v2.yml
+      TRIGGER_FILE: .github/ops/repair-migration-1048-rollout-contract-v2.trigger
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Align canonical confirmations and readiness publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          git fetch origin "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+          python3 <<'PY'
+          from pathlib import Path
+          runner_path = Path('.github/ops/transport-response-schema-1048-governed-rollout.mjs')
+          workflow_path = Path('.github/workflows/transport-response-schema-1048-governed-rollout.yml')
+          test_path = Path('http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs')
+          def once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly one match, found {count}')
+              return text.replace(old, new, 1)
+          runner = runner_path.read_text()
+          runner = once(runner, "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';", "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';", 'AUTH_CONFIRM')
+          runner = once(runner, "const APPLY_CONFIRM = 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';", "const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';", 'APPLY_CONFIRM')
+          runner = once(runner, "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY';", "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY';", 'VERIFY_CONFIRM')
+          runner_path.write_text(runner)
+          workflow = workflow_path.read_text()
+          workflow = once(workflow, "github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'", "github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'", 'authorize trigger')
+          workflow = once(workflow, "github.event.comment.body == 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'", "github.event.comment.body == 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'", 'apply trigger')
+          workflow = once(workflow, "github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'", "github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'", 'verify trigger')
+          workflow = once(workflow, "  readiness:\n    name: Authorize and dry-run Migration 1048\n    if: >-", "  readiness:\n    name: Authorize and dry-run Migration 1048\n    permissions:\n      contents: read\n      issues: write\n    if: >-", 'readiness permissions')
+          old_step = "\n".join([
+              "      - name: Execute Production-bound authorization and dry-run",
+              "        run: node .github/ops/transport-response-schema-1048-governed-rollout.mjs",
+              "",
+              "      - name: Upload no-secret readiness evidence",
+          ])
+          marker_step = "\n".join([
+              "      - name: Execute Production-bound authorization and dry-run",
+              "        run: node .github/ops/transport-response-schema-1048-governed-rollout.mjs",
+              "",
+              "      - name: Publish checksum-bound readiness marker",
+              "        if: success()",
+              "        env:",
+              "          GH_TOKEN: ${{ github.token }}",
+              "        shell: bash",
+              "        run: |",
+              "          set -euo pipefail",
+              "          COMMENT=\"$(node -e 'const fs=require(\"node:fs\");const s=JSON.parse(fs.readFileSync(`${process.env.EVIDENCE_DIR}/summary.json`,\"utf8\"));if(s.result===\"ready_for_apply\"){const m=String(s.readiness_marker||\"\");if(!m.startsWith(\"TRANSPORT_RESPONSE_SCHEMA_1048_READINESS result=pass \"))throw new Error(\"Malformed Migration 1048 readiness marker\");process.stdout.write(m);}else if(s.result!==\"already_applied\")throw new Error(`Unexpected readiness result: ${s.result}`);')\"",
+              "          if [ -n \"$COMMENT\" ]; then",
+              "            gh api --method POST \"repos/${GITHUB_REPOSITORY}/issues/6531/comments\" -f body=\"$COMMENT\" >/dev/null",
+              "          fi",
+              "",
+              "      - name: Upload no-secret readiness evidence",
+          ])
+          workflow = once(workflow, old_step, marker_step, 'readiness marker step')
+          workflow_path.write_text(workflow)
+          test = test_path.read_text()
+          for old, new, label in [
+              ('AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY', 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY', 'test auth'),
+              ('APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY', 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY', 'test apply'),
+              ('VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY', 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY', 'test verify'),
+          ]:
+              test = once(test, old, new, label)
+          anchor = "const applyModeLiterals = runner.match(/mode:\\s*'apply'/g) || [];"
+          extra = "\n".join([
+              "for (const expected of [",
+              "  'issues: write',",
+              "  'Publish checksum-bound readiness marker',",
+              "  's.readiness_marker',",
+              "]) {",
+              "  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);",
+              "}",
+              "",
+              "for (const expected of [",
+              "  \"const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'\",",
+              "  \"const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'\",",
+              "]) {",
+              "  assert.ok(runner.includes(expected), `Migration 1048 runner is missing canonical runtime confirmation: ${expected}`);",
+              "}",
+              "",
+              "for (const forbidden of [",
+              "  'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',",
+              "  'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',",
+              "]) {",
+              "  assert.ok(!workflow.includes(forbidden), `Migration 1048 workflow retains obsolete confirmation: ${forbidden}`);",
+              "  assert.ok(!runner.includes(forbidden), `Migration 1048 runner retains obsolete confirmation: ${forbidden}`);",
+              "}",
+              "",
+              anchor,
+          ])
+          test = once(test, anchor, extra, 'canonical confirmation regression block')
+          test_path.write_text(test)
+          PY
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+          rm -f "$OLD_WORKFLOW" "$OLD_TRIGGER" "$WORKFLOW_FILE" "$TRIGGER_FILE"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+
+          mapfile -t CHANGED < <(git status --short | sed -E 's/^.. //' | sort)
+          for file in "${CHANGED[@]}"; do
+            case "$file" in
+              "$OLD_WORKFLOW"|"$OLD_TRIGGER"|"$WORKFLOW_FILE"|"$TRIGGER_FILE"|.github/ops/transport-response-schema-1048-governed-rollout.mjs|.github/workflows/transport-response-schema-1048-governed-rollout.yml|http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs|docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json)
+                ;;
+              *) echo "Unexpected repair write: $file"; exit 1 ;;
+            esac
+          done
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet && { echo 'Repair produced no staged changes'; exit 1; }
+          git commit -m "fix(migration): align 1048 governed rollout runtime contract"
+          NEW_HEAD="$(git rev-parse HEAD)"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs
+          test -z "$(git status --porcelain)"
+          git fetch origin "${EXPECTED_BRANCH}"
+          test "$(git rev-parse origin/${EXPECTED_BRANCH})" = "${GITHUB_SHA}"
+          git push origin "HEAD:${EXPECTED_BRANCH}"
+          echo "result_head=${NEW_HEAD}" >> "$GITHUB_STEP_SUMMARY"
