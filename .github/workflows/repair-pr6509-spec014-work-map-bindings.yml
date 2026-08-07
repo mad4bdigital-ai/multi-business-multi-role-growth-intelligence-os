@@ -64,23 +64,60 @@ jobs:
           test "${manifest_changed}" -eq 1
           git diff --check
 
-      - name: Validate refreshed binding contract
+      - name: Validate generated Work Maps are current
         shell: bash
         run: |
           set -euo pipefail
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
+
+      - name: Validate Hostinger Spec 014 binding
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+
+      - name: Validate Retail Spec 014 binding
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
             --feature-key 014-retail-commerce-operations-growth-os --check
-          (
-            cd http-generic-api
-            node test-work-map-schema-classification.mjs
-            node test-work-map-schema-classification-contract.mjs
-            node test-work-map-autofix-diagnostics.mjs
-            node test-spec-kit-work-map-governance-gate.mjs
-            node test-spec-kit-completion-gate.mjs
-            node test-spec014-refresh-final-work-map-binding.mjs
-          )
+
+      - name: Validate Work Map schema classification
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-work-map-schema-classification.mjs
+          node test-work-map-schema-classification-contract.mjs
+
+      - name: Validate Work Map autofix diagnostics
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-work-map-autofix-diagnostics.mjs
+
+      - name: Validate Spec Kit Work Map governance
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-spec-kit-work-map-governance-gate.mjs
+
+      - name: Validate Spec Kit completion gate
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-spec-kit-completion-gate.mjs
+
+      - name: Validate Spec 014 binding refresh regression
+        shell: bash
+        working-directory: http-generic-api
+        run: |
+          set -euo pipefail
+          node test-spec014-refresh-final-work-map-binding.mjs
 
       - name: Commit bounded repair and retire materializer
         shell: bash
