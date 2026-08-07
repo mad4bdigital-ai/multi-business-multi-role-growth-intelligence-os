@@ -24,7 +24,7 @@ const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
 const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
 const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
 const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
-const MATERIALIZE_ROUTE_FILE = "routes/brandCoreAssetMaterializationRoutes.js";
+const MATERIALIZE_ROUTE_FILE = "routes/resourceApiRoutes.js";
 const MATERIALIZE_SERVICE_FILE = "workspaceBrandCoreAssetMaterialization.js";
 const MATERIALIZE_MIGRATION_FILE = "migrations/1050_workspace_asset_provenance_content_identity.sql";
 const MATERIALIZE_TEST_FILE = "test-brand-core-asset-materialization-operation-governance.mjs";
@@ -207,10 +207,10 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
     evidenceGate("route_present", route, MATERIALIZE_ROUTE_FILE),
     evidenceGate(
       "canonical_user_jwt_guard",
-      routeSource.includes("const requireCanonicalUserJwt = createUserJwtMiddleware();")
-        && route?.declaration?.includes("requireCanonicalUserJwt")
+      routeSource.includes("const requireUserJwt = createUserJwtMiddleware();")
+        && route?.route_guards?.includes("requireUserJwt")
         && !/\bfunction\s+(?:verifyUserJwt|requireUserJwt)\s*\(/.test(routeSource),
-      "canonical createUserJwtMiddleware binding in route declaration with no route-local User JWT guard"
+      "centralized createUserJwtMiddleware binding parsed as requireUserJwt with no route-local User JWT verifier"
     ),
     evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAsset"),
     evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && routeSource.includes("await connection.beginTransaction()") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "transaction begin/commit/rollback"),
