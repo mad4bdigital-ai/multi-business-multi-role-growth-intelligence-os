@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
-import { createResourceRepository } from "./src/infrastructure/resourceApi/resourceRepository.js";
+import {
+  _testingResourceRepository,
+  createResourceRepository,
+} from "./src/infrastructure/resourceApi/resourceRepository.js";
 import { buildWorkspaceAssetProvenance } from "./workspaceAssetProvenance.js";
 
 const CHECKSUM_A = "a".repeat(64);
@@ -139,6 +142,24 @@ async function insert(executor, overrides = {}) {
     (error) => error?.code === "workspace_asset_ref_required" && error?.status === 400
   );
   assert.equal(executor.calls.length, 0, "missing durable asset identity must fail before authority or persistence queries");
+}
+
+{
+  const merged = _testingResourceRepository.mergeMutableAssetMetadata(
+    JSON.stringify({ content_sha256: CHECKSUM_A, source_type: "import", note: "old" }),
+    { note: "new", caption: "safe" }
+  );
+  assert.equal(merged.content_sha256, CHECKSUM_A);
+  assert.equal(merged.source_type, "import");
+  assert.equal(merged.note, "new");
+  assert.equal(merged.caption, "safe");
+  assert.throws(
+    () => _testingResourceRepository.mergeMutableAssetMetadata(
+      JSON.stringify({ content_sha256: CHECKSUM_A }),
+      { content_sha256: CHECKSUM_B }
+    ),
+    (error) => error?.code === "workspace_asset_provenance_mutation_forbidden" && error?.status === 409
+  );
 }
 
 {
