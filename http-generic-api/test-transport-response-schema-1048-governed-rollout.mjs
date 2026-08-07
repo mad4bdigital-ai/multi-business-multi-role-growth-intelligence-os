@@ -29,6 +29,10 @@ for (const expected of [
   'const EXPECTED_STATEMENT_COUNT = 34',
   "const SOURCE_PR = 6509",
   "const SOURCE_MERGE_SHA = '6503e74c60b8f6add9efade1f25ceb8afaec6209'",
+  "const MIGRATION_CONFIRMATION_KEY = MIGRATION",
+  "const AUTH_CONFIRM = `AUTHORIZE_GOVERNED_MIGRATION_${MIGRATION_CONFIRMATION_KEY}`",
+  "const APPLY_CONFIRM = `APPLY_${MIGRATION_CONFIRMATION_KEY}`",
+  "const VERIFY_CONFIRM = `VERIFY_GOVERNED_MIGRATION_${MIGRATION_CONFIRMATION_KEY}`",
   "name: 'governed_migration_execute'",
   "mode: 'dry_run'",
   "mode: 'apply'",
@@ -45,21 +49,16 @@ for (const expected of [
   'Publish checksum-bound readiness marker',
   'actions/github-script@v7',
   'summary.readiness_marker',
+  'TRANSPORT_RESPONSE_SCHEMA_1048_READINESS result=pass ',
+  'issue_number: 6531',
 ]) {
   assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);
-}
-
-for (const expected of [
-  "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
-  "const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
-  "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
-]) {
-  assert.ok(runner.includes(expected), `Migration 1048 runner is missing canonical confirmation: ${expected}`);
 }
 
 for (const forbidden of [
   'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
   'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
+  'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
 ]) {
   assert.ok(!workflow.includes(forbidden), `Migration 1048 workflow retains obsolete confirmation: ${forbidden}`);
   assert.ok(!runner.includes(forbidden), `Migration 1048 runner retains obsolete confirmation: ${forbidden}`);
@@ -91,5 +90,16 @@ for (const forbidden of [
 ]) {
   assert.doesNotMatch(runner, forbidden, `Migration 1048 rollout runner violates safety contract: ${forbidden}`);
 }
+
+assert.doesNotMatch(
+  runner,
+  /const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'/,
+  'Authorization bootstrap must not use the Issue trigger command as its typed migration confirmation',
+);
+assert.doesNotMatch(
+  runner,
+  /const APPLY_CONFIRM = 'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY'/,
+  'Migration Apply must not use the Issue trigger command as its typed executor confirmation',
+);
 
 console.log('PASS governed Migration 1048 rollout contract');

@@ -32,11 +32,14 @@
           "terminal_outcome": "The control plane proves checksum/blob-bound readiness, explicit authorization, exactly-once Apply semantics with no retry, and verification by ledger/readback while CI itself performs no migration or external mutation.",
           "steps": [
             "Read the Migration 1048 governed rollout runner and workflow from the exact pull-request head.",
-            "Execute the repository regression that checks command bindings, Production provenance guards, dry-run gating, single Apply dispatch, no retry behavior, and Verify-only reconciliation.",
+            "Verify that Issue-level workflow trigger commands remain control-plane commands while runtime authorization and Apply typed confirmations are derived from the exact canonical migration filename.",
+            "Execute the repository regression that checks command bindings, Production provenance guards, dry-run gating, canonical runtime typed confirmations, single Apply dispatch, no retry behavior, and Verify-only reconciliation.",
             "Record repository evidence only; do not execute Migration 1048, connect to a live database for mutation, read credentials or secrets, call a provider, deploy, or mutate Production."
           ],
           "assertions": [
             "Readiness is bound to the live Production SHA, Migration 1048 path, expected blob SHA, exact checksum, and statement count before Apply can become eligible.",
+            "The authorization bootstrap confirmation is derived as AUTHORIZE_GOVERNED_MIGRATION_<canonical migration filename without .sql> rather than reusing the Issue trigger command.",
+            "The governed executor Apply confirmation is derived as APPLY_<canonical migration filename without .sql> and therefore preserves the complete transport_response_chunk_schema_recovery identity.",
             "Apply requires explicit readiness evidence and contains exactly one governed migration execution path with no automatic retry.",
             "Verify performs ledger/readback reconciliation without sending Apply.",
             "CI performs no SQL mutation, migration Apply, provider call, credential or secret access, deployment, Production mutation, external send, or force update."

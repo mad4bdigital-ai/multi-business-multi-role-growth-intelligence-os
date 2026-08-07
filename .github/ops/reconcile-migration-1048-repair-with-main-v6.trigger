@@ -1,6 +1,0 @@
-issue=6531
-writer=v6-reconcile-main
-expected_branch_parent=4532d27ecd8dea690fce1ddaca535742a62de5ac
-expected_main=167fecba1f9ed9e0ab4c0f3cd94bb2c9f54b89f7
-attempt=2
-scope=merge-main-resolve-rollout-overlap-and-regenerate

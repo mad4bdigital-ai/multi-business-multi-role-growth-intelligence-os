@@ -1,9 +1,0 @@
-Migration 1048 repair reconciliation V8
-expected_main=runtime_snapshot
-strategy=main-tree-plus-three-permanent-overlays
-parents=current_repair_head,current_main
-main_snapshot=after_exact_head_checkout
-fail_closed_if_main_moves=true
-force=false
-database_apply=false
-attempt=3
