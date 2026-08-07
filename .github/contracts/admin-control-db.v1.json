@@ -25,6 +25,7 @@
     ".github/ops/response-chunk-ownership-runtime-closure.mjs",
     ".github/ops/spec014-wave1-apply.mjs",
     ".github/ops/sprint69-1006-governed-rollout.mjs",
+    ".github/ops/sprint69-1043-apply.mjs",
     ".github/ops/transport-response-schema-1048-governed-rollout.mjs"
   ],
   "ratchet": {
