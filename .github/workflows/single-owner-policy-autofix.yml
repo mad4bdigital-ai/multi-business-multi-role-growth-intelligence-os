@@ -91,7 +91,7 @@ jobs:
               raise SystemExit(f'generated gate syntax anchor count={gate.count(bad)}')
           gate_path.write_text(gate.replace(bad, good))
           PY
-      - name: Persist bounded diagnostic on failure
+      - name: Persist bounded diagnostic on generator failure
         if: failure() && steps.autofix.outcome == 'failure'
         shell: bash
         run: |
@@ -112,8 +112,29 @@ jobs:
         if: success()
         run: node http-generic-api/test-single-owner-review-gate.mjs
       - name: Run policy controller regression
+        id: controller_regression
         if: success()
-        run: node http-generic-api/test-github-repository-policy-controller.mjs
+        shell: bash
+        run: |
+          set +e
+          node http-generic-api/test-github-repository-policy-controller.mjs > /tmp/controller-regression.log 2>&1
+          status=$?
+          cat /tmp/controller-regression.log
+          if [ "$status" -ne 0 ]; then
+            cp /tmp/controller-regression.log single-owner-autofix-diagnostic.txt
+            exit "$status"
+          fi
+      - name: Persist controller regression diagnostic
+        if: failure() && steps.controller_regression.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout -- http-generic-api/scripts/apply-single-owner-policy-autofix.mjs || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add single-owner-autofix-diagnostic.txt
+          git commit -m "chore(github): record single-owner controller regression diagnostic"
+          git push origin HEAD:fix/github-main-single-owner-policy-20260807
       - name: Validate diff hygiene
         if: success()
         run: git diff --check
