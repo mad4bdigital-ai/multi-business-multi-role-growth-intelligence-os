@@ -1,20 +1,13 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const VALID_RESOURCE_TYPES = new Set(["workspace", "brand", "site", "app", "asset", "workflow", "agent", "vault"]);
 const VALID_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit", "comment", "view"]);
 
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authHeader.slice(7), JWT_SECRET); } catch { return null; }
-}
-
 function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
@@ -104,10 +97,13 @@ function jsonMeta(value) {
   return JSON.stringify(value);
 }
 
-export function buildWorkspaceResourceRoutes() {
+export function buildWorkspaceResourceRoutes({ requireBackendApiKey } = {}) {
+  if (typeof requireBackendApiKey !== "function") {
+    throw new Error("Canonical authentication middleware is required for workspace resource routes.");
+  }
   const router = Router();
 
-  router.get("/me/workspaces/:tenant_id/resource-grants", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/resource-grants", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -130,7 +126,7 @@ export function buildWorkspaceResourceRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_create
-  router.post("/me/workspaces/:tenant_id/resource-grants", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/resource-grants", requireBackendApiKey, requireUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -169,7 +165,7 @@ export function buildWorkspaceResourceRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_resource_grant_revoke
-  router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/resource-grants/:grant_id/revoke", requireBackendApiKey, requireUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -193,7 +189,7 @@ export function buildWorkspaceResourceRoutes() {
     }
   });
 
-  router.get("/me/workspaces/:tenant_id/assets", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/assets", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -217,7 +213,7 @@ export function buildWorkspaceResourceRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_brands_list
-  router.get("/me/workspaces/:tenant_id/brands", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/brands", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -331,7 +327,7 @@ export function buildWorkspaceResourceRoutes() {
     }
   });
 
-  router.get("/me/workspaces/:tenant_id/vaults", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/vaults", requireBackendApiKey, requireUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -353,6 +349,7 @@ export function buildWorkspaceResourceRoutes() {
 }
 
 export const _testingWorkspaceResourceRoutes = {
+  requireUserJwt,
   optionalFilter,
   normalizeResourceType,
   normalizePermission,
