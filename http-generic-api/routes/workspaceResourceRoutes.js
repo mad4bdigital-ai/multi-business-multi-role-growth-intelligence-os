@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { assertGrantResourceInWorkspace } from "../workspaceGrantResourceAuthority.js";
+import { createWorkspaceBrand } from "../workspaceBrandLifecycle.js";
 
 const requireCanonicalUserJwt = createUserJwtMiddleware();
 const OWNER_ROLES = new Set(["owner", "admin"]);
@@ -215,6 +216,35 @@ export function buildWorkspaceResourceRoutes() {
       return res.json({ ok: true, tenant_id: req.params.tenant_id, assets: rows, count: rows.length, secrets_included: false });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "workspace_assets_list_failed", message: err.message }, secrets_included: false });
+    }
+  });
+
+  // RESOURCE_API_CALLABILITY_CONTRACT: workspace_brand_create
+  router.post("/me/workspaces/:tenant_id/brands", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
+    const connection = await getPool().getConnection();
+    try {
+      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_brand_create
+      const result = await createWorkspaceBrand(connection, {
+        tenantId: req.params.tenant_id,
+        actorUserId: req.auth.user_id,
+        displayName: req.body?.display_name ?? req.body?.brand_name,
+      });
+      await connection.commit();
+      return res.status(result.created ? 201 : 200).json({
+        ok: true,
+        tenant_id: req.params.tenant_id,
+        brand: result.brand,
+        workspace_link: result.link,
+        creator_grant: result.grant,
+        idempotent_reuse: !result.created,
+        next_steps: result.next_steps,
+        secrets_included: false,
+      });
+    } catch (err) {
+      await connection.rollback();
+      return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_brand_create_failed", message: err.message, details: err.details || [] }, secrets_included: false });
+    } finally {
+      connection.release();
     }
   });
 

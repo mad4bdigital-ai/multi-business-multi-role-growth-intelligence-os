@@ -1,0 +1,105 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "workspace-brand-create-lifecycle",
+  "title": "Workspace owner canonical brand create lifecycle",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/workspace-brand-create-lifecycle.json",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "http-generic-api/workspaceBrandLifecycle.js",
+      "http-generic-api/test-workspace-brand-create.mjs",
+      "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+      "http-generic-api/test-frontend-operation-governance-generator.mjs",
+      "http-generic-api/frontend-operation-governance-tests.json",
+      "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow an authenticated workspace owner/admin to create or idempotently reuse a canonical brand identity and atomically establish explicit tenant authority, a Brand Workspace, and a creator admin grant, while governing the endpoint as a tested transactional state change.",
+      "e2e_journeys": [
+        {
+          "id": "workspace-owner-creates-canonical-brand-and-immediate-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated workspace owner or admin",
+          "entrypoint": "POST /me/workspaces/{tenant_id}/brands with display_name or brand_name",
+          "terminal_outcome": "Owner authority is revalidated under lock in the mutation transaction; canonical brand, tenant link, Brand Workspace, and creator admin grant converge with exact readbacks; and generated operation governance classifies the endpoint as a tested state change instead of an unresolved mutation candidate.",
+          "steps": [
+            "Normalize the requested display name and derive deterministic tenant-scoped creation identity.",
+            "Revalidate exactly one active owner/admin membership with a locking read inside the transaction.",
+            "Reuse or create exactly one active canonical brands row.",
+            "Create or repair an active tenant_brand_links row with workspace_owner_brand_create provenance.",
+            "Create or reuse a deterministic workspace_registry Brand Workspace bound by linked_brand_key and keep bootstrap_status in_progress until Brand Core prerequisites exist.",
+            "Create or repair the creator's explicit brand/admin workspace grant.",
+            "Read back tenant link, Brand Workspace, and creator grant before commit and roll back on mutation or readback failure.",
+            "Register exact frontend operation evidence for POST /me/workspaces/{tenant_id}/brands.",
+            "Generate the Brand Create state_change rule only when route, runtime auth, transaction, locked owner authority, canonical identity, tenant link, Brand Workspace, creator grant, no-secret response, and registered operation test evidence all pass.",
+            "Run the governance-generator regression that proves Brand Create is emitted only when evidence is complete and is rejected when owner/test evidence disappears.",
+            "Require generated operation governance, frontend dispatch, and runtime route evidence to match the final source tree."
+          ],
+          "assertions": [
+            "A non-owner/admin or missing/inactive membership fails closed before brand lifecycle mutation.",
+            "Equivalent brand names within one tenant are idempotent while same display name creation in another tenant does not collide.",
+            "Brand Workspace identity is deterministic, workspace_type=brand, and linked_brand_key equals canonical brand target_key.",
+            "Brand Workspace ambiguity/collision fails closed before creator-grant mutation.",
+            "The creator alone receives the explicit brand admin grant; creation does not grant all workspace members access.",
+            "tenant_brand_links uses workspace_owner_brand_create authority provenance rather than historical projection provenance.",
+            "workspace_resource_grants uses existing owner_assignment source and bounded workspace_brand_create metadata.",
+            "The operation-governance generator fails closed when required Brand Create evidence is missing.",
+            "With complete evidence, Brand Create is classified state_change with runtime authorization, transactional readback before commit, transaction rollback, parameter bindings, and registered test evidence.",
+            "Generated frontend dispatch contains no operation_classification_gap for Brand Create.",
+            "No Migration Apply, live SQL mutation, Production/provider mutation, deployment, credential/secret access, force push, or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "workspace-brand-create",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-brand-create-operation-governance",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-create-operation-governance.mjs",
+              "args": []
+            },
+            {
+              "id": "frontend-operation-governance-generator-brand-extension",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-frontend-operation-governance-generator.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/workspace-brand-create-lifecycle.json",
+            "http-generic-api/routes/workspaceResourceRoutes.js",
+            "http-generic-api/workspaceBrandLifecycle.js",
+            "http-generic-api/test-workspace-brand-create.mjs",
+            "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
+            "http-generic-api/test-frontend-operation-governance-generator.mjs",
+            "http-generic-api/frontend-operation-governance-tests.json",
+            "http-generic-api/scripts/frontend-operation-governance-generator.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml"
+          ]
+        }
+      ]
+    }
+  ]
+}
