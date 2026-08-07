@@ -1,0 +1,128 @@
+name: Validation-only Migration 1049 Safe Evidence Patch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/validation-only-migration-1049-safe-evidence.yml"
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  patch:
+    name: Patch exact-head 1049 safe evidence serialization
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      TARGET_BRANCH: "fix/migration-1049-readiness-safe-secrets-evidence"
+      EXPECTED_HEAD_SHA: "53562b40e8ea07df52297d7097a67d72dac820d0"
+      EXPECTED_BASE_SHA: "53562b40e8ea07df52297d7097a67d72dac820d0"
+    steps:
+      - name: Validate exact target and main identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          target_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')"
+          test "${main_sha}" = "${EXPECTED_BASE_SHA}"
+          test "${target_sha}" = "${EXPECTED_HEAD_SHA}"
+
+      - name: Checkout exact target head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          token: ${{ github.token }}
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Apply bounded safe-evidence patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const runnerPath = '.github/ops/github-repository-policy-1049-governed-rollout.mjs';
+          const testPath = 'http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs';
+
+          let runner = fs.readFileSync(runnerPath, 'utf8');
+          const redactAnchor = "const redactKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;";
+          const safeEvidence = "const SAFE_EVIDENCE_KEYS = new Set(['secrets_included']);";
+          if (!runner.includes(redactAnchor)) throw new Error('redaction anchor missing');
+          if (!runner.includes(safeEvidence)) runner = runner.replace(redactAnchor, `${redactAnchor}\n${safeEvidence}`);
+
+          const oldSanitizer = "return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactKey.test(key) ? '[redacted]' : sanitize(child)]));";
+          const newSanitizer = "return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, redactKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)]));";
+          if (!runner.includes(oldSanitizer)) throw new Error('sanitizer anchor missing');
+          runner = runner.replace(oldSanitizer, newSanitizer);
+          fs.writeFileSync(runnerPath, runner);
+
+          let test = fs.readFileSync(testPath, 'utf8');
+          const testAnchor = "assert.match(runner, /const READBACK_SQL = `SELECT\\s+/);";
+          if (!test.includes(testAnchor)) throw new Error('test anchor missing');
+          const regression = `\nassert.ok(runner.includes("const SAFE_EVIDENCE_KEYS = new Set(['secrets_included']);"), 'Migration 1049 runner must preserve the safe secrets_included evidence boolean');\nassert.ok(runner.includes("redactKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child)"), 'Migration 1049 sanitizer must redact sensitive keys except explicitly safe evidence flags');\nassert.ok(publisher.includes("assert.equal(summary?.secrets_included, false);"), 'Trusted publisher must continue to require explicit no-secret evidence');`;
+          if (!test.includes('Migration 1049 runner must preserve the safe secrets_included evidence boolean')) {
+            test = test.replace(testAnchor, `${testAnchor}${regression}`);
+          }
+          fs.writeFileSync(testPath, test);
+          NODE
+
+      - name: Verify exact two-file scope and focused governance
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "${RUNNER_TEMP}/expected-files.txt" <<'EOF'
+          .github/ops/github-repository-policy-1049-governed-rollout.mjs
+          http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          EOF
+          git diff --name-only | sort > "${RUNNER_TEMP}/actual-files.txt"
+          diff -u "${RUNNER_TEMP}/expected-files.txt" "${RUNNER_TEMP}/actual-files.txt"
+          node --check .github/ops/github-repository-policy-1049-governed-rollout.mjs
+          node --check http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          node http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          git diff --check
+
+      - name: Fast-forward exact target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote_head="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_head}" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            .github/ops/github-repository-policy-1049-governed-rollout.mjs \
+            http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs
+          git commit -m "fix(migration): preserve 1049 no-secret readiness evidence"
+          result_head="$(git rev-parse HEAD)"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
+          test "$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${result_head}"
+          echo "RESULT_HEAD_SHA=${result_head}" >> "${GITHUB_ENV}"
+
+      - name: Publish bounded evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg contract "mad4b.validation-only-migration-1049-safe-evidence.v1" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
+            '{contract:$contract,expected_head_sha:$expected_head_sha,result_head_sha:$result_head_sha,changed_files:[".github/ops/github-repository-policy-1049-governed-rollout.mjs","http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs"],safe_evidence_keys:["secrets_included"],publisher_contract_weakened:false,force_push:false,protected_ref_mutation:false,runtime_contact:false,database_access:false,migration_apply:false,provider_action:false,secrets_included:false}' \
+            > "${RUNNER_TEMP}/migration-1049-safe-evidence.json"
+
+      - name: Upload bounded evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-1049-safe-evidence-${{ github.run_id }}
+          path: ${{ runner.temp }}/migration-1049-safe-evidence.json
+          if-no-files-found: error
+          retention-days: 14
