@@ -20,12 +20,41 @@ function denied(reason, denialCode, details = {}) {
 }
 
 const WORKSPACE_OWNERSHIP_SQL = `
-  SELECT workspace_id, tenant_id, workspace_ownership_type, owner_user_id, ownership_revision
+  SELECT
+    workspace_id,
+    tenant_id,
+    workspace_type,
+    workspace_ownership_type,
+    owner_user_id,
+    linked_brand_key,
+    bootstrap_status,
+    ownership_revision
     FROM workspace_registry
    WHERE tenant_id = ?
      AND workspace_id = ?
    ORDER BY workspace_id ASC
    LIMIT 2
+`;
+
+const BRAND_TENANT_MEMBERSHIP_SQL = `
+  SELECT user_id, tenant_id, role, status
+    FROM memberships
+   WHERE tenant_id = ?
+     AND user_id = ?
+     AND status = 'active'
+   ORDER BY updated_at DESC
+   LIMIT 2
+`;
+
+const BRAND_RESOURCE_GRANT_SQL = `
+  SELECT grant_id, tenant_id, grantee_user_id, resource_ref, permission, grant_status, membership_role
+    FROM v_workspace_resource_grant_effective
+   WHERE tenant_id = ?
+     AND grantee_user_id = ?
+     AND resource_type = 'brand'
+     AND BINARY resource_ref <=> BINARY ?
+   ORDER BY permission ASC, grant_id ASC
+   LIMIT 20
 `;
 
 const OWNERSHIP_SCOPED_CONNECTION_SQL = `
@@ -55,7 +84,7 @@ const OWNERSHIP_SCOPED_CONNECTION_SQL = `
     AND v.provider_key = ?
     AND v.owner_scope_type = ?
     AND v.owner_scope_ref = ?
-    AND v.brand_id IS NULL
+    AND BINARY v.brand_id <=> BINARY ?
     AND v.link_status = 'active'
     AND v.ownership_status = 'active'
     AND v.ownership_resolution_status = 'classified'
@@ -64,11 +93,38 @@ const OWNERSHIP_SCOPED_CONNECTION_SQL = `
   LIMIT 3
 `;
 
+const BRAND_OWNER_ROLES = new Set(["owner", "admin"]);
+const BRAND_READ_PERMISSIONS = new Set(["admin", "manage", "operate", "edit", "comment", "view"]);
+
 export const PlatformPluginConnectionOwnershipDenialCode = Object.freeze({
   WORKSPACE_REQUIRED: "CONNECTION_WORKSPACE_REQUIRED",
   SCOPE_DENIED: "CONNECTION_OWNERSHIP_SCOPE_DENIED",
   SCOPE_MISMATCH: "CONNECTION_OWNERSHIP_SCOPE_MISMATCH",
+  BRAND_AUTHORITY_REQUIRED: "BRAND_CONNECTION_AUTHORITY_REQUIRED",
 });
+
+async function resolveBrandReadAuthority({ pool, tenant, user, brandRef }) {
+  const [membershipRowsRaw] = await pool.query(BRAND_TENANT_MEMBERSHIP_SQL, [tenant, user]);
+  const membershipRows = Array.isArray(membershipRowsRaw) ? membershipRowsRaw : [];
+  if (membershipRows.length !== 1) {
+    return Object.freeze({ allowed: false, source: "membership", secrets_included: false });
+  }
+  const membershipRole = compact(membershipRows[0]?.role, 32).toLowerCase();
+  if (BRAND_OWNER_ROLES.has(membershipRole)) {
+    return Object.freeze({ allowed: true, source: "tenant_owner_membership", secrets_included: false });
+  }
+
+  const [grantRowsRaw] = await pool.query(BRAND_RESOURCE_GRANT_SQL, [tenant, user, brandRef]);
+  const grantRows = Array.isArray(grantRowsRaw) ? grantRowsRaw : [];
+  const readAllowed = grantRows.some((row) => BRAND_READ_PERMISSIONS.has(
+    compact(row?.permission, 32).toLowerCase(),
+  ));
+  return Object.freeze({
+    allowed: readAllowed,
+    source: readAllowed ? "workspace_resource_grant" : "brand_grant_missing",
+    secrets_included: false,
+  });
+}
 
 export async function loadTenantPlatformPluginOwnershipScopedConnections({
   pool,
@@ -104,10 +160,36 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
   }
 
   const workspaceRow = workspaceRows[0];
+  const workspaceType = compact(workspaceRow.workspace_type, 32).toLowerCase();
   const ownershipType = compact(workspaceRow.workspace_ownership_type, 32).toLowerCase();
   let ownerScopeType = null;
+  let ownerScopeRef = workspace;
   let credentialScope = null;
-  if (ownershipType === "personal") {
+  let brandRef = null;
+  let brandAuthoritySource = null;
+
+  if (workspaceType === "brand") {
+    brandRef = compact(workspaceRow.linked_brand_key, 191);
+    if (!brandRef) {
+      return denied(
+        "brand_connection_authority_required",
+        PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
+        { workspace_id_present: true },
+      );
+    }
+    const brandAuthority = await resolveBrandReadAuthority({ pool, tenant, user, brandRef });
+    if (!brandAuthority.allowed) {
+      return denied(
+        "brand_connection_authority_required",
+        PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
+        { workspace_id_present: true },
+      );
+    }
+    ownerScopeType = "brand";
+    ownerScopeRef = brandRef;
+    credentialScope = "tenant_connection";
+    brandAuthoritySource = brandAuthority.source;
+  } else if (ownershipType === "personal") {
     if (!workspaceRow.owner_user_id || String(workspaceRow.owner_user_id) !== user) {
       return denied(
         "connection_ownership_scope_denied",
@@ -133,7 +215,8 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     workspace,
     plugin,
     ownerScopeType,
-    workspace,
+    ownerScopeRef,
+    brandRef,
     ownerScopeType,
     user,
   ]);
@@ -152,7 +235,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     credential_scope: credentialScope,
     workspace_id: workspace,
     owner_scope_type: ownerScopeType,
-    owner_scope_ref: workspace,
+    owner_scope_ref: ownerScopeRef,
     secrets_included: false,
   }));
 
@@ -163,16 +246,19 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     credential_scope: credentialScope,
     workspace_ownership_type: ownershipType,
     owner_scope_type: ownerScopeType,
-    owner_scope_ref: workspace,
+    owner_scope_ref: ownerScopeRef,
     ownership_revision: Number(workspaceRow.ownership_revision || 0),
     connections,
     row_count: connections.length,
-    brand_connections_included: false,
+    brand_connections_included: ownerScopeType === "brand",
+    brand_authority_source: brandAuthoritySource,
     secrets_included: false,
   });
 }
 
 export const _testingPlatformPluginConnectionOwnership = Object.freeze({
   WORKSPACE_OWNERSHIP_SQL,
+  BRAND_TENANT_MEMBERSHIP_SQL,
+  BRAND_RESOURCE_GRANT_SQL,
   OWNERSHIP_SCOPED_CONNECTION_SQL,
 });
