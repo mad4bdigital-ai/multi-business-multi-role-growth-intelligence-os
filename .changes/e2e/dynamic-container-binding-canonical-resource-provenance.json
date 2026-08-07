@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "dynamic-container-binding-canonical-resource-provenance",
+  "title": "Canonical resource validation and provenance before Dynamic Container bindings",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/dynamic-container-binding-canonical-resource-provenance.json",
+      "http-generic-api/dynamicContainerAuthorityMutationService.js",
+      "http-generic-api/dynamicContainerBindingResourceAuthority.js",
+      "http-generic-api/test-dynamic-container-binding-resource-authority.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent the Dynamic Container authority mutation from creating agent or workflow bindings for nonexistent, inactive, or ambiguous canonical resources, and derive trustworthy source provenance inside the same transaction before INSERT.",
+      "e2e_journeys": [
+        {
+          "id": "container-binding-resolves-canonical-resource-before-authority-write",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated platform administrator using the governed container-resource-binding mutation",
+          "entrypoint": "POST /container-resource-bindings for agents/agent or workflows/workflow",
+          "terminal_outcome": "The resource resolves exactly once and active from its canonical global registry, any workflow alias is normalized, canonical provenance is derived internally, contradictory caller provenance fails closed, and only then may the authority binding INSERT execute.",
+          "steps": [
+            "Validate the target tenant container and registered resource dimension inside the container authority mutation transaction.",
+            "Resolve agents/agent against the active canonical agents row with a locking uniqueness read.",
+            "Resolve workflows/workflow by workflow_id or workflow_key against the active canonical workflows row with a locking uniqueness read and normalize to workflow_key when available.",
+            "Reject missing, inactive, or ambiguous canonical resources before the container_resource_bindings INSERT.",
+            "Derive source_table/source_pk as agents/agent_id or workflows/workflow_id rather than trusting caller provenance.",
+            "Reject caller-supplied sourceTable/sourcePk when they contradict the derived canonical provenance.",
+            "For delegate bindings, revalidate the exact delegated operations against the canonical resolved resource reference before writing.",
+            "Preserve existing behavior for resource families outside agents/agent and workflows/workflow."
+          ],
+          "assertions": [
+            "Agent canonical authority uses agents.agent_id with status=active and LIMIT 2 FOR UPDATE.",
+            "Workflow canonical authority accepts id/key input, requires a single active canonical row, uses LIMIT 3 FOR UPDATE, stores workflow_key when available, and derives source_pk from workflow_id.",
+            "The INSERT never uses raw caller resourceRef for a guarded agent/workflow resource after canonical resolution.",
+            "Caller provenance cannot override canonical agents/workflows provenance.",
+            "Non-agent/workflow dimensions are not forced through a new parallel registry and remain backward-compatible.",
+            "No live SQL mutation, Migration Apply, Production/provider mutation, deployment, credential/secret access, force push, or external send occurs in CI."
+          ],
+          "tests": [
+            {
+              "id": "dynamic-container-binding-resource-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-dynamic-container-binding-resource-authority.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/dynamic-container-binding-canonical-resource-provenance.json",
+            "http-generic-api/dynamicContainerAuthorityMutationService.js",
+            "http-generic-api/dynamicContainerBindingResourceAuthority.js",
+            "http-generic-api/test-dynamic-container-binding-resource-authority.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
