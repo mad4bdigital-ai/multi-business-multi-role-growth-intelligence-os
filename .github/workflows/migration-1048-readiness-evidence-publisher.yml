@@ -23,10 +23,10 @@ jobs:
       github.event.workflow_run.head_sha != null
     runs-on: ubuntu-24.04
     steps:
-      - name: Checkout trusted default branch
+      - name: Checkout exact source head
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 1
           persist-credentials: false
 
