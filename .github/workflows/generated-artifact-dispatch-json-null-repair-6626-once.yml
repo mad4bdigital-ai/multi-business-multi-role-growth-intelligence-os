@@ -19,11 +19,12 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_REF: fix/generated-artifact-refresh-eligible-request-json-20260807
-      EXPECTED_PARENT_SHA: dd9a64e29236f68080071ff60e6a2ce2bc69a646
+      EXPECTED_PARENT_SHA: cb166826a11e89b639415f4bed6d78a4f808abb2
       WRITER_PATH: .github/workflows/generated-artifact-dispatch-json-null-repair-6626-once.yml
       WORKFLOW_PATH: .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
       TEST_PATH: http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs
       CONTRACT_PATH: .changes/e2e/governed-generated-artifact-refresh-dispatch.json
+      DIAG_DIR: .ci-evidence/generated-artifact-dispatch-json-null-repair-6626
     steps:
       - name: Checkout bounded work branch
         uses: actions/checkout@v5
@@ -95,13 +96,43 @@ jobs:
           contract_path.write_text(json.dumps(contract, indent=2) + '\n')
           PY
 
-      - name: Run focused contracts
+      - name: Capture focused contract diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p "${DIAG_DIR}"
+          set +e
+          node http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs > "${DIAG_DIR}/dispatch-test.log" 2>&1
+          dispatch_status=$?
+          node http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs > "${DIAG_DIR}/bridge-test.log" 2>&1
+          bridge_status=$?
+          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/governed-generated-artifact-refresh-dispatch.json','utf8'))" > "${DIAG_DIR}/contract-parse.log" 2>&1
+          contract_status=$?
+          set -e
+          git diff -- "${WORKFLOW_PATH}" "${TEST_PATH}" "${CONTRACT_PATH}" > "${DIAG_DIR}/candidate.diff"
+          printf '{"dispatch_status":%s,"bridge_status":%s,"contract_status":%s}\n' "${dispatch_status}" "${bridge_status}" "${contract_status}" > "${DIAG_DIR}/status.json"
+
+      - name: Upload focused contract diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-artifact-dispatch-json-null-repair-6626-${{ github.run_id }}
+          path: ${{ env.DIAG_DIR }}
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce focused contracts
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs
-          node http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs
-          node -e "JSON.parse(require('node:fs').readFileSync('.changes/e2e/governed-generated-artifact-refresh-dispatch.json','utf8'))"
+          node <<'NODE'
+          const fs = require('node:fs');
+          const status = JSON.parse(fs.readFileSync(process.env.DIAG_DIR + '/status.json', 'utf8'));
+          if (status.dispatch_status !== 0 || status.bridge_status !== 0 || status.contract_status !== 0) {
+            console.error(status);
+            process.exit(1);
+          }
+          NODE
 
       - name: Commit bounded repair and self-retire
         shell: bash
