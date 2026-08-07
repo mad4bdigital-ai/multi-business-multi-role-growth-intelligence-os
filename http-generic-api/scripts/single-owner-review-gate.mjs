@@ -1,8 +1,9 @@
 import fs from "node:fs";
 
 export const SINGLE_OWNER_CHECK_NAME = "Single Owner Review Gate";
-export const SINGLE_OWNER_ATTESTATION_TOKEN = "OWNER_ATTEST_SINGLE_OWNER";
+export const SINGLE_OWNER_ATTESTATION_PREFIX = "OWNER_ATTEST_SINGLE_OWNER_PR_";
 const ELIGIBLE = new Set(["write", "maintain", "admin"]);
+const SHA_PATTERN = /^[0-9a-f]{40}$/i;
 
 function permissionOf(collaborator = {}) {
   if (collaborator?.permissions?.admin) return "admin";
@@ -17,7 +18,32 @@ export function eligibleHumans(collaborators = []) {
     .map((item) => ({ login: item.login, permission: permissionOf(item) }));
 }
 
-export function evaluateReviewGate({ owner, author, headSha, collaborators = [], reviews = [] } = {}) {
+export function singleOwnerAttestationContract(prNumber, headSha) {
+  const normalizedPr = Number(prNumber);
+  const normalizedSha = String(headSha || "").trim().toLowerCase();
+  if (!Number.isInteger(normalizedPr) || normalizedPr <= 0 || !SHA_PATTERN.test(normalizedSha)) return null;
+  return {
+    token: `${SINGLE_OWNER_ATTESTATION_PREFIX}${normalizedPr}_${normalizedSha.slice(0, 12)}`,
+    exact_head_line: `exact_head_sha: ${normalizedSha}`,
+    reviewed_line: "reviewed_exact_candidate: true",
+    evidence_line: "accepts_code_and_governance_evidence: true",
+    authorization_line: "authorizes_ready_merge_for_exact_sha: true",
+  };
+}
+
+function hasSingleOwnerAttestation(body, contract) {
+  if (!contract) return false;
+  const text = String(body || "");
+  return [
+    contract.token,
+    contract.exact_head_line,
+    contract.reviewed_line,
+    contract.evidence_line,
+    contract.authorization_line,
+  ].every((marker) => text.includes(marker));
+}
+
+export function evaluateReviewGate({ prNumber, owner, author, headSha, collaborators = [], reviews = [] } = {}) {
   const eligible = eligibleHumans(collaborators);
   const byAuthor = new Map();
   for (const review of Array.isArray(reviews) ? reviews : []) {
@@ -46,18 +72,27 @@ export function evaluateReviewGate({ owner, author, headSha, collaborators = [],
   if (!singleOwnerEligible) {
     return { ok: false, mode: "blocked", reason: "single_owner_eligibility_not_proven", eligible_humans: eligible, reviewer: null };
   }
+  const contract = singleOwnerAttestationContract(prNumber, headSha);
+  if (!contract) {
+    return {
+      ok: false,
+      mode: "single_owner_attestation",
+      reason: "single_owner_attestation_contract_invalid",
+      eligible_humans: eligible,
+      reviewer: null,
+    };
+  }
   const review = byAuthor.get(author);
-  const body = String(review?.body || "");
   const attested = review?.state === "COMMENTED"
-    && review?.commit_id === headSha
-    && body.includes(SINGLE_OWNER_ATTESTATION_TOKEN)
-    && body.includes(headSha);
+    && String(review?.commit_id || "").toLowerCase() === String(headSha || "").toLowerCase()
+    && hasSingleOwnerAttestation(review?.body, contract);
   return {
     ok: attested,
     mode: "single_owner_attestation",
     reason: attested ? "single_owner_exact_head_attestation" : "single_owner_exact_head_attestation_missing",
     eligible_humans: eligible,
     reviewer: attested ? author : null,
+    required_attestation: attested ? null : contract,
   };
 }
 
@@ -96,15 +131,15 @@ async function main() {
   const apiBase = process.env.GITHUB_API_URL || "https://api.github.com";
   if (!eventPath || !token || !repo) throw new Error("GITHUB_EVENT_PATH, GITHUB_TOKEN and GITHUB_REPOSITORY are required");
   const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
-  const prNumber = event.pull_request?.number || event.review?.pull_request_url?.split("/").pop();
-  if (!prNumber) throw new Error("Pull request number is required");
+  const prNumber = Number(event.pull_request?.number || event.review?.pull_request_url?.split("/").pop());
+  if (!Number.isInteger(prNumber) || prNumber <= 0) throw new Error("Pull request number is required");
   const pr = await api(`${apiBase}/repos/${repo}/pulls/${prNumber}`, token);
   if (pr.base?.ref !== "main") {
     console.log(JSON.stringify({
       ok: true,
       mode: "not_applicable",
       reason: "non_main_target",
-      pr_number: Number(prNumber),
+      pr_number: prNumber,
       exact_head_sha: pr.head?.sha || null,
       secrets_included: false,
     }));
@@ -115,13 +150,14 @@ async function main() {
     listAll(`${apiBase}/repos/${repo}/pulls/${prNumber}/reviews`, token),
   ]);
   const result = evaluateReviewGate({
+    prNumber,
     owner: pr.base?.repo?.owner?.login || repo.split("/")[0],
     author: pr.user?.login,
     headSha: pr.head.sha,
     collaborators,
     reviews,
   });
-  const summary = JSON.stringify({ ...result, pr_number: Number(prNumber), exact_head_sha: pr.head.sha, secrets_included: false });
+  const summary = JSON.stringify({ ...result, pr_number: prNumber, exact_head_sha: pr.head.sha, secrets_included: false });
   console.log(summary);
   if (!result.ok) process.exitCode = 1;
 }
