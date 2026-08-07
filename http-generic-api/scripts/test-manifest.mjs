@@ -1,5 +1,6 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
 import { testCommands as spec012Commands } from "./manifests/test-manifest-spec012.mjs";
+import { testCommands as spec017Commands } from "./manifests/test-manifest-spec017.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
@@ -116,6 +117,7 @@ export const testCommands = Object.freeze([
   ...new Set([
     ...spec011Commands,
     ...spec012Commands,
+    ...spec017Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
