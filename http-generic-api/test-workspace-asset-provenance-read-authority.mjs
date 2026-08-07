@@ -135,7 +135,7 @@ async function insert(executor, overrides = {}) {
 {
   const executor = buildMutationExecutor();
   await assert.rejects(
-    () => insert(executor, { asset_ref: "" }),
+    () => insert(executor, { asset_ref: "", asset_id: "" }),
     (error) => error?.code === "workspace_asset_ref_required" && error?.status === 400
   );
   assert.equal(executor.calls.length, 0, "missing durable asset identity must fail before authority or persistence queries");
