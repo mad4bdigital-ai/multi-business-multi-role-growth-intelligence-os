@@ -53,14 +53,15 @@ jobs:
             cp /tmp/single-owner-autofix.log single-owner-autofix-diagnostic.txt
             exit "$status"
           fi
-      - name: Patch legacy controller regression fixture
+      - name: Patch generated fixtures
         if: success()
         shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          path = Path('http-generic-api/test-github-repository-policy-controller.mjs')
-          text = path.read_text()
+
+          test_path = Path('http-generic-api/test-github-repository-policy-controller.mjs')
+          text = test_path.read_text()
           old = '''    assert.equal(first.desired_ruleset.bypass_actors.length, 0);
               assert.equal(first.desired_ruleset.rules.some((rule) => rule.type === "non_fast_forward"), true);
               assert.throws(
@@ -80,7 +81,15 @@ jobs:
               );'''.replace('              ', '    ')
           if text.count(old) != 1:
               raise SystemExit(f'legacy test anchor count={text.count(old)}')
-          path.write_text(text.replace(old, new))
+          test_path.write_text(text.replace(old, new))
+
+          gate_path = Path('http-generic-api/scripts/single-owner-review-gate.mjs')
+          gate = gate_path.read_text()
+          bad = 'const independent = eligible.filter((item) => item.login !== author){'
+          good = 'const independent = eligible.filter((item) => item.login !== author);'
+          if gate.count(bad) != 1:
+              raise SystemExit(f'generated gate syntax anchor count={gate.count(bad)}')
+          gate_path.write_text(gate.replace(bad, good))
           PY
       - name: Persist bounded diagnostic on failure
         if: failure() && steps.autofix.outcome == 'failure'
