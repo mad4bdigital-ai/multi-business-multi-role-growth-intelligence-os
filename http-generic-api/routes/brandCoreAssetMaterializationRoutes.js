@@ -5,24 +5,6 @@ import { materializeWorkspaceBrandCoreAsset } from "../workspaceBrandCoreAssetMa
 
 const requireCanonicalUserJwt = createUserJwtMiddleware();
 
-function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
-  if (!payload?.user_id) {
-    return res.status(401).json({
-      ok: false,
-      error: { code: "user_jwt_required", message: "Sign in required." },
-      secrets_included: false,
-    });
-  }
-  req.auth = {
-    mode: "user_jwt",
-    user_id: payload.user_id,
-    tenant_id: payload.tenant_id || null,
-    is_admin: false,
-  };
-  return next();
-}
-
 export function buildBrandCoreAssetMaterializationRoutes() {
   const router = Router();
 
@@ -30,7 +12,6 @@ export function buildBrandCoreAssetMaterializationRoutes() {
   router.post(
     "/me/workspaces/:tenant_id/assets/materialize-brand-core",
     requireCanonicalUserJwt,
-    requireUserJwt,
     async (req, res) => {
       const connection = await getPool().getConnection();
       let transactionStarted = false;
@@ -77,5 +58,3 @@ export function buildBrandCoreAssetMaterializationRoutes() {
 
   return router;
 }
-
-export const _testingBrandCoreAssetMaterializationRoutes = { requireUserJwt };
