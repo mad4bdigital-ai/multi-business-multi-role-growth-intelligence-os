@@ -41,6 +41,7 @@
             "CREATE OR REPLACE TRIGGER matches the forbidden SQL detector and cannot be auto-attested as a safe documentation-only migration surface.",
             "A manual safety attestation, when required, remains checksum-bound and must not be synthesized by CI or inferred from an operator request to begin remediation.",
             "The remediation workflow may update documentation and generated evidence but must not mutate migration SQL or authorize execution.",
+            "Temporary diagnostic, attestation-probe, and main-reconciliation workflows are absent from the final pull-request diff.",
             "CI performs no SQL Apply, live database mutation, provider call, credential or secret access, deployment, Production mutation, external send, or force update."
           ],
           "tests": [
