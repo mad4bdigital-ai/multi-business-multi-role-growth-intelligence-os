@@ -5,6 +5,7 @@
   "title": "Migration 1043 canonical readback-only certification",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "secrets_included": false,
   "scope": {
     "include": [
       ".changes/e2e/sprint69-1043-readback-certification.json",
