@@ -78,6 +78,13 @@ const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepar
 assert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");
 assert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));
 
+const actualCreateOrReplaceTrigger = buildAttestation({
+  item: safeItem,
+  source: "CREATE OR REPLACE TRIGGER trg_example AFTER INSERT ON example FOR EACH ROW SET @x = 1;",
+});
+assert.equal(actualCreateOrReplaceTrigger.eligible, false, "CREATE OR REPLACE TRIGGER must remain manual review only");
+assert(actualCreateOrReplaceTrigger.reasons.includes("forbidden_sql_pattern_detected"));
+
 const manualManifest = JSON.parse(readFileSync("../docs/surface-contract-manual-safety-attestations.json", "utf8"));
 assert.equal(manualManifest.schema_version, "surface-contract-manual-safety-attestations-v1");
 assert.equal(manualManifest.item_count, manualManifest.items.length);
