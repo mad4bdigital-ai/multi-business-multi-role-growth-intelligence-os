@@ -1,0 +1,157 @@
+openapi: 3.1.0
+info:
+  title: Brand Core Asset Materialization
+  version: 1.0.0
+  description: Canonical User-JWT mutation for materializing an already-known Brand Core context source into the workspace asset lifecycle without provider content fetch.
+paths:
+  /me/workspaces/{tenant_id}/assets/materialize-brand-core:
+    post:
+      tags: [workspace-assets, brand-core]
+      operationId: materializeBrandCoreAssetForSignedInUser
+      summary: Materialize a canonical Brand Core source as a durable workspace asset
+      description: |
+        Resolves canonical Brand and Brand Workspace authority, requires exactly one active
+        and validated Brand Core source, and persists that source through the canonical
+        workspace asset repository. The operation does not download provider content;
+        content_sha256 therefore remains null unless a future content-fetch flow establishes it.
+        Retries converge on the canonical asset identity and conflicting provenance fails closed.
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandCoreAssetMaterializationRequest'
+      responses:
+        '201':
+          description: Brand Core source materialized and read back in the same transaction cycle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandCoreAssetMaterializationSuccess'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+components:
+  securitySchemes:
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT
+  parameters:
+    TenantId:
+      name: tenant_id
+      in: path
+      required: true
+      schema: { type: string, maxLength: 64 }
+  schemas:
+    BrandCoreAssetMaterializationRequest:
+      type: object
+      additionalProperties: false
+      required: [brand_ref, source_ref]
+      properties:
+        brand_ref:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Canonical Brand reference or an authority-resolvable Brand identifier.
+        source_ref:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Stable Brand Core source lookup reference such as asset_key, doc_key, provider file id, or provider document URL.
+    BrandCoreMaterializedAsset:
+      type: object
+      required: [asset_id, tenant_id, asset_type, asset_ref, brand_ref, lifecycle_status, source_type, source_provider, content_identity]
+      properties:
+        asset_id: { type: string }
+        tenant_id: { type: string }
+        asset_type:
+          type: string
+          enum: [external_ref]
+          description: Canonical workspace_assets type used because this mutation persists a known external/context reference without fetching provider content.
+        asset_ref: { type: string }
+        display_name: { type: [string, 'null'] }
+        brand_ref: { type: string }
+        visibility: { type: [string, 'null'] }
+        lifecycle_status: { type: string }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+        provenance_schema_version: { type: [string, 'null'] }
+        source_type: { type: string, enum: [import] }
+        source_provider: { type: string, enum: [brand_core] }
+        source_revision: { type: [string, 'null'] }
+        content_sha256: { type: [string, 'null'] }
+        content_identity: { type: string }
+        ingestion_mode: { type: [string, 'null'] }
+        source_locator_present: { type: [integer, boolean] }
+    BrandCoreMaterializationSource:
+      type: object
+      required: [source_type, source_provider, source_ref, provider_content_fetched]
+      properties:
+        source_type: { type: string, enum: [import] }
+        source_provider: { type: string, enum: [brand_core] }
+        source_ref: { type: string }
+        source_revision: { type: [string, 'null'] }
+        source_validation_status: { type: [string, 'null'] }
+        content_sha256: { type: [string, 'null'] }
+        content_identity: { type: [string, 'null'] }
+        provider_content_fetched: { type: boolean, enum: [false] }
+    BrandCoreMaterializationWorkspace:
+      type: object
+      required: [workspace_id, workspace_key, brand_ref]
+      properties:
+        workspace_id: { type: string }
+        workspace_key: { type: string }
+        brand_ref: { type: string }
+    BrandCoreAssetMaterializationSuccess:
+      type: object
+      additionalProperties: false
+      required: [ok, tenant_id, asset, source, workspace, readback, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        tenant_id: { type: string }
+        asset: { $ref: '#/components/schemas/BrandCoreMaterializedAsset' }
+        source: { $ref: '#/components/schemas/BrandCoreMaterializationSource' }
+        workspace: { $ref: '#/components/schemas/BrandCoreMaterializationWorkspace' }
+        readback: { type: string, enum: [same_cycle] }
+        secrets_included: { type: boolean, enum: [false] }
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: [object, 'null'] }
+        secrets_included: { type: boolean, enum: [false] }
+  responses:
+    BadRequest:
+      description: Required identity or source input is invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: User JWT required
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Active membership or Brand mutation authority denied
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Brand Core source not found inside the canonical Brand
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Brand, workspace, source, provenance, or readback resolved ambiguously or inconsistently
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Required canonical Brand Workspace or stable source identity is unavailable
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
