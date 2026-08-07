@@ -18,6 +18,7 @@ function makePool({
   connectionTenantId = "tenant-1",
   connectionUserId = "user-1",
   connectionSecretPayload = {},
+  connectionRows = null,
   credentialSource = "user_connection",
   authType = "oauth2",
   withTargetAuthority = false,
@@ -79,6 +80,7 @@ function makePool({
         }]] : [[]];
       }
       if (sql.includes("FROM user_app_connections")) {
+        if (Array.isArray(connectionRows)) return [connectionRows];
         let paramIndex = 1;
         const requestedTenantId = sql.includes("AND tenant_id = ?") ? params[paramIndex++] : null;
         const requestedUserId = sql.includes("AND user_id = ?") ? params[paramIndex++] : null;
@@ -738,6 +740,111 @@ function makePool({
   assert.equal(result.secrets_included, false);
   assert.equal(result.credential_lookup.secrets_included, false);
   assert.equal(result.audit.read_model_tables.includes("user_app_connections"), true);
+}
+
+function ambiguityRow({ id, userId = "user-1", secret }) {
+  return {
+    connection_id: id,
+    tenant_id: "tenant-1",
+    user_id: userId,
+    app_key: "github",
+    auth_type: "oauth2",
+    status: "active",
+    validation_status: "validated",
+    last_validated_at: "2026-08-07T00:00:00.000Z",
+    last_used_at: null,
+    is_primary: 1,
+    access_token: secret,
+    refresh_token: `${secret}-refresh`,
+  };
+}
+
+async function resolveAmbiguityRows(connectionRows, credentialSource = "mixed") {
+  const pool = makePool({
+    withSkill: true,
+    tenantDedicated: true,
+    credentialSource,
+    connectionRows,
+  });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+  });
+  return { pool, result };
+}
+
+function assertAmbiguousConnectionResult(result, { scope, forbiddenValues = [] } = {}) {
+  assert.equal(result.allowed, false);
+  assert.equal(result.mode, "preview_only");
+  assert.equal(result.credential_resolution.ok, false);
+  assert.equal(result.credential_resolution.reason, "connection_selection_ambiguous");
+  assert.equal(result.credential_resolution.denial_code, "AMBIGUOUS_CONNECTION_SELECTION");
+  assert.equal(result.credential_resolution.resolution_state, "ambiguous");
+  assert.equal(result.credential_resolution.usability_state, "not_evaluated");
+  assert.equal(result.credential_resolution.credential_source, null);
+  assert.equal(result.credential_resolution.ambiguous_scope, scope);
+  assert.equal(result.credential_resolution.candidate_count, 2);
+  assert.equal(Object.hasOwn(result.credential_resolution, "connection_id"), false);
+  assert.equal(Object.hasOwn(result.credential_resolution, "connection_status"), false);
+  assert.equal(Object.hasOwn(result.credential_resolution, "validation_status"), false);
+  assert(result.security_decision.denied_gates.includes("credential"));
+  assert.equal(result.execution.will_execute, false);
+  const serialized = JSON.stringify(result);
+  for (const value of forbiddenValues) assert.equal(serialized.includes(value), false);
+}
+
+{
+  const rows = [
+    ambiguityRow({ id: "conn-user-a", secret: "secret-user-a" }),
+    ambiguityRow({ id: "conn-user-b", secret: "secret-user-b" }),
+  ];
+  const forward = await resolveAmbiguityRows(rows);
+  const reversed = await resolveAmbiguityRows([...rows].reverse());
+  const forbiddenValues = ["conn-user-a", "conn-user-b", "secret-user-a", "secret-user-b"];
+  assertAmbiguousConnectionResult(forward.result, { scope: "user_connection", forbiddenValues });
+  assertAmbiguousConnectionResult(reversed.result, { scope: "user_connection", forbiddenValues });
+  assert.deepEqual(forward.result.credential_resolution, reversed.result.credential_resolution);
+  const connectionQuery = forward.pool.calls.find((call) => call.sql.includes("FROM user_app_connections"));
+  assert(connectionQuery);
+  assert.deepEqual(connectionQuery.params, ["github", "tenant-1", "user-1"]);
+  assert.doesNotMatch(connectionQuery.sql, /access_token|refresh_token|password|api_key|secret/i);
+}
+
+{
+  const rows = [
+    ambiguityRow({ id: "conn-tenant-a", userId: null, secret: "secret-tenant-a" }),
+    ambiguityRow({ id: "conn-tenant-b", userId: null, secret: "secret-tenant-b" }),
+  ];
+  const { result } = await resolveAmbiguityRows(rows);
+  assertAmbiguousConnectionResult(result, {
+    scope: "tenant_connection",
+    forbiddenValues: ["conn-tenant-a", "conn-tenant-b", "secret-tenant-a", "secret-tenant-b"],
+  });
+}
+
+{
+  const { result } = await resolveAmbiguityRows([
+    ambiguityRow({ id: "conn-only", secret: "secret-only" }),
+  ], "user_connection");
+  assert.equal(result.allowed, true);
+  assert.equal(result.mode, "dispatch_ready");
+  assert.equal(result.credential_resolution.connection_id, "conn-only");
+  assert.equal(result.credential_resolution.resolution_state, "resolved");
+  assert.equal(result.execution.will_execute, true);
+}
+
+{
+  const { result } = await resolveAmbiguityRows([], "user_connection");
+  assert.equal(result.allowed, false);
+  assert.equal(result.credential_resolution.reason, "dedicated_connection_required");
+  assert.equal(result.credential_resolution.denial_code, "DEDICATED_CONNECTION_REQUIRED");
+  assert.equal(result.credential_resolution.resolution_state, "missing");
+  assert.equal(result.execution.will_execute, false);
 }
 
 {
