@@ -9,15 +9,19 @@ const service = fs.readFileSync(new URL("./workspaceBrandCoreAssetMaterializatio
 const repository = fs.readFileSync(new URL("./src/infrastructure/resourceApi/resourceRepository.js", import.meta.url), "utf8");
 
 assert(route.includes("const requireUserJwt = createUserJwtMiddleware();"), "materialization must use canonical User JWT middleware");
-assert(route.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize"));
-assert(route.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize"));
-assert(route.includes("await connection.beginTransaction()"));
-assert(route.includes("await connection.commit()"));
-assert(route.includes("await connection.rollback()"));
-assert(route.includes("result.asset.source_provider !== \"brand_core\""));
-assert(route.includes("result.asset.content_identity"));
+assert(route.includes('"/me/workspaces/:tenant_id/assets/materialize-brand-core"'));
+assert(route.includes("materializeWorkspaceBrandCoreAssetTransaction"), "transport route must delegate materialization transaction orchestration");
+assert(!route.includes("../db.js"), "Resource API route must remain transport-only and must not import the database");
+assert(!route.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize"), "transaction ownership must stay outside Resource API transport");
 assert(route.includes("secrets_included: false"));
 
+assert(service.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize"));
+assert(service.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize"));
+assert(service.includes("await connection.beginTransaction()"));
+assert(service.includes("await connection.commit()"));
+assert(service.includes("await connection.rollback()"));
+assert(service.includes("result.asset.source_provider !== \"brand_core\""));
+assert(service.includes("result.asset.content_identity"));
 assert(service.includes("resolveWorkspaceAssetBrandRef"), "Brand authority must be canonicalized before materialization");
 assert(service.includes("FROM brand_core"));
 assert(service.includes("FROM workspace_registry"));

@@ -1,3 +1,4 @@
+import { getPool } from "./db.js";
 import { extractGoogleFileId } from "./resolvers/brandReferenceResolver.js";
 import { resolveWorkspaceAssetBrandRef } from "./workspaceAssetBrandAuthority.js";
 import { parseWorkspaceAssetMetadata } from "./workspaceAssetProvenance.js";
@@ -276,6 +277,41 @@ export async function materializeWorkspaceBrandCoreAsset(connection, {
       brand_ref: canonicalBrandRef,
     },
   };
+}
+
+export async function materializeWorkspaceBrandCoreAssetTransaction({
+  tenantId,
+  actorUserId,
+  brandRef,
+  sourceRef,
+}, { pool = getPool() } = {}) {
+  const connection = await pool.getConnection();
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_brand_core_asset_materialize
+    transactionStarted = true;
+    const result = await materializeWorkspaceBrandCoreAsset(connection, {
+      tenantId,
+      actorUserId,
+      brandRef,
+      sourceRef,
+    });
+    if (
+      !result?.asset?.asset_id ||
+      result.asset.source_provider !== "brand_core" ||
+      !result.asset.content_identity
+    ) {
+      throw materializationError(409, "brand_core_asset_materialize_readback_missing", "Brand Core materialization did not produce an exact canonical asset projection.");
+    } // MUTATION_READBACK: workspace_brand_core_asset_materialize
+    await connection.commit();
+    transactionStarted = false;
+    return result;
+  } catch (error) {
+    if (transactionStarted) await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 export const _testingWorkspaceBrandCoreAssetMaterialization = {

@@ -1,6 +1,5 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { getPool } from "../db.js";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import {
   createResourceApiController,
@@ -8,7 +7,7 @@ import {
 } from "../src/api/resourceApi/resourceApiController.js";
 import { createDefaultResourceApiService } from "../src/infrastructure/resourceApi/resourceApiComposition.js";
 import { createResourceApiContextShadowMiddleware } from "../contextKernel/integration/index.js";
-import { materializeWorkspaceBrandCoreAsset } from "../workspaceBrandCoreAssetMaterialization.js";
+import { materializeWorkspaceBrandCoreAssetTransaction } from "../workspaceBrandCoreAssetMaterialization.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const requireUserJwt = createUserJwtMiddleware();
@@ -69,58 +68,22 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
-  // Brand Core materialization uses the centralized fail-closed User-JWT verifier and
-  // delegates durable persistence to the canonical Resource API repository lifecycle.
-  router.post(
-    "/me/workspaces/:tenant_id/assets/materialize-brand-core",
-    requireUserJwt,
-    async (req, res) => {
-      const connection = await getPool().getConnection();
-      let transactionStarted = false;
-      try {
-        await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_brand_core_asset_materialize
-        transactionStarted = true;
-        const result = await materializeWorkspaceBrandCoreAsset(connection, {
-          tenantId: req.params.tenant_id,
-          actorUserId: req.auth.user_id,
-          brandRef: req.body?.brand_ref,
-          sourceRef: req.body?.source_ref,
-        });
-        if (
-          !result?.asset?.asset_id ||
-          result.asset.source_provider !== "brand_core" ||
-          !result.asset.content_identity
-        ) {
-          throw Object.assign(new Error("Brand Core materialization did not produce an exact canonical asset projection."), {
-            status: 409,
-            code: "brand_core_asset_materialize_readback_missing",
-          });
-        } // MUTATION_READBACK: workspace_brand_core_asset_materialize
-        await connection.commit();
-        transactionStarted = false;
-        return res.status(201).json({
-          ok: true,
-          tenant_id: req.params.tenant_id,
-          ...result,
-          readback: "same_cycle",
-          secrets_included: false,
-        });
-      } catch (error) {
-        if (transactionStarted) await connection.rollback();
-        return res.status(error?.status || 500).json({
-          ok: false,
-          error: {
-            code: error?.code || "brand_core_asset_materialize_failed",
-            message: error?.message || "Brand Core asset materialization failed.",
-            ...(error?.details ? { details: error.details } : {}),
-          },
-          secrets_included: false,
-        });
-      } finally {
-        connection.release();
-      }
+  // Keep canonical route/auth visible here; transaction orchestration stays outside transport.
+  router.post("/me/workspaces/:tenant_id/assets/materialize-brand-core", requireUserJwt, async (req, res) => {
+    try {
+      const result = await materializeWorkspaceBrandCoreAssetTransaction({
+        tenantId: req.params.tenant_id, actorUserId: req.auth.user_id,
+        brandRef: req.body?.brand_ref, sourceRef: req.body?.source_ref,
+      });
+      return res.status(201).json({ ok: true, tenant_id: req.params.tenant_id, ...result, readback: "same_cycle", secrets_included: false });
+    } catch (error) {
+      return res.status(error?.status || 500).json({
+        ok: false,
+        error: { code: error?.code || "brand_core_asset_materialize_failed", message: error?.message || "Brand Core asset materialization failed.", ...(error?.details ? { details: error.details } : {}) },
+        secrets_included: false,
+      });
     }
-  );
+  });
 
   router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));

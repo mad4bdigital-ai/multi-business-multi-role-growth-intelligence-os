@@ -200,6 +200,7 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
   const repositorySource = readText(apiRoot, MATERIALIZE_REPOSITORY_FILE);
   const route = routeRegistry(routeSource, MATERIALIZE_ROUTE_FILE).get(BRAND_CORE_MATERIALIZE_OPERATION);
   const materializeBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAsset");
+  const transactionBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAssetTransaction");
   const inputBlock = extractFunctionBlock(serviceSource, "materializedAssetInput");
   const brandBlock = extractFunctionBlock(serviceSource, "resolveCanonicalBrand");
   const workspaceBlock = extractFunctionBlock(serviceSource, "resolveBrandWorkspace");
@@ -216,9 +217,9 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
         && !/\bfunction\s+(?:verifyUserJwt|requireUserJwt)\s*\(/.test(routeSource),
       "centralized createUserJwtMiddleware binding parsed as requireUserJwt with no route-local User JWT verifier"
     ),
-    evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAsset"),
-    evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && routeSource.includes("await connection.beginTransaction()") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "transaction begin/commit/rollback"),
-    evidenceGate("route_readback_marker", routeSource.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && routeSource.includes("source_provider") && routeSource.includes("content_identity"), "canonical asset projection readback marker"),
+    evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAssetTransaction"),
+    evidenceGate("transaction_scope", transactionBlock.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && transactionBlock.includes("await connection.beginTransaction()") && transactionBlock.includes("await connection.commit()") && transactionBlock.includes("await connection.rollback()"), "service-owned transaction begin/commit/rollback"),
+    evidenceGate("route_readback_marker", transactionBlock.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && transactionBlock.includes("source_provider") && transactionBlock.includes("content_identity"), "service-owned canonical asset projection readback marker"),
     evidenceGate("service_present", materializeBlock, "materializeWorkspaceBrandCoreAsset"),
     evidenceGate("canonical_brand_authority", brandBlock.includes("resolveWorkspaceAssetBrandRef") && brandBlock.includes("FOR UPDATE"), "canonical tenant Brand authority"),
     evidenceGate("brand_workspace_authority", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "canonical Brand Workspace authority"),
