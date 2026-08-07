@@ -76,5 +76,6 @@
         }
       ]
     }
-  ]
+  ],
+  "secrets_included": false
 }
