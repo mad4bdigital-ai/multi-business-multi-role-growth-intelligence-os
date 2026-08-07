@@ -1,4 +1,4 @@
-const UNVERIFIABLE_RESOURCE_TYPES = new Set(["site", "app", "workflow", "agent"]);
+const UNVERIFIABLE_RESOURCE_TYPES = new Set(["workflow", "agent"]);
 
 function authorityError(status, code, message) {
   return Object.assign(new Error(message), { status, code });
@@ -51,6 +51,52 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
       throw authorityError(409, "workspace_resource_inactive", "Workspace is not active.");
     }
     return { resource_ref: String(tenant.tenant_id), authority_source: "tenants" };
+  }
+
+  if (resourceType === "app") {
+    const [rows] = await connection.query(
+      "SELECT app_id, tenant_id, status FROM developer_apps WHERE app_id=? LIMIT 2 FOR UPDATE",
+      [resourceRef]
+    );
+    const app = requireExactlyOne(rows, "app");
+    requireTenantMatch(app, tenantId, "app");
+    if (String(app.status || "").toLowerCase() !== "active") {
+      throw authorityError(409, "workspace_resource_inactive", "Only active developer apps can receive grants.");
+    }
+    return { resource_ref: String(app.app_id), authority_source: "developer_apps" };
+  }
+
+  if (resourceType === "site") {
+    const [siteRows] = await connection.query(
+      "SELECT site_id, platform_status FROM cms_sites WHERE site_id=? LIMIT 2 FOR UPDATE",
+      [resourceRef]
+    );
+    const site = requireExactlyOne(siteRows, "site");
+    if (String(site.platform_status || "").toLowerCase() !== "active") {
+      throw authorityError(409, "workspace_resource_inactive", "Only active CMS sites can receive workspace grants.");
+    }
+
+    const [grantRows] = await connection.query(
+      `SELECT grant_id, tenant_id, status,
+              CASE WHEN expires_at IS NULL OR expires_at > NOW() THEN 1 ELSE 0 END AS not_expired
+         FROM cms_site_access_grants
+        WHERE site_id=?
+        LIMIT 20 FOR UPDATE`,
+      [site.site_id]
+    );
+    const tenantRows = Array.isArray(grantRows)
+      ? grantRows.filter((row) => String(row.tenant_id || "") === String(tenantId || ""))
+      : [];
+    if (tenantRows.length === 0) {
+      throw authorityError(403, "workspace_resource_cross_tenant", "CMS site is not authorized for this workspace.");
+    }
+    const activeTenantRows = tenantRows.filter(
+      (row) => String(row.status || "").toLowerCase() === "active" && Number(row.not_expired) === 1
+    );
+    if (activeTenantRows.length === 0) {
+      throw authorityError(409, "workspace_resource_inactive", "CMS site has no current active access grant for this workspace.");
+    }
+    return { resource_ref: String(site.site_id), authority_source: "cms_sites+cms_site_access_grants" };
   }
 
   if (resourceType === "asset") {
