@@ -34,17 +34,20 @@
           "level": "synthetic_runtime",
           "actor": "sole_eligible_human_collaborator",
           "entrypoint": "pull request review plus repository policy plan/apply",
-          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when complete live collaborator and permission readback proves exactly one eligible human and requires the read-only Single Owner Review Gate on the exact head; independent approval resumes automatically otherwise.",
+          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when complete live collaborator and permission readback proves exactly one eligible human and requires a policy-bound exact-PR/exact-head owner attestation through the read-only Single Owner Review Gate; independent approval resumes automatically otherwise.",
           "steps": [
             "Read all effective collaborators with bounded pagination and resolve every collaborator permission.",
             "Select single-owner mode only when collaborator and permission proof is complete and exactly one eligible human exists.",
-            "For a PR authored by that sole eligible human, require an exact-head COMMENTED owner attestation because GitHub rejects self-APPROVE.",
+            "For a PR authored by that sole eligible human, require a COMMENTED review on the exact head with token OWNER_ATTEST_SINGLE_OWNER_PR_<PR_NUMBER>_<HEAD_SHA_12>, the full exact head SHA, reviewed_exact_candidate=true, accepts_code_and_governance_evidence=true, and authorizes_ready_merge_for_exact_sha=true.",
+            "Reject the legacy generic OWNER_ATTEST_SINGLE_OWNER token and reject any attestation missing one of the policy acceptance statements.",
             "Evaluate the gate in a read-only pull-request workflow whose native Actions job is named Single Owner Review Gate; do not create a Check Run through a write API.",
             "Require that native status check in the managed main Ruleset and keep stale-review, thread-resolution, strict status checks, no bypass actors, non-fast-forward and direct-push blocking.",
             "Reject explicit single_owner_mode when complete collaborator eligibility cannot be proven."
           ],
           "assertions": [
-            "Sole eligible human with exact-head attestation passes.",
+            "Sole eligible human with the policy-bound exact-PR/exact-head attestation and all explicit acceptance statements passes.",
+            "The legacy generic single-owner token fails closed even when it references the exact full SHA.",
+            "Missing reviewed, governance-evidence acceptance, or Ready/Merge authorization statements fail closed.",
             "Stale-head attestation fails.",
             "Adding an eligible independent collaborator disables self-attestation mode and requires independent APPROVED review.",
             "Partial collaborator or permission readback fails closed to independent approval mode.",
