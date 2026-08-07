@@ -226,7 +226,7 @@ await expectAuthorityError(
     [{ agent_id: "agent-one", status: "active", health_status: "degraded" }],
     [
       { binding_id: "agent-binding-1", resource_ref: "agent-one", effect: "allow", status: "active", container_id: "container-a", container_status: "active", dimension_key: "agents", dimension_status: "active" },
-      { binding_id: "agent-binding-2", resource_ref: "agent-one", effect: "share", status: "active", container_id: "container-b", container_status: "active", dimension_key: "agents", dimension_status: "active" },
+      { binding_id: "agent-binding-2", resource_ref: "agent-one", effect: "allow", status: "active", container_id: "container-b", container_status: "active", dimension_key: "agents", dimension_status: "active" },
     ],
   ]);
   const result = await assertGrantResourceInWorkspace(connection, {
@@ -241,7 +241,7 @@ await expectAuthorityError(
   assert.match(connection.queries[1].sql, /container_resource_bindings/);
   assert.match(connection.queries[1].sql, /JOIN containers/);
   assert.match(connection.queries[1].sql, /container_resource_dimension_registry/);
-  assert.match(connection.queries[1].sql, /effect IN \('allow','share','delegate'\)/);
+  assert.match(connection.queries[1].sql, /crb\.effect = 'allow'/);
   assert.match(connection.queries[1].sql, /valid_until IS NULL OR crb\.valid_until > UTC_TIMESTAMP\(\)/);
   assert.match(connection.queries[1].sql, /FOR UPDATE/);
   assert.doesNotMatch(connection.queries[1].sql, /v_activation_agent_catalog/);
@@ -285,7 +285,7 @@ await expectAuthorityError(
     [{ workflow_id: "workflow-id-one", workflow_key: "workflow-key-one", status: "active", active: "TRUE" }],
     [
       { binding_id: "workflow-binding-1", resource_ref: "workflow-key-one", effect: "allow", status: "active", container_id: "container-a", container_status: "active", dimension_key: "workflows", dimension_status: "active" },
-      { binding_id: "workflow-binding-2", resource_ref: "workflow-id-one", effect: "delegate", status: "active", container_id: "container-b", container_status: "active", dimension_key: "workflows", dimension_status: "active" },
+      { binding_id: "workflow-binding-2", resource_ref: "workflow-id-one", effect: "allow", status: "active", container_id: "container-b", container_status: "active", dimension_key: "workflows", dimension_status: "active" },
     ],
   ]);
   const result = await assertGrantResourceInWorkspace(connection, {
@@ -298,6 +298,7 @@ await expectAuthorityError(
   assert.deepEqual(connection.queries[0].params, ["workflow-id-one", "workflow-id-one"]);
   assert.deepEqual(connection.queries[1].params, ["tenant-a", "workflows", "workflow", "workflow-key-one", "workflow-id-one"]);
   assert.match(connection.queries[1].sql, /container_resource_bindings/);
+  assert.match(connection.queries[1].sql, /crb\.effect = 'allow'/);
   assert.doesNotMatch(connection.queries[1].sql, /v_activation_workflow_catalog/);
 }
 
