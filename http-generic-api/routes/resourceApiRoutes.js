@@ -69,13 +69,25 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
   // Keep canonical route/auth visible here; transaction orchestration stays outside transport.
-  router.post("/me/workspaces/:tenant_id/assets/materialize-brand-core", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:workspace_id/brands/:brand_key/assets/materialize-brand-core", requireUserJwt, async (req, res) => {
     try {
       const result = await materializeWorkspaceBrandCoreAssetTransaction({
-        tenantId: req.params.tenant_id, actorUserId: req.auth.user_id,
-        brandRef: req.body?.brand_ref, sourceRef: req.body?.source_ref,
+        workspaceId: req.params.workspace_id,
+        actorUserId: req.auth.user_id,
+        brandRef: req.params.brand_key,
+        sourceRef: req.body?.source_ref,
       });
-      return res.status(201).json({ ok: true, tenant_id: req.params.tenant_id, ...result, readback: "same_cycle", secrets_included: false });
+      return res.status(201).json({
+        ok: true,
+        tenant_id: result.tenant_id,
+        workspace_id: result.workspace.workspace_id,
+        brand_key: result.workspace.brand_ref,
+        asset: result.asset,
+        source: result.source,
+        workspace: result.workspace,
+        readback: "same_cycle",
+        secrets_included: false,
+      });
     } catch (error) {
       return res.status(error?.status || 500).json({
         ok: false,
