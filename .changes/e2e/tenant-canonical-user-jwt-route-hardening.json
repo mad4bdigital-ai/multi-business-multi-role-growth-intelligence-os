@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/tenant-canonical-user-jwt-route-hardening.json",
+      "http-generic-api/resource-api-coverage.manifest.json",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
       "http-generic-api/routes/workspaceResourceRoutes.js",
       "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs"
@@ -34,13 +35,15 @@
             "Parse the token with createUserJwtMiddleware from userJwtAuth.js.",
             "Reject missing verifier configuration with user_jwt_verifier_unavailable instead of a fallback secret.",
             "Require the parsed user_jwt principal before active membership, owner/admin or resource checks.",
-            "Resolve effective tenant role and resource authority from authoritative state rather than trusting token role claims."
+            "Resolve effective tenant role and resource authority from authoritative state rather than trusting token role claims.",
+            "Verify the Resource API callability manifest tracks the canonical parser-before-resource-guard route signature."
           ],
           "assertions": [
             "Neither route owns an ad-hoc jsonwebtoken verifier or development_fallback_secret_only value.",
             "A valid configured HS256 User JWT is parsed into a non-admin user principal.",
             "Missing JWT_SECRET fails closed with a safe 503 verifier-unavailable response.",
             "Workspace and platform-plugin routes retain their DB-backed membership and tenant/resource checks after parsing.",
+            "The governed workspace_brands_list route marker requires requireCanonicalUserJwt before requireUserJwt.",
             "No database migration, Production mutation, provider call, credential read, external send or force push is performed by this change."
           ],
           "tests": [
@@ -57,10 +60,18 @@
               "working_directory": "http-generic-api",
               "path": "test-workspace-resource-authority-foundation.mjs",
               "args": []
+            },
+            {
+              "id": "resource-api-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/resource-api-coverage-audit.mjs",
+              "args": ["--changed"]
             }
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-canonical-user-jwt-route-hardening.json",
+            "http-generic-api/resource-api-coverage.manifest.json",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
             "http-generic-api/routes/workspaceResourceRoutes.js",
             "http-generic-api/userJwtAuth.js",
