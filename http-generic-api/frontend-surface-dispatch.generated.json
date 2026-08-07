@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f77c0a05adf2df0c76106c4bfe435b2a2104e3e4be4067c46b61a0ae10fb0db1",
+    "source_digest": "bd5b7233c554d92afed162515f908f19c7903d9ceef54ea2331947068d486b70",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -326,7 +326,7 @@
       },
       {
         "file": "resource-api-coverage.manifest.json",
-        "sha256": "3824fc66014516b7f726bb3bef7d07a15dd83c976bd823bf803d66c317d4abca",
+        "sha256": "b1f72690b38622e0bc6a6b905284752aa5c2f2ff8acf3dcf738ee9d991286c5d",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "routes/tenantGrowthControlPlaneRoutes.js",
-        "sha256": "fbde167c3090f3a300ea4f2a268397c50fc5085206d206d7a83e12ad3ddb3d11",
+        "sha256": "56d6edec51ba97a7eca4d7cef5d075442f48b9e0ae140108b3ee674ff89295ee",
         "present": true
       },
       {
@@ -1006,7 +1006,7 @@
       },
       {
         "file": "routes/tenantPlatformPluginRoutes.js",
-        "sha256": "4c4fef83927205da716193cb3a5895e85e9b4864bd2da38814ca578c129a1020",
+        "sha256": "e37b0718b209aa673e8052e29d87f9df3996c19959f0b99dc9097e9113769273",
         "present": true
       },
       {
@@ -1026,7 +1026,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "c28f0122d4cc603bc84a92e489a7312293e55771416b8b6fc9c4eb17464b4641",
+        "sha256": "8eeaef6c7bd64f996181425a9e1567353f3c405b296dd4f2b4d2ac86d251f240",
         "present": true
       },
       {
@@ -20956,7 +20956,7 @@
       "family_key": "tenant-platform-plugin",
       "label": "tenant platform plugin",
       "source_file": "routes/tenantPlatformPluginRoutes.js",
-      "source_digest": "4c4fef83927205da716193cb3a5895e85e9b4864bd2da38814ca578c129a1020",
+      "source_digest": "e37b0718b209aa673e8052e29d87f9df3996c19959f0b99dc9097e9113769273",
       "mount_prefix": "/",
       "mount_order": 15721,
       "split_from_mixed_scope_file": false,
@@ -27450,7 +27450,7 @@
       "family_key": "tenant-growth-control-plane",
       "label": "tenant growth control plane",
       "source_file": "routes/tenantGrowthControlPlaneRoutes.js",
-      "source_digest": "fbde167c3090f3a300ea4f2a268397c50fc5085206d206d7a83e12ad3ddb3d11",
+      "source_digest": "56d6edec51ba97a7eca4d7cef5d075442f48b9e0ae140108b3ee674ff89295ee",
       "mount_prefix": "/",
       "mount_order": 16295,
       "split_from_mixed_scope_file": false,
@@ -27475,12 +27475,15 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireTenantUserJwt"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
+              "BACKEND_API_KEY",
               "JWT_SECRET"
             ]
           },
@@ -27535,12 +27538,15 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireBackendApiKey",
               "requireTenantUserJwt"
             ],
             "evidence": [
+              "route:requireBackendApiKey",
               "route:requireTenantUserJwt"
             ],
             "configuration_dependencies": [
+              "BACKEND_API_KEY",
               "JWT_SECRET"
             ]
           },
@@ -30729,7 +30735,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "c28f0122d4cc603bc84a92e489a7312293e55771416b8b6fc9c4eb17464b4641",
+      "source_digest": "8eeaef6c7bd64f996181425a9e1567353f3c405b296dd4f2b4d2ac86d251f240",
       "mount_prefix": "/",
       "mount_order": 16754,
       "split_from_mixed_scope_file": false,
