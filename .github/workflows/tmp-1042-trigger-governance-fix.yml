@@ -1,0 +1,74 @@
+name: Temporary Migration 1042 Trigger Governance Fix
+
+on:
+  push:
+    branches:
+      - docs/migration-1042-surface-contract-remediation-20260807
+    paths:
+      - .github/workflows/tmp-1042-trigger-governance-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install runtime dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Patch CREATE OR REPLACE trigger detection and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          const remediatorPath = 'http-generic-api/scripts/surface-contract-auto-remediator.mjs';
+          let remediator = fs.readFileSync(remediatorPath, 'utf8');
+          const oldPattern = '  /\\bCREATE\\s+(?:PROCEDURE|FUNCTION|TRIGGER)\\b/i,';
+          const newPattern = '  /\\bCREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:PROCEDURE|FUNCTION|TRIGGER)\\b/i,';
+          if (!remediator.includes(oldPattern)) throw new Error('expected trigger forbidden-pattern contract not found');
+          if ((remediator.match(/CREATE\\s\+/g) || []).length < 1) throw new Error('unexpected remediator pattern state');
+          remediator = remediator.replace(oldPattern, newPattern);
+          fs.writeFileSync(remediatorPath, remediator);
+
+          const testPath = 'http-generic-api/test-surface-contract-auto-remediation.mjs';
+          let test = fs.readFileSync(testPath, 'utf8');
+          const anchor = `const actualExecute = buildAttestation({ item: safeItem, source: "EXECUTE prepared_statement;" });\nassert.equal(actualExecute.eligible, false, "actual EXECUTE statements must remain manual review only");\nassert(actualExecute.reasons.includes("forbidden_sql_pattern_detected"));\n`;
+          if (!test.includes(anchor)) throw new Error('test insertion anchor not found');
+          const regression = `${anchor}\nconst actualCreateOrReplaceTrigger = buildAttestation({\n  item: safeItem,\n  source: "CREATE OR REPLACE TRIGGER trg_example AFTER INSERT ON example FOR EACH ROW SET @x = 1;",\n});\nassert.equal(actualCreateOrReplaceTrigger.eligible, false, "CREATE OR REPLACE TRIGGER must remain manual review only");\nassert(actualCreateOrReplaceTrigger.reasons.includes("forbidden_sql_pattern_detected"));\n`;
+          test = test.replace(anchor, regression);
+          fs.writeFileSync(testPath, test);
+          NODE
+
+      - name: Run focused governance regression
+        working-directory: http-generic-api
+        run: |
+          node --check scripts/surface-contract-auto-remediator.mjs
+          node --check test-surface-contract-auto-remediation.mjs
+          node test-surface-contract-auto-remediation.mjs
+
+      - name: Commit bounded fix and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "migration-1042-governance-fix[bot]"
+          git config user.email "migration-1042-governance-fix[bot]@users.noreply.github.com"
+          git add http-generic-api/scripts/surface-contract-auto-remediator.mjs http-generic-api/test-surface-contract-auto-remediation.mjs
+          git rm .github/workflows/tmp-1042-trigger-governance-fix.yml
+          git diff --cached --check
+          git commit -m "fix(governance): detect CREATE OR REPLACE trigger surfaces"
+          git push origin HEAD:docs/migration-1042-surface-contract-remediation-20260807
