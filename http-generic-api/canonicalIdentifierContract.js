@@ -99,6 +99,41 @@ function schemaColumnKey(tableName, columnName) {
   return `${normalize(tableName)}.${normalize(columnName)}`;
 }
 
+function extractCreatedSchemaColumns(sql = "") {
+  const source = String(sql || "");
+  const columns = new Set();
+  const createTablePattern = /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z_][A-Za-z0-9_$]*)`?\s*\(/gi;
+  let match;
+
+  while ((match = createTablePattern.exec(source)) !== null) {
+    const tableName = match[1];
+    const openIndex = createTablePattern.lastIndex - 1;
+    let depth = 0;
+    let closeIndex = -1;
+    for (let index = openIndex; index < source.length; index += 1) {
+      if (source[index] === "(") depth += 1;
+      else if (source[index] === ")") {
+        depth -= 1;
+        if (depth === 0) {
+          closeIndex = index;
+          break;
+        }
+      }
+    }
+    if (closeIndex < 0) break;
+
+    const body = source.slice(openIndex + 1, closeIndex);
+    const columnPattern = /^\s*(?:`([A-Za-z_][A-Za-z0-9_$]*)`|([A-Za-z_][A-Za-z0-9_$]*))\s+(?=(?:BIGINT|INT|SMALLINT|TINYINT|MEDIUMINT|VARCHAR|CHAR|TEXT|LONGTEXT|MEDIUMTEXT|TINYTEXT|BINARY|VARBINARY|BLOB|DATETIME|TIMESTAMP|DATE|TIME|DECIMAL|NUMERIC|FLOAT|DOUBLE|BOOLEAN|BOOL|JSON|ENUM|SET)\b)/gim;
+    let columnMatch;
+    while ((columnMatch = columnPattern.exec(body)) !== null) {
+      columns.add(schemaColumnKey(tableName, columnMatch[1] || columnMatch[2]));
+    }
+    createTablePattern.lastIndex = closeIndex + 1;
+  }
+
+  return columns;
+}
+
 function normalizeSchemaRow(row = {}) {
   return {
     table_name: row.table_name ?? row.TABLE_NAME ?? "",
@@ -140,8 +175,10 @@ export async function assessLiveIdentifierComparisonContracts(sql = "", { query 
       checked_comparison_count: 1,
       issue_count: 1,
       protected_mismatch_count: 0,
+      deferred_schema_column_count: 0,
       issues: [finding],
       protected_mismatches: [],
+      deferred_schema_columns: [],
       dedicated_atomic_runner_required: true,
       required_runner: finding.required_runner,
       secrets_included: false,
@@ -156,8 +193,10 @@ export async function assessLiveIdentifierComparisonContracts(sql = "", { query 
       checked_comparison_count: 0,
       issue_count: 0,
       protected_mismatch_count: 0,
+      deferred_schema_column_count: 0,
       issues: [],
       protected_mismatches: [],
+      deferred_schema_columns: [],
       secrets_included: false,
     };
   }
@@ -184,13 +223,42 @@ export async function assessLiveIdentifierComparisonContracts(sql = "", { query 
     const normalized = normalizeSchemaRow(row);
     return [schemaColumnKey(normalized.table_name, normalized.column_name), normalized];
   }));
+  const createdSchemaColumns = extractCreatedSchemaColumns(sql);
 
   const issues = [];
   const protectedMismatches = [];
+  const deferredSchemaColumns = new Map();
   for (const comparison of comparisons) {
     const left = columns.get(schemaColumnKey(comparison.left.table_name, comparison.left.column_name));
     const right = columns.get(schemaColumnKey(comparison.right.table_name, comparison.right.column_name));
     if (!left || !right) {
+      const missingSides = [
+        !left ? comparison.left : null,
+        !right ? comparison.right : null,
+      ].filter(Boolean);
+      const existingSide = left || right;
+      const canDefer = comparison.binary_protected
+        && missingSides.length === 1
+        && Boolean(existingSide)
+        && missingSides.every((side) => createdSchemaColumns.has(
+          schemaColumnKey(side.table_name, side.column_name),
+        ));
+      if (canDefer) {
+        for (const side of missingSides) {
+          const key = schemaColumnKey(side.table_name, side.column_name);
+          deferredSchemaColumns.set(key, {
+            code: "IDENTIFIER_SCHEMA_COLUMN_DEFERRED",
+            contract_key: comparison.contract_key,
+            identifier_name: comparison.identifier_name,
+            operator: comparison.operator,
+            table_name: side.table_name,
+            column_name: side.column_name,
+            binary_protected: true,
+            reason: "Column is declared by CREATE TABLE in the same migration and remains subject to same-cycle schema readback.",
+          });
+        }
+        continue;
+      }
       issues.push({
         code: "IDENTIFIER_SCHEMA_COLUMN_MISSING",
         contract_key: comparison.contract_key,
@@ -222,8 +290,10 @@ export async function assessLiveIdentifierComparisonContracts(sql = "", { query 
     checked_comparison_count: comparisons.length,
     issue_count: issues.length,
     protected_mismatch_count: protectedMismatches.length,
+    deferred_schema_column_count: deferredSchemaColumns.size,
     issues,
     protected_mismatches: protectedMismatches,
+    deferred_schema_columns: [...deferredSchemaColumns.values()],
     secrets_included: false,
   };
 }
