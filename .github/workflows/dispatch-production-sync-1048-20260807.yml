@@ -1,0 +1,54 @@
+name: Dispatch governed Production sync for Migration 1048
+
+on:
+  push:
+    branches:
+      - ops/production-sync-1048-20260807
+    paths:
+      - .github/workflows/dispatch-production-sync-1048-20260807.yml
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  dispatch:
+    if: github.repository == 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Dispatch canonical governed Production promotion launcher
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REQUEST_PR: '6527'
+          REQUEST_BRANCH: ops/production-sync-1048-20260807
+        run: |
+          set -Eeuo pipefail
+
+          [[ "$GITHUB_REF_NAME" == "$REQUEST_BRANCH" ]] || { echo "::error::unexpected dispatcher branch"; exit 1; }
+
+          PR_JSON="$(gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
+          [[ "$(jq -r '.state' <<<"$PR_JSON")" == "open" ]] || { echo "::error::request PR is not open"; exit 1; }
+          [[ "$(jq -r '.base.ref' <<<"$PR_JSON")" == "main" ]] || { echo "::error::request PR base mismatch"; exit 1; }
+          [[ "$(jq -r '.head.ref' <<<"$PR_JSON")" == "$REQUEST_BRANCH" ]] || { echo "::error::request PR branch mismatch"; exit 1; }
+          [[ "$(jq -r '.head.sha' <<<"$PR_JSON")" == "$GITHUB_SHA" ]] || { echo "::error::request PR head moved"; exit 1; }
+          [[ "$(jq -r '.title' <<<"$PR_JSON")" == "ops: request governed Production synchronization" ]] || { echo "::error::request PR title mismatch"; exit 1; }
+
+          MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::main did not resolve to an exact SHA"; exit 1; }
+
+          gh workflow run governed-production-promotion-request-launcher.yml \
+            --repo "$REPOSITORY" \
+            --ref main \
+            --field request_pr="$REQUEST_PR" \
+            --field expected_head_sha="$MAIN_SHA" \
+            --field expected_request_head_sha="$GITHUB_SHA" \
+            --field release_branch_prefix="release/production-sync-1048" \
+            --field validation_branch_prefix="validation/production-sync-1048" \
+            --field validation_base_branch_prefix="validation-base/production-sync-1048" \
+            --field confirmation="AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST"
+
+          echo "Dispatched canonical Production promotion launcher for main=${MAIN_SHA} request_pr=${REQUEST_PR} request_head=${GITHUB_SHA}"
