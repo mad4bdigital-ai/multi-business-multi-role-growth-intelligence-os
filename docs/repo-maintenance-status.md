@@ -154,6 +154,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/retail-commerce-production-schema-baseline.yml`
 - `.github/workflows/retail-commerce-specification-baseline.yml`
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
+- `.github/workflows/single-owner-review-gate.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-011-evidence-auto-closeout.yml`
 - `.github/workflows/spec-011-goal-filtered-operational-intelligence.yml`
