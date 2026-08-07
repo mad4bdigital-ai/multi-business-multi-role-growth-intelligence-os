@@ -28,7 +28,7 @@ function brandConnectionRow({ id = "conn-brand-a", brandRef = "brand-a" } = {}) 
 function makeBrandPool({
   membershipRole = "member",
   membershipRows = null,
-  grantPermission = "view",
+  grantPermission = "operate",
   grantRows = null,
   linkedBrandKey = "brand-a",
   connectionRows = [brandConnectionRow()],
@@ -86,10 +86,14 @@ function makeBrandPool({
   assert.match(sql, /BINARY v\.brand_id <=> BINARY \?/);
   assert.doesNotMatch(sql, /access_token|refresh_token|password|api_key|encrypted_credentials|secret/i);
   assert.match(_testingPlatformPluginConnectionOwnership.OWNERSHIP_SCOPED_CONNECTION_SQL, /v\.brand_id IS NULL/);
+  assert.deepEqual(
+    [..._testingPlatformPluginConnectionOwnership.BRAND_CONNECTION_USE_PERMISSIONS].sort(),
+    ["admin", "manage", "operate", "owner"],
+  );
 }
 
 {
-  const pool = makeBrandPool({ membershipRole: "member", grantPermission: "view" });
+  const pool = makeBrandPool({ membershipRole: "member", grantPermission: "operate" });
   const result = await loadTenantPlatformPluginOwnershipScopedConnections({
     pool,
     pluginKey: "github",
@@ -114,8 +118,52 @@ function makeBrandPool({
   assert.deepEqual(connectionCall.params, ["tenant-1", "brand-workspace-a", "github", "brand-a", "brand-a"]);
 }
 
+for (const grantPermission of ["manage", "admin", "owner"]) {
+  const pool = makeBrandPool({ membershipRole: "member", grantPermission });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: "brand-workspace-a",
+    userId: "user-1",
+  });
+  assert.equal(result.ok, true, `${grantPermission} must be strong enough to use a Brand connection`);
+  assert.equal(result.brand_authority_source, "workspace_resource_grant");
+}
+
+for (const grantPermission of ["view", "comment", "edit"]) {
+  const pool = makeBrandPool({ membershipRole: "member", grantPermission });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: "brand-workspace-a",
+    userId: "user-1",
+  });
+  assert.equal(result.ok, false, `${grantPermission} must not authorize Brand provider credential use`);
+  assert.equal(result.denial_code, "BRAND_CONNECTION_AUTHORITY_REQUIRED");
+  assert.equal(result.row_count, 0);
+  assert.equal(result.brand_connections_included, false);
+  assert.equal(JSON.stringify(result).includes("brand-a"), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility")), false);
+}
+
 {
   const pool = makeBrandPool({ membershipRole: "owner", grantPermission: null });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: "brand-workspace-a",
+    userId: "user-1",
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.brand_authority_source, "tenant_owner_membership");
+  assert.equal(pool.calls.some((call) => call.sql.includes("v_workspace_resource_grant_effective")), false);
+}
+
+{
+  const pool = makeBrandPool({ membershipRole: "admin", grantPermission: null });
   const result = await loadTenantPlatformPluginOwnershipScopedConnections({
     pool,
     pluginKey: "github",
@@ -179,7 +227,7 @@ function makeBrandPool({
 {
   const pool = makeBrandPool({
     membershipRole: "member",
-    grantPermission: "view",
+    grantPermission: "operate",
     connectionRows: [brandConnectionRow({ id: "conn-brand-b", brandRef: "brand-b" })],
   });
   await loadTenantPlatformPluginOwnershipScopedConnections({
