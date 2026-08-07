@@ -29,6 +29,11 @@ for (const expected of [
   'const EXPECTED_STATEMENT_COUNT = 34',
   "const SOURCE_PR = 6509",
   "const SOURCE_MERGE_SHA = '6503e74c60b8f6add9efade1f25ceb8afaec6209'",
+  'function migrationAuthorizationConfirmation(migration)',
+  'governed_migration_authorization_confirmation_required',
+  'details?.required_confirmation',
+  'confirm: requiredConfirmation',
+  'governed_migration_authorization_previous_checksum_required',
   "name: 'governed_migration_execute'",
   "mode: 'dry_run'",
   "mode: 'apply'",
@@ -45,6 +50,17 @@ assert.equal(
   applyModeLiterals.length,
   1,
   'Migration 1048 rollout runner must contain exactly one Apply invocation literal',
+);
+
+assert.equal(
+  (runner.match(/name:\s*'governed_migration_authorization_bootstrap'/g) || []).length,
+  3,
+  'Migration 1048 readiness must use exactly three bounded bootstrap call sites: challenge, confirmed, optional checksum rotation',
+);
+assert.doesNotMatch(
+  runner,
+  /const AUTH_CONFIRM\s*=/,
+  'Migration 1048 runner must not hard-code a bootstrap confirmation that can drift from the runtime contract',
 );
 
 assert.match(
