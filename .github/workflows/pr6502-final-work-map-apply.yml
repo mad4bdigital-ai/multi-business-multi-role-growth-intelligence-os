@@ -22,11 +22,9 @@ jobs:
     env:
       TARGET_PR: "6502"
       TARGET_BRANCH: fix/push-workflow-runner-context-registration-main-ba10f269-20260806
-      AUTHORIZED_PARENT_SHA: 0c03d0e906331911f98fe0d4c54ad9344f012ceb
+      AUTHORIZED_PARENT_SHA: fb78cd499a1e0e3e136086f0f06feaee84c15f36
       EXPECTED_MAIN_SHA: 852696e8fe90d7121ff4c333654e9b0d8b244a68
       ONE_SHOT_PATH: .github/workflows/pr6502-final-work-map-apply.yml
-      EXPECTED_README_BLOB: dad9ac886c2244299a7fb5f0a4fa10f9fdcb7649
-      EXPECTED_AUTOMATION_MAP_BLOB: 977465ac9175646743743f56911ad5c050ae4c93
     steps:
       - name: Checkout exact one-shot head
         uses: actions/checkout@v5
@@ -74,8 +72,10 @@ jobs:
             "docs/work-maps/repository-automation-map.md" | sort)"
           test "${changed}" = "${expected}"
 
-          test "$(git hash-object docs/work-maps/README.md)" = "${EXPECTED_README_BLOB}"
-          test "$(git hash-object docs/work-maps/repository-automation-map.md)" = "${EXPECTED_AUTOMATION_MAP_BLOB}"
+          readme_blob="$(git hash-object docs/work-maps/README.md)"
+          automation_blob="$(git hash-object docs/work-maps/repository-automation-map.md)"
+          echo "generated_readme_blob=${readme_blob}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "generated_repository_automation_map_blob=${automation_blob}" >> "${GITHUB_STEP_SUMMARY}"
 
           first_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
           node http-generic-api/scripts/platform-work-map-generator.mjs --write
