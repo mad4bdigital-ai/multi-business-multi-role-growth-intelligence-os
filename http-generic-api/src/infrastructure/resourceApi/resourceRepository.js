@@ -260,6 +260,40 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
       brandRef: input.brand_ref,
     });
 
+    const proposedAssetId = String(input.asset_id || randomUUID()).slice(0, 64);
+    const proposedProvenance = buildWorkspaceAssetProvenance(input, {
+      tenantId,
+      brandRef: canonicalBrandRef,
+      actorId: actorId || "platform_admin",
+      assetType,
+      assetRef,
+    });
+    const proposedMetadata = mergeWorkspaceAssetMetadata(input.metadata_json, proposedProvenance);
+
+    await executeQuery(
+      `INSERT INTO workspace_assets
+        (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
+         workflow_ref,session_ref,visibility,lifecycle_status,metadata_json,created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE asset_id=asset_id`,
+      [
+        proposedAssetId,
+        tenantId,
+        input.vault_id || null,
+        assetType,
+        assetRef,
+        String(input.display_name),
+        canonicalBrandRef,
+        input.site_ref || null,
+        input.workflow_ref || null,
+        input.session_ref || null,
+        input.visibility || "workspace",
+        input.lifecycle_status || "active",
+        JSON.stringify(proposedMetadata),
+        actorId || "platform_admin",
+      ]
+    );
+
     const [identityRows] = await executeQuery(
       `SELECT asset_id,tenant_id,asset_type,asset_ref,brand_ref,lifecycle_status,metadata_json,created_by
          FROM workspace_assets
@@ -267,61 +301,33 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         LIMIT 2 FOR UPDATE`,
       [tenantId, assetType, assetRef]
     );
-    if (!Array.isArray(identityRows) || identityRows.length > 1) {
+    if (!Array.isArray(identityRows) || identityRows.length !== 1) {
       throw resourceRepositoryInvariantError(
-        "workspace_asset_identity_ambiguous",
-        "Asset identity did not resolve uniquely before persistence."
+        "workspace_asset_identity_serialization_failed",
+        "Atomic asset identity persistence did not resolve exactly one canonical row."
       );
     }
 
-    const existing = identityRows[0] || null;
+    const existing = identityRows[0];
     const provenance = buildWorkspaceAssetProvenance(input, {
       tenantId,
       brandRef: canonicalBrandRef,
-      actorId: existing?.created_by || actorId || "platform_admin",
+      actorId: existing.created_by || actorId || "platform_admin",
       assetType,
       assetRef,
     });
-
-    let assetId = existing?.asset_id || null;
-    if (existing) {
-      const existingMetadata = assertWorkspaceAssetIdentityCompatible(existing, provenance);
-      const mergedMetadata = mergeWorkspaceAssetMetadata(existingMetadata, provenance);
-      const needsBackfill = Object.entries(provenance).some(([key, value]) => (
-        value !== null && value !== undefined && (existingMetadata[key] === null || existingMetadata[key] === undefined || existingMetadata[key] === "")
-      )) || existingMetadata.secrets_included !== false;
-      if (needsBackfill) {
-        await executeQuery(
-          `UPDATE workspace_assets
-              SET metadata_json=?,updated_at=NOW()
-            WHERE asset_id=? AND tenant_id=?`,
-          [JSON.stringify(mergedMetadata), assetId, tenantId]
-        );
-      }
-    } else {
-      assetId = String(input.asset_id || randomUUID()).slice(0, 64);
-      const metadata = mergeWorkspaceAssetMetadata(input.metadata_json, provenance);
+    const existingMetadata = assertWorkspaceAssetIdentityCompatible(existing, provenance);
+    const mergedMetadata = mergeWorkspaceAssetMetadata(existingMetadata, provenance);
+    const needsBackfill = Object.entries(provenance).some(([key, value]) => (
+      value !== null && value !== undefined && (existingMetadata[key] === null || existingMetadata[key] === undefined || existingMetadata[key] === "")
+    )) || existingMetadata.secrets_included !== false;
+    const assetId = existing.asset_id;
+    if (needsBackfill) {
       await executeQuery(
-        `INSERT INTO workspace_assets
-          (asset_id,tenant_id,vault_id,asset_type,asset_ref,display_name,brand_ref,site_ref,
-           workflow_ref,session_ref,visibility,lifecycle_status,metadata_json,created_by)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-        [
-          assetId,
-          tenantId,
-          input.vault_id || null,
-          assetType,
-          assetRef,
-          String(input.display_name),
-          canonicalBrandRef,
-          input.site_ref || null,
-          input.workflow_ref || null,
-          input.session_ref || null,
-          input.visibility || "workspace",
-          input.lifecycle_status || "active",
-          JSON.stringify(metadata),
-          actorId || "platform_admin",
-        ]
+        `UPDATE workspace_assets
+            SET metadata_json=?,updated_at=NOW()
+          WHERE asset_id=? AND tenant_id=?`,
+        [JSON.stringify(mergedMetadata), assetId, tenantId]
       );
     }
 
