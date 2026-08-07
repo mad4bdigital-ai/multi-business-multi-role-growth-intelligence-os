@@ -4,3 +4,4 @@ strategy=main-tree-plus-three-permanent-overlays
 parents=current_repair_head,current_main
 force=false
 database_apply=false
+attempt=2
