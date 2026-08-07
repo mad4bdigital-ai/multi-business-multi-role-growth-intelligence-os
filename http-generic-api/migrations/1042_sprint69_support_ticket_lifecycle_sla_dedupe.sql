@@ -1,5 +1,6 @@
 -- Sprint 69: support ticket lifecycle, SLA, test visibility, and dedupe integrity.
--- Additive/idempotent. Applying this migration requires separate governed authorization.
+-- Additive/re-runnable. Time-dependent SLA reconciliation may legitimately update derived status on a later run.
+-- Applying this migration requires separate governed authorization.
 -- Surface-contract safety boundary (static evidence only; this does not authorize execution):
 -- no_provider_call
 -- no_credential_payload_read
@@ -53,14 +54,24 @@ UPDATE tickets
    '3c8d16a0-2923-4065-934b-3e9e75382a4e',
    '05beb452-7edd-4b65-9549-d154d5405884',
    '14a161bf-6664-11f1-8ecd-456940024c79'
- );
+ )
+   AND (
+     COALESCE(is_test, 0) <> 1
+     OR COALESCE(environment, '') = ''
+     OR COALESCE(visibility_class, '') <> 'internal_test'
+   );
 
 UPDATE tickets
    SET parent_ticket_id = COALESCE(parent_ticket_id, 'b48a7b04-fa30-4e7d-ac5b-7a97515e7dd4'),
        related_ticket_id = COALESCE(related_ticket_id, 'b48a7b04-fa30-4e7d-ac5b-7a97515e7dd4'),
        target_capability = COALESCE(target_capability, 'wordpress_tenant_safe_self_repair'),
        updated_at = NOW()
- WHERE ticket_id = '310f39c8-d2f7-4523-95db-9a783c59f9cf';
+ WHERE ticket_id = '310f39c8-d2f7-4523-95db-9a783c59f9cf'
+   AND (
+     parent_ticket_id IS NULL
+     OR related_ticket_id IS NULL
+     OR target_capability IS NULL
+   );
 
 UPDATE tickets
    SET status = 'resolved',
