@@ -2,13 +2,17 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "platform-plugin-connection-ambiguity",
-  "title": "Fail closed on ambiguous platform plugin connection selection",
+  "title": "Fail closed on ambiguous or mis-scoped platform plugin connection selection",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "http-generic-api/platformPluginConnectionOwnership.js",
       "http-generic-api/platformPluginResolver.js",
-      "http-generic-api/test-platform-plugin-resolver.mjs"
+      "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/test-platform-plugin-connection-ownership.mjs",
+      "http-generic-api/test-platform-plugin-resolver.mjs",
+      "http-generic-api/test-tenant-platform-plugin-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -18,44 +22,67 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Resolve platform-plugin credentials without silently selecting the first eligible connection when the active user or tenant scope contains more than one usable candidate.",
+      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace ownership, while preserving fail-closed ambiguity and preventing user, workspace, or brand scope expansion.",
       "e2e_journeys": [
         {
-          "id": "ambiguous-platform-plugin-connection-selection-fails-closed",
+          "id": "workspace-owned-platform-plugin-connections-fail-closed",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authenticated tenant user resolving a platform-plugin action",
-          "entrypoint": "resolvePlatformPluginExecution runtime resolver invocation for a tenant, user, plugin and action",
-          "terminal_outcome": "Multiple eligible connections in the selected scope produce a typed ambiguity denial before any connection is selected, while zero and exactly one eligible connection retain their existing outcomes.",
+          "actor": "Authenticated tenant user resolving a platform-plugin action in an exact workspace",
+          "entrypoint": "POST /tenant/platform/plugins/resolve and resolvePlatformPluginExecution for an authenticated tenant/user/workspace",
+          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; missing, mismatched, ambiguous, unclassified, cross-workspace, or brand ownership remains blocked without exposing candidate identifiers or secrets.",
           "steps": [
-            "Invoke the platform-plugin runtime resolver with authoritative plugin, policy, binding and connection rows for the requested tenant and user.",
-            "Collect all usable candidates for the active credential scope instead of selecting the first row.",
-            "Fail closed with AMBIGUOUS_CONNECTION_SELECTION when candidate cardinality exceeds one before exposing a selected connection identifier.",
-            "Repeat with reversed row order and with tenant fallback ambiguity, then exercise exactly-one and zero-candidate paths.",
-            "Assert the returned decision is deterministic and does not disclose candidate connection identifiers or secret-backed values."
+            "Require an explicit workspace_id on the tenant resolve contract and derive tenant_id/user_id only from authenticated context.",
+            "Read workspace ownership for the exact tenant and workspace, then query the Context Kernel compatibility view for classified active ownership in that same workspace.",
+            "Map personal_workspace ownership to user_connection only when the authenticated user is the personal workspace owner.",
+            "Map company_workspace ownership to tenant_connection without treating the user who originally connected the provider as the credential owner.",
+            "Exclude brand-owned connections until canonical Brand-management authority is composed into this resolver.",
+            "Apply the existing cardinality guard so multiple usable candidates fail closed before any connection identifier is selected.",
+            "Assert scope mismatch and ambiguity responses contain no credential payload or candidate connection identifiers."
           ],
           "assertions": [
-            "Two eligible user-scoped connections return resolution_state=ambiguous and denial_code=AMBIGUOUS_CONNECTION_SELECTION.",
-            "Reversing ambiguous connection row order does not change the fail-closed result.",
-            "When no user-scoped candidate exists, two eligible tenant-scoped fallback connections fail closed as tenant_connection ambiguity.",
-            "Ambiguity responses expose candidate count and scope but no selected connection_id, candidate identifiers or mock secret values.",
-            "Exactly one eligible connection preserves the existing resolved and allowed behavior.",
-            "Zero eligible connections preserves the existing DEDICATED_CONNECTION_REQUIRED behavior where dedicated credentials are required.",
-            "The change performs no database migration, Production mutation, provider call, credential/secret mutation, generated-artifact edit or force push."
+            "Tenant plugin resolution requires an exact workspace_id before credential resolution.",
+            "Personal Workspace ownership resolves only to user_connection for the exact authenticated owner.",
+            "Company Workspace ownership resolves only to tenant_connection for the exact workspace, independent of the legacy connected user field.",
+            "A caller-requested user_connection cannot downgrade or widen a company-workspace connection and returns CONNECTION_OWNERSHIP_SCOPE_MISMATCH.",
+            "Unknown, ambiguous, unclassified, or personal-owner-mismatched workspace ownership fails closed before connection lookup.",
+            "Brand connections are excluded from this bounded change and cannot become eligible without the separate canonical Brand authority path.",
+            "Two eligible connections in the resolved ownership scope return AMBIGUOUS_CONNECTION_SELECTION without a selected connection_id.",
+            "Reversing ambiguous connection row order does not change the fail-closed result covered by the existing ambiguity regression.",
+            "No access token, refresh token, password, API key, encrypted credential, candidate connection identifier, or secret-backed value is exposed by ambiguity/scope denials.",
+            "The change performs no database migration, Production mutation, provider call, credential/secret mutation, manual generated-artifact edit or force push."
           ],
           "tests": [
+            {
+              "id": "platform-plugin-workspace-ownership-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-connection-ownership.mjs",
+              "args": []
+            },
             {
               "id": "platform-plugin-resolver-ambiguity-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-platform-plugin-resolver.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-route-workspace-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-routes.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-plugin-connection-ambiguity.json",
+            "http-generic-api/platformPluginConnectionOwnership.js",
             "http-generic-api/platformPluginResolver.js",
-            "http-generic-api/test-platform-plugin-resolver.mjs"
+            "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/test-platform-plugin-connection-ownership.mjs",
+            "http-generic-api/test-platform-plugin-resolver.mjs",
+            "http-generic-api/test-tenant-platform-plugin-routes.mjs"
           ]
         }
       ]
