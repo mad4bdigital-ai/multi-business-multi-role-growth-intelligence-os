@@ -129,7 +129,7 @@ const BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL = `
 `;
 
 const BRAND_OWNER_ROLES = new Set(["owner", "admin"]);
-const BRAND_READ_PERMISSIONS = new Set(["admin", "manage", "operate", "edit", "comment", "view"]);
+const BRAND_CONNECTION_USE_PERMISSIONS = new Set(["owner", "admin", "manage", "operate"]);
 
 export const PlatformPluginConnectionOwnershipDenialCode = Object.freeze({
   WORKSPACE_REQUIRED: "CONNECTION_WORKSPACE_REQUIRED",
@@ -138,7 +138,7 @@ export const PlatformPluginConnectionOwnershipDenialCode = Object.freeze({
   BRAND_AUTHORITY_REQUIRED: "BRAND_CONNECTION_AUTHORITY_REQUIRED",
 });
 
-async function resolveBrandReadAuthority({ pool, tenant, user, brandRef }) {
+async function resolveBrandConnectionUseAuthority({ pool, tenant, user, brandRef }) {
   const [membershipRowsRaw] = await pool.query(BRAND_TENANT_MEMBERSHIP_SQL, [tenant, user]);
   const membershipRows = Array.isArray(membershipRowsRaw) ? membershipRowsRaw : [];
   if (membershipRows.length !== 1) {
@@ -151,12 +151,12 @@ async function resolveBrandReadAuthority({ pool, tenant, user, brandRef }) {
 
   const [grantRowsRaw] = await pool.query(BRAND_RESOURCE_GRANT_SQL, [tenant, user, brandRef]);
   const grantRows = Array.isArray(grantRowsRaw) ? grantRowsRaw : [];
-  const readAllowed = grantRows.some((row) => BRAND_READ_PERMISSIONS.has(
+  const useAllowed = grantRows.some((row) => BRAND_CONNECTION_USE_PERMISSIONS.has(
     compact(row?.permission, 32).toLowerCase(),
   ));
   return Object.freeze({
-    allowed: readAllowed,
-    source: readAllowed ? "workspace_resource_grant" : "brand_grant_missing",
+    allowed: useAllowed,
+    source: useAllowed ? "workspace_resource_grant" : "brand_grant_missing",
     secrets_included: false,
   });
 }
@@ -212,7 +212,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
         { workspace_id_present: true },
       );
     }
-    const brandAuthority = await resolveBrandReadAuthority({ pool, tenant, user, brandRef });
+    const brandAuthority = await resolveBrandConnectionUseAuthority({ pool, tenant, user, brandRef });
     if (!brandAuthority.allowed) {
       return denied(
         "brand_connection_authority_required",
@@ -299,4 +299,5 @@ export const _testingPlatformPluginConnectionOwnership = Object.freeze({
   BRAND_RESOURCE_GRANT_SQL,
   OWNERSHIP_SCOPED_CONNECTION_SQL,
   BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL,
+  BRAND_CONNECTION_USE_PERMISSIONS,
 });
