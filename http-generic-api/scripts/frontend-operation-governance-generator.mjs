@@ -205,7 +205,13 @@ function evaluateBrandCoreMaterializeRecipe(apiRoot) {
   const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CORE_MATERIALIZE_OPERATION) || [];
   const gates = [
     evidenceGate("route_present", route, MATERIALIZE_ROUTE_FILE),
-    evidenceGate("canonical_user_jwt_guard", routeSource.includes("createUserJwtMiddleware()") && route?.route_guards?.includes("requireCanonicalUserJwt") && route?.route_guards?.includes("requireUserJwt"), "canonical User JWT guard chain"),
+    evidenceGate(
+      "canonical_user_jwt_guard",
+      routeSource.includes("const requireCanonicalUserJwt = createUserJwtMiddleware();")
+        && route?.declaration?.includes("requireCanonicalUserJwt")
+        && !/\bfunction\s+(?:verifyUserJwt|requireUserJwt)\s*\(/.test(routeSource),
+      "canonical createUserJwtMiddleware binding in route declaration with no route-local User JWT guard"
+    ),
     evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAsset"),
     evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && routeSource.includes("await connection.beginTransaction()") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "transaction begin/commit/rollback"),
     evidenceGate("route_readback_marker", routeSource.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && routeSource.includes("provenance_sha256"), "exact materialization readback marker"),
