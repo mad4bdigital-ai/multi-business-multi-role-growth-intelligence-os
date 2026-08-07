@@ -177,6 +177,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/transport-response-schema-1048-governed-rollout.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
 - `.github/workflows/verify-runtime.yml`
 
@@ -275,6 +276,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
 - `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
+- `http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs`
 - `http-generic-api/test-work-map-schema-classification-contract.mjs`
 - `http-generic-api/test-work-map-schema-classification.mjs`
 
