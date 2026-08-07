@@ -10,10 +10,12 @@ const CHECKSUM_B = "b".repeat(64);
 
 function buildMutationExecutor() {
   const calls = [];
+  const insertAttempts = [];
   const inserted = [];
   let assetState = null;
   return {
     calls,
+    insertAttempts,
     inserted,
     async query(sql, params = []) {
       calls.push({ sql, params });
@@ -34,22 +36,27 @@ function buildMutationExecutor() {
           tenant_status: "active",
         }]];
       }
+      if (sql.includes("INSERT INTO workspace_assets")) {
+        insertAttempts.push(params);
+        assert.match(sql, /ON DUPLICATE KEY UPDATE asset_id=asset_id/);
+        if (!assetState) {
+          inserted.push(params);
+          assetState = {
+            asset_id: params[0],
+            tenant_id: params[1],
+            asset_type: params[3],
+            asset_ref: params[4],
+            brand_ref: params[6],
+            lifecycle_status: params[11],
+            metadata_json: params[12],
+            created_by: params[13],
+          };
+          return [{ affectedRows: 1 }];
+        }
+        return [{ affectedRows: 0 }];
+      }
       if (sql.includes("FROM workspace_assets") && sql.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?")) {
         return [assetState ? [assetState] : []];
-      }
-      if (sql.includes("INSERT INTO workspace_assets")) {
-        inserted.push(params);
-        assetState = {
-          asset_id: params[0],
-          tenant_id: params[1],
-          asset_type: params[3],
-          asset_ref: params[4],
-          brand_ref: params[6],
-          lifecycle_status: params[11],
-          metadata_json: params[12],
-          created_by: params[13],
-        };
-        return [{ affectedRows: 1 }];
       }
       if (sql.includes("UPDATE workspace_assets") && sql.includes("metadata_json=?")) {
         assetState = { ...assetState, metadata_json: params[0] };
@@ -96,7 +103,11 @@ async function insert(executor, overrides = {}) {
   const second = await insert(executor);
   assert.equal(first, "asset-a");
   assert.equal(second, "asset-a");
-  assert.equal(executor.inserted.length, 1, "same durable identity and compatible provenance must reuse the existing row");
+  assert.equal(executor.insertAttempts.length, 2, "replay must serialize through the atomic unique-key insert path");
+  assert.equal(executor.inserted.length, 1, "same durable identity and compatible provenance must persist only one row");
+  const firstInsertIndex = executor.calls.findIndex(({ sql }) => sql.includes("INSERT INTO workspace_assets"));
+  const firstIdentityReadIndex = executor.calls.findIndex(({ sql }) => sql.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?"));
+  assert.ok(firstInsertIndex >= 0 && firstIdentityReadIndex > firstInsertIndex, "identity must be read under lock after atomic insert serialization");
   const persistedMetadata = JSON.parse(executor.inserted[0][12]);
   assert.equal(persistedMetadata.source_type, "import");
   assert.equal(persistedMetadata.source_provider, "google_drive");
@@ -108,12 +119,24 @@ async function insert(executor, overrides = {}) {
 
 {
   const executor = buildMutationExecutor();
+  const [left, right] = await Promise.all([
+    insert(executor, { asset_id: "asset-winner" }),
+    insert(executor, { asset_id: "asset-loser" }),
+  ]);
+  assert.equal(left, right, "concurrent replays must converge on the unique-key winner");
+  assert.equal(left, executor.inserted[0][0], "both callers must receive the persisted winner asset_id");
+  assert.equal(executor.insertAttempts.length, 2, "both concurrent callers must attempt the atomic insert path");
+  assert.equal(executor.inserted.length, 1, "concurrent replay must not create a duplicate workspace_assets row");
+}
+
+{
+  const executor = buildMutationExecutor();
   await insert(executor);
   await assert.rejects(
     () => insert(executor, { content_sha256: CHECKSUM_B }),
     (error) => error?.code === "workspace_asset_identity_checksum_conflict" && error?.status === 409
   );
-  assert.equal(executor.inserted.length, 1, "checksum conflict must fail closed without a duplicate insert");
+  assert.equal(executor.inserted.length, 1, "checksum conflict must fail closed without a duplicate row");
 }
 
 {
@@ -123,7 +146,7 @@ async function insert(executor, overrides = {}) {
     () => insert(executor, { source_revision: "rev-8" }),
     (error) => error?.code === "workspace_asset_identity_provenance_conflict" && error?.status === 409
   );
-  assert.equal(executor.inserted.length, 1, "provenance conflict must fail closed without a duplicate insert");
+  assert.equal(executor.inserted.length, 1, "provenance conflict must fail closed without a duplicate row");
 }
 
 {
