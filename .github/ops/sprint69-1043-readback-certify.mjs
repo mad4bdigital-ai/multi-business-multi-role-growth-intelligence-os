@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
 const KEY = String(process.env.BACKEND_API_KEY || '').trim();
@@ -297,20 +298,18 @@ function exactObjects(readback) {
 }
 
 async function adminDbFixed(sql, params = []) {
-  const result = await requestRaw('/admin/control', {
-    tool: 'db',
-    action: 'run',
+  const body = buildAdminControlDbReadRequest({
     sql,
     params,
-    read_only: true,
-    max_rows: 20,
-    authority_context: {
+    maxRows: 20,
+    authorityContext: {
       resource_type: 'database_query',
       resource_uri: 'db://growth_intelligence_platform/migration_1043_readback_only',
       operation_mode: 'read_only',
       required: true,
     },
-  }, 120000);
+  });
+  const result = await requestRaw('/admin/control', body, 120000);
   const payload = requireSuccess(result, 'migration_1043_readiness_view_readback');
   return findObject(payload, (candidate) => Array.isArray(candidate.rows)) || payload;
 }
