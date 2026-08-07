@@ -1,5 +1,15 @@
 -- Sprint 69: support ticket lifecycle, SLA, test visibility, and dedupe integrity.
 -- Additive/idempotent. Applying this migration requires separate governed authorization.
+-- Surface-contract safety boundary (static evidence only; this does not authorize execution):
+-- no_provider_call
+-- no_credential_payload_read
+-- no_raw_secrets
+-- no_external_send
+-- no_external_write
+-- secrets_included_false
+-- migration_effect_internal_database_write=true
+-- schema_mutation=true
+-- execution_authorized=false
 
 ALTER TABLE tickets
   ADD COLUMN IF NOT EXISTS is_test TINYINT(1) NOT NULL DEFAULT 0 AFTER occurrence_count,
