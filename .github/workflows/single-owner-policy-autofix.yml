@@ -227,4 +227,5 @@ jobs:
           name: single-owner-permanent-patch-${{ github.sha }}
           path: single-owner-permanent-patch
           if-no-files-found: error
+          include-hidden-files: true
           retention-days: 3
