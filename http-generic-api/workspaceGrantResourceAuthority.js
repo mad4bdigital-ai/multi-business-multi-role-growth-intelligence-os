@@ -80,17 +80,14 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
       `SELECT grant_id, tenant_id, status,
               CASE WHEN expires_at IS NULL OR expires_at > NOW() THEN 1 ELSE 0 END AS not_expired
          FROM cms_site_access_grants
-        WHERE site_id=?
+        WHERE site_id=? AND tenant_id=?
         LIMIT 20 FOR UPDATE`,
-      [site.site_id]
+      [site.site_id, tenantId]
     );
-    const tenantRows = Array.isArray(grantRows)
-      ? grantRows.filter((row) => String(row.tenant_id || "") === String(tenantId || ""))
-      : [];
-    if (tenantRows.length === 0) {
+    if (!Array.isArray(grantRows) || grantRows.length === 0) {
       throw authorityError(403, "workspace_resource_cross_tenant", "CMS site is not authorized for this workspace.");
     }
-    const activeTenantRows = tenantRows.filter(
+    const activeTenantRows = grantRows.filter(
       (row) => String(row.status || "").toLowerCase() === "active" && Number(row.not_expired) === 1
     );
     if (activeTenantRows.length === 0) {
