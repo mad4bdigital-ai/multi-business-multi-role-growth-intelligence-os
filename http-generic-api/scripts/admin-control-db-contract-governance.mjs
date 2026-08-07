@@ -47,6 +47,15 @@ function quoted(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function objectFieldPattern(field) {
+  return new RegExp(`\\b${quoted(field)}\\s*(?::|(?=[,}]))`);
+}
+
+function providerEntrypointIndex(source) {
+  const declaration = /\b(?:export\s+)?(?:async\s+)?function\s+executeDbControl\s*\(|\b(?:const|let|var)\s+executeDbControl\s*=/.exec(source);
+  return declaration?.index ?? -1;
+}
+
 export function scanRawDbCallerSource(source, contract, file = '<fixture>') {
   const findings = [];
   const marker = new RegExp(`tool\\s*:\\s*['\"]${quoted(contract.tool)}['\"]`, 'g');
@@ -69,7 +78,7 @@ export function scanRawDbCallerSource(source, contract, file = '<fixture>') {
         expected: contract.request.action,
       });
     }
-    const sqlField = new RegExp(`\\b${quoted(contract.request.sql_field)}\\s*:`);
+    const sqlField = objectFieldPattern(contract.request.sql_field);
     if (!sqlField.test(segment)) {
       findings.push({
         code: 'admin_db_sql_field_contract_mismatch',
@@ -79,7 +88,7 @@ export function scanRawDbCallerSource(source, contract, file = '<fixture>') {
       });
     }
     for (const alias of contract.legacy_aliases?.sql_fields || []) {
-      const aliasField = new RegExp(`\\b${quoted(alias)}\\s*:`);
+      const aliasField = objectFieldPattern(alias);
       if (aliasField.test(segment)) {
         findings.push({ code: 'admin_db_legacy_sql_alias_forbidden', file, offset: start, alias });
       }
@@ -90,7 +99,7 @@ export function scanRawDbCallerSource(source, contract, file = '<fixture>') {
 
 function verifyProviderSource(source, contract) {
   const findings = [];
-  const start = source.indexOf('const executeDbControl');
+  const start = providerEntrypointIndex(source);
   if (start < 0) return [{ code: 'admin_db_provider_entrypoint_missing', file: contract.provider_path }];
   const provider = source.slice(start, start + 6000);
   const expectedAction = contract.request.action;
@@ -263,13 +272,50 @@ function runSelfTest() {
   };
   const good = scanRawDbCallerSource("const body = { tool: 'db', action: 'run', sql: query, params: [] };", contract);
   assert.equal(good.findings.length, 0);
+  const shorthand = scanRawDbCallerSource("const sql = 'SELECT 1'; const body = { tool: 'db', action: 'run', sql, params: [] };", contract);
+  assert.equal(shorthand.findings.length, 0);
   const wrongAction = scanRawDbCallerSource("const body = { tool: 'db', action: 'query', sql: query };", contract);
   assert.ok(wrongAction.findings.some((finding) => finding.code === 'admin_db_action_contract_mismatch'));
   const wrongField = scanRawDbCallerSource("const body = { tool: 'db', action: 'run', query: sql };", contract);
   assert.ok(wrongField.findings.some((finding) => finding.code === 'admin_db_sql_field_contract_mismatch'));
   assert.ok(wrongField.findings.some((finding) => finding.code === 'admin_db_legacy_sql_alias_forbidden'));
+  const shorthandWrongField = scanRawDbCallerSource("const query = 'SELECT 1'; const body = { tool: 'db', action: 'run', query };", contract);
+  assert.ok(shorthandWrongField.findings.some((finding) => finding.code === 'admin_db_sql_field_contract_mismatch'));
+  assert.ok(shorthandWrongField.findings.some((finding) => finding.code === 'admin_db_legacy_sql_alias_forbidden'));
   const missingAction = scanRawDbCallerSource("const body = { tool: 'db', sql: query };", contract);
   assert.ok(missingAction.findings.some((finding) => finding.code === 'admin_db_raw_caller_missing_action'));
+
+  const providerContract = {
+    ...contract,
+    provider_path: '<provider-fixture>',
+    provider_error_codes: {
+      unsupported_action: 'unsupported_db_action',
+      missing_sql: 'db_sql_required',
+    },
+    legacy_aliases: { sql_fields: ['query'], actions: ['query'] },
+    ratchet: { provider_compatibility_aliases_allowed: false },
+  };
+  const exportedProvider = `
+    export async function executeDbControl(body = {}) {
+      const action = String(body.action || 'run').trim().toLowerCase();
+      if (action !== 'run') {
+        const err = new Error('Unsupported db action. Use run.');
+        err.code = 'unsupported_db_action';
+        throw err;
+      }
+      const sql = typeof body.sql === 'string' ? body.sql : '';
+      if (!sql.trim()) {
+        const err = new Error('sql is required');
+        err.code = 'db_sql_required';
+        throw err;
+      }
+      return { sql };
+    }
+  `;
+  assert.equal(verifyProviderSource(exportedProvider, providerContract).length, 0);
+  const constProvider = exportedProvider.replace('export async function executeDbControl(body = {}) {', 'const executeDbControl = async (body = {}) => {');
+  assert.equal(verifyProviderSource(constProvider, providerContract).length, 0);
+
   return { ok: true, contract: 'admin_control_db_contract_governance_self_test.v1' };
 }
 
