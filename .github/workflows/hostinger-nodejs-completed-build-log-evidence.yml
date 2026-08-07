@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      REPORT_DIR: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence
+      REPORT_DIR: ${{ github.workspace }}/.artifacts/hostinger-nodejs-completed-build-log-evidence
       HOSTINGER_API_TOKEN: ${{ secrets.HOSTINGER_API_TOKEN }}
       HOSTINGER_ACCOUNT_USERNAME: ${{ inputs.account_username }}
       HOSTINGER_NODEJS_BUILD_UUID: ${{ inputs.build_uuid }}
@@ -88,13 +88,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hostinger-nodejs-completed-build-log-evidence-${{ github.run_id }}
-          path: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence/*
+          path: ${{ env.REPORT_DIR }}/*
           if-no-files-found: error
           retention-days: 30
       - name: Enforce structured evidence decision
         if: always()
         env:
-          REPORT_PATH: ${{ runner.temp }}/hostinger-nodejs-completed-build-log-evidence/hostinger-nodejs-completed-build-log-evidence.json
+          REPORT_PATH: ${{ env.REPORT_DIR }}/hostinger-nodejs-completed-build-log-evidence.json
         run: |
           node --input-type=module -e '
             import fs from "node:fs";

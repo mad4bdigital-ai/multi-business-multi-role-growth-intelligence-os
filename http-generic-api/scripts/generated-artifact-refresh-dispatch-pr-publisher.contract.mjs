@@ -65,6 +65,31 @@ const blocked = normalizeGeneratedArtifactDispatchEvidence({
 assert.equal(blocked.outcome, "failed");
 assert.equal(blocked.detail, "workflow_dispatch_rejected");
 
+const blockedMain = normalizeGeneratedArtifactDispatchEvidence({
+  report: report({ outcome: "blocked", targetRef: "main", dispatchRequested: false, firstFailure: { code: "unexpected_base_branch" } }),
+  workflowConclusion: "failure",
+  workflowRunId: 113,
+});
+assert.equal(blockedMain.outcome, "failed");
+assert.equal(blockedMain.targetRef, "main");
+assert.equal(blockedMain.detail, "unexpected_base_branch");
+assert.equal(
+  assertGeneratedArtifactDispatchPrIdentity({
+    state: "open",
+    head: { repo: { full_name: "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os" }, ref: "main", sha: headSha },
+  }, blockedMain, "mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os"),
+  true,
+);
+
+const blockedProduction = normalizeGeneratedArtifactDispatchEvidence({
+  report: report({ outcome: "blocked", targetRef: "Production", dispatchRequested: false, firstFailure: { code: "protected_branch_mutation_forbidden" } }),
+  workflowConclusion: "failure",
+  workflowRunId: 114,
+});
+assert.equal(blockedProduction.outcome, "failed");
+assert.equal(blockedProduction.targetRef, "Production");
+assert.equal(blockedProduction.detail, "protected_branch_mutation_forbidden");
+
 const skipped = normalizeGeneratedArtifactDispatchEvidence({
   report: report({ outcome: "skipped", dispatchRequested: false }),
   workflowConclusion: "success",
@@ -73,7 +98,9 @@ const skipped = normalizeGeneratedArtifactDispatchEvidence({
 assert.equal(skipped.outcome, "passed");
 assert.equal(skipped.detail, "refresh_label_missing");
 
-assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ targetRef: "main" }), workflowConclusion: "success", workflowRunId: 104 }), /permitted work branch/u);
+assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ targetRef: "main" }), workflowConclusion: "success", workflowRunId: 104 }), /only for blocked evidence/u);
+assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ outcome: "skipped", targetRef: "main", dispatchRequested: false }), workflowConclusion: "success", workflowRunId: 115 }), /only for blocked evidence/u);
+assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ outcome: "blocked", targetRef: "main", dispatchRequested: true }), workflowConclusion: "failure", workflowRunId: 116 }), /dispatch_requested=false/u);
 assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ expectedHeadSha: "short" }), workflowConclusion: "success", workflowRunId: 105 }), /expected_head_sha/u);
 assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ prNumber: null }), workflowConclusion: "success", workflowRunId: 106 }), /PR number/u);
 assert.throws(() => normalizeGeneratedArtifactDispatchEvidence({ report: report({ secretsIncluded: true }), workflowConclusion: "success", workflowRunId: 107 }), /secrets_included=false/u);
@@ -118,7 +145,7 @@ assert.doesNotMatch(dispatcherWorkflow, /\bgit\s+push\b/u);
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.generated-artifact-refresh-dispatch-pr-publisher-contract.v1",
-  cases: 36,
+  cases: 40,
   exact_head_bound: true,
   unique_dispatcher_identity: "Governed Generated Artifact Refresh Dispatch V2",
   trusted_direct_publication: true,
