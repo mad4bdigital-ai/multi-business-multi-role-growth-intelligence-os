@@ -86,6 +86,13 @@ async function insert(executor, overrides = {}) {
 }
 
 {
+  const executor = buildExecutor({ membershipRows: memberRow("admin"), grantRows: [] });
+  await insert(executor);
+  assert.equal(executor.inserted[0][6], "brand-key");
+  assert(!executor.calls.some((call) => call.sql.includes("v_workspace_resource_grant_effective")), "workspace admin must not require a redundant Brand grant");
+}
+
+{
   const executor = buildExecutor({ grantRows: [{ grant_id: "grant-owner", permission: "owner" }] });
   await insert(executor);
   assert.equal(executor.inserted[0][6], "brand-key", "legacy effective Brand owner permission must retain mutation authority");
@@ -97,7 +104,16 @@ async function insert(executor, overrides = {}) {
     insert(executor),
     (error) => error?.code === "workspace_asset_brand_mutation_forbidden" && error?.status === 403
   );
-  assert.equal(executor.inserted.length, 0, "read-only Brand authority must fail before asset insert");
+  assert.equal(executor.inserted.length, 0, "view-only Brand authority must fail before asset insert");
+}
+
+{
+  const executor = buildExecutor({ grantRows: [{ grant_id: "grant-comment", permission: "comment" }] });
+  await assert.rejects(
+    insert(executor),
+    (error) => error?.code === "workspace_asset_brand_mutation_forbidden" && error?.status === 403
+  );
+  assert.equal(executor.inserted.length, 0, "comment-only Brand authority must fail before asset insert");
 }
 
 {
@@ -110,12 +126,61 @@ async function insert(executor, overrides = {}) {
 }
 
 {
+  const executor = buildExecutor({ canonicalRows: [] });
+  await assert.rejects(
+    insert(executor),
+    (error) => error?.code === "workspace_resource_not_found" && error?.status === 404
+  );
+  assert.equal(executor.inserted.length, 0, "missing Brand must fail before asset insert");
+}
+
+{
   const executor = buildExecutor({ canonicalRows: brandAuthorityRow("tenant-b") });
   await assert.rejects(
     insert(executor),
     (error) => error?.code === "workspace_resource_cross_tenant" && error?.status === 403
   );
   assert.equal(executor.inserted.length, 0, "cross-tenant Brand reference must fail before asset insert");
+}
+
+{
+  const executor = buildExecutor({
+    canonicalRows: [{
+      tenant_id: "tenant-a",
+      brand_target_key: "brand-key",
+      link_status: "inactive",
+      brand_status: "active",
+    }],
+  });
+  await assert.rejects(
+    insert(executor),
+    (error) => error?.code === "workspace_resource_inactive" && error?.status === 409
+  );
+  assert.equal(executor.inserted.length, 0, "inactive Brand authority must fail before asset insert");
+}
+
+{
+  const executor = buildExecutor({
+    canonicalRows: [
+      {
+        tenant_id: "tenant-a",
+        brand_target_key: "brand-key",
+        link_status: "active",
+        brand_status: "active",
+      },
+      {
+        tenant_id: "tenant-a",
+        brand_target_key: "brand-key",
+        link_status: "active",
+        brand_status: "active",
+      },
+    ],
+  });
+  await assert.rejects(
+    insert(executor),
+    (error) => error?.code === "workspace_resource_ambiguous" && error?.status === 409
+  );
+  assert.equal(executor.inserted.length, 0, "ambiguous Brand authority must fail before asset insert");
 }
 
 {
