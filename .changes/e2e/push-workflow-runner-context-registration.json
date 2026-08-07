@@ -1,0 +1,228 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "push-workflow-runner-context-registration",
+  "title": "Push workflow runner-context registration and lifecycle convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/push-workflow-runner-context-registration.json",
+      ".github/workflows/governed-migration-dependency-gate.yml",
+      ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+      ".github/workflows/hostinger-production-release-evidence-r5.yml",
+      ".github/workflows/production-certified-release-cut-validation.yml",
+      "docs/governance/push-workflow-runner-context-registration.md",
+      "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Restore valid workflow registration by moving runner-scoped paths after runner allocation and preserving certified release-cut YAML semantics.",
+      "e2e_journeys": [
+        {
+          "id": "restore-push-workflow-registration",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository CI maintainer",
+          "entrypoint": "Exact pull-request workflow tree and focused registration regressions",
+          "terminal_outcome": "Every retained workflow parses and no runner context is evaluated before a runner-backed step begins.",
+          "steps": [
+            "Evaluate every workflow at the exact pull-request head for pre-allocation runner-context use.",
+            "Verify retained mutating automation is manual, typed, exact-head bound, and protected-branch rejecting.",
+            "Verify incident-specific mutating bridges remain deleted and cannot be re-registered silently.",
+            "Verify generated Work Maps and the E2E evidence contract match the exact repository tree."
+          ],
+          "assertions": [
+            "Repository-wide runner-context findings are empty.",
+            "Certified release-cut conditions remain valid YAML with unchanged semantics.",
+            "No deployment, provider, credential, SQL, migration, database, Production mutation, or force push is executed."
+          ],
+          "tests": [
+            {
+              "id": "restore-push-workflow-registration-runner-context-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "restore-push-workflow-registration-release-cut-registration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/push-workflow-runner-context-registration.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".github/workflows/governed-migration-dependency-gate.yml",
+            ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            ".github/workflows/hostinger-production-release-evidence-r5.yml",
+            ".github/workflows/production-certified-release-cut-validation.yml",
+            "docs/governance/push-workflow-runner-context-registration.md",
+            "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Bind the retained Production promotion launcher to an explicit manual dispatch, typed confirmation, trusted exact head, and exact request PR head.",
+      "e2e_journeys": [
+        {
+          "id": "govern-production-promotion-dispatch",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "authorized repository release operator",
+          "entrypoint": "Governed Production Promotion Request Launcher workflow_dispatch inputs",
+          "terminal_outcome": "The launcher rejects stale, untrusted, automatic, or protected-branch-directed requests before any repository mutation.",
+          "steps": [
+            "Evaluate every workflow at the exact pull-request head for pre-allocation runner-context use.",
+            "Verify retained mutating automation is manual, typed, exact-head bound, and protected-branch rejecting.",
+            "Verify incident-specific mutating bridges remain deleted and cannot be re-registered silently.",
+            "Verify generated Work Maps and the E2E evidence contract match the exact repository tree."
+          ],
+          "assertions": [
+            "The launcher has no pull_request or pull_request_target trigger.",
+            "The launcher compares expected_head_sha to github.sha and expected_request_head_sha to the open request PR head.",
+            "Branch prefixes reject main and Production before downstream dispatch.",
+            "No branch-specific work namespace is hard-coded in the retained automation."
+          ],
+          "tests": [
+            {
+              "id": "govern-production-promotion-dispatch-runner-context-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "govern-production-promotion-dispatch-release-cut-registration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/push-workflow-runner-context-registration.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".github/workflows/governed-migration-dependency-gate.yml",
+            ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            ".github/workflows/hostinger-production-release-evidence-r5.yml",
+            ".github/workflows/production-certified-release-cut-validation.yml",
+            "docs/governance/push-workflow-runner-context-registration.md",
+            "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prevent reintroduction of stale one-shot mutation bridges, pre-allocation runner context, branch-specific automation literals, or stale Work Maps.",
+      "e2e_journeys": [
+        {
+          "id": "reject-runner-context-and-automation-lifecycle-regression",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository governance evaluator",
+          "entrypoint": "Repository Tool Lifecycle, E2E Contract Reference Integrity, and Spec Kit Work Map Integration gates",
+          "terminal_outcome": "Any restoration of retired bridges or loss of exact-head lifecycle controls fails on the originating pull request.",
+          "steps": [
+            "Evaluate every workflow at the exact pull-request head for pre-allocation runner-context use.",
+            "Verify retained mutating automation is manual, typed, exact-head bound, and protected-branch rejecting.",
+            "Verify incident-specific mutating bridges remain deleted and cannot be re-registered silently.",
+            "Verify generated Work Maps and the E2E evidence contract match the exact repository tree."
+          ],
+          "assertions": [
+            "The four incident-specific workflows remain absent.",
+            "Changed mutating workflows pass lifecycle dispatch, expected-head, and protected-branch rules.",
+            "All declared evidence paths resolve to tracked regular files.",
+            "Generated Work Maps match the exact final tree."
+          ],
+          "tests": [
+            {
+              "id": "reject-runner-context-and-automation-lifecycle-regression-runner-context-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+              "args": []
+            },
+            {
+              "id": "reject-runner-context-and-automation-lifecycle-regression-production-promotion-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            },
+            {
+              "id": "reject-runner-context-and-automation-lifecycle-regression-release-cut-registration",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/push-workflow-runner-context-registration.json",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            ".github/workflows/e2e-contract-reference-integrity.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".github/workflows/governed-migration-dependency-gate.yml",
+            ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/hostinger-nodejs-completed-build-log-evidence.yml",
+            ".github/workflows/hostinger-production-release-evidence-r5.yml",
+            ".github/workflows/production-certified-release-cut-validation.yml",
+            "docs/governance/push-workflow-runner-context-registration.md",
+            "http-generic-api/test-push-workflow-runner-context-registration.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "http-generic-api/test-production-certified-release-cut-validation-registration.mjs",
+            "docs/work-maps/README.md",
+            "docs/work-maps/repository-automation-map.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository registration and governance repair does not execute a live runtime canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This pull request grants no Production, deployment, migration, provider, credential, or runtime authority."
+    }
+  ],
+  "secrets_included": false
+}
