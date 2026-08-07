@@ -1,6 +1,6 @@
 import { assertGrantResourceInWorkspace } from "./workspaceGrantResourceAuthority.js";
 
-const BRAND_ASSET_MUTATION_PERMISSIONS = new Set(["admin", "manage", "operate", "edit"]);
+const BRAND_ASSET_MUTATION_PERMISSIONS = new Set(["owner", "admin", "manage", "operate", "edit"]);
 const WORKSPACE_OWNER_ROLES = new Set(["owner", "admin"]);
 
 function authorityError(status, code, message) {
