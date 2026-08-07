@@ -25,6 +25,7 @@ function buildExecutor({
   canonicalRows = brandAuthorityRow(),
   membershipRows = memberRow(),
   grantRows = [{ grant_id: "grant-a", permission: "edit" }],
+  readbackBrandRef = undefined,
 } = {}) {
   const calls = [];
   const inserted = [];
@@ -39,6 +40,15 @@ function buildExecutor({
       if (sql.includes("INSERT INTO workspace_assets")) {
         inserted.push(params);
         return [{ affectedRows: 1 }];
+      }
+      if (sql.includes("SELECT asset_id,tenant_id,brand_ref") && sql.includes("FROM workspace_assets")) {
+        const latest = inserted.at(-1);
+        if (!latest) return [[]];
+        return [[{
+          asset_id: latest[0],
+          tenant_id: latest[1],
+          brand_ref: readbackBrandRef === undefined ? latest[6] : readbackBrandRef,
+        }]];
       }
       throw new Error(`Unexpected SQL in workspace asset Brand authority test: ${sql}`);
     },
@@ -65,6 +75,7 @@ async function insert(executor, overrides = {}) {
   assert.equal(executor.inserted.length, 1);
   assert.equal(executor.inserted[0][6], "brand-key", "delegated edit authority must persist the canonical Brand target key");
   assert(executor.calls.some((call) => call.sql.includes("v_workspace_resource_grant_effective")), "delegated member must prove an effective Brand grant");
+  assert(executor.calls.some((call) => call.sql.includes("SELECT asset_id,tenant_id,brand_ref") && call.sql.includes("FOR UPDATE")), "asset persistence must be read back under lock before commit");
 }
 
 {
@@ -72,6 +83,12 @@ async function insert(executor, overrides = {}) {
   await insert(executor);
   assert.equal(executor.inserted[0][6], "brand-key");
   assert(!executor.calls.some((call) => call.sql.includes("v_workspace_resource_grant_effective")), "workspace owner must not require a redundant Brand grant");
+}
+
+{
+  const executor = buildExecutor({ grantRows: [{ grant_id: "grant-owner", permission: "owner" }] });
+  await insert(executor);
+  assert.equal(executor.inserted[0][6], "brand-key", "legacy effective Brand owner permission must retain mutation authority");
 }
 
 {
@@ -114,6 +131,15 @@ async function insert(executor, overrides = {}) {
   assert.equal(executor.inserted.length, 1);
   assert.equal(executor.inserted[0][6], null, "workspace-scoped assets without a Brand attachment must remain supported");
   assert(!executor.calls.some((call) => call.sql.includes("tenant_brand_links")), "unscoped asset create must not invent Brand authority work");
+}
+
+{
+  const executor = buildExecutor({ readbackBrandRef: "wrong-brand" });
+  await assert.rejects(
+    insert(executor),
+    (error) => error?.code === "workspace_asset_brand_readback_mismatch" && error?.status === 409
+  );
+  assert.equal(executor.inserted.length, 1, "readback mismatch is detected after mutation so the enclosing transaction can roll back");
 }
 
 assert.throws(
