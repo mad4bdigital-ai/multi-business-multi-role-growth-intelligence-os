@@ -54,6 +54,10 @@ function buildQueryParts(resourceDescriptor, query = {}, context = null) {
   return { clauses, params };
 }
 
+function resourceRepositoryInvariantError(code, message, status = 409) {
+  return Object.assign(new Error(message), { code, status });
+}
+
 export function createResourceRepository({ pool = null, resolvePool = null, transactionConnection = false }) {
   if (!pool?.query && typeof resolvePool !== "function") {
     throw new TypeError("Resource repository requires a SQL pool or lazy pool resolver.");
@@ -206,6 +210,28 @@ export function createResourceRepository({ pool = null, resolvePool = null, tran
         actorId || "platform_admin",
       ]
     );
+    const [readbackRows] = await executeQuery(
+      `SELECT asset_id,tenant_id,brand_ref
+         FROM workspace_assets
+        WHERE asset_id=? AND tenant_id=?
+        LIMIT 2 FOR UPDATE`,
+      [assetId, tenantId]
+    );
+    if (!Array.isArray(readbackRows) || readbackRows.length !== 1) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_brand_readback_invalid",
+        "Created workspace asset did not resolve exactly once before commit."
+      );
+    }
+    const [readback] = readbackRows;
+    const persistedBrandRef = String(readback.brand_ref || "").trim();
+    const expectedBrandRef = String(canonicalBrandRef || "").trim();
+    if (persistedBrandRef !== expectedBrandRef) {
+      throw resourceRepositoryInvariantError(
+        "workspace_asset_brand_readback_mismatch",
+        "Created workspace asset Brand attachment did not match canonical authority before commit."
+      );
+    }
     return assetId;
   }
 
