@@ -1,0 +1,73 @@
+name: Temporary Spec014 Work Map Binding Refresh
+
+on:
+  pull_request:
+    types: [synchronize]
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-bindings:
+    if: github.event.pull_request.number == 6528
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact trigger head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Refresh canonical Spec014 Work Map registry bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+
+      - name: Enforce bounded mutation scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --name-only > /tmp/changed.txt
+          cat /tmp/changed.txt
+          while IFS= read -r path; do
+            case "$path" in
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json) ;;
+              *) echo "Unexpected changed path: $path" >&2; exit 1 ;;
+            esac
+          done < /tmp/changed.txt
+          grep -qx 'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json' /tmp/changed.txt
+          grep -qx 'specs/014-retail-commerce-operations-growth-os/work-map-integration.json' /tmp/changed.txt
+
+      - name: Verify refreshed bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+
+      - name: Commit and fast-forward same PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+                  specs/014-governed-hostinger-storage-orchestration/tasks.md \
+                  specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git commit -m "chore(work-map): refresh spec014 registry bindings"
+          git push origin "HEAD:${{ github.head_ref }}"
