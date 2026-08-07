@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import {
   resolvePlatformPluginExecution,
@@ -10,6 +11,7 @@ import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
 const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
   "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
@@ -176,13 +178,10 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   };
 }
 
-export function buildTenantPlatformPluginRoutes({ requireBackendApiKey } = {}) {
-  if (typeof requireBackendApiKey !== "function") {
-    throw new Error("Canonical authentication middleware is required for tenant platform plugin routes.");
-  }
+export function buildTenantPlatformPluginRoutes() {
   const router = Router();
 
-  router.get("/tenant/platform/plugins/catalog", requireBackendApiKey, requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/platform/plugins/catalog", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const result = await loadPlatformPluginCatalog({
         tenantId: req.auth.tenant_id,
@@ -205,7 +204,7 @@ export function buildTenantPlatformPluginRoutes({ requireBackendApiKey } = {}) {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_catalog_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/install", requireBackendApiKey, requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/install", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const result = await installPlatformPluginForTenant({
@@ -234,7 +233,7 @@ export function buildTenantPlatformPluginRoutes({ requireBackendApiKey } = {}) {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_install_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/credential-intake-sessions", requireBackendApiKey, requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/credential-intake-sessions", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       if (!tenantCanManageConnections(req.auth.tenant_role)) {
         return res.status(403).json({
@@ -362,7 +361,7 @@ export function buildTenantPlatformPluginRoutes({ requireBackendApiKey } = {}) {
     } catch (err) { return errorResponse(res, err, "tenant_credential_intake_session_create_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/resolve", requireBackendApiKey, requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/resolve", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const contract = parseTenantPlatformPluginResolveContract(input);
@@ -403,6 +402,7 @@ export function buildTenantPlatformPluginRoutes({ requireBackendApiKey } = {}) {
 
 export const _testingTenantPlatformPluginRoutes = {
   requireTenantUserJwt,
+  requireCanonicalUserJwt,
   boundedInt,
   bool,
   parseTenantPlatformPluginResolveContract,
