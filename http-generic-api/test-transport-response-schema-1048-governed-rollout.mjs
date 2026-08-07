@@ -12,9 +12,9 @@ const runner = readFileSync(
 
 for (const expected of [
   'github.event.issue.number == 6531',
-  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",
-  "APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",
-  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY",
+  "AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",
+  "APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",
+  "VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY",
   "ROLLOUT_PHASE: readiness",
   "ROLLOUT_PHASE: apply",
   "ROLLOUT_PHASE: verify",
@@ -38,6 +38,31 @@ for (const expected of [
   'v_governed_response_chunk_transport_schema_readiness',
 ]) {
   assert.ok(runner.includes(expected), `Migration 1048 rollout runner is missing ${expected}`);
+}
+
+for (const expected of [
+  'issues: write',
+  'Publish checksum-bound readiness marker',
+  'actions/github-script@v7',
+  'summary.readiness_marker',
+]) {
+  assert.ok(workflow.includes(expected), `Migration 1048 workflow is missing readiness publication contract: ${expected}`);
+}
+
+for (const expected of [
+  "const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+  "const APPLY_CONFIRM = 'APPLY_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+  "const VERIFY_CONFIRM = 'VERIFY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_CHUNK_SCHEMA_RECOVERY'",
+]) {
+  assert.ok(runner.includes(expected), `Migration 1048 runner is missing canonical confirmation: ${expected}`);
+}
+
+for (const forbidden of [
+  'AUTHORIZE_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
+  'APPLY_GOVERNED_MIGRATION_1048_TRANSPORT_RESPONSE_SCHEMA_RECOVERY',
+]) {
+  assert.ok(!workflow.includes(forbidden), `Migration 1048 workflow retains obsolete confirmation: ${forbidden}`);
+  assert.ok(!runner.includes(forbidden), `Migration 1048 runner retains obsolete confirmation: ${forbidden}`);
 }
 
 const applyModeLiterals = runner.match(/mode:\s*'apply'/g) || [];
