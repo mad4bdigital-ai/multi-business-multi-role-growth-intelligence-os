@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
-    "id": "frontend-operation-governance-generator-v3-brand-create-extension",
-    "source_digest": "3679a4de32816b9bb5587431aa17d3b2198dc33e718c2a4aef36ccb082cf6350",
+    "id": "frontend-operation-governance-generator-v5-brand-core-canonical-asset-lifecycle",
+    "source_digest": "a492ba1678896c4a878a01923ad9f3e68ef99261212f989fea3d859d8cbc8d55",
     "fail_closed": true
   },
   "source_authority": [
@@ -13,7 +13,7 @@
     },
     {
       "file": "frontend-operation-governance-tests.json",
-      "sha256": "edf94a8fda16a2e40f20b3dbdb7f1192648231b6dafa9d1e4ffcf8c501cafa54",
+      "sha256": "372ca5c067df67ee540da6ace98845a9b7b30a096411c562f270aaae196c2d41",
       "present": true
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "file": "routes/resourceApiRoutes.js",
-      "sha256": "113eb42696cabc39f0c4d42025af2ed7ee8a063e37ac17e14f1e78a571817c48",
+      "sha256": "7d3bef316e221a38e548da5668a7e43737610ca05516e4923de6cccc2eadc782",
       "present": true
     },
     {
@@ -58,7 +58,7 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "7df955ff548bc209059bad215b4730b0262d7ac1a7f792d1c6350343c8661e3a",
+      "sha256": "40a5eec66a517feee811ca780bc878e2eda50abf0eee07cf23804a89993e216e",
       "present": true
     },
     {
@@ -87,13 +87,18 @@
       "present": true
     },
     {
+      "file": "test-brand-core-asset-materialization-operation-governance.mjs",
+      "sha256": "fe4f0af9424ba588d06ec6d925ba03dd8aaad7830696787c6043427e38029495",
+      "present": true
+    },
+    {
       "file": "test-dynamic-container-rollout-safety.mjs",
       "sha256": "002e7b5eb98ca97abc755b05935ff5c82f575be0cd8a56ab07b5dd0c6b76888f",
       "present": true
     },
     {
       "file": "test-frontend-operation-governance-generator.mjs",
-      "sha256": "d41deed3b3a7bbfd620f149c9fe5e12a1d0d810a48497be769bae164ab8cc91e",
+      "sha256": "9c3ba2439e62d10f2baddcd7f3cf94ae6dfaf3a4868be723f2079b3664640edb",
       "present": true
     },
     {
@@ -117,14 +122,19 @@
       "present": true
     },
     {
+      "file": "workspaceBrandCoreAssetMaterialization.js",
+      "sha256": "7d69b0a3cdde9b221dbf5f1957f390918f0d0e39206f2868ba20e1c8169f0776",
+      "present": true
+    },
+    {
       "file": "workspaceBrandLifecycle.js",
       "sha256": "85ccdf3cd567b836f4eb52ae405b390191cc040e827605b99e3c24e273508fc3",
       "present": true
     }
   ],
   "coverage": {
-    "candidate_count": 10,
-    "generated_rule_count": 10,
+    "candidate_count": 11,
+    "generated_rule_count": 11,
     "rejected_candidate_count": 0
   },
   "operation_rules": [
@@ -166,7 +176,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "1dcceeeea27e175b42c5a4a6774faaa23e43c8df2d8097c85d01eddf2ba56054",
+        "source_digest": "31fd2c0f13128630a0c83f43057ca33c57fa707d713183b0ba7b533a87b0a2b6",
         "fail_closed": true
       }
     },
@@ -208,7 +218,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "1dcceeeea27e175b42c5a4a6774faaa23e43c8df2d8097c85d01eddf2ba56054",
+        "source_digest": "31fd2c0f13128630a0c83f43057ca33c57fa707d713183b0ba7b533a87b0a2b6",
         "fail_closed": true
       }
     },
@@ -252,7 +262,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "8a348954fe5a5b78d7c8e47529e1a1e94cc293356851534153f5976e3f6e0194",
         "fail_closed": true
       }
     },
@@ -296,7 +306,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "8a348954fe5a5b78d7c8e47529e1a1e94cc293356851534153f5976e3f6e0194",
         "fail_closed": true
       }
     },
@@ -341,7 +351,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "f2b24a49edfa5161914abfa2f09f565222bbdb388f1d73c49813ffc34622869e",
+        "source_digest": "8a348954fe5a5b78d7c8e47529e1a1e94cc293356851534153f5976e3f6e0194",
         "fail_closed": true
       }
     },
@@ -436,6 +446,51 @@
       }
     },
     {
+      "rule_id": "generated-workspace-brand-core-asset-materialize-governance",
+      "operation": "POST /me/workspaces/{tenant_id}/assets/materialize-brand-core",
+      "source_file": "routes/resourceApiRoutes.js",
+      "classification": "state_change",
+      "owner": "workspace-platform",
+      "rationale": "Materializes exactly one active Brand Core context source only after canonical User-JWT, tenant Brand authority and Brand Workspace authority; persistence is delegated to the canonical Resource API workspace asset lifecycle, whose existing unique identity serializes retries/concurrency and whose provenance compatibility/readback fails closed on conflicting source identity. No provider content is fetched or falsely checksummed.",
+      "preflight": {
+        "mode": "canonical_user_jwt_brand_authority_and_resource_asset_provenance"
+      },
+      "approval": {
+        "mode": "runtime_authorization"
+      },
+      "readback": {
+        "mode": "transactional_readback",
+        "same_cycle": true,
+        "before_commit": true
+      },
+      "rollback": {
+        "mode": "transaction",
+        "on": [
+          "mutation_failure",
+          "readback_failure"
+        ]
+      },
+      "parameter_bindings": {
+        "tenant_id": "request.path.tenant_id",
+        "brand_ref": "request.body.brand_ref",
+        "source_ref": "request.body.source_ref",
+        "asset_id": "response.asset.asset_id",
+        "content_identity": "response.asset.content_identity",
+        "brand_workspace_id": "response.workspace.workspace_id"
+      },
+      "evidence_refs": [
+        "routes/resourceApiRoutes.js",
+        "workspaceBrandCoreAssetMaterialization.js",
+        "src/infrastructure/resourceApi/resourceRepository.js",
+        "test-brand-core-asset-materialization-operation-governance.mjs"
+      ],
+      "generated_evidence": {
+        "recipe_id": "workspace-brand-core-asset-materialize-v2",
+        "source_digest": "968c526b9b4ee1d32a639e22cb8662f1b995b2c6e142755768d228e25a00ea39",
+        "fail_closed": true
+      }
+    },
+    {
       "rule_id": "generated-workspace-brand-create-governance",
       "operation": "POST /me/workspaces/{tenant_id}/brands",
       "source_file": "routes/workspaceResourceRoutes.js",
@@ -517,7 +572,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "1dcceeeea27e175b42c5a4a6774faaa23e43c8df2d8097c85d01eddf2ba56054",
+        "source_digest": "31fd2c0f13128630a0c83f43057ca33c57fa707d713183b0ba7b533a87b0a2b6",
         "fail_closed": true
       }
     },
@@ -559,7 +614,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "1dcceeeea27e175b42c5a4a6774faaa23e43c8df2d8097c85d01eddf2ba56054",
+        "source_digest": "31fd2c0f13128630a0c83f43057ca33c57fa707d713183b0ba7b533a87b0a2b6",
         "fail_closed": true
       }
     }
