@@ -1,12 +1,2 @@
-file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/githubRepositoryPolicyController.js:345
-          required_status_checks: checks.map((context) => ({ contex })),
-                                                             ^
-
-ReferenceError: contex is not defined
-    at file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/githubRepositoryPolicyController.js:345:62
-    at Array.map (<anonymous>)
-    at buildDesiredRuleset (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/githubRepositoryPolicyController.js:345:42)
-    at buildGithubRepositoryPolicyPlan (file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/githubRepositoryPolicyController.js:643:26)
-    at file:///home/runner/work/multi-business-multi-role-growth-intelligence-os/multi-business-multi-role-growth-intelligence-os/http-generic-api/test-github-repository-policy-controller.mjs:192:18
-
-Node.js v22.23.1
+http-generic-api/githubRepositoryPolicyController.js:326: trailing whitespace.
++    name: GITHUB_REPOSITORY_POLICY_RULESET_NAME, 
