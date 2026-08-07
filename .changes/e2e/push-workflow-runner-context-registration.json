@@ -223,5 +223,6 @@
       "status": "not_applicable",
       "objective": "This pull request grants no Production, deployment, migration, provider, credential, or runtime authority."
     }
-  ]
+  ],
+  "secrets_included": false
 }
