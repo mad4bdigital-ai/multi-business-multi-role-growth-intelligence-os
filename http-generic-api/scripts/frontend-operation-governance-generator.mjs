@@ -24,7 +24,6 @@ const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
 const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
 const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
 const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
-const BRAND_E2E_FILE = ".changes/e2e/workspace-brand-create-lifecycle.json";
 const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
 const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
@@ -184,7 +183,7 @@ function evaluateBrandCreateRecipe(apiRoot) {
       creator_grant_id: "response.creator_grant.grant_id",
     },
   };
-  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE, BRAND_E2E_FILE] };
+  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE] };
 }
 
 function generatedStateChangeRule(recipe, evidenceFiles, apiRoot) {
@@ -222,7 +221,6 @@ function withSourceAuthority(plan, apiRoot) {
     BRAND_ROUTE_FILE,
     BRAND_SERVICE_FILE,
     BRAND_TEST_FILE,
-    BRAND_E2E_FILE,
   ]);
   const sourceAuthority = files.map((file) => ({
     file,
