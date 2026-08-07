@@ -4,17 +4,16 @@
 
 ## Summary
 
-- Triaged items: 5
-- Gate candidates: 1
+- Triaged items: 4
+- Gate candidates: 0
 - New-gap gate: fail
-- Blocking new items: 3
+- Blocking new items: 2
 
 ## Class counts
 
-- new_surface_immediate_review: 1
 - safety_marker_review: 3
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
-- `20260805_github_repository_policy_controller.sql` — critical_review, score 755; next: add targeted patch-index, parity, and governance documentation
+- none
