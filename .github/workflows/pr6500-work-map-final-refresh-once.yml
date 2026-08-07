@@ -1,0 +1,139 @@
+name: PR 6500 Work Map Final Refresh Once
+
+on:
+  push:
+    branches:
+      - fix/transport-response-schema-promotion-readiness-20260806
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6500-work-map-final-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable trigger scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent="305c893427ebfbe0a3c4928ab35458d194c86c32"
+          workflow_path=".github/workflows/pr6500-work-map-final-refresh-once.yml"
+          test "${GITHUB_REF_NAME}" = "fix/transport-response-schema-promotion-readiness-20260806"
+          test "$(git rev-parse HEAD^)" = "${expected_parent}"
+          test "$(git diff --name-only HEAD^ HEAD)" = "${workflow_path}"
+          test -z "$(git status --porcelain)"
+
+      - name: Refresh generated Work Map README and both Spec 014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --write
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          test "$(git diff --name-only)" = "docs/work-maps/README.md"
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { buildEffectiveWorkMapRegistry } from './http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs';
+          import { validateSchemaClassification } from './http-generic-api/scripts/work-map-schema-classification.mjs';
+
+          const classification = validateSchemaClassification({ root: process.cwd() });
+          if (!classification.ok || classification.unresolved.length !== 0 || classification.classification_coverage_percent !== 100) {
+            throw new Error(`Schema classification is not ready: ${JSON.stringify(classification.findings)}`);
+          }
+
+          const { effectiveRegistry } = buildEffectiveWorkMapRegistry({ root: process.cwd() });
+          if (effectiveRegistry.maps.length !== 19 || effectiveRegistry.domains.length !== 16) {
+            throw new Error(`Unexpected registry shape maps=${effectiveRegistry.maps.length} domains=${effectiveRegistry.domains.length}`);
+          }
+          if (effectiveRegistry.uncategorized_objects.length !== 0 || effectiveRegistry.taxonomy_gap_clusters.length !== 0) {
+            throw new Error('Work Map registry contains unresolved objects or taxonomy gaps');
+          }
+
+          const paths = [
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json',
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json',
+          ];
+          const old = {
+            fingerprint: 'd6dd9551d69a4305520591f0961c4eabc1d55e54c08176d4dedc40a99437bffe',
+            index_source_hash: '4b9f1033091688f0aedf998ecd5ea5de137f966cdf4cf440d18f4139a0822b5a',
+            coverage_source_hash: '7ece785e472b6c05d68a882a0532685775f89683324e33cad81c40cefeba7808',
+          };
+          const next = {
+            fingerprint: effectiveRegistry.fingerprint,
+            index_source_hash: effectiveRegistry.signature.index_source_hash,
+            coverage_source_hash: effectiveRegistry.signature.coverage_source_hash,
+            map_count: effectiveRegistry.maps.length,
+            domain_count: effectiveRegistry.domains.length,
+            uncategorized_count: effectiveRegistry.uncategorized_objects.length,
+            taxonomy_gap_cluster_count: effectiveRegistry.taxonomy_gap_clusters.length,
+          };
+
+          for (const file of paths) {
+            const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+            for (const [key, value] of Object.entries(old)) {
+              if (manifest.registry?.[key] !== value) {
+                throw new Error(`${file}: unexpected pre-refresh ${key}: ${manifest.registry?.[key]}`);
+              }
+            }
+            manifest.registry = next;
+            fs.writeFileSync(file, `${JSON.stringify(manifest, null, 2)}\n`);
+          }
+
+          console.log(JSON.stringify({ ok: true, registry: next, files: paths, secrets_included: false }, null, 2));
+          NODE
+
+      - name: Verify exact bounded repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          git diff --check
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            'docs/work-maps/README.md' \
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json' \
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json' | sort)"
+          test "${actual}" = "${expected}"
+
+      - name: Retire writer and push one bounded repair commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow_path=".github/workflows/pr6500-work-map-final-refresh-once.yml"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- \
+            docs/work-maps/README.md \
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+          git rm -- "${workflow_path}"
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/pr6500-work-map-final-refresh-once.yml' \
+            'docs/work-maps/README.md' \
+            'specs/014-governed-hostinger-storage-orchestration/work-map-integration.json' \
+            'specs/014-retail-commerce-operations-growth-os/work-map-integration.json' | sort)"
+          test "${actual}" = "${expected}"
+          git diff --cached --check
+          git commit -m "chore(work-maps): refresh PR 6500 final bindings"
+          git push origin "HEAD:fix/transport-response-schema-promotion-readiness-20260806"
