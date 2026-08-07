@@ -1,0 +1,3 @@
+trigger=2026-08-07T10:43:00Z
+base_main=afcec1f471be22ccdd96c204d02ccb1fc7fca1f9
+scope=repository_only_confirmation_contract
