@@ -1,0 +1,14 @@
+name: PR 6502 Human Validation Pulse
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: No-op validation pulse
+        run: echo "PR 6502 human validation pulse only; no repository or external mutation."
