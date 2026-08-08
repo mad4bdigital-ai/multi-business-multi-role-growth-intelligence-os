@@ -3,7 +3,8 @@
 ## Trusted pins
 
 - Infrastructure merge PR: #6610
-- Trusted main SHA: `42b10d2a21fc9605c65b899fe26905ac713540d0`
+- Infrastructure merge SHA: `42b10d2a21fc9605c65b899fe26905ac713540d0`
+- Current trusted main/tooling SHA: `c7bb2bc823f77703d9f75c219ed4506a895df8e0`
 - Observed Production SHA: `70dd049a42380116773d45d3283e1ff55e4043a8`
 - Migration 1043 state: `already_applied_verified`; no additional Apply is authorized or required.
 
