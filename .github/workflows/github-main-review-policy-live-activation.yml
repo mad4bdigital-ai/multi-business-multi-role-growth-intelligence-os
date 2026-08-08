@@ -1,0 +1,132 @@
+name: Governed GitHub Main Review Policy Live Activation
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    name: Read back and plan live main review policy
+    if: >-
+      github.event.issue.number == 6625 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GITHUB_MAIN_REVIEW_POLICY_READINESS' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: github-main-review-policy-live-readiness
+      cancel-in-progress: false
+    env:
+      POLICY_PHASE: readiness
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6625'
+      EVIDENCE_DIR: .artifacts/github-main-review-policy-readiness
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Execute read-only source/runtime/readback/plan readiness
+        run: node .github/ops/github-main-review-policy-live-activation.mjs
+      - name: Upload no-secret readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-main-review-policy-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  apply:
+    name: Apply exact main review policy once and certify
+    if: >-
+      github.event.issue.number == 6625 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_GITHUB_MAIN_REVIEW_POLICY' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    concurrency:
+      group: github-main-review-policy-live-apply
+      cancel-in-progress: false
+    env:
+      POLICY_PHASE: apply
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6625'
+      EVIDENCE_DIR: .artifacts/github-main-review-policy-apply
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Execute exactly-once Ruleset Apply with same-cycle readback
+        run: node .github/ops/github-main-review-policy-live-activation.mjs
+      - name: Upload no-secret Apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-main-review-policy-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  verify:
+    name: Verify live main review policy gate
+    if: >-
+      github.event.issue.number == 6625 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'VERIFY_GITHUB_MAIN_REVIEW_POLICY' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: github-main-review-policy-live-verify
+      cancel-in-progress: false
+    env:
+      POLICY_PHASE: verify
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6625'
+      EVIDENCE_DIR: .artifacts/github-main-review-policy-verify
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Verify server-side policy gate without mutation
+        run: node .github/ops/github-main-review-policy-live-activation.mjs
+      - name: Upload no-secret verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-main-review-policy-verify-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
