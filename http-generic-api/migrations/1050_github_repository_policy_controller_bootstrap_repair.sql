@@ -76,7 +76,7 @@ VALUES
         'owner',JSON_OBJECT('type','string','maxLength',191),
         'repo',JSON_OBJECT('type','string','maxLength',191),
         'default_branch',JSON_OBJECT('type','string','const','main','default','main'),
-        'required_checks',JSON_OBJECT('type','array','minItems',6,'maxItems',6,'items',JSON_OBJECT('type','string')),
+        'required_checks',JSON_OBJECT('type','array','minItems',7,'maxItems',7,'items',JSON_OBJECT('type','string')),
         'expected_main_sha',JSON_OBJECT('type','string','pattern','^[a-f0-9]{40}$'),
         'expected_policy_fingerprint',JSON_OBJECT('type','string','pattern','^[a-f0-9]{64}$'),
         'confirm',JSON_OBJECT('type','string','const','APPLY_GITHUB_MAIN_REVIEW_POLICY'),
@@ -113,7 +113,7 @@ VALUES
         'capability_envelope_id',JSON_OBJECT('type','string','minLength',1,'maxLength',64),
         'single_owner_mode',JSON_OBJECT(
           'type','boolean',
-          'description','Optional explicit request; succeeds only when live collaborator readback proves complete permissions and exactly one eligible human collaborator.'
+          'description','Optional explicit request; succeeds only when live collaborator readback proves complete permissions and exactly one eligible human collaborator exists.'
         )
       ),
       'additionalProperties',FALSE
