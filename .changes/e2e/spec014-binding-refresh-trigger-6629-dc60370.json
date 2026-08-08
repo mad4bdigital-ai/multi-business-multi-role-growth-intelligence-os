@@ -1,0 +1,26 @@
+{
+  "contract": "mad4b.spec014-binding-refresh-trigger.v1",
+  "canonical_pr": 6629,
+  "expected_main_sha": "cdfef513b7a43d97c6944211d92394de266d7643",
+  "expected_head_sha": "dc60370bfde74986346046c66d6baa513426ac22",
+  "features": [
+    "014-governed-hostinger-storage-orchestration",
+    "014-retail-commerce-operations-growth-os"
+  ],
+  "expected_fingerprint": "feb4a6abe0206322438ffe861e6e05e38c89d1b271606bbcbdeff4215b0c8480",
+  "expected_index_source_hash": "74ae1a11185abf131ab1ad268fda980e0ea5706e3c3874645b7058f7f3a2c2d4",
+  "expected_coverage_source_hash": "413c384849fcf75d58a68793601890d85d628e8b6b65425dfa754b9b4f608ad8",
+  "authorization": "AUTHORIZE_SPEC014_FINAL_WORK_MAP_BINDING_REFRESH",
+  "repository_mutation_scope": "canonical_candidate_branch_only",
+  "canonical_pr_must_remain_draft": true,
+  "expected_changed_paths": [
+    "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+    "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+  ],
+  "protected_branch_mutation": false,
+  "force_push": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "secrets_included": false
+}
