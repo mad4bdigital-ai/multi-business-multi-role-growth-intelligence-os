@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/tenant-local-connector-error-taxonomy.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/routes/connectorProxyRoutes.js",
       "http-generic-api/test-tenant-local-connector-error-taxonomy.mjs"
     ]
@@ -55,6 +56,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-local-connector-error-taxonomy.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/connectorProxyRoutes.js",
             "http-generic-api/test-tenant-local-connector-error-taxonomy.mjs"
           ]
