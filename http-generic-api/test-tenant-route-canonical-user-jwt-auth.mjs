@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import jwt from "jsonwebtoken";
+import mysql from "mysql2/promise";
 import { _testingWorkspaceResourceRoutes } from "./routes/workspaceResourceRoutes.js";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
 
@@ -47,47 +48,6 @@ assert.match(
   /WHERE m\.user_id = \?[\s\S]*AND m\.status = 'active'[\s\S]*AND t\.status = 'active'/,
   "tenant platform membership lookup must require the parsed user plus active membership and tenant state",
 );
-
-// Execute the membership lookup against a controlled pool so tenant scoping is proven by
-// bound query parameters rather than source inspection alone.
-{
-  const calls = [];
-  const pool = {
-    async query(sql, params = []) {
-      calls.push({ sql, params });
-      if (params[1] === "tenant-regression-1") {
-        return [[{
-          tenant_id: "tenant-regression-1",
-          role: "viewer",
-          status: "active",
-          tenant_display_name: "Tenant Regression 1",
-        }]];
-      }
-      return [[]];
-    },
-  };
-
-  const membership = await _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant({
-    userId: "user-regression-1",
-    tenantId: "tenant-regression-1",
-    pool,
-  });
-  assert.equal(membership?.tenant_id, "tenant-regression-1");
-  assert.equal(membership?.role, "viewer", "authoritative DB role must be available to replace stale token role claims");
-  assert.deepEqual(calls[0].params, ["user-regression-1", "tenant-regression-1"]);
-  assert.match(calls[0].sql, /WHERE m\.user_id = \?/);
-  assert.match(calls[0].sql, /AND m\.tenant_id = \?/);
-  assert.match(calls[0].sql, /AND m\.status = 'active'/);
-  assert.match(calls[0].sql, /AND t\.status = 'active'/);
-
-  const crossTenantMembership = await _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant({
-    userId: "user-regression-1",
-    tenantId: "tenant-regression-2",
-    pool,
-  });
-  assert.equal(crossTenantMembership, null, "an exact tenant selector must not fall back to another active membership");
-  assert.deepEqual(calls[1].params, ["user-regression-1", "tenant-regression-2"]);
-}
 
 assert.match(
   workspaceSource,
@@ -139,7 +99,6 @@ try {
 
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireCanonicalUserJwt, "function");
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireTenantUserJwt, "function");
-  assert.equal(typeof _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant, "function");
 } finally {
   if (originalSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = originalSecret;
@@ -164,6 +123,104 @@ try {
 } finally {
   if (savedSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = savedSecret;
+}
+
+// Exercise the real tenant membership middleware without changing production code. db.js
+// resolves mysql.createPool lazily, so this process-local fake pool proves exact SQL binding,
+// authoritative role overwrite and cross-tenant denial without a live database connection.
+{
+  const dbKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+  const savedDbEnv = Object.fromEntries(dbKeys.map((key) => [key, process.env[key]]));
+  const originalCreatePool = mysql.createPool;
+  const calls = [];
+  const fakePool = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (params[1] === "tenant-regression-1") {
+        return [[{
+          tenant_id: "tenant-regression-1",
+          role: "viewer",
+          status: "active",
+          tenant_display_name: "Tenant Regression 1",
+        }]];
+      }
+      return [[]];
+    },
+  };
+
+  process.env.DB_HOST = "tenant-auth-regression.invalid";
+  process.env.DB_NAME = "tenant_auth_regression";
+  process.env.DB_USER = "tenant_auth_regression";
+  process.env.DB_PASSWORD = "tenant_auth_regression";
+  mysql.createPool = () => fakePool;
+
+  try {
+    const allowedReq = {
+      auth: {
+        mode: "user_jwt",
+        user_id: "user-regression-1",
+        tenant_id: "tenant-regression-1",
+        role: "owner",
+        tenant_role: "owner",
+      },
+      headers: {},
+    };
+    const allowedResponse = {
+      statusCode: 200,
+      payload: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.payload = payload; return this; },
+    };
+    let allowedNext = false;
+    await _testingTenantPlatformPluginRoutes.requireTenantUserJwt(
+      allowedReq,
+      allowedResponse,
+      () => { allowedNext = true; },
+    );
+    assert.equal(allowedNext, true, "active exact-tenant membership must pass the tenant guard");
+    assert.equal(allowedReq.auth.tenant_id, "tenant-regression-1");
+    assert.equal(allowedReq.auth.tenant_role, "viewer", "DB membership role must replace stale owner token claims");
+    assert.equal(allowedReq.auth.is_admin, false);
+    assert.deepEqual(calls[0].params, ["user-regression-1", "tenant-regression-1"]);
+    assert.match(calls[0].sql, /WHERE m\.user_id = \?/);
+    assert.match(calls[0].sql, /AND m\.tenant_id = \?/);
+    assert.match(calls[0].sql, /AND m\.status = 'active'/);
+    assert.match(calls[0].sql, /AND t\.status = 'active'/);
+
+    const deniedReq = {
+      auth: {
+        mode: "user_jwt",
+        user_id: "user-regression-1",
+        tenant_id: "tenant-regression-2",
+        role: "owner",
+        tenant_role: "owner",
+      },
+      headers: {},
+    };
+    const deniedResponse = {
+      statusCode: 200,
+      payload: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.payload = payload; return this; },
+    };
+    let deniedNext = false;
+    await _testingTenantPlatformPluginRoutes.requireTenantUserJwt(
+      deniedReq,
+      deniedResponse,
+      () => { deniedNext = true; },
+    );
+    assert.equal(deniedNext, false, "a different tenant selector must not reuse another active membership");
+    assert.equal(deniedResponse.statusCode, 403);
+    assert.equal(deniedResponse.payload?.error?.code, "active_tenant_membership_required");
+    assert.equal(deniedResponse.payload?.secrets_included, false);
+    assert.deepEqual(calls[1].params, ["user-regression-1", "tenant-regression-2"]);
+  } finally {
+    mysql.createPool = originalCreatePool;
+    for (const key of dbKeys) {
+      if (savedDbEnv[key] === undefined) delete process.env[key];
+      else process.env[key] = savedDbEnv[key];
+    }
+  }
 }
 
 console.log("tenant canonical User JWT route auth tests passed");
