@@ -10,9 +10,14 @@ const BRANCH_A = "gpt/019-governed-database-lifecycle-pressure-relief-20260807";
 const BRANCH_B = "gpt/other-branch";
 const EXACT_REPO = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 
-const bindings = [
-  { binding_id: "binding-a", branch: BRANCH_A, expected_commit_sha: SHA_A },
-];
+function scopeBinding(bindingId, branch, sha = SHA_A) {
+  return {
+    binding_id: bindingId,
+    resource_ref_json: JSON.stringify({ branch, expected_commit_sha: sha }),
+  };
+}
+
+const bindings = [scopeBinding("binding-a", BRANCH_A)];
 
 {
   const exact = resolveExactPlatformAuthorityExecutionScope({
@@ -21,7 +26,7 @@ const bindings = [
     expectedCommitSha: SHA_A,
   });
   assert.equal(exact.ok, true);
-  assert.equal(exact.branch, BRANCH_A);
+  assert.equal(exact.resource_branch, BRANCH_A);
   assert.equal(exact.expected_commit_sha, SHA_A);
   assert.equal(exact.binding_id, "binding-a");
 }
@@ -47,14 +52,14 @@ const bindings = [
 {
   const derived = resolveExactPlatformAuthorityExecutionScope({ bindings, expectedCommitSha: SHA_A });
   assert.equal(derived.ok, true);
-  assert.equal(derived.branch, BRANCH_A);
+  assert.equal(derived.resource_branch, BRANCH_A);
 }
 
 {
   const ambiguous = resolveExactPlatformAuthorityExecutionScope({
     bindings: [
       ...bindings,
-      { binding_id: "binding-b", branch: BRANCH_B, expected_commit_sha: SHA_A },
+      scopeBinding("binding-b", BRANCH_B),
     ],
     expectedCommitSha: SHA_A,
   });
@@ -196,6 +201,6 @@ assert.match(guard, /capability_resolution_envelope_resource_branch_mismatch/);
 assert.match(guard, /capability_resolution_envelope_commit_mismatch/);
 assert.match(guard, /expected_branch_sha/);
 assert.match(guard, /expected_base_sha/);
-assert.match(guard, /exact_platform_authority_scope_matched/);
+assert.match(guard, /exact_platform_resource_authority_scope/);
 
 console.log("Platform resource authority branch/commit scope regression passed");
