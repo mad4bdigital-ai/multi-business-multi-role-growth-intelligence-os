@@ -5,6 +5,7 @@
   "title": "Reconcile GitHub issue-comment response schema and governed Admin dispatch parity",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
+  "secrets_included": false,
   "scope": {
     "include": [
       "docs/github-rest-endpoint-dispatch.md",
