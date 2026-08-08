@@ -37,6 +37,98 @@ function queuedFetch(entries, calls = []) {
   };
 }
 
+function authorityHarness({ branch, expectedSha }) {
+  const slug = branch.replace(/[^A-Za-z0-9]+/g, "-").slice(0, 32);
+  const envelopeId = `envelope-${slug}`;
+  const bindingId = `binding-${slug}`;
+  const resourceUri = `github://${OWNER}/${REPO}`;
+  const envelopeRow = {
+    envelope_id: envelopeId,
+    tenant_id: "tenant-1",
+    user_id: "platform_admin_service",
+    workspace_id: "workspace-1",
+    workspace_key: "workspace-key",
+    brand_key: null,
+    app_key: "github",
+    capability_key: "repo_patch_apply",
+    operation_intent: "repo_patch_apply",
+    risk_class: "high",
+    selected_source_tier: "platform_managed_fallback",
+    selected_runtime_surface: "repo_patch_batch_apply",
+    authority_status: "passed",
+    decision: "ready_for_dispatch",
+    envelope_status: "ready_for_dispatch",
+    dispatch_allowed: 1,
+    apply_allowed: 0,
+    approval_required: 0,
+    quota_required: 1,
+    audit_required: 1,
+    readback_required: 1,
+    blocking_gap_count: 0,
+    execution_status: "not_executed",
+    expires_at: "2099-01-01T00:00:00.000Z",
+    secrets_included: 0,
+    envelope_sha256: "9".repeat(64),
+    envelope_json: JSON.stringify({
+      request_context: {
+        resource_type: "github_repo",
+        resource_uri: resourceUri,
+        resource_branch: branch,
+        expected_commit_sha: expectedSha,
+        recipe_key: "repo_patch_batch_apply",
+        operation_mode: "atomic_change_set",
+        principal: { principal_type: "service", principal_id: "platform_admin_service" },
+      },
+      authority: {
+        exact_platform_resource_authority_scope: {
+          matched: true,
+          binding_id: bindingId,
+          resource_branch: branch,
+          expected_commit_sha: expectedSha,
+          secrets_included: false,
+        },
+      },
+    }),
+  };
+  const liveBinding = {
+    binding_id: bindingId,
+    tenant_id: "tenant-1",
+    workspace_id: "workspace-1",
+    user_id: "platform_admin_service",
+    resource_type: "github_repo",
+    resource_uri: resourceUri,
+    resource_ref_json: JSON.stringify({
+      branch,
+      expected_commit_sha: expectedSha,
+      principal: { principal_type: "service", principal_id: "platform_admin_service" },
+    }),
+    recipe_key: "repo_patch_batch_apply",
+    permission_level: "patch",
+    allowed_modes_json: JSON.stringify(["atomic_change_set"]),
+    authority_source: "test_fixture",
+    status: "active",
+    expires_at: null,
+    created_at: "2026-08-08T00:00:00.000Z",
+  };
+  return {
+    capability_envelope_id: envelopeId,
+    pool: {
+      async query(sql, params) {
+        const statement = String(sql);
+        if (/capability_resolution_envelope_ledger/.test(statement)) {
+          assert.deepEqual(params, [envelopeId]);
+          return [[envelopeRow]];
+        }
+        if (/FROM platform_resource_authority_bindings/.test(statement)) {
+          assert.deepEqual(params, [bindingId]);
+          return [[liveBinding]];
+        }
+        throw new Error(`Unexpected authority SQL: ${statement.slice(0, 120)}`);
+      },
+    },
+  };
+}
+
 {
   const calls = [];
   const branch = "gpt/closed-pr-cleanup";
@@ -164,7 +256,6 @@ function queuedFetch(entries, calls = []) {
     (error) => error.code === "github_branch_delete_protected"
   );
 }
-
 
 {
   await assert.rejects(
@@ -383,12 +474,13 @@ function queuedFetch(entries, calls = []) {
 
 {
   const calls = [];
+  const branch = "gpt/atomic-change-set";
   const result = await applyGithubRepositoryChangeSet({
     owner: OWNER,
     repo: REPO,
     default_branch: "main",
     token: "test-token",
-    branch: "gpt/atomic-change-set",
+    branch,
     expected_base_sha: BASE_SHA,
     commit_message: "fix: apply one atomic change set",
     changes: [
@@ -400,6 +492,7 @@ function queuedFetch(entries, calls = []) {
         diff: "@@ -1,2 +1,2 @@\n export const alpha = true;\n-export const beta = false;\n+export const beta = true;",
       },
     ],
+    ...authorityHarness({ branch, expectedSha: BASE_SHA }),
     fetchImpl: queuedFetch([
       { status: 200, payload: { object: { sha: BASE_SHA } } },
       { status: 404, payload: { message: "Not Found" } },
@@ -431,7 +524,6 @@ function queuedFetch(entries, calls = []) {
   assert.equal(commitCall.body.tree, NEW_TREE_SHA);
   assert.deepEqual(commitCall.body.parents, [BASE_SHA]);
 }
-
 
 {
   const calls = [];
@@ -474,17 +566,19 @@ function queuedFetch(entries, calls = []) {
 {
   const calls = [];
   const docsTreeSha = "f".repeat(40);
+  const branch = "gpt/existing-blob-change-set";
   const result = await applyGithubExistingBlobChangeSet({
     owner: OWNER,
     repo: REPO,
     default_branch: "main",
     token: "test-token",
-    branch: "gpt/existing-blob-change-set",
+    branch,
     expected_head_sha: HEAD_SHA,
     commit_message: "fix: reuse existing generated report blob",
     changes: [
       { path: "docs/surface-contract-discovery-status.json", blob_sha: BLOB_SHA },
     ],
+    ...authorityHarness({ branch, expectedSha: HEAD_SHA }),
     fetchImpl: queuedFetch([
       { status: 200, payload: { object: { sha: HEAD_SHA } } },
       { status: 200, payload: { sha: HEAD_SHA, tree: { sha: TREE_SHA } } },
@@ -522,7 +616,7 @@ function queuedFetch(entries, calls = []) {
       expected_head_sha: HEAD_SHA,
       commit_message: "fix: reject stale existing blob update",
       changes: [{ path: "docs/report.json", blob_sha: BLOB_SHA }],
-      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } } }]),
+      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } }]),
     }),
     (error) => error.code === "github_existing_blob_head_mismatch"
   );
