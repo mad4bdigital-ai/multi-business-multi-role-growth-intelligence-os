@@ -1,3 +1,5 @@
+export const GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY = "github_issue_comment_exact_readback_v1";
+
 function normalizedText(value) {
   return String(value || "").trim();
 }
@@ -120,21 +122,23 @@ function hasLiveMutationApproval(args = {}) {
 function hasRequiredSameCycleReadback(args = {}) {
   const readback = args?.readback;
   if (!readback || typeof readback !== "object" || Array.isArray(readback)) return false;
-  const mode = normalizedText(readback.mode).toLowerCase();
-  return boolish(readback.required) && Boolean(mode) && mode !== "none";
+  return boolish(readback.required)
+    && normalizedText(readback.policy_key) === GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY;
 }
 
-function isGithubIssueCommentMutation(row = {}) {
+export function isGithubIssueCommentMutationTarget(value = {}) {
+  const toolName = normalizedText(value.tool_name);
+  const method = normalizedText(value.method).toUpperCase();
   return (
-    normalizedText(row.tool_name) === "github_rest_endpoint_dispatch" &&
-    normalizedText(row.parent_action_key) === "github_api_mcp" &&
-    normalizedText(row.endpoint_key) === "github_create_issue_comment" &&
-    normalizedText(row.method).toUpperCase() === "POST"
+    normalizedText(value.parent_action_key) === "github_api_mcp" &&
+    normalizedText(value.endpoint_key) === "github_create_issue_comment" &&
+    (!toolName || toolName === "github_rest_endpoint_dispatch") &&
+    (!method || method === "POST")
   );
 }
 
-function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
-  if (!isGithubIssueCommentMutation(row)) return;
+export function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
+  if (!isGithubIssueCommentMutationTarget(row)) return;
 
   const details = {
     tool_name: "github_rest_endpoint_dispatch",
@@ -186,8 +190,11 @@ function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
     throw createSelectionError(
       403,
       "github_issue_comment_mutation_readback_required",
-      "GitHub issue-comment mutation requires a non-none same-cycle readback contract before provider dispatch.",
-      details,
+      `GitHub issue-comment mutation requires readback.required=true with policy_key=${GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY} before provider dispatch.`,
+      {
+        ...details,
+        required_readback_policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+      },
     );
   }
 }
