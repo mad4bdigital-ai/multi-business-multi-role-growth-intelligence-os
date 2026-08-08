@@ -228,7 +228,6 @@ async function repositoryState() {
   assert.equal(checkoutSha, mainSha, 'Trusted-main checkout moved before readiness execution');
   const mainBlob = await migrationBlobAt(mainSha);
   assert.deepEqual(mainBlob, { found: true, blob_sha: MIGRATION_BLOB_SHA }, 'main migration blob does not match reviewed source');
-
   productionSha = await currentRefSha('Production');
   const productionContainsSource = await containsCommit(SOURCE_MERGE_SHA, productionSha);
   const productionBlob = await migrationBlobAt(productionSha);
@@ -296,18 +295,13 @@ function classify(repo, parity, readback) {
     return { result: 'blocked_schema_state', reason: 'required_column_metadata_missing', missing_identity_columns: missingIdentity, resource_ref_present: Boolean(resourceRef) };
   }
 
-  const unsupportedIdentity = IDENTITY_COLUMNS.map(([table, column]) => columnMap.get(`${table}.${column`}`));
   const identityRows = IDENTITY_COLUMNS.map(([table, column]) => columnMap.get(`${table}.${column}`));
   const unsupported = identityRows.filter((row) => String(row?.CHARACTER_SET_NAME || '').toLowerCase() !== 'utf8mb4' || !SUPPORTED_COLLATIONS.has(String(row?.COLLATION_NAME || '').toLowerCase()));
-  if (unsupported.length) {
-    return { result: 'blocked_schema_state', reason: 'unsupported_identity_collation', unsupported_identity_columns: unsupported };
-  }
+  if (unsupported.length) return { result: 'blocked_schema_state', reason: 'unsupported_identity_collation', unsupported_identity_columns: unsupported };
 
   const lifecycleTable = tableMap.get('ticket_lifecycle_events');
   const resolutionTable = tableMap.get('tenant_resolution_cases');
-  if (!lifecycleTable || !resolutionTable) {
-    return { result: 'blocked_schema_state', reason: 'required_table_metadata_missing' };
-  }
+  if (!lifecycleTable || !resolutionTable) return { result: 'blocked_schema_state', reason: 'required_table_metadata_missing' };
 
   const targetAligned = identityRows.every((row) => String(row.COLLATION_NAME || '').toLowerCase() === TARGET_COLLATION)
     && String(lifecycleTable.TABLE_COLLATION || '').toLowerCase() === TARGET_COLLATION;
@@ -345,10 +339,8 @@ async function main() {
   const readback = await schemaReadback();
   stage = 'classification';
   const classification = classify(repo, parity, readback);
-  const currentProduction = await currentRefSha('Production');
-  assert.equal(currentProduction, productionSha, 'Production moved during readiness readback');
-  const currentMain = await currentRefSha('main');
-  assert.equal(currentMain, mainSha, 'main moved during readiness readback');
+  assert.equal(await currentRefSha('Production'), productionSha, 'Production moved during readiness readback');
+  assert.equal(await currentRefSha('main'), mainSha, 'main moved during readiness readback');
 
   const summary = {
     contract: 'tenant_request_identity_collation_runtime_readiness.v1',
