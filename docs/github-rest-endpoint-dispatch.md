@@ -61,16 +61,39 @@ Admin export must preserve that same response contract so a successful provider
 write is not converted into local response-schema drift.
 
 The create-comment export is admin-only and does not bypass mutation governance.
-It remains dispatched through `runtime_endpoint_call` and requires the normal
-preflight, approval, audit, and same-cycle readback evidence. The caller still
-cannot supply a raw method, URL, or authorization header. The export only makes
-the existing active/ready canonical endpoint discoverable through its intended
-governed catalog instead of requiring a direct system-tool escape hatch.
+Before the selected binding can reach provider dispatch, the platform endpoint
+facade requires all of the following on the same call:
+
+- explicit mutation/operator approval;
+- completed dry-run/preflight evidence;
+- explicit `live_execution_approved=true`;
+- `readback.required=true` with a non-`none` readback mode.
+
+A direct create-comment call with `dry_run=true` or `preflight_only=true` is
+rejected before provider dispatch. No-provider-call preflight must use
+`runtime_endpoint_preview`; its resulting approved preflight evidence is then
+supplied to the later live `github_rest_endpoint_dispatch` call. Missing or
+ambiguous governance evidence fails closed and does not authorize a provider
+call.
+
+The caller still cannot supply a raw method, URL, or authorization header. The
+export only makes the existing active/ready canonical endpoint discoverable
+through its intended governed catalog instead of requiring a direct system-tool
+escape hatch.
 
 Migration `20260808_github_issue_comment_dispatch_parity.sql` also fails closed
-unless there is exactly one matching active/ready canonical endpoint row and
-exactly one enabled `github_rest_endpoint_dispatch` Admin tool row. It does not
-silently choose a first candidate when registry identity is ambiguous.
+unless there is exactly one matching active/ready canonical endpoint row with a
+non-null `endpoint_id` and exactly one canonical enabled Admin dispatcher row:
+`POST /system/tools/call` with `fixed_body.name=runtime_endpoint_call`. Endpoint
+schema mutation, dispatcher allowlist mutation, export creation, and binding
+creation all require both cardinalities to equal one; the migration does not
+perform an endpoint-only partial mutation when dispatcher identity is missing
+or ambiguous.
+
+The migration only appends `github_create_issue_comment` to the shared endpoint
+allowlist. It does not add `minLength` to the shared `body.body` schema because
+that field is also used by operations such as pull-request update where an empty
+body is a legitimate request to clear the description.
 
 ## Canonical row eligibility
 
@@ -92,6 +115,8 @@ Read operations may dispatch after registry, schema, principal, credential, and 
 
 PATCH, POST, PUT, and DELETE operations remain subject to the existing runtime mutation controls, including applicable resource authority, dry-run or preflight evidence, explicit approval, audit logging, and same-cycle readback. Registering an endpoint or Admin projection does not itself authorize a provider write.
 
+For `github_create_issue_comment`, this policy is executable at platform endpoint binding selection, before the provider facade is called. The gate is intentionally operation-specific: it does not weaken or replace the broader runtime mutation policy for other GitHub or provider operations.
+
 ## Response schema alignment
 
 GitHub issue-label add, replace, and remove operations return the complete remaining label array on `200 OK`. Their canonical endpoint rows and exported registry copies must include the corresponding JSON response schema. A description-only success response is insufficient because the runtime response validator treats the missing content schema as contract drift even when GitHub completed the mutation successfully.
@@ -100,7 +125,7 @@ GitHub issue-comment creation follows the same rule at `201 Created`. The compil
 
 `v_platform_endpoint_export_schema_parity` remains the canonical registry/export parity diagnostic. The create-comment export is not ready when its active export diverges from the source endpoint schema.
 
-For this exact operation, `v_github_issue_comment_dispatch_parity` provides a bounded post-apply readback. `parity_status='ready'` requires exactly one canonical endpoint with a 201 JSON object response, exactly one enabled Admin dispatcher whose allowlist contains the endpoint, exactly one active source-bound export whose schema equals the endpoint schema, and exactly one active governed dispatch binding. Any missing or ambiguous component yields `blocked`.
+For this exact operation, `v_github_issue_comment_dispatch_parity` provides a bounded post-apply readback. `parity_status='ready'` requires exactly one ready `http_generic_api` canonical endpoint with a non-null identity and a 201 JSON object response, exactly one canonical enabled Admin dispatcher whose allowlist contains the endpoint, exactly one active source-bound Admin export whose schema equals the endpoint schema, and exactly one active governed dispatch binding joined to that same export and endpoint source. Any missing, drifted, orphaned, or ambiguous component yields `blocked`.
 
 Response contracts should remain tolerant of additive provider fields while validating the stable provider response class used by the platform.
 
@@ -126,6 +151,12 @@ Response contracts should remain tolerant of additive provider fields while vali
 ```
 
 The corresponding method and path are loaded from `endpoints`; they are not accepted from this request.
+
+For `github_create_issue_comment`, first use `runtime_endpoint_preview` for the
+no-provider-call preflight. A later live call must carry the approved preflight
+evidence together with explicit mutation approval, `live_execution_approved`,
+and required same-cycle readback metadata. A direct `preflight_only` create-
+comment call is rejected rather than treated as a provider-safe dry run.
 
 ## Create-reference response contract
 
