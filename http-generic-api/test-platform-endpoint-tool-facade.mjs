@@ -237,4 +237,94 @@ const githubRows = [
   );
 }
 
+{
+  const issueCommentRow = {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_issue_comment",
+    scope_class: "admin",
+    method: "POST",
+    input_schema_json: JSON.stringify({
+      type: "object",
+      properties: {
+        path_params: { type: "object", additionalProperties: true },
+        body: { type: "object", additionalProperties: true },
+      },
+      required: [],
+    }),
+  };
+  const rows = [...githubRows, issueCommentRow];
+  const selectComment = (args = {}) => selectPlatformEndpointToolBinding(
+    rows,
+    { endpoint_key: "github_create_issue_comment", ...args },
+    "github_rest_endpoint_dispatch",
+  );
+
+  assert.throws(
+    () => selectComment(),
+    (error) => error.code === "github_issue_comment_mutation_approval_required"
+      && error.status === 403
+      && error.details.provider_call_allowed === false
+      && error.details.secrets_included === false,
+    "issue-comment mutation must fail closed before provider dispatch without explicit approval",
+  );
+
+  assert.throws(
+    () => selectComment({ mutation_approval: { approved: true } }),
+    (error) => error.code === "github_issue_comment_mutation_preflight_required"
+      && error.details.provider_call_allowed === false,
+    "issue-comment mutation must require completed dry-run/preflight evidence",
+  );
+
+  assert.throws(
+    () => selectComment({
+      mutation_approval: { approved: true },
+      dry_run_preflight_completed: true,
+    }),
+    (error) => error.code === "github_issue_comment_mutation_live_approval_required"
+      && error.details.provider_call_allowed === false,
+    "issue-comment mutation must require explicit live execution approval",
+  );
+
+  assert.throws(
+    () => selectComment({
+      mutation_approval: { approved: true },
+      dry_run_preflight_completed: true,
+      live_execution_approved: true,
+    }),
+    (error) => error.code === "github_issue_comment_mutation_readback_required"
+      && error.details.provider_call_allowed === false,
+    "issue-comment mutation must require a non-none same-cycle readback contract",
+  );
+
+  assert.throws(
+    () => selectComment({
+      mutation_approval: { approved: true },
+      dry_run: true,
+      preflight_only: true,
+    }),
+    (error) => error.code === "github_issue_comment_mutation_preflight_requires_preview"
+      && error.status === 409
+      && error.details.preview_tool === "runtime_endpoint_preview"
+      && error.details.provider_call_allowed === false,
+    "issue-comment dry-run requests must use the no-provider-call runtime preview surface",
+  );
+
+  const selected = selectComment({
+    mutation_approval: { approved: true },
+    approved_preflight_dry_run_validated: true,
+    live_execution_approved: true,
+    readback: { required: true, mode: "same_cycle" },
+  });
+  assert.equal(selected.endpoint_key, "github_create_issue_comment");
+  assert.equal(selected.method, "POST");
+
+  const readOnlySelected = selectPlatformEndpointToolBinding(
+    rows,
+    { endpoint_key: "github_list_issue_comments" },
+    "github_rest_endpoint_dispatch",
+  );
+  assert.equal(readOnlySelected.endpoint_key, "github_list_issue_comments");
+}
+
 console.log("platform endpoint tool facade tests passed");
