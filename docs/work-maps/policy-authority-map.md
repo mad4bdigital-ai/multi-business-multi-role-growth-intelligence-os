@@ -308,6 +308,7 @@ flowchart TD
 | `final_pattern_enforcement_policy_v1` | 1 |
 | `github_file_content_read_gate_policy_v1` | 1 |
 | `github_file_patch_shadow_certification_issue_policy_v1` | 2 |
+| `github_repository_policy_v2` | 1 |
 | `google_ads_budget_change_preflight_policy_v1` | 2 |
 | `google_ads_budget_execution_adapter_skeleton_policy_v1` | 5 |
 | `google_ads_budget_preflight_binding_policy_v1` | 1 |
