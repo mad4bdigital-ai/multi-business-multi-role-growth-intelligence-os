@@ -640,7 +640,9 @@ function mergeCandidates(items = []) {
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
     const capabilityDriftMerge = current.source_type === CAPABILITY_DRIFT_SOURCE
       || item.source_type === CAPABILITY_DRIFT_SOURCE;
-    const mergedSeverity = capabilityDriftMerge
+    const preservePersistedCapabilitySeverity = capabilityDriftMerge
+      && !(persistedLifecycleClosed && hasNewerLiveOccurrence);
+    const mergedSeverity = preservePersistedCapabilitySeverity
       ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])
           ? item.severity
           : current.severity)

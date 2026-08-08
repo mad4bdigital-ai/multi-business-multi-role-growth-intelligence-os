@@ -528,6 +528,32 @@ function testCapabilityDriftAlertLifecycleProjection() {
   assert.equal(mergedEscalated[0].last_seen_at, newerLiveBaseSeverity.last_seen_at, "newer live freshness must still win");
   assert.equal(mergedEscalated[0].alert_id, "alert-capability-escalated");
   assert.equal(mergedEscalated[0].lifecycle_status, "investigating");
+
+  const resolvedPriorEpisode = _testingOperationalAlerts.candidate({
+    alertId: "alert-capability-resolved",
+    alertKey: first.alertKey,
+    sourceType: CAPABILITY_DRIFT_SOURCE,
+    sourceRef: first.sourceRef,
+    sourceRecordId: first.sourceRecordId,
+    category: "capability_drift",
+    severity: "critical",
+    title: first.title,
+    summary: first.summary,
+    reasonCode: first.reasonCode,
+    lifecycleStatus: "resolved",
+    lifecycleUpdatedAt: "2026-08-08T16:00:00.000Z",
+    verificationState: "verified",
+    evidence: { tenant_visible: true, age_escalation: { policy_key: "capability_drift_age_escalation_v1" } },
+    occurrenceCount: 12,
+    firstSeenAt: "2026-08-01T12:00:00.000Z",
+    lastSeenAt: "2026-08-08T15:00:00.000Z",
+    persisted: true,
+  });
+  const reopenedEpisode = _testingOperationalAlerts.mergeCandidates([newerLiveBaseSeverity, resolvedPriorEpisode]);
+  assert.equal(reopenedEpisode[0].lifecycle_status, "open", "a live occurrence newer than resolution must reopen the capability alert");
+  assert.equal(reopenedEpisode[0].severity, "medium", "a new lifecycle episode must not inherit age-escalated severity from a resolved episode");
+  assert.equal(reopenedEpisode[0].last_seen_at, newerLiveBaseSeverity.last_seen_at);
+  assert.equal(reopenedEpisode[0].alert_id, "alert-capability-resolved");
   assert.equal(_testingOperationalAlerts.notificationEligible({
     ...tenantPersisted,
     source_type: CAPABILITY_DRIFT_SOURCE,
@@ -572,6 +598,7 @@ function testRepositoryContracts() {
   assert.match(service, /severity_escalated/);
   assert.match(service, /system_age_escalation/);
   assert.match(service, /const capabilityDriftMerge/);
+  assert.match(service, /preservePersistedCapabilitySeverity/);
   assert.match(service, /severity: mergedSeverity/);
   assert.match(service, /lifecycle_status IN \('resolved','ignored'\)/);
   assert.match(escalationPolicy, /capability_drift_age_escalation_v1/);
