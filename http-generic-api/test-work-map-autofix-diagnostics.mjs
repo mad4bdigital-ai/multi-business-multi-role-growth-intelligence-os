@@ -117,6 +117,10 @@ try {
 const bootstrapWorkflow = workflow("spec-kit-work-map-recovery-bootstrap.yml");
 const recoveryWorkflow = workflow("spec-kit-work-map-autofix-recovery-dispatch.yml");
 const writerWorkflow = workflow("spec-kit-work-map-autofix.yml");
+const governanceRunbook = readFileSync(
+  path.join(REPOSITORY_ROOT, "docs", "spec-kit-work-map-integration-governance.md"),
+  "utf8",
+);
 
 assert.match(bootstrapWorkflow, /^name: Spec Kit Work Map Recovery Bootstrap$/mu);
 assert.match(bootstrapWorkflow, /issue_comment:\s*\n\s*types: \[created\]/u);
@@ -200,4 +204,12 @@ assert.match(writerWorkflow, /remote_head_sha/u);
 assert.match(writerWorkflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
 assert.match(writerWorkflow, /git push/u);
 
-console.log("Work Map diagnostics, draft-safe explicit recovery isolation, and ARM runner boundaries passed");
+assert.match(governanceRunbook, /Docs Agent is preview-only/u);
+assert.match(governanceRunbook, /`docs-agent-write` and `docs-agent-automerge` are forbidden as Work Map write authority/u);
+assert.match(governanceRunbook, /`spec-kit-work-map-autofix\.yml` is the sole remote Work Map writer/u);
+assert.match(governanceRunbook, /Pull-request Draft\/Ready metadata is not repository-write authority/u);
+assert.doesNotMatch(governanceRunbook, /label authorizes Docs Agent to publish a real generated diff/u);
+assert.doesNotMatch(governanceRunbook, /publish generator-owned documentation only through Docs Agent/u);
+assert.doesNotMatch(governanceRunbook, /remove `docs-agent-write` after the generated diff is committed/u);
+
+console.log("Work Map diagnostics, draft-safe recovery isolation, sole-writer runbook alignment, and ARM runner boundaries passed");
