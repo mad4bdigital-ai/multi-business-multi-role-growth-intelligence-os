@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec017-protected-managed-execution-canary",
+  "title": "Governed protected Managed Execution canary infrastructure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec017-protected-managed-execution-canary.json",
+      ".github/workflows/spec017-protected-managed-execution-canary.yml",
+      "docs/e2e-phases/spec017-protected-managed-execution-canary.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi.generated.json",
+      "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+      "http-generic-api/scripts/spec017-managed-execution-protected-canary.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-spec017-protected-managed-execution-canary.mjs",
+      "specs/017-tenant-managed-execution-lifecycle/implementation/pr-protected-canary-infrastructure.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add a merge-blocked, secret-safe mechanism that can execute a protected Tenant Managed Execution canary only after the runner is part of trusted main, without executing the live canary from pull-request code.",
+      "e2e_journeys": [
+        {
+          "id": "govern-protected-managed-execution-canary-without-pr-secret-exposure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner preparing a separately authorized protected-runtime canary",
+          "entrypoint": "Canonical npm test manifest plus issue-comment workflow contract",
+          "terminal_outcome": "The repository rejects any canary implementation that can checkout PR-head code with the admin secret, use a long-lived tenant JWT, target an untrusted runtime host, execute provider/deployment/migration/SQL effects, or apply reconciliation; the live canary remains intentionally unexecuted until these files are merged into trusted main.",
+          "steps": [
+            "Load the protected canary runner and workflow as source contracts.",
+            "Require the workflow to use issue_comment with the authorized repository owner identity and exact main/Production SHAs.",
+            "Require checkout of the exact trusted main SHA with persisted Git credentials disabled.",
+            "Require the existing admin-governed Platform JWT client to mint a 600-second tenant token after active user and membership validation.",
+            "Require an explicit user, tenant, parent ticket, capability, resource type, and resource reference fixture.",
+            "Require a cross-tenant negative probe, tenant-safe projection, admin projection, idempotency, retry, reassignment, approval, rollback, and dry-run reconciliation assertions in the live runner.",
+            "Reject provider, connector, direct SQL, migration, deployment, and reconciliation-Apply surfaces in the runner.",
+            "Register the static safety test in the canonical npm test manifest.",
+            "Keep the live protected canary and Production runtime readback as post-merge evidence rather than claiming them from synthetic tests."
+          ],
+          "assertions": [
+            "The workflow cannot expose BACKEND_API_KEY to code checked out from a pull-request head.",
+            "The workflow verifies exact current main and protected Production refs before and after the live canary.",
+            "The runner targets only https://auth.mad4b.com.",
+            "The runner obtains a short-lived tenant-compatible token from /auth/platform-jwt/issue and does not store a long-lived USER_JWT.",
+            "Tenant-path assertions do not fall back to admin identity.",
+            "The runner performs no provider dispatch, external business send, direct SQL, Migration Apply, deployment/restart/release activation, or reconciliation Apply.",
+            "The merge-blocking test is part of the canonical npm test manifest.",
+            "This PR does not claim canary or production phase completion and does not itself execute the protected runtime canary."
+          ],
+          "tests": [
+            {
+              "id": "spec017-protected-managed-execution-canary-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec017-protected-managed-execution-canary.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec017-protected-managed-execution-canary.yml",
+            "http-generic-api/scripts/spec017-managed-execution-protected-canary.mjs",
+            "http-generic-api/test-spec017-protected-managed-execution-canary.mjs",
+            "http-generic-api/scripts/manifests/test-manifest-spec017.mjs",
+            "specs/017-tenant-managed-execution-lifecycle/implementation/pr-protected-canary-infrastructure.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
