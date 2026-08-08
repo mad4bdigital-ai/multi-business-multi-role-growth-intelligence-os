@@ -63,7 +63,6 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" > "${pr_file}"
 
           state="$(jq -r '.state' "${pr_file}")"
-          draft="$(jq -r '.draft' "${pr_file}")"
           base_ref="$(jq -r '.base.ref' "${pr_file}")"
           head_repo="$(jq -r '.head.repo.full_name' "${pr_file}")"
           target_branch="$(jq -r '.head.ref' "${pr_file}")"
@@ -71,7 +70,6 @@ jobs:
           body="$(jq -r '.body // ""' "${pr_file}")"
 
           test "${state}" = "open"
-          test "${draft}" = "false"
           test "${base_ref}" = "main"
           test "${head_repo}" = "${GITHUB_REPOSITORY}"
           [[ "${target_branch}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
