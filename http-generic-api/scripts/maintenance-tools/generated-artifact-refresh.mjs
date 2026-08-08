@@ -37,6 +37,7 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
   /^\.github\/repository-maintenance-tool-governance\.json$/u,
   /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
+  /^docs\/ci-evidence-routing\.md$/u,
   /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
   /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
