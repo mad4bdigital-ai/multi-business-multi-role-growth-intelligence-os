@@ -1,4 +1,4 @@
-name: Validation-only Apply Work Map Manifest Bindings 6613
+name: Validation-only Apply Work Map Manifest Bindings 6629
 
 on:
   pull_request:
@@ -16,16 +16,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      TARGET_PR: "6613"
-      TARGET_BRANCH: "gpt/migration-1049-governed-rollout-20260807"
-      EXPECTED_HEAD_SHA: "540a152d58e12dc9be7c41c2d5b8228232d47e0e"
-      EXPECTED_BASE_SHA: "ce89a5f3df3ca0b83e4a1f79a15cbead0d378378"
+      TARGET_PR: "6629"
+      TARGET_BRANCH: "fix/repository-policy-1049-bootstrap-repair-6627"
+      EXPECTED_HEAD_SHA: "9f042bad633fe4730d478c460e588a3c129c0a59"
+      EXPECTED_BASE_SHA: "e6b2495065ea2c2d97e481cf9a6cee3f5bfd79e4"
     steps:
       - name: Initialize bounded evidence directory
         shell: bash
         run: |
           set -euo pipefail
-          evidence_root="${RUNNER_TEMP}/work-map-manifest-bindings-6613"
+          evidence_root="${RUNNER_TEMP}/work-map-manifest-bindings-6629"
           echo "EVIDENCE_ROOT=${evidence_root}" >> "${GITHUB_ENV}"
           mkdir -p "${evidence_root}"
 
@@ -38,7 +38,7 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${TARGET_PR}" > "${EVIDENCE_ROOT}/target-pr.json"
           jq -e --arg branch "${TARGET_BRANCH}" --arg head "${EXPECTED_HEAD_SHA}" --arg base "${EXPECTED_BASE_SHA}" '
             .state == "open" and
-            .draft == false and
+            .draft == true and
             .head.repo.full_name == env.GITHUB_REPOSITORY and
             .head.ref == $branch and
             .head.sha == $head and
@@ -101,7 +101,7 @@ jobs:
           git add -- \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-          git commit -m "chore(work-maps): refresh ready manifest bindings for migration 1049 rollout"
+          git commit -m "chore(work-maps): refresh ready manifest bindings for migration 1050 repair"
           result_head="$(git rev-parse HEAD)"
           git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
           remote_after="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
@@ -141,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: work-map-manifest-bindings-updater-6613-${{ github.run_id }}
-          path: ${{ runner.temp }}/work-map-manifest-bindings-6613
+          name: work-map-manifest-bindings-updater-6629-${{ github.run_id }}
+          path: ${{ runner.temp }}/work-map-manifest-bindings-6629
           if-no-files-found: error
           retention-days: 14
