@@ -1,0 +1,191 @@
+name: Temporary Spec 014 Final Work Map Binding Writer 6629
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/tmp-spec014-final-work-map-binding-6629-f6d5f40d.yml'
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: tmp-spec014-final-work-map-binding-6629-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-final-bindings:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/repository-policy-1049-bootstrap-repair-6627' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AUTHORIZED_SOURCE_SHA: f6d5f40dd84c92d9effe91ad9f77d3d1d08c7271
+      EXPECTED_MAIN_SHA: d8277c4a10f839eaa0ad0cc6238dbc20d9926ba3
+      TARGET_BRANCH: fix/repository-policy-1049-bootstrap-repair-6627
+      TEMP_WORKFLOW: .github/workflows/tmp-spec014-final-work-map-binding-6629-f6d5f40d.yml
+      HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      RETAIL_MANIFEST: specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+      TASKS_PATH: specs/014-governed-hostinger-storage-orchestration/tasks.md
+      REPORT_DIR: .ci-evidence/spec014-final-work-map-binding-6629
+    steps:
+      - name: Checkout exact writer envelope head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact authorization ancestry and bounded writer envelope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "${{ github.event.pull_request.base.sha }}" = "${EXPECTED_MAIN_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_SOURCE_SHA}"
+          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF}')" -eq 2
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${AUTHORIZED_SOURCE_SHA}"
+
+          mapfile -t writer_delta < <(git diff --name-only "${AUTHORIZED_SOURCE_SHA}" HEAD)
+          test "${#writer_delta[@]}" -eq 1
+          test "${writer_delta[0]}" = "${TEMP_WORKFLOW}"
+
+          mapfile -t source_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}" "${AUTHORIZED_SOURCE_SHA}")
+          test "${#source_paths[@]}" -eq 9
+          for required in \
+            ".changes/e2e/github-repository-policy-1049-bootstrap-repair.json" \
+            "docs/work-maps/README.md" \
+            "docs/work-maps/data-model-domain-map.md" \
+            "docs/work-maps/repository-automation-map.md" \
+            "docs/work-maps/work-map-coverage-matrix.md" \
+            "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql" \
+            "http-generic-api/test-github-repository-policy-1050-bootstrap-repair.mjs" \
+            "${HOSTINGER_MANIFEST}" \
+            "${RETAIL_MANIFEST}"
+          do
+            printf '%s\n' "${source_paths[@]}" | grep -Fx "${required}"
+          done
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run canonical deterministic binding refresh for both Spec 014 manifests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "${REPORT_DIR}"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            > "${REPORT_DIR}/refresh-hostinger.json"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os \
+            > "${REPORT_DIR}/refresh-retail.json"
+
+          mapfile -t generated < <(git diff --name-only)
+          test "${#generated[@]}" -ge 2
+          for path in "${generated[@]}"; do
+            test "${path}" = "${HOSTINGER_MANIFEST}" \
+              -o "${path}" = "${RETAIL_MANIFEST}" \
+              -o "${path}" = "${TASKS_PATH}"
+          done
+          printf '%s\n' "${generated[@]}" | grep -Fx "${HOSTINGER_MANIFEST}"
+          printf '%s\n' "${generated[@]}" | grep -Fx "${RETAIL_MANIFEST}"
+          git diff --check
+
+      - name: Prove canonical refresh idempotency and exact readback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --check \
+            > "${REPORT_DIR}/check-hostinger.json"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os \
+            --check \
+            > "${REPORT_DIR}/check-retail.json"
+
+          REPORT_PATH="${REPORT_DIR}/readback-hostinger.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${REPORT_DIR}/readback-hostinger.stdout.json"
+
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --all \
+            > "${REPORT_DIR}/governance-all.json"
+
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback-hostinger.json');process.stdout.write(String(r.ok))")" = true
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback-hostinger.json');process.stdout.write(String(r.findings.length))")" = 0
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback-hostinger.json');process.stdout.write(String(r.classification.coverage_percent))")" = 100
+          test "$(node -e "const r=require('./${REPORT_DIR}/readback-hostinger.json');process.stdout.write(String(r.classification.unresolved_count))")" = 0
+
+      - name: Retire writer and publish bounded candidate commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "$(git rev-parse HEAD)"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${HOSTINGER_MANIFEST}" "${RETAIL_MANIFEST}" "${TASKS_PATH}"
+          git rm "${TEMP_WORKFLOW}"
+
+          mapfile -t final_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}")
+          test "${#final_paths[@]}" -ge 9
+          test "${#final_paths[@]}" -le 10
+          for path in "${final_paths[@]}"; do
+            case "${path}" in
+              ".changes/e2e/github-repository-policy-1049-bootstrap-repair.json" | \
+              "docs/work-maps/README.md" | \
+              "docs/work-maps/data-model-domain-map.md" | \
+              "docs/work-maps/repository-automation-map.md" | \
+              "docs/work-maps/work-map-coverage-matrix.md" | \
+              "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql" | \
+              "http-generic-api/test-github-repository-policy-1050-bootstrap-repair.mjs" | \
+              "${HOSTINGER_MANIFEST}" | \
+              "${RETAIL_MANIFEST}" | \
+              "${TASKS_PATH}") ;;
+              *) echo "unexpected final path: ${path}" >&2; exit 1 ;;
+            esac
+          done
+
+          printf '%s\n' "${final_paths[@]}" | grep -Fx "${HOSTINGER_MANIFEST}"
+          printf '%s\n' "${final_paths[@]}" | grep -Fx "${RETAIL_MANIFEST}"
+          test ! -e "${TEMP_WORKFLOW}"
+          git diff --cached --check
+
+          git commit -m 'chore(spec-014): refresh final Work Map bindings for PR 6629'
+          result_sha="$(git rev-parse HEAD)"
+
+          remote_pre_push="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_pre_push}" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+          for attempt in {1..20}; do
+            remote_after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            if [[ "${remote_after}" = "${result_sha}" ]]; then break; fi
+            sleep 2
+          done
+          test "${remote_after}" = "${result_sha}"
+
+          node -e "const fs=require('fs'); fs.writeFileSync('${REPORT_DIR}/result.json', JSON.stringify({contract:'mad4b.spec014-final-work-map-binding-writer.v1',authorized_source_sha:process.env.AUTHORIZED_SOURCE_SHA,expected_main_sha:process.env.EXPECTED_MAIN_SHA,result_sha:'${result_sha}',target_branch:process.env.TARGET_BRANCH,force_push:false,protected_branch_mutation:false,provider_dispatch:false,live_database_access:false,migration_apply:false,secrets_included:false},null,2)+'\\n')"
+
+      - name: Upload bounded no-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-binding-6629-${{ github.run_id }}
+          path: .ci-evidence/spec014-final-work-map-binding-6629/*
+          if-no-files-found: warn
+          retention-days: 30
