@@ -1,0 +1,120 @@
+name: Materialize capability drift first-seen reset
+
+on:
+  push:
+    branches:
+      - fix/capability-drift-age-severity-escalation-4450-20260808
+    paths:
+      - .github/workflows/materialize-capability-drift-first-seen-reset.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/capability-drift-age-severity-escalation-4450-20260808
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify current main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor origin/main HEAD
+          test "$(git rev-parse origin/main)" = "1216f68bc008ad58f12b89d438bd7ca53e930d97"
+
+      - name: Apply current-episode first-seen readback reset
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one anchor, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          service = "http-generic-api/operationalAlertService.js"
+          test = "http-generic-api/test-operational-alerting-control-plane.mjs"
+
+          replace_once(
+              service,
+              '''    const mergedSeverity = preservePersistedCapabilitySeverity\n      ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])\n          ? item.severity\n          : current.severity)\n      : latest.severity;\n    merged.set(item.alert_key, {\n''',
+              '''    const mergedSeverity = preservePersistedCapabilitySeverity\n      ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])\n          ? item.severity\n          : current.severity)\n      : latest.severity;\n    const mergedFirstSeenAt = capabilityDriftMerge\n      && persistedLifecycleClosed\n      && hasNewerLiveOccurrence\n      && live\n      ? live.first_seen_at\n      : earliest.first_seen_at;\n    merged.set(item.alert_key, {\n'''
+          )
+
+          replace_once(
+              service,
+              '''      occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),\n      first_seen_at: earliest.first_seen_at,\n''',
+              '''      occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),\n      first_seen_at: mergedFirstSeenAt,\n'''
+          )
+
+          replace_once(
+              test,
+              '''  assert.equal(reopenedEpisode[0].last_seen_at, newerLiveBaseSeverity.last_seen_at);\n  assert.equal(reopenedEpisode[0].alert_id, "alert-capability-resolved");\n''',
+              '''  assert.equal(reopenedEpisode[0].first_seen_at, newerLiveBaseSeverity.first_seen_at, "a new lifecycle episode must expose the new episode start instead of the resolved episode age");\n  assert.equal(reopenedEpisode[0].last_seen_at, newerLiveBaseSeverity.last_seen_at);\n  assert.equal(reopenedEpisode[0].alert_id, "alert-capability-resolved");\n'''
+          )
+
+          replace_once(
+              test,
+              '''  assert.match(service, /preservePersistedCapabilitySeverity/);\n  assert.match(service, /severity: mergedSeverity/);\n''',
+              '''  assert.match(service, /preservePersistedCapabilitySeverity/);\n  assert.match(service, /const mergedFirstSeenAt/);\n  assert.match(service, /first_seen_at: mergedFirstSeenAt/);\n  assert.match(service, /severity: mergedSeverity/);\n'''
+          )
+          PY
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-operational-alerting-control-plane.mjs
+          node http-generic-api/scripts/test-operation-observability-service.mjs
+
+      - name: Remove temporary materializer and enforce exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-capability-drift-first-seen-reset.yml
+          git add -A
+          git diff --cached --check
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              ".changes/e2e/capability-drift-age-severity-escalation.json",
+              "http-generic-api/capabilityDriftAlertEscalationPolicy.js",
+              "http-generic-api/operationalAlertService.js",
+              "http-generic-api/test-operational-alerting-control-plane.mjs",
+          }
+          actual = set(subprocess.check_output(
+              ["git", "diff", "--cached", "--name-only", "origin/main"],
+              text=True,
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f"unexpected final scope: expected={sorted(expected)} actual={sorted(actual)}")
+          PY
+
+      - name: Commit bounded first-seen reset repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(observability): reset capability blocker age on recurrence"
+          git push origin HEAD:fix/capability-drift-age-severity-escalation-4450-20260808
