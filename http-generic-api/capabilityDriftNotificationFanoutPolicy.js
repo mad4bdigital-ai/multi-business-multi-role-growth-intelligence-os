@@ -20,9 +20,10 @@ function parseEvidence(value) {
   try { return JSON.parse(value); } catch { return {}; }
 }
 
-export function buildCapabilityDriftTenantNotificationKey(alertKey, severity, tenantId) {
+export function buildCapabilityDriftTenantNotificationKey(alertKey, severity, tenantId, episodeStartedAt) {
   const tenantHash = sha256(tenantId).slice(0, 24);
-  return `${String(alertKey || "")}:${String(severity || "")}:open:t:${tenantHash}`.slice(0, 255);
+  const episodeHash = sha256(episodeStartedAt).slice(0, 12);
+  return `${String(alertKey || "")}:${String(severity || "")}:open:t:${tenantHash}:e:${episodeHash}`.slice(0, 255);
 }
 
 export function capabilityDriftNotificationEligible(item = {}) {
@@ -36,6 +37,7 @@ export function capabilityDriftNotificationEligible(item = {}) {
     && ["open", "acknowledged", "investigating"].includes(String(item.lifecycle_status || "").toLowerCase())
     && item.verification_state === "verified"
     && Boolean(item.source_record_id)
+    && Boolean(item.notification_episode_started_at)
     && escalation.policy_key === CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.escalation_policy_key
     && Number.isFinite(blockerAgeHours)
     && blockerAgeHours >= CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.minimum_blocker_age_hours;
