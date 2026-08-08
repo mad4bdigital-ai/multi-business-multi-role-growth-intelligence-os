@@ -22,7 +22,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove ad-hoc development-secret JWT verification from tenant platform-plugin and workspace-resource routes and require the canonical fail-closed User JWT parser before authoritative membership and resource scope checks.",
+      "objective": "Remove ad-hoc development-secret JWT verification from tenant platform-plugin and workspace-resource routes and require the canonical fail-closed User JWT parser before authoritative membership and resource scope checks, with executable evidence that exact tenant membership lookup cannot widen scope.",
       "e2e_journeys": [
         {
           "id": "tenant-bearer-token-is-canonically-parsed-before-resource-authority",
@@ -38,6 +38,7 @@
             "Require the parsed user_jwt principal before active membership, owner/admin or resource checks.",
             "Resolve effective tenant role and resource authority from authoritative membership state rather than trusting token role claims.",
             "Bind membership lookup to the parsed user and exact requested tenant so a token/header cannot widen tenant scope.",
+            "Execute the tenant membership lookup against a controlled pool and prove exact user_id plus tenant_id bind parameters, active-state predicates and null readback for a different tenant selector.",
             "Verify the Resource API callability manifest tracks the canonical parser-before-resource-guard route signature.",
             "Regenerate and verify the frontend surface dispatch evidence from the same runtime source head."
           ],
@@ -49,6 +50,7 @@
             "Workspace owner/admin authority uses DB membership.role and exact user_id + tenant_id membership lookup rather than token role claims.",
             "Inactive membership or tenant state is rejected before workspace authority is granted.",
             "An explicitly requested tenant is bound into membership lookup and cannot broaden the authenticated user's tenant scope.",
+            "The executable regression binds user_id and the exact requested tenant_id as query parameters, preserves active membership and tenant predicates, exposes the authoritative DB role, and returns null instead of falling back to another tenant membership.",
             "Workspace and platform-plugin routes retain their DB-backed membership and tenant/resource checks after parsing.",
             "The governed workspace_brands_list route marker requires requireCanonicalUserJwt before requireUserJwt.",
             "Generated frontend surface evidence is current for the changed auth/runtime sources and is covered by this E2E contract.",
