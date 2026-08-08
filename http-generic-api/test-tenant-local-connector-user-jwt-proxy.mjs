@@ -44,6 +44,15 @@ const token = jwt.sign(
   { algorithm: "HS256", expiresIn: "5m" },
 );
 
+const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+const originalDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
+Object.assign(process.env, {
+  DB_HOST: "127.0.0.1",
+  DB_NAME: "tenant_local_connector_regression",
+  DB_USER: "tenant_local_connector_regression",
+  DB_PASSWORD: "tenant_local_connector_regression",
+});
+
 const originalCreatePool = mysql.createPool;
 const queries = [];
 const fakePool = {
@@ -130,6 +139,13 @@ try {
   await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   mysql.createPool = originalCreatePool;
   resetConnectorSchemaCompatibilityCache();
+  for (const key of dbEnvKeys) {
+    if (originalDbEnv[key] === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = originalDbEnv[key];
+    }
+  }
 }
 
 console.log("tenant Local Connector User JWT proxy boundary regression passed");
