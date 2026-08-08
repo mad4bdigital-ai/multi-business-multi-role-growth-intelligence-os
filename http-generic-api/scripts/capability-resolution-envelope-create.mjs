@@ -49,28 +49,7 @@ function envelopeStatus(decision = "") {
 }
 
 export function buildDryRunArgs(passthrough = []) {
-  const args = {
-    tenantId: "",
-    userId: "",
-    principalType: "",
-    principalId: "",
-    workspaceId: "",
-    workspaceKey: "",
-    workspaceType: "",
-    userRole: "",
-    brandKey: "",
-    businessActivityType: "",
-    appKey: "",
-    capabilityKey: "",
-    operationIntent: "read",
-    operationMode: "",
-    resourceType: "",
-    resourceUri: "",
-    recipeKey: "",
-    runtimeSurface: "",
-    requestedSourceTier: "",
-    explain: false,
-  };
+  const args = { tenantId:"", userId:"", principalType:"", principalId:"", workspaceId:"", workspaceKey:"", workspaceType:"", userRole:"", brandKey:"", businessActivityType:"", appKey:"", capabilityKey:"", operationIntent:"read", operationMode:"", resourceType:"", resourceUri:"", recipeKey:"", runtimeSurface:"", requestedSourceTier:"", explain:false };
   for (let i = 0; i < passthrough.length; i += 1) {
     const item = passthrough[i];
     const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
@@ -101,15 +80,7 @@ export function buildDryRunArgs(passthrough = []) {
 }
 
 export function buildBindingContext(passthrough = []) {
-  const context = {
-    plan_id: "",
-    plan_item_id: "",
-    resource_uri: "",
-    recipe_key: "",
-    expected_commit_sha: "",
-    binding_sha256: "",
-    capability_sha256: "",
-  };
+  const context = { plan_id:"", plan_item_id:"", resource_uri:"", recipe_key:"", expected_commit_sha:"", binding_sha256:"", capability_sha256:"" };
   for (let i = 0; i < passthrough.length; i += 1) {
     const item = passthrough[i];
     const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
@@ -123,37 +94,21 @@ export function buildBindingContext(passthrough = []) {
     else if (key === "--binding-sha256") { context.binding_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--capability-sha256") { context.capability_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
   }
-  if (context.expected_commit_sha && !/^[0-9a-f]{40}$/.test(context.expected_commit_sha)) {
-    const err = new Error("--expected-commit-sha must be a 40-character hexadecimal commit SHA.");
-    err.code = "capability_resolution_expected_commit_sha_invalid";
-    throw err;
-  }
-  for (const [field, flag] of [["binding_sha256", "--binding-sha256"], ["capability_sha256", "--capability-sha256"]]) {
-    if (context[field] && !/^[0-9a-f]{64}$/.test(context[field])) {
-      const err = new Error(`${flag} must be a 64-character hexadecimal SHA-256 fingerprint.`);
-      err.code = `capability_resolution_${field}_invalid`;
-      throw err;
-    }
-  }
-  if (context.resource_uri && !/^[a-z][a-z0-9+.-]*:\/\//i.test(context.resource_uri)) {
-    const err = new Error("--resource-uri must be an absolute governed resource URI.");
-    err.code = "capability_resolution_resource_uri_invalid";
-    throw err;
-  }
+  if (context.expected_commit_sha && !/^[0-9a-f]{40}$/.test(context.expected_commit_sha)) throw Object.assign(new Error("--expected-commit-sha must be a 40-character hexadecimal commit SHA."), { code:"capability_resolution_expected_commit_sha_invalid" });
+  for (const [field, flag] of [["binding_sha256","--binding-sha256"],["capability_sha256","--capability-sha256"]]) if (context[field] && !/^[0-9a-f]{64}$/.test(context[field])) throw Object.assign(new Error(`${flag} must be a 64-character hexadecimal SHA-256 fingerprint.`), { code:`capability_resolution_${field}_invalid` });
+  if (context.resource_uri && !/^[a-z][a-z0-9+.-]*:\/\//i.test(context.resource_uri)) throw Object.assign(new Error("--resource-uri must be an absolute governed resource URI."), { code:"capability_resolution_resource_uri_invalid" });
   return Object.fromEntries(Object.entries(context).filter(([, value]) => Boolean(value)));
 }
+
+export function ledgerPrincipalId(requestContext = {}) {
+  return safeText(requestContext.user_id || requestContext?.principal?.principal_id, 64) || null;
+}
+
 export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs()) {
   const dryRunArgs = buildDryRunArgs(args.passthrough);
   const bindingContext = buildBindingContext(args.passthrough);
   const dryRun = await runCapabilityResolutionDryRun(dryRunArgs);
-  const envelope = redactDangerousKeys({
-    ...dryRun,
-    request_context: { ...(dryRun.request_context || {}), ...bindingContext },
-    capability: { ...(dryRun.capability || {}), recipe_key: bindingContext.recipe_key || null, expected_commit_sha: bindingContext.expected_commit_sha || null },
-    inputs: { ...bindingContext },
-    ledger_created_by: safeText(args.requestedBy),
-    secrets_included: false,
-  });
+  const envelope = redactDangerousKeys({ ...dryRun, request_context:{ ...(dryRun.request_context || {}), ...bindingContext }, capability:{ ...(dryRun.capability || {}), recipe_key:bindingContext.recipe_key || null, expected_commit_sha:bindingContext.expected_commit_sha || null }, inputs:{ ...bindingContext }, ledger_created_by:safeText(args.requestedBy), secrets_included:false });
   const envelopeHash = sha256Json(envelope);
   const envelopeId = randomUUID();
   const ttl = Math.max(5, Math.min(Number(args.ttlMinutes || 60), 1440));
@@ -164,71 +119,12 @@ export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(
   const selected = envelope.selected_source || {};
   const gates = envelope.gates || {};
   const authority = envelope.authority || {};
-  await pool.query(
-    `INSERT INTO capability_resolution_envelope_ledger
-      (envelope_id, tenant_id, user_id, workspace_id, workspace_key, brand_key,
-       app_key, capability_key, operation_intent, risk_class, selected_source_tier,
-       selected_runtime_surface, authority_status, decision, envelope_status,
-       dispatch_allowed, apply_allowed, approval_required, quota_required, audit_required, readback_required,
-       blocking_gap_count, envelope_sha256, envelope_json, requested_by, expires_at, secrets_included)
-     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0)`,
-    [
-      envelopeId,
-      safeText(ctx.tenant_id, 64) || null,
-      safeText(ctx.user_id, 64) || null,
-      safeText(ctx.workspace_id, 64) || null,
-      safeText(ctx.workspace_key, 191) || null,
-      safeText(ctx.brand_key, 191) || null,
-      safeText(cap.app_key, 128) || null,
-      safeText(cap.capability_key, 191) || null,
-      safeText(ctx.operation_intent || dryRunArgs.operationIntent, 128) || null,
-      safeText(cap.risk_class, 64) || null,
-      safeText(selected.selected_source_tier, 96) || null,
-      safeText(selected.selected_runtime_surface, 128) || null,
-      safeText(authority.status, 64) || null,
-      safeText(envelope.decision, 96) || null,
-      status,
-      gates.dispatch_allowed === true ? 1 : 0,
-      gates.apply_allowed === true ? 1 : 0,
-      gates.approval_required === true ? 1 : 0,
-      gates.quota_required === true ? 1 : 0,
-      gates.audit_required !== false ? 1 : 0,
-      gates.readback_required === true ? 1 : 0,
-      Array.isArray(envelope.blocking_gaps) ? envelope.blocking_gaps.length : 0,
-      envelopeHash,
-      JSON.stringify(envelope),
-      safeText(args.requestedBy, 191) || "gpt_admin",
-      ttl,
-    ]
-  );
-  return {
-    ok: true,
-    envelope_id: envelopeId,
-    envelope_status: status,
-    decision: envelope.decision,
-    selected_source_tier: selected.selected_source_tier || null,
-    authority_status: authority.status || null,
-    dispatch_allowed: gates.dispatch_allowed === true,
-    apply_allowed: gates.apply_allowed === true,
-    approval_required: gates.approval_required === true,
-    quota_required: gates.quota_required === true,
-    blocking_gap_count: Array.isArray(envelope.blocking_gaps) ? envelope.blocking_gaps.length : 0,
-    envelope_sha256: envelopeHash,
-    expires_in_minutes: ttl,
-    secrets_included: false,
-  };
+  await pool.query(`INSERT INTO capability_resolution_envelope_ledger
+      (envelope_id, tenant_id, user_id, workspace_id, workspace_key, brand_key, app_key, capability_key, operation_intent, risk_class, selected_source_tier, selected_runtime_surface, authority_status, decision, envelope_status, dispatch_allowed, apply_allowed, approval_required, quota_required, audit_required, readback_required, blocking_gap_count, envelope_sha256, envelope_json, requested_by, expires_at, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0)`, [
+      envelopeId, safeText(ctx.tenant_id,64)||null, ledgerPrincipalId(ctx), safeText(ctx.workspace_id,64)||null, safeText(ctx.workspace_key,191)||null, safeText(ctx.brand_key,191)||null, safeText(cap.app_key,128)||null, safeText(cap.capability_key,191)||null, safeText(ctx.operation_intent || dryRunArgs.operationIntent,128)||null, safeText(cap.risk_class,64)||null, safeText(selected.selected_source_tier,96)||null, safeText(selected.selected_runtime_surface,128)||null, safeText(authority.status,64)||null, safeText(envelope.decision,96)||null, status, gates.dispatch_allowed===true?1:0, gates.apply_allowed===true?1:0, gates.approval_required===true?1:0, gates.quota_required===true?1:0, gates.audit_required!==false?1:0, gates.readback_required===true?1:0, Array.isArray(envelope.blocking_gaps)?envelope.blocking_gaps.length:0, envelopeHash, JSON.stringify(envelope), safeText(args.requestedBy,191)||"gpt_admin", ttl
+    ]);
+  return { ok:true, envelope_id:envelopeId, envelope_status:status, decision:envelope.decision, selected_source_tier:selected.selected_source_tier||null, authority_status:authority.status||null, dispatch_allowed:gates.dispatch_allowed===true, apply_allowed:gates.apply_allowed===true, approval_required:gates.approval_required===true, quota_required:gates.quota_required===true, blocking_gap_count:Array.isArray(envelope.blocking_gaps)?envelope.blocking_gaps.length:0, envelope_sha256:envelopeHash, expires_in_minutes:ttl, secrets_included:false };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
-  createCapabilityResolutionEnvelopeLedger(parseArgs())
-    .then(async (result) => {
-      process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      await getPool().end().catch(() => {});
-    })
-    .catch(async (err) => {
-      process.stdout.write(`${JSON.stringify({ ok: false, error: { code: err.code || "capability_resolution_envelope_create_failed", message: err.message }, secrets_included: false }, null, 2)}\n`);
-      await getPool().end().catch(() => {});
-      process.exitCode = 1;
-    });
-}
+if (import.meta.url === `file://${process.argv[1]}`) createCapabilityResolutionEnvelopeLedger(parseArgs()).then(async result => { process.stdout.write(`${JSON.stringify(result,null,2)}\n`); await getPool().end().catch(()=>{}); }).catch(async err => { process.stdout.write(`${JSON.stringify({ok:false,error:{code:err.code||"capability_resolution_envelope_create_failed",message:err.message},secrets_included:false},null,2)}\n`); await getPool().end().catch(()=>{}); process.exitCode=1; });
