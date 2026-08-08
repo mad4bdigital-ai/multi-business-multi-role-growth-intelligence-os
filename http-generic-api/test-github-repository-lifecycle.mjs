@@ -116,11 +116,15 @@ function authorityHarness({ branch, expectedSha }) {
       async query(sql, params) {
         const statement = String(sql);
         if (/capability_resolution_envelope_ledger/.test(statement)) {
-          assert.deepEqual(params, [envelopeId]);
+          assert.equal(Array.isArray(params), true);
+          assert.equal(params.length, 1);
+          assert.equal(String(params[0]), envelopeId);
           return [[envelopeRow]];
         }
         if (/FROM platform_resource_authority_bindings/.test(statement)) {
-          assert.deepEqual(params, [bindingId]);
+          assert.equal(Array.isArray(params), true);
+          assert.equal(params.length, 1);
+          assert.equal(String(params[0]), bindingId);
           return [[liveBinding]];
         }
         throw new Error(`Unexpected authority SQL: ${statement.slice(0, 120)}`);
