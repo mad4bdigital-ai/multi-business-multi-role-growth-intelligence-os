@@ -1,0 +1,8 @@
+pr=6645
+source_head=482c36281277c3fd511fa08411a77e1cb288c915
+materializer_base=33154e38defc15fcf14b47ca04ac37603a6fc8cd
+purpose=retire materializer before canonical Work Map validation and publish bounded Spec 014 binding repair
+provider_dispatch=false
+live_database_access=false
+migration_apply=false
+secrets_included=false
