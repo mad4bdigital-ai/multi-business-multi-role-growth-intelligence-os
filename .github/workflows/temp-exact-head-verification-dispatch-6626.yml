@@ -1,0 +1,103 @@
+name: TEMP Exact-Head Verification Dispatch 6626
+
+on:
+  pull_request:
+    branches:
+      - gpt/spec014-post-refresh-verify-base-6626-d8277c4a
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      CANONICAL_PR: '6626'
+      EXPECTED_MAIN_SHA: d8277c4a10f839eaa0ad0cc6238dbc20d9926ba3
+      EXPECTED_HEAD_SHA: 843e946ca4ae769d8e752e6e8bff6c8cf2f6c10c
+      TARGET_BRANCH: fix/generated-artifact-refresh-eligible-request-json-20260807
+      TRIGGER_BRANCH: fix/spec014-post-refresh-verify-trigger-6626-20260808
+      TRIGGER_PATH: .changes/e2e/spec014-post-refresh-verify-trigger-6626.json
+    steps:
+      - name: Validate exact target and trigger
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -Eeuo pipefail
+          trigger="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}")"
+          test "$(jq -r '.state' <<<"${trigger}")" = 'open'
+          test "$(jq -r '.head.repo.full_name' <<<"${trigger}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${trigger}")" = "${TRIGGER_BRANCH}"
+          test "$(jq -r '.base.ref' <<<"${trigger}")" = 'gpt/spec014-post-refresh-verify-base-6626-d8277c4a'
+          files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}/files" --jq '.[].filename')"
+          test "${files}" = "${TRIGGER_PATH}"
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'false'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+
+      - name: Dispatch trusted exact-head verification workflows
+        id: dispatch
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          workflows=(
+            ci.yml
+            spec-kit-work-map-integration.yml
+            e2e-phase-governance.yml
+            e2e-contract-reference-integrity.yml
+            automation-overlap-guard.yml
+          )
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn --arg ref "${TARGET_BRANCH}" '{ref:$ref}')"
+          : > "${RUNNER_TEMP}/verification-runs.tsv"
+
+          for workflow in "${workflows[@]}"; do
+            state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
+            if [[ "${state}" != 'active' ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            fi
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = 'active'
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" --input - <<<"${payload}"
+
+            run_id=''
+            for _ in $(seq 1 30); do
+              run_id="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs" \
+                -f event=workflow_dispatch -f branch="${TARGET_BRANCH}" -f per_page=30 \
+                --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${EXPECTED_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${run_id}" ]]; then break; fi
+              sleep 2
+            done
+            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+            printf '%s\t%s\n' "${workflow}" "${run_id}" >> "${RUNNER_TEMP}/verification-runs.tsv"
+          done
+
+          cat "${RUNNER_TEMP}/verification-runs.tsv"
+          echo "runs=$(tr '\n' ',' < "${RUNNER_TEMP}/verification-runs.tsv")" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish verification dispatch evidence
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNS: ${{ steps.dispatch.outputs.runs }}
+        run: |
+          set -Eeuo pipefail
+          body="EXACT_HEAD_VERIFICATION_DISPATCH_6626 outcome=passed expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} workflows=ci,work-map,e2e-phase,reference-integrity,automation-overlap run_map=${RUNS} repository_mutation=false protected_branch_mutation=false force_push=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}" >/dev/null
