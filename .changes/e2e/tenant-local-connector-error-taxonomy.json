@@ -1,0 +1,68 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-local-connector-error-taxonomy",
+  "title": "Tenant Local Connector delegated execution and typed provider errors",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-local-connector-error-taxonomy.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/routes/connectorProxyRoutes.js",
+      "http-generic-api/test-tenant-local-connector-error-taxonomy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove a valid tenant User JWT can execute a tenant-scoped Local Connector proxy request without admin backend-key escalation and expose stable connector error classes without leaking credentials.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-local-connector-delegated-dispatch-and-error-taxonomy",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user with a scoped Local Connector device",
+          "entrypoint": "POST /connector/:device_id/browser",
+          "terminal_outcome": "A valid delegated tenant request reaches a process-local connector and errors are typed as missing_credential, invalid_credential, denied_scope, timeout, rate_limited, upstream_5xx, invalid_upstream_response, or operation_failure without exposing connector secrets.",
+          "steps": [
+            "Authenticate through the production mixed backend-key/User-JWT middleware using a valid tenant User JWT.",
+            "Resolve the exact tenant/user device config from a process-local fake database and forward to a process-local connector HTTP server.",
+            "Verify a valid per-device connector credential produces a successful browser response without admin_backend_api_key_required.",
+            "Exercise missing and rejected connector credentials, denied scope, timeout, rate limit, upstream 5xx, malformed upstream response, and operation rejection.",
+            "Verify each failure exposes a stable connector_error.class and no secret value."
+          ],
+          "assertions": [
+            "Valid tenant delegated dispatch succeeds without backend/admin identity.",
+            "Missing connector auth is typed missing_credential before dispatch.",
+            "401 and 403 connector responses distinguish invalid_credential from denied_scope.",
+            "Timeout, rate-limit, upstream 5xx, malformed response, and operation failures have stable typed classes.",
+            "All upstream 5xx responses are route-level failures rather than being marked as successful routes.",
+            "Connector secrets are absent from tenant error envelopes and attempts metadata.",
+            "No live database, local device, provider, Production, secret-store, migration, or external mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-local-connector-error-taxonomy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-local-connector-error-taxonomy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-local-connector-error-taxonomy.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/connectorProxyRoutes.js",
+            "http-generic-api/test-tenant-local-connector-error-taxonomy.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
