@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -153,33 +153,28 @@ function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, 
 
 function resolveCanonicalMainRef(root) {
   const mainRef = "refs/remotes/origin/main";
-  try {
-    execFileSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
-    return mainRef;
-  } catch {
-    return null;
-  }
+  const result = spawnSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+  if (result.error || result.status !== 0) return null;
+  return mainRef;
 }
 
 function resolveLiveProtectedSha(root, name) {
-  try {
-    const output = execFileSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    }).trim();
-    const rows = output.split(/\r?\n/).filter(Boolean);
-    if (rows.length !== 1) return null;
-    const [sha, ref] = rows[0].trim().split(/\s+/);
-    if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
-    return sha;
-  } catch {
-    return null;
-  }
+  const result = spawnSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+  if (result.error || result.status !== 0) return null;
+  const output = String(result.stdout || "").trim();
+  const rows = output.split(/\r?\n/).filter(Boolean);
+  if (rows.length !== 1) return null;
+  const [sha, ref] = rows[0].trim().split(/\s+/);
+  if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
+  return sha;
 }
 
 function isAncestor(root, ancestor, descendant) {
