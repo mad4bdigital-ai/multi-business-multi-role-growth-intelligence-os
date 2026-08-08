@@ -28,12 +28,12 @@ const materializationRuntimeSource = readFileSync(new URL("./workspaceBrandCoreA
 const canonicalBrandLookupSql = materializationRuntimeSource.match(/`SELECT target_key, brand_name, normalized_brand_name[\s\S]*?FROM brands[\s\S]*?LIMIT 2 FOR UPDATE`/)?.[0] || "";
 assert(canonicalBrandLookupSql, "Brand Core materialization must expose one bounded canonical Brand identity query after shared authority resolution");
 assert.doesNotMatch(canonicalBrandLookupSql, /\bstatus\b/, "Brand Core local Brand identity readback must not re-project the legacy brands.status column after shared authority already validated Brand lifecycle");
-const brandCoreLookupSql = materializationRuntimeSource.match(/`SELECT id, brand_key,[\s\S]*?FROM brand_core[\s\S]*?LIMIT 3 FOR UPDATE`/)?.[0] || "";
-assert(brandCoreLookupSql, "Brand Core materialization must expose one bounded canonical source query");
-assert.match(brandCoreLookupSql, /LOWER\(COALESCE\(brand_key,''\)\)/, "Brand Core lookup must scope through the canonical brand_key column");
+const brandCoreLookupSql = materializationRuntimeSource.match(/`SELECT bc\.\*[\s\S]*?FROM brand_core bc[\s\S]*?LIMIT 3 FOR UPDATE`/)?.[0] || "";
+assert(brandCoreLookupSql, "Brand Core materialization must expose one bounded schema-compatible source query");
+assert.match(brandCoreLookupSql, /LOWER\(COALESCE\(bc\.brand_key,''\)\)/, "Brand Core lookup must scope through the canonical brand_key column");
 assert.match(
   brandCoreLookupSql,
-  /WHERE LOWER\(COALESCE\(brand_key,''\)\) = LOWER\(\?\)/,
+  /WHERE LOWER\(COALESCE\(bc\.brand_key,''\)\) = LOWER\(\?\)/,
   "Brand Core lookup must use only the canonical Brand target key."
 );
 assert.doesNotMatch(
@@ -41,11 +41,10 @@ assert.doesNotMatch(
   /\bIN\s*\(/,
   "Brand Core lookup must not widen Brand authority through display-name aliases."
 );
-for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status"]) {
-  assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not require undeclared ${undeclaredColumn}`);
+for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
+  assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not explicitly require optional legacy ${undeclaredColumn}`);
 }
-assert.match(materializationRuntimeSource, /FROM information_schema\.COLUMNS[\s\S]*TABLE_NAME='brand_core'[\s\S]*COLUMN_NAME='active_status'[\s\S]*LIMIT 1/, "legacy readiness compatibility must use one bounded read-only active_status capability probe");
-assert.match(materializationRuntimeSource, /NULL AS active_status/, "canonical Brand Core schema must receive a null legacy readiness projection when active_status is absent");
+assert.doesNotMatch(materializationRuntimeSource, /information_schema/i, "Brand Core materialization must not introduce a parallel schema preflight authority");
 
 const containerFoundationSql = readFileSync(
   new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql", import.meta.url),
@@ -173,7 +172,6 @@ function buildConnection({
   closure = closureRow(),
   sources = sourceRow(),
   sourcesByCall = null,
-  legacyActiveStatusColumn = false,
 } = {}) {
   const calls = [];
   let stored = null;
@@ -199,8 +197,7 @@ function buildConnection({
       if (sql.includes("FROM workspace_registry") && sql.includes("workspace_type='brand'")) return [brandWorkspaces];
       if (sql.includes("FROM containers brand_container")) return [topology];
       if (sql.includes("FROM container_closure")) return [closure];
-      if (sql.includes("FROM information_schema.COLUMNS")) return [legacyActiveStatusColumn ? [{ COLUMN_NAME: "active_status" }] : []];
-      if (sql.includes("FROM brand_core")) {
+      if (sql.includes("FROM brand_core bc")) {
         const selected = sourcesByCall?.[sourceCall] || sourcesByCall?.at(-1) || sources;
         sourceCall += 1;
         return [selected];
@@ -290,13 +287,11 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(metadata.brand_core_source_ref, "asset_key:positioning");
   assert.equal(metadata.source_provider, "brand_core");
   assert.equal(metadata.secrets_included, false);
-  const readinessProbe = connection.calls.find((call) => call.sql.includes("FROM information_schema.COLUMNS"));
-  assert(readinessProbe, "canonical materialization must perform one bounded legacy-readiness capability probe");
-  assert.equal(readinessProbe.params.length, 0);
-  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core"));
+  assert.equal(connection.calls.some((call) => /information_schema/i.test(call.sql)), false, "materialization must not introduce a parallel schema preflight query");
+  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core bc"));
   assert(sourceLookupCall, "materialization must perform one canonical Brand Core source lookup");
   assert.equal(sourceLookupCall.params[0], "brand-a", "Brand Core source lookup must be scoped by the canonical Brand target key only");
-  assert.match(sourceLookupCall.sql, /NULL AS active_status/, "canonical schema without active_status must project a safe null compatibility value");
+  assert.match(sourceLookupCall.sql, /SELECT bc\.\*/, "Brand Core source read must remain schema-compatible without naming optional legacy columns");
   assert(connection.calls.some((call) => call.sql.includes("container_relationships") && call.sql.includes("relationship_type_key='contains'")), "materialization must prove canonical Workspace contains Brand topology");
   assert(connection.calls.some((call) => call.sql.includes("FROM container_closure") && call.sql.includes("FOR UPDATE")), "materialization must require the inherited containment path to be materialized");
   assert(connection.calls.some((call) => call.sql.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id")), "materialization must delegate atomic identity persistence to the canonical asset repository");
@@ -305,14 +300,12 @@ async function materialize(connection, sourceRef = "positioning") {
 
 {
   const legacySource = sourceRow({ status: "", active_status: "TRUE" })[0];
-  const connection = buildConnection({
-    sources: [legacySource],
-    legacyActiveStatusColumn: true,
-  });
+  const connection = buildConnection({ sources: [legacySource] });
   const result = await materialize(connection);
-  assert.equal(result.source.source_validation_status, "true", "legacy active_status readiness must remain materializable when the deployed column exists");
-  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core"));
-  assert.match(sourceLookupCall.sql, /status, active_status, created_at/, "legacy deployments must project active_status only after the bounded capability probe confirms the column exists");
+  assert.equal(result.source.source_validation_status, "true", "legacy active_status readiness must remain materializable when the deployed row exposes it");
+  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core bc"));
+  assert.match(sourceLookupCall.sql, /SELECT bc\.\*/, "legacy readiness must be preserved by reading the deployed Brand Core row without explicit optional-column dependencies");
+  assert.doesNotMatch(sourceLookupCall.sql, /\bactive_status\b/, "legacy readiness compatibility must not make active_status a required SQL column");
 }
 
 {
