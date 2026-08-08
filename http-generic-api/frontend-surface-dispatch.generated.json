@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "e0c6b8ed8feb7d2154a5682c82c152a5c3f12c74c2fc57d5721c3029a37cbb7d",
+    "source_digest": "129f25e77085bf0993de790a64e3a3027c9f65f2bc3c954fce2a06fbac11cb0b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -1006,7 +1006,7 @@
       },
       {
         "file": "routes/tenantPlatformPluginRoutes.js",
-        "sha256": "685a9ae854b343f721848f23b04b675cdcdd81ce69c4cbad7f13994d8a3c2313",
+        "sha256": "6605313a9d80e9db4f999dc7db6f739760737ab67c4133cb22547bad770c65e5",
         "present": true
       },
       {
@@ -20956,7 +20956,7 @@
       "family_key": "tenant-platform-plugin",
       "label": "tenant platform plugin",
       "source_file": "routes/tenantPlatformPluginRoutes.js",
-      "source_digest": "685a9ae854b343f721848f23b04b675cdcdd81ce69c4cbad7f13994d8a3c2313",
+      "source_digest": "6605313a9d80e9db4f999dc7db6f739760737ab67c4133cb22547bad770c65e5",
       "mount_prefix": "/",
       "mount_order": 15721,
       "split_from_mixed_scope_file": false,
