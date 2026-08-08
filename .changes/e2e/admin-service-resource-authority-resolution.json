@@ -17,7 +17,8 @@
       "http-generic-api/test-capability-envelope-template-resolver.mjs",
       "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
       "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
-      "http-generic-api/test-repository-authority-write-boundary.mjs"
+      "http-generic-api/test-repository-authority-write-boundary.mjs",
+      "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs"
     ]
   },
   "merge_contract": { "minimum_phase": "mvp" },
@@ -62,6 +63,7 @@
             "A binding-proven service principal remains subject to service identity and branch/SHA checks even when request_context.principal.principal_type was intentionally left blank by the official template flow.",
             "Repository mutation routes using expected_head_sha are checked against the same exact expected-commit authority scope as expected_branch_sha, expected_commit_sha and expected_base_sha.",
             "Runtime routes continue to import the authority-checked public githubRepositoryLifecycle module rather than the implementation Core.",
+            "Static lifecycle dispatch-binding integrity checks evaluate both the public authority wrapper and its delegated canonical implementation while also rejecting direct runtime-route imports of the Core module.",
             "Dispatch certification remains independently blocking when absent.",
             "Direct and template envelope creation preserve the exact authority context without service-name or admin-role inference.",
             "The service principal ID is persisted in ledger user_id and remains bound to the principal evidence carried by the envelope.",
@@ -91,7 +93,8 @@
             "http-generic-api/test-capability-envelope-template-resolver.mjs",
             "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
             "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
-            "http-generic-api/test-repository-authority-write-boundary.mjs"
+            "http-generic-api/test-repository-authority-write-boundary.mjs",
+            "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs"
           ]
         }
       ]
