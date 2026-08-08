@@ -26,6 +26,7 @@ SET @github_issue_comment_endpoint_match_count := (
   FROM endpoints e
   WHERE e.parent_action_key = 'github_api_mcp'
     AND e.endpoint_key = 'github_create_issue_comment'
+    AND e.endpoint_id IS NOT NULL
     AND e.method = 'POST'
     AND e.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
     AND e.status = 'active'
@@ -37,6 +38,9 @@ SET @github_issue_comment_dispatcher_match_count := (
   SELECT COUNT(*)
   FROM admin_platform_endpoint_tools t
   WHERE t.tool_key = 'github_rest_endpoint_dispatch'
+    AND t.http_method = 'POST'
+    AND t.http_path = '/system/tools/call'
+    AND JSON_UNQUOTE(JSON_EXTRACT(t.fixed_body, '$.name')) = 'runtime_endpoint_call'
     AND t.is_enabled = 1
 );
 
@@ -59,35 +63,36 @@ SET schema_json = JSON_SET(
     updated_at = CURRENT_TIMESTAMP
 WHERE parent_action_key = 'github_api_mcp'
   AND endpoint_key = 'github_create_issue_comment'
+  AND endpoint_id IS NOT NULL
   AND method = 'POST'
   AND endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
   AND status = 'active'
   AND execution_readiness = 'ready'
   AND transport_action_key = 'http_generic_api'
-  AND @github_issue_comment_endpoint_match_count = 1;
+  AND @github_issue_comment_endpoint_match_count = 1
+  AND @github_issue_comment_dispatcher_match_count = 1;
 
 UPDATE admin_platform_endpoint_tools
-SET input_schema = JSON_SET(
-      CASE
-        WHEN JSON_SEARCH(
-          input_schema,
-          'one',
-          'github_create_issue_comment',
-          NULL,
-          '$.properties.tool_args.properties.endpoint_key.enum[*]'
-        ) IS NULL
-        THEN JSON_ARRAY_APPEND(
-          input_schema,
-          '$.properties.tool_args.properties.endpoint_key.enum',
-          'github_create_issue_comment'
-        )
-        ELSE input_schema
-      END,
-      '$.properties.tool_args.properties.body.properties.body',
-      JSON_OBJECT('type','string','minLength',1,'maxLength',65536)
-    ),
+SET input_schema = CASE
+      WHEN JSON_SEARCH(
+        input_schema,
+        'one',
+        'github_create_issue_comment',
+        NULL,
+        '$.properties.tool_args.properties.endpoint_key.enum[*]'
+      ) IS NULL
+      THEN JSON_ARRAY_APPEND(
+        input_schema,
+        '$.properties.tool_args.properties.endpoint_key.enum',
+        'github_create_issue_comment'
+      )
+      ELSE input_schema
+    END,
     updated_at = CURRENT_TIMESTAMP
 WHERE tool_key = 'github_rest_endpoint_dispatch'
+  AND http_method = 'POST'
+  AND http_path = '/system/tools/call'
+  AND JSON_UNQUOTE(JSON_EXTRACT(fixed_body, '$.name')) = 'runtime_endpoint_call'
   AND is_enabled = 1
   AND @github_issue_comment_endpoint_match_count = 1
   AND @github_issue_comment_dispatcher_match_count = 1;
@@ -133,6 +138,7 @@ SELECT
 FROM endpoints e
 WHERE e.parent_action_key = 'github_api_mcp'
   AND e.endpoint_key = 'github_create_issue_comment'
+  AND e.endpoint_id IS NOT NULL
   AND e.method = 'POST'
   AND e.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
   AND e.status = 'active'
@@ -141,8 +147,12 @@ WHERE e.parent_action_key = 'github_api_mcp'
   AND @github_issue_comment_endpoint_match_count = 1
   AND @github_issue_comment_dispatcher_match_count = 1
 ON DUPLICATE KEY UPDATE
+  export_key = VALUES(export_key),
+  parent_action_key = VALUES(parent_action_key),
+  endpoint_key = VALUES(endpoint_key),
   tool_name = VALUES(tool_name),
   scope_class = VALUES(scope_class),
+  tenant_id = VALUES(tenant_id),
   status = VALUES(status),
   source_endpoint_id = VALUES(source_endpoint_id),
   import_policy_json = VALUES(import_policy_json),
@@ -190,11 +200,16 @@ SELECT
 FROM endpoints e
 JOIN platform_endpoint_tool_exports export_row
   ON export_row.source_endpoint_id = e.id
- AND export_row.export_key = CONCAT('github_api_mcp__', e.endpoint_key)
+ AND export_row.export_key = 'github_api_mcp__github_create_issue_comment'
+ AND export_row.parent_action_key = e.parent_action_key
+ AND export_row.endpoint_key = e.endpoint_key
  AND export_row.tool_name = 'github_rest_endpoint_dispatch'
+ AND export_row.scope_class = 'admin'
+ AND export_row.tenant_id IS NULL
  AND export_row.status = 'active'
 WHERE e.parent_action_key = 'github_api_mcp'
   AND e.endpoint_key = 'github_create_issue_comment'
+  AND e.endpoint_id IS NOT NULL
   AND e.method = 'POST'
   AND e.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
   AND e.status = 'active'
@@ -203,8 +218,12 @@ WHERE e.parent_action_key = 'github_api_mcp'
   AND @github_issue_comment_endpoint_match_count = 1
   AND @github_issue_comment_dispatcher_match_count = 1
 ON DUPLICATE KEY UPDATE
+  binding_id = VALUES(binding_id),
+  parent_action_key = VALUES(parent_action_key),
+  endpoint_key = VALUES(endpoint_key),
   source_endpoint_id = VALUES(source_endpoint_id),
   export_key = VALUES(export_key),
+  tool_key = VALUES(tool_key),
   surface_class = VALUES(surface_class),
   scope_class = VALUES(scope_class),
   capability_key = VALUES(capability_key),
@@ -252,6 +271,7 @@ FROM (
   FROM endpoints e
   WHERE e.parent_action_key = 'github_api_mcp'
     AND e.endpoint_key = 'github_create_issue_comment'
+    AND e.endpoint_id IS NOT NULL
     AND e.method = 'POST'
     AND e.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
     AND e.status = 'active'
@@ -275,6 +295,9 @@ CROSS JOIN (
     ), 0) AS dispatcher_allowlist_ready_count
   FROM admin_platform_endpoint_tools t
   WHERE t.tool_key = 'github_rest_endpoint_dispatch'
+    AND t.http_method = 'POST'
+    AND t.http_path = '/system/tools/call'
+    AND JSON_UNQUOTE(JSON_EXTRACT(t.fixed_body, '$.name')) = 'runtime_endpoint_call'
     AND t.is_enabled = 1
 ) dispatcher_state
 CROSS JOIN (
@@ -285,11 +308,15 @@ CROSS JOIN (
   JOIN endpoints endpoint_row
     ON endpoint_row.id = export_row.source_endpoint_id
   WHERE export_row.export_key = 'github_api_mcp__github_create_issue_comment'
+    AND export_row.parent_action_key = 'github_api_mcp'
+    AND export_row.endpoint_key = 'github_create_issue_comment'
     AND export_row.tool_name = 'github_rest_endpoint_dispatch'
     AND export_row.scope_class = 'admin'
+    AND export_row.tenant_id IS NULL
     AND export_row.status = 'active'
     AND endpoint_row.parent_action_key = 'github_api_mcp'
     AND endpoint_row.endpoint_key = 'github_create_issue_comment'
+    AND endpoint_row.endpoint_id IS NOT NULL
     AND endpoint_row.method = 'POST'
     AND endpoint_row.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
     AND endpoint_row.status = 'active'
@@ -299,9 +326,16 @@ CROSS JOIN (
 CROSS JOIN (
   SELECT COUNT(*) AS binding_match_count
   FROM platform_tool_dispatch_bindings binding_row
+  JOIN platform_endpoint_tool_exports export_row
+    ON export_row.export_key = binding_row.export_key
+   AND export_row.source_endpoint_id = binding_row.source_endpoint_id
   JOIN endpoints endpoint_row
     ON endpoint_row.id = binding_row.source_endpoint_id
+   AND endpoint_row.id = export_row.source_endpoint_id
   WHERE binding_row.binding_id = 'ptdb_github_rest_dispatch_issue_comment_create'
+    AND binding_row.parent_action_key = 'github_api_mcp'
+    AND binding_row.endpoint_key = 'github_create_issue_comment'
+    AND binding_row.export_key = 'github_api_mcp__github_create_issue_comment'
     AND binding_row.tool_key = 'github_rest_endpoint_dispatch'
     AND binding_row.surface_class = 'db_admin_tool'
     AND binding_row.scope_class = 'admin'
@@ -309,9 +343,21 @@ CROSS JOIN (
     AND binding_row.operation_intent = 'github_issue_comment_create'
     AND binding_row.runtime_surface = 'runtime_endpoint_call'
     AND binding_row.readback_policy_key = 'github_issue_comment_exact_readback_v1'
+    AND binding_row.atomicity_mode = 'single'
     AND binding_row.status = 'active'
+    AND export_row.export_key = 'github_api_mcp__github_create_issue_comment'
+    AND export_row.parent_action_key = 'github_api_mcp'
+    AND export_row.endpoint_key = 'github_create_issue_comment'
+    AND export_row.tool_name = 'github_rest_endpoint_dispatch'
+    AND export_row.scope_class = 'admin'
+    AND export_row.tenant_id IS NULL
+    AND export_row.status = 'active'
     AND endpoint_row.parent_action_key = 'github_api_mcp'
     AND endpoint_row.endpoint_key = 'github_create_issue_comment'
+    AND endpoint_row.endpoint_id IS NOT NULL
     AND endpoint_row.method = 'POST'
     AND endpoint_row.endpoint_path_or_function = '/repos/{owner}/{repo}/issues/{issue_number}/comments'
+    AND endpoint_row.status = 'active'
+    AND endpoint_row.execution_readiness = 'ready'
+    AND endpoint_row.transport_action_key = 'http_generic_api'
 ) binding_state;
