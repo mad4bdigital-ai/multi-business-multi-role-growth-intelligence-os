@@ -67,6 +67,11 @@ cannot supply a raw method, URL, or authorization header. The export only makes
 the existing active/ready canonical endpoint discoverable through its intended
 governed catalog instead of requiring a direct system-tool escape hatch.
 
+Migration `20260808_github_issue_comment_dispatch_parity.sql` also fails closed
+unless there is exactly one matching active/ready canonical endpoint row and
+exactly one enabled `github_rest_endpoint_dispatch` Admin tool row. It does not
+silently choose a first candidate when registry identity is ambiguous.
+
 ## Canonical row eligibility
 
 A row is executable through this projection only when all of the following hold:
@@ -94,6 +99,8 @@ GitHub issue-label add, replace, and remove operations return the complete remai
 GitHub issue-comment creation follows the same rule at `201 Created`. The compiled provider schema defines the response as a `Comment` object, so `endpoints.schema_json` and `platform_endpoint_tool_exports.input_schema_json` must retain an object response schema for `github_create_issue_comment`. Migration `20260808_github_issue_comment_dispatch_parity.sql` reconciles the existing active/ready endpoint row and exports it through `github_rest_endpoint_dispatch`; it does not register a new provider endpoint or execute a GitHub write.
 
 `v_platform_endpoint_export_schema_parity` remains the canonical registry/export parity diagnostic. The create-comment export is not ready when its active export diverges from the source endpoint schema.
+
+For this exact operation, `v_github_issue_comment_dispatch_parity` provides a bounded post-apply readback. `parity_status='ready'` requires exactly one canonical endpoint with a 201 JSON object response, exactly one enabled Admin dispatcher whose allowlist contains the endpoint, exactly one active source-bound export whose schema equals the endpoint schema, and exactly one active governed dispatch binding. Any missing or ambiguous component yields `blocked`.
 
 Response contracts should remain tolerant of additive provider fields while validating the stable provider response class used by the platform.
 
