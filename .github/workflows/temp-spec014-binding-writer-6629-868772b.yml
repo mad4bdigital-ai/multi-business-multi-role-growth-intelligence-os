@@ -1,0 +1,219 @@
+name: TEMP Spec 014 Binding Writer 6629 868772b
+
+on:
+  pull_request:
+    branches:
+      - gpt/spec014-binding-writer-base-6629-868772b-20260808
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: temp-spec014-binding-writer-6629-868772b
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Refresh exact Spec 014 bindings on PR 6629
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      CANONICAL_PR: '6629'
+      EXPECTED_MAIN_SHA: 3790c4da3f7fa0fb49d1af6d848b0f4a7d11be98
+      EXPECTED_HEAD_SHA: 868772b88373f8eced951f777efc76da75b1fb65
+      TARGET_BRANCH: fix/repository-policy-1049-bootstrap-repair-6627
+      TRIGGER_BRANCH: fix/spec014-binding-refresh-trigger-6629-868772b-20260808
+      TRIGGER_PATH: .changes/e2e/spec014-binding-refresh-trigger-6629-868772b.json
+      AUTHORIZATION_COMMAND: 'AUTHORIZE_SPEC014_FINAL_WORK_MAP_BINDING_REFRESH 868772b88373f8eced951f777efc76da75b1fb65'
+      CONSUMED_MARKER: '<!-- spec014-final-work-map-binding-refresh:consumed:868772b88373f8eced951f777efc76da75b1fb65 -->'
+      AUTHORIZATION_USER_ID: '271942579'
+      HOSTINGER_FEATURE: 014-governed-hostinger-storage-orchestration
+      RETAIL_FEATURE: 014-retail-commerce-operations-growth-os
+      HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      RETAIL_MANIFEST: specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+      EXPECTED_FINGERPRINT: ff125cbcc36dfe3593bab418859b978ae133df5481ac5dd8d076852c76248f9c
+      EXPECTED_INDEX_SOURCE_HASH: 46db158b21e134ad1fa9d3984fcc4be90255380cba925af7d6913c42a736a2ae
+      EXPECTED_COVERAGE_SOURCE_HASH: 314bb3998af99473cd18c40a419e51978f26ae8b8c6178d9df4d9a12bb692b7e
+    steps:
+      - name: Initialize bounded evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/spec014-binding-refresh-6629-868772b"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
+      - name: Validate trigger and exact canonical target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -Eeuo pipefail
+          trigger="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}")"
+          test "$(jq -r '.state' <<<"${trigger}")" = 'open'
+          test "$(jq -r '.base.ref' <<<"${trigger}")" = 'gpt/spec014-binding-writer-base-6629-868772b-20260808'
+          test "$(jq -r '.head.repo.full_name' <<<"${trigger}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${trigger}")" = "${TRIGGER_BRANCH}"
+          trigger_files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}/files" --jq '.[].filename')"
+          test "${trigger_files}" = "${TRIGGER_PATH}"
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.repo.full_name' <<<"${pr}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+
+          comments="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments")"
+          auth_count="$(jq --arg command "${AUTHORIZATION_COMMAND}" --argjson user_id "${AUTHORIZATION_USER_ID}" '[.[] | select(.body == $command and .user.id == $user_id)] | length' <<<"${comments}")"
+          consumed_count="$(jq --arg marker "${CONSUMED_MARKER}" '[.[] | select(.body == $marker)] | length' <<<"${comments}")"
+          test "${auth_count}" = '1'
+          test "${consumed_count}" = '0'
+
+          jq -n --arg expected_main_sha "${EXPECTED_MAIN_SHA}" --arg expected_head_sha "${EXPECTED_HEAD_SHA}" '{identity:"pinned",draft:true,authorization_present:true,authorization_consumed:false,expected_main_sha:$expected_main_sha,expected_head_sha:$expected_head_sha,behind_by:0}' > "${REPORT_DIR}/identity-preconsume.json"
+
+      - name: Consume one-time authorization before mutation
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${CONSUMED_MARKER}" > "${REPORT_DIR}/consume-comment.json"
+          comments="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments")"
+          auth_count="$(jq --arg command "${AUTHORIZATION_COMMAND}" --argjson user_id "${AUTHORIZATION_USER_ID}" '[.[] | select(.body == $command and .user.id == $user_id)] | length' <<<"${comments}")"
+          consumed_count="$(jq --arg marker "${CONSUMED_MARKER}" '[.[] | select(.body == $marker)] | length' <<<"${comments}")"
+          test "${auth_count}" = '1'
+          test "${consumed_count}" = '1'
+          jq -n --arg expected_head_sha "${EXPECTED_HEAD_SHA}" '{authorization_consumed:true,expected_head_sha:$expected_head_sha,replay_blocked:true}' > "${REPORT_DIR}/authorization-consumed.json"
+
+      - name: Checkout exact authorized candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Write canonical Spec014 bindings first
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${HOSTINGER_FEATURE}" | tee "${REPORT_DIR}/hostinger-write.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${RETAIL_FEATURE}" | tee "${REPORT_DIR}/retail-write.json"
+          for report in "${REPORT_DIR}/hostinger-write.json" "${REPORT_DIR}/retail-write.json"; do
+            jq -e --arg fingerprint "${EXPECTED_FINGERPRINT}" --arg index_hash "${EXPECTED_INDEX_SOURCE_HASH}" --arg coverage_hash "${EXPECTED_COVERAGE_SOURCE_HASH}" '.ok == true and .mode == "write" and .current_registry.fingerprint == $fingerprint and .current_registry.index_source_hash == $index_hash and .current_registry.coverage_source_hash == $coverage_hash' "${report}" >/dev/null
+          done
+          git diff --name-only | sort > "${REPORT_DIR}/changed-files.txt"
+          printf '%s\n%s\n' "${HOSTINGER_MANIFEST}" "${RETAIL_MANIFEST}" | sort > "${REPORT_DIR}/expected-files.txt"
+          diff -u "${REPORT_DIR}/expected-files.txt" "${REPORT_DIR}/changed-files.txt"
+          git diff --check
+
+      - name: Run regression and prove currentness after write
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs | tee "${REPORT_DIR}/producer-regression.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check --feature-key "${HOSTINGER_FEATURE}" | tee "${REPORT_DIR}/hostinger-check-precommit.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check --feature-key "${RETAIL_FEATURE}" | tee "${REPORT_DIR}/retail-check-precommit.json"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee "${REPORT_DIR}/work-map-currentness-precommit.json"
+          REPORT_PATH="${REPORT_DIR}/final-work-map-readback-precommit.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${REPORT_DIR}/final-work-map-readback-precommit.stdout.json"
+          jq -e '.ok == true and ((.findings | length) == 0)' "${REPORT_DIR}/final-work-map-readback-precommit.json" >/dev/null
+
+      - name: Prove producer idempotency before commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${HOSTINGER_FEATURE}" | tee "${REPORT_DIR}/hostinger-idempotency.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${RETAIL_FEATURE}" | tee "${REPORT_DIR}/retail-idempotency.json"
+          jq -e '.ok == true and (.changed_files | length) == 0' "${REPORT_DIR}/hostinger-idempotency.json" >/dev/null
+          jq -e '.ok == true and (.changed_files | length) == 0' "${REPORT_DIR}/retail-idempotency.json" >/dev/null
+          git diff --name-only | sort > "${REPORT_DIR}/changed-files-after-idempotency.txt"
+          diff -u "${REPORT_DIR}/expected-files.txt" "${REPORT_DIR}/changed-files-after-idempotency.txt"
+          git diff --check
+
+      - name: Commit exact bounded write-set and push fast-forward only
+        id: refresh
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${EXPECTED_HEAD_SHA}"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN_SHA}"
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'true'
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "${HOSTINGER_MANIFEST}" "${RETAIL_MANIFEST}"
+          git diff --cached --name-only | sort > "${REPORT_DIR}/committed-files.txt"
+          diff -u "${REPORT_DIR}/expected-files.txt" "${REPORT_DIR}/committed-files.txt"
+          git commit -m 'fix(spec): refresh final Spec 014 Work Map bindings'
+          result_head_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_HEAD_SHA}"
+          test -z "$(git status --porcelain)"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check --feature-key "${HOSTINGER_FEATURE}" | tee "${REPORT_DIR}/hostinger-check-result.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check --feature-key "${RETAIL_FEATURE}" | tee "${REPORT_DIR}/retail-check-result.json"
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check | tee "${REPORT_DIR}/work-map-currentness-result.json"
+          REPORT_PATH="${REPORT_DIR}/final-work-map-readback-result.json" node http-generic-api/scripts/spec014-final-work-map-readback.mjs | tee "${REPORT_DIR}/final-work-map-readback-result.stdout.json"
+          jq -e '.ok == true and ((.findings | length) == 0)' "${REPORT_DIR}/final-work-map-readback-result.json" >/dev/null
+
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${TARGET_BRANCH}"
+          observed_remote=''
+          observed_pr=''
+          for _ in $(seq 1 30); do
+            observed_remote="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+            observed_pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}" --jq '.head.sha')"
+            if [[ "${observed_remote}" = "${result_head_sha}" && "${observed_pr}" = "${result_head_sha}" ]]; then break; fi
+            sleep 2
+          done
+          test "${observed_remote}" = "${result_head_sha}"
+          test "${observed_pr}" = "${result_head_sha}"
+          echo "result_head_sha=${result_head_sha}" >> "${GITHUB_OUTPUT}"
+          jq -n --arg result_head_sha "${result_head_sha}" --arg fingerprint "${EXPECTED_FINGERPRINT}" --arg index_source_hash "${EXPECTED_INDEX_SOURCE_HASH}" --arg coverage_source_hash "${EXPECTED_COVERAGE_SOURCE_HASH}" '{contract:"mad4b.spec014-binding-writer-6629.v2",outcome:"passed",result_head_sha:$result_head_sha,official_script:"http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",features:["014-governed-hostinger-storage-orchestration","014-retail-commerce-operations-growth-os"],fingerprint:$fingerprint,index_source_hash:$index_source_hash,coverage_source_hash:$coverage_source_hash,candidate_branch_only:true,changed_paths_bounded:true,idempotency_proven:true,draft_preserved:true,authorization_consumed:true,protected_branch_mutation:false,force_push:false,provider_dispatch:false,live_database_access:false,migration_apply:false,secrets_included:false}' > "${REPORT_DIR}/summary.json"
+
+      - name: Upload bounded refresh evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-binding-refresh-6629-868772b-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish canonical PR evidence
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT_HEAD_SHA: ${{ steps.refresh.outputs.result_head_sha }}
+        run: |
+          set -Eeuo pipefail
+          outcome='passed'
+          if [[ "${{ steps.refresh.outcome }}" != 'success' ]]; then outcome='blocked'; fi
+          comments="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments")"
+          consumed_count="$(jq --arg marker "${CONSUMED_MARKER}" '[.[] | select(.body == $marker)] | length' <<<"${comments}")"
+          consumed='false'
+          if [[ "${consumed_count}" = '1' ]]; then consumed='true'; fi
+          body="SPEC014_BINDING_REFRESH_6629 outcome=${outcome} run_id=${GITHUB_RUN_ID} expected_main_sha=${EXPECTED_MAIN_SHA} expected_head_sha=${EXPECTED_HEAD_SHA} result_head_sha=${RESULT_HEAD_SHA:-none} official_script=spec014-refresh-final-work-map-binding.mjs features=hostinger,retail corrected_order=write_then_regression_then_idempotency exact_two_file_write_set=true draft_preserved=true authorization_consumed=${consumed} idempotency_proven=$([[ \"${outcome}\" = passed ]] && echo true || echo false) protected_branch_mutation=false force_push=false provider_dispatch=false live_database_access=false migration_apply=false secrets_included=false"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${CANONICAL_PR}/comments" -f body="${body}" >/dev/null
