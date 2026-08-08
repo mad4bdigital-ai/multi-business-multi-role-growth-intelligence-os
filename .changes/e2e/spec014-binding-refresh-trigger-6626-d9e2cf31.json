@@ -1,0 +1,20 @@
+{
+  "contract": "mad4b.spec014-binding-refresh-trigger.v1",
+  "canonical_pr": 6626,
+  "expected_main_sha": "5505adde1bf29125c56d8588cf8de3ee956c819c",
+  "expected_head_sha": "d9e2cf31f9be98d38b2f86f2e64ad6de73129927",
+  "authorization_comment_id": 5228273310,
+  "features": [
+    "014-governed-hostinger-storage-orchestration",
+    "014-retail-commerce-operations-growth-os"
+  ],
+  "authorized_write_set": [
+    "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+    "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+  ],
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "protected_branch_mutation": false,
+  "force_push": false
+}
