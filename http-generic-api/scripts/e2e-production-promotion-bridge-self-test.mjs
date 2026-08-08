@@ -36,6 +36,8 @@ fs.writeFileSync(path.join(root, "README.md"), "production baseline\n");
 run("git", ["add", "."], root);
 run("git", ["commit", "-m", "production baseline"], root);
 const productionSha = run("git", ["rev-parse", "HEAD"], root).trim();
+run("git", ["update-ref", "refs/heads/Production", productionSha], root);
+run("git", ["update-ref", "refs/remotes/origin/Production", productionSha], root);
 
 fs.writeFileSync(path.join(root, "README.md"), "trusted main\n");
 run("git", ["add", "."], root);
@@ -69,6 +71,22 @@ assert.equal(acceptedReport.phase_evaluation_base, mainSha);
 assert.equal(acceptedReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(acceptedReport.production_promotion_rearm_depth, 1);
 
+const productionTree = run("git", ["rev-parse", `${productionSha}^{tree}`], root).trim();
+const advancedProductionSha = run("git", [
+  "commit-tree", productionTree,
+  "-p", productionSha,
+  "-m", "advanced live Production"
+], root).trim();
+run("git", ["update-ref", "refs/heads/Production", advancedProductionSha], root);
+run("git", ["update-ref", "refs/remotes/origin/Production", advancedProductionSha], root);
+const staleBase = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
+assert.notEqual(staleBase.status, 0);
+const staleBaseReport = JSON.parse(staleBase.stdout);
+assert.equal(staleBaseReport.production_promotion, false);
+assert(staleBaseReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+run("git", ["update-ref", "refs/heads/Production", productionSha], root);
+run("git", ["update-ref", "refs/remotes/origin/Production", productionSha], root);
+
 const wrongMainRef = `release/production-candidate-deadbeefdead-${productionSha.slice(0, 12)}-bridge-31282314470`;
 const wrongMain = invoke(root, { base: productionSha, head: rearmSha, headRef: wrongMainRef });
 assert.notEqual(wrongMain.status, 0);
@@ -100,7 +118,7 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 4,
-  contract: "governed_dispatch_bridge_identity_and_zero_diff_rearm",
+  tests: 5,
+  contract: "governed_dispatch_bridge_identity_live_production_and_zero_diff_rearm",
   secrets_included: false
 }));

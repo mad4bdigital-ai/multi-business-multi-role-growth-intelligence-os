@@ -151,8 +151,8 @@ function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, 
   return matches.length === 1 ? matches[0] : null;
 }
 
-function resolveCanonicalMainRef(root) {
-  for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
+function resolveCanonicalRef(root, name) {
+  for (const candidate of [`refs/remotes/origin/${name}`, `refs/heads/${name}`, name]) {
     try {
       execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
         cwd: root,
@@ -163,6 +163,14 @@ function resolveCanonicalMainRef(root) {
     } catch {}
   }
   return null;
+}
+
+function resolveCanonicalMainRef(root) {
+  return resolveCanonicalRef(root, "main");
+}
+
+function resolveCanonicalProductionRef(root) {
+  return resolveCanonicalRef(root, "Production");
 }
 
 function isAncestor(root, ancestor, descendant) {
@@ -291,7 +299,14 @@ function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha 
   if (!mainSha || !mainTree) return { allowed: false, identity: null, phase_evaluation_base: null };
 
   if (candidateRef.kind === "governed_dispatch_bridge") {
-    if (!mainSha.startsWith(candidateRef.main_prefix) || !baseSha.startsWith(candidateRef.production_prefix)) {
+    const productionRef = resolveCanonicalProductionRef(root);
+    const productionSha = resolveCommit(root, productionRef);
+    if (
+      !productionSha
+      || productionSha !== baseSha
+      || !mainSha.startsWith(candidateRef.main_prefix)
+      || !productionSha.startsWith(candidateRef.production_prefix)
+    ) {
       return { allowed: false, identity: null, phase_evaluation_base: null };
     }
     const reconciliation = resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree });
