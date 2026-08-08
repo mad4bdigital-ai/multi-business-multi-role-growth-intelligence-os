@@ -187,8 +187,19 @@ assert.match(recoveryWorkflow, /compare\/main\.\.\.\$\{REQUESTED_HEAD_SHA\}/u);
 assert.match(recoveryWorkflow, /test "\$\{behind_by\}" = "0"/u);
 assert.match(recoveryWorkflow, /Consume one-time authorization marker/u);
 assert.match(recoveryWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/pulls\/\$\{PR_NUMBER\}"/u);
+assert.match(recoveryWorkflow, /Issue exact one-time writer delegation grant/u);
+assert.match(recoveryWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
+assert.match(recoveryWorkflow, /recovery_run_id=\$\{GITHUB_RUN_ID\}/u);
+assert.match(recoveryWorkflow, /recovery_run_attempt=\$\{GITHUB_RUN_ATTEMPT\}/u);
+assert.match(recoveryWorkflow, /authorization_consumed=true/u);
+assert.match(recoveryWorkflow, /delegation_comment_id="\$\(gh api --method POST/u);
+assert.match(recoveryWorkflow, /--arg recovery_run_id "\$\{GITHUB_RUN_ID\}"/u);
+assert.match(recoveryWorkflow, /--arg delegation_comment_id "\$\{DELEGATION_COMMENT_ID\}"/u);
+assert.match(recoveryWorkflow, /recovery_run_id:\$recovery_run_id,delegation_comment_id:\$delegation_comment_id/u);
 assert.match(recoveryWorkflow, /actions\/workflows\/spec-kit-work-map-autofix\.yml\/dispatches/u);
+assert.match(recoveryWorkflow, /state=revoked recovery_outcome=blocked/u);
 assert.match(recoveryWorkflow, /authorization_consumed:\$authorization_consumed/u);
+assert.match(recoveryWorkflow, /delegation_comment_id:\$delegation_comment_id/u);
 assert.match(recoveryWorkflow, /direct_repository_mutation:false/u);
 assert.match(recoveryWorkflow, /protected_branch_mutation:false/u);
 assert.match(recoveryWorkflow, /force_push:false/u);
@@ -199,6 +210,26 @@ assert.doesNotMatch(recoveryWorkflow, /--force|force-with-lease/u);
 assert.match(writerWorkflow, /^name: Spec Kit Work Map Autofix$/mu);
 assert.match(writerWorkflow, /^\s{4}runs-on: windows-latest$/mu);
 assert.match(writerWorkflow, /contents: write/u);
+assert.match(writerWorkflow, /recovery_run_id:\s*\n\s*description: Recovery workflow run that issued this one-time writer delegation/u);
+assert.match(writerWorkflow, /delegation_comment_id:\s*\n\s*description: Bot-authored one-time delegation grant comment bound to this exact target/u);
+assert.match(writerWorkflow, /RECOVERY_RUN_ID: \$\{\{ inputs\.recovery_run_id \}\}/u);
+assert.match(writerWorkflow, /DELEGATION_COMMENT_ID: \$\{\{ inputs\.delegation_comment_id \}\}/u);
+assert.match(writerWorkflow, /Verify and consume Recovery-issued writer delegation/u);
+assert.match(writerWorkflow, /actions\/runs\/\$\{RECOVERY_RUN_ID\}/u);
+assert.match(writerWorkflow, /spec-kit-work-map-autofix-recovery-dispatch\.yml/u);
+assert.match(writerWorkflow, /test "\$\(jq -r '\.event' "\$\{recovery_file\}"\)" = "workflow_dispatch"/u);
+assert.match(writerWorkflow, /test "\$\(jq -r '\.head_branch' "\$\{recovery_file\}"\)" = "main"/u);
+assert.match(writerWorkflow, /test "\$\(jq -r '\.user\.login' "\$\{delegation_file\}"\)" = "github-actions\[bot\]"/u);
+assert.match(writerWorkflow, /WORK_MAP_WRITER_DELEGATION contract=mad4b\.work-map-writer-delegation\.v1 state=issued/u);
+assert.match(writerWorkflow, /target_branch=\$\{TARGET_BRANCH\} expected_head_sha=\$\{EXPECTED_HEAD_SHA\} authorization_consumed=true/u);
+assert.match(writerWorkflow, /state=consumed recovery_run_id=\$\{RECOVERY_RUN_ID\}/u);
+assert.match(writerWorkflow, /writer_run_id=\$\{GITHUB_RUN_ID\}/u);
+assert.match(writerWorkflow, /gh api --method PATCH "repos\/\$\{GITHUB_REPOSITORY\}\/issues\/comments\/\$\{DELEGATION_COMMENT_ID\}"/u);
+assert.match(writerWorkflow, /echo "consumed=true" >> "\$GITHUB_OUTPUT"/u);
+assert.ok(
+  writerWorkflow.indexOf("Verify and consume Recovery-issued writer delegation") < writerWorkflow.indexOf("Regenerate and prove idempotency"),
+  "The writer must consume a valid Recovery delegation before generator execution.",
+);
 assert.match(writerWorkflow, /EXPECTED_HEAD_SHA/u);
 assert.match(writerWorkflow, /remote_head_sha/u);
 assert.match(writerWorkflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
@@ -212,4 +243,4 @@ assert.doesNotMatch(governanceRunbook, /label authorizes Docs Agent to publish a
 assert.doesNotMatch(governanceRunbook, /publish generator-owned documentation only through Docs Agent/u);
 assert.doesNotMatch(governanceRunbook, /remove `docs-agent-write` after the generated diff is committed/u);
 
-console.log("Work Map diagnostics, draft-safe recovery isolation, sole-writer runbook alignment, and ARM runner boundaries passed");
+console.log("Work Map diagnostics, draft-safe recovery isolation, Recovery-issued one-time writer delegation, sole-writer runbook alignment, and ARM runner boundaries passed");
