@@ -28,6 +28,7 @@ assert.match(script, /--principal-id/);
 assert.match(script, /--resource-uri/);
 assert.match(script, /--operation-mode/);
 assert.match(script, /exact_platform_resource_authority_present/);
+assert.match(script, /workspaceGrantPrincipalId = principal\.principal_id/);
 assert.match(script, /approval_required/);
 assert.match(script, /quota_required/);
 assert.match(script, /audit_required: true/);
@@ -100,6 +101,36 @@ assert.equal(exactAuthorityStatus.exact_platform_resource_authority, true);
 assert.equal(exactAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), false);
 assert.equal(exactAuthorityStatus.missing.includes("elevated_permission_missing"), false);
 assert.equal(exactAuthorityStatus.missing.includes("dispatch_certification_missing_or_not_allowed"), true);
+
+// Legacy principal-id-only callers may qualify only because the persisted exact binding proves service type.
+const legacyUntypedPrincipal = { principal_type: "", principal_id: "platform_admin_service" };
+assert.equal(hasExactAdminResourceAuthority({ ...exactAuthorityArgs, principal: legacyUntypedPrincipal }), true);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  principal: { principal_type: "", principal_id: "different_service" },
+}), false);
+
+// A real strong workspace grant remains the other valid side of the OR for a service principal.
+const workspaceGrantAuthorityStatus = authorityStatus({
+  workspace: { workspace_id: workspaceId },
+  grants: [{ permission: "admin" }],
+  platformResourceAuthorityBindings: [],
+  principal,
+  resourceType: "github_repo",
+  resourceUri,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  tenantId,
+  workspaceId,
+  brandKey: "",
+  brandCore: null,
+  activity: null,
+  risk: "high",
+  certifications: [{ dispatch_allowed: 1 }],
+  sourceTiers: { selected_source_tier: "tenant_managed" },
+});
+assert.equal(workspaceGrantAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), false);
+assert.equal(workspaceGrantAuthorityStatus.missing.includes("elevated_permission_missing"), false);
 
 // Case B: exact repository URI is mandatory.
 assert.equal(hasExactAdminResourceAuthority({
