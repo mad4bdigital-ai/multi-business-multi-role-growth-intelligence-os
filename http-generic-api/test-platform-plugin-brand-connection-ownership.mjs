@@ -367,4 +367,30 @@ function makePool({
   assert.equal(serialized.includes("secret-conn-brand-b"), false);
 }
 
+{
+  const pool = makePool({ membershipRole: "owner" });
+  const result = await resolvePlatformPluginExecution({
+    pool,
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    tenantId: "tenant-1",
+    brandRef: "brand-1",
+    userId: "user-1",
+    agentId: "agent-1",
+    principalClass: "tenant",
+    decisionTraceWriter: null,
+  });
+
+  assert.equal(result.allowed, false);
+  assert.equal(result.execution.will_execute, false);
+  assert.equal(result.connection_ownership_resolution.ok, false);
+  assert.equal(result.connection_ownership_resolution.reason, "connection_workspace_scope_required");
+  assert.equal(result.connection_ownership_resolution.denial_code, "CONNECTION_WORKSPACE_REQUIRED");
+  assert.equal(result.connection_ownership_resolution.brand_ref, null);
+  assert.equal(result.credential_resolution.denial_code, "CONNECTION_WORKSPACE_REQUIRED");
+  assert.equal(result.credential_lookup.ownership_scoped, true);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM user_app_connections")), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility")), false);
+}
+
 console.log("platform plugin Brand scope inside root workspace regression passed");

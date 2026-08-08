@@ -808,7 +808,7 @@ export async function resolvePlatformPluginExecution({
     skill.granted
   );
   const tenantOwnershipLookupRequired = Boolean(
-    credentialLookupAuthorized && normalize(principalClass) === "tenant" && workspaceId
+    credentialLookupAuthorized && normalize(principalClass) === "tenant" && (workspaceId || normalizedBrandRef)
   );
   const ownershipResolution = tenantOwnershipLookupRequired
     ? await loadTenantPlatformPluginOwnershipScopedConnections({
