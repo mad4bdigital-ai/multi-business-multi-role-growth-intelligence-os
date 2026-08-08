@@ -26,6 +26,7 @@ function invoke(root, { base, head, headRef }) {
 }
 
 function updateRemoteRef(remoteRoot, ref, sha, cwd) {
+  run("git", ["--git-dir", remoteRoot, "fetch", "--quiet", cwd, sha], cwd);
   run("git", ["--git-dir", remoteRoot, "update-ref", ref, sha], cwd);
 }
 
