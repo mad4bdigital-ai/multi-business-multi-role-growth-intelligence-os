@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveExactPlatformAuthorityExecutionScope } from "./scripts/capability-resolution-dry-run.mjs";
 import { buildDryRunArgs, buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
+import { computeCapabilityEnvelopeTemplateResolutionHash } from "./capabilityEnvelopeTemplateResolver.js";
 import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 
 const SHA_A = "a".repeat(40);
@@ -82,6 +83,62 @@ const bindings = [scopeBinding("binding-a", BRANCH_A)];
   ]);
   assert.equal(context.resource_branch, BRANCH_A);
   assert.equal(context.expected_commit_sha, SHA_A);
+}
+
+{
+  const template = {
+    template_key: "github_repo_patch_apply_v1",
+    template_version: 1,
+    template_hash: "f".repeat(64),
+  };
+  const context = { tenant_id: "tenant-1", expected_commit_sha: SHA_A };
+  const baseDryRun = {
+    decision: "ready_requires_approval",
+    selected_source: { selected_source_tier: "platform_managed_fallback" },
+    blocking_gaps: [],
+    request_context: { resource_branch: BRANCH_A },
+    authority: {
+      exact_platform_resource_authority_scope: {
+        matched: true,
+        binding_id: "binding-a",
+        resource_branch: BRANCH_A,
+        expected_commit_sha: SHA_A,
+      },
+    },
+  };
+  const hashA = computeCapabilityEnvelopeTemplateResolutionHash({ template, context, ttlMinutes: 60, dryRun: baseDryRun });
+  const hashDifferentBranch = computeCapabilityEnvelopeTemplateResolutionHash({
+    template,
+    context,
+    ttlMinutes: 60,
+    dryRun: {
+      ...baseDryRun,
+      request_context: { resource_branch: BRANCH_B },
+      authority: {
+        exact_platform_resource_authority_scope: {
+          ...baseDryRun.authority.exact_platform_resource_authority_scope,
+          binding_id: "binding-b",
+          resource_branch: BRANCH_B,
+        },
+      },
+    },
+  });
+  const hashDifferentBinding = computeCapabilityEnvelopeTemplateResolutionHash({
+    template,
+    context,
+    ttlMinutes: 60,
+    dryRun: {
+      ...baseDryRun,
+      authority: {
+        exact_platform_resource_authority_scope: {
+          ...baseDryRun.authority.exact_platform_resource_authority_scope,
+          binding_id: "binding-c",
+        },
+      },
+    },
+  });
+  assert.notEqual(hashA, hashDifferentBranch);
+  assert.notEqual(hashA, hashDifferentBinding);
 }
 
 function serviceEnvelopeRow(overrides = {}) {
