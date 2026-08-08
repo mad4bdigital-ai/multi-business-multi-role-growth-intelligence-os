@@ -1,4 +1,4 @@
-name: PR 6662 Exact Head Gate Dispatch
+name: PR 6662 Verification Gate Dispatch
 on:
   push:
     branches:
@@ -25,20 +25,54 @@ jobs:
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
 
-      - name: Dispatch exact-head CI
-        shell: bash
-        run: |
-          set -euo pipefail
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
-            -f ref="$TARGET_BRANCH"
-
-      - name: Dispatch exact-head Work Map Integration
+      - name: Dispatch E2E Phase Governance
         shell: bash
         run: |
           set -euo pipefail
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
-          gh api --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/dispatches" \
-            -f ref="$TARGET_BRANCH"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/e2e-phase-governance.yml/dispatches" -f ref="$TARGET_BRANCH"
+
+      - name: Dispatch E2E Contract Reference Integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/e2e-contract-reference-integrity.yml/dispatches" -f ref="$TARGET_BRANCH"
+
+      - name: Dispatch Frontend Surface verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/frontend-surface-dispatch.yml/dispatches" -f ref="$TARGET_BRANCH"
+
+      - name: Dispatch Generated Artifact evaluation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          jq -n --arg ref "$TARGET_BRANCH" --arg sha "$EXPECTED_HEAD" \
+            '{ref:$ref,inputs:{target_ref:$ref,expected_head_sha:$sha}}' | \
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/pr-generated-artifact-refresh.yml/dispatches" --input -
+
+      - name: Dispatch Branch Test Diagnostic Shards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          jq -n --arg ref "$TARGET_BRANCH" \
+            '{ref:$ref,inputs:{family:"",parent_index:"0",parent_count:"1",target_size:"8",grep:"",fail_fast:false}}' | \
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/branch-test-diagnostic-shards.yml/dispatches" --input -
+
+      - name: Dispatch Final Work Map Readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/hostinger-storage-final-work-map-readback-guard.yml/dispatches" -f ref="$TARGET_BRANCH"
