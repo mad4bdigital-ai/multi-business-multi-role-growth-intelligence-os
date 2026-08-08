@@ -46,8 +46,22 @@ function githubTargetFromUrl(value = "") {
   }
 }
 
-async function revalidateRepositoryWriteAuthority(options = {}, requestUrl = "", phase = "provider_write") {
+function githubPathname(value = "") {
+  try {
+    return new URL(String(value)).pathname;
+  } catch {
+    return "";
+  }
+}
+
+function resolvedCommitParentFromPathname(pathname = "") {
+  const match = String(pathname).match(/\/git\/commits\/([0-9a-f]{40})$/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+async function revalidateRepositoryWriteAuthority(options = {}, requestUrl = "", phase = "provider_write", resolvedCommitParentSha = "") {
   const target = githubTargetFromUrl(requestUrl);
+  const actualCommitParentSha = String(resolvedCommitParentSha || "").trim().toLowerCase();
   const result = await resolveCapabilityExecutionEnvelope({
     pool: options.pool || null,
     envelopeId: envelopeId(options),
@@ -55,10 +69,10 @@ async function revalidateRepositoryWriteAuthority(options = {}, requestUrl = "",
       owner: target.owner || options.owner || "",
       repo: target.repo || options.repo || "",
       branch: options.branch || "",
-      expected_branch_sha: options.expected_branch_sha || options.expectedBranchSha || "",
-      expected_head_sha: options.expected_head_sha || options.expectedHeadSha || "",
-      expected_commit_sha: options.expected_commit_sha || options.expectedCommitSha || "",
-      expected_base_sha: options.expected_base_sha || options.expectedBaseSha || "",
+      expected_branch_sha: actualCommitParentSha ? "" : (options.expected_branch_sha || options.expectedBranchSha || ""),
+      expected_head_sha: actualCommitParentSha ? "" : (options.expected_head_sha || options.expectedHeadSha || ""),
+      expected_commit_sha: actualCommitParentSha || options.expected_commit_sha || options.expectedCommitSha || "",
+      expected_base_sha: actualCommitParentSha ? "" : (options.expected_base_sha || options.expectedBaseSha || ""),
     },
     acceptedAppKeys: ["github"],
     acceptedCapabilityKeys: ["repo_patch_apply"],
@@ -67,7 +81,7 @@ async function revalidateRepositoryWriteAuthority(options = {}, requestUrl = "",
   });
   if (!result?.ok) {
     throw capabilityEnvelopeError(
-      { ...result, write_boundary_phase: phase },
+      { ...result, write_boundary_phase: phase, resolved_commit_parent_sha: actualCommitParentSha || null },
       `Repository mutation authority is no longer valid at the ${phase} boundary.`,
     );
   }
@@ -80,18 +94,22 @@ export function createRepositoryAuthorityCheckedFetch(options = {}) {
     throw new TypeError("A fetch implementation is required for repository lifecycle requests.");
   }
   let firstProviderWriteChecked = false;
+  let resolvedCommitParentSha = "";
   return async (url, init = {}) => {
     const method = String(init?.method || "GET").toUpperCase();
+    const pathname = githubPathname(url);
+    if (!firstProviderWriteChecked && method === "GET") {
+      const commitParentSha = resolvedCommitParentFromPathname(pathname);
+      if (commitParentSha) resolvedCommitParentSha = commitParentSha;
+    }
     if (PROVIDER_MUTATION_METHODS.has(method)) {
-      const pathname = (() => {
-        try { return new URL(String(url)).pathname; } catch { return ""; }
-      })();
       const refMutation = /\/git\/refs(?:\/|$)/.test(pathname);
       if (!firstProviderWriteChecked || refMutation) {
         await revalidateRepositoryWriteAuthority(
           options,
           url,
           refMutation ? "pre_ref_update" : "pre_first_provider_write",
+          resolvedCommitParentSha,
         );
         firstProviderWriteChecked = true;
       }
