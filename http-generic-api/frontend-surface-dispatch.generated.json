@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "de00a697b1035dc08be6ea51a0bdef134b5d75d0bf3b2e8c6891c91d25c2f977",
+    "source_digest": "8b9d30e52cf7480b6b18e357778a2d49bff03d8b57dcb9772be94ce7ff12b236",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "d1fa1655f5eb1a27fede5932268e2a77c0256a84ac06256f667d54896e6db6ce",
+        "sha256": "62f02ce62ddc666a4ef5882d5eb6d41e53c62cf70df0522e421d8916c5d58ab7",
         "present": true
       },
       {
@@ -1046,7 +1046,12 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "505e8ae1565a1f2b378aec7b4b4989e4c771237315919ac39aa8342e34a6e11e",
+        "sha256": "c221cc4600927ee7b5d820185c0ae4617b902fc0f4c98616c23b8c4b34ef59af",
+        "present": true
+      },
+      {
+        "file": "test-brand-core-asset-materialization-operation-governance.mjs",
+        "sha256": "5e65352dc86807126990492e713af860939408d040338ae3725d9ab8a3b0a225",
         "present": true
       },
       {
@@ -1115,8 +1120,8 @@
     "unresolved_surface_decision_count": 163,
     "test_owned_family_count": 0,
     "untested_family_count": 178,
-    "test_owned_operation_count": 3,
-    "untested_operation_count": 1050,
+    "test_owned_operation_count": 4,
+    "untested_operation_count": 1049,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -32877,7 +32882,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-brand-core-asset-materialization-operation-governance.mjs"
+          ],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -33788,9 +33795,10 @@
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes",
         "GET /me/workspaces/{tenant_id}/resource-changes"
       ],
-      "tests": [],
+      "tests": [
+        "test-brand-core-asset-materialization-operation-governance.mjs"
+      ],
       "untested_operations": [
-        "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core",
         "GET /me/workspaces/{tenant_id}/resources",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}",
         "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
@@ -33832,7 +33840,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/resourceApiRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-brand-core-asset-materialization-operation-governance.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -89946,7 +89955,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/resourceApiRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-brand-core-asset-materialization-operation-governance.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -89959,7 +89969,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-brand-core-asset-materialization-operation-governance.mjs"
       ]
     },
     {
