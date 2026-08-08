@@ -45,6 +45,8 @@ function governedReport({
   targetRef = "gpt/example",
   expectedHeadSha = sourceHeadSha,
   commitSha = generatedCommitSha,
+  recipe = "frontend_openapi_refresh",
+  candidateSourceFiles = [],
   changedFiles = [
     "http-generic-api/frontend-operation-governance.generated.json",
     "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -55,8 +57,10 @@ function governedReport({
     contract: "mad4b.governed-generated-artifact-refresh.v1",
     generated_at: "2026-08-02T02:00:00.000Z",
     outcome,
+    recipe,
     target_ref: targetRef,
     expected_head_sha: expectedHeadSha,
+    candidate_source_files: candidateSourceFiles,
     commit_sha: commitSha,
     changed_files: changedFiles,
     first_failure: firstFailure,
@@ -158,6 +162,7 @@ const governedEvidence = normalizeGovernedGeneratedArtifactEvidence({
 assert.equal(governedEvidence.candidateSha, generatedCommitSha);
 assert.equal(governedEvidence.sourceHeadSha, sourceHeadSha);
 assert.equal(governedEvidence.targetRef, "gpt/example");
+assert.equal(governedEvidence.recipe, "frontend_openapi_refresh");
 assert.equal(governedEvidence.detail, `generated commit ${generatedCommitSha}`);
 assert.equal(
   assertGovernedGeneratedArtifactPrIdentity(
@@ -166,6 +171,27 @@ assert.equal(
   ),
   true,
 );
+
+const bootstrapEvidence = normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({
+    recipe: "work_map_self_hosting_bootstrap",
+    candidateSourceFiles: [
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      ".github/repository-maintenance-tool-governance.json",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+    ],
+    changedFiles: [
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+    ],
+  }),
+  workflowConclusion: "success",
+  workflowRunId: 29,
+});
+assert.equal(bootstrapEvidence.recipe, "work_map_self_hosting_bootstrap");
+assert.equal(bootstrapEvidence.candidateSha, generatedCommitSha);
 
 const governedBlockedEvidence = normalizeGovernedGeneratedArtifactEvidence({
   report: governedReport({
@@ -225,6 +251,41 @@ assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
   workflowConclusion: "success",
   workflowRunId: 28,
 }), /No-change governed apply/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({ recipe: "unknown_recipe" }),
+  workflowConclusion: "success",
+  workflowRunId: 30,
+}), /recipe is not registered/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({
+    recipe: "work_map_self_hosting_bootstrap",
+    candidateSourceFiles: ["http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"],
+    changedFiles: ["docs/work-maps/README.md"],
+  }),
+  workflowConclusion: "success",
+  workflowRunId: 31,
+}), /registered self-hosting trigger/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({
+    recipe: "work_map_self_hosting_bootstrap",
+    candidateSourceFiles: [
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/platformPluginResolver.js",
+    ],
+    changedFiles: ["docs/work-maps/README.md"],
+  }),
+  workflowConclusion: "success",
+  workflowRunId: 32,
+}), /candidate_source_files exceed/u);
+assert.throws(() => normalizeGovernedGeneratedArtifactEvidence({
+  report: governedReport({
+    recipe: "work_map_self_hosting_bootstrap",
+    candidateSourceFiles: ["http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs"],
+    changedFiles: ["package.json"],
+  }),
+  workflowConclusion: "success",
+  workflowRunId: 33,
+}), /Work Map bootstrap recipe allowlist/u);
 assert.throws(() => assertGovernedGeneratedArtifactPrIdentity(
   { state: "open", head: { ref: "gpt/other", sha: generatedCommitSha } },
   governedEvidence,
@@ -341,13 +402,15 @@ assert.doesNotMatch(governedWriterWorkflow, /--force|force-with-lease/u);
 assert.match(governedWriterTool, /new Set\(\["main", "Production"\]\)/u);
 assert.match(governedWriterTool, /expected_head_sha_mismatch_before_push/u);
 assert.match(governedWriterTool, /generated_artifact_write_set_violation/u);
+assert.match(governedWriterTool, /work_map_self_hosting_bootstrap/u);
+assert.match(governedWriterTool, /work_map_self_hosting_scope_violation/u);
 assert.match(governedWriterTool, /git", \["push", "origin", `HEAD:\$\{args\.target_ref\}`\]/u);
 assert.doesNotMatch(governedWriterTool, /--force|force-with-lease/u);
 
 console.log(JSON.stringify({
   ok: true,
   contract: "mad4b.pr-generated-artifact-refresh-publisher-test.v1",
-  cases: 58,
+  cases: 62,
   work_branch_evaluator_excludes_production: true,
   protected_promotion_unique_workflow_name: true,
   protected_promotion_unique_workflow_path: true,
@@ -355,6 +418,8 @@ console.log(JSON.stringify({
   publisher_alias_routing: true,
   governed_apply_report_published: true,
   governed_apply_exact_candidate_bound: true,
+  governed_apply_recipe_bound: true,
+  work_map_self_hosting_scope_bound: true,
   protected_writer_mutation: false,
   secrets_included: false,
 }));

@@ -88,7 +88,7 @@
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
           "entrypoint": "Governed Generated Artifact Refresh Dispatch from a trusted issue comment or explicit workflow_dispatch",
-          "terminal_outcome": "The trusted dispatcher publishes whether the exact-head writer was delegated before enforcing its decision, then the registered tool mutates only reviewed generated paths on a non-protected work branch, publishes the exact apply decision, and dispatches read-only verification on the resulting head.",
+          "terminal_outcome": "The trusted dispatcher publishes whether the exact-head writer was delegated before enforcing its decision, then the registered tool selects only a registered recipe, mutates only that recipe's reviewed generated paths on a non-protected work branch, publishes recipe-bound exact apply evidence, and dispatches read-only verification on the resulting head.",
           "steps": [
             "Run the issue-comment command from the default-branch workflow definition or invoke workflow_dispatch explicitly on main; never execute the dispatcher from a work-branch push.",
             "Checkout trusted main publisher code with contents read and persisted credentials disabled.",
@@ -99,14 +99,19 @@
             "Require target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH confirmation for the delegated writer.",
             "Reject main, Production, invalid branch names, malformed SHAs, stale PR heads, and ambiguous PR cardinality before generation.",
             "Compare both local and remote heads to expected_head_sha before commit and again before push.",
-            "Generate and verify the bounded artifact set.",
-            "Reject every path outside the registered allowlist.",
+            "Synchronize the trusted main ref, inspect the exact candidate source delta, and select the default frontend_openapi_refresh recipe unless a registered Work Map self-hosting trigger is present.",
+            "When a Work Map self-hosting trigger is present, reject any candidate source file outside the bounded writer, maintenance-governance, evidence-publisher, regression, E2E, or canonical generated-output scope.",
+            "For the work_map_self_hosting_bootstrap recipe, regenerate Work Maps, refresh Hostinger and Retail Spec014 bindings, repeat the full convergence, and reject any non-idempotent bounded diff.",
+            "Run Work Map and both Spec014 binding check modes before any self-hosting bootstrap commit.",
+            "Generate and verify only the bounded artifact set for the selected recipe.",
+            "Reject every path outside the registered recipe allowlist.",
             "Commit and push by normal fast-forward only.",
-            "Upload mad4b.governed-generated-artifact-refresh.v1 before workflow enforcement.",
-            "Have the trusted default-branch publisher download the exact run-bound apply artifact.",
+            "Upload mad4b.governed-generated-artifact-refresh.v1 with selected recipe and candidate source scope before workflow enforcement.",
+            "Have the trusted default-branch publisher download the exact run-bound apply artifact and independently revalidate the selected recipe, candidate source scope, and changed-file allowlist.",
             "Resolve the PR from target_ref and bind blocked reports to expected_head_sha or successful mutating reports to commit_sha.",
             "Resolve the resulting commit SHA from the canonical apply report and verify the remote target equals it.",
             "Dispatch PR Generated Artifact Refresh on the resulting exact branch head.",
+            "For a Work Map self-hosting bootstrap, hand the resulting exact head to the existing Work Map Recovery lifecycle for canonical no-drift CI plus Spec Kit Work Map Integration verification; do not grant the pull-request workflow definition write authority.",
             "Upload dispatcher, apply, and verification-dispatch evidence as JSON and Markdown."
           ],
           "assertions": [
@@ -122,11 +127,17 @@
             "Protected branches are rejected and force push is absent.",
             "Concurrent target-ref movement returns an expected-head mismatch without writing.",
             "The apply report contract is mad4b.governed-generated-artifact-refresh.v1 with secrets_included=false.",
-            "The canonical publisher accepts only registered generated paths and consult_job_logs=false.",
+            "Missing recipe on historical governed reports is treated only as the legacy frontend_openapi_refresh recipe; unknown recipe values are rejected.",
+            "The frontend_openapi_refresh recipe retains the existing exact generated-file allowlist.",
+            "The work_map_self_hosting_bootstrap recipe requires a registered self-hosting trigger and rejects unrelated runtime/product source files.",
+            "The Work Map bootstrap output allowlist is limited to docs/work-maps plus the Hostinger/Retail Spec014 binding outputs registered in repository maintenance governance.",
+            "Work Map bootstrap convergence is deterministic across two complete passes and check-mode verifies Work Maps plus both Spec014 bindings before commit.",
+            "The canonical publisher independently enforces recipe-specific changed paths and Work Map self-hosting candidate source scope.",
             "A blocked apply binds the unchanged expected_head_sha; a successful mutating apply binds the exact generated commit_sha.",
             "The publisher resolves exactly one same-repository open or merged PR from target_ref and the report candidate.",
             "The verification dispatch evidence contract is mad4b.generated-artifact-refresh-verification-dispatch.v1 with the resulting candidate SHA.",
             "A bot-authored generated commit is followed by an explicit read-only workflow_dispatch on that exact head.",
+            "No PR-controlled workflow definition receives repository-write authority through the self-hosting bootstrap.",
             "Job logs remain diagnostic-only."
           ],
           "tests": [
@@ -154,6 +165,7 @@
           ],
           "evidence_paths": [
             ".github/ci-evidence-routing.json",
+            ".github/repository-maintenance-tool-governance.json",
             ".github/workflows/ci-evidence-pr-publisher.yml",
             ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
@@ -170,7 +182,7 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Publish the same exact-head read-only generated-artifact authority for the governed main-to-Production promotion while keeping every mutating path forbidden on protected branches.",
+      "objective": "Publish the same exact-head read-only generated-artifact authority for the governed main-to-Production promotion while keeping every mutating path forbidden on protected branches, and permit an explicitly authorized non-protected Work Map self-hosting candidate to converge through the existing registered maintenance authority without creating a second writer workflow.",
       "e2e_journeys": [
         {
           "id": "protected-promotion-read-only-generated-artifact-evidence",
@@ -229,17 +241,18 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise artifact-download failure, stale protected-head races, malformed reports, publisher retries, dispatch rejection, and generated write-set violations without consulting Job logs for the decision."
+      "objective": "Exercise artifact-download failure, stale protected-head races, malformed reports, publisher retries, dispatch rejection, recipe/source-scope substitution, and generated write-set violations without consulting Job logs for the decision."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Observe the first exact main-to-Production canonical generated-artifact evaluation and verify the writer remains unavailable to protected branches."
+      "objective": "Observe the first exact main-to-Production canonical generated-artifact evaluation and the first explicitly authorized Work Map self-hosting bootstrap, while verifying the writer remains unavailable to protected branches."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Require exact generated-artifact canonical evidence for every protected-branch promotion while retaining manual governed mutation only on non-protected work branches."
+      "objective": "Require exact generated-artifact canonical evidence for every protected-branch promotion while retaining manual governed mutation only on non-protected work branches and keeping Work Map self-hosting bootstrap limited to the registered exact-head maintenance lifecycle."
     }
-  ]
+  ],
+  "secrets_included": false
 }

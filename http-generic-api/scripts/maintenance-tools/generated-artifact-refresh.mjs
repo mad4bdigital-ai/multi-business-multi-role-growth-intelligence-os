@@ -10,7 +10,9 @@ const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const TARGET_BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const PROTECTED_BRANCHES = new Set(["main", "Production"]);
 const MAX_DIAGNOSTIC_CHARS = 4000;
-const ALLOWED_CHANGED_FILES = new Set([
+const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
+const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
+const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi.yaml",
   "http-generic-api/openapi/support-tickets.yaml",
   "http-generic-api/frontend-operation-governance.generated.json",
@@ -22,6 +24,33 @@ const ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
 ]);
+const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
+  "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+  "specs/014-governed-hostinger-storage-orchestration/tasks.md",
+  "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+]);
+const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
+  ".github/workflows/spec-kit-work-map-autofix.yml",
+  "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+]);
+const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
+  /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
+  /^\.github\/repository-maintenance-tool-governance\.json$/u,
+  /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
+  /^docs\/ci-evidence-routing\.md$/u,
+  /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
+  /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
+  /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
+  /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
+];
+const WORK_MAP_BOOTSTRAP_GOVERNED_PATHS = [
+  "docs/work-maps",
+  "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+  "specs/014-governed-hostinger-storage-orchestration/tasks.md",
+  "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+];
 
 const scriptPath = fileURLToPath(import.meta.url);
 const apiDir = path.resolve(path.dirname(scriptPath), "../..");
@@ -139,6 +168,94 @@ function parseChangedFiles() {
     .map((file) => file.includes(" -> ") ? file.split(" -> ").at(-1) : file);
 }
 
+function readCandidateSourceFiles() {
+  const result = run("inspect_candidate_scope", "git", ["diff", "--name-only", "main", "HEAD"], { cwd: repoRoot });
+  return result.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+}
+
+function isWorkMapBootstrapOutput(file) {
+  return file.startsWith("docs/work-maps/") || WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS.has(file);
+}
+
+function isAllowedWorkMapSelfHostingSource(file) {
+  return isWorkMapBootstrapOutput(file) || WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function classifyRecipe(candidateSourceFiles) {
+  const hasSelfHostingTrigger = candidateSourceFiles.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file));
+  if (!hasSelfHostingTrigger) return FRONTEND_OPENAPI_RECIPE;
+  const unexpected = candidateSourceFiles.filter((file) => !isAllowedWorkMapSelfHostingSource(file));
+  if (unexpected.length) {
+    throw new ToolFailure({
+      code: "work_map_self_hosting_scope_violation",
+      step: "classify_recipe",
+      command: "validate work-map self-hosting candidate scope",
+      status: 1,
+      stdout: unexpected.join("\n"),
+      stderr: "The Work Map self-hosting bootstrap is restricted to the registered writer, maintenance authority, governed regressions, publisher evidence, and canonical generated outputs.",
+    });
+  }
+  return WORK_MAP_BOOTSTRAP_RECIPE;
+}
+
+function runFrontendOpenApiRefresh() {
+  run("verify_exact_operation_auth_repair", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"], { cwd: apiDir });
+  run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
+  run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
+  run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
+  run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
+  run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
+
+  const verificationCommands = [
+    ["verify_openapi_autofill", "node", ["test-openapi-autofill-missing-routes.mjs"]],
+    ["verify_openapi_auth_operation_insertion", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"]],
+    ["verify_frontend_governance", "node", ["test-frontend-operation-governance-generator.mjs"]],
+    ["verify_frontend_dispatch", "node", ["test-frontend-surface-dispatch.mjs"]],
+    ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
+    ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
+    ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
+    ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
+  ];
+  for (const [step, command, commandArgs] of verificationCommands) run(step, command, commandArgs, { cwd: apiDir });
+}
+
+function runWorkMapSelfHostingBootstrap() {
+  run("verify_work_map_generator_syntax", "node", ["--check", "scripts/platform-work-map-generator.mjs"], { cwd: apiDir });
+  run("verify_spec014_binding_syntax", "node", ["--check", "scripts/spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
+  run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
+  run("verify_work_map_schema_contract", "node", ["scripts/work-map-schema-classification-contract.mjs"], { cwd: apiDir });
+  run("verify_work_map_schema_classification", "node", ["scripts/work-map-schema-classification.mjs"], { cwd: apiDir });
+
+  const converge = () => {
+    run("generate_work_maps", "node", ["scripts/platform-work-map-generator.mjs", "--write"], { cwd: apiDir });
+    run("refresh_hostinger_spec014_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
+    run("refresh_retail_spec014_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os"], { cwd: apiDir });
+  };
+
+  converge();
+  const firstDiff = run("capture_first_work_map_bootstrap_diff", "git", ["diff", "--binary", "--", ...WORK_MAP_BOOTSTRAP_GOVERNED_PATHS], { cwd: repoRoot }).stdout;
+  converge();
+  const secondDiff = run("capture_second_work_map_bootstrap_diff", "git", ["diff", "--binary", "--", ...WORK_MAP_BOOTSTRAP_GOVERNED_PATHS], { cwd: repoRoot }).stdout;
+  if (firstDiff !== secondDiff) {
+    throw new ToolFailure({
+      code: "work_map_self_hosting_not_idempotent",
+      step: "prove_work_map_bootstrap_idempotency",
+      command: "compare bounded generated diff after two convergence passes",
+      status: 1,
+      stderr: "Work Map plus Spec014 convergence changed between the first and second deterministic pass.",
+    });
+  }
+
+  run("verify_work_maps_current", "node", ["scripts/platform-work-map-generator.mjs", "--check"], { cwd: apiDir });
+  run("verify_hostinger_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--check"], { cwd: apiDir });
+  run("verify_retail_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os", "--check"], { cwd: apiDir });
+}
+
+function isAllowedGeneratedOutput(recipe, file) {
+  if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) return isWorkMapBootstrapOutput(file);
+  return FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES.has(file);
+}
+
 function buildFailure(error) {
   const failure = error instanceof ToolFailure
     ? error
@@ -164,6 +281,7 @@ function writeReport(outputDir, report) {
     "",
     `- Contract: \`${report.contract}\``,
     `- Outcome: **${report.outcome}**`,
+    `- Recipe: \`${report.recipe || "unresolved"}\``,
     `- Target ref: \`${report.target_ref}\``,
     `- Expected head SHA: \`${report.expected_head_sha}\``,
     `- Resulting commit SHA: \`${report.commit_sha || "none"}\``,
@@ -192,6 +310,8 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
   const args = parseArguments(argv);
   const outputDir = path.resolve(args.output_dir || path.join(process.env.RUNNER_TEMP || repoRoot, "governed-generated-artifact-refresh"));
   let changedFiles = [];
+  let candidateSourceFiles = [];
+  let recipe = null;
   let commitSha = null;
   let firstFailure = null;
 
@@ -201,29 +321,16 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
     run("fetch_main", "git", ["fetch", "origin", "main", "--depth=1"], { cwd: repoRoot });
     run("sync_main_ref", "git", ["branch", "-f", "main", "origin/main"], { cwd: repoRoot });
-    run("verify_exact_operation_auth_repair", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"], { cwd: apiDir });
-    run("sync_precise_registry", "node", ["scripts/openapi-precise-contract-registry-sync.mjs", "--write"], { cwd: apiDir });
-    run("autofill_openapi_routes", "node", ["scripts/openapi-autofill-missing-routes.mjs", "--write"], { cwd: apiDir });
-    run("sync_openapi_runtime_auth", "node", ["scripts/openapi-runtime-auth-sync.mjs", "--write"], { cwd: apiDir });
-    run("generate_frontend_dispatch", "npm", ["run", "frontend:dispatch:generate", "--", "--baseline-ref=main"], { cwd: apiDir });
-    run("generate_custom_gpt_schemas", "node", ["scripts/generate-custom-gpt-schemas.mjs", "--write"], { cwd: apiDir });
 
-    const verificationCommands = [
-      ["verify_openapi_autofill", "node", ["test-openapi-autofill-missing-routes.mjs"]],
-      ["verify_openapi_auth_operation_insertion", "node", ["scripts/test-openapi-runtime-auth-sync-operation-insertion.mjs"]],
-      ["verify_frontend_governance", "node", ["test-frontend-operation-governance-generator.mjs"]],
-      ["verify_frontend_dispatch", "node", ["test-frontend-surface-dispatch.mjs"]],
-      ["verify_auth_parity", "node", ["test-frontend-auth-openapi-parity.mjs"]],
-      ["verify_openapi_route_coverage", "node", ["test-openapi-route-coverage.mjs"]],
-      ["verify_openapi_auth", "npm", ["run", "openapi:auth:check"]],
-      ["verify_schema_guard", "npm", ["run", "schemas:guard"]],
-    ];
-    for (const [step, command, commandArgs] of verificationCommands) run(step, command, commandArgs, { cwd: apiDir });
+    candidateSourceFiles = readCandidateSourceFiles();
+    recipe = classifyRecipe(candidateSourceFiles);
+    if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) runWorkMapSelfHostingBootstrap();
+    else runFrontendOpenApiRefresh();
 
     changedFiles = parseChangedFiles();
-    const unexpected = changedFiles.filter((file) => !ALLOWED_CHANGED_FILES.has(file));
+    const unexpected = changedFiles.filter((file) => !isAllowedGeneratedOutput(recipe, file));
     if (unexpected.length) {
-      throw new ToolFailure({ code: "generated_artifact_write_set_violation", step: "enforce_write_set", command: "validate generated artifact paths", status: 1, stdout: unexpected.join("\n"), stderr: "Generated files exceeded the registered allowlist." });
+      throw new ToolFailure({ code: "generated_artifact_write_set_violation", step: "enforce_write_set", command: `validate ${recipe} generated paths`, status: 1, stdout: unexpected.join("\n"), stderr: "Generated files exceeded the registered recipe allowlist." });
     }
 
     if (changedFiles.length) {
@@ -231,7 +338,10 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       run("configure_git_name", "git", ["config", "user.name", "github-actions[bot]"], { cwd: repoRoot });
       run("configure_git_email", "git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], { cwd: repoRoot });
       run("stage_generated_artifacts", "git", ["add", "--", ...changedFiles], { cwd: repoRoot });
-      run("commit_generated_artifacts", "git", ["commit", "-m", "chore(ci): refresh generated contract artifacts"], { cwd: repoRoot });
+      const commitMessage = recipe === WORK_MAP_BOOTSTRAP_RECIPE
+        ? "docs(work-maps): bootstrap governed maps and Spec014 bindings"
+        : "chore(ci): refresh generated contract artifacts";
+      run("commit_generated_artifacts", "git", ["commit", "-m", commitMessage], { cwd: repoRoot });
       commitSha = run("read_resulting_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
       if (!FULL_SHA_PATTERN.test(commitSha)) throw new ToolFailure({ code: "resulting_commit_sha_invalid", step: "read_resulting_commit", command: "git rev-parse HEAD", status: 1, stdout: commitSha });
       const current_head_sha = readRemoteHead(args.target_ref);
@@ -248,8 +358,10 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     contract: CONTRACT,
     generated_at: new Date().toISOString(),
     outcome: firstFailure ? "blocked" : "passed",
+    recipe,
     target_ref: args.target_ref || null,
     expected_head_sha: args.expected_head_sha || null,
+    candidate_source_files: candidateSourceFiles,
     commit_sha: commitSha,
     changed_files: changedFiles,
     first_failure: firstFailure,
@@ -259,6 +371,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       protected_branches_rejected: true,
       force_push: false,
       allowed_changed_paths_only: !firstFailure || firstFailure.code !== "generated_artifact_write_set_violation",
+      self_hosting_scope_bounded: recipe !== WORK_MAP_BOOTSTRAP_RECIPE || !firstFailure || firstFailure.code !== "work_map_self_hosting_scope_violation",
     },
     routing: {
       source_of_truth: "canonical_report",
@@ -268,7 +381,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     secrets_included: false,
   };
   writeReport(outputDir, report);
-  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, commit_sha: report.commit_sha, first_failure: report.first_failure?.code || null, secrets_included: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, recipe: report.recipe, commit_sha: report.commit_sha, first_failure: report.first_failure?.code || null, secrets_included: false })}\n`);
   return report;
 }
 
