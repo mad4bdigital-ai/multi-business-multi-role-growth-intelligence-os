@@ -169,8 +169,35 @@ function resolveCanonicalMainRef(root) {
   return resolveCanonicalRef(root, "main");
 }
 
-function resolveCanonicalProductionRef(root) {
-  return resolveCanonicalRef(root, "Production");
+function resolveLiveProtectedSha(root, name) {
+  let originConfigured = false;
+  try {
+    originConfigured = Boolean(execFileSync("git", ["remote", "get-url", "origin"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim());
+  } catch {}
+
+  if (originConfigured) {
+    try {
+      const output = execFileSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
+        cwd: root,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"]
+      }).trim();
+      const rows = output.split(/\r?\n/).filter(Boolean);
+      if (rows.length !== 1) return null;
+      const [sha, ref] = rows[0].trim().split(/\s+/);
+      if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
+      return sha;
+    } catch {
+      return null;
+    }
+  }
+
+  const localRef = resolveCanonicalRef(root, name);
+  return resolveCommit(root, localRef);
 }
 
 function isAncestor(root, ancestor, descendant) {
@@ -299,13 +326,15 @@ function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha 
   if (!mainSha || !mainTree) return { allowed: false, identity: null, phase_evaluation_base: null };
 
   if (candidateRef.kind === "governed_dispatch_bridge") {
-    const productionRef = resolveCanonicalProductionRef(root);
-    const productionSha = resolveCommit(root, productionRef);
+    const liveMainSha = resolveLiveProtectedSha(root, "main");
+    const liveProductionSha = resolveLiveProtectedSha(root, "Production");
     if (
-      !productionSha
-      || productionSha !== baseSha
-      || !mainSha.startsWith(candidateRef.main_prefix)
-      || !productionSha.startsWith(candidateRef.production_prefix)
+      !liveMainSha
+      || liveMainSha !== mainSha
+      || !liveProductionSha
+      || liveProductionSha !== baseSha
+      || !liveMainSha.startsWith(candidateRef.main_prefix)
+      || !liveProductionSha.startsWith(candidateRef.production_prefix)
     ) {
       return { allowed: false, identity: null, phase_evaluation_base: null };
     }

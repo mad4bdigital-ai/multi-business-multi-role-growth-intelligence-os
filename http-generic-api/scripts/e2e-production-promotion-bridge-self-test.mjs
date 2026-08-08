@@ -25,12 +25,19 @@ function invoke(root, { base, head, headRef }) {
   ], { cwd: root, encoding: "utf8" });
 }
 
+function updateRemoteRef(remoteRoot, ref, sha, cwd) {
+  run("git", ["--git-dir", remoteRoot, "update-ref", ref, sha], cwd);
+}
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-production-bridge-"));
+const remoteRoot = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-production-bridge-origin-"));
+run("git", ["init", "--bare", remoteRoot], root);
 fs.mkdirSync(path.join(root, ".specify"), { recursive: true });
 fs.copyFileSync(POLICY, path.join(root, ".specify", "e2e-phase-governance.json"));
 run("git", ["init"], root);
 run("git", ["config", "user.email", "ci@example.invalid"], root);
 run("git", ["config", "user.name", "CI"], root);
+run("git", ["remote", "add", "origin", remoteRoot], root);
 
 fs.writeFileSync(path.join(root, "README.md"), "production baseline\n");
 run("git", ["add", "."], root);
@@ -38,6 +45,7 @@ run("git", ["commit", "-m", "production baseline"], root);
 const productionSha = run("git", ["rev-parse", "HEAD"], root).trim();
 run("git", ["update-ref", "refs/heads/Production", productionSha], root);
 run("git", ["update-ref", "refs/remotes/origin/Production", productionSha], root);
+updateRemoteRef(remoteRoot, "refs/heads/Production", productionSha, root);
 
 fs.writeFileSync(path.join(root, "README.md"), "trusted main\n");
 run("git", ["add", "."], root);
@@ -45,6 +53,7 @@ run("git", ["commit", "-m", "trusted main"], root);
 const mainSha = run("git", ["rev-parse", "HEAD"], root).trim();
 run("git", ["update-ref", "refs/heads/main", mainSha], root);
 run("git", ["update-ref", "refs/remotes/origin/main", mainSha], root);
+updateRemoteRef(remoteRoot, "refs/heads/main", mainSha, root);
 const mainTree = run("git", ["rev-parse", `${mainSha}^{tree}`], root).trim();
 
 const candidateSha = run("git", [
@@ -77,15 +86,26 @@ const advancedProductionSha = run("git", [
   "-p", productionSha,
   "-m", "advanced live Production"
 ], root).trim();
-run("git", ["update-ref", "refs/heads/Production", advancedProductionSha], root);
-run("git", ["update-ref", "refs/remotes/origin/Production", advancedProductionSha], root);
+updateRemoteRef(remoteRoot, "refs/heads/Production", advancedProductionSha, root);
 const staleBase = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
 assert.notEqual(staleBase.status, 0);
 const staleBaseReport = JSON.parse(staleBase.stdout);
 assert.equal(staleBaseReport.production_promotion, false);
 assert(staleBaseReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
-run("git", ["update-ref", "refs/heads/Production", productionSha], root);
-run("git", ["update-ref", "refs/remotes/origin/Production", productionSha], root);
+updateRemoteRef(remoteRoot, "refs/heads/Production", productionSha, root);
+
+const advancedMainSha = run("git", [
+  "commit-tree", mainTree,
+  "-p", mainSha,
+  "-m", "advanced live main"
+], root).trim();
+updateRemoteRef(remoteRoot, "refs/heads/main", advancedMainSha, root);
+const staleMain = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
+assert.notEqual(staleMain.status, 0);
+const staleMainReport = JSON.parse(staleMain.stdout);
+assert.equal(staleMainReport.production_promotion, false);
+assert(staleMainReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+updateRemoteRef(remoteRoot, "refs/heads/main", mainSha, root);
 
 const wrongMainRef = `release/production-candidate-deadbeefdead-${productionSha.slice(0, 12)}-bridge-31282314470`;
 const wrongMain = invoke(root, { base: productionSha, head: rearmSha, headRef: wrongMainRef });
@@ -118,7 +138,7 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 5,
-  contract: "governed_dispatch_bridge_identity_live_production_and_zero_diff_rearm",
+  tests: 6,
+  contract: "governed_dispatch_bridge_live_protected_refs_identity_and_zero_diff_rearm",
   secrets_included: false
 }));
