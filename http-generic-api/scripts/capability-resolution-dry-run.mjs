@@ -4,6 +4,7 @@ import { getPool } from "../db.js";
 const POLICY_KEY = "dynamic_capability_resolution_policy_v1";
 const SOURCE_TIER_POLICY_KEY = "dynamic_capability_source_tiers_v1";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SHA_RE = /^[0-9a-f]{40}$/i;
 const EXACT_GITHUB_RESOURCE_RE = /^github:\/\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const PLATFORM_AUTHORITY_RECIPES = new Set(["repo_patch_apply", "repo_patch_batch_apply", "github_pr_create"]);
 
@@ -25,6 +26,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     operationMode: "",
     resourceType: "",
     resourceUri: "",
+    resourceBranch: "",
+    expectedCommitSha: "",
     recipeKey: "",
     runtimeSurface: "",
     requestedSourceTier: "",
@@ -51,6 +54,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (key === "--operation-mode") { args.operationMode = value || ""; if (consume) i += 1; }
     else if (key === "--resource-type") { args.resourceType = value || ""; if (consume) i += 1; }
     else if (key === "--resource-uri") { args.resourceUri = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-branch" || key === "--branch") { args.resourceBranch = value || ""; if (consume) i += 1; }
+    else if (key === "--expected-commit-sha") { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-branch-sha") { args.expectedCommitSha = String(value || args.expectedCommitSha).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha") { if (!args.expectedCommitSha) args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
     else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
@@ -101,6 +108,8 @@ function resourceAuthorityContext(args = {}) {
   return {
     resource_type: normalizeKey(args.resourceType) || inferResourceType(resourceUri),
     resource_uri: resourceUri,
+    resource_branch: normalizeKey(args.resourceBranch || args.branch),
+    expected_commit_sha: normalizeKey(args.expectedCommitSha || args.expectedBranchSha || args.expectedBaseSha).toLowerCase(),
     recipe_key: normalizeKey(args.recipeKey) || capabilityRecipe,
     operation_mode: normalizeKey(args.operationMode),
   };
@@ -256,8 +265,6 @@ export function isMissingWorkspaceGrantViewError(error) {
 
 export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
   if (!tenantId || !userId) return [];
-  // Legacy membership backfills used tenant_id as the workspace resource_ref.
-  // New grants use workspace_id; workspace_key remains a supported human-readable alias.
   const refs = unique([workspaceId, workspaceKey, tenantId, brandKey, appKey]);
   if (!refs.length) return [];
   const params = [tenantId, userId, ...refs];
@@ -367,6 +374,14 @@ function storedPrincipal(binding = {}) {
     : { principal_type: "", principal_id: "" };
 }
 
+function storedExecutionScope(binding = {}) {
+  const resourceRef = safeJson(binding.resource_ref_json, {});
+  return {
+    branch: normalizeKey(resourceRef.branch),
+    expected_commit_sha: normalizeKey(resourceRef.expected_commit_sha || resourceRef.base_sha).toLowerCase(),
+  };
+}
+
 const PERMISSION_RANK = Object.freeze({
   read_only: 1,
   diagnostic: 1,
@@ -392,23 +407,48 @@ export function permissionSatisfiesResourceOperation(permissionLevel = "", opera
   return rank >= requiredPermissionRank(operationMode);
 }
 
-export function hasExactAdminResourceAuthority({
+export function resolveExactPlatformAuthorityExecutionScope({ bindings = [], resourceBranch = "", expectedCommitSha = "" } = {}) {
+  const expectedSha = normalizeKey(expectedCommitSha).toLowerCase();
+  const requestedBranch = normalizeKey(resourceBranch);
+  if (!SHA_RE.test(expectedSha)) return { ok: false, reason: "expected_commit_sha_missing_or_invalid" };
+  const shaMatches = bindings.map((binding) => ({ binding, ...storedExecutionScope(binding) }))
+    .filter((candidate) => candidate.branch && candidate.expected_commit_sha === expectedSha);
+  if (!shaMatches.length) return { ok: false, reason: "expected_commit_sha_mismatch" };
+  if (requestedBranch) {
+    const exact = shaMatches.find((candidate) => candidate.branch === requestedBranch);
+    return exact
+      ? { ok: true, binding: exact.binding, binding_id: exact.binding.binding_id, resource_branch: requestedBranch, expected_commit_sha: expectedSha }
+      : { ok: false, reason: "resource_branch_mismatch" };
+  }
+  const branches = unique(shaMatches.map((candidate) => candidate.branch));
+  if (branches.length !== 1) return { ok: false, reason: branches.length ? "resource_branch_ambiguous" : "resource_branch_missing" };
+  return {
+    ok: true,
+    binding: shaMatches[0].binding,
+    binding_id: shaMatches[0].binding.binding_id,
+    resource_branch: branches[0],
+    expected_commit_sha: expectedSha,
+  };
+}
+
+export function resolveExactAdminResourceAuthority({
   principal,
   bindings = [],
   tenantId,
   workspaceId,
   resourceType,
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey,
   operationMode,
   now = new Date(),
 }) {
-  if (!canResolveServiceAuthority(principal)) return false;
-  if (!tenantId || !workspaceId || !resourceType || !resourceUri || !recipeKey || !operationMode) return false;
-  if (resourceUri.includes("*") || (resourceType === "github_repo" && !EXACT_GITHUB_RESOURCE_RE.test(resourceUri))) return false;
+  if (!canResolveServiceAuthority(principal)) return { matched: false, reason: "principal_not_service_authority_eligible" };
+  if (!tenantId || !workspaceId || !resourceType || !resourceUri || !recipeKey || !operationMode) return { matched: false, reason: "authority_context_incomplete" };
+  if (resourceUri.includes("*") || (resourceType === "github_repo" && !EXACT_GITHUB_RESOURCE_RE.test(resourceUri))) return { matched: false, reason: "resource_uri_not_exact" };
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
-
-  return bindings.some((binding) => {
+  const candidates = bindings.filter((binding) => {
     if (normalizeKey(binding.status).toLowerCase() !== "active") return false;
     if (binding.expires_at && new Date(binding.expires_at).getTime() <= nowMs) return false;
     if (normalizeKey(binding.tenant_id) !== tenantId) return false;
@@ -417,14 +457,25 @@ export function hasExactAdminResourceAuthority({
     if (normalizeKey(binding.resource_type) !== resourceType) return false;
     if (normalizeKey(binding.resource_uri) !== resourceUri || normalizeKey(binding.resource_uri).includes("*")) return false;
     if (normalizeKey(binding.recipe_key) !== recipeKey) return false;
-
     const bindingPrincipal = storedPrincipal(binding);
     if (bindingPrincipal.principal_type !== "service" || bindingPrincipal.principal_id !== principal.principal_id) return false;
-
     const modes = parseAllowedModes(binding.allowed_modes_json);
     if (modes.includes("*") || !modes.includes(operationMode)) return false;
     return permissionSatisfiesResourceOperation(binding.permission_level, operationMode);
   });
+  const scope = resolveExactPlatformAuthorityExecutionScope({ bindings: candidates, resourceBranch, expectedCommitSha });
+  if (!scope.ok) return { matched: false, reason: scope.reason };
+  return {
+    matched: true,
+    binding_id: scope.binding_id,
+    resource_branch: scope.resource_branch,
+    expected_commit_sha: scope.expected_commit_sha,
+    secrets_included: false,
+  };
+}
+
+export function hasExactAdminResourceAuthority(args = {}) {
+  return resolveExactAdminResourceAuthority(args).matched === true;
 }
 
 async function loadConnections(pool, { tenantId, userId, appKey }) {
@@ -564,6 +615,8 @@ export function authorityStatus({
   principal,
   resourceType,
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey,
   operationMode,
   tenantId,
@@ -579,16 +632,19 @@ export function authorityStatus({
   const passed = [];
   const grantPermissions = new Set(grants.map((grant) => grant.permission));
   const strongWorkspaceGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
-  const exactPlatformAuthority = hasExactAdminResourceAuthority({
+  const platformAuthorityScope = resolveExactAdminResourceAuthority({
     principal,
     bindings: platformResourceAuthorityBindings,
     tenantId,
     workspaceId,
     resourceType,
     resourceUri,
+    resourceBranch,
+    expectedCommitSha,
     recipeKey,
     operationMode,
   });
+  const exactPlatformAuthority = platformAuthorityScope.matched === true;
   const strongAuthority = strongWorkspaceGrant || exactPlatformAuthority;
 
   if (workspace) passed.push("workspace_resolved");
@@ -615,7 +671,13 @@ export function authorityStatus({
   if (sourceTiers.selected_source_tier === "platform_managed_fallback") {
     passed.push("platform_fallback_requires_quota_audit_disclosure");
   }
-  return { passed, missing, status: missing.length ? "incomplete" : "passed", exact_platform_resource_authority: exactPlatformAuthority };
+  return {
+    passed,
+    missing,
+    status: missing.length ? "incomplete" : "passed",
+    exact_platform_resource_authority: exactPlatformAuthority,
+    exact_platform_resource_authority_scope: platformAuthorityScope,
+  };
 }
 
 export async function runCapabilityResolutionDryRun(args = parseArgs()) {
@@ -664,6 +726,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
     principal,
     resourceType: requestedAuthority.resource_type,
     resourceUri: requestedAuthority.resource_uri,
+    resourceBranch: requestedAuthority.resource_branch,
+    expectedCommitSha: requestedAuthority.expected_commit_sha,
     recipeKey: requestedAuthority.recipe_key,
     operationMode: requestedAuthority.operation_mode,
     tenantId,
@@ -716,6 +780,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       operation_mode: requestedAuthority.operation_mode || null,
       resource_type: requestedAuthority.resource_type || null,
       resource_uri: requestedAuthority.resource_uri || null,
+      resource_branch: authority.exact_platform_resource_authority_scope?.matched ? authority.exact_platform_resource_authority_scope.resource_branch : requestedAuthority.resource_branch || null,
+      expected_commit_sha: requestedAuthority.expected_commit_sha || null,
       recipe_key: requestedAuthority.recipe_key || null,
     },
     capability: {
@@ -741,6 +807,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       missing: authority.missing,
       grants: grants.map((grant) => ({ resource_type: grant.resource_type, resource_ref: grant.resource_ref, permission: grant.permission })),
       exact_platform_resource_authority: authority.exact_platform_resource_authority,
+      exact_platform_resource_authority_scope: authority.exact_platform_resource_authority_scope,
       platform_resource_authority_bindings: platformResourceAuthorityBindings.map((binding) => ({
         binding_id: binding.binding_id,
         resource_type: binding.resource_type,
@@ -775,6 +842,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
         "This is a dry-run envelope only; no tool/app/runtime was executed.",
         "Workspace_type values are read from the current workspace_registry enum; extended archetypes are policy-level context until a separate schema migration is approved.",
         "Exact platform resource authority may satisfy high-risk resource authority for typed service principals only; a legacy untyped principal id qualifies only when the exact persisted binding proves principal_type=service for the same principal id.",
+        "Exact platform resource authority is bound to its stored repository branch and expected commit SHA; ambiguous or mismatched execution scope fails closed.",
         "Resource authority never satisfies dispatch certification, approval, readback, protected-branch, or mutation-policy gates.",
         "No credential values are read or returned; only counts and metadata are exposed.",
       ],
