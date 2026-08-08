@@ -31,11 +31,11 @@
           "level": "synthetic_runtime",
           "actor": "authorized repository operator",
           "entrypoint": "Exact /activate-work-map-recovery <head_sha> issue comment or typed workflow_dispatch",
-          "terminal_outcome": "The bootstrap validates one exact current same-repository pull request, enables the existing independent Recovery workflow, delegates one typed exact-PR recovery run, and publishes structured evidence without consuming authorization or mutating repository content.",
+          "terminal_outcome": "The bootstrap validates one exact current same-repository pull request, regardless of Draft readiness state, enables the existing independent Recovery workflow, delegates one typed exact-PR recovery run, and publishes structured evidence without consuming authorization or mutating repository content.",
           "steps": [
             "Require issue_comment or workflow_dispatch only; never accept pull_request or push.",
             "Require write-level repository permission for the comment actor or exact typed manual confirmation.",
-            "Read the open non-Draft same-repository pull request targeting main.",
+            "Read the open same-repository pull request targeting main without using Draft or Ready state as an authorization input.",
             "Require the governed branch, exact requested head SHA, one-time Work Map marker, and behind_by=0.",
             "Enable and read back only spec-kit-work-map-autofix-recovery-dispatch.yml.",
             "Dispatch the existing Recovery workflow with pr_number and exact expected_head_sha.",
@@ -46,7 +46,7 @@
             "The bootstrap has actions:write, contents:read, issues:write, and pull-requests:read with no contents:write.",
             "The bootstrap contains no pull_request or push trigger.",
             "The command is bound to one exact lowercase 40-character head SHA.",
-            "The target PR must be current with main and the remote head must equal the requested SHA.",
+            "The target PR must be open, same-repository, current with main, and the remote head must equal the requested SHA; Draft readiness must neither grant nor block recovery authority.",
             "The bootstrap dispatches Recovery only and never dispatches the sole writer directly.",
             "The bootstrap does not consume the one-time marker, commit, push, mutate protected refs, force push, deploy, access providers, databases, migrations, credentials, or external business systems.",
             "Structured evidence declares direct_repository_mutation=false, authorization_consumed=false, protected_branch_mutation=false, force_push=false, and secrets_included=false."
@@ -78,10 +78,11 @@
           "level": "synthetic_runtime",
           "actor": "repository automation governance reviewer",
           "entrypoint": "Bootstrap and Recovery workflow contracts plus executable regressions",
-          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced, and the delegated Recovery surface remains explicitly dispatched and exact-head bound.",
+          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced, Draft readiness is not promoted into an authority signal, and the delegated Recovery surface remains explicitly dispatched and exact-head bound.",
           "steps": [
             "Inspect the bootstrap workflow as trusted default-branch code.",
             "Verify it enables and dispatches only the existing Recovery workflow.",
+            "Verify Bootstrap and Recovery validate open, same-repository, main-targeted exact-head pull requests without reading Draft readiness as a permission boundary.",
             "Verify the Recovery workflow accepts workflow_dispatch only and validates the exact requested head before consuming authorization.",
             "Verify marker consumption remains absent from the bootstrap.",
             "Verify no git commit, git push, writer dispatch from Bootstrap, or generated path mutation exists."
@@ -89,6 +90,7 @@
           "assertions": [
             "The Recovery workflow remains the only one-time authorization consumer.",
             "The Recovery trigger contract requires workflow_dispatch and explicitly forbids pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run.",
+            "Bootstrap and Recovery do not read pull_request.draft or otherwise use Draft/Ready state to grant or deny repository write authority.",
             "Bootstrap and Recovery run on ubuntu-24.04-arm after runner allocation.",
             "spec-kit-work-map-autofix.yml remains the unchanged Windows sole remote Work Map writer.",
             "Pull-request validation workflows remain read-only under the repository-write separation contract."
@@ -123,7 +125,7 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, protected targets, forbidden external triggers, disabled Recovery readback, rejected dispatch, or unobserved delegated runs.",
+      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, protected targets, forbidden external triggers, disabled Recovery readback, rejected dispatch, or unobserved delegated runs while keeping Draft readiness outside the authority model.",
       "e2e_journeys": [
         {
           "id": "bootstrap-fails-closed-before-delegation",
@@ -131,10 +133,11 @@
           "level": "synthetic_runtime",
           "actor": "repository lifecycle gate",
           "entrypoint": "Candidate changes to the Bootstrap, Recovery, connectivity contract, or their executable regressions",
-          "terminal_outcome": "Regression, connectivity, and lifecycle checks reject any mixed PR-write path, forbidden Recovery trigger, stale exact-head delegation, or unbound writer handoff before merge.",
+          "terminal_outcome": "Regression, connectivity, and lifecycle checks reject any mixed PR-write path, forbidden Recovery trigger, stale exact-head delegation, readiness-derived authority, or unbound writer handoff before merge.",
           "steps": [
             "Validate workflow syntax, trigger contracts, and static authority boundaries.",
-            "Require exact SHA, branch, marker, actor permission, and main freshness.",
+            "Require exact SHA, branch, marker, actor permission, open state, same-repository identity, main target, and main freshness.",
+            "Require Draft/Ready state to remain absent from Bootstrap and Recovery authorization decisions.",
             "Require Recovery to be workflow_dispatch-only and reject pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run triggers.",
             "Reject contents:write in Bootstrap, direct writer dispatch from Bootstrap, marker consumption outside Recovery, git commit, git push, and force push.",
             "Run Work Map diagnostics and pipeline connectivity regressions against the exact candidate tree.",
@@ -142,7 +145,8 @@
           ],
           "assertions": [
             "Bootstrap and Recovery allocate ubuntu-24.04-arm runners before initializing report paths.",
-            "Recovery validates the exact requested head and behind_by=0 before consuming the one-time marker.",
+            "Recovery validates open state, same-repository identity, main target, exact requested head, and behind_by=0 before consuming the one-time marker.",
+            "Neither Bootstrap nor Recovery reads pull_request.draft or treats readiness as an authorization condition.",
             "No repository content mutation is performed by Bootstrap or Recovery.",
             "The Windows writer remains unchanged and is the sole remote Work Map content writer.",
             "No deployment, runtime contact, database access, provider action, Migration Apply, protected-ref mutation, force push, or secrets are included."
