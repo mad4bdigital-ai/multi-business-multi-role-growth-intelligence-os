@@ -22,7 +22,7 @@ jobs:
     env:
       TARGET_BRANCH: fix/repository-policy-1049-bootstrap-repair-6627
       TARGET_PR: '6629'
-      EXPECTED_PARENT_SHA: 8473ff06b6e8bea11abf7b91b000ba655ebda71d
+      EXPECTED_PARENT_SHA: fad5ccf687f13bfe39d591916acbbdbaf080351b
       LAUNCHER_PATH: .github/workflows/pr6629-spec014-binding-refresh.yml
       HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
       HOSTINGER_TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
