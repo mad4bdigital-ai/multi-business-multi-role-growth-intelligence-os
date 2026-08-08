@@ -1,0 +1,83 @@
+name: Diagnose capability drift alert lifecycle
+
+on:
+  push:
+    branches:
+      - fix/capability-drift-alert-lifecycle-4450-4451-20260808
+    paths:
+      - .github/ops/diagnose-capability-drift-alert-lifecycle.trigger
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/capability-drift-alert-lifecycle-4450-4451-20260808
+          fetch-depth: 0
+
+      - name: Verify branch contains current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor origin/main HEAD
+
+      - name: Reproduce bounded patch in working tree only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/repair-capability-drift-alert-lifecycle.yml')
+          lines = path.read_text().splitlines()
+          start = lines.index('      - name: Apply bounded lifecycle patch')
+          end = lines.index('      - name: Run focused regression tests')
+          block = lines[start:end]
+          run_index = block.index('        run: |')
+          body = block[run_index + 1:]
+          rendered = []
+          for line in body:
+              if line.startswith('          '):
+                  rendered.append(line[10:])
+              elif not line.strip():
+                  rendered.append('')
+              else:
+                  raise SystemExit(f'unexpected indentation while extracting apply block: {line!r}')
+          Path('/tmp/capability-drift-apply.sh').write_text('\n'.join(rendered) + '\n')
+          PY
+          bash -euo pipefail /tmp/capability-drift-apply.sh
+
+      - name: Run focused regressions with captured diagnostics
+        shell: bash
+        run: |
+          set -uo pipefail
+          overall=0
+          run_test() {
+            local title="$1"
+            shift
+            local out
+            out="$(mktemp)"
+            set +e
+            "$@" >"$out" 2>&1
+            local status=$?
+            set -e
+            cat "$out"
+            if [ "$status" -ne 0 ]; then
+              overall=1
+              while IFS= read -r line; do
+                line="${line//'%'/'%25'}"
+                line="${line//$'\r'/'%0D'}"
+                printf '::error title=%s::%s\n' "$title" "$line"
+              done < "$out"
+            fi
+            rm -f "$out"
+          }
+          set -e
+          run_test "operational alert lifecycle regression" node http-generic-api/test-operational-alerting-control-plane.mjs
+          run_test "operation observability regression" node http-generic-api/scripts/test-operation-observability-service.mjs
+          exit "$overall"
