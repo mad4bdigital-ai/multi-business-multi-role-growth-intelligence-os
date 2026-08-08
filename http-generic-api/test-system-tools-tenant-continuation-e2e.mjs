@@ -23,28 +23,45 @@ const tenantRegistryRows = [{
   tags: JSON.stringify(["tenant", "regression"]),
 }];
 
-function tenantExportRows(tenantId) {
-  if (tenantId === "tenant-4451") {
-    return [{
-      tool_name: TENANT_EXPORT_TOOL_NAME,
-      parent_action_key: "tenant_system_tools_regression",
-      endpoint_key: "tenant_4451_probe",
-      scope_class: "tenant",
-      input_schema_json: JSON.stringify({ type: "object", properties: {}, additionalProperties: false }),
-      method: "GET",
-    }];
+const tenantExportRows = [
+  {
+    tenant_id: "tenant-4451",
+    tool_name: TENANT_EXPORT_TOOL_NAME,
+    parent_action_key: "tenant_system_tools_regression",
+    endpoint_key: "tenant_4451_probe",
+    scope_class: "tenant",
+    input_schema_json: JSON.stringify({ type: "object", properties: {}, additionalProperties: false }),
+    method: "GET",
+  },
+  {
+    tenant_id: "tenant-other-4451",
+    tool_name: OTHER_TENANT_EXPORT_TOOL_NAME,
+    parent_action_key: "tenant_system_tools_regression",
+    endpoint_key: "tenant_other_4451_probe",
+    scope_class: "tenant",
+    input_schema_json: JSON.stringify({ type: "object", properties: {}, additionalProperties: false }),
+    method: "GET",
+  },
+];
+
+const tenantExportPredicateChecks = new Set();
+
+function selectTenantExportRows(statement, params) {
+  const normalizedStatement = String(statement).replace(/\s+/g, " ").trim();
+  if (params.length >= 3) {
+    assert.match(
+      normalizedStatement,
+      /AND \(x\.tenant_id IS NULL OR x\.tenant_id = \?\)/i,
+      "tenant endpoint export query must preserve the canonical tenant predicate",
+    );
+    const tenantId = String(params[params.length - 1] || "");
+    assert.ok(tenantId, "tenant endpoint export query must bind the requesting tenant id");
+    tenantExportPredicateChecks.add(tenantId);
+    return tenantExportRows
+      .filter((row) => row.tenant_id === null || row.tenant_id === tenantId)
+      .map(({ tenant_id: _tenantId, ...row }) => ({ ...row }));
   }
-  if (tenantId === "tenant-other-4451") {
-    return [{
-      tool_name: OTHER_TENANT_EXPORT_TOOL_NAME,
-      parent_action_key: "tenant_system_tools_regression",
-      endpoint_key: "tenant_other_4451_probe",
-      scope_class: "tenant",
-      input_schema_json: JSON.stringify({ type: "object", properties: {}, additionalProperties: false }),
-      method: "GET",
-    }];
-  }
-  return [];
+  return tenantExportRows.map(({ tenant_id: _tenantId, ...row }) => ({ ...row }));
 }
 
 const originalCreatePool = mysql.createPool;
@@ -116,8 +133,7 @@ const fakePool = {
       return [tenantRegistryRows.map((row) => ({ ...row }))];
     }
     if (/FROM platform_endpoint_tool_exports\s+x/i.test(statement)) {
-      const tenantId = params.length >= 3 ? String(params[params.length - 1] || "") : null;
-      return [tenantExportRows(tenantId)];
+      return [selectTenantExportRows(statement, params)];
     }
     if (/^\s*SELECT\b/i.test(statement)) return [[]];
     throw new Error(`Unexpected SQL in system tools continuation regression: ${statement.slice(0, 180)}`);
@@ -303,6 +319,11 @@ try {
   assert.ok(otherCatalog.names.includes(TENANT_REGISTRY_TOOL_NAME), "tenant-facing registry descriptors remain available to an authorized tenant caller");
   assert.ok(otherCatalog.names.includes(OTHER_TENANT_EXPORT_TOOL_NAME), "second tenant must enumerate its own database-backed endpoint export");
   assert.ok(!otherCatalog.names.includes(TENANT_EXPORT_TOOL_NAME), "first tenant's endpoint export must not leak to the second tenant");
+  assert.deepEqual(
+    [...tenantExportPredicateChecks].sort(),
+    ["tenant-4451", "tenant-other-4451"],
+    "the canonical tenant export predicate must be validated for both tenant catalog traversals",
+  );
 
   const adminRaw = await requestJson("/admin/system/tools?limit=200&max_chars=5000", { admin: true });
   assert.equal(adminRaw.status, 200, JSON.stringify(adminRaw.body));
