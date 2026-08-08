@@ -261,8 +261,8 @@ components:
         - admin_evidence
         - secrets_included
       properties:
-        signal_id: { type: string, pattern: '^capability-drift\\.[a-f0-9]{64}$' }
-        dedupe_key: { type: string, pattern: '^capability-drift\\.[a-f0-9]{64}$' }
+        signal_id: { type: string, pattern: '^capability-drift\.[a-f0-9]{64}$' }
+        dedupe_key: { type: string, pattern: '^capability-drift\.[a-f0-9]{64}$' }
         tenant_id: { type: [string, 'null'] }
         workspace_id: { type: [string, 'null'] }
         resource:
