@@ -8,12 +8,9 @@
   "scope": {
     "include": [
       "http-generic-api/scripts/capability-resolution-dry-run.mjs",
-      "http-generic-api/scripts/capability-resolution-dry-run-core.mjs",
       "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
       "http-generic-api/capabilityEnvelopeTemplateResolver.js",
-      "http-generic-api/capabilityEnvelopeTemplateResolverCore.js",
       "http-generic-api/capabilityResolutionEnvelopeGuard.js",
-      "http-generic-api/capabilityResolutionEnvelopeGuardCore.js",
       "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
       "http-generic-api/test-capability-envelope-template-resolver.mjs",
       "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
@@ -69,12 +66,9 @@
           "evidence_paths": [
             ".changes/e2e/admin-service-resource-authority-resolution.json",
             "http-generic-api/scripts/capability-resolution-dry-run.mjs",
-            "http-generic-api/scripts/capability-resolution-dry-run-core.mjs",
             "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
             "http-generic-api/capabilityEnvelopeTemplateResolver.js",
-            "http-generic-api/capabilityEnvelopeTemplateResolverCore.js",
             "http-generic-api/capabilityResolutionEnvelopeGuard.js",
-            "http-generic-api/capabilityResolutionEnvelopeGuardCore.js",
             "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
             "http-generic-api/test-capability-envelope-template-resolver.mjs",
             "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
