@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "activation-awareness-canonical-user-jwt",
+  "title": "Canonical User JWT boundary for tenant activation and resolution surfaces",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/activation-awareness-canonical-user-jwt.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/routes/activationAwarenessRoutes.js",
+      "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+      "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Require the shared fail-closed User JWT verifier before active-membership rebinding on every tenant activation, operational-attention, resolution, repair, approval, dynamic-detail, and run-archive route while leaving Admin routes unchanged.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-activation-resolution-routes-use-canonical-user-jwt-before-membership-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant user",
+          "entrypoint": "Tenant activation and resolution HTTP routes",
+          "terminal_outcome": "Every tenant route is authenticated by the shared User JWT middleware with no fallback secret before tenant and role are rebound from active database membership; missing verifier configuration fails closed and Admin routes remain unchanged.",
+          "steps": [
+            "Authenticate the tenant request through createUserJwtMiddleware before route-local membership resolution.",
+            "Fail with verifier-unavailable semantics when JWT_SECRET is not configured instead of accepting a repository fallback secret.",
+            "Restrict token verification to the canonical HS256 algorithm contract.",
+            "Resolve the caller tenant and tenant role from active membership plus active tenant state rather than trusting token role claims.",
+            "Apply the composed canonical-auth then membership guard to every /tenant/ activation and resolution route, including task-source repair and skill-approval mutations.",
+            "Keep Admin activation routes and their backend API-key guard unchanged.",
+            "Ratchet activationAwarenessRoutes.js into the hardened User JWT governance file set."
+          ],
+          "assertions": [
+            "activationAwarenessRoutes.js contains no jsonwebtoken import, local token verifier, or development fallback secret.",
+            "All /tenant/ routes compose requireCanonicalUserJwt before requireTenantUserJwt.",
+            "A bearer token cannot be verified when JWT_SECRET is missing and the canonical verifier pins HS256.",
+            "Membership database authority supplies tenant_id and tenant_role after canonical authentication.",
+            "The hardened-file governance scanner permanently covers activationAwarenessRoutes.js.",
+            "No repair, approval, provider, database, Production, secret, or external-send side effect is introduced by this auth-only change."
+          ],
+          "tests": [
+            {
+              "id": "user-jwt-auth-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-user-jwt-auth.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-awareness-user-jwt-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-awareness-user-jwt-boundary.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-awareness-completeness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-activation-awareness-completeness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/activation-awareness-canonical-user-jwt.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/routes/activationAwarenessRoutes.js",
+            "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+            "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

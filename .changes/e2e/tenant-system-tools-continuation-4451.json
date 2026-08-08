@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-system-tools-continuation-4451",
+  "title": "Tenant system tool catalog pagination and governed chunk continuation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-system-tools-continuation-4451.json",
+      "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs",
+      "http-generic-api/routes/systemLayerRoutes.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/systemToolCatalogV2.js",
+      "http-generic-api/governedToolResponseChunkStore.js"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that an authenticated tenant can enumerate the complete visible system-tool catalog through bounded cursor pages and governed response chunks without fallback search, cross-tenant chunk access, duplicate tools, or leakage of admin/blocked tools.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-system-tools-pagination-and-chunk-read-to-completion",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user",
+          "entrypoint": "GET /system/tools with bounded limit and response budget",
+          "terminal_outcome": "All tenant-visible tools are enumerated through catalog next_cursor and response_chunk_read until completion, while a second tenant cannot read the first tenant's chunk and admin-only tools remain absent from every tenant page.",
+          "steps": [
+            "Mount the production System Layer router with a bounded User-JWT-shaped tenant principal and process-local fake DB pool.",
+            "Request /system/tools with a small catalog limit and governed response budget so the real response chunk shield is exercised.",
+            "Attempt the returned chunk continuation from a different tenant and verify fail-closed response_chunk_not_found.",
+            "Use /system/tools/call with response_chunk_read to reconstruct each tenant catalog page before following the catalog next_cursor.",
+            "Continue until the catalog reports page.has_more=false without switching to any fallback discovery surface.",
+            "Verify no duplicate tool names and no blocked/admin-only tool names appear on any tenant page.",
+            "Read the admin catalog separately and prove runtime_endpoint_call remains available there while absent from the tenant traversal."
+          ],
+          "assertions": [
+            "The initial bounded /system/tools response is governed-response chunked and exposes chunk_id plus a continuation cursor.",
+            "response_chunk_read is usable through the production /system/tools/call surface until each serialized catalog page is complete.",
+            "Chunk ownership is tenant scoped; another tenant receives response_chunk_not_found.",
+            "Catalog next_cursor traverses more than one bounded page and terminates with page.has_more=false.",
+            "Traversal contains no duplicate tools.",
+            "Tenant-blocked and admin-only system tools remain absent across every page, including later pages.",
+            "An admin-only reference tool remains present in the admin catalog, proving filtering rather than global removal.",
+            "No live database, provider, connector, credential, Production, or mutation action occurs."
+          ],
+          "tests": [
+            {
+              "id": "tenant-system-tools-continuation-e2e",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-system-tools-tenant-continuation-e2e.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-system-tools-continuation-4451.json",
+            "http-generic-api/test-system-tools-tenant-continuation-e2e.mjs",
+            "http-generic-api/routes/systemLayerRoutes.js",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/systemToolCatalogV2.js",
+            "http-generic-api/governedToolResponseChunkStore.js"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
