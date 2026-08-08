@@ -92,10 +92,15 @@ for (const required of [
   "github_issue_comments_write",
   "github_issue_comment_create",
   "github_issue_comment_exact_readback_v1",
+  "v_github_issue_comment_dispatch_parity",
 ]) {
   assert.ok(issueCommentParityMigration.includes(required), `missing issue-comment parity contract ${required}`);
 }
 
+assert.match(issueCommentParityMigration, /SET @github_issue_comment_endpoint_match_count :=/);
+assert.match(issueCommentParityMigration, /SET @github_issue_comment_dispatcher_match_count :=/);
+assert.match(issueCommentParityMigration, /@github_issue_comment_endpoint_match_count = 1/);
+assert.match(issueCommentParityMigration, /@github_issue_comment_dispatcher_match_count = 1/);
 assert.match(issueCommentParityMigration, /UPDATE endpoints/);
 assert.match(issueCommentParityMigration, /'\$\.responses\.201'/);
 assert.match(issueCommentParityMigration, /'description', 'Created'/);
@@ -117,10 +122,20 @@ assert.match(issueCommentParityMigration, /'requires_approval', TRUE/);
 assert.match(issueCommentParityMigration, /'requires_same_cycle_readback', TRUE/);
 assert.match(issueCommentParityMigration, /'caller_supplied_authorization_forbidden', TRUE/);
 assert.match(issueCommentParityMigration, /'secrets_included', FALSE/);
+assert.match(issueCommentParityMigration, /CREATE OR REPLACE VIEW v_github_issue_comment_dispatch_parity AS/);
+assert.match(issueCommentParityMigration, /endpoint_match_count/);
+assert.match(issueCommentParityMigration, /response_schema_ready_count/);
+assert.match(issueCommentParityMigration, /dispatcher_allowlist_ready_count/);
+assert.match(issueCommentParityMigration, /export_schema_parity_count/);
+assert.match(issueCommentParityMigration, /binding_match_count/);
+assert.match(issueCommentParityMigration, /export_row\.input_schema_json <=> endpoint_row\.schema_json/);
+assert.match(issueCommentParityMigration, /THEN 'ready'[\s\S]*?ELSE 'blocked'/);
 
 assert.doesNotMatch(issueCommentParityMigration, /INSERT\s+INTO\s+endpoints/i);
 assert.doesNotMatch(issueCommentParityMigration, /fetch\s*\(/);
 assert.doesNotMatch(issueCommentParityMigration, /axios\s*\(/);
+assert.doesNotMatch(issueCommentParityMigration, /\bPREPARE\b/i);
+assert.doesNotMatch(issueCommentParityMigration, /\bEXECUTE\b/i);
 assert.doesNotMatch(issueCommentParityMigration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
 
 console.log("github REST endpoint dispatch foundation tests passed");
