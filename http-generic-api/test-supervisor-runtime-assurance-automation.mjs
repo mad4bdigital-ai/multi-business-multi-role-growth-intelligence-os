@@ -54,11 +54,15 @@ assert.doesNotMatch(followupJob, /gh pr merge/);
 
 for (const marker of [
   "workflow_dispatch:",
+  "pr_number:",
   "Existing same-repository pull-request branch to update",
   "expected_head_sha:",
+  "recovery_run_id:",
+  "delegation_comment_id:",
   "Initialize diagnostics and validate inputs",
   "Checkout exact authorized head",
   "Pin branch and pull request identity",
+  "Verify and consume Recovery-issued writer delegation",
   "Validate generator and governance contracts",
   "Regenerate and prove idempotency",
   "Commit and push governed Work Maps",
@@ -67,12 +71,15 @@ for (const marker of [
   "${RUNNER_TEMP}/work-map-autofix-diagnostics-${GITHUB_RUN_ID}",
   "mad4b.spec-kit-work-map-autofix.v3",
   "WORK_MAP_AUTOFIX_V3",
+  "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
+  "state=consumed recovery_run_id=${RECOVERY_RUN_ID}",
   "work-map-autofix-diagnostics-",
   "actions/upload-artifact@v4",
   "git check-ref-format --branch",
   "git add docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
+  "gh api --method PATCH",
   "gh api --method POST",
   "actions/workflows/ci.yml/dispatches",
   "actions/workflows/spec-kit-work-map-integration.yml/dispatches",
@@ -84,10 +91,14 @@ for (const marker of [
 ]) {
   assert.ok(workMapAutofix.includes(marker), `Work Map Autofix v3 missing ${marker}`);
 }
-assert.match(workMapAutofix, /group: spec-kit-work-map-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ inputs\.branch \}\}/);
+assert.match(workMapAutofix, /group: work-map-writer-delegation-\$\{\{ github\.repository \}\}-pr-\$\{\{ inputs\.pr_number \}\}/);
 assert.match(workMapAutofix, /cancel-in-progress: false/);
+assert.match(workMapAutofix, /queue: max/);
+assert.match(workMapAutofix, /REQUESTED_PR_NUMBER: \$\{\{ inputs\.pr_number \}\}/);
 assert.match(workMapAutofix, /TARGET_BRANCH: \$\{\{ inputs\.branch \}\}/);
 assert.match(workMapAutofix, /EXPECTED_HEAD_SHA: \$\{\{ inputs\.expected_head_sha \}\}/);
+assert.match(workMapAutofix, /RECOVERY_RUN_ID: \$\{\{ inputs\.recovery_run_id \}\}/);
+assert.match(workMapAutofix, /DELEGATION_COMMENT_ID: \$\{\{ inputs\.delegation_comment_id \}\}/);
 assert.match(workMapAutofix, /\[\[ "\$\{TARGET_BRANCH\}" != "main" && "\$\{TARGET_BRANCH\}" != "Production" \]\]/);
 assert.match(workMapAutofix, /-f state=open/);
 assert.match(workMapAutofix, /-f base=main/);
@@ -122,6 +133,9 @@ assert.deepEqual(
   ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
 );
 assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));
+assert.ok(writerPolicy.required_writer_commands.includes("Verify and consume Recovery-issued writer delegation"));
+assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
+assert.ok(writerPolicy.required_writer_commands.includes("gh api --method PATCH"));
 assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));
 assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));
 assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));
@@ -136,6 +150,8 @@ for (const marker of [
   "Resolve and validate exact same-repository target",
   "work-map-autofix:authorized",
   "consumed=true",
+  "Issue exact one-time writer delegation grant",
+  "authorization_consumed=true",
   "spec-kit-work-map-autofix.yml/dispatches",
   "direct_repository_mutation:false",
   "protected_branch_mutation:false",
@@ -147,6 +163,9 @@ for (const marker of [
   );
   assert.ok(workMapRecoveryBridge.includes(marker), `Work Map recovery bridge workflow missing ${marker}`);
 }
+assert.match(workMapRecoveryBridge, /group: work-map-writer-delegation-\$\{\{ github\.repository \}\}-pr-\$\{\{ inputs\.pr_number \|\| github\.run_id \}\}/);
+assert.match(workMapRecoveryBridge, /cancel-in-progress: false/);
+assert.match(workMapRecoveryBridge, /queue: max/);
 for (const marker of [
   "platform-work-map-generator.mjs --write",
   "git add docs/work-maps",
