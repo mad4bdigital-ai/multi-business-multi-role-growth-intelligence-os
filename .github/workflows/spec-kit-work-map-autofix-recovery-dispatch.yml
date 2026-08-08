@@ -215,7 +215,7 @@ jobs:
           fi
 
           if [[ "${outcome}" = "blocked" && "${DELEGATION_COMMENT_ID:-}" =~ ^[1-9][0-9]*$ ]]; then
-            current_body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body // "')"
+            current_body="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body // ""')"
             if grep -Fq ' state=issued ' <<<"${current_body}"; then
               revoked_body="${current_body/ state=issued / state=revoked recovery_outcome=blocked }"
               jq -n --arg body "${revoked_body}" '{body:$body}' > "${REPORT_DIR}/delegation-revoke-payload.json"
