@@ -39,6 +39,8 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
   /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
+  /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
   /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
 ];
@@ -189,7 +191,7 @@ function classifyRecipe(candidateSourceFiles) {
       command: "validate work-map self-hosting candidate scope",
       status: 1,
       stdout: unexpected.join("\n"),
-      stderr: "The Work Map self-hosting bootstrap is restricted to the registered writer, maintenance authority, governed regressions, and canonical generated outputs.",
+      stderr: "The Work Map self-hosting bootstrap is restricted to the registered writer, maintenance authority, governed regressions, publisher evidence, and canonical generated outputs.",
     });
   }
   return WORK_MAP_BOOTSTRAP_RECIPE;
