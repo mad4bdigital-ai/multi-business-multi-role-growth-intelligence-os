@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "admin-service-resource-authority-resolution",
+  "title": "Honor exact platform resource authority for admin service principals",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/capability-resolution-dry-run.mjs",
+      "http-generic-api/test-dynamic-capability-resolution-graph.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow high-risk capability resolution to accept an exact bounded platform resource-authority binding for a service principal without weakening tenant/user workspace-grant requirements or independent dispatch gates.",
+      "e2e_journeys": [
+        {
+          "id": "exact-admin-service-resource-authority-resolves-without-escalation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed platform admin service principal resolving a high-risk repository mutation capability",
+          "entrypoint": "capability-resolution-dry-run authority evaluation for an exact GitHub repository, recipe and operation mode",
+          "terminal_outcome": "An active exact service-principal binding removes only the high-risk resource-authority and elevated-permission gaps; mismatched, expired, wildcard, tenant/user or absent bindings remain blocked and dispatch certification stays independent.",
+          "steps": [
+            "Evaluate a typed platform_admin_service principal with an active exact repository binding for repo_patch_batch_apply and atomic_change_set.",
+            "Verify exact tenant, workspace, principal, resource type, repository URI, recipe, allowed mode and sufficient permission before accepting platform resource authority.",
+            "Repeat with resource, expiry, recipe and mode mismatches, then with wildcard resource or wildcard mode authority, and assert each case fails closed.",
+            "Evaluate a tenant/user principal with no workspace grant alongside the service binding and assert that the platform binding is not borrowed across principal types.",
+            "Evaluate the service principal without an exact binding and with a genuine strong workspace grant to prove the intended OR boundary.",
+            "Assert dispatch certification remains a separate blocking gate when resource authority succeeds."
+          ],
+          "assertions": [
+            "An exact active service-principal binding removes workspace_resource_grant_missing_for_high_risk_operation and elevated_permission_missing for the covered high-risk repository operation.",
+            "The same successful resource-authority evaluation does not remove dispatch_certification_missing_or_not_allowed when no qualifying certification exists.",
+            "Resource URI, recipe or operation-mode mismatch and expired bindings do not authorize the operation.",
+            "Wildcard repository URIs and wildcard allowed modes do not authorize the operation.",
+            "Tenant/user principals without a workspace resource grant remain blocked even when an unrelated service-principal platform binding exists.",
+            "A service principal without an exact platform binding remains blocked unless it has a real strong workspace resource grant.",
+            "Legacy untyped principal-id input does not infer service identity from its name and qualifies only when the exact persisted binding proves principal_type=service for the same principal id.",
+            "The change performs no database migration, Production database write, deployment, provider call, credential read or mutation, protected-ref bypass, wildcard authority seed, or OpenAPI change."
+          ],
+          "tests": [
+            {
+              "id": "dynamic-capability-resource-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-dynamic-capability-resolution-graph.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/admin-service-resource-authority-resolution.json",
+            "http-generic-api/scripts/capability-resolution-dry-run.mjs",
+            "http-generic-api/test-dynamic-capability-resolution-graph.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
