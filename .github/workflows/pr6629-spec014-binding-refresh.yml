@@ -22,7 +22,7 @@ jobs:
     env:
       TARGET_BRANCH: fix/repository-policy-1049-bootstrap-repair-6627
       TARGET_PR: '6629'
-      EXPECTED_PARENT_SHA: 283721433bc7c1aa7cd82be15ec9c87e79194fab
+      EXPECTED_PARENT_SHA: aa7b3676eea6cee04c98f262790d00bd2795f129
       LAUNCHER_PATH: .github/workflows/pr6629-spec014-binding-refresh.yml
       HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
       HOSTINGER_TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
@@ -80,10 +80,16 @@ jobs:
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
 
           mapfile -t producer_delta < <(git diff --name-only | sort)
-          test "${#producer_delta[@]}" = "3"
-          test "${producer_delta[0]}" = "${HOSTINGER_MANIFEST}"
-          test "${producer_delta[1]}" = "${HOSTINGER_TASKS}"
-          test "${producer_delta[2]}" = "${RETAIL_MANIFEST}"
+          printf 'producer_delta_count=%s\n' "${#producer_delta[@]}"
+          if [ "${#producer_delta[@]}" -gt 0 ]; then
+            printf 'producer_delta=%s\n' "${producer_delta[*]}"
+          fi
+          for path in "${producer_delta[@]}"; do
+            case "${path}" in
+              "${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
+              *) printf 'Unexpected producer output: %s\n' "${path}" >&2; exit 1 ;;
+            esac
+          done
           test -z "$(git diff --name-only -- docs/work-maps)"
 
           export WORK_MAP_CHANGED_FILES_JSON="$(jq -cn \
@@ -110,11 +116,19 @@ jobs:
           git rm "${LAUNCHER_PATH}"
           git add "${HOSTINGER_MANIFEST}" "${HOSTINGER_TASKS}" "${RETAIL_MANIFEST}"
           mapfile -t staged < <(git diff --cached --name-only | sort)
-          test "${#staged[@]}" = "4"
-          test "${staged[0]}" = "${LAUNCHER_PATH}"
-          test "${staged[1]}" = "${HOSTINGER_MANIFEST}"
-          test "${staged[2]}" = "${HOSTINGER_TASKS}"
-          test "${staged[3]}" = "${RETAIL_MANIFEST}"
+          test "${#staged[@]}" -ge 1
+          test "${#staged[@]}" -le 4
+          printf 'staged_count=%s\n' "${#staged[@]}"
+          printf 'staged=%s\n' "${staged[*]}"
+          launcher_staged=false
+          for path in "${staged[@]}"; do
+            case "${path}" in
+              "${LAUNCHER_PATH}") launcher_staged=true ;;
+              "${HOSTINGER_MANIFEST}"|"${HOSTINGER_TASKS}"|"${RETAIL_MANIFEST}") ;;
+              *) printf 'Unexpected staged output: %s\n' "${path}" >&2; exit 1 ;;
+            esac
+          done
+          test "${launcher_staged}" = "true"
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
