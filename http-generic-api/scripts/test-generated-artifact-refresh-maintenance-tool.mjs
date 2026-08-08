@@ -123,7 +123,7 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /verify_hostinger_spec014_binding_current/u);
   assert.match(toolSource, /verify_retail_spec014_binding_current/u);
   assert.match(toolSource, /docs\/work-maps/u);
-  assert.match(toolSource, /docs\/ci-evidence-routing\.md/u);
+  assert.match(toolSource, /ci-evidence-routing\\\.md/u);
   assert.match(toolSource, /self_hosting_scope_bounded/u);
 });
 
