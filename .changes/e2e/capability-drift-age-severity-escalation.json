@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "capability-drift-age-severity-escalation",
+  "title": "Escalate persistent tenant-visible capability blockers by authoritative alert age",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/capability-drift-age-severity-escalation.json",
+      "http-generic-api/capabilityDriftAlertEscalationPolicy.js",
+      "http-generic-api/operationalAlertService.js",
+      "http-generic-api/test-operational-alerting-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Use the persisted operational alert episode first_seen timestamp to apply monotonic age-based severity floors to tenant-visible capability drift without adding a schema, tenant mutation route, notification fan-out, or repair execution path.",
+      "e2e_journeys": [
+        {
+          "id": "persistent-capability-blocker-escalates-by-current-lifecycle-age",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform Admin operational-alert synchronizer followed by tenant/admin readers",
+          "entrypoint": "POST /activation/operational-attention/sync followed by GET operational-attention readback",
+          "terminal_outcome": "A continuously unresolved capability blocker remains at its source/current severity before 24 hours, becomes at least high after 24 hours, becomes critical after 72 hours, records one severity_escalated lifecycle event per actual age transition, preserves the stronger severity monotonically, and resets the age episode when a previously resolved/ignored blocker reappears.",
+          "steps": [
+            "Lock the existing operational_alerts row for the stable capability-drift alert key before evaluating age.",
+            "Use persisted first_seen_at as the authoritative current-episode start for an open alert.",
+            "Apply policy capability_drift_age_escalation_v1: high floor at 24 hours and critical floor at 72 hours.",
+            "Never lower a stronger source or already-persisted severity while the blocker remains unresolved.",
+            "Persist safe age/escalation metadata in evidence and emit severity_escalated lifecycle evidence only when the age floor actually raises severity.",
+            "When a resolved or ignored capability blocker reappears, start a new age episode from the new observation instead of inheriting the prior resolved incident age.",
+            "Keep capability-drift notification fan-out and managed repair execution disabled in this slice."
+          ],
+          "assertions": [
+            "The age calculation derives from operational_alerts.first_seen_at, not a cached UI counter or tenant-supplied timestamp.",
+            "Before 24 hours age does not raise severity; at 24 hours the effective severity is at least high; at 72 hours it is critical.",
+            "Age escalation is monotonic during one unresolved lifecycle episode and does not downgrade a stronger source severity.",
+            "A severity_escalated event increments lifecycle_revision and records policy/age/sync evidence without changing lifecycle_status.",
+            "A resolved or ignored prior episode does not make a newly re-emitted capability blocker immediately old or critical.",
+            "Tenant projection remains customer-safe and notificationEligible remains false for capability-drift alerts.",
+            "No migration, new table, tenant mutation endpoint, provider call, notification send, managed repair execution, Production action, or secret read is introduced."
+          ],
+          "tests": [
+            {
+              "id": "capability-drift-age-severity-escalation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-operational-alerting-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/capability-drift-age-severity-escalation.json",
+            "http-generic-api/capabilityDriftAlertEscalationPolicy.js",
+            "http-generic-api/operationalAlertService.js",
+            "http-generic-api/test-operational-alerting-control-plane.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
