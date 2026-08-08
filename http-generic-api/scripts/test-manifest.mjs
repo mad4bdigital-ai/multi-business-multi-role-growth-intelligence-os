@@ -73,6 +73,7 @@ const staticDiscoveryCommands = [
   "node test-phase12-verification-release-readiness.mjs",
   "node test-platform-engine-orchestration.mjs",
   "node test-platform-endpoint-tool-facade.mjs",
+  "node test-platform-plugin-brand-connection-authority.mjs",
   "node test-platform-plugin-contract-docs.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-resource-recipe-capability.mjs",
