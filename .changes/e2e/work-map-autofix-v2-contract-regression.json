@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "work-map-autofix-v2-contract-regression",
-  "title": "Work Map Autofix v2 governance contract regression",
+  "title": "Work Map Autofix exact-head convergence contract",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -12,10 +12,12 @@
       ".github/workflows/e2e-contract-reference-integrity.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
       "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
-      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs"
     ]
   },
   "merge_contract": {
@@ -25,33 +27,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Align the repository governance graph, recovery bridge, automation-overlap policy, runbook, and executable regressions with the existing Work Map Autofix v2 exact-dispatch writer without changing either workflow or granting new authority.",
+      "objective": "Keep the sole governed Work Map writer exact-head bound while making one writer commit converge both generated Work Maps and the two Spec014 registry bindings derived from their final registry fingerprint before post-write verification is dispatched.",
       "e2e_journeys": [
         {
           "id": "work-map-autofix-v2-contract-to-regression",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer",
-          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix v2 workflow, and their central pipeline and automation-overlap contracts",
-          "terminal_outcome": "The reviewer receives deterministic passing evidence only when one-time pull-request authorization remains in the non-writer recovery bridge, the sole writer remains workflow_dispatch-only and exact-head bound, and branch exclusions, shared concurrency, idempotent generation, bounded diagnostics, and no-force-push controls agree across policy, documentation, and tests.",
+          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix workflow, canonical Spec014 final binding producer, and their pipeline/automation-overlap contracts",
+          "terminal_outcome": "The reviewer receives deterministic evidence only when the exact-head writer regenerates Work Maps, refreshes Hostinger and Retail Spec014 bindings from the same final registry, proves the combined write set idempotent/current, pushes once without force, and dispatches verification for the resulting exact head.",
           "steps": [
-            "Load the current E2E Work Map recovery bridge without modifying or executing it.",
-            "Load the current Work Map Autofix v2 workflow without modifying or executing it.",
-            "Validate the central recovery-bridge and writer pipeline declarations against strings, triggers, permissions, and non-writer boundaries present in the live workflows.",
-            "Validate the automation-overlap resource group uses the exact current v2 concurrency key.",
-            "Validate the Supervisor runbook documents the separation between one-time bridge authorization and the workflow-dispatch exact-head writer.",
-            "Run the Pipeline Connectivity, Automation Overlap, and Supervisor Runtime Assurance regressions against the same repository tree."
+            "Load the current E2E Work Map recovery bridge and sole workflow-dispatch writer.",
+            "Validate branch/head identity, protected-ref rejection, recovery delegation, shared concurrency, and no-force-push boundaries.",
+            "Run Work Map generation followed by the existing Spec014 binding producer for Hostinger and Retail.",
+            "Restrict the candidate delta to docs/work-maps plus the producer-owned Hostinger integration manifest/tasks and Retail integration manifest.",
+            "Repeat both generators and compare the complete bounded diff to prove combined idempotency.",
+            "Run Work Map currentness plus both Spec014 binding checks before commit/push.",
+            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, and Spec014 binding convergence regressions against the same repository tree."
           ],
           "assertions": [
-            "Work Map Autofix remains the sole remote writer for docs/work-maps.",
-            "The one-time work-map-autofix authorization marker is consumed only by the E2E recovery bridge, which dispatches the writer without generating, committing, or pushing Work Maps.",
-            "The recovery bridge is bound to an immutable same-repository pull-request snapshot and delegates the exact branch head to the writer.",
-            "The writer has no pull_request trigger or authorization marker and is started only by workflow_dispatch with an existing same-repository pull-request branch and exact expected_head_sha.",
-            "main and Production are rejected as targets, and local plus remote head identity is verified before generation and push.",
-            "The policy-declared Work Map resource group exactly matches the workflow v2 concurrency key and keeps cancel-in-progress disabled.",
-            "Generation remains idempotent and rejects changes outside docs/work-maps.",
-            "The writer uses no force push and publishes bounded v2 diagnostic evidence.",
-            "This change modifies governance, documentation, and regressions only; it does not change or execute either workflow and does not mutate Work Maps."
+            "Work Map Autofix remains the sole remote writer for docs/work-maps and does not gain a pull_request trigger.",
+            "The one-time work-map-autofix authorization marker remains outside the writer in the recovery bridge.",
+            "The writer is bound to one existing same-repository PR branch and immutable expected_head_sha; main and Production remain forbidden targets.",
+            "Hostinger and Retail Spec014 bindings are refreshed only through http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs after Work Map generation.",
+            "The writer accepts no changed paths outside docs/work-maps, specs/014-governed-hostinger-storage-orchestration/work-map-integration.json, optional canonical Hostinger tasks.md, and specs/014-retail-commerce-operations-growth-os/work-map-integration.json.",
+            "Combined Work Map plus Spec014 binding generation is idempotent and both producers pass check mode before any commit.",
+            "The remote branch is re-read against expected_head_sha immediately before one normal push; force push remains forbidden.",
+            "Post-write CI and Spec Kit Work Map Integration are dispatched only for the resulting exact head.",
+            "The binding producer performs no provider dispatch, live database access, migration apply, Production mutation, or secret access."
           ],
           "tests": [
             {
@@ -74,18 +77,28 @@
               "working_directory": "http-generic-api",
               "path": "test-supervisor-runtime-assurance-automation.mjs",
               "args": []
+            },
+            {
+              "id": "work-map-autofix-spec014-binding-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-spec014-binding-convergence.mjs",
+              "args": []
+            },
+            {
+              "id": "spec014-final-work-map-binding-producer",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-refresh-final-work-map-binding.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-v2-contract-regression.json",
-            ".specify/pipeline-connectivity-contract.json",
-            ".github/workflows/e2e-contract-reference-integrity.yml",
             ".github/workflows/spec-kit-work-map-autofix.yml",
-            "docs/runbooks/supervisor-runtime-assurance.md",
-            "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
-            "http-generic-api/test-automation-overlap-analyzer.mjs",
-            "http-generic-api/test-pipeline-connectivity-check.mjs",
-            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+            "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+            "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
         }
       ]
@@ -93,7 +106,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the next explicitly authorized Work Map Autofix v2 dispatch and confirm exact-head readback and diagnostic evidence under its existing governance boundary."
+      "objective": "Observe the next explicitly authorized Work Map Autofix dispatch and confirm the resulting exact-head Work Map integration passes without a separate Spec014 registry-binding repair cycle."
     }
   ],
   "secrets_included": false
