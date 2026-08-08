@@ -60,7 +60,7 @@ assert.match(workflow, /remote_production_sha/);
 assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
 assert.match(workflow, /RUNTIME_BASE_URL: https:\/\/auth\.mad4b\.com/);
 assert.doesNotMatch(workflow, /pull_request_target:/);
-assert.doesNotMatch(workflow, /permissions:\s*\n(?:\s+.*\n)*?\s+contents:\s*write/m);
+assert.doesNotMatch(workflow, /^\s+contents:\s*write\s*$/m);
 assert.doesNotMatch(workflow, /actions\/checkout@[^\n]+\n(?:.*\n){0,8}\s+ref:\s*\$\{\{ github\.event\.pull_request/m);
 
 console.log(JSON.stringify({
