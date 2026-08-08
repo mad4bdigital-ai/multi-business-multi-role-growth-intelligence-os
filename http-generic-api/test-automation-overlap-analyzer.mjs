@@ -106,19 +106,21 @@ assert.equal(
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workMapWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml");
+const workMapRecoveryWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml");
 const overlapPolicyPath = path.join(repoRoot, "http-generic-api/scripts/taxonomy/automation-overlap-policy.json");
 const workMapWorkflow = readFileSync(workMapWorkflowPath, "utf8");
+const workMapRecoveryWorkflow = readFileSync(workMapRecoveryWorkflowPath, "utf8");
 const overlapPolicy = JSON.parse(readFileSync(overlapPolicyPath, "utf8"));
 const workMapResourceGroup = overlapPolicy.resource_groups.find(
   (entry) => entry.key === "pull-request-work-map-generated-artifacts",
 );
-const expectedWorkMapConcurrency = "spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}";
+const expectedWorkMapConcurrency = "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}";
 
 assert(workMapResourceGroup, "Work Map generated-artifact resource group must remain registered");
 assert.equal(
   workMapResourceGroup.required_concurrency_group,
   expectedWorkMapConcurrency,
-  "Work Map resource-group policy must match the workflow-dispatch-only writer concurrency identity",
+  "Work Map resource-group policy must match the PR-keyed Recovery/writer serialization identity",
 );
 assert.deepEqual(
   workMapResourceGroup.workflows,
@@ -127,11 +129,19 @@ assert.deepEqual(
 );
 assert(
   workMapWorkflow.includes(`group: ${expectedWorkMapConcurrency}`),
-  "Work Map writer workflow must use the policy-required concurrency group",
+  "Work Map writer workflow must use the policy-required PR-keyed concurrency group",
 );
 assert(
-  workMapWorkflow.includes("cancel-in-progress: false"),
-  "Work Map writer must queue rather than cancel in-progress mutations",
+  workMapRecoveryWorkflow.includes(`group: ${expectedWorkMapConcurrency}`),
+  "Recovery and Work Map writer must share the same PR-keyed serialization lease",
+);
+assert(
+  workMapWorkflow.includes("cancel-in-progress: false") && workMapRecoveryWorkflow.includes("cancel-in-progress: false"),
+  "Recovery and Work Map writer must not cancel in-progress mutations",
+);
+assert(
+  workMapWorkflow.includes("queue: max") && workMapRecoveryWorkflow.includes("queue: max"),
+  "Recovery and Work Map writer must queue pending runs on the shared serialization lease",
 );
 assert(
   !workMapWorkflow.includes("contains(github.event.pull_request.body"),
