@@ -204,5 +204,6 @@
       "status": "not_applicable",
       "objective": "This repository-control recovery chain performs no Production action or deployment."
     }
-  ]
+  ],
+  "secrets_included": false
 }
