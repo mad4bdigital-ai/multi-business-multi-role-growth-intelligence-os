@@ -11,11 +11,11 @@ const GH = String(process.env.GH_READ_TOKEN || '').trim();
 const REPO = String(process.env.REPOSITORY || 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os').trim();
 const ISSUE = Number(process.env.CONTROL_ISSUE || 6625);
 const SOURCE_PR = Number(process.env.SOURCE_PR || 0);
-const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-repository-policy-1050`).trim();
+const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-repository-policy-1051`).trim();
 
-const MIGRATION = '1050_github_repository_policy_live_apply_authority.sql';
+const MIGRATION = '1051_github_repository_policy_live_apply_authority.sql';
 const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
-const MIGRATION_BLOB_SHA = '3209f180e500c23a7503edf2609ba076ba33e401';
+const MIGRATION_BLOB_SHA = 'a705b4425c962b65efae3f92a7e9ef20706e0841';
 const EXPECTED_STATEMENT_COUNT = 6;
 const CONFIRMATION_KEY = MIGRATION.replace(/\.sql$/i, '').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase();
 const AUTH_CONFIRM = `AUTHORIZE_GOVERNED_MIGRATION_${CONFIRMATION_KEY}`;
@@ -43,8 +43,8 @@ const READBACK_SQL = `SELECT
   (SELECT requires_same_cycle_dry_run FROM capability_apply_authorization_policy_registry WHERE policy_key='github_repository_policy_controller_apply_v1' LIMIT 1) AS requires_same_cycle_dry_run,
   (SELECT readiness_status FROM v_repository_capability_binding_readiness WHERE capability_binding_key='growth_intelligence_platform.github.repository_policy_controller.production' LIMIT 1) AS capability_readiness,
   (SELECT policy_key FROM v_repository_capability_binding_readiness WHERE capability_binding_key='growth_intelligence_platform.github.repository_policy_controller.production' LIMIT 1) AS capability_policy_key,
-  (SELECT authorization_status FROM governed_migration_authorization_registry WHERE migration_file='1050_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS authorization_status,
-  (SELECT JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.live_github_policy_apply')) FROM governed_migration_authorization_registry WHERE migration_file='1050_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS live_github_policy_apply;`;
+  (SELECT authorization_status FROM governed_migration_authorization_registry WHERE migration_file='1051_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS authorization_status,
+  (SELECT JSON_UNQUOTE(JSON_EXTRACT(metadata_json,'$.live_github_policy_apply')) FROM governed_migration_authorization_registry WHERE migration_file='1051_github_repository_policy_live_apply_authority.sql' LIMIT 1) AS live_github_policy_apply;`;
 
 let stage = 'start';
 let checksum = null;
@@ -95,7 +95,7 @@ async function writeJson(name, value) {
 }
 async function writeState(extra = {}) {
   await writeJson('state.json', {
-    contract: 'github_repository_policy_1050_governed_rollout.v1', phase: PHASE, stage,
+    contract: 'github_repository_policy_1051_governed_rollout.v1', phase: PHASE, stage,
     migration: MIGRATION, migration_blob_sha: MIGRATION_BLOB_SHA, migration_checksum_sha256: checksum,
     statement_count: statementCount, source_pr: SOURCE_PR || null, source_merge_sha: sourceMergeSha,
     production_sha: productionSha, apply_sent: applySent, apply_retried: false,
@@ -182,10 +182,10 @@ async function verifyProductionMigration() {
   productionSha = String(ref?.object?.sha || '').toLowerCase();
   assert.match(productionSha, /^[0-9a-f]{40}$/);
   const file = await githubJson(`/repos/${REPO}/contents/${MIGRATION_PATH}?ref=${productionSha}`);
-  assert.equal(String(file?.sha || '').toLowerCase(), MIGRATION_BLOB_SHA, 'Production Migration 1050 blob mismatch');
+  assert.equal(String(file?.sha || '').toLowerCase(), MIGRATION_BLOB_SHA, 'Production Migration 1051 blob mismatch');
   const sql = Buffer.from(String(file.content || '').replace(/\s+/g, ''), 'base64').toString('utf8');
   checksum = sha256(sql); statementCount = splitMigrationSqlStatements(sql).length;
-  assert.equal(statementCount, EXPECTED_STATEMENT_COUNT, 'Migration 1050 statement count changed');
+  assert.equal(statementCount, EXPECTED_STATEMENT_COUNT, 'Migration 1051 statement count changed');
   const compare = await githubJson(`/repos/${REPO}/compare/${sourceMergeSha}...${productionSha}`);
   assert.ok(['ahead', 'identical'].includes(compare.status), `Production does not contain source merge ${sourceMergeSha}`);
   return { production_sha: productionSha, migration_blob_sha: MIGRATION_BLOB_SHA, checksum, statement_count: statementCount, source_pr: SOURCE_PR, source_merge_sha: sourceMergeSha, source_merge_status: compare.status, secrets_included: false };
@@ -203,24 +203,24 @@ async function verifyRuntimeParity() {
   throw new Error('Runtime did not converge to exact Production SHA within bounded window');
 }
 async function dryRun() {
-  const payload = requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_execute', tool_args: { migration: MIGRATION, mode: 'dry_run', expected_checksum_sha256: checksum, expected_statement_count: statementCount } }), 'migration_1050_dry_run');
+  const payload = requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_execute', tool_args: { migration: MIGRATION, mode: 'dry_run', expected_checksum_sha256: checksum, expected_statement_count: statementCount } }), 'migration_1051_dry_run');
   const result = keyed(payload, 'applies_sql') || payload;
   assert.equal(result?.applies_sql, false); assert.equal(result?.mode, 'dry_run'); assert.equal(Number(result?.preflight_risk_count || 0), 0);
   return result;
 }
 async function bootstrapAuthorization(envelopeId) {
-  const args = { migration: MIGRATION, expected_checksum_sha256: checksum, expected_statement_count: statementCount, pull_request: SOURCE_PR, merge_sha: sourceMergeSha, confirm: AUTH_CONFIRM, capability_envelope_id: envelopeId, decision_note: 'Authorize checksum-bound Migration 1050 metadata registration only; no GitHub Ruleset Apply occurs in this migration lifecycle.' };
+  const args = { migration: MIGRATION, expected_checksum_sha256: checksum, expected_statement_count: statementCount, pull_request: SOURCE_PR, merge_sha: sourceMergeSha, confirm: AUTH_CONFIRM, capability_envelope_id: envelopeId, decision_note: 'Authorize checksum-bound Migration 1051 metadata registration only; no GitHub Ruleset Apply occurs in this migration lifecycle.' };
   const first = await requestRaw('/gpt/tools/call', { name: 'governed_migration_authorization_bootstrap', tool_args: args });
-  if (first.transport_ok && first.http_ok && first.payload?.ok !== false) return requireSuccess(first, 'migration_1050_authorization_bootstrap');
+  if (first.transport_ok && first.http_ok && first.payload?.ok !== false) return requireSuccess(first, 'migration_1051_authorization_bootstrap');
   const detail = keyed(first.payload, 'code') || first.payload?.error || {};
   if (String(detail?.code) === 'governed_migration_authorization_confirmation_required') {
     const required = String(detail?.details?.required_confirmation || detail?.details?.confirmation || '');
-    assert.equal(required, AUTH_CONFIRM, 'Runtime authorization challenge differs from canonical Migration 1050 confirmation');
-    return requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_authorization_bootstrap', tool_args: { ...args, confirm: required } }), 'migration_1050_authorization_confirmed');
+    assert.equal(required, AUTH_CONFIRM, 'Runtime authorization challenge differs from canonical Migration 1051 confirmation');
+    return requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_authorization_bootstrap', tool_args: { ...args, confirm: required } }), 'migration_1051_authorization_confirmed');
   }
   const previous = String(detail?.details?.recorded_checksum_sha256 || detail?.details?.current_checksum_sha256 || '').toLowerCase();
   assert.equal(String(detail?.code), 'governed_migration_authorization_previous_checksum_required'); assert.match(previous, /^[0-9a-f]{64}$/); assert.notEqual(previous, checksum);
-  return requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_authorization_bootstrap', tool_args: { ...args, previous_checksum_sha256: previous } }), 'migration_1050_authorization_rotation');
+  return requireSuccess(await requestRaw('/gpt/tools/call', { name: 'governed_migration_authorization_bootstrap', tool_args: { ...args, previous_checksum_sha256: previous } }), 'migration_1051_authorization_rotation');
 }
 async function migrationReadback() {
   const result = await requestRaw('/gpt/tools/call', { name: 'governed_migration_schema_readback', tool_args: { migration: MIGRATION, expected_checksum_sha256: checksum, expected_statement_count: statementCount, expected_tables: [...EXPECTED_TABLES] } }, 180000);
@@ -231,7 +231,7 @@ function ledgerPass(readback) {
   return Boolean(readback?.readback_status === 'pass' && ledger?.found === true && ledger?.migration_file === MIGRATION && String(ledger?.migration_checksum_sha256 || '').toLowerCase() === checksum && String(ledger?.mode || '').toLowerCase() === 'apply' && Number(ledger?.statement_count) === statementCount && String(ledger?.preflight_status || '').toLowerCase() === 'pass' && Number(ledger?.preflight_risk_count || 0) === 0);
 }
 async function metadataReadback() {
-  const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({ sql: READBACK_SQL, params: [], maxRows: 1, authorityContext: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_live_apply_authority', operation_mode: 'read_only_readiness_probe', required: true } }), 120000), 'github_repository_policy_1050_readback');
+  const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({ sql: READBACK_SQL, params: [], maxRows: 1, authorityContext: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/github_repository_policy_live_apply_authority', operation_mode: 'read_only_readiness_probe', required: true } }), 120000), 'github_repository_policy_1051_readback');
   const row = findObject(payload, (candidate) => Array.isArray(candidate.rows))?.rows?.[0];
   assert.equal(row?.adapter_status, 'active');
   assert.ok(['certified','shadow'].includes(String(row?.readback_status || '')));
@@ -248,9 +248,9 @@ async function metadataReadback() {
   return row;
 }
 async function durableAuthorizationReadback() {
-  const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({ sql: `SELECT migration_file, authorization_status, authorization_source, policy_key, requires_preflight, requires_confirmation, allow_apply, metadata_json FROM governed_migration_authorization_registry WHERE migration_file=? LIMIT 2`, params: [MIGRATION], maxRows: 2, authorityContext: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/governed_migration_authorization_registry/1050', operation_mode: 'read_only_readiness_probe', required: true } }), 120000), 'migration_1050_authorization_readback');
+  const payload = requireSuccess(await requestRaw('/admin/control', buildAdminControlDbReadRequest({ sql: `SELECT migration_file, authorization_status, authorization_source, policy_key, requires_preflight, requires_confirmation, allow_apply, metadata_json FROM governed_migration_authorization_registry WHERE migration_file=? LIMIT 2`, params: [MIGRATION], maxRows: 2, authorityContext: { resource_type: 'database_metadata', resource_uri: 'db-metadata://growth_intelligence_platform/governed_migration_authorization_registry/1051', operation_mode: 'read_only_readiness_probe', required: true } }), 120000), 'migration_1051_authorization_readback');
   const rows = findObject(payload, (candidate) => Array.isArray(candidate.rows))?.rows || [];
-  assert.equal(rows.length, 1, 'Migration 1050 requires one durable authorization row before Apply');
+  assert.equal(rows.length, 1, 'Migration 1051 requires one durable authorization row before Apply');
   const row = rows[0];
   assert.equal(row.authorization_status, 'authorized');
   assert.equal(Number(row.requires_preflight || 0), 1);
@@ -275,7 +275,7 @@ async function reconcileAfterApply() {
     }
     if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error('Exact Migration 1050 apply ledger was not proven; Apply was not retried');
+  throw new Error('Exact Migration 1051 apply ledger was not proven; Apply was not retried');
 }
 async function readiness() {
   stage = 'production_identity'; const identity = await verifyProductionMigration(); await writeJson('production-identity.json', identity);
@@ -286,7 +286,7 @@ async function readiness() {
     await writeJson('summary.json', { result: 'already_applied', ...identity, exact_apply_ledger_verified: true, metadata_readback_verified: true, metadata, apply_sent_by_this_run: false, live_github_policy_apply: false, secrets_included: false }); return;
   }
   stage = 'authorization_envelope';
-  const envelopeId = await createEnvelope('governed_migration_authorization_bootstrap', 'governed_migration_authorization_bootstrap', 'github_actions_repository_policy_1050_readiness', 'Approve checksum-bound Migration 1050 authorization only; no SQL or GitHub provider mutation executes in readiness.');
+  const envelopeId = await createEnvelope('governed_migration_authorization_bootstrap', 'governed_migration_authorization_bootstrap', 'github_actions_repository_policy_1051_readiness', 'Approve checksum-bound Migration 1051 authorization only; no SQL or GitHub provider mutation executes in readiness.');
   stage = 'authorization_bootstrap'; await bootstrapAuthorization(envelopeId);
   stage = 'dry_run'; await dryRun();
   stage = 'durable_authorization_readback'; const authorization = await durableAuthorizationReadback();
@@ -303,7 +303,7 @@ async function apply() {
   stage = 'durable_authorization_readback'; await durableAuthorizationReadback();
   stage = 'same_cycle_dry_run'; await dryRun();
   stage = 'execution_envelope';
-  const envelopeId = await createEnvelope('governed_migration_execute', 'governed_migration_execute', 'github_actions_repository_policy_1050_apply', 'Authorize exactly one checksum-bound Migration 1050 metadata Apply invocation; live GitHub policy Apply remains separate.', true);
+  const envelopeId = await createEnvelope('governed_migration_execute', 'governed_migration_execute', 'github_actions_repository_policy_1051_apply', 'Authorize exactly one checksum-bound Migration 1051 metadata Apply invocation; live GitHub policy Apply remains separate.', true);
   stage = 'apply_once'; applySent = true; await writeState();
   applyResponse = await requestRaw('/gpt/tools/call', { name: 'governed_migration_execute', tool_args: { migration: MIGRATION, mode: 'apply', confirm: APPLY_CONFIRM, expected_checksum_sha256: checksum, expected_statement_count: statementCount, capability_envelope_id: envelopeId } });
   await writeJson('apply-response.json', applyResponse);
@@ -314,7 +314,7 @@ async function verify() {
   stage = 'production_identity'; const identity = await verifyProductionMigration(); await writeJson('production-identity.json', identity);
   stage = 'runtime_parity'; await writeJson('runtime-parity.json', await verifyRuntimeParity());
   stage = 'ledger_readback'; const { result, readback } = await migrationReadback(); await writeJson('verification-readback.json', result);
-  assert.ok(result.transport_ok && ledgerPass(readback), 'Exact Migration 1050 apply ledger is not proven'); exactLedgerVerified = true;
+  assert.ok(result.transport_ok && ledgerPass(readback), 'Exact Migration 1051 apply ledger is not proven'); exactLedgerVerified = true;
   stage = 'metadata_readback'; const metadata = await metadataReadback();
   await writeJson('summary.json', { result: 'verified', ...identity, exact_apply_ledger_verified: true, metadata_readback_verified: true, metadata, apply_sent_by_this_run: false, apply_retried: false, live_github_policy_apply: false, secrets_included: false });
 }
@@ -322,7 +322,7 @@ async function verify() {
 try {
   assert.ok(['readiness','apply','verify'].includes(PHASE), 'ROLLOUT_PHASE must be readiness, apply, or verify');
   assert.ok(KEY, 'BACKEND_API_KEY is required'); assert.ok(GH, 'GH_READ_TOKEN is required');
-  assert.ok(Number.isInteger(ISSUE) && ISSUE === 6625, 'Migration 1050 rollout is bound to control issue #6625');
+  assert.ok(Number.isInteger(ISSUE) && ISSUE === 6625, 'Migration 1051 rollout is bound to control issue #6625');
   await writeState();
   if (PHASE === 'readiness') await readiness(); else if (PHASE === 'apply') await apply(); else await verify();
 } catch (error) {

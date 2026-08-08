@@ -153,12 +153,12 @@ SELECT UUID(), 'growth_intelligence_platform.github.repository_policy_controller
        JSON_OBJECT(
          'authority_source','repository_authority_bindings',
          'apply_authority_source','capability_apply_authorization_policy_registry',
-         'migration','1050_github_repository_policy_live_apply_authority.sql',
+         'migration','1051_github_repository_policy_live_apply_authority.sql',
          'provider_call_executed',FALSE,
          'external_write_executed',FALSE,
          'credential_payload_read',FALSE,
          'secrets_included',FALSE),
-       'migration:1050_github_repository_policy_live_apply_authority.sql'
+       'migration:1051_github_repository_policy_live_apply_authority.sql'
 FROM repository_authority_bindings binding
 WHERE binding.binding_key='growth_intelligence_platform.github.primary.production'
   AND binding.lifecycle_status='active'
@@ -174,8 +174,8 @@ INSERT INTO repository_capability_policy_layers
    lifecycle_status, layer_version, lock_version, metadata_json, created_by)
 SELECT UUID(), capability.capability_binding_id, layers.scope_type, layers.scope_ref, layers.precedence,
        layers.configuration_json, 'active', 1, 1,
-       JSON_OBJECT('source','migration:1050_github_repository_policy_live_apply_authority.sql','secrets_included',FALSE),
-       'migration:1050_github_repository_policy_live_apply_authority.sql'
+       JSON_OBJECT('source','migration:1051_github_repository_policy_live_apply_authority.sql','secrets_included',FALSE),
+       'migration:1051_github_repository_policy_live_apply_authority.sql'
 FROM repository_capability_bindings capability
 JOIN (
   SELECT 'platform' AS scope_type, '*' AS scope_ref, 100 AS precedence,
@@ -196,7 +196,7 @@ INSERT INTO governed_migration_authorization_registry
   (migration_file, authorization_status, authorization_source, policy_key, risk_tier,
    requires_preflight, requires_confirmation, allow_record_only, allow_apply, notes, metadata_json)
 VALUES
-  ('1050_github_repository_policy_live_apply_authority.sql', 'authorized', 'migration_seed',
+  ('1051_github_repository_policy_live_apply_authority.sql', 'authorized', 'migration_seed',
    'governed_migration_runner_authorization_v1', 'high', 1, 1, 1, 1,
    'Authorize metadata-only registration of the repository policy controller live-apply authority. Applying this migration does not call GitHub and does not authorize APPLY_GITHUB_MAIN_REVIEW_POLICY.',
    JSON_OBJECT(

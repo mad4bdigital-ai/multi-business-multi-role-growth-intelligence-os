@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { splitMigrationSqlStatements } from "./migrationSqlStatements.js";
 
-const migrationPath = new URL("./migrations/1050_github_repository_policy_live_apply_authority.sql", import.meta.url);
+const migrationPath = new URL("./migrations/1051_github_repository_policy_live_apply_authority.sql", import.meta.url);
 const sql = fs.readFileSync(migrationPath, "utf8");
 const statements = splitMigrationSqlStatements(sql);
 
@@ -20,11 +20,11 @@ function stripLeadingSqlComments(statement = "") {
   return value;
 }
 
-assert.equal(statements.length, 6, "Migration 1050 must remain exactly six bounded metadata statements");
+assert.equal(statements.length, 6, "Migration 1051 must remain exactly six bounded metadata statements");
 for (const statement of statements) {
   const executable = stripLeadingSqlComments(statement);
-  assert.match(executable, /^INSERT\b/i, "Migration 1050 must remain additive/idempotent INSERT metadata only");
-  assert.doesNotMatch(executable, /^(?:UPDATE|DELETE|DROP|TRUNCATE|ALTER|REPLACE)\b/i, "Migration 1050 must not contain standalone destructive or direct-update statements");
+  assert.match(executable, /^INSERT\b/i, "Migration 1051 must remain additive/idempotent INSERT metadata only");
+  assert.doesNotMatch(executable, /^(?:UPDATE|DELETE|DROP|TRUNCATE|ALTER|REPLACE)\b/i, "Migration 1051 must not contain standalone destructive or direct-update statements");
 }
 
 assert.match(sql, /github_repository_policy_v2/);

@@ -25,9 +25,9 @@ const CAPABILITY_KEY = 'repository_policy_controller';
 const OPERATION_INTENT = 'github_repository_policy_apply';
 const APPLY_POLICY_KEY = 'github_repository_policy_controller_apply_v1';
 const ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
-const MIGRATION = '1050_github_repository_policy_live_apply_authority.sql';
+const MIGRATION = '1051_github_repository_policy_live_apply_authority.sql';
 const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
-const MIGRATION_BLOB_SHA = '3209f180e500c23a7503edf2609ba076ba33e401';
+const MIGRATION_BLOB_SHA = 'a705b4425c962b65efae3f92a7e9ef20706e0841';
 const ENVELOPE_CREATOR_PATH = 'http-generic-api/scripts/capability-resolution-envelope-create.mjs';
 const ENVELOPE_CREATOR_BLOB_SHA = 'ed78843b785ec66b8fb383bdc8ffb8225831a97e';
 const EXPECTED_MIGRATION_STATEMENTS = 6;
@@ -149,7 +149,7 @@ async function verifySourceAndRuntimeParity() {
   const migrationFile = await githubJson(`/repos/${REPO}/contents/${MIGRATION_PATH}?ref=${productionSha}`);
   const sql = Buffer.from(String(migrationFile.content || '').replace(/\s+/g, ''), 'base64').toString('utf8');
   migrationChecksum = sha256(sql);
-  assert.equal(splitMigrationSqlStatements(sql).length, EXPECTED_MIGRATION_STATEMENTS, 'Migration 1050 statement count drifted');
+  assert.equal(splitMigrationSqlStatements(sql).length, EXPECTED_MIGRATION_STATEMENTS, 'Migration 1051 statement count drifted');
   for (let attempt = 1; attempt <= 24; attempt += 1) {
     const [health, version, deployment] = await Promise.all([requestGet(`${BASE}/health`), requestGet(`${BASE}/version`), requestGet(`${BASE}/deployment-info`)]);
     if (health.http_ok && health.payload?.ok === true && version.http_ok && collectShas(version.payload).has(productionSha) && deployment.http_ok && collectShas(deployment.payload).has(productionSha)) {
@@ -160,13 +160,13 @@ async function verifySourceAndRuntimeParity() {
   }
   throw new Error('Runtime did not converge to the exact Production SHA within bounded window');
 }
-async function verifyMigration1050Applied() {
+async function verifyMigration1051Applied() {
   const result = await requestRaw('/gpt/tools/call', { name: 'governed_migration_schema_readback', tool_args: { migration: MIGRATION, expected_checksum_sha256: migrationChecksum, expected_statement_count: EXPECTED_MIGRATION_STATEMENTS, expected_tables: ['platform_resource_adapters','platform_capability_readback_contracts','capability_apply_authorization_policy_registry','repository_capability_bindings','repository_capability_policy_layers','governed_migration_authorization_registry'] } }, 180000);
   const readback = keyed(result.payload, 'readback_status');
   const ledger = readback?.ledger;
-  assert.ok(result.transport_ok && result.http_ok, 'Migration 1050 readback transport failed');
-  assert.equal(readback?.readback_status, 'pass', 'Migration 1050 readback is not pass');
-  assert.equal(ledger?.found, true, 'Migration 1050 apply ledger is absent');
+  assert.ok(result.transport_ok && result.http_ok, 'Migration 1051 readback transport failed');
+  assert.equal(readback?.readback_status, 'pass', 'Migration 1051 readback is not pass');
+  assert.equal(ledger?.found, true, 'Migration 1051 apply ledger is absent');
   assert.equal(ledger?.migration_file, MIGRATION);
   assert.equal(String(ledger?.migration_checksum_sha256 || '').toLowerCase(), migrationChecksum);
   assert.equal(String(ledger?.mode || '').toLowerCase(), 'apply');
@@ -235,17 +235,17 @@ function readbackProvesGate(readback) {
 }
 async function readiness() {
   stage = 'source_runtime_parity'; const parity = await verifySourceAndRuntimeParity(); await writeJson('source-runtime-parity.json', parity);
-  stage = 'migration_1050_ledger'; const authority = await verifyMigration1050Applied(); await writeJson('migration-1050-authority.json', authority);
+  stage = 'migration_1051_ledger'; const authority = await verifyMigration1051Applied(); await writeJson('migration-1051-authority.json', authority);
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('policy-readback.json', planned.readback); await writeJson('policy-plan.json', planned.plan);
   if (planned.readback?.proof?.server_policy_gate_complete === true) {
     await writeJson('summary.json', { result: 'already_enforced', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, server_policy_gate_complete: true, apply_sent_by_this_run: false, secrets_included: false });
     return;
   }
-  await writeJson('summary.json', { result: 'ready_for_apply', main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, resource_uri: binding.resource_uri, migration_1050_verified: true, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false, secrets_included: false });
+  await writeJson('summary.json', { result: 'ready_for_apply', main_sha: mainSha, production_sha: productionSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, resource_uri: binding.resource_uri, migration_1051_verified: true, envelope_created_by_this_run: false, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false, secrets_included: false });
 }
 async function apply() {
   stage = 'source_runtime_parity'; await writeJson('source-runtime-parity.json', await verifySourceAndRuntimeParity());
-  stage = 'migration_1050_ledger'; await writeJson('migration-1050-authority.json', await verifyMigration1050Applied());
+  stage = 'migration_1051_ledger'; await writeJson('migration-1051-authority.json', await verifyMigration1051Applied());
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('policy-readback.json', planned.readback); await writeJson('policy-plan.json', planned.plan);
   if (planned.readback?.proof?.server_policy_gate_complete === true) {
     await writeJson('summary.json', { result: 'already_enforced', main_sha: mainSha, policy_fingerprint: policyFingerprint, server_policy_gate_complete: true, apply_sent_by_this_run: false, secrets_included: false }); return;
@@ -273,7 +273,7 @@ async function apply() {
 }
 async function verify() {
   stage = 'source_runtime_parity'; await writeJson('source-runtime-parity.json', await verifySourceAndRuntimeParity());
-  stage = 'migration_1050_ledger'; await writeJson('migration-1050-authority.json', await verifyMigration1050Applied());
+  stage = 'migration_1051_ledger'; await writeJson('migration-1051-authority.json', await verifyMigration1051Applied());
   stage = 'policy_readback_plan'; const planned = await exactPlan(); await writeJson('verification-readback.json', planned.readback);
   assert.ok(readbackProvesGate(planned.readback), 'Live GitHub server policy gate is not complete');
   await writeJson('summary.json', { result: 'verified', main_sha: mainSha, policy_fingerprint: policyFingerprint, binding_sha256: binding.binding_sha256, server_policy_gate_complete: true, apply_sent_by_this_run: false, provider_call_executed: false, external_write_executed: false, secrets_included: false });

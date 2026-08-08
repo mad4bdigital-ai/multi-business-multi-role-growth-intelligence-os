@@ -1,4 +1,4 @@
-name: Governed Migration 1050 GitHub Repository Policy Authority Rollout
+name: Governed Migration 1051 GitHub Repository Policy Authority Rollout
 
 on:
   issue_comment:
@@ -9,16 +9,16 @@ permissions:
 
 jobs:
   readiness:
-    name: Authorize and dry-run Migration 1050
+    name: Authorize and dry-run Migration 1051
     if: >-
       github.event.issue.number == 6625 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1050_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
-      group: github-repository-policy-1050-readiness
+      group: github-repository-policy-1051-readiness
       cancel-in-progress: false
     env:
       ROLLOUT_PHASE: readiness
@@ -28,7 +28,7 @@ jobs:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
       SOURCE_PR: '6631'
-      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-readiness
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1051-readiness
     steps:
       - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
@@ -40,27 +40,27 @@ jobs:
         with:
           node-version: '22'
       - name: Execute Production-bound authorization and dry-run
-        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret readiness evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: github-repository-policy-1050-readiness-${{ github.run_id }}
+          name: github-repository-policy-1051-readiness-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
 
   apply:
-    name: Apply Migration 1050 exactly once and certify
+    name: Apply Migration 1051 exactly once and certify
     if: >-
       github.event.issue.number == 6625 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'APPLY_1050_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
+      github.event.comment.body == 'APPLY_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 40
     concurrency:
-      group: github-repository-policy-1050-apply
+      group: github-repository-policy-1051-apply
       cancel-in-progress: false
     env:
       ROLLOUT_PHASE: apply
@@ -70,7 +70,7 @@ jobs:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
       SOURCE_PR: '6631'
-      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-apply
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1051-apply
     steps:
       - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
@@ -82,27 +82,27 @@ jobs:
         with:
           node-version: '22'
       - name: Execute exactly-once metadata Apply and same-cycle certification
-        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret Apply evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: github-repository-policy-1050-apply-${{ github.run_id }}
+          name: github-repository-policy-1051-apply-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30
 
   verify:
-    name: Verify Migration 1050 ledger and authority metadata
+    name: Verify Migration 1051 ledger and authority metadata
     if: >-
       github.event.issue.number == 6625 &&
       !github.event.issue.pull_request &&
-      github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1050_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
+      github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1051_GITHUB_REPOSITORY_POLICY_LIVE_APPLY_AUTHORITY' &&
       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 35
     concurrency:
-      group: github-repository-policy-1050-verify
+      group: github-repository-policy-1051-verify
       cancel-in-progress: false
     env:
       ROLLOUT_PHASE: verify
@@ -112,7 +112,7 @@ jobs:
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6625'
       SOURCE_PR: '6631'
-      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-verify
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1051-verify
     steps:
       - name: Checkout exact issue-comment event head
         uses: actions/checkout@v5
@@ -124,12 +124,12 @@ jobs:
         with:
           node-version: '22'
       - name: Verify exact ledger and authority metadata without Apply
-        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+        run: node .github/ops/github-repository-policy-1051-governed-rollout.mjs
       - name: Upload no-secret verification evidence
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: github-repository-policy-1050-verify-${{ github.run_id }}
+          name: github-repository-policy-1051-verify-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
           if-no-files-found: error
           retention-days: 30

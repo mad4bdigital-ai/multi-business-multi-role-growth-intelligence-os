@@ -48,7 +48,7 @@ assert.match(String(summary?.main_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.production_sha || ''), /^[0-9a-f]{40}$/);
 assert.match(String(summary?.policy_fingerprint || ''), /^[0-9a-f]{64}$/);
 assert.match(String(summary?.binding_sha256 || ''), /^[0-9a-f]{64}$/);
-assert.equal(summary?.migration_1050_verified, true);
+assert.equal(summary?.migration_1051_verified, true);
 assert.equal(summary?.envelope_created_by_this_run, false);
 assert.equal(summary?.apply_sent_by_this_run, false);
 assert.equal(summary?.provider_call_executed, false);
