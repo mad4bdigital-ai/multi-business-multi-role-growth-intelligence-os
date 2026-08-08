@@ -196,6 +196,7 @@ export function buildTenantPlatformPluginRoutes() {
       const result = await loadPlatformPluginCatalog({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
+        principalClass: "tenant",
         includeInactive: false,
         includeBindings: req.query.include_bindings === undefined ? true : bool(req.query.include_bindings),
         limit: boundedInt(req.query.limit, 100, 1, 250),
