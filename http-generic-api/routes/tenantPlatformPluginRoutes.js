@@ -6,6 +6,7 @@ import {
   resolvePlatformPluginExecution,
   validateCapabilitySelectorContract,
 } from "../platformPluginResolver.js";
+import { buildTenantPlatformPluginEligibility } from "../tenantPlatformPluginEligibility.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
@@ -393,8 +394,10 @@ export function buildTenantPlatformPluginRoutes() {
         correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
       const { security_decision_trace_admin: _adminTrace, ...tenantSafeResult } = result;
+      const eligibility = buildTenantPlatformPluginEligibility(result);
       return res.status(200).json({
         ...tenantSafeResult,
+        eligibility,
         compatibility_telemetry: contract.compatibilityTelemetry,
         auth_context: {
           tenant_id: req.auth.tenant_id,
