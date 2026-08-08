@@ -170,6 +170,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec014-wave1-apply.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness.yml`
+- `.github/workflows/spec017-protected-managed-execution-canary.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-readback-certify.yml`
