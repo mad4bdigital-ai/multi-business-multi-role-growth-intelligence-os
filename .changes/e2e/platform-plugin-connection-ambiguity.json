@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       "docs/platform-plugin-contract-migration-guide.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
       "http-generic-api/openapi.yaml",
@@ -121,6 +122,7 @@
           "evidence_paths": [
             ".changes/e2e/platform-plugin-connection-ambiguity.json",
             "docs/platform-plugin-contract-migration-guide.md",
+            "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
             "http-generic-api/openapi.yaml",
