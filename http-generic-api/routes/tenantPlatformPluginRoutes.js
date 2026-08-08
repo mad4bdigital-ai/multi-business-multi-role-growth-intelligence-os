@@ -38,8 +38,7 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "targetMode",
 ]);
 
-async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
-  const pool = getPool();
+async function fetchActiveMembershipForTenant({ userId, tenantId = null, pool = getPool() }) {
   const params = [userId];
   let tenantClause = "";
   if (tenantId) {
@@ -413,6 +412,7 @@ export function buildTenantPlatformPluginRoutes() {
 export const _testingTenantPlatformPluginRoutes = {
   requireTenantUserJwt,
   requireCanonicalUserJwt,
+  fetchActiveMembershipForTenant,
   boundedInt,
   bool,
   parseTenantPlatformPluginResolveContract,

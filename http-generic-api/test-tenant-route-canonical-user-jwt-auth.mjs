@@ -48,6 +48,47 @@ assert.match(
   "tenant platform membership lookup must require the parsed user plus active membership and tenant state",
 );
 
+// Execute the membership lookup against a controlled pool so tenant scoping is proven by
+// bound query parameters rather than source inspection alone.
+{
+  const calls = [];
+  const pool = {
+    async query(sql, params = []) {
+      calls.push({ sql, params });
+      if (params[1] === "tenant-regression-1") {
+        return [[{
+          tenant_id: "tenant-regression-1",
+          role: "viewer",
+          status: "active",
+          tenant_display_name: "Tenant Regression 1",
+        }]];
+      }
+      return [[]];
+    },
+  };
+
+  const membership = await _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant({
+    userId: "user-regression-1",
+    tenantId: "tenant-regression-1",
+    pool,
+  });
+  assert.equal(membership?.tenant_id, "tenant-regression-1");
+  assert.equal(membership?.role, "viewer", "authoritative DB role must be available to replace stale token role claims");
+  assert.deepEqual(calls[0].params, ["user-regression-1", "tenant-regression-1"]);
+  assert.match(calls[0].sql, /WHERE m\.user_id = \?/);
+  assert.match(calls[0].sql, /AND m\.tenant_id = \?/);
+  assert.match(calls[0].sql, /AND m\.status = 'active'/);
+  assert.match(calls[0].sql, /AND t\.status = 'active'/);
+
+  const crossTenantMembership = await _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant({
+    userId: "user-regression-1",
+    tenantId: "tenant-regression-2",
+    pool,
+  });
+  assert.equal(crossTenantMembership, null, "an exact tenant selector must not fall back to another active membership");
+  assert.deepEqual(calls[1].params, ["user-regression-1", "tenant-regression-2"]);
+}
+
 assert.match(
   workspaceSource,
   /WHERE m\.user_id = \? AND m\.tenant_id = \?[\s\S]*\[req\.auth\.user_id, tenantId\]/,
@@ -98,6 +139,7 @@ try {
 
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireCanonicalUserJwt, "function");
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireTenantUserJwt, "function");
+  assert.equal(typeof _testingTenantPlatformPluginRoutes.fetchActiveMembershipForTenant, "function");
 } finally {
   if (originalSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = originalSecret;
