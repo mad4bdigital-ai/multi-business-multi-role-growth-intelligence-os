@@ -439,7 +439,7 @@ jobs:
           EOF
 
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-autofix.v4" \
+            --arg contract "mad4b.spec-kit-work-map-autofix.v3" \
             --arg outcome "${JOB_STATUS}" \
             --arg target_branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
@@ -460,7 +460,7 @@ jobs:
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V4 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} recovery_run_id=${RECOVERY_RUN_ID} delegation_comment_id=${DELEGATION_COMMENT_ID} delegation_consumed=${DELEGATION_CONSUMED:-false} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V3 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} recovery_run_id=${RECOVERY_RUN_ID} delegation_comment_id=${DELEGATION_COMMENT_ID} delegation_consumed=${DELEGATION_CONSUMED:-false} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 
