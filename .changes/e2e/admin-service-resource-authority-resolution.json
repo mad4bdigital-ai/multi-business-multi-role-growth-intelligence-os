@@ -18,6 +18,7 @@
       "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
       "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
       "http-generic-api/test-repository-authority-write-boundary.mjs",
+      "http-generic-api/test-repository-authority-resolved-parent-boundary.mjs",
       "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs",
       "http-generic-api/test-github-repository-lifecycle.mjs",
       "http-generic-api/test-repo-patch-apply.mjs"
@@ -47,6 +48,7 @@
             "At execution, compare the actual target branch and expected branch, head, commit or base SHA with the branch/SHA authority scope stored in the envelope.",
             "When exact platform resource authority matched at resolution, reload the persisted binding by binding_id at dispatch and re-run the canonical exact-authority matcher against the current binding state and execution scope.",
             "Wrap repository change-set transport so read-only preparation does not consume a write-boundary check, then revalidate the same envelope and live binding immediately before the first GitHub provider mutation.",
+            "Capture the exact commit parent resolved by the canonical lifecycle through its pre-write Git commit read and use that resolved parent as the sole commit SHA for provider write-boundary authority revalidation.",
             "Preserve every repository mutation intent alias declared by repo_patch_apply_capability_envelope_requirement_v1 when revalidating at the provider write boundary, while rejecting intents outside that configured set before transport.",
             "Revalidate again immediately before an existing-branch ref PATCH or new-branch ref POST so revocation or expiry during Git object preparation cannot update repository branch state.",
             "Exercise successful lifecycle change-set unit fixtures with exact in-memory envelope and live-binding authority harnesses so isolated CI covers the production write-boundary path without a database connection or runtime bypass.",
@@ -65,6 +67,7 @@
             "If authority is revoked before the first provider mutation, zero GitHub mutation requests are sent.",
             "If authority is revoked after Git object preparation but before the final ref mutation, the ref PATCH or ref-creation POST is blocked before transport.",
             "Read-only GitHub preparation calls do not substitute for or prematurely consume the first provider-write authority check.",
+            "If lifecycle drift resolves the actual commit parent from authorized commit X to commit Y, the first provider mutation revalidates against Y and fails with zero provider mutations unless the exact envelope authority covers Y.",
             "Provider write-boundary intent acceptance exactly matches the six aliases declared by repo_patch_apply_capability_envelope_requirement_v1: repo_patch_apply, repo_mutation, github_repo_patch, write, create and delete; an unsupported intent is rejected before provider transport.",
             "Lifecycle unit tests remain database-free by injecting exact authority fixtures into successful mutation cases rather than disabling or bypassing revalidation in runtime code.",
             "A binding-proven service principal remains subject to service identity and branch/SHA checks even when request_context.principal.principal_type was intentionally left blank by the official template flow.",
@@ -88,6 +91,7 @@
             { "id": "capability-envelope-dispatch-binding-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-capability-resolution-envelope-shared-guard.mjs", "args": [] },
             { "id": "platform-resource-authority-branch-commit-scope-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-authority-branch-commit-scope.mjs", "args": [] },
             { "id": "repository-authority-write-boundary-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-repository-authority-write-boundary.mjs", "args": [] },
+            { "id": "repository-authority-resolved-parent-boundary-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-repository-authority-resolved-parent-boundary.mjs", "args": [] },
             { "id": "github-repository-lifecycle-authorized-fixtures", "runner": "node", "working_directory": "http-generic-api", "path": "test-github-repository-lifecycle.mjs", "args": [] },
             { "id": "repo-patch-wrapper-core-lifecycle-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-repo-patch-apply.mjs", "args": [] }
           ],
@@ -104,6 +108,7 @@
             "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
             "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
             "http-generic-api/test-repository-authority-write-boundary.mjs",
+            "http-generic-api/test-repository-authority-resolved-parent-boundary.mjs",
             "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs",
             "http-generic-api/test-github-repository-lifecycle.mjs",
             "http-generic-api/test-repo-patch-apply.mjs"
