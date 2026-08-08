@@ -207,7 +207,7 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
   if (resourceType === "brand") {
     const normalizedRef = normalizeBrandRef(resourceRef);
     const [rows] = await connection.query(
-      `SELECT tbl.tenant_id, tbl.brand_target_key, tbl.status AS link_status, b.status AS brand_status
+      `SELECT tbl.tenant_id, tbl.brand_target_key, tbl.status AS link_status
          FROM tenant_brand_links tbl
          JOIN brands b ON LOWER(b.target_key) = LOWER(tbl.brand_target_key)
         WHERE LOWER(b.target_key) = LOWER(?)
@@ -224,10 +224,10 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
       throw authorityError(403, "workspace_resource_cross_tenant", "Brand resource is not linked to this workspace.");
     }
     const activeRows = tenantRows.filter(
-      (row) => String(row.link_status || "").toLowerCase() === "active" && String(row.brand_status || "").toLowerCase() === "active"
+      (row) => String(row.link_status || "").toLowerCase() === "active"
     );
     if (activeRows.length === 0) {
-      throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active for this workspace.");
+      throw authorityError(409, "workspace_resource_inactive", "Brand resource link is not active for this workspace.");
     }
     if (activeRows.length !== 1) {
       throw authorityError(409, "workspace_resource_ambiguous", "Brand resource reference did not resolve uniquely for this workspace.");

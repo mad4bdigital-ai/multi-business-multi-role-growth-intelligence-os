@@ -43,7 +43,7 @@
             "Workspace grants require the resource_ref to match the active requested tenant.",
             "Asset grants require exactly one workspace_assets row for the requested asset, require tenant ownership, and reject lifecycle_status=deleted.",
             "Vault grants require exactly one workspace_vaults row owned by the tenant with status=active.",
-            "Brand grants resolve through active tenant_brand_links plus an active canonical brand, reject cross-tenant links, and reject ambiguous active matches.",
+            "Brand grants resolve through exactly one active tenant_brand_links row joined to an existing canonical brands.target_key; the global brands registry supplies canonical identity for this authority path and does not require an undeclared brands.status lifecycle column; cross-tenant links, inactive links, and ambiguous active matches fail closed.",
             "App grants require exactly one developer_apps row owned by the requested tenant with status=active.",
             "Site grants require an active cms_sites identity plus at least one current active cms_site_access_grants row scoped to the requested tenant; multiple valid access grants do not make the site identity ambiguous.",
             "Workflow and agent references fail closed before any guessed authority query is attempted because current operational sources do not prove tenant ownership canonically.",
