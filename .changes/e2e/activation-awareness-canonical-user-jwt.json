@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/activation-awareness-canonical-user-jwt.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/routes/activationAwarenessRoutes.js",
       "http-generic-api/scripts/user-jwt-auth-governance.mjs",
       "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
@@ -71,6 +72,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/activation-awareness-canonical-user-jwt.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/routes/activationAwarenessRoutes.js",
             "http-generic-api/scripts/user-jwt-auth-governance.mjs",
             "http-generic-api/test-activation-awareness-user-jwt-boundary.mjs"
