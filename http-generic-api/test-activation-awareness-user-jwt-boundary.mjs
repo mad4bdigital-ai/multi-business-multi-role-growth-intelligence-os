@@ -4,7 +4,7 @@ import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
 import { HARDENED_AUTH_FILES, hardenedFileViolations } from "./scripts/user-jwt-auth-governance.mjs";
 
 const routePath = "http-generic-api/routes/activationAwarenessRoutes.js";
-const source = readFileSync(routePath, "utf8");
+const source = readFileSync(new URL("./routes/activationAwarenessRoutes.js", import.meta.url), "utf8");
 
 assert.equal(source.includes('import jwt from "jsonwebtoken"'), false);
 assert.equal(source.includes("development_fallback_secret_only"), false);
