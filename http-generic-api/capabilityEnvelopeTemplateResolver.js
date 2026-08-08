@@ -93,6 +93,17 @@ export function deriveCapabilityEnvelopeTemplateAuthorityContext(template, conte
   };
 }
 
+function validateTemplateExecutionContext(template, context = {}) {
+  if (safeText(template?.runtime_surface, 191) !== "repo_patch_batch_apply") return;
+  const resourceUri = safeText(context.resource_uri, 512);
+  if (!resourceUri) {
+    fail("capability_envelope_template_resource_uri_missing", "resource_uri is required for repository patch templates.", 400);
+  }
+  if (!EXACT_GITHUB_RESOURCE_RE.test(resourceUri)) {
+    fail("capability_envelope_template_resource_uri_invalid_for_runtime", "Repository patch templates require an exact github://owner/repo resource_uri.", 400);
+  }
+}
+
 function shapeTemplate(row) {
   if (!row) return null;
   return {
@@ -264,6 +275,7 @@ export async function resolveCapabilityEnvelopeTemplate(input = {}, deps = {}) {
     });
   }
   const context = normalizeCapabilityEnvelopeTemplateContext(template, input.context || {});
+  validateTemplateExecutionContext(template, context);
   const ttlMinutes = boundedInt(
     input.ttl_minutes ?? template.defaults?.ttl_minutes,
     Math.min(60, template.max_ttl_minutes),
