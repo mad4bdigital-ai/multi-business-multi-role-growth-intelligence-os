@@ -74,7 +74,7 @@ export function buildDryRunArgs(passthrough = []) {
     else if (key === "--resource-branch" || key === "--branch") { args.resourceBranch = value || ""; if (consume) i += 1; }
     else if (key === "--expected-commit-sha") { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
     else if (key === "--expected-branch-sha") { args.expectedCommitSha = String(value || args.expectedCommitSha).toLowerCase(); if (consume) i += 1; }
-    else if (key === "--expected-base-sha" && !args.expectedCommitSha) { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha") { if (!args.expectedCommitSha) args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
     else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
@@ -97,7 +97,7 @@ export function buildBindingContext(passthrough = []) {
     else if (key === "--recipe-key") { context.recipe_key = safeText(value, 191); if (consume) i += 1; }
     else if (key === "--expected-commit-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--expected-branch-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
-    else if (key === "--expected-base-sha" && !context.expected_commit_sha) { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha") { if (!context.expected_commit_sha) context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--binding-sha256") { context.binding_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--capability-sha256") { context.capability_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
   }
