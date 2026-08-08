@@ -347,8 +347,7 @@ export async function loadPlatformResourceAuthorityBindings(pool, {
           AND resource_type = ?
           AND resource_uri = ?
           AND recipe_key = ?
-        ORDER BY created_at DESC
-        LIMIT 20`,
+        ORDER BY created_at DESC`,
       [tenantId, workspaceId, principal.principal_id, resourceType, resourceUri, recipeKey]
     );
     return rows;
