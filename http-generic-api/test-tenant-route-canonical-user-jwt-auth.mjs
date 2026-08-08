@@ -125,12 +125,14 @@ try {
   else process.env.JWT_SECRET = savedSecret;
 }
 
-// Exercise the real tenant membership middleware without changing production code. db.js
-// resolves mysql.createPool lazily, so this process-local fake pool proves exact SQL binding,
-// authoritative role overwrite and cross-tenant denial without a live database connection.
+// Exercise the real canonical parser followed by the real tenant membership middleware
+// without changing production code. db.js resolves mysql.createPool lazily, so this
+// process-local fake pool proves the parsed claims shape, exact SQL binding, authoritative
+// role overwrite and cross-tenant denial without a live database connection.
 {
   const dbKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
   const savedDbEnv = Object.fromEntries(dbKeys.map((key) => [key, process.env[key]]));
+  const savedJwtSecret = process.env.JWT_SECRET;
   const originalCreatePool = mysql.createPool;
   const calls = [];
   const fakePool = {
@@ -152,25 +154,33 @@ try {
   process.env.DB_NAME = "tenant_auth_regression";
   process.env.DB_USER = "tenant_auth_regression";
   process.env.DB_PASSWORD = "tenant_auth_regression";
+  process.env.JWT_SECRET = "tenant-membership-auth-regression-secret";
   mysql.createPool = () => fakePool;
 
   try {
-    const allowedReq = {
-      auth: {
-        mode: "user_jwt",
-        user_id: "user-regression-1",
-        tenant_id: "tenant-regression-1",
-        role: "owner",
-        tenant_role: "owner",
-      },
-      headers: {},
-    };
+    const allowedToken = jwt.sign(
+      { user_id: "user-regression-1", tenant_id: "tenant-regression-1", role: "owner" },
+      process.env.JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "5m" },
+    );
+    const allowedReq = { headers: { authorization: `Bearer ${allowedToken}` } };
     const allowedResponse = {
       statusCode: 200,
       payload: null,
       status(code) { this.statusCode = code; return this; },
       json(payload) { this.payload = payload; return this; },
     };
+    let allowedParsed = false;
+    await _testingTenantPlatformPluginRoutes.requireCanonicalUserJwt(
+      allowedReq,
+      allowedResponse,
+      () => { allowedParsed = true; },
+    );
+    assert.equal(allowedParsed, true, "tenant route must parse the signed User JWT before membership scope resolution");
+    assert.equal(allowedReq.auth.mode, "user_jwt");
+    assert.equal(allowedReq.auth.claims?.role, "owner", "stale owner claim must exist only inside canonical JWT claims before DB resolution");
+    assert.equal(allowedReq.auth.role, undefined, "canonical parser must not promote a token role claim to effective auth authority");
+
     let allowedNext = false;
     await _testingTenantPlatformPluginRoutes.requireTenantUserJwt(
       allowedReq,
@@ -179,30 +189,37 @@ try {
     );
     assert.equal(allowedNext, true, "active exact-tenant membership must pass the tenant guard");
     assert.equal(allowedReq.auth.tenant_id, "tenant-regression-1");
-    assert.equal(allowedReq.auth.tenant_role, "viewer", "DB membership role must replace stale owner token claims");
+    assert.equal(allowedReq.auth.tenant_role, "viewer", "DB membership role must replace the stale owner claim as effective tenant authority");
     assert.equal(allowedReq.auth.is_admin, false);
+    assert.equal(allowedReq.auth.claims, undefined, "effective tenant auth projection must not retain stale JWT claims after DB membership resolution");
     assert.deepEqual(calls[0].params, ["user-regression-1", "tenant-regression-1"]);
     assert.match(calls[0].sql, /WHERE m\.user_id = \?/);
     assert.match(calls[0].sql, /AND m\.tenant_id = \?/);
     assert.match(calls[0].sql, /AND m\.status = 'active'/);
     assert.match(calls[0].sql, /AND t\.status = 'active'/);
 
-    const deniedReq = {
-      auth: {
-        mode: "user_jwt",
-        user_id: "user-regression-1",
-        tenant_id: "tenant-regression-2",
-        role: "owner",
-        tenant_role: "owner",
-      },
-      headers: {},
-    };
+    const deniedToken = jwt.sign(
+      { user_id: "user-regression-1", tenant_id: "tenant-regression-2", role: "owner" },
+      process.env.JWT_SECRET,
+      { algorithm: "HS256", expiresIn: "5m" },
+    );
+    const deniedReq = { headers: { authorization: `Bearer ${deniedToken}` } };
     const deniedResponse = {
       statusCode: 200,
       payload: null,
       status(code) { this.statusCode = code; return this; },
       json(payload) { this.payload = payload; return this; },
     };
+    let deniedParsed = false;
+    await _testingTenantPlatformPluginRoutes.requireCanonicalUserJwt(
+      deniedReq,
+      deniedResponse,
+      () => { deniedParsed = true; },
+    );
+    assert.equal(deniedParsed, true);
+    assert.equal(deniedReq.auth.claims?.role, "owner");
+    assert.equal(deniedReq.auth.tenant_id, "tenant-regression-2");
+
     let deniedNext = false;
     await _testingTenantPlatformPluginRoutes.requireTenantUserJwt(
       deniedReq,
@@ -216,6 +233,8 @@ try {
     assert.deepEqual(calls[1].params, ["user-regression-1", "tenant-regression-2"]);
   } finally {
     mysql.createPool = originalCreatePool;
+    if (savedJwtSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = savedJwtSecret;
     for (const key of dbKeys) {
       if (savedDbEnv[key] === undefined) delete process.env[key];
       else process.env[key] = savedDbEnv[key];
