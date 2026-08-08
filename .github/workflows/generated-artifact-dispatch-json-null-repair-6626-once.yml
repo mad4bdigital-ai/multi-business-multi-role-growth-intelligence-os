@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 10
     env:
       TARGET_REF: fix/generated-artifact-refresh-eligible-request-json-20260807
-      EXPECTED_PARENT_SHA: be6d4151e37af089a9de9cb66df45302885ae1e9
+      EXPECTED_PARENT_SHA: 4a380f17c06bc789b6ad725d5cc16fa4c7fda95f
       WRITER_PATH: .github/workflows/generated-artifact-dispatch-json-null-repair-6626-once.yml
       WORKFLOW_PATH: .github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml
       TEST_PATH: http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs
@@ -141,7 +141,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git add -A -- "${WORKFLOW_PATH}" "${TEST_PATH}" "${CONTRACT_PATH}" "${WRITER_PATH}"
+          git add -A -- "${WORKFLOW_PATH}" "${TEST_PATH}" "${CONTRACT_PATH}"
           mapfile -t staged < <(git diff --cached --name-only | sort)
           expected="$(printf '%s\n' "${CONTRACT_PATH}" "${WRITER_PATH}" "${WORKFLOW_PATH}" "${TEST_PATH}" | sort)"
           actual="$(printf '%s\n' "${staged[@]}")"
