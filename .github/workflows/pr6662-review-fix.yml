@@ -45,6 +45,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+      - name: Install canonical connector dependencies
+        working-directory: http-generic-api
+        run: npm ci
       - name: Apply bounded review fix
         shell: bash
         run: node "$RUNNER_TEMP/pr6662-review-fix.mjs"
