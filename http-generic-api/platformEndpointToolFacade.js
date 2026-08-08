@@ -75,6 +75,123 @@ function createSelectionError(status, code, message, details = {}) {
   return error;
 }
 
+function boolish(value) {
+  if (value === true || value === false) return value;
+  const normalized = normalizedText(value).toLowerCase();
+  return normalized === "true" || normalized === "yes" || normalized === "1";
+}
+
+function mutationApproval(args = {}) {
+  const approval = args?.mutation_approval || args?.operator_approval || {};
+  return approval && typeof approval === "object" && !Array.isArray(approval) ? approval : {};
+}
+
+function hasExplicitMutationApproval(args = {}) {
+  const approval = mutationApproval(args);
+  return (
+    boolish(args?.operator_approved) ||
+    boolish(args?.operator_approval_granted) ||
+    boolish(approval.approved) ||
+    boolish(approval.operator_approved) ||
+    boolish(approval.operator_approval_granted)
+  );
+}
+
+function hasCompletedMutationPreflight(args = {}) {
+  const approval = mutationApproval(args);
+  return (
+    boolish(args?.dry_run_preflight_completed) ||
+    boolish(args?.approved_preflight_dry_run_validated) ||
+    boolish(approval.dry_run_preflight_completed) ||
+    boolish(approval.approved_preflight_dry_run_validated)
+  );
+}
+
+function hasLiveMutationApproval(args = {}) {
+  const approval = mutationApproval(args);
+  return (
+    boolish(args?.live_execution_approved) ||
+    boolish(args?.execute_live) ||
+    boolish(approval.live_execution_approved) ||
+    boolish(approval.execute_live)
+  );
+}
+
+function hasRequiredSameCycleReadback(args = {}) {
+  const readback = args?.readback;
+  if (!readback || typeof readback !== "object" || Array.isArray(readback)) return false;
+  const mode = normalizedText(readback.mode).toLowerCase();
+  return boolish(readback.required) && Boolean(mode) && mode !== "none";
+}
+
+function isGithubIssueCommentMutation(row = {}) {
+  return (
+    normalizedText(row.tool_name) === "github_rest_endpoint_dispatch" &&
+    normalizedText(row.parent_action_key) === "github_api_mcp" &&
+    normalizedText(row.endpoint_key) === "github_create_issue_comment" &&
+    normalizedText(row.method).toUpperCase() === "POST"
+  );
+}
+
+function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
+  if (!isGithubIssueCommentMutation(row)) return;
+
+  const details = {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_issue_comment",
+    provider_call_allowed: false,
+  };
+
+  if (boolish(args?.dry_run) || boolish(args?.preflight_only)) {
+    throw createSelectionError(
+      409,
+      "github_issue_comment_mutation_preflight_requires_preview",
+      "GitHub issue-comment preflight must use runtime_endpoint_preview so the preflight cannot perform a provider write.",
+      {
+        ...details,
+        preview_tool: "runtime_endpoint_preview",
+      },
+    );
+  }
+
+  if (!hasExplicitMutationApproval(args)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_approval_required",
+      "GitHub issue-comment mutation requires explicit operator approval before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasCompletedMutationPreflight(args)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_preflight_required",
+      "GitHub issue-comment mutation requires completed dry-run/preflight evidence before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasLiveMutationApproval(args)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_live_approval_required",
+      "GitHub issue-comment mutation requires explicit live_execution_approved=true before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasRequiredSameCycleReadback(args)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_readback_required",
+      "GitHub issue-comment mutation requires a non-none same-cycle readback contract before provider dispatch.",
+      details,
+    );
+  }
+}
+
 function buildMultiBindingSchema(rows, normalizeInputSchema) {
   const endpointKeys = allowedEndpointKeys(rows);
   const normalizedSchemas = rows.map((row) => normalizeInputSchema(row.input_schema_json));
@@ -197,6 +314,7 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
         },
       );
     }
+    enforceGithubIssueCommentMutationGate(row, args);
     return row;
   }
 
@@ -243,5 +361,6 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
   }
 
   const [row] = selected;
+  enforceGithubIssueCommentMutationGate(row, args);
   return row;
 }
