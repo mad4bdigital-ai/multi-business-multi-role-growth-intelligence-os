@@ -247,6 +247,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-authority.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
 - `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
