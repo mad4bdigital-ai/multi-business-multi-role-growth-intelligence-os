@@ -207,11 +207,15 @@ export function buildCapabilityEnvelopeTemplatePassthrough(template, context, { 
 }
 
 export function computeCapabilityEnvelopeTemplateResolutionHash({ template, context, ttlMinutes, dryRun }) {
+  const authorityScope = dryRun?.authority?.exact_platform_resource_authority_scope || {};
   return sha256({
     template_key: template.template_key,
     template_version: template.template_version,
     template_hash: template.template_hash,
     context,
+    resolved_resource_branch: dryRun?.request_context?.resource_branch || null,
+    exact_platform_authority_binding_id: authorityScope?.matched === true ? authorityScope.binding_id || null : null,
+    exact_platform_authority_expected_commit_sha: authorityScope?.matched === true ? authorityScope.expected_commit_sha || null : null,
     ttl_minutes: ttlMinutes,
     decision: dryRun?.decision || null,
     selected_source_tier: dryRun?.selected_source?.selected_source_tier || null,
