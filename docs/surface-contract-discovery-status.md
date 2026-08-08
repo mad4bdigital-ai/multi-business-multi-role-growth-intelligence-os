@@ -19,7 +19,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 465
+- Migrations with detected surfaces: 466
 - Migrations reported here: 80
 - OpenAPI operations detected: 1043
 - OpenAPI paths detected: 1029
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 461/465 (99.14%)
+- Documentation complete migrations: 462/466 (99.14%)
 - Documentation gap migrations: 4
 - Gap severity: high=1, medium=0, low=3
 - SQL route coverage in OpenAPI: 31/32 (96.88%)
-- SQL route-like literals exempted from OpenAPI scoring: 675/707
+- SQL route-like literals exempted from OpenAPI scoring: 676/708
 - SQL routes missing OpenAPI path coverage: 1
 - Migrations without explicit `secrets_included=false` marker: 1
 
@@ -45,10 +45,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 15 | 12 |
-| tools | 749 | 271 |
+| tools | 751 | 272 |
 | views | 512 | 206 |
 | policies | 196 | 135 |
-| routes | 707 | 292 |
+| routes | 708 | 293 |
 
 ### Documentation Target Gaps
 
@@ -64,19 +64,19 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 463 |
-| no_credential_payload_read | 462 |
-| no_raw_secrets | 462 |
-| no_external_send | 462 |
-| no_external_write | 462 |
-| secrets_included_false | 464 |
+| no_provider_call | 464 |
+| no_credential_payload_read | 463 |
+| no_raw_secrets | 463 |
+| no_external_send | 463 |
+| no_external_write | 463 |
+| secrets_included_false | 465 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
 | http_route | 32 |
-| admin_tool_registry_route | 216 |
+| admin_tool_registry_route | 217 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 15 |
 | registry_only_surface | 8 |

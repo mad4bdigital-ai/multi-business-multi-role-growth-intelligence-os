@@ -6,29 +6,29 @@
   "triage_schema": "surface-contract-gap-triage-v1",
   "gate_schema": "surface-contract-new-gap-gate-v1",
   "coverage": {
-    "migrations_with_surfaces": 465,
-    "docs_complete_count": 461,
+    "migrations_with_surfaces": 466,
+    "docs_complete_count": 462,
     "docs_gap_count": 4,
     "docs_completion_percent": 99.14,
     "gap_severity_counts": {
       "high": 1,
       "medium": 0,
       "low": 3,
-      "none": 461
+      "none": 462
     },
     "surface_totals": {
       "plugins": 15,
-      "tools": 749,
+      "tools": 751,
       "views": 512,
       "policies": 196,
-      "routes": 707
+      "routes": 708
     },
     "migrations_by_surface_type": {
       "plugins": 12,
-      "tools": 271,
+      "tools": 272,
       "views": 206,
       "policies": 135,
-      "routes": 292
+      "routes": 293
     },
     "missing_doc_target_counts": {
       "Updating Registry Patch Index.md": 4,
@@ -38,24 +38,24 @@
       "docs/change-documentation-governance.md": 4
     },
     "safety_marker_counts": {
-      "no_provider_call": 463,
-      "no_credential_payload_read": 462,
-      "no_raw_secrets": 462,
-      "no_external_send": 462,
-      "no_external_write": 462,
-      "secrets_included_false": 464
+      "no_provider_call": 464,
+      "no_credential_payload_read": 463,
+      "no_raw_secrets": 463,
+      "no_external_send": 463,
+      "no_external_write": 463,
+      "secrets_included_false": 465
     },
     "safety_marker_gap_migrations": 1,
     "route_coverage": {
       "sql_route_count": 32,
-      "total_sql_route_like_count": 707,
-      "openapi_exempt_sql_route_count": 675,
+      "total_sql_route_like_count": 708,
+      "openapi_exempt_sql_route_count": 676,
       "openapi_documented_sql_route_count": 31,
       "openapi_missing_sql_route_count": 1,
       "openapi_sql_route_coverage_percent": 96.88,
       "route_class_counts": {
         "http_route": 32,
-        "admin_tool_registry_route": 216,
+        "admin_tool_registry_route": 217,
         "tenant_tool_registry_route": 42,
         "system_tool_dispatch_route": 15,
         "registry_only_surface": 8,
