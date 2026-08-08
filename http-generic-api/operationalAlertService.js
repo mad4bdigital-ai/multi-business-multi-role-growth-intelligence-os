@@ -638,10 +638,18 @@ function mergeCandidates(items = []) {
     const lifecycleStatus = persistedLifecycleClosed
       ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
+    const capabilityDriftMerge = current.source_type === CAPABILITY_DRIFT_SOURCE
+      || item.source_type === CAPABILITY_DRIFT_SOURCE;
+    const mergedSeverity = capabilityDriftMerge
+      ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])
+          ? item.severity
+          : current.severity)
+      : latest.severity;
     merged.set(item.alert_key, {
       ...current,
       ...latest,
       alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
+      severity: mergedSeverity,
       lifecycle_status: lifecycleStatus,
       lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
       verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
