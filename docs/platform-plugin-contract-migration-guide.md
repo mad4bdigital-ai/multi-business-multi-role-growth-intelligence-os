@@ -61,12 +61,15 @@ Tenant credential resolution is fail-closed and workspace-owned:
 
 - Personal Workspace resolves only a `personal_workspace` connection owned by the authenticated user and exposes it as `user_connection`.
 - Company Workspace resolves only a `company_workspace` connection for the exact workspace and exposes it as `tenant_connection`; the legacy user who originally connected the provider is not treated as the Company credential owner.
-- Brand-owned connections are excluded from this bounded resolver until canonical Brand-management authority is composed. Supplying a Brand identifier cannot widen authority.
+- Brand Workspace derives its Brand only from the exact canonical `workspace_id -> workspace_registry.linked_brand_key` binding. Caller-supplied Brand identity cannot widen authority.
+- Brand-owned connections remain owned as `owner_scope_type=brand` but use `tenant_connection` as the credential source.
+- Brand connection use requires exactly one active tenant membership plus either tenant `owner`/`admin` authority or an exact effective Brand grant at `operate` or stronger (`operate`, `manage`, `admin`, `owner`). `view`, `comment`, and `edit` grants do not authorize Provider credential use.
+- Missing Brand binding, missing membership, insufficient Brand authority, or cross-Brand ownership returns `BRAND_CONNECTION_AUTHORITY_REQUIRED` before credential selection.
 - Multiple eligible connections in the resolved ownership scope return `AMBIGUOUS_CONNECTION_SELECTION`; no first-row selection is allowed.
 - A caller-requested credential scope that conflicts with canonical workspace ownership returns `CONNECTION_OWNERSHIP_SCOPE_MISMATCH`.
-- Unknown, unclassified, cross-workspace, or personal-owner-mismatched ownership fails closed.
+- Unknown, unclassified, cross-workspace, cross-Brand, or personal-owner-mismatched ownership fails closed.
 
-The public response may include sanitized `credential_lookup` and `connection_ownership_resolution` evidence. These projections do not include credential payloads, candidate connection identifiers on ambiguity/scope denial, or secrets. `brand_connections_included` remains `false` for this contract.
+The public response may include sanitized `credential_lookup` and `connection_ownership_resolution` evidence. These projections do not include credential payloads, candidate connection identifiers on ambiguity/scope denial, unauthorized Brand identifiers, or secrets. `brand_connections_included=true` is emitted only after exact Brand binding and canonical Brand operation authority are established.
 
 ## Decision trace contract
 
@@ -99,7 +102,7 @@ Trace projections never copy raw gate detail payloads. Admin diagnostic detail i
 - Current compatibility window: snake_case is canonical; camelCase aliases are accepted and reported through compatibility telemetry.
 - Tenant client migration requirement: send exact `workspace_id` and remove camelCase selectors, camelCase workspace aliases, and unknown fields before enforcement-only clients are certified.
 - Deprecation trigger: after Production rollout stability and telemetry shows no active legacy alias usage, remove camelCase alias support in a follow-up contract PR.
-- Brand connection eligibility is a separate authority milestone and must not be enabled by this migration.
+- Brand connection eligibility is enabled only through the canonical exact-workspace Brand authority path described above; it must never be inferred from a caller-supplied Brand selector or read/edit-only Brand grant.
 - Merge rule: no contract PR is merged until the full hardening plan is complete and CI evidence is green, including exact-head Runtime, OpenAPI generation, E2E, and governance checks.
 
 ## Client checklist
@@ -108,7 +111,7 @@ Trace projections never copy raw gate detail payloads. Admin diagnostic detail i
 - For tenant resolve, send exact `workspace_id`.
 - Send exactly one of `action_key` or `tool_key`.
 - Treat a 200 response with `allowed=false` as a successful readiness read, not as transport failure.
-- Treat ownership scope mismatch or ambiguity as a blocked decision; never choose a connection client-side.
+- Treat ownership scope mismatch, Brand authority denial, or ambiguity as a blocked decision; never choose a connection client-side.
 - Use `security_decision_trace_public` for user-facing diagnostics.
 - Do not display admin trace detail to tenant users.
 - Never infer execution authority from resolve output unless `mode=dispatch_ready`, `security_decision.dispatch_ready=true`, and the subsequent governed dispatch surface independently authorizes execution.
