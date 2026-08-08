@@ -48,10 +48,12 @@ function envelopeStatus(decision = "") {
   return "dry_run";
 }
 
-function buildDryRunArgs(passthrough = []) {
+export function buildDryRunArgs(passthrough = []) {
   const args = {
     tenantId: "",
     userId: "",
+    principalType: "",
+    principalId: "",
     workspaceId: "",
     workspaceKey: "",
     workspaceType: "",
@@ -61,6 +63,10 @@ function buildDryRunArgs(passthrough = []) {
     appKey: "",
     capabilityKey: "",
     operationIntent: "read",
+    operationMode: "",
+    resourceType: "",
+    resourceUri: "",
+    recipeKey: "",
     runtimeSurface: "",
     requestedSourceTier: "",
     explain: false,
@@ -72,6 +78,8 @@ function buildDryRunArgs(passthrough = []) {
     const consume = inlineValue === null;
     if (key === "--tenant-id") { args.tenantId = value || ""; if (consume) i += 1; }
     else if (key === "--user-id") { args.userId = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-type") { args.principalType = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-id") { args.principalId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-id") { args.workspaceId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-key") { args.workspaceKey = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-type") { args.workspaceType = value || ""; if (consume) i += 1; }
@@ -81,6 +89,10 @@ function buildDryRunArgs(passthrough = []) {
     else if (key === "--app-key") { args.appKey = value || ""; if (consume) i += 1; }
     else if (key === "--capability-key") { args.capabilityKey = value || ""; if (consume) i += 1; }
     else if (key === "--operation-intent") { args.operationIntent = value || "read"; if (consume) i += 1; }
+    else if (key === "--operation-mode") { args.operationMode = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-type") { args.resourceType = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-uri") { args.resourceUri = value || ""; if (consume) i += 1; }
+    else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
     else if (key === "--explain") args.explain = true;
