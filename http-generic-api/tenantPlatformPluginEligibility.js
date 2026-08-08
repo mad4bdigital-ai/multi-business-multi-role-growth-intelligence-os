@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const TenantCapabilityEligibilityState = Object.freeze({
   READY: "ready",
   BLOCKED: "blocked",
@@ -14,6 +16,25 @@ export const TenantCapabilityRepairClass = Object.freeze({
   PROVIDER_EXTERNAL_ACTION_REQUIRED: "provider_external_action_required",
   NOT_REPAIRABLE: "not_repairable",
 });
+
+export const TenantPlatformPluginManagedRepairContract = Object.freeze({
+  schema_version: "tenant_platform_plugin_managed_repair.v1",
+  workflow_key: "tenant_platform_plugin_managed_repair_v1",
+  capability_key: "resource_authority_route_family.tenant_platform_plugin_managed_repair",
+  resource_type: "platform_plugin_operation",
+  effect_class: "managed_operation",
+  create_route: "/managed-execution-runs",
+  reconcile_route_template: "/managed-execution-runs/{run_id}/reconcile",
+  readback_route: "/tenant/platform/plugins/resolve",
+  registry_source_migration: "1052_tenant_platform_plugin_managed_repair_authority.sql",
+});
+
+const MANAGED_REPAIR_BLOCKERS = new Set([
+  "missing_action_binding",
+  "missing_tool_binding",
+  "missing_smoke_certification",
+  "expired_smoke_certification",
+]);
 
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -129,9 +150,102 @@ function deriveEligibilityState(result = {}) {
   return TenantCapabilityEligibilityState.BLOCKED;
 }
 
+function canonicalRepairIdentity(result = {}, blockerCodes = []) {
+  const pluginKey = String(result.plugin_key || result.plugin?.plugin_key || "").trim();
+  const selectorType = String(
+    result.selector?.type || (result.requested_action_key ? "action_key" : (result.requested_tool_key ? "tool_key" : ""))
+  ).trim();
+  const selectorValue = String(
+    result.selector?.value || result.requested_action_key || result.requested_tool_key || ""
+  ).trim();
+  if (!pluginKey || !selectorType || !selectorValue) return null;
+  const payload = {
+    plugin_key: pluginKey,
+    selector: { type: selectorType, value: selectorValue },
+    blockers: [...new Set(blockerCodes)].sort(),
+  };
+  const sha256 = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return { ...payload, sha256 };
+}
+
+function unavailableManagedRepair(reason) {
+  return Object.freeze({
+    schema_version: TenantPlatformPluginManagedRepairContract.schema_version,
+    available: false,
+    reason,
+    mutation_executed: false,
+    secrets_included: false,
+  });
+}
+
+function buildManagedRepairProjection(result = {}, blockers = []) {
+  const eligibleBlockers = blockers.filter((blocker) => MANAGED_REPAIR_BLOCKERS.has(blocker.blocker_code));
+  if (!eligibleBlockers.length) return unavailableManagedRepair("no_allowlisted_managed_repair_for_current_blockers");
+
+  const identity = canonicalRepairIdentity(result, eligibleBlockers.map((blocker) => blocker.blocker_code));
+  if (!identity) return unavailableManagedRepair("canonical_plugin_operation_identity_required");
+
+  const repairOperations = [...new Set(eligibleBlockers.map((blocker) => blocker.safe_action).filter(Boolean))].sort();
+  const resourceRef = `platform_plugin_operation:${identity.sha256}`;
+  const idempotencyKey = `tenant-platform-plugin-repair:${identity.sha256}`;
+
+  return Object.freeze({
+    schema_version: TenantPlatformPluginManagedRepairContract.schema_version,
+    available: true,
+    mode: "dry_run_plan",
+    affected_operation: Object.freeze({
+      plugin_key: identity.plugin_key,
+      selector: Object.freeze(identity.selector),
+      identity_sha256: identity.sha256,
+      blocker_codes: Object.freeze(identity.blockers),
+    }),
+    repair_operations: Object.freeze(repairOperations),
+    execution: Object.freeze({
+      create_route: TenantPlatformPluginManagedRepairContract.create_route,
+      reconcile_route_template: TenantPlatformPluginManagedRepairContract.reconcile_route_template,
+      identity_source: "canonical_user_jwt_scope_binding",
+      principal_fields_injected_by_route_authorization: Object.freeze(["tenant_id", "user_id"]),
+      parent_ticket_id_required: true,
+      approval_policy: "managed_handoff",
+      approval_role: "managed_operator",
+      runtime_authority_revalidation_required: true,
+      apply_authorized_by_projection: false,
+      request_template: Object.freeze({
+        parent_ticket_id: null,
+        workflow_key: TenantPlatformPluginManagedRepairContract.workflow_key,
+        capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
+        resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
+        resource_ref: resourceRef,
+        effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
+        idempotency_key: idempotencyKey,
+        service_mode: "managed",
+        task_title: `Repair Platform Plugin operation ${identity.plugin_key}:${identity.selector.value}`.slice(0, 512),
+        input_json: Object.freeze({
+          mode: "dry_run",
+          plugin_key: identity.plugin_key,
+          selector: Object.freeze(identity.selector),
+          repair_operations: Object.freeze(repairOperations),
+          expected_blockers_cleared: Object.freeze(identity.blockers),
+          readback_route: TenantPlatformPluginManagedRepairContract.readback_route,
+          provider_mutation_allowed: false,
+        }),
+      }),
+    }),
+    readback: Object.freeze({
+      required: true,
+      route: TenantPlatformPluginManagedRepairContract.readback_route,
+      success_condition: "affected blocker codes are absent and canonical resolver gates pass",
+      automatic_retry_after_unknown_outcome: false,
+    }),
+    registry_source_migration: TenantPlatformPluginManagedRepairContract.registry_source_migration,
+    mutation_executed: false,
+    secrets_included: false,
+  });
+}
+
 export function buildTenantPlatformPluginEligibility(result = {}) {
   const gates = Array.isArray(result.security_decision?.gates) ? result.security_decision.gates : [];
-  const blockers = gates
+  const classifiedBlockers = gates
     .filter((gate) => gate?.required !== false && ["deny", "not_evaluated"].includes(normalize(gate?.state)))
     .map((gate) => {
       const classification = classifyBlocker(gate);
@@ -143,12 +257,20 @@ export function buildTenantPlatformPluginEligibility(result = {}) {
       };
     });
 
+  const managedRepair = buildManagedRepairProjection(result, classifiedBlockers);
+  const blockers = classifiedBlockers.map((blocker) => (
+    managedRepair.available && MANAGED_REPAIR_BLOCKERS.has(blocker.blocker_code)
+      ? { ...blocker, repair_class: TenantCapabilityRepairClass.MANAGED_REPAIR_AVAILABLE }
+      : blocker
+  ));
+
   return Object.freeze({
     schema_version: "tenant_capability_eligibility.v1",
     status: deriveEligibilityState(result),
     dispatch_ready: result.execution?.will_execute === true,
     blocker_count: blockers.length,
     blockers: Object.freeze(blockers.map((blocker) => Object.freeze(blocker))),
+    managed_repair: managedRepair,
     source: "platform_plugin_resolver",
     secrets_included: false,
   });
