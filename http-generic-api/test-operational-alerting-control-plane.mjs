@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { _testingOperationalAlerts } from "./operationalAlertService.js";
 import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
+import { CAPABILITY_DRIFT_ESCALATION_POLICY, evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";
 import { _testingActivationAwarenessRoutes } from "./routes/activationAwarenessRoutes.js";
 
 function read(relativePath) {
@@ -313,6 +314,71 @@ function testSummaryAndRouteInputs() {
   assert.equal(_testingActivationAwarenessRoutes.queryBoolean("0"), false);
 }
 
+function testCapabilityDriftAgeSeverityEscalationPolicy() {
+  const firstSeenAt = "2026-08-01T00:00:00.000Z";
+  assert.equal(CAPABILITY_DRIFT_ESCALATION_POLICY.high_after_hours, 24);
+  assert.equal(CAPABILITY_DRIFT_ESCALATION_POLICY.critical_after_hours, 72);
+
+  const beforeHigh = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "medium",
+    currentSeverity: "medium",
+    firstSeenAt,
+    observedAt: "2026-08-01T23:59:59.000Z",
+  });
+  assert.equal(beforeHigh.effective_severity, "medium");
+  assert.equal(beforeHigh.age_escalated, false);
+  assert.equal(beforeHigh.next_escalation_at, "2026-08-02T00:00:00.000Z");
+
+  const high = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "medium",
+    currentSeverity: "medium",
+    firstSeenAt,
+    observedAt: "2026-08-02T00:00:00.000Z",
+  });
+  assert.equal(high.effective_severity, "high");
+  assert.equal(high.age_floor_severity, "high");
+  assert.equal(high.age_escalated, true);
+  assert.equal(high.blocker_age_hours, 24);
+
+  const highAlreadyPersisted = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "medium",
+    currentSeverity: "high",
+    firstSeenAt,
+    observedAt: "2026-08-03T00:00:00.000Z",
+  });
+  assert.equal(highAlreadyPersisted.effective_severity, "high");
+  assert.equal(highAlreadyPersisted.age_escalated, false, "the same age floor must not emit duplicate escalation transitions");
+
+  const critical = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "medium",
+    currentSeverity: "high",
+    firstSeenAt,
+    observedAt: "2026-08-04T00:00:00.000Z",
+  });
+  assert.equal(critical.effective_severity, "critical");
+  assert.equal(critical.age_floor_severity, "critical");
+  assert.equal(critical.age_escalated, true);
+  assert.equal(critical.blocker_age_hours, 72);
+  assert.equal(critical.next_escalation_at, null);
+
+  const strongerSource = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "critical",
+    currentSeverity: "high",
+    firstSeenAt,
+    observedAt: "2026-08-01T01:00:00.000Z",
+  });
+  assert.equal(strongerSource.effective_severity, "critical");
+  assert.equal(strongerSource.age_escalated, false, "source severity increases must not be misclassified as age escalation");
+
+  const monotonic = evaluateCapabilityDriftAgeEscalation({
+    baseSeverity: "medium",
+    currentSeverity: "critical",
+    firstSeenAt,
+    observedAt: "2026-08-01T02:00:00.000Z",
+  });
+  assert.equal(monotonic.effective_severity, "critical", "an unresolved blocker must not be downgraded by a weaker source observation");
+}
+
 function testCapabilityDriftAlertLifecycleProjection() {
   const tenantVisible = {
     capability_key: "tenant_tool.wordpress_publish",
@@ -431,6 +497,7 @@ function testCapabilityDriftAlertLifecycleProjection() {
 
 function testRepositoryContracts() {
   const service = read("./operationalAlertService.js");
+  const escalationPolicy = read("./capabilityDriftAlertEscalationPolicy.js");
   const routes = read("./routes/activationAwarenessRoutes.js");
   const awareness = read("./activationAwarenessService.js");
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
@@ -458,6 +525,13 @@ function testRepositoryContracts() {
   assert.match(service, /tenant_id IS NULL AND source_type = 'v_platform_capability_gaps'/);
   assert.match(service, /WHEN VALUES\(source_type\) = 'v_platform_capability_gaps' THEN occurrence_count \+ 1/);
   assert.match(service, /item\.source_type === CAPABILITY_DRIFT_SOURCE/);
+  assert.match(service, /evaluateCapabilityDriftAgeEscalation/);
+  assert.match(service, /severity_escalated/);
+  assert.match(service, /system_age_escalation/);
+  assert.match(service, /lifecycle_status IN \('resolved','ignored'\)/);
+  assert.match(escalationPolicy, /capability_drift_age_escalation_v1/);
+  assert.match(escalationPolicy, /high_after_hours: 24/);
+  assert.match(escalationPolicy, /critical_after_hours: 72/);
   assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
   assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
   assert.match(service, /COUNT\(\*\) AS occurrence_count/);
@@ -713,6 +787,7 @@ async function main() {
   testP0ReconciliationSemantics();
   testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
+  testCapabilityDriftAgeSeverityEscalationPolicy();
   testCapabilityDriftAlertLifecycleProjection();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
