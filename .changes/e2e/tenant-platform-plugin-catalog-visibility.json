@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-platform-plugin-catalog-visibility",
+  "title": "Hide admin-only Platform Plugin tool bindings from tenant catalog discovery",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-platform-plugin-catalog-visibility.json",
+      "http-generic-api/platformPluginCatalog.js",
+      "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/test-platform-plugin-catalog.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make tenant Platform Plugin catalog discovery reflect tenant-visible tool surfaces instead of exposing Admin or platform-only binding metadata that the execution resolver would later reject.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-catalog-excludes-admin-tool-bindings",
+          "end_to_end": true,
+          "level": "in_process",
+          "actor": "Authenticated tenant user listing available Platform Plugins",
+          "entrypoint": "GET /tenant/platform/plugins/catalog through loadPlatformPluginCatalog with principalClass=tenant",
+          "terminal_outcome": "The tenant catalog contains tenant-visible tool bindings only, while the Admin catalog retains its existing internal bindings and no secret values are exposed.",
+          "steps": [
+            "Resolve the tenant catalog through the canonical User-JWT tenant route and mark the catalog projection with principalClass=tenant.",
+            "Load the existing Platform Plugin definition and binding rows without mutating registry state.",
+            "Apply the same admin-only tool-surface classification already enforced by tenant execution: tool_surface containing admin or exposure_scope admin, platform_admin, or platform is not tenant-visible.",
+            "Build tenant plugin manifests and tool-binding totals from the filtered projection while leaving the default Admin catalog projection unchanged.",
+            "Verify the returned catalog remains secret-free and does not expose the hidden binding keys through tool_bindings."
+          ],
+          "assertions": [
+            "The tenant route explicitly requests principalClass=tenant and cannot silently fall back to the Admin projection.",
+            "A tenant-visible device tool remains discoverable.",
+            "An admin tool surface is absent from tenant tool_bindings.",
+            "A platform_admin exposure is absent from tenant tool_bindings even when its tool_surface name itself is not admin-prefixed.",
+            "Tenant tool-binding totals count only tenant-visible bindings.",
+            "The default/Admin catalog retains the same admin and platform tool bindings for operational callers.",
+            "The change does not alter action-binding semantics, execute a provider operation, apply a migration, mutate Production, or expose credentials or secrets."
+          ],
+          "tests": [
+            {
+              "id": "platform-plugin-catalog-tenant-visibility-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-catalog.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-platform-plugin-catalog-visibility.json",
+            "http-generic-api/platformPluginCatalog.js",
+            "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/test-platform-plugin-catalog.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
