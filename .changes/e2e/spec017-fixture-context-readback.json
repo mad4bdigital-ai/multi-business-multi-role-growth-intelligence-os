@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec017-fixture-context-readback",
+  "title": "Governed Spec 017 fixture context readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/workflows/spec017-fixture-context-readback.yml",
+      "http-generic-api/scripts/spec017-fixture-context-readback.mjs",
+      "http-generic-api/test-spec017-fixture-context-readback.mjs",
+      "http-generic-api/scripts/manifests/test-manifest-spec017.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Resolve an existing Spec 017 canary fixture from one explicitly pinned parent ticket using trusted-main tooling and bounded runtime read-only surfaces, without inventing identities/resources/capabilities or creating authority.",
+      "e2e_journeys": [
+        {
+          "id": "read-existing-managed-execution-fixture-context",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository owner preparing a separately governed protected-runtime canary",
+          "entrypoint": "Issue-comment workflow pinned to exact trusted main and Production SHAs",
+          "terminal_outcome": "The readback either returns one explicit existing user/tenant/ticket/capability/resource fixture backed by an existing edit-or-stronger exact/workspace grant, or fails closed with a structured bounded artifact explaining the missing or ambiguous context.",
+          "steps": [
+            "Require one exact known parent ticket and exact trusted main/Production SHAs.",
+            "Checkout only exact trusted main before exposing BACKEND_API_KEY.",
+            "Read the fixed admin tenant-request endpoint for the known ticket.",
+            "Resolve exactly one user candidate from bounded redacted ticket/resolution context and validate active membership through a 600-second Platform JWT.",
+            "Resolve exactly one resource and capability key from the known ticket context.",
+            "Read existing workspace grants with the short-lived user JWT and require one deterministic effective edit-or-stronger exact/workspace grant.",
+            "Upload a sanitized evidence artifact and fail closed on zero or multiple candidates."
+          ],
+          "assertions": [
+            "No random tenant, user, ticket, capability, resource, or grant discovery is accepted.",
+            "No resource grant, capability, resource, provider effect, deployment, SQL, Migration Apply, or repository mutation is performed.",
+            "Only the existing Platform JWT issuance route may POST, solely to validate active user/tenant membership with a 600-second token.",
+            "The workflow rechecks exact main and Production refs after the readback."
+          ],
+          "tests": [
+            {
+              "id": "spec017-fixture-context-readback-safety",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec017-fixture-context-readback.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec017-fixture-context-readback.yml",
+            "http-generic-api/scripts/spec017-fixture-context-readback.mjs",
+            "http-generic-api/test-spec017-fixture-context-readback.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
