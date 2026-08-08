@@ -10,7 +10,10 @@
     "include": [
       "http-generic-api/tenantRequestInboxService.js",
       "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs",
-      "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql"
+      "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql",
+      ".github/ops/tenant-request-identity-collation-runtime-readiness.mjs",
+      ".github/workflows/tenant-request-identity-collation-runtime-readiness.yml",
+      "http-generic-api/test-tenant-request-identity-collation-runtime-readiness-contract.mjs"
     ]
   },
   "merge_contract": {
@@ -20,7 +23,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Keep the canonical tenant-request inbox readable across legacy utf8mb4 collation drift while introducing a bounded alignment migration for inbox-owned identity columns.",
+      "objective": "Keep the canonical tenant-request inbox readable across legacy utf8mb4 collation drift while introducing a bounded alignment migration and a read-only governed readiness lifecycle for inbox-owned identity columns.",
       "e2e_journeys": [
         {
           "id": "tenant-request-cross-collation-detail-read",
@@ -40,7 +43,7 @@
             "Indexed resolution-case and lifecycle identity columns are never wrapped in CONVERT/COLLATE in inbox joins.",
             "Outer ticket expressions are normalized to the actual indexed-column collation with an explicit two-collation fail-closed allowlist.",
             "The migration keeps ticket_lifecycle_events on utf8mb4_uca1400_ai_ci and aligns only tenant_resolution_cases tenant_id/ticket_id relational keys to that ticket-domain collation.",
-            "The migration is source-only in this PR and does not alter tickets, tenant_resolution_cases resource_ref, or Production."
+            "The migration source does not alter tickets or tenant_resolution_cases resource_ref."
           ],
           "tests": [
             {
@@ -55,6 +58,41 @@
             "http-generic-api/tenantRequestInboxService.js",
             "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql",
             "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+          ]
+        },
+        {
+          "id": "tenant-request-identity-collation-runtime-readiness",
+          "end_to_end": true,
+          "level": "repository_runtime_contract",
+          "actor": "repository owner operating through Issue #4449",
+          "entrypoint": "Issue comment VERIFY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_READINESS",
+          "terminal_outcome": "Trusted-main tooling emits a no-secret, read-only readiness classification without migration Apply, capability authorization, provider dispatch, credential access, or database mutation.",
+          "steps": [
+            "Pin the reviewed migration blob, SHA-256 checksum, statement count, source merge SHA, and exact trusted-main checkout.",
+            "Read current Production ref and public runtime parity without mutating Production.",
+            "Use the canonical admin-control DB read builder to inspect INFORMATION_SCHEMA column/table collations and the exact governed migration ledger row with SELECT-only requests.",
+            "Classify already_applied_verified, ready_to_authorize_dry_run, blocked_on_production_promotion, or a fail-closed schema/ledger/runtime state.",
+            "Record tenant_resolution_cases.resource_ref metadata as non-relational evidence while the migration source remains forbidden from altering that column."
+          ],
+          "assertions": [
+            "The readiness workflow has contents: read permission and only runs from trusted main for the exact Issue #4449 token.",
+            "Every database request is produced by buildAdminControlDbReadRequest and carries read_only=true.",
+            "The readiness runner never invokes governed_migration_execute, creates/approves a Capability Envelope, or sends an Apply confirmation.",
+            "Production source absence is reported as blocked_on_production_promotion rather than bypassed with direct SQL or an untrusted branch execution."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-identity-collation-runtime-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-identity-collation-runtime-readiness-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/tenant-request-identity-collation-runtime-readiness.mjs",
+            ".github/workflows/tenant-request-identity-collation-runtime-readiness.yml",
+            "http-generic-api/test-tenant-request-identity-collation-runtime-readiness-contract.mjs"
           ]
         }
       ]
