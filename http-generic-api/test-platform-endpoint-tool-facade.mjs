@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
   buildPlatformEndpointToolDescriptors,
+  isGithubIssueCommentMutationTarget,
   selectPlatformEndpointToolBinding,
 } from "./platformEndpointToolFacade.js";
 
@@ -251,6 +252,7 @@ const githubRows = [
       properties: {
         path_params: { type: "object", additionalProperties: true },
         body: { type: "object", additionalProperties: true },
+        readback: { type: "object", additionalProperties: true },
       },
       required: [],
     }),
@@ -262,66 +264,132 @@ const githubRows = [
     "github_rest_endpoint_dispatch",
   );
 
+  const [descriptor] = buildPlatformEndpointToolDescriptors(rows, { normalizeInputSchema });
+  assert.equal(descriptor.inputSchema.allOf.length, 1, "create-comment projection must publish one endpoint-specific governance condition");
+  assert.equal(
+    descriptor.inputSchema.allOf[0].if.properties.endpoint_key.const,
+    "github_create_issue_comment",
+    "the conditional schema must apply only to create-comment",
+  );
+  assert.equal(
+    descriptor.inputSchema.allOf[0].then.properties.readback.properties.policy_key.const,
+    GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+    "the projected schema must publish the exact executable readback policy",
+  );
+  assert.deepEqual(
+    descriptor.inputSchema.allOf[0].then.properties.readback.properties.governance.required,
+    ["mutation_approval", "approved_preflight_dry_run_validated", "live_execution_approved"],
+    "the projected schema must make the normalized governance envelope discoverable",
+  );
+
   assert.throws(
     () => selectComment(),
     (error) => error.code === "github_issue_comment_mutation_approval_required"
       && error.status === 403
       && error.details.provider_call_allowed === false
+      && error.details.governance_evidence_location === "readback.governance"
       && error.details.secrets_included === false,
     "issue-comment mutation must fail closed before provider dispatch without explicit approval",
   );
 
   assert.throws(
     () => selectComment({ mutation_approval: { approved: true } }),
-    (error) => error.code === "github_issue_comment_mutation_preflight_required"
-      && error.details.provider_call_allowed === false,
-    "issue-comment mutation must require completed dry-run/preflight evidence",
+    (error) => error.code === "github_issue_comment_mutation_approval_required"
+      && error.details.governance_evidence_location === "readback.governance",
+    "top-level approval must not be accepted by the dispatcher because the normalizer does not preserve it",
   );
 
   assert.throws(
     () => selectComment({
-      mutation_approval: { approved: true },
-      dry_run_preflight_completed: true,
+      readback: {
+        governance: { mutation_approval: { approved: true } },
+      },
+    }),
+    (error) => error.code === "github_issue_comment_mutation_preflight_required"
+      && error.details.provider_call_allowed === false,
+    "issue-comment mutation must require completed dry-run/preflight evidence inside the preserved governance envelope",
+  );
+
+  assert.throws(
+    () => selectComment({
+      readback: {
+        governance: {
+          mutation_approval: { approved: true },
+          approved_preflight_dry_run_validated: true,
+        },
+      },
     }),
     (error) => error.code === "github_issue_comment_mutation_live_approval_required"
       && error.details.provider_call_allowed === false,
-    "issue-comment mutation must require explicit live execution approval",
+    "issue-comment mutation must require live approval inside the preserved governance envelope",
   );
 
   assert.throws(
     () => selectComment({
-      mutation_approval: { approved: true },
-      dry_run_preflight_completed: true,
-      live_execution_approved: true,
-      readback: { required: true, mode: "bogus" },
+      readback: {
+        required: true,
+        policy_key: "bogus",
+        governance: {
+          mutation_approval: { approved: true },
+          approved_preflight_dry_run_validated: true,
+          live_execution_approved: true,
+        },
+      },
     }),
     (error) => error.code === "github_issue_comment_mutation_readback_required"
       && error.details.required_readback_policy_key === GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY
       && error.details.provider_call_allowed === false,
-    "arbitrary non-none readback modes must not satisfy the exact comment readback gate",
+    "arbitrary readback policy values must not satisfy the exact comment readback gate",
   );
 
   assert.throws(
     () => selectComment({
-      mutation_approval: { approved: true },
       dry_run: true,
       preflight_only: true,
+      readback: { governance: { mutation_approval: { approved: true } } },
     }),
     (error) => error.code === "github_issue_comment_mutation_preflight_requires_preview"
       && error.status === 409
       && error.details.preview_tool === "runtime_endpoint_preview"
       && error.details.provider_call_allowed === false,
-    "issue-comment dry-run requests must use the no-provider-call runtime preview surface",
+    "issue-comment dry-run requests through the public dispatcher must use the no-provider-call runtime preview surface",
   );
 
   const selected = selectComment({
-    mutation_approval: { approved: true },
-    approved_preflight_dry_run_validated: true,
-    live_execution_approved: true,
-    readback: { required: true, policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY },
+    readback: {
+      required: true,
+      policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+      governance: {
+        mutation_approval: { approved: true },
+        approved_preflight_dry_run_validated: true,
+        live_execution_approved: true,
+      },
+    },
   });
   assert.equal(selected.endpoint_key, "github_create_issue_comment");
   assert.equal(selected.method, "POST");
+
+  assert.throws(
+    () => isGithubIssueCommentMutationTarget({
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_create_issue_comment",
+      preflight_only: true,
+    }),
+    (error) => error.code === "github_issue_comment_mutation_preflight_requires_preview"
+      && error.status === 409
+      && error.details.provider_call_allowed === false,
+    "direct runtime preflight_only must fail closed before executionFacade can reach provider dispatch",
+  );
+  assert.equal(
+    isGithubIssueCommentMutationTarget({
+      parent_action_key: "github_api_mcp",
+      endpoint_key: "github_create_issue_comment",
+      dry_run: true,
+      preflight_only: true,
+    }),
+    true,
+    "runtime_endpoint_preview remains classifiable because it sets dry_run and cannot perform the provider mutation",
+  );
 
   const readOnlySelected = selectPlatformEndpointToolBinding(
     rows,
@@ -365,6 +433,16 @@ const githubRows = [
     executionFacadeSource,
     /governance_readback:[\s\S]*policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY[\s\S]*status: "verified"/,
     "successful live mutation must return bounded verified readback evidence",
+  );
+
+  const systemLayerRoutesSource = readFileSync(
+    new URL("./routes/systemLayerRoutes.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    systemLayerRoutesSource,
+    /readback: args\.readback \|\| \{ required: false, mode: "none" \}/,
+    "platform endpoint normalizer must preserve the readback envelope used for create-comment governance evidence",
   );
 }
 
