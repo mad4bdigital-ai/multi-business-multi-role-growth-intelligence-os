@@ -10,11 +10,14 @@
       ".changes/e2e/work-map-recovery-independent-bootstrap.json",
       ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
+      ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".specify/pipeline-connectivity-contract.json",
       "docs/spec-kit-work-map-integration-governance.md",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
       "http-generic-api/test-work-map-autofix-diagnostics.mjs"
     ]
   },
