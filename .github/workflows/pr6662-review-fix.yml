@@ -21,7 +21,13 @@ jobs:
           fetch-depth: 1
       - name: Stage patcher outside repository
         shell: bash
-        run: cp http-generic-api/scripts/tmp-pr6662-review-fix.mjs "$RUNNER_TEMP/pr6662-review-fix.mjs"
+        run: |
+          cp http-generic-api/scripts/tmp-pr6662-review-fix.mjs "$RUNNER_TEMP/pr6662-review-fix.mjs"
+          cat >> "$RUNNER_TEMP/pr6662-review-fix.mjs" <<'PATCH'
+          let repairedService = fs.readFileSync(svcPath, 'utf8');
+          repairedService = replaceN(repairedService, '  canonicalTenantRequestIdentitySql,\n  tenantRequestIdentityEqualsSql,\n', '  normalizeOuterTenantRequestIdentitySql,\n  indexedTenantRequestIdentityEqualsSql,\n  inspectTenantRequestIdentitySchema,\n', 1, 'testing_exports');
+          fs.writeFileSync(svcPath, repairedService);
+          PATCH
       - name: Checkout exact target
         uses: actions/checkout@v5
         with:
