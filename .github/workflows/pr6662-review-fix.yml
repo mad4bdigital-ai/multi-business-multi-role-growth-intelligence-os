@@ -1,4 +1,4 @@
-name: PR 6662 Work Map binding refresh
+name: PR 6662 Exact Head Gate Dispatch
 on:
   push:
     branches:
@@ -6,115 +6,39 @@ on:
     paths:
       - .github/workflows/pr6662-review-fix.yml
 permissions:
-  contents: write
+  contents: read
+  actions: write
 jobs:
-  refresh-bindings:
+  dispatch:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
     env:
-      EXPECTED_HEAD: 38d912c9c22b0f3d74dbc709df6c9c93f2a4cf0c
+      EXPECTED_HEAD: 6d4b2d70c1981520363ef662ba7ee2faf1332e1c
       EXPECTED_MAIN: 719c965e955347ab1cc56ad91d96881b4b1af357
       TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
+      GH_TOKEN: ${{ github.token }}
     steps:
-      - name: Checkout exact target
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ env.EXPECTED_HEAD }}
-          fetch-depth: 0
-          persist-credentials: true
-          clean: true
-
       - name: Verify exact target and main lease
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
-          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
-          test -z "$(git status --porcelain=v1)"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
 
-      - name: Converge with pinned main without force
+      - name: Dispatch exact-head CI
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git fetch --no-tags origin main
-          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_MAIN"
-          git merge --no-ff --no-edit "$EXPECTED_MAIN"
-          SYNC_HEAD="$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD^1)" = "$EXPECTED_HEAD"
-          test "$(git rev-parse HEAD^2)" = "$EXPECTED_MAIN"
-          test -z "$(git status --porcelain=v1)"
-          echo "SYNC_HEAD=$SYNC_HEAD" >> "$GITHUB_ENV"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+            -f ref="$TARGET_BRANCH"
 
-      - name: Set up Node.js 22
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Refresh canonical Spec Kit registry bindings
+      - name: Dispatch exact-head Work Map Integration
         shell: bash
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            --feature-key 014-governed-hostinger-storage-orchestration
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            --feature-key 014-retail-commerce-operations-growth-os
-
-      - name: Validate exact two-file write set
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff --check
-          mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
-          printf '%s\n' "${changed[@]}"
-          if [ "${#changed[@]}" -ne 2 ] || \
-             [ "${changed[0]:-}" != "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json" ] || \
-             [ "${changed[1]:-}" != "specs/014-retail-commerce-operations-growth-os/work-map-integration.json" ]; then
-            joined="$(printf '%s;' "${changed[@]}")"
-            echo "::error title=PR6662 Work Map binding write set::unexpected files: $joined"
-            exit 1
-          fi
-
-      - name: Verify refreshed bindings deterministically
-        shell: bash
-        run: |
-          set -euo pipefail
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            --feature-key 014-governed-hostinger-storage-orchestration --check
-          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
-            --feature-key 014-retail-commerce-operations-growth-os --check
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
-          node http-generic-api/scripts/work-map-schema-classification.mjs
-          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
-
-      - name: Run binding and governance regressions
-        working-directory: http-generic-api
-        shell: bash
-        run: |
-          set -euo pipefail
-          node test-spec014-refresh-final-work-map-binding.mjs
-          node test-spec-kit-work-map-governance-gate.mjs
-
-      - name: Commit and fast-forward target
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$SYNC_HEAD"
-          test "$(git rev-parse "$SYNC_HEAD^1")" = "$EXPECTED_HEAD"
-          test "$(git rev-parse "$SYNC_HEAD^2")" = "$EXPECTED_MAIN"
-          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
-          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
-          git add -- \
-            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
-            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-          git diff --cached --check
-          git commit -m 'chore(spec): refresh Work Map registry bindings'
-          NEW_HEAD="$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD^)" = "$SYNC_HEAD"
-          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
-          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
-          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
-          echo "Fast-forwarded $TARGET_BRANCH to $NEW_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$EXPECTED_MAIN"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/dispatches" \
+            -f ref="$TARGET_BRANCH"
