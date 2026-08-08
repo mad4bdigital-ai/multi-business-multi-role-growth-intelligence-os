@@ -262,7 +262,24 @@ function isKnownWorkspaceV2RegisteredOperation(operation, contract) {
     ?.properties?.connection_ownership_resolution?.properties;
   const ownerScopeTypes = ownership?.owner_scope_type?.enum;
   const brandIncluded = ownership?.brand_connections_included?.enum;
+  const brandAuthoritySource = ownership?.brand_authority_source;
   const security = expectedSecurity("user_jwt");
+  const previousWorkspaceOnly = Array.isArray(ownerScopeTypes)
+    && ownerScopeTypes.includes("personal_workspace")
+    && ownerScopeTypes.includes("company_workspace")
+    && !ownerScopeTypes.includes("brand")
+    && Array.isArray(brandIncluded)
+    && brandIncluded.length === 1
+    && brandIncluded[0] === false
+    && !Object.hasOwn(ownership, "brand_authority_source");
+  const previousCanonicalBrandWorkspace = equivalent(ownerScopeTypes, ["personal_workspace", "company_workspace", "brand", null])
+    && ownership?.brand_connections_included?.type === "boolean"
+    && !Object.hasOwn(ownership.brand_connections_included, "enum")
+    && equivalent(brandAuthoritySource?.type, ["string", "null"])
+    && equivalent(brandAuthoritySource?.enum, ["tenant_owner_membership", "workspace_resource_grant", null])
+    && !Object.hasOwn(properties, "brand_ref")
+    && !Object.hasOwn(ownership, "owner_scope_ref")
+    && !Object.hasOwn(ownership, "brand_ref");
 
   return operation.operationId === PLATFORM_PLUGIN_RESOLVE_OPERATION_ID
     && operation["x-runtime-contract-source"] === PLATFORM_PLUGIN_ROUTE_FILE
@@ -283,14 +300,7 @@ function isKnownWorkspaceV2RegisteredOperation(operation, contract) {
     && versions[0] === "one-selector-workspace-v2"
     && ownership
     && typeof ownership === "object"
-    && Array.isArray(ownerScopeTypes)
-    && ownerScopeTypes.includes("personal_workspace")
-    && ownerScopeTypes.includes("company_workspace")
-    && !ownerScopeTypes.includes("brand")
-    && Array.isArray(brandIncluded)
-    && brandIncluded.length === 1
-    && brandIncluded[0] === false
-    && !Object.hasOwn(ownership, "brand_authority_source");
+    && (previousWorkspaceOnly || previousCanonicalBrandWorkspace);
 }
 
 function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts) {

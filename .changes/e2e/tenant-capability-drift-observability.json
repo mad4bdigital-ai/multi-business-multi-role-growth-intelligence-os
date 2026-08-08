@@ -1,0 +1,72 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-capability-drift-observability",
+  "title": "Expose tenant-safe capability drift snapshots through operation observability",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-capability-drift-observability.json",
+      "http-generic-api/capabilityDriftSignalProjection.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/operation-observability.yaml",
+      "http-generic-api/operationObservabilityService.js",
+      "http-generic-api/scripts/test-operation-observability-service.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose canonical capability-registry drift as tenant-safe, stable snapshot signals without turning observability reads into repair execution or claiming persistent alert lifecycle before operational_alerts integration exists.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-observability-projects-capability-drift-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user reading operation observability",
+          "entrypoint": "GET /tenant/operations/observability after canonical User-JWT and active-membership authorization",
+          "terminal_outcome": "The dashboard exposes only tenant-visible capability gap snapshots with stable dedupe keys, safe summaries, explicit non-persistent lifecycle, and non-executable remediation classification while execution observability remains available if capability views are degraded.",
+          "steps": [
+            "Read execution observability with the existing tenant-scoped execution_log predicate.",
+            "Read canonical v_platform_capability_gaps joined to capability and maturity views, filtered to exposure_scope=tenant for tenant callers.",
+            "Project each visible gap into a stable signal ID and dedupe key with tenant/resource identity, evidence timestamp, severity, customer-safe summary, and platform-admin remediation guidance.",
+            "Strip internal source-table evidence from tenant signals while retaining richer evidence only for Admin projection.",
+            "Declare persistence.status=snapshot_only and auto_repair.eligible=false so discovery never claims alert persistence or repair execution.",
+            "If capability views are unavailable, return a degraded capability signal source while preserving the execution observability dashboard."
+          ],
+          "assertions": [
+            "Tenant SQL and projection both exclude admin/internal capability gaps.",
+            "The same tenant/capability/gap produces the same dedupe key across observation timestamps.",
+            "Tenant signals contain no admin_evidence and report secrets_included=false.",
+            "Admin projection may include bounded registry/maturity evidence without secrets.",
+            "Capability drift signals never claim auto-repair eligibility and explicitly remain snapshot_only until operational_alerts persistence is wired.",
+            "Capability-view failure is fail-soft and does not take down execution observability.",
+            "No database migration, provider call, repair mutation, external send, Production action, or secret read is performed by this journey."
+          ],
+          "tests": [
+            {
+              "id": "operation-observability-capability-drift-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-operation-observability-service.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-capability-drift-observability.json",
+            "http-generic-api/capabilityDriftSignalProjection.js",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/operation-observability.yaml",
+            "http-generic-api/operationObservabilityService.js",
+            "http-generic-api/scripts/test-operation-observability-service.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
