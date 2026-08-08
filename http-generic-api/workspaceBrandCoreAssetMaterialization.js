@@ -74,9 +74,10 @@ function canonicalBrandCoreSourceRef(row = {}) {
 export function buildBrandCoreMaterializedAssetRef(canonicalBrandRef, source = {}) {
   const brandIdentity = lower(canonicalBrandRef);
   const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
-  if (!brandIdentity || !canonicalSourceRef) return "";
+  const sourceRowId = text(source.id, 64);
+  if (!brandIdentity || !canonicalSourceRef || !sourceRowId) return "";
   const digest = createHash("sha256")
-    .update(`brand_core_asset_v1\0${brandIdentity}\0${canonicalSourceRef}`, "utf8")
+    .update(`brand_core_asset_v2\0${brandIdentity}\0${sourceRowId}\0${canonicalSourceRef}`, "utf8")
     .digest("hex");
   return `brand_core:${digest}`;
 }
@@ -353,25 +354,23 @@ async function resolveBrandCoreSource(connection, brand, sourceLookup) {
   if (!candidates.length) {
     throw materializationError(400, "brand_core_source_ref_required", "source_ref is required for Brand Core materialization.");
   }
-  const brandRefs = [...new Set([
-    text(brand.target_key, 255),
-    text(brand.brand_name, 255),
-    text(brand.normalized_brand_name, 255),
-  ].filter(Boolean).map((value) => value.toLowerCase()))];
+  const canonicalBrandKey = text(brand.target_key, 255);
+  if (!canonicalBrandKey) {
+    throw materializationError(422, "brand_core_brand_identity_unverifiable", "Canonical Brand target key is required for Brand Core source lookup.");
+  }
   const sourceConditions = candidates.map(() => `(
     asset_key=? OR doc_key=? OR doc_id=? OR file_id=? OR google_doc_id=?
   )`).join(" OR ");
   const sourceParams = candidates.flatMap((candidate) => [candidate, candidate, candidate, candidate, candidate]);
-  const brandPlaceholders = brandRefs.map(() => "?").join(",");
   const [rows] = await connection.query(
     `SELECT id, brand_key, asset_key, doc_key, doc_id, file_id, google_doc_id,
             status, created_at, updated_at
        FROM brand_core
-      WHERE LOWER(COALESCE(brand_key,'')) IN (${brandPlaceholders})
+      WHERE LOWER(COALESCE(brand_key,'')) = LOWER(?)
         AND (${sourceConditions})
       ORDER BY updated_at DESC, id DESC
       LIMIT 3 FOR UPDATE`,
-    [...brandRefs, ...sourceParams]
+    [canonicalBrandKey, ...sourceParams]
   );
   if (!Array.isArray(rows) || rows.length === 0) {
     throw materializationError(404, "brand_core_source_not_found", "Brand Core source did not resolve inside the canonical Brand.");
@@ -383,8 +382,8 @@ async function resolveBrandCoreSource(connection, brand, sourceLookup) {
   if (!sourceActive(source)) {
     throw materializationError(409, "brand_core_source_inactive", "Brand Core source is not active and validated for materialization.");
   }
-  if (!canonicalBrandCoreSourceRef(source)) {
-    throw materializationError(422, "brand_core_source_identity_unverifiable", "Brand Core source does not expose a stable materialization identity.");
+  if (!canonicalBrandCoreSourceRef(source) || !text(source.id, 64)) {
+    throw materializationError(422, "brand_core_source_identity_unverifiable", "Brand Core source does not expose a stable row and source identity for materialization.");
   }
   return source;
 }
@@ -425,12 +424,14 @@ async function persistMaterializedAsset(connection, {
     text(lineage.asset_type) !== input.asset_type ||
     text(lineage.asset_ref) !== expectedAssetRef ||
     text(lineage.brand_ref) !== canonicalBrandRef ||
+    lower(lineage.lifecycle_status) !== "active" ||
     text(metadata.root_workspace_id) !== text(rootWorkspace.workspace_id, 64) ||
     lower(metadata.root_workspace_ownership_type) !== lower(rootWorkspace.workspace_ownership_type) ||
     text(metadata.workspace_container_id) !== text(topology.workspace_container_id, 64) ||
     text(metadata.brand_workspace_id) !== text(brandWorkspace.workspace_id, 64) ||
     text(metadata.brand_container_id) !== text(topology.brand_container_id, 64) ||
     text(metadata.brand_container_relationship_id) !== text(topology.relationship_id, 64) ||
+    text(metadata.brand_core_row_id, 64) !== text(source.id, 64) ||
     text(metadata.brand_core_asset_ref) !== expectedAssetRef ||
     text(metadata.brand_core_source_ref) !== expectedSourceRef ||
     text(metadata.source_provider) !== "brand_core" ||
@@ -449,8 +450,13 @@ async function persistMaterializedAsset(connection, {
     auth: { mode: "user_jwt", user_id: actorUserId, tenant_id: tenantId, is_admin: false },
   };
   const asset = await repository.getResource("assets", assetId, context);
-  if (!asset || text(asset.asset_id) !== text(assetId, 64) || asset.source_provider !== "brand_core") {
-    throw materializationError(409, "brand_core_asset_materialize_projection_invalid", "Canonical asset projection did not match the persisted Brand Core materialization.");
+  if (
+    !asset ||
+    text(asset.asset_id) !== text(assetId, 64) ||
+    asset.source_provider !== "brand_core" ||
+    lower(asset.lifecycle_status) !== "active"
+  ) {
+    throw materializationError(409, "brand_core_asset_materialize_projection_invalid", "Canonical asset projection did not match the active persisted Brand Core materialization.");
   }
   return asset;
 }

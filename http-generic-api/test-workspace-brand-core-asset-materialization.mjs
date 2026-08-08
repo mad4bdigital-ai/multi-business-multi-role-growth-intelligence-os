@@ -30,6 +30,16 @@ assert.doesNotMatch(canonicalBrandLookupSql, /\bstatus\b/, "Brand Core local Bra
 const brandCoreLookupSql = materializationRuntimeSource.match(/`SELECT id, brand_key,[\s\S]*?FROM brand_core[\s\S]*?LIMIT 3 FOR UPDATE`/)?.[0] || "";
 assert(brandCoreLookupSql, "Brand Core materialization must expose one bounded canonical source query");
 assert.match(brandCoreLookupSql, /LOWER\(COALESCE\(brand_key,''\)\)/, "Brand Core lookup must scope through the canonical brand_key column");
+assert.match(
+  brandCoreLookupSql,
+  /WHERE LOWER\(COALESCE\(brand_key,''\)\) = LOWER\(\?\)/,
+  "Brand Core lookup must use only the canonical Brand target key."
+);
+assert.doesNotMatch(
+  brandCoreLookupSql,
+  /\bIN\s*\(/,
+  "Brand Core lookup must not widen Brand authority through display-name aliases."
+);
 for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
   assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not require undeclared ${undeclaredColumn}`);
 }
@@ -171,6 +181,9 @@ function buildConnection({
     get stored() { return stored; },
     get insertAttempts() { return insertAttempts; },
     get persistedInserts() { return persistedInserts; },
+    archiveStored() {
+      if (stored) stored = { ...stored, lifecycle_status: "archived" };
+    },
     async query(sql, params = []) {
       calls.push({ sql, params });
       if (sql.includes("FROM workspace_registry wr") && sql.includes("JOIN tenants")) return [roots];
@@ -272,6 +285,9 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(metadata.brand_core_source_ref, "asset_key:positioning");
   assert.equal(metadata.source_provider, "brand_core");
   assert.equal(metadata.secrets_included, false);
+  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core"));
+  assert(sourceLookupCall, "materialization must perform one canonical Brand Core source lookup");
+  assert.equal(sourceLookupCall.params[0], "brand-a", "Brand Core source lookup must be scoped by the canonical Brand target key only");
   assert(connection.calls.some((call) => call.sql.includes("container_relationships") && call.sql.includes("relationship_type_key='contains'")), "materialization must prove canonical Workspace contains Brand topology");
   assert(connection.calls.some((call) => call.sql.includes("FROM container_closure") && call.sql.includes("FOR UPDATE")), "materialization must require the inherited containment path to be materialized");
   assert(connection.calls.some((call) => call.sql.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id")), "materialization must delegate atomic identity persistence to the canonical asset repository");
@@ -300,6 +316,16 @@ async function materialize(connection, sourceRef = "positioning") {
   const brandBAssetRef = buildBrandCoreMaterializedAssetRef("brand-b", { ...source, brand_key: "brand-b" });
   assert.notEqual(brandAAssetRef, brandBAssetRef, "the same Brand Core source key must materialize to distinct workspace asset identities for different Brands in one tenant");
   assert.equal(brandAAssetRef, buildBrandCoreMaterializedAssetRef("BRAND-A", source), "Brand identity casing must not fork the deterministic materialization identity");
+}
+
+{
+  const firstRow = sourceRow({ id: 11, asset_key: "positioning", doc_id: "doc-123" })[0];
+  const secondRow = sourceRow({ id: 12, asset_key: "positioning", doc_id: "doc-456" })[0];
+  assert.notEqual(
+    buildBrandCoreMaterializedAssetRef("brand-a", firstRow),
+    buildBrandCoreMaterializedAssetRef("brand-a", secondRow),
+    "distinct Brand Core rows sharing an asset_key must retain distinct persisted workspace asset identities"
+  );
 }
 
 {
@@ -377,6 +403,18 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(first.asset.asset_id, second.asset.asset_id, "concurrent materialization must converge through canonical asset serialization");
   assert.equal(connection.persistedInserts, 1);
   assert.equal(connection.insertAttempts, 2);
+}
+
+{
+  const connection = buildConnection();
+  await materialize(connection);
+  connection.archiveStored();
+  await assert.rejects(
+    materialize(connection),
+    (error) => error?.code === "brand_core_asset_materialize_readback_mismatch" && error?.status === 409
+  );
+  assert.equal(connection.stored.lifecycle_status, "archived", "materialization must not silently reactivate an archived workspace asset identity");
+  assert.equal(connection.persistedInserts, 1);
 }
 
 {
