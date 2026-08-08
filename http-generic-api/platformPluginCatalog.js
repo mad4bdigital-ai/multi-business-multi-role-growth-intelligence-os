@@ -22,6 +22,13 @@ function unique(values = []) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
+export function isTenantVisiblePlatformPluginToolBinding(binding = {}) {
+  const toolSurface = normalizeStatus(binding.tool_surface);
+  const exposureScope = normalizeStatus(binding.exposure_scope);
+  const adminOnly = toolSurface.includes("admin") || ["admin", "platform_admin", "platform"].includes(exposureScope);
+  return !adminOnly;
+}
+
 function inferProtocols(row = {}) {
   const authType = normalizeStatus(row.auth_type);
   const protocols = [];
@@ -171,11 +178,14 @@ export async function loadPlatformPluginCatalog({
   pool = getPool(),
   tenantId = null,
   userId = null,
+  principalClass = "admin",
   includeInactive = false,
   includeBindings = true,
   limit = 100,
 } = {}) {
   const boundedLimit = Math.max(1, Math.min(250, Number.parseInt(limit, 10) || 100));
+  const normalizedPrincipalClass = normalizeStatus(principalClass);
+  const tenantFacing = normalizedPrincipalClass === "tenant";
   const statusFilter = includeInactive ? "" : "WHERE ai.status <> 'deprecated'";
   const appRows = await safeQuery(
     pool,
@@ -245,8 +255,11 @@ export async function loadPlatformPluginCatalog({
     );
   }
 
+  const visibleToolRows = tenantFacing
+    ? toolRows.filter(isTenantVisiblePlatformPluginToolBinding)
+    : toolRows;
   const actionByKey = indexByAppKey(actionRows);
-  const toolByKey = indexByAppKey(toolRows);
+  const toolByKey = indexByAppKey(visibleToolRows);
   const policyByKey = indexByAppKey(tenantPolicyRows);
   const connectionByKey = indexByAppKey(userConnectionRows);
 
@@ -276,6 +289,7 @@ export async function loadPlatformPluginCatalog({
     filters: {
       tenant_id: tenantId || null,
       user_id: userId || null,
+      principal_class: normalizedPrincipalClass,
       include_inactive: Boolean(includeInactive),
       include_bindings: Boolean(includeBindings),
       limit: boundedLimit,
@@ -283,7 +297,7 @@ export async function loadPlatformPluginCatalog({
     totals: {
       plugins: plugins.length,
       action_bindings: actionRows.length,
-      tool_bindings: toolRows.length,
+      tool_bindings: visibleToolRows.length,
       tenant_policy_rows: tenantPolicyRows.length,
       user_connection_groups: userConnectionRows.length,
       protocols: protocolCounts,

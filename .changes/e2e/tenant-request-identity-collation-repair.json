@@ -1,0 +1,63 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-request-identity-collation-repair",
+  "title": "Tenant request identity collation repair",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/tenantRequestInboxService.js",
+      "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs",
+      "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the canonical tenant-request inbox readable across legacy utf8mb4 collation drift while introducing a bounded alignment migration for inbox-owned identity columns.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-cross-collation-detail-read",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform admin or authenticated tenant member",
+          "entrypoint": "GET /admin/tenant-requests/{ticketId} or tenant-scoped equivalent",
+          "terminal_outcome": "Ticket, latest lifecycle activity, and the latest resolution case are resolved without ER_CANT_AGGREGATE_2COLLATIONS and without weakening tenant scope.",
+          "steps": [
+            "Read actual utf8mb4 collations of indexed tenant-resolution and lifecycle identity columns from information_schema and reject unknown collations.",
+            "Keep indexed dependent-table columns bare while converting only outer ticket expressions to the indexed column collation.",
+            "Preserve bounded candidate discovery and latest-activity ordering.",
+            "Restore ticket_lifecycle_events ticket/tenant identity to canonical utf8mb4_uca1400_ai_ci and align tenant_resolution_cases relational tenant_id/ticket_id keys to the same ticket-domain collation through a separately governed source migration.",
+            "Leave tickets and non-relational tenant_resolution_cases resource_ref/default collation unchanged."
+          ],
+          "assertions": [
+            "Indexed resolution-case and lifecycle identity columns are never wrapped in CONVERT/COLLATE in inbox joins.",
+            "Outer ticket expressions are normalized to the actual indexed-column collation with an explicit two-collation fail-closed allowlist.",
+            "The migration keeps ticket_lifecycle_events on utf8mb4_uca1400_ai_ci and aligns only tenant_resolution_cases tenant_id/ticket_id relational keys to that ticket-domain collation.",
+            "The migration is source-only in this PR and does not alter tickets, tenant_resolution_cases resource_ref, or Production."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-identity-collation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-inbox-and-chunk-hardening.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/tenantRequestInboxService.js",
+            "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql",
+            "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -22,7 +22,7 @@ function scopeBinding(bindingId, branch, sha = SHA_A) {
   };
 }
 
-function authorityBinding(bindingId, branch, sha = SHA_A) {
+function authorityBinding(bindingId, branch, sha = SHA_A, overrides = {}) {
   return {
     binding_id: bindingId,
     tenant_id: "tenant-1",
@@ -42,6 +42,7 @@ function authorityBinding(bindingId, branch, sha = SHA_A) {
     status: "active",
     expires_at: null,
     created_at: "2026-08-08T00:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -242,9 +243,12 @@ function serviceEnvelopeRow(overrides = {}) {
     envelope_sha256: "d".repeat(64),
     envelope_json: JSON.stringify({
       request_context: {
+        resource_type: "github_repo",
         resource_uri: EXACT_REPO,
         resource_branch: BRANCH_A,
         expected_commit_sha: SHA_A,
+        recipe_key: "repo_patch_batch_apply",
+        operation_mode: "atomic_change_set",
         principal: { principal_type: "service", principal_id: "platform_admin_service" },
       },
       authority: {
@@ -261,20 +265,30 @@ function serviceEnvelopeRow(overrides = {}) {
   };
 }
 
-function poolFor(row) {
+function poolFor(row, liveBinding = authorityBinding("binding-a", BRANCH_A, SHA_A)) {
   return {
     async query(sql, params) {
-      assert.match(String(sql), /capability_resolution_envelope_ledger/);
-      assert.deepEqual(params, ["envelope-branch-scope"]);
-      return [[row]];
+      const statement = String(sql);
+      if (/capability_resolution_envelope_ledger/.test(statement)) {
+        assert.deepEqual(params, ["envelope-branch-scope"]);
+        return [[row]];
+      }
+      if (/FROM platform_resource_authority_bindings/.test(statement)) {
+        assert.deepEqual(params, ["binding-a"]);
+        return [liveBinding ? [liveBinding] : []];
+      }
+      throw new Error(`Unexpected SQL: ${statement.slice(0, 120)}`);
     },
   };
 }
 
 async function dispatchScope(overrides = {}) {
   const row = overrides.row || serviceEnvelopeRow();
+  const liveBinding = Object.prototype.hasOwnProperty.call(overrides, "liveBinding")
+    ? overrides.liveBinding
+    : authorityBinding("binding-a", BRANCH_A, SHA_A);
   return resolveCapabilityExecutionEnvelope({
-    pool: poolFor(row),
+    pool: poolFor(row, liveBinding),
     envelopeId: "envelope-branch-scope",
     source: {
       owner: "mad4bdigital-ai",
@@ -297,6 +311,7 @@ async function dispatchScope(overrides = {}) {
   assert.equal(resolved.resource_uri, EXACT_REPO);
   assert.equal(resolved.resource_branch, BRANCH_A);
   assert.equal(resolved.expected_commit_sha, SHA_A);
+  assert.equal(resolved.principal_type, "service");
   assert.equal(resolved.principal_id, "platform_admin_service");
 }
 
@@ -324,11 +339,104 @@ async function dispatchScope(overrides = {}) {
   assert.equal(failure.status, "capability_resolution_envelope_user_mismatch");
 }
 
+{
+  const untyped = serviceEnvelopeRow({
+    envelope_json: JSON.stringify({
+      request_context: {
+        resource_type: "github_repo",
+        resource_uri: EXACT_REPO,
+        resource_branch: BRANCH_A,
+        expected_commit_sha: SHA_A,
+        recipe_key: "repo_patch_batch_apply",
+        operation_mode: "atomic_change_set",
+        principal: { principal_type: "", principal_id: "platform_admin_service" },
+      },
+      authority: {
+        exact_platform_resource_authority_scope: {
+          matched: true,
+          binding_id: "binding-a",
+          resource_branch: BRANCH_A,
+          expected_commit_sha: SHA_A,
+          secrets_included: false,
+        },
+      },
+    }),
+  });
+  const failure = await dispatchScope({ row: untyped, source: { branch: BRANCH_B } });
+  assert.equal(failure.ok, false);
+  assert.equal(failure.status, "capability_resolution_envelope_resource_branch_mismatch");
+}
+
+{
+  const untyped = serviceEnvelopeRow({
+    envelope_json: JSON.stringify({
+      request_context: {
+        resource_type: "github_repo",
+        resource_uri: EXACT_REPO,
+        resource_branch: BRANCH_A,
+        expected_commit_sha: SHA_A,
+        recipe_key: "repo_patch_batch_apply",
+        operation_mode: "atomic_change_set",
+        principal: { principal_type: "", principal_id: "platform_admin_service" },
+      },
+      authority: {
+        exact_platform_resource_authority_scope: {
+          matched: true,
+          binding_id: "binding-a",
+          resource_branch: BRANCH_A,
+          expected_commit_sha: SHA_A,
+          secrets_included: false,
+        },
+      },
+    }),
+  });
+  const resolved = await dispatchScope({ row: untyped });
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.principal_type, "service", "exact binding proof should harden an untyped service principal at dispatch");
+}
+
+{
+  const failure = await dispatchScope({
+    liveBinding: authorityBinding("binding-a", BRANCH_A, SHA_A, { status: "revoked" }),
+  });
+  assert.equal(failure.ok, false);
+  assert.equal(failure.status, "capability_resolution_envelope_resource_authority_binding_inactive");
+}
+
+{
+  const failure = await dispatchScope({
+    liveBinding: authorityBinding("binding-a", BRANCH_A, SHA_A, { expires_at: "2020-01-01T00:00:00.000Z" }),
+  });
+  assert.equal(failure.ok, false);
+  assert.equal(failure.status, "capability_resolution_envelope_resource_authority_binding_expired");
+}
+
+{
+  const failure = await dispatchScope({
+    liveBinding: authorityBinding("binding-a", BRANCH_A, SHA_A, { allowed_modes_json: JSON.stringify(["read_only"]) }),
+  });
+  assert.equal(failure.ok, false);
+  assert.equal(failure.status, "capability_resolution_envelope_resource_authority_binding_revalidation_failed");
+}
+
+{
+  const resolved = await dispatchScope({
+    source: { expected_base_sha: "", expected_head_sha: SHA_A },
+  });
+  assert.equal(resolved.ok, true, "expected_head_sha must satisfy the repository commit scope guard");
+  assert.equal(resolved.expected_commit_sha, SHA_A);
+}
+
 const guard = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
 assert.match(guard, /capability_resolution_envelope_resource_branch_mismatch/);
 assert.match(guard, /capability_resolution_envelope_commit_mismatch/);
 assert.match(guard, /expected_branch_sha/);
+assert.match(guard, /expected_head_sha/);
 assert.match(guard, /expected_base_sha/);
 assert.match(guard, /exact_platform_resource_authority_scope/);
+assert.match(guard, /loadPlatformResourceAuthorityBinding/);
+assert.match(guard, /resolveExactAdminResourceAuthority/);
+assert.match(guard, /capability_resolution_envelope_resource_authority_binding_inactive/);
+assert.match(guard, /capability_resolution_envelope_resource_authority_binding_expired/);
 
 console.log("Platform resource authority branch/commit scope regression passed");

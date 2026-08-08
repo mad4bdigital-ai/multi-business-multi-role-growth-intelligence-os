@@ -1,3 +1,5 @@
+import { buildCapabilityDriftSignals } from "./capabilityDriftSignalProjection.js";
+
 const ADMIN_MODES = new Set(["backend_api", "admin", "service", "service_account"]);
 
 function fail(status, code, message, details = null) {
@@ -118,9 +120,12 @@ function rounded(value, digits = 2) {
 
 export function buildOperationObservabilityDashboard(rows = [], {
   principalScope = "admin",
+  tenantId = null,
   hours = 24,
   sampleLimit = 5000,
   generatedAt = new Date(),
+  capabilityGapRows = [],
+  capabilityGapSource = null,
 } = {}) {
   const normalized = Array.isArray(rows) ? rows : [];
   const latencies = normalized
@@ -131,6 +136,11 @@ export function buildOperationObservabilityDashboard(rows = [], {
   const retryRows = normalized.filter(isRetry);
   const discoveryRows = normalized.filter(isDiscovery);
   const internalRows = normalized.filter(isInternalCall);
+  const capabilityDriftSignals = buildCapabilityDriftSignals(capabilityGapRows, {
+    principalScope,
+    tenantId,
+    generatedAt,
+  });
   const successCount = Math.max(0, normalized.length - failureRows.length);
   const failureCategories = {
     authorization: 0,
@@ -174,6 +184,7 @@ export function buildOperationObservabilityDashboard(rows = [], {
       internal_call_count: internalRows.length,
       discovery_call_count: discoveryRows.length,
       retry_count: retryRows.length,
+      capability_drift_signal_count: capabilityDriftSignals.length,
     },
     panels: [
       {
@@ -221,6 +232,19 @@ export function buildOperationObservabilityDashboard(rows = [], {
         },
       },
     ],
+    signals: {
+      capability_drift: capabilityDriftSignals,
+    },
+    signal_sources: {
+      capability_drift: capabilityGapSource || {
+        ok: true,
+        degraded: false,
+        authority: "mysql_primary",
+        source: "v_platform_capability_gaps",
+        row_count: capabilityDriftSignals.length,
+        error: null,
+      },
+    },
     source: {
       authority: "mysql_primary",
       table: "execution_log",
@@ -281,11 +305,52 @@ export async function getOperationObservabilityDashboard(input = {}, deps = {}) 
     );
   }
 
+  const generatedAt = deps.now instanceof Date ? deps.now : new Date();
+  let capabilityGapRows = [];
+  let capabilityGapSource;
+  try {
+    [capabilityGapRows] = await deps.pool.query(
+      `SELECT g.capability_key, g.gap_key, g.gap_severity, g.gap_description,
+              c.display_name, c.capability_family, c.source_table, c.source_key,
+              c.runtime_status, c.exposure_scope, c.operation_class, c.risk_class,
+              c.evidence_ref, m.maturity_status, m.maturity_score, m.gap_flags
+         FROM v_platform_capability_gaps g
+         JOIN v_platform_capabilities_current c ON c.capability_key = g.capability_key
+         LEFT JOIN v_platform_capability_maturity m ON m.capability_key = g.capability_key
+        WHERE 1 = 1
+          ${actor.scope === "tenant" ? "AND c.exposure_scope = 'tenant'" : ""}
+        ORDER BY FIELD(g.gap_severity, 'critical', 'high', 'medium', 'low', 'info'), g.capability_key ASC, g.gap_key ASC
+        LIMIT 250`,
+      [],
+    );
+    capabilityGapSource = {
+      ok: true,
+      degraded: false,
+      authority: "mysql_primary",
+      source: "v_platform_capability_gaps",
+      row_count: Array.isArray(capabilityGapRows) ? capabilityGapRows.length : 0,
+      error: null,
+    };
+  } catch (cause) {
+    capabilityGapRows = [];
+    capabilityGapSource = {
+      ok: false,
+      degraded: true,
+      authority: "mysql_primary",
+      source: "v_platform_capability_gaps",
+      row_count: 0,
+      error: { code: cause?.code || "capability_drift_source_unavailable" },
+    };
+  }
+
   return buildOperationObservabilityDashboard(rows, {
     principalScope: actor.scope,
+    tenantId: actor.tenant_id,
     hours,
     sampleLimit,
-    generatedAt: deps.now instanceof Date ? deps.now : new Date(),
+    generatedAt,
+    capabilityGapRows,
+    capabilityGapSource,
   });
 }
 
