@@ -133,6 +133,17 @@ function canonicalOperation() {
   };
 }
 
+function rootScopedBrandOperation() {
+  const operation = structuredClone(canonicalOperation());
+  operation.description = "Canonical Root Workspace contract with an explicit Brand owner scope.";
+  const requestProperties = operation.requestBody.content["application/json"].schema.properties;
+  requestProperties.brand_ref = { type: "string", minLength: 1, maxLength: 191 };
+  const ownership = operation.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties;
+  ownership.owner_scope_ref = { type: ["string", "null"] };
+  ownership.brand_ref = { type: ["string", "null"] };
+  return operation;
+}
+
 function previousWorkspaceV2Operation(overrides = {}) {
   const operation = structuredClone(canonicalOperation());
   operation.description = "Previous exact-workspace contract with Brand connections excluded.";
@@ -143,7 +154,7 @@ function previousWorkspaceV2Operation(overrides = {}) {
   return { ...operation, ...overrides };
 }
 
-async function createFixture(operation = legacyOperation()) {
+async function createFixture(operation = legacyOperation(), targetOperation = canonicalOperation()) {
   const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-inline-transition-"));
   await mkdir(path.join(root, "routes"), { recursive: true });
   await mkdir(path.join(root, "openapi"), { recursive: true });
@@ -161,7 +172,7 @@ async function createFixture(operation = legacyOperation()) {
     },
   }), "utf8");
   await writeFile(path.join(root, "openapi", "platform-plugin-tenant-resolve.yaml"), YAML.stringify({
-    tenantPlatformPluginResolvePath: { post: canonicalOperation() },
+    tenantPlatformPluginResolvePath: { post: targetOperation },
   }), "utf8");
   await writeFile(path.join(root, "openapi.yaml"), YAML.stringify({
     openapi: "3.1.0",
@@ -190,8 +201,8 @@ async function runSync(root, args) {
   }
 }
 
-async function assertUpgradesToCanonical(operation) {
-  const root = await createFixture(operation);
+async function assertUpgradesToCanonical(operation, targetOperation = canonicalOperation()) {
+  const root = await createFixture(operation, targetOperation);
   try {
     const write = await runSync(root, ["--write"]);
     assert.equal(write.ok, true, write.stderr || write.stdout);
@@ -205,10 +216,13 @@ async function assertUpgradesToCanonical(operation) {
     const written = YAML.parse(await readFile(path.join(root, "openapi.yaml"), "utf8"));
     const pathItem = written.paths[ROUTE_PATH];
     assert.equal(pathItem.$ref, undefined, "inline composition must not emit an external root path reference");
-    assert.deepEqual(pathItem, { post: canonicalOperation() });
+    assert.deepEqual(pathItem, { post: targetOperation });
     const requestSchema = pathItem.post.requestBody.content["application/json"].schema;
     assert(requestSchema.required.includes("workspace_id"));
     assert.equal(requestSchema.properties.workspace_id.maxLength, 64);
+    if (Object.hasOwn(targetOperation.requestBody.content["application/json"].schema.properties, "brand_ref")) {
+      assert.equal(requestSchema.properties.brand_ref.maxLength, 191);
+    }
     assert.deepEqual(
       pathItem.post.responses["200"].content["application/json"].schema.properties.compatibility_telemetry.properties.contract_version.enum,
       ["one-selector-workspace-v2"],
@@ -232,6 +246,7 @@ async function assertUpgradesToCanonical(operation) {
 
 await assertUpgradesToCanonical(legacyOperation());
 await assertUpgradesToCanonical(previousWorkspaceV2Operation());
+await assertUpgradesToCanonical(canonicalOperation(), rootScopedBrandOperation());
 
 const previousWithBrand = previousWorkspaceV2Operation();
 previousWithBrand.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties.owner_scope_type.enum.push("brand");
@@ -280,7 +295,7 @@ console.log(JSON.stringify({
   signature: SIGNATURE,
   operation_id: OPERATION_ID,
   composition_mode: "inline",
-  predecessor_variants_upgraded: 2,
+  predecessor_variants_upgraded: 3,
   malformed_variants_blocked: 8,
   idempotency_passed: true,
   secrets_included: false,
