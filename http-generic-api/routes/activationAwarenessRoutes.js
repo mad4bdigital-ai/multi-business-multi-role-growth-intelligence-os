@@ -1,5 +1,5 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { getPool } from "../db.js";
 import {
   buildActivationSnapshot,
@@ -34,17 +34,8 @@ import {
 import { acknowledgeActivationRun, readActivationRunArchive } from "../activationSessionLifecycleService.js";
 import { maybeChunkToolResponseBody } from "./gptToolsRoutes.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const ALLOWED_PROFILES = new Set(["evidence", "summary", "dashboard", "diagnostic", "full"]);
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function fetchActiveMembership({ userId, tenantId = null }) {
   const params = [userId];
@@ -69,7 +60,7 @@ async function fetchActiveMembership({ userId, tenantId = null }) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload?.user_id) {
     return res.status(401).json({
       ok: false,
@@ -563,7 +554,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
 
   router.get("/activation/runs/:runId/archive", ...adminGuards, async (req, res) => activationRunArchiveResponse(req, res, true));
 
-  router.get("/tenant/activation/awareness", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/activation/awareness", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const responseBody = await buildAwarenessResponse(req, false);
       const transportBody = await chunkActivationAwarenessResponse(
@@ -577,7 +568,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/activation/operational-attention", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/activation/operational-attention", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await operationalAttentionResponse(req, false));
     } catch (err) {
@@ -585,7 +576,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/resolution/problem-cards", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/resolution/problem-cards", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantProblemCardsResponse(req));
     } catch (err) {
@@ -593,7 +584,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/resolution/cases", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantResolutionCaseListResponse(req));
     } catch (err) {
@@ -601,7 +592,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const result = await tenantResolutionCaseCreateResponse(req);
       return res.status(result.created ? 201 : 200).json(result);
@@ -610,7 +601,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/resolution/cases/:caseId", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/resolution/cases/:caseId", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantResolutionCaseDetailResponse(req));
     } catch (err) {
@@ -618,7 +609,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/transitions", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases/:caseId/transitions", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantResolutionCaseTransitionResponse(req));
     } catch (err) {
@@ -626,7 +617,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/diagnostics", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases/:caseId/diagnostics", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantResolutionDiagnosticActionResponse(req));
     } catch (err) {
@@ -634,7 +625,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/task-source-repair/preview", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/preview", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantTaskSourceRepairPreviewResponse(req));
     } catch (err) {
@@ -642,7 +633,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/task-source-repair/apply", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/apply", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantTaskSourceRepairApplyResponse(req));
     } catch (err) {
@@ -650,7 +641,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/cases/:caseId/task-source-repair/verify", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/cases/:caseId/task-source-repair/verify", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantTaskSourceRepairVerificationResponse(req));
     } catch (err) {
@@ -658,7 +649,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/resolution/skill-approvals", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/resolution/skill-approvals", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantSkillApprovalListResponse(req));
     } catch (err) {
@@ -666,7 +657,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.post("/tenant/resolution/skill-approvals/:approvalKey/decision", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/resolution/skill-approvals/:approvalKey/decision", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await tenantSkillApprovalDecisionResponse(req));
     } catch (err) {
@@ -674,7 +665,7 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/activation/dynamic-tabs/detail", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/activation/dynamic-tabs/detail", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       return res.status(200).json(await detailResponse(req, false));
     } catch (err) {
@@ -682,13 +673,12 @@ export function buildActivationAwarenessRoutes({ requireBackendApiKey } = {}) {
     }
   });
 
-  router.get("/tenant/activation/runs/:runId/archive", requireTenantUserJwt, async (req, res) => activationRunArchiveResponse(req, res, false));
+  router.get("/tenant/activation/runs/:runId/archive", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => activationRunArchiveResponse(req, res, false));
 
   return router;
 }
 
 export const _testingActivationAwarenessRoutes = {
-  verifyUserJwt,
   boundedInt,
   queryText,
   queryBoolean,

@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a82c63f7452e38a98ae114d35bc98adba9750f0427ccef153c54b9c07ddb4848",
+    "source_digest": "6fd0bf7c9b5e72f52e0aa8afc7fe0d7e172adebf83c53de31135776534907768",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -336,7 +336,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+        "sha256": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
         "present": true
       },
       {
@@ -13393,7 +13393,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
       "mount_prefix": "/",
       "mount_order": 14253,
       "split_from_mixed_scope_file": true,
@@ -14424,7 +14424,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
       "mount_prefix": "/",
       "mount_order": 14253,
       "split_from_mixed_scope_file": true,
