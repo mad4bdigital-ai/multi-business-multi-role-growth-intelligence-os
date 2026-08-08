@@ -22,7 +22,7 @@ jobs:
     env:
       TARGET_BRANCH: fix/repository-policy-1049-bootstrap-repair-6627
       TARGET_PR: '6629'
-      EXPECTED_PARENT_SHA: aa7b3676eea6cee04c98f262790d00bd2795f129
+      EXPECTED_PARENT_SHA: 8473ff06b6e8bea11abf7b91b000ba655ebda71d
       LAUNCHER_PATH: .github/workflows/pr6629-spec014-binding-refresh.yml
       HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
       HOSTINGER_TASKS: specs/014-governed-hostinger-storage-orchestration/tasks.md
@@ -65,7 +65,7 @@ jobs:
           git merge-base --is-ancestor "${main_git_sha}" "${head_sha}"
           printf 'freshness main=%s head=%s authoritative=git_ancestor\n' "${main_api_sha}" "${head_sha}"
 
-      - name: Run canonical Spec014 producers and exact checks
+      - name: Validate Work Map registry currentness
         shell: bash
         run: |
           set -euo pipefail
@@ -73,12 +73,24 @@ jobs:
           node http-generic-api/scripts/work-map-schema-classification-contract.mjs
           node http-generic-api/scripts/work-map-schema-classification.mjs
 
+      - name: Refresh canonical Spec014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
 
+      - name: Verify refreshed Spec014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
 
+      - name: Validate bounded producer delta
+        shell: bash
+        run: |
+          set -euo pipefail
           mapfile -t producer_delta < <(git diff --name-only | sort)
           printf 'producer_delta_count=%s\n' "${#producer_delta[@]}"
           if [ "${#producer_delta[@]}" -gt 0 ]; then
@@ -92,6 +104,10 @@ jobs:
           done
           test -z "$(git diff --name-only -- docs/work-maps)"
 
+      - name: Run governed Work Map gate
+        shell: bash
+        run: |
+          set -euo pipefail
           export WORK_MAP_CHANGED_FILES_JSON="$(jq -cn \
             --arg a '.changes/e2e/github-repository-policy-1049-bootstrap-repair.json' \
             --arg b 'docs/work-maps/README.md' \
