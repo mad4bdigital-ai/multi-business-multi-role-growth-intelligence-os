@@ -1,0 +1,17 @@
+{
+  "$schema":"../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version":1,
+  "feature_key":"context-kernel-connection-ownership-backfill",
+  "title":"Context Kernel legacy connection ownership backfill",
+  "delivery_mode":"single_pr",
+  "current_phase":"mvp",
+  "scope":{"include":["http-generic-api/migrations/20260808_context_kernel_connection_ownership_backfill.sql","http-generic-api/test-context-kernel-connection-ownership-backfill.mjs",".changes/e2e/context-kernel-connection-ownership-backfill.json"]},
+  "merge_contract":{"minimum_phase":"mvp"},
+  "phases":[
+    {"id":"mvp","status":"implemented","objective":"Backfill deterministic personal/company workspace ownership and unique legacy connection mappings without activating legacy provider connections or inventing provider-account identity.","e2e_journeys":[{"id":"backfill-legacy-ownership-fail-closed","end_to_end":true,"level":"synthetic_runtime","actor":"governed migration operator","entrypoint":"Legacy workspaces and user_app_connections exist after Context Kernel ownership persistence.","terminal_outcome":"Only deterministic workspace classifications and uniquely resolved connection ownership mappings are persisted; legacy connections remain unclassified until governed reconnect supplies durable provider identity.","steps":["Classify only personal or company workspaces from membership, grant, and brand-association evidence.","Resolve legacy grants using workspace_id or tenant_id resource_ref compatibility.","Persist a connection mapping only when exactly one workspace candidate exists.","Insert null provider-account binding fields with status unclassified.","Preserve existing explicit classifications and ownership rows on replay."],"assertions":["Workspace ownership never writes brand.","Ambiguous mappings are skipped.","Brand scope is not inferred from a company workspace.","Provider account identity is not synthesized from email_key, account metadata, resource identifiers, targets, or credentials.","Backfilled legacy ownership cannot become runtime-usable until a later governed reconnect activates it."],"tests":[{"id":"connection-ownership-backfill-contract","runner":"node","working_directory":"http-generic-api","path":"test-context-kernel-connection-ownership-backfill.mjs","args":[]}],"evidence_paths":["http-generic-api/migrations/20260808_context_kernel_connection_ownership_backfill.sql","http-generic-api/test-context-kernel-connection-ownership-backfill.mjs"]}]},
+    {"id":"operational","status":"planned","objective":"Add governed readback summaries for classifications, mappings, skipped ambiguities, and reconnect-required connections."},
+    {"id":"resilient","status":"planned","objective":"Certify replay and concurrent reconnect behavior while preserving explicit ownership."},
+    {"id":"canary","status":"planned","objective":"Apply only after production-parity governed dry-run evidence and review."},
+    {"id":"production","status":"planned","objective":"Require post-apply data readback before any legacy connection can be enabled through reconnect."}
+  ]
+}
