@@ -12,6 +12,7 @@ actions.github_api_mcp
   -> platform_endpoint_tool_exports
   -> platform_tool_dispatch_bindings
   -> runtime_endpoint_call
+  -> executionFacade
   -> http_generic_api
   -> GitHub REST
 ```
@@ -22,7 +23,8 @@ actions.github_api_mcp
 - `endpoints` defines each operation's canonical method, path, provider domain, schema, readiness, and delegated transport.
 - `platform_endpoint_tool_exports` exposes only reviewed canonical endpoint rows.
 - `platform_tool_dispatch_bindings` binds callable tools to capability, operation intent, runtime surface, and readback policy.
-- `runtime_endpoint_call` performs the existing system-layer authority, credential, preflight, audit, and readback flow.
+- `runtime_endpoint_call` resolves the system-layer principal/context and delegates the actual endpoint operation to `executionFacade`.
+- `executionFacade` performs resolution, preflight/dry-run, provider dispatch, response validation, writeback, and the executable issue-comment same-cycle readback described below.
 - `http_generic_api` is transport only and must not invent endpoint contracts.
 
 ## Admin dispatcher
@@ -61,27 +63,45 @@ Admin export must preserve that same response contract so a successful provider
 write is not converted into local response-schema drift.
 
 The create-comment export is admin-only and does not bypass mutation governance.
-Before the selected binding can reach provider dispatch, the platform endpoint
-facade requires all of the following on the same call:
+The actual `executionFacade.execute` path used by `runtime_endpoint_call` blocks
+the live provider dispatch unless all of the following are present on the same
+request:
 
 - explicit mutation/operator approval;
 - completed dry-run/preflight evidence;
 - explicit `live_execution_approved=true`;
-- `readback.required=true` with a non-`none` readback mode.
+- `readback.required=true`;
+- `readback.policy_key="github_issue_comment_exact_readback_v1"`.
+
+An arbitrary non-empty readback mode is not accepted as proof of executable
+readback. The policy key must match the exact runtime implementation.
 
 A direct create-comment call with `dry_run=true` or `preflight_only=true` is
-rejected before provider dispatch. No-provider-call preflight must use
-`runtime_endpoint_preview`; its resulting approved preflight evidence is then
-supplied to the later live `github_rest_endpoint_dispatch` call. Missing or
-ambiguous governance evidence fails closed and does not authorize a provider
-call.
+rejected by the public create-comment facade before provider dispatch. The
+no-provider-call preflight path is `runtime_endpoint_preview`; its approved
+preflight evidence is then supplied to the later live
+`github_rest_endpoint_dispatch` call.
+
+After a successful live POST, `executionFacade` does not immediately claim
+governed success. It extracts the returned GitHub comment id and performs a
+same-cycle read through the existing `github_list_issue_comments` endpoint
+using the same `owner`, `repo`, and `issue_number` context and a bounded
+`since`/`per_page` query. The live result is returned with
+`governance_readback.status="verified"` only when that read response contains
+the exact provider-returned comment id.
+
+If the provider response lacks a readable comment id, the readback call fails,
+or the exact id is not observed, execution returns a typed no-secret governance
+error with `mutation_executed=true` and `automatic_retry_allowed=false`. The
+runtime does not silently retry the POST or describe the unverified write as a
+verified success.
 
 The caller still cannot supply a raw method, URL, or authorization header. The
 export only makes the existing active/ready canonical endpoint discoverable
 through its intended governed catalog instead of requiring a direct system-tool
 escape hatch.
 
-Migration `20260808_github_issue_comment_dispatch_parity.sql` also fails closed
+Migration `20260808_github_issue_comment_dispatch_parity.sql` fails closed
 unless there is exactly one matching active/ready canonical endpoint row with a
 non-null `endpoint_id` and exactly one canonical enabled Admin dispatcher row:
 `POST /system/tools/call` with `fixed_body.name=runtime_endpoint_call`. Endpoint
@@ -115,17 +135,22 @@ Read operations may dispatch after registry, schema, principal, credential, and 
 
 PATCH, POST, PUT, and DELETE operations remain subject to the existing runtime mutation controls, including applicable resource authority, dry-run or preflight evidence, explicit approval, audit logging, and same-cycle readback. Registering an endpoint or Admin projection does not itself authorize a provider write.
 
-For `github_create_issue_comment`, this policy is executable at platform endpoint binding selection, before the provider facade is called. The gate is intentionally operation-specific: it does not weaken or replace the broader runtime mutation policy for other GitHub or provider operations.
+For `github_create_issue_comment`, the operation-specific guard is enforced in
+the shared execution facade reached by the Admin dispatcher, not only in the
+dynamic catalog selector. This prevents `fixed_body.name=runtime_endpoint_call`
+from bypassing the approval/preflight/live/readback contract. The guard is
+intentionally operation-specific and does not replace the broader mutation
+policy for other GitHub or provider operations.
 
 ## Response schema alignment
 
 GitHub issue-label add, replace, and remove operations return the complete remaining label array on `200 OK`. Their canonical endpoint rows and exported registry copies must include the corresponding JSON response schema. A description-only success response is insufficient because the runtime response validator treats the missing content schema as contract drift even when GitHub completed the mutation successfully.
 
-GitHub issue-comment creation follows the same rule at `201 Created`. The compiled provider schema defines the response as a `Comment` object, so `endpoints.schema_json` and `platform_endpoint_tool_exports.input_schema_json` must retain an object response schema for `github_create_issue_comment`. Migration `20260808_github_issue_comment_dispatch_parity.sql` reconciles the existing active/ready endpoint row and exports it through `github_rest_endpoint_dispatch`; it does not register a new provider endpoint or execute a GitHub write.
+GitHub issue-comment creation follows the same rule at `201 Created`. The compiled provider schema defines the response as a `Comment` object, so `endpoints.schema_json` and `platform_endpoint_tool_exports.input_schema_json` must retain an object response schema for `github_create_issue_comment`. Migration `20260808_github_issue_comment_dispatch_parity.sql` reconciles the existing active/ready endpoint row and exports it through `github_rest_endpoint_dispatch`; it does not register a new provider endpoint or execute a GitHub write during migration apply.
 
 `v_platform_endpoint_export_schema_parity` remains the canonical registry/export parity diagnostic. The create-comment export is not ready when its active export diverges from the source endpoint schema.
 
-For this exact operation, `v_github_issue_comment_dispatch_parity` provides a bounded post-apply readback. `parity_status='ready'` requires exactly one ready `http_generic_api` canonical endpoint with a non-null identity and a 201 JSON object response, exactly one canonical enabled Admin dispatcher whose allowlist contains the endpoint, exactly one active source-bound Admin export whose schema equals the endpoint schema, and exactly one active governed dispatch binding joined to that same export and endpoint source. Any missing, drifted, orphaned, or ambiguous component yields `blocked`.
+For this exact operation, `v_github_issue_comment_dispatch_parity` provides a bounded registry post-apply readback. `parity_status='ready'` requires exactly one ready `http_generic_api` canonical endpoint with a non-null identity and a 201 JSON object response, exactly one canonical enabled Admin dispatcher whose allowlist contains the endpoint, exactly one active source-bound Admin export whose schema equals the endpoint schema, and exactly one active governed dispatch binding joined to that same export and endpoint source. Runtime live-execution success additionally requires the executable comment-id readback described above.
 
 Response contracts should remain tolerant of additive provider fields while validating the stable provider response class used by the platform.
 
@@ -155,8 +180,19 @@ The corresponding method and path are loaded from `endpoints`; they are not acce
 For `github_create_issue_comment`, first use `runtime_endpoint_preview` for the
 no-provider-call preflight. A later live call must carry the approved preflight
 evidence together with explicit mutation approval, `live_execution_approved`,
-and required same-cycle readback metadata. A direct `preflight_only` create-
-comment call is rejected rather than treated as a provider-safe dry run.
+and:
+
+```json
+{
+  "readback": {
+    "required": true,
+    "policy_key": "github_issue_comment_exact_readback_v1"
+  }
+}
+```
+
+The live call is not reported as verified until the created comment id is
+observed through the same-cycle readback.
 
 ## Create-reference response contract
 
