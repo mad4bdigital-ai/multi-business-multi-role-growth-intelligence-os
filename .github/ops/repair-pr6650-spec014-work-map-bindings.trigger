@@ -1,0 +1,5 @@
+pr=6650
+scope=spec014-final-work-map-bindings
+previous_head=c61fc5e9ea32f800f2e796aeddb3450bd7307810
+launcher_head=bbbdab745187650e790dd3968b628da8590ca924
+repair_contract=final-worktree-supported-spec014-cli-v4
