@@ -242,7 +242,10 @@ FROM (
     COUNT(*) AS endpoint_match_count,
     COALESCE(SUM(
       CASE
-        WHEN JSON_TYPE(JSON_EXTRACT(e.schema_json, '$.responses.201.content."application/json".schema')) = 'OBJECT'
+        WHEN COALESCE(
+          JSON_UNQUOTE(JSON_EXTRACT(e.schema_json, '$.responses.201.content."application/json".schema.type')),
+          ''
+        ) = 'object'
         THEN 1 ELSE 0
       END
     ), 0) AS response_schema_ready_count
