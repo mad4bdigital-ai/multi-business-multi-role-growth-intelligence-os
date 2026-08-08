@@ -1,0 +1,18 @@
+{
+  "contract": "mad4b.spec014-binding-refresh-trigger.v1",
+  "canonical_pr": 6626,
+  "expected_main_sha": "d8277c4a10f839eaa0ad0cc6238dbc20d9926ba3",
+  "expected_head_sha": "e49382339dbb62128cf39fd5e83145307a2294f9",
+  "features": [
+    "014-governed-hostinger-storage-orchestration",
+    "014-retail-commerce-operations-growth-os"
+  ],
+  "authorization": "AUTHORIZE_SPEC014_FINAL_WORK_MAP_BINDING_REFRESH",
+  "repository_mutation_scope": "canonical_candidate_branch_only",
+  "protected_branch_mutation": false,
+  "force_push": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "secrets_included": false
+}
