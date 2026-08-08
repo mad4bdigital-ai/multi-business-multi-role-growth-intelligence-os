@@ -19,7 +19,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Align the existing active/ready github_create_issue_comment SQL endpoint with the canonical GitHub 201 response contract and expose that same reviewed endpoint through the existing admin-only github_rest_endpoint_dispatch surface without weakening mutation governance or creating a second execution path.",
+      "objective": "Align the existing active/ready github_create_issue_comment SQL endpoint with the canonical GitHub 201 response contract and expose that same reviewed endpoint through the existing admin-only github_rest_endpoint_dispatch surface without weakening mutation governance, silently choosing ambiguous registry rows, or creating a second execution path.",
       "e2e_journeys": [
         {
           "id": "github-issue-comment-canonical-endpoint-export-parity",
@@ -27,25 +27,28 @@
           "level": "synthetic_runtime",
           "actor": "Platform admin discovering and preflighting the canonical GitHub issue-comment mutation through the governed registry dispatcher",
           "entrypoint": "github_rest_endpoint_dispatch -> runtime_endpoint_call for endpoint_key=github_create_issue_comment",
-          "terminal_outcome": "The existing active/ready POST issue-comment endpoint retains a 201 JSON object response schema, appears in the intended admin-only export and dispatch binding, and remains subject to preflight, approval, audit, and same-cycle readback before any provider mutation is allowed.",
+          "terminal_outcome": "Exactly one existing active/ready POST issue-comment endpoint retains a 201 JSON object response schema, appears in exactly one intended admin-only export and dispatch binding, and remains subject to preflight, approval, audit, and same-cycle readback before any provider mutation is allowed.",
           "steps": [
+            "Count exact canonical endpoint and enabled Admin dispatcher candidates before mutation; proceed only when each cardinality is exactly one.",
             "Use the existing github_create_issue_comment endpoint row; do not register a replacement endpoint or accept caller-supplied method, URL, or authorization material.",
             "Reconcile responses.201 on that exact active/ready POST /repos/{owner}/{repo}/issues/{issue_number}/comments row with the response class already defined by the canonical compiled GitHub schema.",
             "Add github_create_issue_comment to the existing github_rest_endpoint_dispatch endpoint-key allowlist only when absent.",
             "Create or refresh one admin platform endpoint export whose source_endpoint_id points to the exact canonical endpoint and whose input_schema_json is copied from endpoints.schema_json.",
             "Create or refresh one active db_admin_tool dispatch binding for github_issue_comments_write / github_issue_comment_create using runtime_endpoint_call.",
             "Require runtime preflight, approval, and same-cycle readback metadata for the mutation; do not perform a provider call or automatic retry in the migration.",
-            "Use v_platform_endpoint_export_schema_parity as the canonical post-apply diagnostic so an active export is not considered ready when it diverges from its source endpoint schema."
+            "Use v_platform_endpoint_export_schema_parity for general export parity and v_github_issue_comment_dispatch_parity for exact endpoint/201/allowlist/export/binding post-apply readiness."
           ],
           "assertions": [
             "The canonical compiled GitHub schema already declares createIssueComment with a 201 Created application/json Comment response.",
             "The migration updates only the existing github_create_issue_comment endpoint selected by exact parent action, endpoint key, POST method, issue-comments path, active status, ready execution state, and http_generic_api transport.",
+            "Endpoint or Admin dispatcher candidate cardinality other than exactly one fails closed without first-row selection or partial export/binding creation.",
             "The migration does not INSERT a new endpoints row and therefore cannot create a competing provider-operation identity.",
             "The SQL endpoint receives a responses.201 application/json object schema that tolerates additive GitHub comment fields.",
             "The Admin dispatcher allowlist gains github_create_issue_comment idempotently and retains server-side GitHub authentication.",
             "The export is admin-only, active, source-endpoint-bound, and copies the canonical endpoint schema rather than inventing an independent contract.",
             "The binding remains registry-driven through runtime_endpoint_call and requires preflight, approval, and same-cycle readback for the mutation.",
-            "No provider call, credential payload read, raw secret access, external send, external write, DB migration apply, Production mutation, generated-artifact edit, or force push is performed by the source change.",
+            "v_github_issue_comment_dispatch_parity returns ready only when exact endpoint, 201 response schema, Admin allowlist, source-bound export schema parity, and dispatch binding cardinalities all converge to one; otherwise it returns blocked.",
+            "No provider call, credential payload read, raw secret access, external send, external write, DB migration apply, Production mutation, generated-artifact edit, force push, PREPARE, or EXECUTE is performed by the source change.",
             "This bounded change closes only github_create_issue_comment registry/export parity; it does not claim full platform catalog/runtime/certification parity or close #4451."
           ],
           "tests": [
