@@ -6,12 +6,169 @@ import { buildPassiveExecutionReport } from "./executionControlResolvers.js";
 import { resolveExecutionGraphMemoryContext } from "./executionGraphMemoryContext.js";
 import { resolveActionEndpointToolManifest } from "./actionEndpointToolManifestResolver.js";
 import {
+  GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+  enforceGithubIssueCommentMutationGate,
+  isGithubIssueCommentMutationTarget,
+} from "./platformEndpointToolFacade.js";
+import {
   getExecutionJob,
   pollExecutionJobResult,
   submitGenericExecutionJob,
   submitSiteMigrationJob,
   tickExecutionJob
 } from "./executionAsync.js";
+
+function truthyFlag(value) {
+  if (value === true) return true;
+  return ["true", "1", "yes"].includes(String(value || "").trim().toLowerCase());
+}
+
+function isGithubIssueCommentLiveMutation(reqBody = {}) {
+  return isGithubIssueCommentMutationTarget(reqBody)
+    && !truthyFlag(reqBody.dry_run)
+    && !truthyFlag(reqBody.preflight_only);
+}
+
+function responseCandidates(response) {
+  return [
+    response,
+    response?.body,
+    response?.data,
+    response?.result,
+    response?.body?.data,
+    response?.body?.result,
+    response?.data?.data,
+    response?.data?.result,
+  ].filter((value) => value !== undefined && value !== null);
+}
+
+function githubIssueCommentId(response) {
+  for (const candidate of responseCandidates(response)) {
+    if (Array.isArray(candidate) || typeof candidate !== "object") continue;
+    const id = candidate.id ?? candidate.comment_id;
+    if (id !== undefined && id !== null && String(id).trim()) return String(id).trim();
+  }
+  return "";
+}
+
+function githubIssueCommentRows(response) {
+  for (const candidate of responseCandidates(response)) {
+    if (Array.isArray(candidate)) return candidate;
+    if (Array.isArray(candidate?.comments)) return candidate.comments;
+    if (Array.isArray(candidate?.items)) return candidate.items;
+  }
+  return [];
+}
+
+function readbackSinceIso(startedAt) {
+  const timestamp = new Date(startedAt || Date.now()).getTime();
+  return new Date((Number.isFinite(timestamp) ? timestamp : Date.now()) - 5000).toISOString();
+}
+
+function buildGithubIssueCommentReadbackPayload(reqBody = {}, startedAt) {
+  const payload = {
+    ...reqBody,
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_list_issue_comments",
+    path_params: { ...(reqBody.path_params || {}) },
+    query: {
+      since: readbackSinceIso(startedAt),
+      per_page: 100,
+    },
+    readback: { required: false, policy_key: null },
+  };
+  for (const field of [
+    "body",
+    "dry_run",
+    "preflight_only",
+    "mutation_approval",
+    "operator_approval",
+    "operator_approved",
+    "operator_approval_granted",
+    "dry_run_preflight_completed",
+    "approved_preflight_dry_run_validated",
+    "live_execution_approved",
+    "execute_live",
+  ]) {
+    delete payload[field];
+  }
+  return payload;
+}
+
+function githubIssueCommentReadbackError(code, message, details = {}) {
+  const error = new Error(message);
+  error.status = 502;
+  error.code = code;
+  error.details = {
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_issue_comment",
+    readback_policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+    mutation_executed: true,
+    automatic_retry_allowed: false,
+    secrets_included: false,
+    ...details,
+  };
+  return error;
+}
+
+async function attachGithubIssueCommentReadback({
+  facade,
+  reqBody,
+  liveResponse,
+  startedAt,
+}) {
+  const status = Number(liveResponse?.status || 0);
+  if (!Number.isFinite(status) || status < 200 || status >= 300) return liveResponse;
+
+  const commentId = githubIssueCommentId(liveResponse);
+  if (!commentId) {
+    throw githubIssueCommentReadbackError(
+      "github_issue_comment_readback_identity_missing",
+      "GitHub issue-comment mutation returned without a readable comment identity; exact same-cycle readback cannot be proven.",
+      { provider_write_succeeded_or_unknown: true },
+    );
+  }
+
+  const readbackResponse = await facade.execute(
+    buildGithubIssueCommentReadbackPayload(reqBody, startedAt),
+  );
+  const readbackStatus = Number(readbackResponse?.status || 0);
+  if (!Number.isFinite(readbackStatus) || readbackStatus < 200 || readbackStatus >= 300) {
+    throw githubIssueCommentReadbackError(
+      "github_issue_comment_readback_failed",
+      "GitHub issue-comment mutation completed but same-cycle readback failed.",
+      {
+        comment_id: commentId,
+        readback_http_status: readbackStatus || null,
+        cause_code: readbackResponse?.body?.error?.code || null,
+      },
+    );
+  }
+
+  const comments = githubIssueCommentRows(readbackResponse);
+  if (!comments.some((comment) => String(comment?.id ?? "").trim() === commentId)) {
+    throw githubIssueCommentReadbackError(
+      "github_issue_comment_readback_not_observed",
+      "GitHub issue-comment mutation completed but the exact created comment was not observed during same-cycle readback.",
+      {
+        comment_id: commentId,
+        observed_comment_count: comments.length,
+      },
+    );
+  }
+
+  return {
+    ...liveResponse,
+    governance_readback: {
+      policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+      status: "verified",
+      comment_id: commentId,
+      observed_comment_count: comments.length,
+      automatic_retry_allowed: false,
+      secrets_included: false,
+    },
+  };
+}
 
 export function createExecutionFacade(deps) {
   const {
@@ -125,7 +282,7 @@ export function createExecutionFacade(deps) {
     ACTIVE_JOB_STATUSES
   } = deps;
 
-  return {
+  const facade = {
 
     // ─── Sync HTTP execution ──────────────────────────────────────────────────
 
@@ -141,6 +298,10 @@ export function createExecutionFacade(deps) {
         String(reqBody?.execution_trace_id || "").trim() || createExecutionTraceId();
 
       try {
+        if (isGithubIssueCommentLiveMutation(reqBody)) {
+          enforceGithubIssueCommentMutationGate(reqBody, reqBody);
+        }
+
         const resolution = await resolveExecutionRequest(reqBody, {
           requireEnv,
           createExecutionTraceId,
@@ -425,7 +586,7 @@ export function createExecutionFacade(deps) {
           return dispatchResult.shortCircuitResponse;
         }
 
-        return await validateAndShapeExecutionResponse(
+        const validatedResponse = await validateAndShapeExecutionResponse(
           dispatchResult,
           {
             requestPayload,
@@ -458,6 +619,16 @@ export function createExecutionFacade(deps) {
             performUniversalServerWriteback
           }
         );
+
+        if (isGithubIssueCommentLiveMutation(reqBody)) {
+          return await attachGithubIssueCommentReadback({
+            facade,
+            reqBody,
+            liveResponse: validatedResponse,
+            startedAt: sync_execution_started_at,
+          });
+        }
+        return validatedResponse;
       } catch (err) {
         const errorPayload = {
           code: err?.code || "internal_error",
@@ -608,4 +779,6 @@ export function createExecutionFacade(deps) {
       });
     }
   };
+
+  return facade;
 }
