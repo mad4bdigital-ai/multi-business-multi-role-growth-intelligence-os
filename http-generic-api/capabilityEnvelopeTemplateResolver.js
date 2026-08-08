@@ -238,6 +238,7 @@ function buildDryRunInput(template, context, explain) {
     operationMode: authority.operationMode,
     resourceType: authority.resourceType,
     resourceUri: authority.resourceUri,
+    expectedCommitSha: context.expected_commit_sha || "",
     recipeKey: authority.recipeKey,
     runtimeSurface: template.runtime_surface,
     requestedSourceTier: template.requested_source_tier || "",
