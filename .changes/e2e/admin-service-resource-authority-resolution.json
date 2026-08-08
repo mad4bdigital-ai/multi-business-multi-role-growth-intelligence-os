@@ -8,7 +8,10 @@
   "scope": {
     "include": [
       "http-generic-api/scripts/capability-resolution-dry-run.mjs",
-      "http-generic-api/test-dynamic-capability-resolution-graph.mjs"
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+      "http-generic-api/capabilityEnvelopeTemplateResolver.js",
+      "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
+      "http-generic-api/test-capability-envelope-template-resolver.mjs"
     ]
   },
   "merge_contract": {
@@ -18,18 +21,20 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Allow high-risk capability resolution to accept an exact bounded platform resource-authority binding for a service principal without weakening tenant/user workspace-grant requirements or independent dispatch gates.",
+      "objective": "Allow high-risk capability resolution and the required envelope/template workflow to accept and preserve an exact bounded platform resource-authority binding for a service principal without weakening tenant/user workspace-grant requirements or independent dispatch gates.",
       "e2e_journeys": [
         {
           "id": "exact-admin-service-resource-authority-resolves-without-escalation",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Governed platform admin service principal resolving a high-risk repository mutation capability",
-          "entrypoint": "capability-resolution-dry-run authority evaluation for an exact GitHub repository, recipe and operation mode",
-          "terminal_outcome": "An active exact service-principal binding removes only the high-risk resource-authority and elevated-permission gaps; mismatched, expired, wildcard, tenant/user or absent bindings remain blocked and dispatch certification stays independent.",
+          "actor": "Governed platform admin service principal resolving and enveloping a high-risk repository mutation capability",
+          "entrypoint": "capability-resolution dry-run and github_repo_patch_apply_v1 envelope resolution for an exact GitHub repository, recipe and operation mode",
+          "terminal_outcome": "An active exact service-principal binding removes only the high-risk resource-authority and elevated-permission gaps and that authority context survives envelope creation; mismatched, expired, wildcard, tenant/user or absent bindings remain blocked and dispatch certification stays independent.",
           "steps": [
             "Evaluate a typed platform_admin_service principal with an active exact repository binding for repo_patch_batch_apply and atomic_change_set.",
             "Verify exact tenant, workspace, principal, resource type, repository URI, recipe, allowed mode and sufficient permission before accepting platform resource authority.",
+            "Propagate principal ID, exact GitHub resource, repo_patch_batch_apply recipe and atomic_change_set mode through direct capability envelope creation without dropping the authority context.",
+            "Resolve github_repo_patch_apply_v1 with platform_admin_service in the existing user_id slot, derive only exact GitHub resource type and batch-patch operation semantics, and require the stored binding itself to prove principal_type=service.",
             "Repeat with resource, expiry, recipe and mode mismatches, then with wildcard resource or wildcard mode authority, and assert each case fails closed.",
             "Evaluate a tenant/user principal with no workspace grant alongside the service binding and assert that the platform binding is not borrowed across principal types.",
             "Evaluate the service principal without an exact binding and with a genuine strong workspace grant to prove the intended OR boundary.",
@@ -38,6 +43,8 @@
           "assertions": [
             "An exact active service-principal binding removes workspace_resource_grant_missing_for_high_risk_operation and elevated_permission_missing for the covered high-risk repository operation.",
             "The same successful resource-authority evaluation does not remove dispatch_certification_missing_or_not_allowed when no qualifying certification exists.",
+            "Direct envelope creation preserves principal type/id, resource type/URI, recipe and operation mode supplied to the authority resolver.",
+            "github_repo_patch_apply_v1 preview and create paths preserve the same exact authority inputs; no service identity is inferred from a principal-name suffix or admin role.",
             "Resource URI, recipe or operation-mode mismatch and expired bindings do not authorize the operation.",
             "Wildcard repository URIs and wildcard allowed modes do not authorize the operation.",
             "Tenant/user principals without a workspace resource grant remain blocked even when an unrelated service-principal platform binding exists.",
@@ -52,12 +59,22 @@
               "working_directory": "http-generic-api",
               "path": "test-dynamic-capability-resolution-graph.mjs",
               "args": []
+            },
+            {
+              "id": "capability-envelope-authority-propagation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-envelope-template-resolver.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/admin-service-resource-authority-resolution.json",
             "http-generic-api/scripts/capability-resolution-dry-run.mjs",
-            "http-generic-api/test-dynamic-capability-resolution-graph.mjs"
+            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+            "http-generic-api/capabilityEnvelopeTemplateResolver.js",
+            "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
+            "http-generic-api/test-capability-envelope-template-resolver.mjs"
           ]
         }
       ]
