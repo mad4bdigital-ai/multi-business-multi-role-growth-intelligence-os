@@ -1,11 +1,12 @@
 openapi: 3.1.0
 info:
   title: Operation Execution Observability
-  version: 1.0.0
+  version: 1.1.0
   description: |
     Aggregate-only latency, internal-call, discovery, retry, and failure
-    dashboards for governed operation execution. Raw prompts, failure messages,
-    provider payloads, credentials, and secrets are never returned.
+    dashboards for governed operation execution, with tenant-safe capability
+    drift snapshots from canonical capability registry views. Raw prompts,
+    failure messages, provider payloads, credentials, and secrets are never returned.
 servers:
   - url: https://auth.mad4b.com
 paths:
@@ -39,8 +40,10 @@ paths:
       operationId: getTenantOperationObservability
       summary: Read the aggregate Tenant operation dashboard
       description: |
-        Requires an active Tenant membership. SQL reads are restricted to the
-        authenticated tenant_id and user_id.
+        Requires an active Tenant membership. Execution-log SQL reads are
+        restricted to the authenticated tenant_id and user_id. Capability-drift
+        rows are restricted to tenant-visible capability surfaces and are
+        returned as snapshot-only signals; they do not execute or persist repairs.
       security:
         - userJwtAuth: []
       parameters:
@@ -96,7 +99,7 @@ components:
         default: 5000
   responses:
     Dashboard:
-      description: Aggregate operation dashboard.
+      description: Aggregate operation dashboard with optional capability-drift snapshots.
       content:
         application/json:
           schema:
@@ -119,7 +122,7 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorEnvelope'
     Unavailable:
-      description: MySQL-primary observability source is unavailable.
+      description: MySQL-primary execution observability source is unavailable.
       headers:
         Retry-After:
           schema:
@@ -139,6 +142,8 @@ components:
         - window
         - summary
         - panels
+        - signals
+        - signal_sources
         - source
         - secrets_included
       additionalProperties: false
@@ -176,6 +181,7 @@ components:
             - internal_call_count
             - discovery_call_count
             - retry_count
+            - capability_drift_signal_count
           properties:
             total_events: { type: integer, minimum: 0 }
             successful_events: { type: integer, minimum: 0 }
@@ -187,6 +193,7 @@ components:
             internal_call_count: { type: integer, minimum: 0 }
             discovery_call_count: { type: integer, minimum: 0 }
             retry_count: { type: integer, minimum: 0 }
+            capability_drift_signal_count: { type: integer, minimum: 0 }
         panels:
           type: array
           minItems: 5
@@ -201,6 +208,23 @@ components:
               metrics:
                 type: object
                 additionalProperties: true
+        signals:
+          type: object
+          required: [capability_drift]
+          additionalProperties: false
+          properties:
+            capability_drift:
+              type: array
+              maxItems: 250
+              items:
+                $ref: '#/components/schemas/CapabilityDriftSignal'
+        signal_sources:
+          type: object
+          required: [capability_drift]
+          additionalProperties: false
+          properties:
+            capability_drift:
+              $ref: '#/components/schemas/CapabilityDriftSignalSource'
         source:
           type: object
           required: [authority, table, aggregate_only, raw_payloads_included]
@@ -213,6 +237,84 @@ components:
         secrets_included:
           type: boolean
           const: false
+    CapabilityDriftSignal:
+      type: object
+      additionalProperties: false
+      required:
+        - signal_id
+        - dedupe_key
+        - tenant_id
+        - workspace_id
+        - resource
+        - source_domain
+        - source_ref
+        - evidence_timestamp
+        - severity
+        - lifecycle_state
+        - first_seen_at
+        - last_seen_at
+        - occurrence_count
+        - safe_customer_summary
+        - recommended_next_action
+        - auto_repair
+        - persistence
+        - admin_evidence
+        - secrets_included
+      properties:
+        signal_id: { type: string, pattern: '^capability-drift\\.[a-f0-9]{64}$' }
+        dedupe_key: { type: string, pattern: '^capability-drift\\.[a-f0-9]{64}$' }
+        tenant_id: { type: [string, 'null'] }
+        workspace_id: { type: [string, 'null'] }
+        resource:
+          type: object
+          additionalProperties: false
+          required: [type, key]
+          properties:
+            type: { type: string, const: platform_capability }
+            key: { type: string }
+        source_domain: { type: string, const: platform_capability_registry }
+        source_ref: { type: string }
+        evidence_timestamp: { type: string, format: date-time }
+        severity: { type: string, enum: [info, low, medium, high, critical] }
+        lifecycle_state: { type: string, const: observed_snapshot }
+        first_seen_at: { type: 'null' }
+        last_seen_at: { type: string, format: date-time }
+        occurrence_count: { type: 'null' }
+        safe_customer_summary: { type: string }
+        recommended_next_action: { type: string }
+        auto_repair:
+          type: object
+          additionalProperties: false
+          required: [eligible, repair_class, requires_approval, execution_linked]
+          properties:
+            eligible: { type: boolean, const: false }
+            repair_class: { type: string, enum: [platform_admin_required] }
+            requires_approval: { type: boolean, const: true }
+            execution_linked: { type: boolean, const: false }
+        persistence:
+          type: object
+          additionalProperties: false
+          required: [status, canonical_target]
+          properties:
+            status: { type: string, enum: [snapshot_only] }
+            canonical_target: { type: string, const: operational_alerts }
+        admin_evidence:
+          type: [object, 'null']
+          additionalProperties: true
+        secrets_included: { type: boolean, const: false }
+    CapabilityDriftSignalSource:
+      type: object
+      additionalProperties: false
+      required: [ok, degraded, authority, source, row_count, error]
+      properties:
+        ok: { type: boolean }
+        degraded: { type: boolean }
+        authority: { type: string, const: mysql_primary }
+        source: { type: string, const: v_platform_capability_gaps }
+        row_count: { type: integer, minimum: 0, maximum: 250 }
+        error:
+          type: [object, 'null']
+          additionalProperties: true
     ErrorEnvelope:
       type: object
       required: [ok, error, secrets_included]
