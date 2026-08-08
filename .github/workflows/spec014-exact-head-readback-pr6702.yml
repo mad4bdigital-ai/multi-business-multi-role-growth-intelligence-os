@@ -1,0 +1,101 @@
+name: Spec 014 Exact Head Readback PR 6702
+
+on:
+  push:
+    branches:
+      - gpt/spec014-readback-pr6702-c30fa2dd-20260808
+    paths:
+      - .github/workflows/spec014-exact-head-readback-pr6702.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec014-exact-head-readback-pr6702-c30fa2dd
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_TARGET_SHA: c30fa2ddc02329cc0b1c1fd702c5430277a5220c
+      TARGET_BRANCH: gpt/tenant-request-identity-collation-runtime-readiness-20260808
+      LAUNCHER_PATH: .github/workflows/spec014-exact-head-readback-pr6702.yml
+
+    steps:
+      - name: Checkout verifier launcher
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable verifier topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_TARGET_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$LAUNCHER_PATH"
+          test -z "$(git status --porcelain)"
+
+      - name: Checkout exact target without verifier
+        uses: actions/checkout@v5
+        with:
+          ref: c30fa2ddc02329cc0b1c1fd702c5430277a5220c
+          fetch-depth: 0
+          persist-credentials: false
+          clean: true
+
+      - name: Verify target branch exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_TARGET_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify canonical Spec 014 bindings are current
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs
+          test -z "$(git status --porcelain)"
+
+      - name: Build and enforce exact-head final Work Map readback
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/spec014-final-work-map-readback.json"
+          REPORT_PATH="$report" node http-generic-api/scripts/spec014-final-work-map-readback.mjs > "$RUNNER_TEMP/spec014-final-work-map-readback.stdout.json"
+          node - "$report" "$EXPECTED_TARGET_SHA" <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const expectedSha = process.argv[3];
+          if (report.ok !== true || (report.findings || []).length !== 0) throw new Error('readback_not_current');
+          if (report.candidate_sha !== expectedSha) throw new Error(`candidate_sha_mismatch:${report.candidate_sha}`);
+          if (report.repository_mutation !== false || report.provider_dispatch !== false || report.live_database_access !== false || report.migration_apply !== false || report.secrets_included !== false) throw new Error('readback_side_effect_contract_failed');
+          console.log(JSON.stringify({ok:true,candidate_sha:report.candidate_sha,fingerprint:report.current_registry?.fingerprint,findings:report.findings?.length || 0}));
+          NODE
+          test -z "$(git status --porcelain)"
+
+      - name: Summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'SPEC014_EXACT_HEAD_READBACK=success'
+          echo "VERIFIED_TARGET_SHA=$EXPECTED_TARGET_SHA"
+          echo 'REPOSITORY_MUTATION=false'
+          echo 'PROVIDER_DISPATCH=false'
+          echo 'LIVE_DATABASE_ACCESS=false'
+          echo 'MIGRATION_APPLY=false'
+          echo 'SECRETS_INCLUDED=false'
