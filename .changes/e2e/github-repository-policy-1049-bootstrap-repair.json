@@ -1,0 +1,67 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-1049-bootstrap-repair",
+  "title": "Repository Policy Controller bootstrap repair after Migration 1049",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-1049-bootstrap-repair.json",
+      "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "http-generic-api/test-github-repository-policy-1050-bootstrap-repair.mjs",
+      "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+      "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Repair the missing canonical Repository Policy Controller registration surface discovered after the ledgered one-time execution of Migration 1049, without retrying 1049 or applying any live GitHub repository policy.",
+      "e2e_journeys": [
+        {
+          "id": "migration-1050-idempotent-bootstrap-repair",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6627 repository remediation",
+          "terminal_outcome": "A separately governed repair migration can materialize or refresh the complete Repository Policy Controller registration surface with final single-owner metadata using duplicate-safe UPSERTs, while Migration 1049 remains ledgered and is never retried.",
+          "steps": [
+            "Use 20260805_github_repository_policy_controller.sql as the canonical bootstrap source for policy, admin tools, capability, binding and export row shapes.",
+            "Fold the collaborator-aware single-owner metadata from 1049_github_repository_policy_single_owner_mode.sql directly into the final UPSERT values.",
+            "Materialize all critical registration rows with INSERT ... ON DUPLICATE KEY UPDATE so missing rows and existing rows converge to the same canonical state.",
+            "Preserve the existing repository automation plan/run enum repair from the canonical bootstrap migration.",
+            "Register Migration 1050 independently and retain live_github_policy_apply=false, no provider calls, no protected-ref mutation, no force push and no secrets.",
+            "Require separate future readiness and Apply authorization for Migration 1050; this repository change does not execute SQL."
+          ],
+          "assertions": [
+            "The repair migration contains exactly seven bounded statements.",
+            "Policy, admin tool, capability, binding and export registration surfaces are duplicate-safe UPSERTs rather than UPDATE-only materialization.",
+            "The final policy and capability metadata use auto_single_owner_or_independent and Single Owner Review Gate.",
+            "Both repository-policy admin tools expose single_owner_mode as a boolean input.",
+            "Migration 1049 remains unchanged as an overlay and is not retried by the repair.",
+            "No destructive SQL, live GitHub policy apply, provider action, protected-ref mutation, force push or secret handling is introduced."
+          ],
+          "tests": [
+            {
+              "id": "repository-policy-1050-bootstrap-repair-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-bootstrap-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+            "http-generic-api/test-github-repository-policy-1050-bootstrap-repair.mjs",
+            "http-generic-api/migrations/20260805_github_repository_policy_controller.sql",
+            "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
