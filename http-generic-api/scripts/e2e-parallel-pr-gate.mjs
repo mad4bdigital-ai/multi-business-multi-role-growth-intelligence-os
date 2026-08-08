@@ -172,7 +172,8 @@ function resolveLiveProtectedSha(root, name) {
   const output = String(result.stdout || "").trim();
   const rows = output.split(/\r?\n/).filter(Boolean);
   if (rows.length !== 1) return null;
-  const [sha, ref] = rows[0].trim().split(/\s+/);
+  const [onlyRow] = rows;
+  const [sha, ref] = onlyRow.trim().split(/\s+/);
   if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
   return sha;
 }
