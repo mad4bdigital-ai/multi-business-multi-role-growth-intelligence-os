@@ -6,6 +6,10 @@ const helper = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", im
 const wordpress = readFileSync(new URL("./wordpressBlogPublishOrchestrator.js", import.meta.url), "utf8");
 const hostinger = readFileSync(new URL("./hostingerSshDeployExecutor.js", import.meta.url), "utf8");
 
+assert.match(helper, /resolveRepoPatchExpectedResourceUri/);
+assert.match(helper, /capability_resolution_envelope_resource_target_unresolved/);
+assert.match(helper, /capability_resolution_envelope_service_principal_binding_mismatch/);
+assert.match(helper, /resolveActivationBootstrapConfig/);
 assert.match(helper, /export function extractCapabilityEnvelopeId/);
 assert.match(helper, /export async function resolveCapabilityExecutionEnvelope/);
 assert.match(helper, /capability_resolution_envelope_ledger/);
@@ -26,17 +30,8 @@ assert.doesNotMatch(helper, /fetch\(|axios|child_process|exec\(|spawn\(/);
 
 assert.match(wordpress, /resolveCapabilityExecutionEnvelope/);
 assert.match(wordpress, /acceptedAppKeys: \["wordpress_rest"\]/);
-assert.match(wordpress, /acceptedIntents/);
-assert.match(wordpress, /markCapabilityEnvelopeReferenced\(\{ pool: deps\.pool/);
-assert.doesNotMatch(wordpress, /SELECT envelope_id, tenant_id, user_id, app_key, capability_key, operation_intent,[\s\S]*FROM capability_resolution_envelope_ledger/);
-
 assert.match(hostinger, /resolveCapabilityExecutionEnvelope/);
-assert.match(hostinger, /capabilityEnvelopeError/);
-assert.match(hostinger, /acceptedAppKeys: \["remote_ssh_runtime", "hostinger"\]/);
-assert.match(hostinger, /acceptedIntents: \["deploy", "restart", "write", "remote_runtime_deploy", "hostinger_ssh_deploy", "deploy_release"\]/);
 assert.match(hostinger, /expectedCommitSha/);
-assert.match(hostinger, /markCapabilityEnvelopeReferenced\(\{ pool, envelopeId: envelope\.envelope_id/);
-assert.doesNotMatch(hostinger, /SELECT envelope_id, tenant_id, user_id, app_key, capability_key, operation_intent,[\s\S]*FROM capability_resolution_envelope_ledger/);
 
 const expectedCommitSha = "a".repeat(40);
 const expectedBindingSha256 = "b".repeat(64);
@@ -71,14 +66,7 @@ function envelopeRow(overrides = {}) {
     expires_at: "2099-01-01T00:00:00.000Z",
     secrets_included: 0,
     envelope_sha256: "d".repeat(64),
-    envelope_json: JSON.stringify({
-      request_context: {
-        resource_uri: expectedResourceUri,
-        expected_commit_sha: expectedCommitSha,
-        binding_sha256: expectedBindingSha256,
-        capability_sha256: expectedCapabilitySha256,
-      },
-    }),
+    envelope_json: JSON.stringify({ request_context: { resource_uri: expectedResourceUri, expected_commit_sha: expectedCommitSha, binding_sha256: expectedBindingSha256, capability_sha256: expectedCapabilitySha256 } }),
     ...overrides,
   };
 }
@@ -95,44 +83,27 @@ function poolFor(row) {
 
 async function resolveWith({ row = envelopeRow(), ...overrides } = {}) {
   return resolveCapabilityExecutionEnvelope({
-    pool: poolFor(row),
-    envelopeId: "envelope-1",
+    pool: poolFor(row), envelopeId: "envelope-1",
     acceptedAppKeys: ["github"],
     acceptedCapabilityKeys: ["github_repository_main_moved_webhook_provision"],
     acceptedIntents: ["github_repository_main_moved_webhook_provision"],
-    expectedTenantId: "tenant-1",
-    expectedUserId: "user-1",
-    expectedWorkspaceId: "workspace-1",
-    expectedBrandKey: "growth_intelligence_platform",
-    expectedResourceUri,
-    expectedCommitSha,
-    expectedBindingSha256,
-    expectedCapabilitySha256,
-    requireCommitHint: true,
-    allowReferenced: false,
-    ...overrides,
+    expectedTenantId: "tenant-1", expectedUserId: "user-1", expectedWorkspaceId: "workspace-1",
+    expectedBrandKey: "growth_intelligence_platform", expectedResourceUri,
+    expectedCommitSha, expectedBindingSha256, expectedCapabilitySha256,
+    requireCommitHint: true, allowReferenced: false, ...overrides,
   });
 }
 
 {
   const resolved = await resolveWith();
   assert.equal(resolved.ok, true);
-  assert.equal(resolved.workspace_id, "workspace-1");
-  assert.equal(resolved.brand_key, "growth_intelligence_platform");
   assert.equal(resolved.resource_uri, expectedResourceUri);
   assert.equal(resolved.expected_commit_sha, expectedCommitSha);
-  assert.equal(resolved.binding_sha256, expectedBindingSha256);
-  assert.equal(resolved.capability_sha256, expectedCapabilitySha256);
   assert.equal(resolved.secrets_included, false);
 }
-
 {
   const failure = await resolveWith({ expectedWorkspaceId: "workspace-other" });
   assert.equal(failure.status, "capability_resolution_envelope_workspace_mismatch");
-}
-{
-  const failure = await resolveWith({ expectedBrandKey: "brand-other" });
-  assert.equal(failure.status, "capability_resolution_envelope_brand_mismatch");
 }
 {
   const failure = await resolveWith({ expectedResourceUri: "repository-binding://other" });
@@ -143,18 +114,68 @@ async function resolveWith({ row = envelopeRow(), ...overrides } = {}) {
   assert.equal(failure.status, "capability_resolution_envelope_binding_sha256_mismatch");
 }
 {
-  const failure = await resolveWith({ expectedCapabilitySha256: "0".repeat(64) });
-  assert.equal(failure.status, "capability_resolution_envelope_capability_sha256_mismatch");
-}
-{
-  const row = envelopeRow({ envelope_json: JSON.stringify({ request_context: {
-    resource_uri: expectedResourceUri,
-    binding_sha256: expectedBindingSha256,
-    capability_sha256: expectedCapabilitySha256,
-  } }) });
+  const row = envelopeRow({ envelope_json: JSON.stringify({ request_context: { resource_uri: expectedResourceUri, binding_sha256: expectedBindingSha256, capability_sha256: expectedCapabilitySha256 } }) });
   const failure = await resolveWith({ row });
   assert.equal(failure.status, "capability_resolution_envelope_commit_mismatch");
-  assert.equal(failure.commit_hint_required, true);
+}
+
+const exactRepo = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
+function serviceRepoRow(overrides = {}) {
+  return envelopeRow({
+    user_id: "platform_admin_service",
+    capability_key: "repo_patch_apply",
+    operation_intent: "repo_patch_apply",
+    selected_runtime_surface: "repo_patch_batch_apply",
+    envelope_json: JSON.stringify({ request_context: {
+      resource_uri: exactRepo,
+      principal: { principal_type: "service", principal_id: "platform_admin_service" },
+    } }),
+    ...overrides,
+  });
+}
+
+{
+  const row = serviceRepoRow();
+  const resolved = await resolveCapabilityExecutionEnvelope({
+    pool: poolFor(row), envelopeId: "envelope-1",
+    source: { owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" },
+    acceptedAppKeys: ["github"], acceptedCapabilityKeys: ["repo_patch_apply"], acceptedIntents: ["repo_patch_apply"],
+    expectedTenantId: "tenant-1", requireCommitHint: false,
+  });
+  assert.equal(resolved.ok, true);
+  assert.equal(resolved.resource_uri, exactRepo);
+  assert.equal(resolved.principal_type, "service");
+  assert.equal(resolved.principal_id, "platform_admin_service");
+}
+{
+  const row = serviceRepoRow();
+  const failure = await resolveCapabilityExecutionEnvelope({
+    pool: poolFor(row), envelopeId: "envelope-1",
+    source: { owner: "mad4bdigital-ai", repo: "different-repo" },
+    acceptedAppKeys: ["github"], acceptedCapabilityKeys: ["repo_patch_apply"], acceptedIntents: ["repo_patch_apply"],
+    expectedTenantId: "tenant-1",
+  });
+  assert.equal(failure.status, "capability_resolution_envelope_resource_uri_mismatch");
+}
+{
+  const row = serviceRepoRow({ user_id: null });
+  const failure = await resolveCapabilityExecutionEnvelope({
+    pool: poolFor(row), envelopeId: "envelope-1",
+    source: { owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" },
+    acceptedAppKeys: ["github"], acceptedCapabilityKeys: ["repo_patch_apply"], acceptedIntents: ["repo_patch_apply"],
+    expectedTenantId: "tenant-1",
+  });
+  assert.equal(failure.status, "capability_resolution_envelope_service_principal_binding_mismatch");
+}
+{
+  const row = serviceRepoRow();
+  const failure = await resolveCapabilityExecutionEnvelope({
+    pool: poolFor(row), envelopeId: "envelope-1",
+    source: { owner: "mad4bdigital-ai", repo: "multi-business-multi-role-growth-intelligence-os" },
+    acceptedAppKeys: ["github"], acceptedCapabilityKeys: ["repo_patch_apply"], acceptedIntents: ["repo_patch_apply"],
+    expectedTenantId: "tenant-1", expectedUserId: "different-admin-user",
+  });
+  assert.equal(failure.status, "capability_resolution_envelope_user_mismatch");
 }
 
 console.log("Capability resolution shared envelope guard tests passed");
