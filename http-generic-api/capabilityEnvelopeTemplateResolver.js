@@ -39,6 +39,8 @@ const CONTEXT_LIMITS = Object.freeze({
   capability_sha256: 64,
 });
 
+const EXACT_GITHUB_RESOURCE_RE = /^github:\/\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
 function fail(code, message, status = 400, details = undefined) {
   const error = new Error(message);
   error.code = code;
@@ -76,6 +78,19 @@ function boundedInt(value, fallback, min, max) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(min, Math.min(max, Math.floor(number)));
+}
+
+export function deriveCapabilityEnvelopeTemplateAuthorityContext(template, context = {}) {
+  const resourceUri = safeText(context.resource_uri, 512);
+  const runtimeSurface = safeText(template?.runtime_surface, 191);
+  const batchPatch = runtimeSurface === "repo_patch_batch_apply";
+  return {
+    principalId: safeText(context.user_id, 64),
+    resourceType: EXACT_GITHUB_RESOURCE_RE.test(resourceUri) ? "github_repo" : "",
+    resourceUri,
+    recipeKey: safeText(context.recipe_key, 191) || (batchPatch ? "repo_patch_batch_apply" : ""),
+    operationMode: batchPatch ? "atomic_change_set" : "",
+  };
 }
 
 function shapeTemplate(row) {
@@ -177,6 +192,11 @@ export function buildCapabilityEnvelopeTemplatePassthrough(template, context, { 
     if (!context[key]) continue;
     args.push(flags[key], context[key]);
   }
+  const authority = deriveCapabilityEnvelopeTemplateAuthorityContext(template, context);
+  if (authority.principalId) args.push("--principal-id", authority.principalId);
+  if (authority.resourceType) args.push("--resource-type", authority.resourceType);
+  if (!context.recipe_key && authority.recipeKey) args.push("--recipe-key", authority.recipeKey);
+  if (authority.operationMode) args.push("--operation-mode", authority.operationMode);
   args.push("--app-key", template.app_key);
   args.push("--capability-key", template.capability_key);
   args.push("--operation-intent", template.operation_intent);
@@ -201,9 +221,11 @@ export function computeCapabilityEnvelopeTemplateResolutionHash({ template, cont
 }
 
 function buildDryRunInput(template, context, explain) {
+  const authority = deriveCapabilityEnvelopeTemplateAuthorityContext(template, context);
   return {
     tenantId: context.tenant_id || "",
     userId: context.user_id || "",
+    principalId: authority.principalId,
     workspaceId: context.workspace_id || "",
     workspaceKey: context.workspace_key || "",
     workspaceType: context.workspace_type || "",
@@ -213,6 +235,10 @@ function buildDryRunInput(template, context, explain) {
     appKey: template.app_key,
     capabilityKey: template.capability_key,
     operationIntent: template.operation_intent,
+    operationMode: authority.operationMode,
+    resourceType: authority.resourceType,
+    resourceUri: authority.resourceUri,
+    recipeKey: authority.recipeKey,
     runtimeSurface: template.runtime_surface,
     requestedSourceTier: template.requested_source_tier || "",
     explain: explain === true,
