@@ -4,6 +4,30 @@ const MAX_LIMIT = 100;
 const DEFAULT_LIMIT = 50;
 const TENANT_ADMIN_EVENT_ROLES = new Set(["owner", "admin", "platform_owner"]);
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|authorization|cookie|raw_prompt|system_prompt)/i;
+const TENANT_REQUEST_ALLOWED_IDENTITY_COLLATIONS = new Set(["utf8mb4_unicode_ci", "utf8mb4_uca1400_ai_ci"]);
+
+function requireTenantRequestIdentityCollation(value, field, { optional = false } = {}) {
+  const collation = String(value ?? "").trim();
+  if (!collation && optional) return null;
+  if (!TENANT_REQUEST_ALLOWED_IDENTITY_COLLATIONS.has(collation)) {
+    const error = new Error(collation
+      ? `Unsupported tenant request identity collation for ${field}: ${collation}.`
+      : `Missing tenant request identity collation for ${field}.`);
+    error.status = 503;
+    error.code = collation ? "tenant_request_identity_collation_unsupported" : "tenant_request_identity_schema_incomplete";
+    throw error;
+  }
+  return collation;
+}
+
+function normalizeOuterTenantRequestIdentitySql(expression, collation) {
+  const trustedCollation = requireTenantRequestIdentityCollation(collation, expression);
+  return `CONVERT(${expression} USING utf8mb4) COLLATE ${trustedCollation}`;
+}
+
+function indexedTenantRequestIdentityEqualsSql(indexedExpression, outerExpression, collation) {
+  return `${indexedExpression} = ${normalizeOuterTenantRequestIdentitySql(outerExpression, collation)}`;
+}
 
 function text(value = "") {
   return String(value ?? "").trim();
@@ -60,15 +84,32 @@ export function canViewTenantAdminTicketEvents(scope = {}) {
   return TENANT_ADMIN_EVENT_ROLES.has(text(scope?.role).toLowerCase());
 }
 
-async function hasResolutionTicketIdColumn(pool) {
+async function inspectTenantRequestIdentitySchema(pool) {
   const [rows] = await pool.query(
-    `SELECT COUNT(*) AS present
+    `SELECT table_name, column_name, collation_name
        FROM information_schema.columns
       WHERE table_schema = DATABASE()
-        AND table_name = 'tenant_resolution_cases'
-        AND column_name = 'ticket_id'`
+        AND ((table_name = 'tenant_resolution_cases' AND column_name IN ('tenant_id','ticket_id','resource_ref'))
+          OR (table_name = 'ticket_lifecycle_events' AND column_name IN ('tenant_id','ticket_id')))`
   );
-  return Number(rows?.[0]?.present || 0) === 1;
+  const byColumn = new Map((rows || []).map((row) => [`${row.table_name}.${row.column_name}`, row.collation_name]));
+  const read = (table, column, optional = false) => {
+    const key = `${table}.${column}`;
+    return requireTenantRequestIdentityCollation(byColumn.get(key), key, { optional });
+  };
+  const resolutionTicketId = read("tenant_resolution_cases", "ticket_id", true);
+  return {
+    hasResolutionTicketId: Boolean(resolutionTicketId),
+    lifecycle: {
+      tenantId: read("ticket_lifecycle_events", "tenant_id"),
+      ticketId: read("ticket_lifecycle_events", "ticket_id"),
+    },
+    resolution: {
+      tenantId: read("tenant_resolution_cases", "tenant_id"),
+      ticketId: resolutionTicketId,
+      resourceRef: read("tenant_resolution_cases", "resource_ref"),
+    },
+  };
 }
 
 async function authorizeTenantRequestScope({ auth = {}, tenantId, pool }) {
@@ -109,40 +150,35 @@ function ticketEventVisibilitySql(scope = {}, alias = "") {
     : `AND ${column} = 'customer'`;
 }
 
-function latestActivitySql(alias = "t", caseAlias = "c", ticketEventVisibility = "") {
+function latestActivitySql(alias = "t", caseAlias = "c", ticketEventVisibility = "", identitySchema = {}) {
   const ticketFallback = `COALESCE(${alias}.last_seen_at, ${alias}.updated_at, ${alias}.created_at)`;
+  const lifecycleTenantIdentity = indexedTenantRequestIdentityEqualsSql("tle.tenant_id", `${alias}.tenant_id`, identitySchema.lifecycle.tenantId);
+  const lifecycleTicketIdentity = indexedTenantRequestIdentityEqualsSql("tle.ticket_id", `${alias}.ticket_id`, identitySchema.lifecycle.ticketId);
   return `GREATEST(
     ${ticketFallback},
     COALESCE(${caseAlias}.updated_at, ${ticketFallback}),
     COALESCE((
       SELECT MAX(tle.created_at)
         FROM ticket_lifecycle_events tle
-       WHERE tle.tenant_id = ${alias}.tenant_id
-         AND tle.ticket_id = ${alias}.ticket_id
+       WHERE ${lifecycleTenantIdentity}
+         AND ${lifecycleTicketIdentity}
          ${ticketEventVisibility}
     ), ${ticketFallback}),
-    COALESCE((
-      SELECT MAX(trce.created_at)
-        FROM tenant_resolution_case_events trce
-       WHERE trce.case_id = ${caseAlias}.case_id
-    ), ${ticketFallback}),
-    COALESCE((
-      SELECT MAX(trr.created_at)
-        FROM tenant_resolution_readbacks trr
-       WHERE trr.case_id = ${caseAlias}.case_id
-    ), ${ticketFallback})
+    COALESCE((SELECT MAX(trce.created_at) FROM tenant_resolution_case_events trce WHERE trce.case_id = ${caseAlias}.case_id), ${ticketFallback}),
+    COALESCE((SELECT MAX(trr.created_at) FROM tenant_resolution_readbacks trr WHERE trr.case_id = ${caseAlias}.case_id), ${ticketFallback})
   )`;
 }
 
-function caseJoinSql(hasTicketId) {
-  const relation = hasTicketId
-    ? `(c2.ticket_id = t.ticket_id OR (c2.ticket_id IS NULL AND c2.resource_ref = CONCAT('ticket://', t.ticket_id)))`
-    : `c2.resource_ref = CONCAT('ticket://', t.ticket_id)`;
+function caseJoinSql(hasTicketId, identitySchema) {
+  const tenantIdentity = indexedTenantRequestIdentityEqualsSql("c2.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
+  const ticketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("c2.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
+  const resourceIdentity = indexedTenantRequestIdentityEqualsSql("c2.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
+  const relation = hasTicketId ? `(${ticketIdentity} OR (c2.ticket_id IS NULL AND ${resourceIdentity}))` : resourceIdentity;
   return `LEFT JOIN tenant_resolution_cases c
     ON c.id = (
       SELECT c2.id
         FROM tenant_resolution_cases c2
-       WHERE c2.tenant_id = t.tenant_id
+       WHERE ${tenantIdentity}
          AND ${relation}
        ORDER BY c2.updated_at DESC, c2.id DESC
        LIMIT 1
@@ -217,25 +253,24 @@ function inboxFilterSql(filters = {}, scope = {}, ticketAlias = "t", caseAlias =
   return { conditions, params, search };
 }
 
-function candidateCaseJoinSql(hasTicketId) {
-  const relation = hasTicketId
-    ? `(candidate_case.ticket_id = t.ticket_id OR (candidate_case.ticket_id IS NULL AND candidate_case.resource_ref = CONCAT('ticket://', t.ticket_id)))`
-    : `candidate_case.resource_ref = CONCAT('ticket://', t.ticket_id)`;
-  const newerRelation = hasTicketId
-    ? `(candidate_case_newer.ticket_id = t.ticket_id OR (candidate_case_newer.ticket_id IS NULL AND candidate_case_newer.resource_ref = CONCAT('ticket://', t.ticket_id)))`
-    : `candidate_case_newer.resource_ref = CONCAT('ticket://', t.ticket_id)`;
+function candidateCaseJoinSql(hasTicketId, identitySchema) {
+  const tenantIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
+  const ticketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("candidate_case.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
+  const resourceIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
+  const newerTenantIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case_newer.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
+  const newerTicketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("candidate_case_newer.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
+  const newerResourceIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case_newer.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
+  const relation = hasTicketId ? `(${ticketIdentity} OR (candidate_case.ticket_id IS NULL AND ${resourceIdentity}))` : resourceIdentity;
+  const newerRelation = hasTicketId ? `(${newerTicketIdentity} OR (candidate_case_newer.ticket_id IS NULL AND ${newerResourceIdentity}))` : newerResourceIdentity;
   return `LEFT JOIN tenant_resolution_cases candidate_case
-    ON candidate_case.tenant_id = t.tenant_id
+    ON ${tenantIdentity}
    AND ${relation}
   LEFT JOIN tenant_resolution_cases candidate_case_newer
-    ON candidate_case_newer.tenant_id = t.tenant_id
+    ON ${newerTenantIdentity}
    AND ${newerRelation}
    AND (
      COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) > COALESCE(candidate_case.updated_at, candidate_case.created_at)
-     OR (
-       COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) = COALESCE(candidate_case.updated_at, candidate_case.created_at)
-       AND candidate_case_newer.id > candidate_case.id
-     )
+     OR (COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) = COALESCE(candidate_case.updated_at, candidate_case.created_at) AND candidate_case_newer.id > candidate_case.id)
    )`;
 }
 
@@ -246,11 +281,12 @@ function boundedCandidateWindow(limit) {
 export async function listTenantRequestInbox(filters = {}, options = {}) {
   const pool = options.pool || getPool();
   const scope = await authorizeTenantRequestScope({ auth: options.auth || {}, tenantId: filters.tenant_id, pool });
-  const hasTicketId = await hasResolutionTicketIdColumn(pool);
+  const identitySchema = await inspectTenantRequestIdentitySchema(pool);
+  const hasTicketId = identitySchema.hasResolutionTicketId;
   const limit = boundedLimit(filters.limit);
   const cursor = decodeTenantRequestCursor(filters.cursor);
   const candidateLimit = boundedCandidateWindow(limit);
-  const candidateJoin = candidateCaseJoinSql(hasTicketId);
+  const candidateJoin = candidateCaseJoinSql(hasTicketId, identitySchema);
   const candidateParams = [];
 
   const candidateBranch = ({ activitySql, extraJoin = "", extraCondition = "" }) => {
@@ -279,7 +315,7 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
     candidateBranch({ activitySql: "COALESCE(t.last_seen_at, t.updated_at, t.created_at)" }),
     candidateBranch({
       activitySql: "tle.created_at",
-      extraJoin: "JOIN ticket_lifecycle_events tle ON tle.tenant_id = t.tenant_id AND tle.ticket_id = t.ticket_id",
+      extraJoin: `JOIN ticket_lifecycle_events tle ON ${indexedTenantRequestIdentityEqualsSql("tle.tenant_id", "t.tenant_id", identitySchema.lifecycle.tenantId)} AND ${indexedTenantRequestIdentityEqualsSql("tle.ticket_id", "t.ticket_id", identitySchema.lifecycle.ticketId)}`,
       extraCondition: ticketEventVisibility,
     }),
     candidateBranch({ activitySql: "COALESCE(candidate_case.updated_at, candidate_case.created_at)", extraCondition: "candidate_case.case_id IS NOT NULL" }),
@@ -325,7 +361,7 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
   const params = [...normalized.params];
   conditions.push(`t.ticket_id IN (${candidateTicketIds.map(() => "?").join(", ")})`);
   params.push(...candidateTicketIds);
-  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));
+  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"), identitySchema);
   if (cursor) {
     conditions.push(`(${activity} < ? OR (${activity} = ? AND t.ticket_id < ?))`);
     params.push(cursor.latestActivityAt, cursor.latestActivityAt, cursor.ticketId);
@@ -344,7 +380,7 @@ export async function listTenantRequestInbox(filters = {}, options = {}) {
             c.updated_at AS case_updated_at,
             ${activity} AS latest_activity_at
        FROM tickets t
-       ${caseJoinSql(hasTicketId)}
+       ${caseJoinSql(hasTicketId, identitySchema)}
       WHERE ${conditions.join(" AND ")}
       ORDER BY latest_activity_at DESC, t.ticket_id DESC
       LIMIT ?`,
@@ -437,7 +473,8 @@ function readbackRow(row = {}, isAdmin = false) {
 export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, options = {}) {
   const pool = options.pool || getPool();
   const scope = await authorizeTenantRequestScope({ auth: options.auth || {}, tenantId: tenant_id, pool });
-  const hasTicketId = await hasResolutionTicketIdColumn(pool);
+  const identitySchema = await inspectTenantRequestIdentitySchema(pool);
+  const hasTicketId = identitySchema.hasResolutionTicketId;
   const ticketId = text(ticket_id);
   if (!ticketId) {
     const error = new Error("ticket_id is required.");
@@ -448,7 +485,7 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
   const conditions = ["t.ticket_id = ?"];
   const params = [ticketId];
   if (scope.tenantId) { conditions.push("t.tenant_id = ?"); params.push(scope.tenantId); }
-  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));
+  const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"), identitySchema);
   const [rows] = await pool.query(
     `SELECT t.ticket_id, t.tenant_id, t.title, t.ticket_type, t.category,
             t.status AS ticket_status, t.priority, t.severity, t.occurrence_count,
@@ -462,7 +499,7 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
             c.updated_at AS case_updated_at,
             ${activity} AS latest_activity_at
        FROM tickets t
-       ${caseJoinSql(hasTicketId)}
+       ${caseJoinSql(hasTicketId, identitySchema)}
       WHERE ${conditions.join(" AND ")}
       LIMIT 1`,
     params
@@ -545,7 +582,12 @@ export async function getTenantRequestInboxItem({ ticket_id, tenant_id } = {}, o
 
 export const _testingTenantRequestInboxService = {
   boundedLimit,
+  normalizeOuterTenantRequestIdentitySql,
+  indexedTenantRequestIdentityEqualsSql,
+  inspectTenantRequestIdentitySchema,
   caseJoinSql,
+  candidateCaseJoinSql,
+  latestActivitySql,
   projectInboxRow,
   tenantVisibleTicketEvent,
   caseEvent,
