@@ -49,7 +49,7 @@ function envelopeStatus(decision = "") {
 }
 
 export function buildDryRunArgs(passthrough = []) {
-  const args = { tenantId:"", userId:"", principalType:"", principalId:"", workspaceId:"", workspaceKey:"", workspaceType:"", userRole:"", brandKey:"", businessActivityType:"", appKey:"", capabilityKey:"", operationIntent:"read", operationMode:"", resourceType:"", resourceUri:"", recipeKey:"", runtimeSurface:"", requestedSourceTier:"", explain:false };
+  const args = { tenantId:"", userId:"", principalType:"", principalId:"", workspaceId:"", workspaceKey:"", workspaceType:"", userRole:"", brandKey:"", businessActivityType:"", appKey:"", capabilityKey:"", operationIntent:"read", operationMode:"", resourceType:"", resourceUri:"", resourceBranch:"", expectedCommitSha:"", recipeKey:"", runtimeSurface:"", requestedSourceTier:"", explain:false };
   for (let i = 0; i < passthrough.length; i += 1) {
     const item = passthrough[i];
     const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
@@ -71,6 +71,10 @@ export function buildDryRunArgs(passthrough = []) {
     else if (key === "--operation-mode") { args.operationMode = value || ""; if (consume) i += 1; }
     else if (key === "--resource-type") { args.resourceType = value || ""; if (consume) i += 1; }
     else if (key === "--resource-uri") { args.resourceUri = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-branch" || key === "--branch") { args.resourceBranch = value || ""; if (consume) i += 1; }
+    else if (key === "--expected-commit-sha") { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-branch-sha") { args.expectedCommitSha = String(value || args.expectedCommitSha).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha" && !args.expectedCommitSha) { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
     else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
@@ -80,7 +84,7 @@ export function buildDryRunArgs(passthrough = []) {
 }
 
 export function buildBindingContext(passthrough = []) {
-  const context = { plan_id:"", plan_item_id:"", resource_uri:"", recipe_key:"", expected_commit_sha:"", binding_sha256:"", capability_sha256:"" };
+  const context = { plan_id:"", plan_item_id:"", resource_uri:"", resource_branch:"", recipe_key:"", expected_commit_sha:"", binding_sha256:"", capability_sha256:"" };
   for (let i = 0; i < passthrough.length; i += 1) {
     const item = passthrough[i];
     const [key, inlineValue] = item.includes("=") ? item.split(/=(.*)/s).filter((_, idx) => idx < 2) : [item, null];
@@ -89,8 +93,11 @@ export function buildBindingContext(passthrough = []) {
     if (key === "--plan-id") { context.plan_id = safeText(value, 64); if (consume) i += 1; }
     else if (key === "--plan-item-id") { context.plan_item_id = safeText(value, 64); if (consume) i += 1; }
     else if (key === "--resource-uri") { context.resource_uri = safeText(value, 512); if (consume) i += 1; }
+    else if (key === "--resource-branch" || key === "--branch") { context.resource_branch = safeText(value, 255); if (consume) i += 1; }
     else if (key === "--recipe-key") { context.recipe_key = safeText(value, 191); if (consume) i += 1; }
     else if (key === "--expected-commit-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-branch-sha") { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha" && !context.expected_commit_sha) { context.expected_commit_sha = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--binding-sha256") { context.binding_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
     else if (key === "--capability-sha256") { context.capability_sha256 = safeText(value, 64).toLowerCase(); if (consume) i += 1; }
   }
