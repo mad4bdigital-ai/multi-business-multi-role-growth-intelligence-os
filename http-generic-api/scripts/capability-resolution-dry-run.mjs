@@ -3,11 +3,16 @@ import { getPool } from "../db.js";
 
 const POLICY_KEY = "dynamic_capability_resolution_policy_v1";
 const SOURCE_TIER_POLICY_KEY = "dynamic_capability_source_tiers_v1";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EXACT_GITHUB_RESOURCE_RE = /^github:\/\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const PLATFORM_AUTHORITY_RECIPES = new Set(["repo_patch_apply", "repo_patch_batch_apply", "github_pr_create"]);
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     tenantId: "",
     userId: "",
+    principalType: "",
+    principalId: "",
     workspaceId: "",
     workspaceKey: "",
     workspaceType: "",
@@ -17,6 +22,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     appKey: "",
     capabilityKey: "",
     operationIntent: "read",
+    operationMode: "",
+    resourceType: "",
+    resourceUri: "",
+    recipeKey: "",
     runtimeSurface: "",
     requestedSourceTier: "",
     explain: false,
@@ -28,6 +37,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     const consume = inlineValue === null;
     if (key === "--tenant-id") { args.tenantId = value || ""; if (consume) i += 1; }
     else if (key === "--user-id") { args.userId = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-type") { args.principalType = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-id") { args.principalId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-id") { args.workspaceId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-key") { args.workspaceKey = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-type") { args.workspaceType = value || ""; if (consume) i += 1; }
@@ -37,6 +48,10 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (key === "--app-key") { args.appKey = value || ""; if (consume) i += 1; }
     else if (key === "--capability-key") { args.capabilityKey = value || ""; if (consume) i += 1; }
     else if (key === "--operation-intent") { args.operationIntent = value || "read"; if (consume) i += 1; }
+    else if (key === "--operation-mode") { args.operationMode = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-type") { args.resourceType = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-uri") { args.resourceUri = value || ""; if (consume) i += 1; }
+    else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
     else if (key === "--explain") args.explain = true;
@@ -61,6 +76,29 @@ function normalizeKey(value = "") {
 
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function normalizePrincipalContext(args = {}) {
+  const principalId = normalizeKey(args.principalId || args.userId);
+  const explicitType = normalizeKey(args.principalType).toLowerCase();
+  const principalType = explicitType || (UUID_RE.test(principalId) ? "user" : "");
+  return { principal_type: principalType, principal_id: principalId };
+}
+
+function inferResourceType(resourceUri = "") {
+  const uri = normalizeKey(resourceUri);
+  return EXACT_GITHUB_RESOURCE_RE.test(uri) ? "github_repo" : "";
+}
+
+function resourceAuthorityContext(args = {}) {
+  const resourceUri = normalizeKey(args.resourceUri);
+  const capabilityRecipe = PLATFORM_AUTHORITY_RECIPES.has(normalizeKey(args.capabilityKey)) ? normalizeKey(args.capabilityKey) : "";
+  return {
+    resource_type: normalizeKey(args.resourceType) || inferResourceType(resourceUri),
+    resource_uri: resourceUri,
+    recipe_key: normalizeKey(args.recipeKey) || capabilityRecipe,
+    operation_mode: normalizeKey(args.operationMode),
+  };
 }
 
 function riskForOperation(operationIntent = "read") {
@@ -262,6 +300,129 @@ export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId,
   }
 }
 
+function isMissingPlatformResourceAuthorityTableError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return code === "ER_NO_SUCH_TABLE" || /platform_resource_authority_bindings.*doesn't exist/i.test(message);
+}
+
+export async function loadPlatformResourceAuthorityBindings(pool, {
+  tenantId,
+  workspaceId,
+  principal,
+  resourceType,
+  resourceUri,
+  recipeKey,
+}) {
+  if (
+    principal?.principal_type !== "service"
+    || !principal?.principal_id
+    || !tenantId
+    || !workspaceId
+    || !resourceType
+    || !resourceUri
+    || !recipeKey
+  ) return [];
+  try {
+    const [rows] = await pool.query(
+      `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
+              recipe_key, permission_level, allowed_modes_json, authority_source, status, expires_at, created_at
+         FROM platform_resource_authority_bindings
+        WHERE status = 'active'
+          AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+          AND tenant_id = ?
+          AND workspace_id = ?
+          AND user_id = ?
+          AND resource_type = ?
+          AND resource_uri = ?
+          AND recipe_key = ?
+        ORDER BY created_at DESC
+        LIMIT 20`,
+      [tenantId, workspaceId, principal.principal_id, resourceType, resourceUri, recipeKey]
+    );
+    return rows;
+  } catch (error) {
+    if (isMissingPlatformResourceAuthorityTableError(error)) return [];
+    throw error;
+  }
+}
+
+function parseAllowedModes(value) {
+  const parsed = safeJson(value, []);
+  return Array.isArray(parsed) ? parsed.map((item) => normalizeKey(item)).filter(Boolean) : [];
+}
+
+function storedPrincipal(binding = {}) {
+  const resourceRef = safeJson(binding.resource_ref_json, {});
+  const principal = resourceRef?.principal;
+  return principal && typeof principal === "object" && !Array.isArray(principal)
+    ? {
+        principal_type: normalizeKey(principal.principal_type).toLowerCase(),
+        principal_id: normalizeKey(principal.principal_id),
+      }
+    : { principal_type: "", principal_id: "" };
+}
+
+const PERMISSION_RANK = Object.freeze({
+  read_only: 1,
+  diagnostic: 1,
+  view: 1,
+  patch: 2,
+  edit: 2,
+  operate: 2,
+  manage: 2,
+  admin: 3,
+  owner: 3,
+});
+
+function requiredPermissionRank(operationMode = "") {
+  const mode = normalizeKey(operationMode);
+  if (["read_only", "diagnostic", "continue_read_only", "plan"].includes(mode)) return 1;
+  if (["write_file", "replace_block", "apply_unified_diff", "delete_file", "atomic_change_set"].includes(mode)) return 2;
+  if (["create_pull_request"].includes(mode)) return 3;
+  return Number.POSITIVE_INFINITY;
+}
+
+export function permissionSatisfiesResourceOperation(permissionLevel = "", operationMode = "") {
+  const rank = PERMISSION_RANK[normalizeKey(permissionLevel).toLowerCase()] || 0;
+  return rank >= requiredPermissionRank(operationMode);
+}
+
+export function hasExactAdminResourceAuthority({
+  principal,
+  bindings = [],
+  tenantId,
+  workspaceId,
+  resourceType,
+  resourceUri,
+  recipeKey,
+  operationMode,
+  now = new Date(),
+}) {
+  if (principal?.principal_type !== "service" || !principal?.principal_id) return false;
+  if (!tenantId || !workspaceId || !resourceType || !resourceUri || !recipeKey || !operationMode) return false;
+  if (resourceUri.includes("*") || (resourceType === "github_repo" && !EXACT_GITHUB_RESOURCE_RE.test(resourceUri))) return false;
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+
+  return bindings.some((binding) => {
+    if (normalizeKey(binding.status).toLowerCase() !== "active") return false;
+    if (binding.expires_at && new Date(binding.expires_at).getTime() <= nowMs) return false;
+    if (normalizeKey(binding.tenant_id) !== tenantId) return false;
+    if (normalizeKey(binding.workspace_id) !== workspaceId) return false;
+    if (normalizeKey(binding.user_id) !== principal.principal_id) return false;
+    if (normalizeKey(binding.resource_type) !== resourceType) return false;
+    if (normalizeKey(binding.resource_uri) !== resourceUri || normalizeKey(binding.resource_uri).includes("*")) return false;
+    if (normalizeKey(binding.recipe_key) !== recipeKey) return false;
+
+    const bindingPrincipal = storedPrincipal(binding);
+    if (bindingPrincipal.principal_type !== "service" || bindingPrincipal.principal_id !== principal.principal_id) return false;
+
+    const modes = parseAllowedModes(binding.allowed_modes_json);
+    if (modes.includes("*") || !modes.includes(operationMode)) return false;
+    return permissionSatisfiesResourceOperation(binding.permission_level, operationMode);
+  });
+}
+
 async function loadConnections(pool, { tenantId, userId, appKey }) {
   if (!tenantId || !appKey) return [];
   const params = [tenantId, appKey];
@@ -392,15 +553,45 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
   };
 }
 
-function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity, risk, certifications = [], sourceTiers }) {
+export function authorityStatus({
+  workspace,
+  grants = [],
+  platformResourceAuthorityBindings = [],
+  principal,
+  resourceType,
+  resourceUri,
+  recipeKey,
+  operationMode,
+  tenantId,
+  workspaceId,
+  brandKey,
+  brandCore,
+  activity,
+  risk,
+  certifications = [],
+  sourceTiers,
+}) {
   const missing = [];
   const passed = [];
   const grantPermissions = new Set(grants.map((grant) => grant.permission));
-  const strongGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
+  const strongWorkspaceGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
+  const exactPlatformAuthority = hasExactAdminResourceAuthority({
+    principal,
+    bindings: platformResourceAuthorityBindings,
+    tenantId,
+    workspaceId,
+    resourceType,
+    resourceUri,
+    recipeKey,
+    operationMode,
+  });
+  const strongAuthority = strongWorkspaceGrant || exactPlatformAuthority;
+
   if (workspace) passed.push("workspace_resolved");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_context_missing_or_unresolved");
 
   if (grants.length) passed.push("workspace_resource_grant_present");
+  else if (exactPlatformAuthority) passed.push("exact_platform_resource_authority_present");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_resource_grant_missing_for_high_risk_operation");
 
   if (brandKey) {
@@ -415,12 +606,12 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   if (dispatchRows.length) passed.push("dispatch_certification_present");
   else if (["high", "critical"].includes(risk)) missing.push("dispatch_certification_missing_or_not_allowed");
 
-  if (["high", "critical"].includes(risk) && !strongGrant) missing.push("elevated_permission_missing");
+  if (["high", "critical"].includes(risk) && !strongAuthority) missing.push("elevated_permission_missing");
 
   if (sourceTiers.selected_source_tier === "platform_managed_fallback") {
     passed.push("platform_fallback_requires_quota_audit_disclosure");
   }
-  return { passed, missing, status: missing.length ? "incomplete" : "passed" };
+  return { passed, missing, status: missing.length ? "incomplete" : "passed", exact_platform_resource_authority: exactPlatformAuthority };
 }
 
 export async function runCapabilityResolutionDryRun(args = parseArgs()) {
@@ -433,12 +624,23 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const workspaceId = normalizeKey(args.workspaceId || workspace?.workspace_id || "");
   const workspaceType = normalizeKey(args.workspaceType || workspace?.workspace_type || "unknown");
   const brandKey = normalizeKey(args.brandKey || workspace?.linked_brand_key || "");
+  const principal = normalizePrincipalContext(args);
+  const requestedAuthority = resourceAuthorityContext(args);
   const activity = await loadActivity(pool, args.businessActivityType);
   const app = await loadApp(pool, args.appKey);
   const appMap = await loadAppMap(pool, args.appKey);
   const brandCore = await loadBrandCore(pool, brandKey);
-  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: args.userId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
-  const connections = await loadConnections(pool, { tenantId, userId: args.userId, appKey: args.appKey });
+  const userPrincipalId = principal.principal_type === "user" ? principal.principal_id : "";
+  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: userPrincipalId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
+  const platformResourceAuthorityBindings = await loadPlatformResourceAuthorityBindings(pool, {
+    tenantId,
+    workspaceId,
+    principal,
+    resourceType: requestedAuthority.resource_type,
+    resourceUri: requestedAuthority.resource_uri,
+    recipeKey: requestedAuthority.recipe_key,
+  });
+  const connections = await loadConnections(pool, { tenantId, userId: userPrincipalId, appKey: args.appKey });
   const credentialBindings = await loadCredentialBindings(pool, { tenantId, appKey: args.appKey, capabilityKey: args.capabilityKey });
   const certificationCandidates = unique([
     args.capabilityKey,
@@ -450,7 +652,24 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const certifications = await loadDispatchCertification(pool, certificationCandidates);
   const risk = riskForOperation(args.operationIntent);
   const sourceTiers = deriveSourceTiers({ appMap, connections, credentialBindings, operationRisk: risk, policy });
-  const authority = authorityStatus({ workspace, grants, brandKey, brandCore, activity, risk, certifications, sourceTiers });
+  const authority = authorityStatus({
+    workspace,
+    grants,
+    platformResourceAuthorityBindings,
+    principal,
+    resourceType: requestedAuthority.resource_type,
+    resourceUri: requestedAuthority.resource_uri,
+    recipeKey: requestedAuthority.recipe_key,
+    operationMode: requestedAuthority.operation_mode,
+    tenantId,
+    workspaceId,
+    brandKey,
+    brandCore,
+    activity,
+    risk,
+    certifications,
+    sourceTiers,
+  });
   const availableRuntimeSurfaces = unique([
     ...appMap.map((row) => row.runtime_capability_class).filter(Boolean),
     ...appMap.map((row) => row.connector_family).filter(Boolean),
@@ -459,7 +678,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const blockingGaps = [];
   if (!app) blockingGaps.push("app_integration_missing_or_unresolved");
   if (!tenantId) blockingGaps.push("tenant_id_missing");
-  if (!args.userId) blockingGaps.push("user_id_missing");
+  if (!principal.principal_id) blockingGaps.push("user_id_missing");
   if (!args.appKey && !args.capabilityKey) blockingGaps.push("app_key_or_capability_key_required");
   if (!connections.length && !credentialBindings.length && !appMap.some((row) => row.credential_source === "platform_managed" || row.credential_source === "none")) blockingGaps.push("no_active_connection_or_credential_binding_found");
   blockingGaps.push(...authority.missing);
@@ -480,7 +699,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
     source_tier_policy_key: SOURCE_TIER_POLICY_KEY,
     request_context: {
       tenant_id: tenantId || null,
-      user_id: args.userId || null,
+      user_id: principal.principal_type === "user" ? principal.principal_id || null : null,
+      principal: principal.principal_id ? principal : null,
       workspace_id: workspaceId || null,
       workspace_key: workspace?.workspace_key || args.workspaceKey || null,
       workspace_type: workspaceType,
@@ -488,6 +708,10 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       brand_key: brandKey || null,
       business_activity_type: args.businessActivityType || null,
       operation_intent: args.operationIntent,
+      operation_mode: requestedAuthority.operation_mode || null,
+      resource_type: requestedAuthority.resource_type || null,
+      resource_uri: requestedAuthority.resource_uri || null,
+      recipe_key: requestedAuthority.recipe_key || null,
     },
     capability: {
       app_key: args.appKey || null,
@@ -511,6 +735,16 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       passed: authority.passed,
       missing: authority.missing,
       grants: grants.map((grant) => ({ resource_type: grant.resource_type, resource_ref: grant.resource_ref, permission: grant.permission })),
+      exact_platform_resource_authority: authority.exact_platform_resource_authority,
+      platform_resource_authority_bindings: platformResourceAuthorityBindings.map((binding) => ({
+        binding_id: binding.binding_id,
+        resource_type: binding.resource_type,
+        resource_uri: binding.resource_uri,
+        recipe_key: binding.recipe_key,
+        permission_level: binding.permission_level,
+        allowed_modes: parseAllowedModes(binding.allowed_modes_json),
+        expires_at: binding.expires_at || null,
+      })),
       brand_core_present: Boolean(brandCore),
       dispatch_certifications: certifications.map((row) => ({ certification_key: row.certification_key, surface_key: row.surface_key || null, tool_or_action_key: row.tool_or_action_key || null, dispatch_allowed: Boolean(row.dispatch_allowed), apply_allowed: Boolean(row.apply_allowed), status: row.certification_status })),
     },
@@ -535,6 +769,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       notes: [
         "This is a dry-run envelope only; no tool/app/runtime was executed.",
         "Workspace_type values are read from the current workspace_registry enum; extended archetypes are policy-level context until a separate schema migration is approved.",
+        "Exact platform resource authority may satisfy high-risk resource authority for typed service principals only; it never satisfies dispatch certification, approval, readback, protected-branch, or mutation-policy gates.",
         "No credential values are read or returned; only counts and metadata are exposed.",
       ],
       source_tier_policy: sourceTierConfig?.json || null,
