@@ -83,16 +83,31 @@ function boolish(value) {
   return normalized === "true" || normalized === "yes" || normalized === "1";
 }
 
+function governanceEnvelope(args = {}) {
+  const governance = args?.readback?.governance;
+  return governance && typeof governance === "object" && !Array.isArray(governance)
+    ? governance
+    : {};
+}
+
 function mutationApproval(args = {}) {
-  const approval = args?.mutation_approval || args?.operator_approval || {};
+  const governance = governanceEnvelope(args);
+  const approval = args?.mutation_approval
+    || args?.operator_approval
+    || governance.mutation_approval
+    || governance.operator_approval
+    || {};
   return approval && typeof approval === "object" && !Array.isArray(approval) ? approval : {};
 }
 
 function hasExplicitMutationApproval(args = {}) {
   const approval = mutationApproval(args);
+  const governance = governanceEnvelope(args);
   return (
     boolish(args?.operator_approved) ||
     boolish(args?.operator_approval_granted) ||
+    boolish(governance.operator_approved) ||
+    boolish(governance.operator_approval_granted) ||
     boolish(approval.approved) ||
     boolish(approval.operator_approved) ||
     boolish(approval.operator_approval_granted)
@@ -101,9 +116,12 @@ function hasExplicitMutationApproval(args = {}) {
 
 function hasCompletedMutationPreflight(args = {}) {
   const approval = mutationApproval(args);
+  const governance = governanceEnvelope(args);
   return (
     boolish(args?.dry_run_preflight_completed) ||
     boolish(args?.approved_preflight_dry_run_validated) ||
+    boolish(governance.dry_run_preflight_completed) ||
+    boolish(governance.approved_preflight_dry_run_validated) ||
     boolish(approval.dry_run_preflight_completed) ||
     boolish(approval.approved_preflight_dry_run_validated)
   );
@@ -111,9 +129,12 @@ function hasCompletedMutationPreflight(args = {}) {
 
 function hasLiveMutationApproval(args = {}) {
   const approval = mutationApproval(args);
+  const governance = governanceEnvelope(args);
   return (
     boolish(args?.live_execution_approved) ||
     boolish(args?.execute_live) ||
+    boolish(governance.live_execution_approved) ||
+    boolish(governance.execute_live) ||
     boolish(approval.live_execution_approved) ||
     boolish(approval.execute_live)
   );
@@ -140,6 +161,7 @@ export function isGithubIssueCommentMutationTarget(value = {}) {
 export function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
   if (!isGithubIssueCommentMutationTarget(row)) return;
 
+  const governance = governanceEnvelope(args);
   const details = {
     tool_name: "github_rest_endpoint_dispatch",
     parent_action_key: "github_api_mcp",
@@ -147,7 +169,11 @@ export function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
     provider_call_allowed: false,
   };
 
-  if (boolish(args?.dry_run) || boolish(args?.preflight_only)) {
+  if (
+    boolish(args?.dry_run)
+    || boolish(args?.preflight_only)
+    || boolish(governance.preflight_only)
+  ) {
     throw createSelectionError(
       409,
       "github_issue_comment_mutation_preflight_requires_preview",
