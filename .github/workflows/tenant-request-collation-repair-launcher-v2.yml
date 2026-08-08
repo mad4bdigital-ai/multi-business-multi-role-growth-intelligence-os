@@ -1,0 +1,93 @@
+name: Tenant Request Collation Repair Launcher V2
+
+on:
+  push:
+    branches:
+      - gpt/tenant-request-collation-repair-launcher-20260808
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tenant-request-collation-repair-20260808
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
+      EXPECTED_HEAD_SHA: f2e100922c7092dacd50ad138227dddfe1cf924d
+    steps:
+      - name: Checkout launcher
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Extract canonical bounded patch script
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          source = Path('.github/workflows/tenant-request-collation-repair-launcher.yml').read_text().splitlines()
+          start = next(i for i, line in enumerate(source) if line.strip() == "python3 - <<'PY'") + 1
+          end = next(i for i in range(start, len(source)) if source[i].strip() == 'PY')
+          block = source[start:end]
+          minimum = min((len(line) - len(line.lstrip()) for line in block if line.strip()), default=0)
+          Path('/tmp/tenant-request-collation-repair.py').write_text('\n'.join(line[minimum:] for line in block) + '\n')
+          PY
+
+      - name: Verify immutable target lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${TARGET_BRANCH}"
+          actual="$(git rev-parse "origin/${TARGET_BRANCH}")"
+          test "${actual}" = "${EXPECTED_HEAD_SHA}"
+          git checkout -B "${TARGET_BRANCH}" "${EXPECTED_HEAD_SHA}"
+
+      - name: Apply exact previously tested source repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 /tmp/tenant-request-collation-repair.py
+
+      - name: Verify syntax and focused regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/tenantRequestInboxService.js
+          npm ci --prefix http-generic-api --ignore-scripts
+          node http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+
+      - name: Enforce bounded write set including untracked files
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s\n' \
+            .changes/e2e/tenant-request-identity-collation-repair.json \
+            http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql \
+            http-generic-api/tenantRequestInboxService.js \
+            http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs | sort)"
+          actual="$({ git diff --name-only; git ls-files --others --exclude-standard; } | sort -u)"
+          printf 'Expected write set:\n%s\nActual write set:\n%s\n' "${expected}" "${actual}"
+          test "${actual}" = "${expected}"
+          git diff --check
+
+      - name: Commit and fast-forward target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          remote="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote}" = "${EXPECTED_HEAD_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            .changes/e2e/tenant-request-identity-collation-repair.json \
+            http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql \
+            http-generic-api/tenantRequestInboxService.js \
+            http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+          git commit -m "fix(tenant): normalize inbox identity collations"
+          git push origin "HEAD:refs/heads/${TARGET_BRANCH}"
