@@ -1,0 +1,70 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "capability-drift-alert-lifecycle",
+  "title": "Persist tenant-visible capability drift in the canonical operational alert lifecycle",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/capability-drift-alert-lifecycle.json",
+      "http-generic-api/capabilityDriftAlertAdapter.js",
+      "http-generic-api/operationalAlertService.js",
+      "http-generic-api/test-operational-alerting-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist platform-global tenant-visible capability drift through the existing operational_alerts lifecycle while projecting it safely into each tenant read without adding a tenant mutation route or duplicating alert storage.",
+      "e2e_journeys": [
+        {
+          "id": "admin-sync-persists-global-capability-drift-and-tenant-read-projects-it-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform Admin synchronizer followed by an authenticated tenant reader",
+          "entrypoint": "POST /activation/operational-attention/sync followed by GET /tenant/activation/operational-attention",
+          "terminal_outcome": "One canonical tenant-visible capability-gap alert is persisted globally, repeated healthy syncs advance occurrence/last-seen state, disappearance resolves it with lifecycle evidence, degraded source reads cannot auto-resolve it, and tenant reads project the alert into their tenant scope without admin evidence.",
+          "steps": [
+            "Read only tenant-visible rows from v_platform_capability_gaps and canonical capability/maturity views.",
+            "Map each capability+gap pair to one scope-independent operational alert key while preserving the existing safe remediation classification.",
+            "Persist through the existing operational_alerts synchronization transaction rather than a parallel table or direct side effect.",
+            "Increment occurrence_count only for this snapshot source while preserving authoritative aggregate-count behavior for existing sources.",
+            "Keep capability-drift alerts out of notification outbox until a governed tenant fan-out policy exists.",
+            "Auto-resolve a persisted capability-drift alert only when all sources are healthy and the canonical gap is no longer emitted.",
+            "Project a persisted global tenant-visible capability alert into the requesting tenant scope and strip admin_evidence from the tenant response."
+          ],
+          "assertions": [
+            "Only exposure_scope=tenant capability gaps enter the persistent operational alert source.",
+            "The same capability+gap produces one stable global alert key across tenants and observation times.",
+            "Admin synchronization persists the capability alert with tenant_id=null; tenant reads project tenant_id to the authenticated tenant.",
+            "Tenant projection strips admin_evidence while Admin projection may retain bounded internal registry evidence.",
+            "Repeated capability-drift synchronization increments occurrence_count without changing aggregate-count semantics for other sources.",
+            "Capability-drift alerts do not enter notification outbox before an explicit fan-out policy exists.",
+            "A degraded or truncated capability source prevents stale-alert auto-resolution.",
+            "No new table, migration, tenant sync mutation route, provider call, managed repair execution, Production action, or secret read is introduced."
+          ],
+          "tests": [
+            {
+              "id": "operational-alerting-capability-drift-lifecycle-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-operational-alerting-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/capability-drift-alert-lifecycle.json",
+            "http-generic-api/capabilityDriftAlertAdapter.js",
+            "http-generic-api/operationalAlertService.js",
+            "http-generic-api/test-operational-alerting-control-plane.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

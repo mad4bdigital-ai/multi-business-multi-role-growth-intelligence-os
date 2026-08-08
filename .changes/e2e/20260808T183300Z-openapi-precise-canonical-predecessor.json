@@ -1,0 +1,65 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "openapi-precise-canonical-predecessor",
+  "title": "Allow the governed precise OpenAPI writer to replace the canonical Brand-workspace predecessor",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/20260808T183300Z-openapi-precise-canonical-predecessor.json",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Recognize only the already-canonical Brand-workspace v2 tenant plugin resolve contract as a safe predecessor when the reviewed inline contract advances to Root Workspace plus explicit Brand scope, while preserving fail-closed rejection for partial, altered, or caller-widened predecessor shapes.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-brand-workspace-predecessor-to-root-brand-contract",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed OpenAPI precise-contract composer",
+          "entrypoint": "Run openapi-precise-contract-registry-sync.mjs --write against an occupied tenant platform-plugin resolve path containing each supported predecessor fixture.",
+          "terminal_outcome": "Legacy, workspace-only v2, and the exact canonical Brand-workspace v2 predecessor upgrade to the reviewed Root Workspace plus explicit Brand contract, while malformed predecessor variants remain conflicts and the resulting contract is idempotent in check mode.",
+          "steps": [
+            "Construct the existing legacy and workspace-only predecessor fixtures and the canonical Brand-workspace v2 predecessor currently represented by the repository root OpenAPI contract.",
+            "Point the reviewed inline registry fragment at a Root Workspace contract carrying an explicit brand_ref and sanitized ownership scope references.",
+            "Run the precise registry writer and require the exact predecessor predicate before replacing the occupied inline path.",
+            "Verify the replacement equals the reviewed inline fragment and that a subsequent check reports no drift.",
+            "Submit malformed Brand, authority-source, enabled-Brand, security, operation, and version variants and require fail-closed path conflicts with no source mutation."
+          ],
+          "assertions": [
+            "The canonical Brand-workspace predecessor is accepted only when its route, operation identity, runtime source, user JWT profile, security, contract version, owner-scope enum, Brand inclusion shape, and Brand authority-source enum exactly match the known v2 contract.",
+            "The accepted canonical predecessor has no caller brand_ref and exposes no owner_scope_ref or brand_ref in ownership evidence before the reviewed Root Workspace contract is composed.",
+            "The existing pre-Brand workspace-only predecessor remains supported without widening its predicate.",
+            "Partial or modified Brand predecessor shapes remain registered_path_inline_contract_not_replaceable conflicts.",
+            "The writer replaces only the registered tenant plugin resolve path, produces the exact reviewed inline contract, and remains idempotent in check mode.",
+            "No generated artifact is edited manually and no Production, database, secret, protected-ref, or force-push mutation is performed."
+          ],
+          "tests": [
+            {
+              "id": "precise-inline-canonical-predecessor-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-inline-registry-transition.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/20260808T183300Z-openapi-precise-canonical-predecessor.json",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

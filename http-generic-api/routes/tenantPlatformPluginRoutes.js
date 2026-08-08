@@ -27,6 +27,8 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "toolKey",
   "workspace_id",
   "workspaceId",
+  "brand_ref",
+  "brandRef",
   "agent_id",
   "agentId",
   "requested_credential_scope",
@@ -164,6 +166,7 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   const action = tenantValueFromAliases(input, "action_key", "actionKey");
   const tool = tenantValueFromAliases(input, "tool_key", "toolKey");
   const workspace = tenantValueFromAliases(input, "workspace_id", "workspaceId");
+  const brand = tenantValueFromAliases(input, "brand_ref", "brandRef");
   if (!workspace.value) {
     throw tenantResolveContractError(
       "TENANT_WORKSPACE_CONTEXT_REQUIRED",
@@ -177,9 +180,11 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   if (action.legacyUsed) legacyFields.push("actionKey");
   if (tool.legacyUsed) legacyFields.push("toolKey");
   if (workspace.legacyUsed) legacyFields.push("workspaceId");
+  if (brand.legacyUsed) legacyFields.push("brandRef");
   return {
     pluginKey: pluginKey.value,
     workspaceId: workspace.value,
+    brandRef: brand.value,
     selector,
     compatibilityTelemetry: {
       legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
@@ -383,6 +388,7 @@ export function buildTenantPlatformPluginRoutes() {
         toolKey: contract.selector.toolKey,
         tenantId: req.auth.tenant_id,
         workspaceId: contract.workspaceId,
+        brandRef: contract.brandRef,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "tenant",

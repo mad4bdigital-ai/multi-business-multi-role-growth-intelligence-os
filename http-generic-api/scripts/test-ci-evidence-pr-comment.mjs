@@ -4,6 +4,7 @@ import fs from "node:fs";
 import {
   COMMENT_MARKER,
   assertCurrentPullRequestIdentity,
+  classifyExpectedPublicationSkip,
   normalizeEvidence,
   renderEvidenceSection,
   selectCurrentPullRequest,
@@ -211,19 +212,32 @@ assert.throws(
   () => assertCurrentPullRequestIdentity(closedUnmergedPr, e2e),
   /closed pull request that was not merged/u
 );
-assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, sha: OTHER } }, e2e),
-  /stale PR head/u
-);
+let staleHeadError = null;
+try {
+  assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, sha: OTHER } }, e2e);
+} catch (error) {
+  staleHeadError = error;
+}
+assert.match(staleHeadError?.message || "", /stale PR head/u);
+assert.equal(classifyExpectedPublicationSkip(staleHeadError), "stale_pr_head");
 assert.throws(
   () => assertCurrentPullRequestIdentity({ ...openPr, head: { ...openPr.head, ref: "gpt/substituted" } }, e2e, HEAD_BRANCH),
   /substituted PR head branch/u
 );
 assert.equal(assertCurrentPullRequestIdentity(openPr, branch, HEAD_BRANCH), true);
-assert.throws(
-  () => assertCurrentPullRequestIdentity({ ...openPr, merge_commit_sha: OTHER }, branch, HEAD_BRANCH),
-  /stale or substituted merge candidate/u
+let staleMergeCandidateError = null;
+try {
+  assertCurrentPullRequestIdentity({ ...openPr, merge_commit_sha: OTHER }, branch, HEAD_BRANCH);
+} catch (error) {
+  staleMergeCandidateError = error;
+}
+assert.match(staleMergeCandidateError?.message || "", /stale or substituted merge candidate/u);
+assert.equal(classifyExpectedPublicationSkip(staleMergeCandidateError), "stale_merge_candidate");
+assert.equal(
+  classifyExpectedPublicationSkip(new Error("Refusing to publish canonical evidence for a substituted PR head branch.")),
+  null
 );
+assert.equal(classifyExpectedPublicationSkip(new Error("Unexpected canonical contract.")), null);
 
 const sanitized = renderEvidenceSection({
   ...e2e,
@@ -245,7 +259,7 @@ assert.doesNotMatch(publisherWorkflow, /^\s*pull-requests:\s*read\s*$/mu);
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 32,
-  gate: "ci_evidence_optional_head_branch_commit_pr_resolution_and_comment_permission",
+  tests: 36,
+  gate: "ci_evidence_stale_head_and_merge_candidate_safe_skip_and_comment_permission",
   secrets_included: false
 }));
