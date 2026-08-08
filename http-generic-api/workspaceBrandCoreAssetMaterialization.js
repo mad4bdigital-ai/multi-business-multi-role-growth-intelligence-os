@@ -121,7 +121,7 @@ function materializedAssetInput({ rootWorkspace, brandWorkspace, topology, canon
   };
 }
 
-async function resolveRootWorkspace(connection, workspaceId) {
+async function resolveRootWorkspace(connection, workspaceId, actorUserId) {
   const workspaceRef = text(workspaceId, 64);
   if (!workspaceRef) {
     throw materializationError(400, "brand_core_materialize_workspace_required", "A root workspace_id is required.");
@@ -160,8 +160,18 @@ async function resolveRootWorkspace(connection, workspaceId) {
       "A workspace_type=brand row is a child operational Brand workspace and cannot be used as the root workspace."
     );
   }
-  if (ownershipType === "personal" && !text(workspace.owner_user_id, 64)) {
-    throw materializationError(409, "brand_core_materialize_personal_owner_missing", "Personal root workspace requires an owner user.");
+  if (ownershipType === "personal") {
+    const ownerUserId = text(workspace.owner_user_id, 64);
+    if (!ownerUserId) {
+      throw materializationError(409, "brand_core_materialize_personal_owner_missing", "Personal root workspace requires an owner user.");
+    }
+    if (ownerUserId !== text(actorUserId, 64)) {
+      throw materializationError(
+        403,
+        "brand_core_materialize_personal_owner_mismatch",
+        "Personal root workspace owner does not match the signed-in user."
+      );
+    }
   }
   return workspace;
 }
@@ -445,7 +455,7 @@ export async function materializeWorkspaceBrandCoreAsset(connection, {
     throw materializationError(400, "brand_core_materialize_identity_required", "root workspace, signed-in user, and brand reference are required.");
   }
 
-  const rootWorkspace = await resolveRootWorkspace(connection, workspaceRef);
+  const rootWorkspace = await resolveRootWorkspace(connection, workspaceRef, actor);
   const tenantId = text(rootWorkspace.tenant_id, 64);
   const { brand, canonicalBrandRef } = await resolveCanonicalBrand(connection, tenantId, actor, requestedBrand);
   const brandWorkspace = await resolveBrandOperationalWorkspace(connection, tenantId, canonicalBrandRef);
