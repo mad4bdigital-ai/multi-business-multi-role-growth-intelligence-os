@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/e2e-default-branch-and-production-promotion-classification.json",
       "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+      "http-generic-api/scripts/e2e-production-promotion-bridge-self-test.mjs",
       "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
     ]
   },
@@ -19,31 +20,34 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Classify trusted default-branch execution, declared parallel pull requests, and governed Production promotions without inheriting unrelated pull-request identity or weakening fail-closed branch rules.",
+      "objective": "Classify trusted default-branch execution, declared parallel pull requests, and governed Production promotions without inheriting unrelated pull-request identity or weakening fail-closed branch rules, including the canonical source-pinned dispatch-bridge identity and bounded zero-diff human re-arm successors.",
       "e2e_journeys": [
         {
           "id": "classify-default-branch-parallel-pr-and-governed-production-promotions",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "E2E Phase Governance runner",
-          "entrypoint": "The parallel PR flow self-test invokes the canonical E2E PR gate in isolated synthetic Git contexts.",
-          "terminal_outcome": "Default-branch/manual execution is standard, declared workstreams retain bounded classification, undeclared PR branches fail closed, and only exact protected main, immutable main snapshots, or history-preserving two-parent main reconciliations are accepted for Production.",
+          "entrypoint": "The classifier self-tests invoke the canonical E2E PR gate in isolated synthetic Git contexts.",
+          "terminal_outcome": "Default-branch/manual execution is standard, declared workstreams retain bounded classification, undeclared PR branches fail closed, and only exact protected main, immutable main snapshots, or validated history-preserving main reconciliations—including canonical bridge-pinned candidates with bounded zero-diff re-arm successors—are accepted for Production.",
           "steps": [
-            "Create a synthetic repository baseline and bind local and remote main refs.",
+            "Create synthetic repository baselines and bind local and remote main refs.",
             "Remove inherited pull-request base/head environment variables for the default-branch fixture.",
             "Invoke the canonical gate for main without a PR base ref and require standard mode.",
             "Invoke the gate for an undeclared branch with an Integration base and require bounded rejection.",
             "Retain workstream-to-Integration enforcement and direct workstream-to-main rejection.",
             "Retain exact main-to-Production and immutable main-snapshot promotion acceptance with spoof rejection.",
-            "Accept a reconciliation candidate only when its SHA-bound branch name matches, it has exactly two parents, parent one is current main, parent two is the exact Production PR base, and its tree equals current main.",
-            "Reject every other Production-targeting identity explicitly, including malformed candidates whose effective diff is empty."
+            "Accept a SHA-bound reconciliation candidate only when its candidate identity resolves to an exact two-parent main/Production reconciliation whose tree equals current main.",
+            "Accept the governed dispatch-bridge branch only when its embedded main and Production prefixes match the live protected refs and the current head resolves through no more than four identical-tree single-parent re-arm commits to the exact two-parent reconciliation anchor.",
+            "Preserve phase evaluation against the pinned main parent rather than a zero-diff re-arm commit.",
+            "Reject bridge identities with wrong protected-ref pins, mutated re-arm trees, malformed identities, or malformed reconciliation ancestry."
           ],
           "assertions": [
             "Default-branch/manual execution does not inherit enclosing pull-request identity.",
             "The undeclared-branch guard executes only when a pull-request base ref exists.",
             "Declared workstream and Integration rules remain fail closed.",
             "Merge-queue refs remain excluded from ordinary PR classification.",
-            "Protected main, SHA-bound immutable main snapshots, and exact history-preserving two-parent main reconciliations are the only accepted Production promotion identities; every other Production target fails closed.",
+            "Protected main, SHA-bound immutable main snapshots, exact history-preserving reconciliations, and canonical dispatch-bridge reconciliations with bounded identical-tree re-arms are accepted only after their protected-ref and ancestry identity checks succeed.",
+            "A bridge branch cannot substitute stale or spoofed main/Production prefixes, and a re-arm cannot mutate the candidate tree.",
             "No repository write, protected-ref update, deployment, provider call, credential read, SQL, migration Apply, database mutation, or external send occurs.",
             "secrets_included is false."
           ],
@@ -54,11 +58,19 @@
               "working_directory": "http-generic-api",
               "path": "scripts/e2e-parallel-pr-flow-self-test.mjs",
               "args": []
+            },
+            {
+              "id": "e2e-production-promotion-bridge-self-test",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/e2e-production-promotion-bridge-self-test.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/e2e-default-branch-and-production-promotion-classification.json",
             "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
+            "http-generic-api/scripts/e2e-production-promotion-bridge-self-test.mjs",
             "http-generic-api/scripts/e2e-parallel-pr-gate.mjs"
           ]
         }
@@ -67,22 +79,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the classifier across protected pull requests, workflow dispatches, default-branch runs, and immutable Production release snapshots using canonical structured E2E evidence."
+      "objective": "Observe the classifier across protected pull requests, workflow dispatches, default-branch runs, immutable Production release snapshots, and canonical dispatch-bridge candidates using structured E2E evidence."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Retain bounded diagnostics for inherited environment variables, missing refs, spoofed identities, stale SHAs, wrong trees, wrong parent order, wrong Production bases, extra reconciliation parents, and empty-diff malformed candidates."
+      "objective": "Retain bounded diagnostics for inherited environment variables, missing refs, spoofed identities, stale SHAs, wrong trees, wrong parent order, wrong Production bases, extra reconciliation parents, excessive re-arm depth, and empty-diff malformed candidates."
     },
     {
       "id": "canary",
       "status": "planned",
-      "objective": "Validate one non-production default-branch/manual run, one declared parallel pull-request flow, one immutable Production snapshot, one history-preserving reconciliation, and explicit fail-closed Production rejection."
+      "objective": "Validate one non-production default-branch/manual run, one declared parallel pull-request flow, one immutable Production snapshot, one direct reconciliation, one canonical bridge reconciliation with zero-diff re-arm, and explicit fail-closed Production rejection."
     },
     {
       "id": "production",
       "status": "planned",
-      "objective": "Require exact classifier evidence for protected main-to-Production, immutable main-snapshot, and history-preserving reconciliation promotions without granting merge or deployment authority."
+      "objective": "Require exact classifier evidence for protected main-to-Production, immutable main-snapshot, history-preserving reconciliation, and canonical dispatch-bridge promotion identities without granting merge or deployment authority."
     }
   ],
   "secrets_included": false
