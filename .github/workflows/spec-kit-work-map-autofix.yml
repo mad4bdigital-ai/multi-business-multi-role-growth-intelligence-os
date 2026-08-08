@@ -11,6 +11,14 @@ on:
         description: Exact branch head SHA authorized for regeneration
         required: true
         type: string
+      recovery_run_id:
+        description: Recovery workflow run that issued this one-time writer delegation
+        required: true
+        type: string
+      delegation_comment_id:
+        description: Bot-authored one-time delegation grant comment bound to this exact target
+        required: true
+        type: string
 
 permissions:
   actions: write
@@ -33,6 +41,8 @@ jobs:
     env:
       TARGET_BRANCH: ${{ inputs.branch }}
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+      DELEGATION_COMMENT_ID: ${{ inputs.delegation_comment_id }}
     steps:
       - name: Initialize diagnostics and validate inputs
         id: initialize
@@ -47,6 +57,8 @@ jobs:
           [[ "${TARGET_BRANCH}" != refs/* ]]
           [[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]
           [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
 
           cat > "${diagnostic_root}/report.md" <<EOF
           # Work Map Autofix Diagnostic Report
@@ -57,6 +69,8 @@ jobs:
           | Run | \`${GITHUB_RUN_ID}\` |
           | Target branch | \`${TARGET_BRANCH}\` |
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
+          | Recovery run | \`${RECOVERY_RUN_ID}\` |
+          | Delegation comment | \`${DELEGATION_COMMENT_ID}\` |
           EOF
 
       - name: Checkout exact authorized head
@@ -97,6 +111,51 @@ jobs:
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
           echo "pr_number=$(jq -r '.[0].number' "${pr_file}")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and consume Recovery-issued writer delegation
+        id: delegation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
+
+          recovery_file="${DIAGNOSTIC_ROOT}/recovery-run.json"
+          delegation_file="${DIAGNOSTIC_ROOT}/writer-delegation.json"
+          delegation_payload="${DIAGNOSTIC_ROOT}/writer-delegation-consume-payload.json"
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RECOVERY_RUN_ID}" > "${recovery_file}"
+          test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
+          test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
+          test "$(jq -r '.head_branch' "${recovery_file}")" = "main"
+          recovery_status="$(jq -r '.status' "${recovery_file}")"
+          case "${recovery_status}" in
+            queued|in_progress|completed) ;;
+            *) echo "Untrusted Recovery run status: ${recovery_status}"; exit 1 ;;
+          esac
+          recovery_conclusion="$(jq -r '.conclusion // ""' "${recovery_file}")"
+          [[ -z "${recovery_conclusion}" || "${recovery_conclusion}" = "success" ]]
+          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"
+          [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
+
+          gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" > "${delegation_file}"
+          test "$(jq -r '.user.login' "${delegation_file}")" = "github-actions[bot]"
+          test "$(jq -r '.issue_url' "${delegation_file}")" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
+
+          expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
+          actual_grant="$(jq -r '.body' "${delegation_file}")"
+          test "${actual_grant}" = "${expected_grant}"
+
+          consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
+          jq -n --arg body "${consumed_grant}" '{body:$body}' > "${delegation_payload}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
+            --input "${delegation_payload}" >/dev/null
+          readback_grant="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body')"
+          test "${readback_grant}" = "${consumed_grant}"
+          echo "consumed=true" >> "$GITHUB_OUTPUT"
 
       - name: Validate generator and governance contracts
         id: validate
@@ -327,6 +386,7 @@ jobs:
         continue-on-error: true
         env:
           PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
+          DELEGATION_CONSUMED: ${{ steps.delegation.outputs.consumed }}
           CHANGED: ${{ steps.publish.outputs.changed }}
           RESULT_HEAD_SHA: ${{ steps.publish.outputs.result_head_sha }}
           CI_DISPATCH_EXIT_CODE: ${{ steps.verify.outputs.ci_dispatch_exit_code }}
@@ -361,6 +421,9 @@ jobs:
           | Field | Value |
           |---|---|
           | Job status | \`${JOB_STATUS}\` |
+          | Recovery run | \`${RECOVERY_RUN_ID}\` |
+          | Delegation comment | \`${DELEGATION_COMMENT_ID}\` |
+          | Delegation consumed | \`${DELEGATION_CONSUMED:-false}\` |
           | Failed validation contract | \`${failed_validation_contract}\` |
           | Failed validation exit code | \`${failed_validation_exit_code}\` |
           | Failed validation contracts count | \`${failed_validation_contracts_count}\` |
@@ -376,10 +439,13 @@ jobs:
           EOF
 
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-autofix.v3" \
+            --arg contract "mad4b.spec-kit-work-map-autofix.v4" \
             --arg outcome "${JOB_STATUS}" \
             --arg target_branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg recovery_run_id "${RECOVERY_RUN_ID}" \
+            --arg delegation_comment_id "${DELEGATION_COMMENT_ID}" \
+            --arg delegation_consumed "${DELEGATION_CONSUMED:-false}" \
             --arg failed_validation_contract "${failed_validation_contract}" \
             --arg failed_validation_exit_code "${failed_validation_exit_code}" \
             --arg failed_validation_contracts_count "${failed_validation_contracts_count}" \
@@ -390,11 +456,11 @@ jobs:
             --arg integration_dispatch_exit_code "${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved}" \
             --arg ci_verification_run_id "${CI_VERIFICATION_RUN_ID:-unresolved}" \
             --arg work_map_verification_run_id "${WORK_MAP_VERIFICATION_RUN_ID:-unresolved}" \
-            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,ci_dispatch_exit_code:$ci_dispatch_exit_code,integration_dispatch_exit_code:$integration_dispatch_exit_code,ci_verification_run_id:$ci_verification_run_id,work_map_verification_run_id:$work_map_verification_run_id,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,recovery_run_id:$recovery_run_id,delegation_comment_id:$delegation_comment_id,delegation_consumed:$delegation_consumed,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,ci_dispatch_exit_code:$ci_dispatch_exit_code,integration_dispatch_exit_code:$integration_dispatch_exit_code,ci_verification_run_id:$ci_verification_run_id,work_map_verification_run_id:$work_map_verification_run_id,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V3 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V4 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} recovery_run_id=${RECOVERY_RUN_ID} delegation_comment_id=${DELEGATION_COMMENT_ID} delegation_consumed=${DELEGATION_CONSUMED:-false} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 
