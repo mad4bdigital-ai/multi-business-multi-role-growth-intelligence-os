@@ -19,6 +19,15 @@ export {
   resolveGithubLifecycleTarget,
 } from "./githubRepositoryLifecycleCore.js";
 
+export const REPOSITORY_PATCH_MUTATION_INTENTS = Object.freeze([
+  "repo_patch_apply",
+  "repo_mutation",
+  "github_repo_patch",
+  "write",
+  "create",
+  "delete",
+]);
+
 const PROVIDER_MUTATION_METHODS = new Set(["POST", "PATCH", "PUT", "DELETE"]);
 
 function envelopeId(options = {}) {
@@ -53,7 +62,7 @@ async function revalidateRepositoryWriteAuthority(options = {}, requestUrl = "",
     },
     acceptedAppKeys: ["github"],
     acceptedCapabilityKeys: ["repo_patch_apply"],
-    acceptedIntents: ["repo_patch_apply"],
+    acceptedIntents: REPOSITORY_PATCH_MUTATION_INTENTS,
     allowReferenced: true,
   });
   if (!result?.ok) {
