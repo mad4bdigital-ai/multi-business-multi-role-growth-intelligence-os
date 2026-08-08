@@ -195,7 +195,7 @@ jobs:
             exit 1
           fi
 
-      - name: Regenerate Work Maps and Spec014 bindings and prove idempotency
+      - name: Regenerate and prove idempotency
         id: generate
         run: |
           set -euo pipefail
