@@ -1,4 +1,4 @@
-name: PR 6662 review fix
+name: PR 6662 Work Map binding refresh
 on:
   push:
     branches:
@@ -8,108 +8,82 @@ on:
 permissions:
   contents: write
 jobs:
-  patch:
+  refresh-bindings:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
-      EXPECTED_HEAD: aab2bcd050f8ca85a3896918143e86e8fb36ae50
-      EXPECTED_MAIN: 12ae7e4e77ad54519be9a226b8da2b97d30a7d65
+      EXPECTED_HEAD: 38d912c9c22b0f3d74dbc709df6c9c93f2a4cf0c
+      EXPECTED_MAIN: a06e8e087609508e3a1944ddaab8cf0156484529
       TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
     steps:
-      - name: Checkout launcher
-        uses: actions/checkout@v5
-        with:
-          fetch-depth: 1
-      - name: Stage patcher outside repository
-        shell: bash
-        run: |
-          cp http-generic-api/scripts/tmp-pr6662-review-fix.mjs "$RUNNER_TEMP/pr6662-review-fix.mjs"
-          cat >> "$RUNNER_TEMP/pr6662-review-fix.mjs" <<'PATCH'
-          let repairedService = fs.readFileSync(svcPath, 'utf8');
-          repairedService = replaceN(repairedService, '  canonicalTenantRequestIdentitySql,\n  tenantRequestIdentityEqualsSql,\n', '  normalizeOuterTenantRequestIdentitySql,\n  indexedTenantRequestIdentityEqualsSql,\n  inspectTenantRequestIdentitySchema,\n', 1, 'testing_exports');
-          fs.writeFileSync(svcPath, repairedService);
-          PATCH
       - name: Checkout exact target
         uses: actions/checkout@v5
         with:
-          ref: aab2bcd050f8ca85a3896918143e86e8fb36ae50
+          ref: ${{ env.EXPECTED_HEAD }}
           fetch-depth: 0
           persist-credentials: true
           clean: true
-      - name: Verify exact target lease
+
+      - name: Verify exact target and main lease
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
+          test -z "$(git status --porcelain=v1)"
+
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
-      - name: Install canonical connector dependencies
-        working-directory: http-generic-api
-        run: npm ci
-      - name: Apply bounded review fix
+
+      - name: Refresh canonical Spec Kit registry bindings
         shell: bash
-        run: node "$RUNNER_TEMP/pr6662-review-fix.mjs"
-      - name: Validate diff
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os
+
+      - name: Validate exact two-file write set
         shell: bash
         run: |
           set -euo pipefail
           git diff --check
-      - name: Validate service syntax
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/tenantRequestInboxService.js
-      - name: Validate regression syntax
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --check http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
-      - name: Run focused regression
-        id: focused_regression
-        shell: bash
-        run: |
-          set +e
-          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs) >"$RUNNER_TEMP/pr6662-focused.log" 2>&1
-          focused_status=$?
-          set -e
-          cat "$RUNNER_TEMP/pr6662-focused.log"
-          if [ "$focused_status" -ne 0 ]; then
-            first="$(grep -m1 -E 'ReferenceError|AssertionError|ERR_ASSERTION|TypeError|SyntaxError|Error:' "$RUNNER_TEMP/pr6662-focused.log" || true)"
-            echo "::error title=PR6662 focused regression::${first:-focused regression failed with exit $focused_status}"
-            exit "$focused_status"
-          fi
-      - name: Upload focused regression diagnostic
-        if: ${{ failure() && steps.focused_regression.outcome == 'failure' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: pr6662-focused-regression-diagnostic
-          path: ${{ runner.temp }}/pr6662-focused.log
-          if-no-files-found: error
-          retention-days: 1
-      - name: Validate exact write set
-        if: ${{ success() }}
-        shell: bash
-        run: |
-          set -euo pipefail
           mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
           printf '%s\n' "${changed[@]}"
-          if [ "${#changed[@]}" -ne 4 ] || \
-             [ "${changed[0]:-}" != ".changes/e2e/tenant-request-identity-collation-repair.json" ] || \
-             [ "${changed[1]:-}" != "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql" ] || \
-             [ "${changed[2]:-}" != "http-generic-api/tenantRequestInboxService.js" ] || \
-             [ "${changed[3]:-}" != "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs" ]; then
+          if [ "${#changed[@]}" -ne 2 ] || \
+             [ "${changed[0]:-}" != "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json" ] || \
+             [ "${changed[1]:-}" != "specs/014-retail-commerce-operations-growth-os/work-map-integration.json" ]; then
             joined="$(printf '%s;' "${changed[@]}")"
-            echo "::error title=PR6662 write set::unexpected files: $joined"
+            echo "::error title=PR6662 Work Map binding write set::unexpected files: $joined"
             exit 1
           fi
+
+      - name: Verify refreshed bindings deterministically
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+      - name: Run binding and governance regressions
+        working-directory: http-generic-api
+        shell: bash
+        run: |
+          set -euo pipefail
+          node test-spec014-refresh-final-work-map-binding.mjs
+          node test-spec-kit-work-map-governance-gate.mjs
+
       - name: Commit and fast-forward target
-        if: ${{ success() }}
         shell: bash
         run: |
           set -euo pipefail
@@ -119,12 +93,10 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
-            .changes/e2e/tenant-request-identity-collation-repair.json \
-            http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql \
-            http-generic-api/tenantRequestInboxService.js \
-            http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           git diff --cached --check
-          git commit -m 'fix(tenant): preserve sargable identity collation joins'
+          git commit -m 'chore(spec): refresh Work Map registry bindings'
           NEW_HEAD="$(git rev-parse HEAD)"
           test "$(git rev-parse HEAD^)" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
