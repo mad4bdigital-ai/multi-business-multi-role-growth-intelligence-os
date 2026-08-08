@@ -43,6 +43,7 @@ export const CredentialDenialCode = Object.freeze({
   WORKSPACE_REQUIRED: PlatformPluginConnectionOwnershipDenialCode.WORKSPACE_REQUIRED,
   OWNERSHIP_SCOPE_DENIED: PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
   OWNERSHIP_SCOPE_MISMATCH: PlatformPluginConnectionOwnershipDenialCode.SCOPE_MISMATCH,
+  BRAND_AUTHORITY_REQUIRED: PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
 });
 
 function compactString(value = "", max = 500) {
@@ -663,6 +664,7 @@ async function persistSecurityDecisionTrace({
         principal_class: context.principal_class || null,
         tenant_id: context.tenant_id || null,
         workspace_id: context.workspace_id || null,
+        brand_ref: context.brand_ref || null,
       },
       response_payload: {
         trace: securityDecision.trace,
@@ -703,6 +705,7 @@ export async function resolvePlatformPluginExecution({
   toolKey = null,
   tenantId = null,
   workspaceId = null,
+  brandRef = null,
   userId = null,
   agentId = null,
   principalClass = "admin",
@@ -726,6 +729,7 @@ export async function resolvePlatformPluginExecution({
 
   const normalizedActionKey = compactString(actionKey || "", 191) || null;
   const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  const normalizedBrandRef = compactString(brandRef || "", 191) || null;
   const selectorContract = validateCapabilitySelectorContract({
     actionKey: normalizedActionKey,
     toolKey: normalizedToolKey,
@@ -812,6 +816,7 @@ export async function resolvePlatformPluginExecution({
         pluginKey: normalizedPluginKey,
         tenantId,
         workspaceId,
+        brandRef: normalizedBrandRef,
         userId,
       })
     : null;
@@ -927,6 +932,7 @@ export async function resolvePlatformPluginExecution({
       principal_class: principalClass,
       tenant_id: tenantId,
       workspace_id: workspaceId,
+      brand_ref: normalizedBrandRef,
       user_id: userId,
       agent_id: agentId,
     },
@@ -969,11 +975,15 @@ export async function resolvePlatformPluginExecution({
     connection_ownership_resolution: ownershipResolution ? {
       ok: ownershipResolution.ok,
       reason: ownershipResolution.reason,
+      denial_code: ownershipResolution.denial_code || null,
       credential_scope: ownershipResolution.credential_scope,
       workspace_ownership_type: ownershipResolution.workspace_ownership_type,
       owner_scope_type: ownershipResolution.owner_scope_type,
+      owner_scope_ref: ownershipResolution.owner_scope_ref || null,
+      brand_ref: ownershipResolution.brand_ref || null,
       row_count: ownershipResolution.row_count,
-      brand_connections_included: false,
+      brand_connections_included: ownershipResolution.brand_connections_included === true,
+      brand_authority_source: ownershipResolution.brand_authority_source || null,
       secrets_included: false,
     } : null,
     plugin: {
