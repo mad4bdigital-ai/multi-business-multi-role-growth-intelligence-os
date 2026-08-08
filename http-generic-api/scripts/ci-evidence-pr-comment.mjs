@@ -284,6 +284,9 @@ export async function publishEvidenceComment(options) {
 }
 
 export function classifyExpectedPublicationSkip(error) {
+  if (error?.message === "Refusing to publish canonical evidence for a stale PR head.") {
+    return "stale_pr_head";
+  }
   if (error?.message === "Refusing to publish diagnostic evidence for a stale or substituted merge candidate.") {
     return "stale_merge_candidate";
   }
