@@ -30,16 +30,17 @@
           "entrypoint": "GET /admin/tenant-requests/{ticketId} or tenant-scoped equivalent",
           "terminal_outcome": "Ticket, latest lifecycle activity, and the latest resolution case are resolved without ER_CANT_AGGREGATE_2COLLATIONS and without weakening tenant scope.",
           "steps": [
-            "Normalize cross-table tenant_id, ticket_id, and ticket resource identity expressions to utf8mb4_unicode_ci inside the canonical inbox SQL builders.",
-            "Retain bounded candidate discovery and latest-activity ordering.",
-            "Align tenant_resolution_cases and ticket_lifecycle_events identity columns through a separately governed migration source.",
-            "Keep the legacy tickets table unchanged until a whole ticket-domain collation audit can recollate every dependent ticket_* family together."
+            "Read actual utf8mb4 collations of indexed tenant-resolution and lifecycle identity columns from information_schema and reject unknown collations.",
+            "Keep indexed dependent-table columns bare while converting only outer ticket expressions to the indexed column collation.",
+            "Preserve bounded candidate discovery and latest-activity ordering.",
+            "Restore ticket_lifecycle_events ticket/tenant identity to canonical utf8mb4_uca1400_ai_ci and align tenant_resolution_cases relational tenant_id/ticket_id keys to the same ticket-domain collation through a separately governed source migration.",
+            "Leave tickets and non-relational tenant_resolution_cases resource_ref/default collation unchanged."
           ],
           "assertions": [
-            "No raw resolution-case-to-ticket tenant_id or ticket_id equality remains in the inbox builders.",
-            "No raw ticket_lifecycle_events-to-tickets tenant_id or ticket_id equality remains in candidate or latest-activity joins.",
-            "The migration pins inbox-owned identity columns to utf8mb4_unicode_ci without dropping or deleting data.",
-            "The migration is source-only in this PR and is not applied to Production."
+            "Indexed resolution-case and lifecycle identity columns are never wrapped in CONVERT/COLLATE in inbox joins.",
+            "Outer ticket expressions are normalized to the actual indexed-column collation with an explicit two-collation fail-closed allowlist.",
+            "The migration keeps ticket_lifecycle_events on utf8mb4_uca1400_ai_ci and aligns only tenant_resolution_cases tenant_id/ticket_id relational keys to that ticket-domain collation.",
+            "The migration is source-only in this PR and does not alter tickets, tenant_resolution_cases resource_ref, or Production."
           ],
           "tests": [
             {
