@@ -1,0 +1,136 @@
+name: Spec 017 Fixture Context Readback
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec017-fixture-context-readback-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  readback:
+    name: Read existing managed-execution fixture context
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.id == 271942579 &&
+      startsWith(github.event.comment.body, 'RUN_SPEC017_FIXTURE_CONTEXT_READBACK ')
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 10
+    env:
+      AUTHORIZATION_USER_ID: '271942579'
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+
+    steps:
+      - name: Resolve immutable trigger contract
+        id: trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          pattern='^RUN_SPEC017_FIXTURE_CONTEXT_READBACK[[:space:]]expected_main_sha=([0-9a-f]{40})[[:space:]]expected_production_sha=([0-9a-f]{40})[[:space:]]parent_ticket_id=([A-Za-z0-9._:@/+\-]{1,128})$'
+          if [[ ! "${EVENT_COMMENT_BODY}" =~ ${pattern} ]]; then
+            echo "Invalid Spec 017 fixture context readback trigger format." >&2
+            exit 1
+          fi
+          echo "expected_main_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+          echo "expected_production_sha=${BASH_REMATCH[2]}" >> "${GITHUB_OUTPUT}"
+          echo "parent_ticket_id=${BASH_REMATCH[3]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout exact trusted default-branch tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.trigger.outputs.expected_main_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact trusted main and protected Production refs
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run static fixture readback safety contract
+        working-directory: http-generic-api
+        run: node test-spec017-fixture-context-readback.mjs
+
+      - name: Execute existing fixture context readback
+        id: execute
+        working-directory: http-generic-api
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          SOURCE_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+          SPEC017_FIXTURE_PARENT_TICKET_ID: ${{ steps.trigger.outputs.parent_ticket_id }}
+          SPEC017_FIXTURE_EVIDENCE_PATH: ${{ runner.temp }}/spec017-fixture-context/summary.json
+        run: node scripts/spec017-fixture-context-readback.mjs
+
+      - name: Re-read protected refs after readback
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Upload sanitized fixture context evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec017-fixture-context-readback-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec017-fixture-context/summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce fixture context decision
+        if: always()
+        shell: bash
+        env:
+          REPORT: ${{ runner.temp }}/spec017-fixture-context/summary.json
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          set -Eeuo pipefail
+          test "${EXECUTE_OUTCOME}" = "success"
+          jq -e '
+            .contract == "mad4b.spec017-fixture-context-readback.v1" and
+            .status == "context_pinned" and
+            .assertions.known_parent_ticket_read == true and
+            .assertions.tenant_context_unique == true and
+            .assertions.active_user_membership_verified == true and
+            .assertions.resource_context_unique == true and
+            .assertions.existing_mutation_grant_verified == true and
+            .assertions.capability_key_pinned_from_ticket_context == true and
+            .short_lived_platform_jwt_used == true and
+            .long_lived_user_jwt_secret_used == false and
+            .resource_grant_created == false and
+            .capability_created == false and
+            .resource_created == false and
+            .provider_dispatch_executed == false and
+            .external_business_effect_executed == false and
+            .migration_apply_executed == false and
+            .sql_executed_by_readback == false and
+            .deployment_mutated == false and
+            .repository_mutated == false and
+            .secrets_included == false
+          ' "${REPORT}" >/dev/null
