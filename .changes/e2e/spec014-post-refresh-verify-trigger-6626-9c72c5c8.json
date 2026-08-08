@@ -1,0 +1,14 @@
+{
+  "contract": "mad4b.spec014-post-refresh-verification-trigger.v1",
+  "canonical_pr": 6626,
+  "expected_main_sha": "f2e100922c7092dacd50ad138227dddfe1cf924d",
+  "expected_head_sha": "9c72c5c897bff1a1d5331482908b73ea93727db7",
+  "verification_only": true,
+  "repository_mutation": false,
+  "protected_branch_mutation": false,
+  "force_push": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "secrets_included": false
+}
