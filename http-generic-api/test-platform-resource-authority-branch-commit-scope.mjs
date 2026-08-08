@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { resolveExactPlatformAuthorityExecutionScope } from "./scripts/capability-resolution-dry-run.mjs";
+import {
+  loadPlatformResourceAuthorityBindings,
+  resolveExactAdminResourceAuthority,
+  resolveExactPlatformAuthorityExecutionScope,
+} from "./scripts/capability-resolution-dry-run.mjs";
 import { buildDryRunArgs, buildBindingContext } from "./scripts/capability-resolution-envelope-create.mjs";
 import { computeCapabilityEnvelopeTemplateResolutionHash } from "./capabilityEnvelopeTemplateResolver.js";
 import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
@@ -15,6 +19,29 @@ function scopeBinding(bindingId, branch, sha = SHA_A) {
   return {
     binding_id: bindingId,
     resource_ref_json: JSON.stringify({ branch, expected_commit_sha: sha }),
+  };
+}
+
+function authorityBinding(bindingId, branch, sha = SHA_A) {
+  return {
+    binding_id: bindingId,
+    tenant_id: "tenant-1",
+    workspace_id: "workspace-1",
+    user_id: "platform_admin_service",
+    resource_type: "github_repo",
+    resource_uri: EXACT_REPO,
+    resource_ref_json: JSON.stringify({
+      branch,
+      expected_commit_sha: sha,
+      principal: { principal_type: "service", principal_id: "platform_admin_service" },
+    }),
+    recipe_key: "repo_patch_batch_apply",
+    permission_level: "patch",
+    allowed_modes_json: JSON.stringify(["atomic_change_set"]),
+    authority_source: "test",
+    status: "active",
+    expires_at: null,
+    created_at: "2026-08-08T00:00:00.000Z",
   };
 }
 
@@ -66,6 +93,50 @@ const bindings = [scopeBinding("binding-a", BRANCH_A)];
   });
   assert.equal(ambiguous.ok, false);
   assert.equal(ambiguous.reason, "resource_branch_ambiguous");
+}
+
+{
+  const candidateRows = Array.from({ length: 24 }, (_, index) => authorityBinding(`binding-newer-${index + 1}`, BRANCH_B, SHA_B));
+  candidateRows.push(authorityBinding("binding-exact-older-than-first-twenty", BRANCH_A, SHA_A));
+  const pool = {
+    async query(sql, params) {
+      const statement = String(sql);
+      assert.match(statement, /FROM platform_resource_authority_bindings/);
+      assert.doesNotMatch(statement, /\bLIMIT\s+20\b/i);
+      assert.deepEqual(params, [
+        "tenant-1",
+        "workspace-1",
+        "platform_admin_service",
+        "github_repo",
+        EXACT_REPO,
+        "repo_patch_batch_apply",
+      ]);
+      return [candidateRows];
+    },
+  };
+  const loaded = await loadPlatformResourceAuthorityBindings(pool, {
+    tenantId: "tenant-1",
+    workspaceId: "workspace-1",
+    principal: { principal_type: "service", principal_id: "platform_admin_service" },
+    resourceType: "github_repo",
+    resourceUri: EXACT_REPO,
+    recipeKey: "repo_patch_batch_apply",
+  });
+  assert.equal(loaded.length, 25, "all exact-scope active bindings must be available to scope matching");
+  const resolved = resolveExactAdminResourceAuthority({
+    principal: { principal_type: "service", principal_id: "platform_admin_service" },
+    bindings: loaded,
+    tenantId: "tenant-1",
+    workspaceId: "workspace-1",
+    resourceType: "github_repo",
+    resourceUri: EXACT_REPO,
+    resourceBranch: BRANCH_A,
+    expectedCommitSha: SHA_A,
+    recipeKey: "repo_patch_batch_apply",
+    operationMode: "atomic_change_set",
+  });
+  assert.equal(resolved.matched, true);
+  assert.equal(resolved.binding_id, "binding-exact-older-than-first-twenty");
 }
 
 {
