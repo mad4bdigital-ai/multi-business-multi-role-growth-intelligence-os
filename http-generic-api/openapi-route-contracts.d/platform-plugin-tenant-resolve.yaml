@@ -6,4 +6,4 @@ contracts:
     composition_mode: inline
     owner: platform_plugin_runtime
     exposure: tenant_user
-    notes: Exact-workspace Context Kernel ownership contract; Brand connections remain fail-closed and no secret payload fields are exposed.
+    notes: Exact-workspace Context Kernel ownership contract; Brand connections require canonical exact-Brand operate-or-stronger authority and no secret payload fields are exposed.
