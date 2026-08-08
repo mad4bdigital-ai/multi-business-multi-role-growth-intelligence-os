@@ -13,7 +13,7 @@ jobs:
     timeout-minutes: 15
     env:
       EXPECTED_HEAD: 38d912c9c22b0f3d74dbc709df6c9c93f2a4cf0c
-      EXPECTED_MAIN: a06e8e087609508e3a1944ddaab8cf0156484529
+      EXPECTED_MAIN: 719c965e955347ab1cc56ad91d96881b4b1af357
       TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
     steps:
       - name: Checkout exact target
@@ -32,6 +32,21 @@ jobs:
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
           test -z "$(git status --porcelain=v1)"
+
+      - name: Converge with pinned main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin main
+          test "$(git rev-parse FETCH_HEAD)" = "$EXPECTED_MAIN"
+          git merge --no-ff --no-edit "$EXPECTED_MAIN"
+          SYNC_HEAD="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^1)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^2)" = "$EXPECTED_MAIN"
+          test -z "$(git status --porcelain=v1)"
+          echo "SYNC_HEAD=$SYNC_HEAD" >> "$GITHUB_ENV"
 
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
@@ -87,18 +102,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD)" = "$SYNC_HEAD"
+          test "$(git rev-parse "$SYNC_HEAD^1")" = "$EXPECTED_HEAD"
+          test "$(git rev-parse "$SYNC_HEAD^2")" = "$EXPECTED_MAIN"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -- \
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           git diff --cached --check
           git commit -m 'chore(spec): refresh Work Map registry bindings'
           NEW_HEAD="$(git rev-parse HEAD)"
-          test "$(git rev-parse HEAD^)" = "$EXPECTED_HEAD"
+          test "$(git rev-parse HEAD^)" = "$SYNC_HEAD"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
           git push origin "HEAD:refs/heads/$TARGET_BRANCH"
