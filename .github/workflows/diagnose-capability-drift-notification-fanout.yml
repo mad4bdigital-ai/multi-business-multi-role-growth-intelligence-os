@@ -1,0 +1,81 @@
+name: Diagnose capability drift notification fanout
+
+on:
+  push:
+    branches:
+      - fix/capability-drift-notification-fanout-4450-20260808
+    paths:
+      - .github/workflows/diagnose-capability-drift-notification-fanout.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/capability-drift-notification-fanout-4450-20260808
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact current main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor origin/main HEAD
+          test "$(git rev-parse origin/main)" = "a3561230aabb6b629c7ceca9587290593cea759a"
+
+      - name: Reproduce bounded working-tree patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          path = Path('.github/workflows/materialize-capability-drift-notification-fanout.yml')
+          lines = path.read_text().splitlines()
+          start = next(i + 1 for i, line in enumerate(lines) if "python3 - <<'PY'" in line)
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == 'PY')
+          code = textwrap.dedent('\n'.join(lines[start:end]))
+          Path('/tmp/apply-capability-fanout.py').write_text(code + '\n')
+          PY
+          python3 /tmp/apply-capability-fanout.py
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run operational alerting regression with captured output
+        shell: bash
+        run: |
+          set +e
+          OUT="$(node http-generic-api/test-operational-alerting-control-plane.mjs 2>&1)"
+          CODE=$?
+          printf '%s\n' "$OUT"
+          if [ "$CODE" -ne 0 ]; then
+            SAFE="$(printf '%s' "$OUT" | tail -c 6000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            printf '::error title=operational-alerting-focused-regression::%s\n' "$SAFE"
+            exit "$CODE"
+          fi
+
+      - name: Run operation observability regression with captured output
+        shell: bash
+        run: |
+          set +e
+          OUT="$(node http-generic-api/scripts/test-operation-observability-service.mjs 2>&1)"
+          CODE=$?
+          printf '%s\n' "$OUT"
+          if [ "$CODE" -ne 0 ]; then
+            SAFE="$(printf '%s' "$OUT" | tail -c 6000 | sed ':a;N;$!ba;s/%/%25/g;s/\r/%0D/g;s/\n/%0A/g')"
+            printf '::error title=operation-observability-focused-regression::%s\n' "$SAFE"
+            exit "$CODE"
+          fi
