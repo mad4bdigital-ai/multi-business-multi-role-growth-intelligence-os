@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import {
   buildBrandCoreMaterializedAssetRef,
   materializeWorkspaceBrandCoreAsset,
+  materializeWorkspaceBrandCoreAssetTransaction,
 } from "./workspaceBrandCoreAssetMaterialization.js";
 
 const workspaceAssetFoundationSql = readFileSync(
@@ -20,7 +21,7 @@ for (const canonicalColumn of ["brand_key", "asset_key", "doc_key", "doc_id", "f
   assert.match(brandCoreSchema, new RegExp(`\\\`${canonicalColumn}\\\``), `brand_core schema must expose ${canonicalColumn}`);
 }
 for (const legacyColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
-  assert.doesNotMatch(brandCoreSchema, new RegExp(`\\\`${legacyColumn}\\\``), `regression fixture must not assume undeclared brand_core.${legacyColumn}`);
+  assert.doesNotMatch(brandCoreSchema, new RegExp(`\\\`${legacyColumn}\\\``), `canonical bootstrap schema must not require legacy brand_core.${legacyColumn}`);
 }
 
 const materializationRuntimeSource = readFileSync(new URL("./workspaceBrandCoreAssetMaterialization.js", import.meta.url), "utf8");
@@ -40,9 +41,11 @@ assert.doesNotMatch(
   /\bIN\s*\(/,
   "Brand Core lookup must not widen Brand authority through display-name aliases."
 );
-for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
+for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status"]) {
   assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not require undeclared ${undeclaredColumn}`);
 }
+assert.match(materializationRuntimeSource, /FROM information_schema\.COLUMNS[\s\S]*TABLE_NAME='brand_core'[\s\S]*COLUMN_NAME='active_status'[\s\S]*LIMIT 1/, "legacy readiness compatibility must use one bounded read-only active_status capability probe");
+assert.match(materializationRuntimeSource, /NULL AS active_status/, "canonical Brand Core schema must receive a null legacy readiness projection when active_status is absent");
 
 const containerFoundationSql = readFileSync(
   new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql", import.meta.url),
@@ -170,6 +173,7 @@ function buildConnection({
   closure = closureRow(),
   sources = sourceRow(),
   sourcesByCall = null,
+  legacyActiveStatusColumn = false,
 } = {}) {
   const calls = [];
   let stored = null;
@@ -195,6 +199,7 @@ function buildConnection({
       if (sql.includes("FROM workspace_registry") && sql.includes("workspace_type='brand'")) return [brandWorkspaces];
       if (sql.includes("FROM containers brand_container")) return [topology];
       if (sql.includes("FROM container_closure")) return [closure];
+      if (sql.includes("FROM information_schema.COLUMNS")) return [legacyActiveStatusColumn ? [{ COLUMN_NAME: "active_status" }] : []];
       if (sql.includes("FROM brand_core")) {
         const selected = sourcesByCall?.[sourceCall] || sourcesByCall?.at(-1) || sources;
         sourceCall += 1;
@@ -285,14 +290,29 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(metadata.brand_core_source_ref, "asset_key:positioning");
   assert.equal(metadata.source_provider, "brand_core");
   assert.equal(metadata.secrets_included, false);
+  const readinessProbe = connection.calls.find((call) => call.sql.includes("FROM information_schema.COLUMNS"));
+  assert(readinessProbe, "canonical materialization must perform one bounded legacy-readiness capability probe");
+  assert.equal(readinessProbe.params.length, 0);
   const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core"));
   assert(sourceLookupCall, "materialization must perform one canonical Brand Core source lookup");
   assert.equal(sourceLookupCall.params[0], "brand-a", "Brand Core source lookup must be scoped by the canonical Brand target key only");
+  assert.match(sourceLookupCall.sql, /NULL AS active_status/, "canonical schema without active_status must project a safe null compatibility value");
   assert(connection.calls.some((call) => call.sql.includes("container_relationships") && call.sql.includes("relationship_type_key='contains'")), "materialization must prove canonical Workspace contains Brand topology");
   assert(connection.calls.some((call) => call.sql.includes("FROM container_closure") && call.sql.includes("FOR UPDATE")), "materialization must require the inherited containment path to be materialized");
   assert(connection.calls.some((call) => call.sql.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id")), "materialization must delegate atomic identity persistence to the canonical asset repository");
   assert(connection.calls.some((call) => call.sql.includes("LIMIT 2 FOR UPDATE") && call.sql.includes("workspace_assets")), "materialization must read persisted lineage back under lock before commit");
-  assert(!connection.calls.some((call) => call.sql.includes("information_schema")), "materialization must not depend on a parallel provenance schema migration");
+}
+
+{
+  const legacySource = sourceRow({ status: "", active_status: "TRUE" })[0];
+  const connection = buildConnection({
+    sources: [legacySource],
+    legacyActiveStatusColumn: true,
+  });
+  const result = await materialize(connection);
+  assert.equal(result.source.source_validation_status, "true", "legacy active_status readiness must remain materializable when the deployed column exists");
+  const sourceLookupCall = connection.calls.find((call) => call.sql.includes("FROM brand_core"));
+  assert.match(sourceLookupCall.sql, /status, active_status, created_at/, "legacy deployments must project active_status only after the bounded capability probe confirms the column exists");
 }
 
 {
@@ -430,6 +450,41 @@ async function materialize(connection, sourceRef = "positioning") {
     (error) => error?.code === "workspace_asset_identity_provenance_conflict" && error?.status === 409
   );
   assert.equal(connection.persistedInserts, 1, "revision conflict must not silently create or refresh a second authority row");
+}
+
+{
+  let released = false;
+  let committed = false;
+  const rollbackError = Object.assign(new Error("simulated rollback interruption"), { code: "ER_CONNECTION_LOST" });
+  const connection = {
+    async beginTransaction() {},
+    async commit() { committed = true; },
+    async rollback() { throw rollbackError; },
+    release() { released = true; },
+    async query(sql) {
+      if (sql.includes("FROM workspace_registry wr") && sql.includes("JOIN tenants")) return [[]];
+      throw new Error(`Unexpected SQL during rollback-failure regression: ${sql}`);
+    },
+  };
+  const pool = { async getConnection() { return connection; } };
+  await assert.rejects(
+    materializeWorkspaceBrandCoreAssetTransaction({
+      workspaceId: "workspace-missing",
+      actorUserId: "user-a",
+      brandRef: "brand-a",
+      sourceRef: "positioning",
+    }, { pool }),
+    (error) => (
+      error?.code === "brand_core_asset_materialize_rollback_failed" &&
+      error?.status === 500 &&
+      error?.details?.state === "indeterminate" &&
+      error?.details?.original_code === "brand_core_materialize_root_workspace_not_found" &&
+      error?.details?.rollback_code === "ER_CONNECTION_LOST" &&
+      error?.cause?.code === "brand_core_materialize_root_workspace_not_found"
+    )
+  );
+  assert.equal(committed, false, "rollback-failure regression must never commit");
+  assert.equal(released, true, "connection must be released after rollback failure is classified as indeterminate");
 }
 
 console.log("workspace Brand Core asset materialization canonical root/container lifecycle tests passed");

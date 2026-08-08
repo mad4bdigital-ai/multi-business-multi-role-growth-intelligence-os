@@ -48,7 +48,7 @@ function sourceActive(row = {}) {
 }
 
 function sourceValidationStatus(row = {}) {
-  return text(row.validation_status || row.status || row.active_status, 64).toLowerCase();
+  return text(row.validation_status || row.active_status || row.status, 64).toLowerCase();
 }
 
 function sourceFileId(row = {}) {
@@ -349,6 +349,20 @@ async function resolveBrandContainerTopology(connection, { rootWorkspace, canoni
   return { ...topology, closure };
 }
 
+async function resolveBrandCoreReadinessProjection(connection) {
+  const [rows] = await connection.query(
+    `SELECT COLUMN_NAME
+       FROM information_schema.COLUMNS
+      WHERE TABLE_SCHEMA=DATABASE()
+        AND TABLE_NAME='brand_core'
+        AND COLUMN_NAME='active_status'
+      LIMIT 1`
+  );
+  return Array.isArray(rows) && rows.length === 1
+    ? "active_status"
+    : "NULL AS active_status";
+}
+
 async function resolveBrandCoreSource(connection, brand, sourceLookup) {
   const candidates = sourceLookupCandidates(sourceLookup);
   if (!candidates.length) {
@@ -358,13 +372,14 @@ async function resolveBrandCoreSource(connection, brand, sourceLookup) {
   if (!canonicalBrandKey) {
     throw materializationError(422, "brand_core_brand_identity_unverifiable", "Canonical Brand target key is required for Brand Core source lookup.");
   }
+  const readinessProjection = await resolveBrandCoreReadinessProjection(connection);
   const sourceConditions = candidates.map(() => `(
     asset_key=? OR doc_key=? OR doc_id=? OR file_id=? OR google_doc_id=?
   )`).join(" OR ");
   const sourceParams = candidates.flatMap((candidate) => [candidate, candidate, candidate, candidate, candidate]);
   const [rows] = await connection.query(
     `SELECT id, brand_key, asset_key, doc_key, doc_id, file_id, google_doc_id,
-            status, created_at, updated_at
+            status, ${readinessProjection}, created_at, updated_at
        FROM brand_core
       WHERE LOWER(COALESCE(brand_key,'')) = LOWER(?)
         AND (${sourceConditions})
@@ -547,7 +562,25 @@ export async function materializeWorkspaceBrandCoreAssetTransaction({
     transactionStarted = false;
     return result;
   } catch (error) {
-    if (transactionStarted) await connection.rollback();
+    if (transactionStarted) {
+      try {
+        await connection.rollback();
+        transactionStarted = false;
+      } catch (rollbackError) {
+        const failure = materializationError(
+          500,
+          "brand_core_asset_materialize_rollback_failed",
+          "Brand Core materialization rollback could not be verified.",
+          {
+            original_code: error?.code || null,
+            rollback_code: rollbackError?.code || null,
+            state: "indeterminate",
+          }
+        );
+        failure.cause = error;
+        throw failure;
+      }
+    }
     throw error;
   } finally {
     connection.release();
