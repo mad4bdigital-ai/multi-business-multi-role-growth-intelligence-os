@@ -11,6 +11,7 @@
       "http-generic-api/routes/resourceApiRoutes.js",
       "http-generic-api/workspaceBrandCoreAssetMaterialization.js",
       "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/test-workspace-brand-core-personal-owner-boundary.mjs",
       "http-generic-api/migrations/193_sprint67_workspace_resource_authority_foundation.sql",
       "http-generic-api/migrations/319_sprint69_dynamic_container_authority_foundation.sql",
       "http-generic-api/migrations/20260730_context_kernel_connection_ownership_persistence.sql",
@@ -39,12 +40,13 @@
           "id": "materialize-known-brand-core-context-source-through-root-brand-container",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authenticated workspace owner/admin or delegated Brand editor/manager with existing canonical Brand mutation authority",
+          "actor": "Authenticated tenant user with exact Root Workspace authority and existing canonical Brand mutation authority; a personal Root Workspace additionally requires the signed-in user to be its exact owner",
           "entrypoint": "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core with source_ref",
-          "terminal_outcome": "The selected personal/company Root Workspace derives tenant scope; exactly one child workspace_type=brand binding and one direct inheritance-bearing Root Workspace contains Brand container path are proven; exactly one active Brand Core source is normalized into a canonical external_ref workspace asset input, serialized idempotently by the existing Resource Repository, projected back through canonical read authority, and classified as a governed state change. Missing or ambiguous topology fails closed and content_sha256 remains null unless a real content fetch establishes it.",
+          "terminal_outcome": "The selected personal/company Root Workspace derives tenant scope; personal ownership is verified against the signed-in user before Brand authority; exactly one child workspace_type=brand binding and one direct inheritance-bearing Root Workspace contains Brand container path are proven; exactly one active Brand Core source is normalized into a canonical external_ref workspace asset input, serialized idempotently by the existing Resource Repository, projected back through canonical read authority, and classified as a governed state change. Missing or ambiguous authority/topology fails closed and content_sha256 remains null unless a real content fetch establishes it.",
           "steps": [
             "Authenticate through canonical User JWT middleware on the existing Resource API route family.",
             "Resolve workspace_id from workspace_registry under lock, derive tenant_id from that row, require an active tenant, require workspace_ownership_type personal or company, and reject workspace_type=brand as a Root Workspace.",
+            "When the Root Workspace is personal, require owner_user_id to match the signed-in User JWT before any Brand authority lookup; fail closed on a missing or different owner.",
             "Resolve Brand mutation authority through the existing canonical Brand asset authority helper; do not promote Dynamic Container Authority shadow data into a new hard grant store in this slice.",
             "Resolve exactly one child operational workspace_registry row with workspace_type=brand and linked_brand_key equal to the canonical Brand; reject any personal/company root ownership classification on that child row.",
             "Resolve exactly one active canonical Brand container with canonical_subject_type=brand_target_key and exactly one active contains relationship from a Workspace container.",
@@ -64,6 +66,7 @@
             "workspace_ownership_type personal/company remains separate from operational workspace_type; workspace_type=brand remains a child operational binding rather than a Root Workspace.",
             "Brand container registry allows Workspace parents and contains contributes to both ancestry and inheritance; generic container dimensions include connections, assets, roles/policies and brand_core.",
             "Caller cannot choose tenant_id for this mutation; tenant authority is derived from the selected Root Workspace.",
+            "A personal Root Workspace owned by another user fails with brand_core_materialize_personal_owner_mismatch before Brand authority, Brand Core source lookup, or workspace_assets persistence.",
             "A Brand container owned by another Root Workspace fails closed before source lookup or asset persistence.",
             "Multiple active Workspace parents, missing closure, or multiple closure paths fail closed before asset persistence.",
             "Legacy Brand Core rows with only a Google document/file identity can still produce a deterministic canonical source_ref.",
@@ -90,6 +93,13 @@
               "args": []
             },
             {
+              "id": "workspace-brand-core-personal-owner-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-brand-core-personal-owner-boundary.mjs",
+              "args": []
+            },
+            {
               "id": "brand-core-asset-materialization-operation-governance",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -109,6 +119,7 @@
             "http-generic-api/routes/resourceApiRoutes.js",
             "http-generic-api/workspaceBrandCoreAssetMaterialization.js",
             "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+            "http-generic-api/test-workspace-brand-core-personal-owner-boundary.mjs",
             "http-generic-api/migrations/193_sprint67_workspace_resource_authority_foundation.sql",
             "http-generic-api/migrations/319_sprint69_dynamic_container_authority_foundation.sql",
             "http-generic-api/migrations/20260730_context_kernel_connection_ownership_persistence.sql",
