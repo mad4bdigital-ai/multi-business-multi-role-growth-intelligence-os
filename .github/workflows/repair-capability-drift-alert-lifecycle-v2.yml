@@ -1,0 +1,113 @@
+name: Repair capability drift alert lifecycle V2
+
+on:
+  push:
+    branches:
+      - fix/capability-drift-alert-lifecycle-4450-4451-20260808
+    paths:
+      - .github/ops/repair-capability-drift-alert-lifecycle-v2.trigger
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/capability-drift-alert-lifecycle-4450-4451-20260808
+          fetch-depth: 0
+
+      - name: Verify branch contains current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor origin/main HEAD
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Configure bot
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Reuse bounded patch from canonical temporary wrapper
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/repair-capability-drift-alert-lifecycle.yml')
+          lines = path.read_text().splitlines()
+          start = lines.index('      - name: Apply bounded lifecycle patch')
+          end = lines.index('      - name: Run focused regression tests')
+          block = lines[start:end]
+          run_index = block.index('        run: |')
+          body = block[run_index + 1:]
+          rendered = []
+          for line in body:
+              if line.startswith('          '):
+                  rendered.append(line[10:])
+              elif not line.strip():
+                  rendered.append('')
+              else:
+                  raise SystemExit(f'unexpected indentation while extracting apply block: {line!r}')
+          Path('/tmp/capability-drift-apply.sh').write_text('\n'.join(rendered) + '\n')
+          PY
+          bash -euo pipefail /tmp/capability-drift-apply.sh
+
+      - name: Install repository dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+
+      - name: Run focused regression tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-operational-alerting-control-plane.mjs
+          node http-generic-api/scripts/test-operation-observability-service.mjs
+
+      - name: Remove all temporary materializers and diagnostics
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f --ignore-unmatch \
+            .github/workflows/diagnose-capability-drift-alert-lifecycle.yml \
+            .github/ops/diagnose-capability-drift-alert-lifecycle.trigger \
+            .github/workflows/repair-capability-drift-alert-lifecycle-v2.yml \
+            .github/ops/repair-capability-drift-alert-lifecycle-v2.trigger
+          git add -A
+
+      - name: Assert exact final scope against current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main --no-tags
+          git merge-base --is-ancestor origin/main HEAD
+          actual="$(git diff --cached --name-only --diff-filter=ACDMRTUXB origin/main | sort)"
+          expected="$(printf '%s\n' \
+            .changes/e2e/capability-drift-alert-lifecycle.json \
+            http-generic-api/capabilityDriftAlertAdapter.js \
+            http-generic-api/operationalAlertService.js \
+            http-generic-api/test-operational-alerting-control-plane.mjs | sort)"
+          printf 'actual scope:\n%s\n' "$actual"
+          printf 'expected scope:\n%s\n' "$expected"
+          test "$actual" = "$expected"
+          git diff --cached --check
+
+      - name: Commit and push bounded lifecycle patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit -m "feat(observability): persist capability drift alert lifecycle"
+          git push origin HEAD:fix/capability-drift-alert-lifecycle-4450-4451-20260808
