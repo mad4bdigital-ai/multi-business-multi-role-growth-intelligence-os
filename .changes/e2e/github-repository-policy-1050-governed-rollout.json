@@ -1,0 +1,81 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-1050-governed-rollout",
+  "title": "Governed Migration 1050 bootstrap repair rollout",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-1050-governed-rollout.json",
+      ".github/ops/github-repository-policy-1050-governed-rollout.mjs",
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+      "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind Migration 1050 to its final merged source identity and provide separate Production-safe readiness, exactly-once Apply, and verification phases without retrying Migration 1049 or applying the live GitHub Ruleset.",
+      "e2e_journeys": [
+        {
+          "id": "migration-1050-governed-production-rollout",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6628 governed Migration 1050 lifecycle",
+          "terminal_outcome": "Readiness fails closed until Production contains source merge 5505adde1bf29125c56d8588cf8de3ee956c819c and exact blob 571fab72a305a209fa19e7b0711d87cd4eae483c; raw bytes are checksum-bound before dry-run, Apply is separately confirmed and invoked at most once, and verification proves the repaired Repository Policy Controller metadata while Migration 1049 retry and live GitHub Ruleset Apply remain prohibited.",
+          "steps": [
+            "Resolve PR 6629 and require its merge commit to equal the canonical Migration 1050 source merge.",
+            "Require current Production to contain that source merge and the exact Migration 1050 Git blob before readiness can proceed.",
+            "Decode GitHub Contents base64 to raw bytes, reproduce the Git blob SHA, compute SHA-256 directly over those bytes, and require exactly seven SQL statements.",
+            "Prove Runtime version and deployment-info converge to the exact stable Production SHA.",
+            "Create checksum-bound migration authorization, execute dry-run only, and verify one durable authorization row during readiness.",
+            "Require a distinct Migration 1050 Apply command, same-cycle dry-run, an apply-authorized migration capability envelope, and exactly one Apply transport invocation.",
+            "Never retry after ambiguous Apply transport; reconcile through exact migration ledger and read-only metadata readback.",
+            "Verify the five canonical repository-policy registration surfaces plus authorization metadata and keep live GitHub policy apply false."
+          ],
+          "assertions": [
+            "The producer has contents: read only, persist-credentials=false, and cannot mutate Issues.",
+            "Production missing the source merge or exact blob fails closed before authorization or dry-run.",
+            "SHA-256 is computed from decoded raw GitHub bytes and those bytes must reproduce the pinned Git blob SHA.",
+            "Migration 1049 is never invoked or retried by this lifecycle.",
+            "Readiness performs no migration Apply.",
+            "Apply contains exactly one governed_migration_execute Apply transport call and records apply_retried=false.",
+            "The migration-specific confirmation is distinct from APPLY_GITHUB_MAIN_REVIEW_POLICY.",
+            "Post-Apply verification is read-only and proves single-owner metadata, tool/capability/binding/export registration, and live_github_policy_apply=false.",
+            "No provider mutation, live GitHub Ruleset mutation, Production ref mutation, force push, credential payload publication, or external business write is introduced."
+          ],
+          "tests": [
+            {
+              "id": "migration-1050-governed-rollout-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-governed-rollout.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-1050-bootstrap-repair-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-bootstrap-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/github-repository-policy-1050-governed-rollout.mjs",
+            ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+            "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+            "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
