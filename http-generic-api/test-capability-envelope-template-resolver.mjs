@@ -14,6 +14,7 @@ import { buildDryRunArgs } from "./scripts/capability-resolution-envelope-create
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templateHash = "a".repeat(64);
+const exactGithubResourceUri = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const templateRow = {
   template_id: "11111111-1111-4111-8111-111111111111",
   template_key: "github_repo_patch_apply_v1",
@@ -70,7 +71,7 @@ const context = normalizeCapabilityEnvelopeTemplateContext(template, {
   user_id: "user-1",
   workspace_id: "workspace-1",
   expected_commit_sha: "b".repeat(40),
-  resource_uri: "repo://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  resource_uri: exactGithubResourceUri,
   binding_sha256: "c".repeat(64),
   capability_sha256: "d".repeat(64),
 });
@@ -115,7 +116,6 @@ assert.deepEqual(passthrough.slice(-8), [
   "--requested-source-tier", "platform_managed_fallback",
 ]);
 
-const exactGithubResourceUri = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const adminServiceContext = normalizeCapabilityEnvelopeTemplateContext(template, {
   tenant_id: "tenant-1",
   user_id: "platform_admin_service",
@@ -230,6 +230,30 @@ const runAlignedDryRun = async (input) => ({
   },
   capability: { app_key: input.appKey, capability_key: input.capabilityKey },
 });
+
+await assert.rejects(
+  () => resolveCapabilityEnvelopeTemplate({
+    template_key: template.template_key,
+    context: {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_id: "workspace-1",
+    },
+  }, { pool, runCapabilityResolutionDryRun: runAlignedDryRun }),
+  (error) => error.code === "capability_envelope_template_resource_uri_missing" && error.status === 400,
+);
+await assert.rejects(
+  () => resolveCapabilityEnvelopeTemplate({
+    template_key: template.template_key,
+    context: {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_id: "workspace-1",
+      resource_uri: "repo://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    },
+  }, { pool, runCapabilityResolutionDryRun: runAlignedDryRun }),
+  (error) => error.code === "capability_envelope_template_resource_uri_invalid_for_runtime" && error.status === 400,
+);
 
 const preview = await resolveCapabilityEnvelopeTemplate({
   template_key: template.template_key,
