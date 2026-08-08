@@ -1,0 +1,10 @@
+{
+  "temporary": true,
+  "purpose": "Trigger read-only PR-equivalent verification for canonical PR #6626.",
+  "canonical_pr": 6626,
+  "expected_main_sha": "2bf8c0b56ea05b50650938400ca3e32ca11f52ee",
+  "expected_head_sha": "dfa5b4ebd9d4bf0acf1f89efa609147fd416c7e1",
+  "repository_mutation_authority": "none",
+  "merge_forbidden": true,
+  "secrets_included": false
+}
