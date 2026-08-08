@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { buildSqlCacheOperationalDiagnostics } from "./sqlCacheOperationalDiagnostics.js";
 import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
+import { evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|value_ciphertext|system_prompt|raw_prompt|payload_json)/i;
 const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
@@ -637,17 +638,33 @@ function mergeCandidates(items = []) {
     const lifecycleStatus = persistedLifecycleClosed
       ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
+    const capabilityDriftMerge = current.source_type === CAPABILITY_DRIFT_SOURCE
+      || item.source_type === CAPABILITY_DRIFT_SOURCE;
+    const preservePersistedCapabilitySeverity = capabilityDriftMerge
+      && !(persistedLifecycleClosed && hasNewerLiveOccurrence);
+    const mergedSeverity = preservePersistedCapabilitySeverity
+      ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])
+          ? item.severity
+          : current.severity)
+      : latest.severity;
+    const mergedFirstSeenAt = capabilityDriftMerge
+      && persistedLifecycleClosed
+      && hasNewerLiveOccurrence
+      && live
+      ? live.first_seen_at
+      : earliest.first_seen_at;
     merged.set(item.alert_key, {
       ...current,
       ...latest,
       alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
+      severity: mergedSeverity,
       lifecycle_status: lifecycleStatus,
       lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
       verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
         ? item.verification_state
         : current.verification_state,
       occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),
-      first_seen_at: earliest.first_seen_at,
+      first_seen_at: mergedFirstSeenAt,
       last_seen_at: latest.last_seen_at,
       manual_known_issue: current.manual_known_issue || item.manual_known_issue,
       persisted: current.persisted || item.persisted,
@@ -1172,8 +1189,44 @@ function dbDate(value) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-async function upsertAlert(connection, item, syncRunId) {
-  const alertId = item.alert_id || randomUUID();
+async function upsertAlert(connection, item, syncRunId, requestedBy = "operational_alert_sync") {
+  let priorCapabilityAlert = null;
+  let capabilityAgeEscalation = null;
+  if (item.source_type === CAPABILITY_DRIFT_SOURCE) {
+    const [priorRows] = await connection.query(
+      `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, first_seen_at, last_seen_at,
+              operation_fingerprint_sha256, resource_fingerprint_sha256
+         FROM operational_alerts
+        WHERE alert_key = ?
+        LIMIT 1
+        FOR UPDATE`,
+      [item.alert_key]
+    );
+    priorCapabilityAlert = priorRows[0] || null;
+    const priorClosed = Boolean(priorCapabilityAlert && ["resolved", "ignored"].includes(priorCapabilityAlert.lifecycle_status));
+    const episodeFirstSeenAt = priorClosed
+      ? item.first_seen_at
+      : priorCapabilityAlert?.first_seen_at || item.first_seen_at;
+    const episodeCurrentSeverity = priorClosed
+      ? item.severity
+      : priorCapabilityAlert?.severity || item.severity;
+    capabilityAgeEscalation = evaluateCapabilityDriftAgeEscalation({
+      baseSeverity: item.severity,
+      currentSeverity: episodeCurrentSeverity,
+      firstSeenAt: episodeFirstSeenAt,
+      observedAt: new Date(),
+    });
+    item = {
+      ...item,
+      severity: capabilityAgeEscalation.effective_severity,
+      first_seen_at: episodeFirstSeenAt,
+      evidence: sanitizeEvidence({
+        ...(item.evidence || {}),
+        age_escalation: capabilityAgeEscalation,
+      }),
+    };
+  }
+  const alertId = item.alert_id || priorCapabilityAlert?.alert_id || randomUUID();
   await connection.query(
     `INSERT INTO operational_alerts
       (alert_id, alert_key, fingerprint_sha256, operation_fingerprint_sha256, resource_fingerprint_sha256,
@@ -1195,7 +1248,12 @@ async function upsertAlert(connection, item, syncRunId) {
        occurrence_count = CASE
          WHEN VALUES(source_type) = 'v_platform_capability_gaps' THEN occurrence_count + 1
          ELSE VALUES(occurrence_count)
-       END, first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),
+       END,
+       first_seen_at = CASE
+         WHEN VALUES(source_type) = 'v_platform_capability_gaps' AND lifecycle_status IN ('resolved','ignored')
+           THEN VALUES(first_seen_at)
+         ELSE LEAST(first_seen_at, VALUES(first_seen_at))
+       END,
        last_seen_at = GREATEST(last_seen_at, VALUES(last_seen_at)), last_sync_run_id = VALUES(last_sync_run_id),
        recommended_action_key = VALUES(recommended_action_key), requires_confirmation = VALUES(requires_confirmation),
        lifecycle_status = IF(lifecycle_status IN ('resolved','ignored'), 'open', lifecycle_status),
@@ -1234,11 +1292,57 @@ async function upsertAlert(connection, item, syncRunId) {
       item.manual_known_issue ? 1 : 0,
     ]
   );
+  if (priorCapabilityAlert && capabilityAgeEscalation?.age_escalated) {
+    const nextRevision = safeNumber(priorCapabilityAlert.lifecycle_revision) + 1;
+    const actorId = String(requestedBy || "operational_alert_sync").slice(0, 191);
+    const fromSeverity = priorCapabilityAlert.severity || item.severity;
+    const toSeverity = capabilityAgeEscalation.effective_severity;
+    const note = `Capability drift remained unresolved for ${capabilityAgeEscalation.blocker_age_hours} hour(s); severity escalated from ${fromSeverity} to ${toSeverity}.`;
+    const idempotencyKey = `sync:${syncRunId}:severity_escalated:${fromSeverity}:${toSeverity}`.slice(0, 191);
+    await connection.query(
+      `UPDATE operational_alerts
+          SET lifecycle_revision = lifecycle_revision + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE alert_key = ?`,
+      [item.alert_key]
+    );
+    await connection.query(
+      `INSERT INTO operational_alert_lifecycle_events
+        (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+         from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+         operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, sync_run_id, secrets_included)
+       VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 'severity_escalated', ?, 'system_age_escalation', ?, ?, ?, ?, ?, ?, 0)
+       ON DUPLICATE KEY UPDATE event_id = event_id`,
+      [
+        randomUUID(),
+        priorCapabilityAlert.alert_id,
+        item.alert_key,
+        item.source_type,
+        item.source_record_id,
+        priorCapabilityAlert.lifecycle_status,
+        priorCapabilityAlert.lifecycle_status,
+        nextRevision,
+        actorId,
+        note,
+        idempotencyKey,
+        priorCapabilityAlert.operation_fingerprint_sha256,
+        priorCapabilityAlert.resource_fingerprint_sha256,
+        JSON.stringify(sanitizeEvidence({
+          sync_run_id: syncRunId,
+          from_severity: fromSeverity,
+          to_severity: toSeverity,
+          lifecycle_status: priorCapabilityAlert.lifecycle_status,
+          age_escalation: capabilityAgeEscalation,
+        })),
+        syncRunId,
+      ]
+    );
+  }
   const [rows] = await connection.query(
-    "SELECT alert_id, lifecycle_status FROM operational_alerts WHERE alert_key = ? LIMIT 1",
+    `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, first_seen_at, last_seen_at
+       FROM operational_alerts WHERE alert_key = ? LIMIT 1`,
     [item.alert_key]
   );
-  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status };
+  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status, severity: item.severity };
 }
 
 export async function synchronizeOperationalAlerts({
@@ -1268,7 +1372,7 @@ export async function synchronizeOperationalAlerts({
       [runId, subject.tenant_id, subject.user_id, requestedBy, JSON.stringify(collected.source_health), collected.alerts.length]
     );
     for (const item of collected.alerts) {
-      const row = await upsertAlert(connection, item, runId);
+      const row = await upsertAlert(connection, item, runId, requestedBy);
       persistedCandidates.push({ item, row });
       upserted += 1;
     }
