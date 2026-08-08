@@ -4,8 +4,8 @@
 
 ## Summary
 
-- Total queue items: 3
-- Critical review: 0
+- Total queue items: 4
+- Critical review: 1
 - High review: 0
 - Medium review: 3
 - Low review: 0
@@ -13,7 +13,22 @@
 
 ## Top Queue Items
 
-### 1. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 1. `20260808_github_issue_comment_dispatch_parity.sql`
+
+- Queue class: critical_review
+- Score: 910
+- Gap severity: high
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: `/repos/{owner}/{repo}/issues/{issue_number}/comments`
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=1, policies=0, routes=2
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `review_openapi_contract` → api-contract-review; targets: `/repos/{owner}/{repo}/issues/{issue_number}/comments`
+- `verify_readback_view` → db-readback-review; targets: `v_github_issue_comment_dispatch_parity`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 2. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -27,7 +42,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 2. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 3. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 335
@@ -41,7 +56,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 3. `20260728_governed_response_chunk_ownership.sql`
+### 4. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318
