@@ -124,8 +124,8 @@ async function loadTemplate(pool, templateKey) {
             template_hash, status
        FROM capability_envelope_templates
       WHERE template_key = ? AND status = 'active'
-      ORDER BY template_version DESC
-      LIMIT 1`,
+      ORDER BY template_version DESC, template_id DESC
+      LIMIT 2`,
     [templateKey],
   );
   return shapeTemplate(rows[0] || null);
@@ -303,9 +303,17 @@ async function loadCapabilityEnvelopeTemplateResolutionByHash(pool, resolutionHa
             e.apply_allowed, e.approval_required, e.blocking_gap_count, e.expires_at
        FROM capability_envelope_template_resolutions r
        JOIN capability_resolution_envelope_ledger e ON e.envelope_id = r.envelope_id
-      WHERE r.resolution_hash = ? LIMIT 1`,
+      WHERE r.resolution_hash = ?
+      ORDER BY r.resolution_id ASC
+      LIMIT 2`,
     [resolutionHash],
   );
+  if (rows.length > 1) {
+    fail("capability_envelope_template_resolution_ambiguous", "Multiple envelope resolutions share the same resolution hash.", 409, {
+      resolution_hash: resolutionHash,
+      candidate_count: rows.length,
+    });
+  }
   return rows[0] || null;
 }
 
