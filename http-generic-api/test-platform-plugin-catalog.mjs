@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { loadPlatformPluginCatalog, normalizePlatformPlugin } from "./platformPluginCatalog.js";
+import {
+  isTenantVisiblePlatformPluginToolBinding,
+  loadPlatformPluginCatalog,
+  normalizePlatformPlugin,
+} from "./platformPluginCatalog.js";
 
 function makePool() {
   const calls = [];
@@ -59,6 +63,26 @@ function makePool() {
             exposure_scope: "tenant",
             status: "active",
           },
+          {
+            binding_id: "tool-gh-admin",
+            app_key: "github",
+            tool_key: "github_admin_repair",
+            tool_surface: "admin_tool",
+            binding_role: "state_changing",
+            credential_source: "platform_managed",
+            exposure_scope: "admin",
+            status: "active",
+          },
+          {
+            binding_id: "tool-gh-platform",
+            app_key: "github",
+            tool_key: "github_platform_diagnostic",
+            tool_surface: "diagnostic_tool",
+            binding_role: "read_only",
+            credential_source: "platform_managed",
+            exposure_scope: "platform_admin",
+            status: "active",
+          },
         ]];
       }
       if (sql.includes("FROM tenant_integration_policies")) {
@@ -109,16 +133,30 @@ function makePool() {
 }
 
 {
+  assert.equal(isTenantVisiblePlatformPluginToolBinding({ tool_surface: "device_tool", exposure_scope: "tenant" }), true);
+  assert.equal(isTenantVisiblePlatformPluginToolBinding({ tool_surface: "admin_tool", exposure_scope: "tenant" }), false);
+  assert.equal(isTenantVisiblePlatformPluginToolBinding({ tool_surface: "diagnostic_tool", exposure_scope: "platform_admin" }), false);
+  assert.equal(isTenantVisiblePlatformPluginToolBinding({ tool_surface: "diagnostic_tool", exposure_scope: "platform" }), false);
+}
+
+{
   const pool = makePool();
   const catalog = await loadPlatformPluginCatalog({ pool, tenantId: "tenant-1", userId: "user-1", limit: 20 });
   assert.equal(catalog.ok, true);
   assert.equal(catalog.terminology.canonical_name, "Platform Plugin");
+  assert.equal(catalog.filters.principal_class, "admin");
   assert.equal(catalog.totals.plugins, 2);
+  assert.equal(catalog.totals.tool_bindings, 3, "admin catalog must retain internal tool bindings");
   const github = catalog.plugins.find((plugin) => plugin.plugin_key === "github");
   assert(github, "github plugin should be returned");
   assert.equal(github.tenant_policies[0].source_mode, "dedicated");
   assert.equal(github.tenant_policies[0].fallback_allowed, false);
   assert.equal(github.user_connection_summary[0].validation_status, "validated");
+  assert.deepEqual(
+    github.tool_bindings.map((binding) => binding.tool_key).sort(),
+    ["github_admin_repair", "github_platform_diagnostic"],
+    "admin catalog behavior must remain unchanged",
+  );
   const mcp = catalog.plugins.find((plugin) => plugin.plugin_key === "filesystem.mcp");
   assert(mcp.protocols.includes("mcp"), "MCP plugins should expose mcp protocol");
   assert(mcp.credential_resolver_policy.supported_scopes.includes("device_connector"));
@@ -128,9 +166,30 @@ function makePool() {
 }
 
 {
+  const pool = makePool();
+  const catalog = await loadPlatformPluginCatalog({
+    pool,
+    tenantId: "tenant-1",
+    userId: "user-1",
+    principalClass: "tenant",
+    limit: 20,
+  });
+  assert.equal(catalog.ok, true);
+  assert.equal(catalog.filters.principal_class, "tenant");
+  assert.equal(catalog.totals.tool_bindings, 1, "tenant totals must count only tenant-visible tool bindings");
+  const allTenantToolKeys = catalog.plugins.flatMap((plugin) => plugin.tool_bindings.map((binding) => binding.tool_key));
+  assert.deepEqual(allTenantToolKeys, ["connector_files"]);
+  assert(!allTenantToolKeys.includes("github_admin_repair"));
+  assert(!allTenantToolKeys.includes("github_platform_diagnostic"));
+  assert.equal(catalog.secrets_included, false);
+}
+
+{
   const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
   assert(routes.includes("/platform/plugins/catalog"), "route must expose platform plugin catalog");
   assert(routes.includes("requireAdminPrincipal"), "route must be admin protected");
+  const tenantRoutes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
+  assert(tenantRoutes.includes('principalClass: "tenant"'), "tenant catalog route must request tenant-visible binding projection");
   const migration = readFileSync("migrations/119_sprint64_platform_plugin_catalog_tool.sql", "utf8");
   assert(migration.includes("platform_plugin_catalog"), "tool registry migration must register the catalog tool");
   assert(migration.includes("read_only"), "catalog tool must be read-only tagged");
