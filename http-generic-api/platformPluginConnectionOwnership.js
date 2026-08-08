@@ -167,6 +167,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
   tenantId,
   workspaceId,
   userId,
+  brandRef = null,
 } = {}) {
   if (!pool || typeof pool.query !== "function") {
     throw new TypeError("A SQL pool is required for tenant connection ownership resolution.");
@@ -176,11 +177,12 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
   const tenant = compact(tenantId, 64);
   const workspace = compact(workspaceId, 64);
   const user = compact(userId, 64);
+  const requestedBrandRef = compact(brandRef, 191) || null;
   if (!plugin || !tenant || !workspace || !user) {
     return denied(
       "connection_workspace_scope_required",
       PlatformPluginConnectionOwnershipDenialCode.WORKSPACE_REQUIRED,
-      { workspace_id_present: Boolean(workspace) },
+      { workspace_id_present: Boolean(workspace), brand_ref_present: Boolean(requestedBrandRef) },
     );
   }
 
@@ -190,63 +192,75 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     return denied(
       "connection_ownership_scope_denied",
       PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
-      { workspace_id_present: true },
+      { workspace_id_present: true, brand_ref_present: Boolean(requestedBrandRef) },
     );
   }
 
   const workspaceRow = workspaceRows[0];
   const workspaceType = compact(workspaceRow.workspace_type, 32).toLowerCase();
   const ownershipType = compact(workspaceRow.workspace_ownership_type, 32).toLowerCase();
-  let ownerScopeType = null;
+
+  if (workspaceType === "brand" || !["personal", "company"].includes(ownershipType)) {
+    return denied(
+      workspaceType === "brand"
+        ? "brand_child_workspace_is_not_root_connection_context"
+        : "connection_ownership_scope_denied",
+      PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
+      {
+        workspace_id_present: true,
+        brand_ref_present: Boolean(requestedBrandRef),
+        root_workspace_required: true,
+      },
+    );
+  }
+
+  if (ownershipType === "personal" && (
+    !workspaceRow.owner_user_id || String(workspaceRow.owner_user_id) !== user
+  )) {
+    return denied(
+      "connection_ownership_scope_denied",
+      PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
+      { workspace_id_present: true, brand_ref_present: Boolean(requestedBrandRef) },
+    );
+  }
+
+  let ownerScopeType = ownershipType === "personal" ? "personal_workspace" : "company_workspace";
   let ownerScopeRef = workspace;
-  let credentialScope = null;
-  let brandRef = null;
+  let credentialScope = ownershipType === "personal" ? "user_connection" : "tenant_connection";
   let brandAuthoritySource = null;
 
-  if (workspaceType === "brand") {
-    brandRef = compact(workspaceRow.linked_brand_key, 191);
-    if (!brandRef) {
-      return denied(
-        "brand_connection_authority_required",
-        PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
-        { workspace_id_present: true },
-      );
-    }
-    const brandAuthority = await resolveBrandConnectionUseAuthority({ pool, tenant, user, brandRef });
+  if (requestedBrandRef) {
+    const brandAuthority = await resolveBrandConnectionUseAuthority({
+      pool,
+      tenant,
+      user,
+      brandRef: requestedBrandRef,
+    });
     if (!brandAuthority.allowed) {
       return denied(
         "brand_connection_authority_required",
         PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
-        { workspace_id_present: true },
+        {
+          workspace_id_present: true,
+          brand_ref_present: true,
+          workspace_ownership_type: ownershipType,
+        },
       );
     }
     ownerScopeType = "brand";
-    ownerScopeRef = brandRef;
+    ownerScopeRef = requestedBrandRef;
     credentialScope = "tenant_connection";
     brandAuthoritySource = brandAuthority.source;
-  } else if (ownershipType === "personal") {
-    if (!workspaceRow.owner_user_id || String(workspaceRow.owner_user_id) !== user) {
-      return denied(
-        "connection_ownership_scope_denied",
-        PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
-        { workspace_id_present: true },
-      );
-    }
-    ownerScopeType = "personal_workspace";
-    credentialScope = "user_connection";
-  } else if (ownershipType === "company") {
-    ownerScopeType = "company_workspace";
-    credentialScope = "tenant_connection";
-  } else {
-    return denied(
-      "connection_ownership_scope_denied",
-      PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
-      { workspace_id_present: true },
-    );
   }
 
   const connectionQuery = ownerScopeType === "brand"
-    ? pool.query(BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL, [tenant, workspace, plugin, ownerScopeRef, brandRef])
+    ? pool.query(BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL, [
+      tenant,
+      workspace,
+      plugin,
+      ownerScopeRef,
+      requestedBrandRef,
+    ])
     : pool.query(OWNERSHIP_SCOPED_CONNECTION_SQL, [
       tenant,
       workspace,
@@ -284,6 +298,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     workspace_ownership_type: ownershipType,
     owner_scope_type: ownerScopeType,
     owner_scope_ref: ownerScopeRef,
+    brand_ref: requestedBrandRef,
     ownership_revision: Number(workspaceRow.ownership_revision || 0),
     connections,
     row_count: connections.length,
