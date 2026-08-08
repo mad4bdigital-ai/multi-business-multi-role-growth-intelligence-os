@@ -4,6 +4,7 @@
   "feature_key": "tenant-request-identity-collation-repair",
   "title": "Tenant request identity collation repair",
   "delivery_mode": "single_pr",
+  "secrets_included": false,
   "current_phase": "mvp",
   "scope": {
     "include": [
