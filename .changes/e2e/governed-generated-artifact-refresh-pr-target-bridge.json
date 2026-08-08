@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json"
@@ -44,6 +45,7 @@
             "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
             "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
             "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
+            "Verify the read-only PR generated-artifact evaluator remains pinned to the explicit ubuntu-24.04 runner after post-allocation report-path initialization.",
             "Run the focused bridge contract through this E2E journey."
           ],
           "assertions": [
@@ -59,6 +61,7 @@
             "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "The read-only PR generated-artifact evaluator uses explicit ubuntu-24.04 rather than the mutable ubuntu-latest alias.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
             "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
           ],
@@ -73,6 +76,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
           ]
