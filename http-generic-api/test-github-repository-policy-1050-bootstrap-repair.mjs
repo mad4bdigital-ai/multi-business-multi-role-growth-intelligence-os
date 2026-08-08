@@ -62,6 +62,11 @@ assert.match(repairSql, /'type','boolean'/);
 assert.match(repairSql, /'required_approving_review_count_single_owner',0/);
 assert.match(repairSql, /'required_approving_review_count_independent',1/);
 assert.match(repairSql, /'Single Owner Review Gate'/);
+assert.match(
+  repairSql,
+  /'required_checks',JSON_OBJECT\('type','array','minItems',7,'maxItems',7,'items',JSON_OBJECT\('type','string'\)\)/,
+  'repository policy tool schema must accept exactly the seven canonical required checks'
+);
 
 assert.match(repairSql, /'live_github_policy_apply',false/);
 assert.match(repairSql, /'live_apply_authorized',false/);
