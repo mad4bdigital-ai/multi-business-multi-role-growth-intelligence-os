@@ -294,14 +294,16 @@ async function resolveOwnerScope({
   });
   const ownershipType = validateWorkspaceOwnership(workspace, request);
 
+  if (ownershipType === "personal" && workspace.ownerUserRef !== actor.userRef) {
+    fail(
+      "provider_consent_personal_owner_mismatch",
+      "Personal workspace owner does not match the authenticated user.",
+      403,
+      { workspace_ref: request.workspaceRef },
+    );
+  }
+
   if (request.brandRef) {
-    if (ownershipType === "personal") {
-      fail(
-        "provider_consent_brand_on_personal_workspace_forbidden",
-        "Brand provider consent cannot be attached to a personal workspace.",
-        409,
-      );
-    }
     const authority = await brandManagementAuthorityRepository.findBrandManagementAuthority({
       tenantRef: request.tenantRef,
       workspaceRef: request.workspaceRef,
@@ -347,14 +349,6 @@ async function resolveOwnerScope({
   }
 
   if (ownershipType === "personal") {
-    if (workspace.ownerUserRef !== actor.userRef) {
-      fail(
-        "provider_consent_personal_owner_mismatch",
-        "Personal workspace owner does not match the authenticated user.",
-        403,
-        { workspace_ref: request.workspaceRef },
-      );
-    }
     return Object.freeze({
       ownerScopeType: "personal_workspace",
       ownerScopeRef: request.workspaceRef,

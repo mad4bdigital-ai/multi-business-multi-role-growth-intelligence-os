@@ -2,6 +2,13 @@ import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { buildSqlCacheOperationalDiagnostics } from "./sqlCacheOperationalDiagnostics.js";
 import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
+import { evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";
+import {
+  CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY,
+  buildCapabilityDriftTenantNotificationKey,
+  capabilityDriftNotificationEligible,
+  evaluateCapabilityDriftTenantTargets,
+} from "./capabilityDriftNotificationFanoutPolicy.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|value_ciphertext|system_prompt|raw_prompt|payload_json)/i;
 const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
@@ -555,13 +562,63 @@ function parseConfigJson(value) {
 }
 
 function notificationEligible(item = {}) {
-  if (item.source_type === CAPABILITY_DRIFT_SOURCE) return false;
+  if (item.source_type === CAPABILITY_DRIFT_SOURCE) return capabilityDriftNotificationEligible(item);
   if (!["critical", "high"].includes(item.severity)) return false;
   if (!OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)) return false;
   if (item.verification_state !== "verified") return false;
   if (!item.source_record_id) return false;
   if (["source_data_quality", "task_state_inconsistent"].includes(item.reason_code)) return false;
   return true;
+}
+
+function notificationCandidateFromPersisted(item = {}, row = {}) {
+  if (item.source_type !== CAPABILITY_DRIFT_SOURCE) {
+    return {
+      ...item,
+      severity: row.severity || item.severity,
+      lifecycle_status: row.lifecycle_status || item.lifecycle_status,
+    };
+  }
+  return {
+    ...item,
+    source_type: row.source_type || item.source_type,
+    source_record_id: row.source_record_id || item.source_record_id,
+    severity: row.severity || item.severity,
+    lifecycle_status: row.lifecycle_status || item.lifecycle_status,
+    verification_state: row.verification_state || item.verification_state,
+    evidence: parseConfigJson(row.evidence_json, item.evidence || {}),
+    notification_episode_started_at: row.notification_episode_started_at || null,
+  };
+}
+
+async function resolveCapabilityDriftNotificationTargets(connection) {
+  const maxTargets = CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.max_tenant_targets;
+  try {
+    const [rows] = await connection.query(
+      `SELECT DISTINCT m.tenant_id
+         FROM memberships m
+         JOIN tenants t ON t.tenant_id = m.tenant_id
+        WHERE m.status = 'active'
+          AND t.status = 'active'
+          AND m.tenant_id IS NOT NULL
+        ORDER BY m.tenant_id ASC
+        LIMIT ?`,
+      [maxTargets + 1]
+    );
+    return evaluateCapabilityDriftTenantTargets(rows);
+  } catch (error) {
+    return {
+      policy_key: CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.policy_key,
+      status: "skipped_fail_closed",
+      reason: "active_tenant_target_resolution_failed",
+      error_code: String(error?.code || "tenant_target_resolution_failed").slice(0, 191),
+      max_targets: maxTargets,
+      observed_min_count: 0,
+      target_count: 0,
+      tenant_ids: [],
+      external_send: false,
+    };
+  }
 }
 
 function mapPersistedAlert(row, { subject = null } = {}) {
@@ -637,17 +694,33 @@ function mergeCandidates(items = []) {
     const lifecycleStatus = persistedLifecycleClosed
       ? hasNewerLiveOccurrence ? "open" : persisted.lifecycle_status
       : persisted?.lifecycle_status || current.lifecycle_status || item.lifecycle_status;
+    const capabilityDriftMerge = current.source_type === CAPABILITY_DRIFT_SOURCE
+      || item.source_type === CAPABILITY_DRIFT_SOURCE;
+    const preservePersistedCapabilitySeverity = capabilityDriftMerge
+      && !(persistedLifecycleClosed && hasNewerLiveOccurrence);
+    const mergedSeverity = preservePersistedCapabilitySeverity
+      ? (safeNumber(SEVERITY_WEIGHT[item.severity]) > safeNumber(SEVERITY_WEIGHT[current.severity])
+          ? item.severity
+          : current.severity)
+      : latest.severity;
+    const mergedFirstSeenAt = capabilityDriftMerge
+      && persistedLifecycleClosed
+      && hasNewerLiveOccurrence
+      && live
+      ? live.first_seen_at
+      : earliest.first_seen_at;
     merged.set(item.alert_key, {
       ...current,
       ...latest,
       alert_id: persisted?.alert_id || current.alert_id || item.alert_id,
+      severity: mergedSeverity,
       lifecycle_status: lifecycleStatus,
       lifecycle_updated_at: persisted?.lifecycle_updated_at || current.lifecycle_updated_at || item.lifecycle_updated_at || null,
       verification_state: VERIFICATION_WEIGHT[item.verification_state] > VERIFICATION_WEIGHT[current.verification_state]
         ? item.verification_state
         : current.verification_state,
       occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),
-      first_seen_at: earliest.first_seen_at,
+      first_seen_at: mergedFirstSeenAt,
       last_seen_at: latest.last_seen_at,
       manual_known_issue: current.manual_known_issue || item.manual_known_issue,
       persisted: current.persisted || item.persisted,
@@ -1172,8 +1245,44 @@ function dbDate(value) {
   return date.toISOString().slice(0, 19).replace("T", " ");
 }
 
-async function upsertAlert(connection, item, syncRunId) {
-  const alertId = item.alert_id || randomUUID();
+async function upsertAlert(connection, item, syncRunId, requestedBy = "operational_alert_sync") {
+  let priorCapabilityAlert = null;
+  let capabilityAgeEscalation = null;
+  if (item.source_type === CAPABILITY_DRIFT_SOURCE) {
+    const [priorRows] = await connection.query(
+      `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, first_seen_at, last_seen_at,
+              operation_fingerprint_sha256, resource_fingerprint_sha256
+         FROM operational_alerts
+        WHERE alert_key = ?
+        LIMIT 1
+        FOR UPDATE`,
+      [item.alert_key]
+    );
+    priorCapabilityAlert = priorRows[0] || null;
+    const priorClosed = Boolean(priorCapabilityAlert && ["resolved", "ignored"].includes(priorCapabilityAlert.lifecycle_status));
+    const episodeFirstSeenAt = priorClosed
+      ? item.first_seen_at
+      : priorCapabilityAlert?.first_seen_at || item.first_seen_at;
+    const episodeCurrentSeverity = priorClosed
+      ? item.severity
+      : priorCapabilityAlert?.severity || item.severity;
+    capabilityAgeEscalation = evaluateCapabilityDriftAgeEscalation({
+      baseSeverity: item.severity,
+      currentSeverity: episodeCurrentSeverity,
+      firstSeenAt: episodeFirstSeenAt,
+      observedAt: new Date(),
+    });
+    item = {
+      ...item,
+      severity: capabilityAgeEscalation.effective_severity,
+      first_seen_at: episodeFirstSeenAt,
+      evidence: sanitizeEvidence({
+        ...(item.evidence || {}),
+        age_escalation: capabilityAgeEscalation,
+      }),
+    };
+  }
+  const alertId = item.alert_id || priorCapabilityAlert?.alert_id || randomUUID();
   await connection.query(
     `INSERT INTO operational_alerts
       (alert_id, alert_key, fingerprint_sha256, operation_fingerprint_sha256, resource_fingerprint_sha256,
@@ -1195,7 +1304,12 @@ async function upsertAlert(connection, item, syncRunId) {
        occurrence_count = CASE
          WHEN VALUES(source_type) = 'v_platform_capability_gaps' THEN occurrence_count + 1
          ELSE VALUES(occurrence_count)
-       END, first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),
+       END,
+       first_seen_at = CASE
+         WHEN VALUES(source_type) = 'v_platform_capability_gaps' AND lifecycle_status IN ('resolved','ignored')
+           THEN VALUES(first_seen_at)
+         ELSE LEAST(first_seen_at, VALUES(first_seen_at))
+       END,
        last_seen_at = GREATEST(last_seen_at, VALUES(last_seen_at)), last_sync_run_id = VALUES(last_sync_run_id),
        recommended_action_key = VALUES(recommended_action_key), requires_confirmation = VALUES(requires_confirmation),
        lifecycle_status = IF(lifecycle_status IN ('resolved','ignored'), 'open', lifecycle_status),
@@ -1234,11 +1348,59 @@ async function upsertAlert(connection, item, syncRunId) {
       item.manual_known_issue ? 1 : 0,
     ]
   );
+  if (priorCapabilityAlert && capabilityAgeEscalation?.age_escalated) {
+    const nextRevision = safeNumber(priorCapabilityAlert.lifecycle_revision) + 1;
+    const actorId = String(requestedBy || "operational_alert_sync").slice(0, 191);
+    const fromSeverity = priorCapabilityAlert.severity || item.severity;
+    const toSeverity = capabilityAgeEscalation.effective_severity;
+    const note = `Capability drift remained unresolved for ${capabilityAgeEscalation.blocker_age_hours} hour(s); severity escalated from ${fromSeverity} to ${toSeverity}.`;
+    const idempotencyKey = `sync:${syncRunId}:severity_escalated:${fromSeverity}:${toSeverity}`.slice(0, 191);
+    await connection.query(
+      `UPDATE operational_alerts
+          SET lifecycle_revision = lifecycle_revision + 1, updated_at = CURRENT_TIMESTAMP
+        WHERE alert_key = ?`,
+      [item.alert_key]
+    );
+    await connection.query(
+      `INSERT INTO operational_alert_lifecycle_events
+        (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,
+         from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,
+         operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, sync_run_id, secrets_included)
+       VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 'severity_escalated', ?, 'system_age_escalation', ?, ?, ?, ?, ?, ?, 0)
+       ON DUPLICATE KEY UPDATE event_id = event_id`,
+      [
+        randomUUID(),
+        priorCapabilityAlert.alert_id,
+        item.alert_key,
+        item.source_type,
+        item.source_record_id,
+        priorCapabilityAlert.lifecycle_status,
+        priorCapabilityAlert.lifecycle_status,
+        nextRevision,
+        actorId,
+        note,
+        idempotencyKey,
+        priorCapabilityAlert.operation_fingerprint_sha256,
+        priorCapabilityAlert.resource_fingerprint_sha256,
+        JSON.stringify(sanitizeEvidence({
+          sync_run_id: syncRunId,
+          from_severity: fromSeverity,
+          to_severity: toSeverity,
+          lifecycle_status: priorCapabilityAlert.lifecycle_status,
+          age_escalation: capabilityAgeEscalation,
+        })),
+        syncRunId,
+      ]
+    );
+  }
   const [rows] = await connection.query(
-    "SELECT alert_id, lifecycle_status FROM operational_alerts WHERE alert_key = ? LIMIT 1",
+    `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, verification_state, source_type,
+            source_record_id, reason_code, title, recommended_action_key, tenant_id, user_id, evidence_json,
+            first_seen_at, last_seen_at, DATE_FORMAT(first_seen_at, '%Y-%m-%d %H:%i:%s') AS notification_episode_started_at
+       FROM operational_alerts WHERE alert_key = ? LIMIT 1`,
     [item.alert_key]
   );
-  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status };
+  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status, severity: item.severity };
 }
 
 export async function synchronizeOperationalAlerts({
@@ -1258,6 +1420,15 @@ export async function synchronizeOperationalAlerts({
   let resolved = 0;
   let notificationsSkipped = 0;
   let resolutionSkipped = false;
+  let capabilityNotificationFanout = {
+    policy_key: CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.policy_key,
+    status: "not_applicable",
+    reason: null,
+    max_targets: CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.max_tenant_targets,
+    target_count: 0,
+    queued_count: 0,
+    external_send: false,
+  };
   try {
     await connection.beginTransaction();
     await connection.query(
@@ -1268,7 +1439,7 @@ export async function synchronizeOperationalAlerts({
       [runId, subject.tenant_id, subject.user_id, requestedBy, JSON.stringify(collected.source_health), collected.alerts.length]
     );
     for (const item of collected.alerts) {
-      const row = await upsertAlert(connection, item, runId);
+      const row = await upsertAlert(connection, item, runId, requestedBy);
       persistedCandidates.push({ item, row });
       upserted += 1;
     }
@@ -1294,15 +1465,100 @@ export async function synchronizeOperationalAlerts({
             OR a.severity NOT IN ('critical','high')
             OR COALESCE(a.last_sync_run_id, '') <> ?
             OR a.verification_state <> 'verified'
-            OR o.notification_key <> CONCAT(a.alert_key, ':', a.severity, ':open')
+            OR o.notification_key <> CASE
+              WHEN a.source_type = 'v_platform_capability_gaps' THEN CONCAT(
+                a.alert_key, ':', a.severity, ':open:t:',
+                LEFT(SHA2(COALESCE(o.tenant_id, ''), 256), 24), ':e:',
+                LEFT(SHA2(DATE_FORMAT(a.first_seen_at, '%Y-%m-%d %H:%i:%s'), 256), 12)
+              )
+              ELSE CONCAT(a.alert_key, ':', a.severity, ':open')
+            END
+            OR (
+              a.source_type = 'v_platform_capability_gaps'
+              AND (
+                o.tenant_id IS NULL
+                OR NOT EXISTS (
+                  SELECT 1
+                    FROM memberships m
+                    JOIN tenants t ON t.tenant_id = m.tenant_id
+                   WHERE m.tenant_id = o.tenant_id
+                     AND m.status = 'active'
+                     AND t.status = 'active'
+                   LIMIT 1
+                )
+              )
+            )
           )`,
       [...outboxParams, runId]
     );
     notificationsSkipped = safeNumber(skipResult?.affectedRows);
 
-    for (const { item, row } of persistedCandidates) {
-      if (!notificationEligible({ ...item, lifecycle_status: row.lifecycle_status })) continue;
-      const notificationKey = `${item.alert_key}:${item.severity}:open`;
+    const notificationCandidates = persistedCandidates.map(({ item, row }) => ({
+      item,
+      row,
+      effective: notificationCandidateFromPersisted(item, row),
+    }));
+    const eligibleCapabilityNotifications = notificationCandidates.filter(({ effective }) =>
+      effective.source_type === CAPABILITY_DRIFT_SOURCE && notificationEligible(effective)
+    );
+    if (eligibleCapabilityNotifications.length > 0) {
+      capabilityNotificationFanout = subject.is_admin
+        ? await resolveCapabilityDriftNotificationTargets(connection)
+        : {
+            ...capabilityNotificationFanout,
+            status: "skipped_fail_closed",
+            reason: "platform_admin_sync_required_for_capability_fanout",
+          };
+    }
+
+    for (const { item, row, effective } of notificationCandidates) {
+      if (!notificationEligible(effective)) continue;
+      if (effective.source_type === CAPABILITY_DRIFT_SOURCE) {
+        if (capabilityNotificationFanout.status !== "ready") continue;
+        for (const tenantId of capabilityNotificationFanout.tenant_ids) {
+          const notificationKey = buildCapabilityDriftTenantNotificationKey(
+            effective.alert_key,
+            effective.severity,
+            tenantId,
+            effective.notification_episode_started_at
+          );
+          const [result] = await connection.query(
+            `INSERT INTO operational_alert_notification_outbox
+              (notification_id, notification_key, alert_id, tenant_id, user_id, channel,
+               recipient_scope, delivery_status, payload_summary_json, created_at, updated_at)
+             VALUES (?, ?, ?, ?, NULL, 'in_app', 'active_tenant_members', 'pending', ?, NOW(), NOW())
+             ON DUPLICATE KEY UPDATE
+               alert_id = VALUES(alert_id), tenant_id = VALUES(tenant_id), user_id = NULL,
+               payload_summary_json = VALUES(payload_summary_json),
+               delivery_status = IF(delivery_status IN ('skipped','failed'), 'pending', delivery_status),
+               error_code = NULL, error_message = NULL, updated_at = CURRENT_TIMESTAMP`,
+            [
+              randomUUID(),
+              notificationKey,
+              row.alert_id,
+              tenantId,
+              JSON.stringify({
+                title: effective.title,
+                severity: effective.severity,
+                reason_code: effective.reason_code,
+                source_type: CAPABILITY_DRIFT_SOURCE,
+                recommended_action_key: effective.recommended_action_key || null,
+                fanout_policy_key: CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.policy_key,
+              }),
+            ]
+          );
+          if (safeNumber(result?.affectedRows) > 0) {
+            queued += 1;
+            capabilityNotificationFanout.queued_count += 1;
+          }
+        }
+        capabilityNotificationFanout = {
+          ...capabilityNotificationFanout,
+          status: "queued",
+        };
+        continue;
+      }
+      const notificationKey = `${effective.alert_key}:${effective.severity}:open`;
       const [result] = await connection.query(
         `INSERT INTO operational_alert_notification_outbox
           (notification_id, notification_key, alert_id, tenant_id, user_id, channel,
@@ -1313,9 +1569,13 @@ export async function synchronizeOperationalAlerts({
            payload_summary_json = VALUES(payload_summary_json),
            delivery_status = IF(delivery_status IN ('skipped','failed'), 'pending', delivery_status),
            error_code = NULL, error_message = NULL, updated_at = CURRENT_TIMESTAMP`,
-        [randomUUID(), notificationKey, row.alert_id, item.tenant_id, item.user_id, JSON.stringify({ title: item.title, severity: item.severity, reason_code: item.reason_code })]
+        [randomUUID(), notificationKey, row.alert_id, effective.tenant_id, effective.user_id, JSON.stringify({ title: effective.title, severity: effective.severity, reason_code: effective.reason_code })]
       );
       if (safeNumber(result?.affectedRows) > 0) queued += 1;
+    }
+    if (capabilityNotificationFanout.tenant_ids) {
+      const { tenant_ids: _tenantIds, ...safeFanout } = capabilityNotificationFanout;
+      capabilityNotificationFanout = safeFanout;
     }
 
     await connection.query(
@@ -1357,6 +1617,7 @@ export async function synchronizeOperationalAlerts({
     resolved_count: resolved,
     notification_queued_count: queued,
     notification_skipped_count: notificationsSkipped,
+    capability_notification_fanout: capabilityNotificationFanout,
     degraded_sources: incompleteSources,
     resolution_skipped_due_to_degraded_sources: resolutionSkipped,
     readback,
@@ -1589,6 +1850,7 @@ export const _testingOperationalAlerts = {
   executionRecoveryKey,
   groupSkillApprovalRows,
   notificationEligible,
+  notificationCandidateFromPersisted,
   mapPersistedAlert,
   summarize,
   executionSeverity,

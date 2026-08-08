@@ -150,6 +150,12 @@ The tool verifies both local and remote head identity before generation, before 
 
 Its canonical report contract is `mad4b.governed-generated-artifact-refresh.v1`. The JSON and Markdown report are uploaded before enforcement and declare `secrets_included: false` and `job_logs_role: diagnostic_only`.
 
+The report also identifies the selected registered recipe. Ordinary candidates remain on `frontend_openapi_refresh`. A `work_map_self_hosting_bootstrap` recipe is eligible only when the exact candidate changes a registered Work Map self-hosting trigger and every candidate source path remains inside the bounded writer, maintenance-governance, evidence-publisher, E2E/regression, or canonical generated-output scope. Unrelated runtime or product files fail closed before generation.
+
+The Work Map bootstrap recipe does not execute pull-request workflow YAML with write authority. The trusted default-branch generated-artifact workflow still owns the mutation. It checks out the exact authorized candidate, regenerates Work Maps, refreshes Hostinger and Retail Spec014 bindings, repeats the complete convergence to prove idempotency, runs Work Map and both binding check modes, then permits only `docs/work-maps/**` and the registered Spec014 binding outputs to be committed by normal fast-forward push. The trusted apply publisher independently revalidates the recipe, candidate source scope, and changed-file allowlist before publishing canonical evidence.
+
+After a successful Work Map bootstrap write, the resulting exact head must pass the existing Work Map Recovery lifecycle. Recovery remains the authority that proves the canonical Work Map writer observes no further generated delta and dispatches exact-head CI plus Spec Kit Work Map Integration. The bootstrap does not weaken Work Map fingerprints, source hashes, protected-ref restrictions, or the one-writer lifecycle.
+
 After the governed tool determines the resulting exact head, the workflow dispatches the work-branch `PR Generated Artifact Refresh` evaluator for that SHA. This closes the GitHub Actions token boundary where a bot-authored generated commit would otherwise not start pull-request checks automatically.
 
 ## Repository Tool Lifecycle Governance

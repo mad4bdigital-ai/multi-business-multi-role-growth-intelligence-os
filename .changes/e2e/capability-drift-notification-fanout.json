@@ -1,0 +1,70 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "capability-drift-notification-fanout",
+  "title": "Queue bounded tenant in-app attention for persistent capability drift",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/capability-drift-notification-fanout.json",
+      "http-generic-api/capabilityDriftNotificationFanoutPolicy.js",
+      "http-generic-api/operationalAlertService.js",
+      "http-generic-api/test-operational-alerting-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Fan out only persistent high/critical tenant-visible capability blockers into the existing in-app notification outbox, using active tenant membership authority and bounded fail-closed target resolution without external delivery or duplicate alert storage.",
+      "e2e_journeys": [
+        {
+          "id": "persistent-capability-blocker-queues-bounded-active-tenant-in-app-attention",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform Admin operational-alert synchronizer",
+          "entrypoint": "POST /activation/operational-attention/sync",
+          "terminal_outcome": "A tenant-visible capability blocker that remains unresolved for at least 24 hours and is effectively high/critical queues one tenant-bound in-app outbox intent per active tenant with active membership, while inactive tenants, premature blockers, resolved alerts, over-cap target sets, email/webhook delivery, and external sends remain excluded.",
+          "steps": [
+            "Persist and age-escalate the global tenant-visible capability alert through the existing operational_alerts lifecycle.",
+            "Evaluate capability notification eligibility from the persisted severity and persisted age_escalation evidence rather than the pre-upsert live snapshot.",
+            "Resolve distinct targets only from memberships joined to tenants where both membership and tenant are active.",
+            "Bound the target query at max_tenant_targets plus one and fail closed without partial fan-out when the cap is exceeded.",
+            "Create deterministic tenant-bound notification keys in the existing operational_alert_notification_outbox using in_app and active_tenant_members only.",
+            "Reconcile pending tenant-bound capability outbox rows when the alert resolves, severity drops, verification becomes stale, sync identity changes, or the tenant no longer has active membership authority.",
+            "Return bounded fan-out diagnostics while keeping alert persistence successful when fan-out target resolution is skipped fail-closed."
+          ],
+          "assertions": [
+            "Capability drift requires age_escalation policy capability_drift_age_escalation_v1 and blocker_age_hours >= 24 before notification eligibility.",
+            "The persisted effective severity, not the original live candidate severity, controls capability notification eligibility.",
+            "Only active tenants with at least one active membership become fan-out targets.",
+            "More than 1000 active tenant targets produces skipped_fail_closed with no partial tenant_ids.",
+            "Notification keys are tenant-bound, deterministic, unique-safe, and no longer than the existing 255-character column.",
+            "Capability fan-out uses channel=in_app and recipient_scope=active_tenant_members; email, webhook, provider calls, and external sends are not introduced.",
+            "One global operational_alerts row remains authoritative; no per-tenant alert rows or new tables are added.",
+            "No Migration, tenant mutation endpoint, managed repair execution, Production action, secret read, rebase, or force push is introduced."
+          ],
+          "tests": [
+            {
+              "id": "capability-drift-notification-fanout-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-operational-alerting-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/capability-drift-notification-fanout.json",
+            "http-generic-api/capabilityDriftNotificationFanoutPolicy.js",
+            "http-generic-api/operationalAlertService.js",
+            "http-generic-api/test-operational-alerting-control-plane.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
