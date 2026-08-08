@@ -1,0 +1,50 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-binding-refresh-trigger-6629-7a28649b-v2",
+  "title": "Temporary paginated-safe governed Spec014 binding refresh trigger",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+    ]
+  },
+  "merge_contract": {"minimum_phase": "mvp"},
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Trigger the paginated-safe temporary governed writer only; this pull request must never merge.",
+      "e2e_journeys": [
+        {
+          "id": "spec014-binding-refresh-trigger-v2",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner",
+          "entrypoint": "temporary pull request opened against the v2 writer-base branch",
+          "terminal_outcome": "The writer consumes the exact-head authorization once and updates only the two Spec014 manifests on the canonical PR branch.",
+          "steps": [
+            "Validate exact canonical PR head, main ancestry, one-file trigger, and paginated authorization evidence.",
+            "Consume the one-time exact-head authorization.",
+            "Run the canonical producer in write mode before regression checks.",
+            "Prove final readback and producer idempotency.",
+            "Push only the two manifest files using a fast-forward candidate-branch update."
+          ],
+          "assertions": [
+            "This trigger PR never merges.",
+            "No protected branch, database, Production, provider, or Ruleset mutation occurs.",
+            "Blocked pre-consume execution reports authorization_consumed=false.",
+            "The canonical branch push is exact-head CAS protected and never forced."
+          ],
+          "tests": [],
+          "evidence_paths": [
+            ".github/workflows/temp-spec014-binding-writer-6629-7a28649b-v2.yml"
+          ]
+        }
+      ]
+    }
+  ]
+}
