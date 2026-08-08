@@ -26,6 +26,8 @@ assert.match(script, /runCapabilityResolutionDryRun/);
 assert.match(script, /--principal-type/);
 assert.match(script, /--principal-id/);
 assert.match(script, /--resource-uri/);
+assert.match(script, /--resource-branch/);
+assert.match(script, /--expected-commit-sha/);
 assert.match(script, /--operation-mode/);
 assert.match(script, /exact_platform_resource_authority_present/);
 assert.match(script, /workspaceGrantPrincipalId = principal\.principal_id/);
@@ -40,17 +42,19 @@ assert.doesNotMatch(script, /fetch\(|axios|child_process|exec\(|spawn\(/);
 assert.doesNotMatch(script, /endsWith\(["']_service["']\)/);
 assert.doesNotMatch(script, /userRole\s*===\s*["']admin["']/);
 
-const tenantId = "11111111-1111-4111-8111-111111111111";
-const workspaceId = "22222222-2222-4222-8222-222222222222";
+const tenantId = "tenant-capability-authority-test";
+const workspaceId = "workspace-capability-authority-test";
 const resourceUri = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
+const resourceBranch = "gpt/019-governed-database-lifecycle-pressure-relief-20260807";
+const expectedCommitSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const principal = { principal_type: "service", principal_id: "platform_admin_service" };
 const resourceRef = {
-  branch: "gpt/019-governed-database-lifecycle-pressure-relief-20260807",
-  expected_commit_sha: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  branch: resourceBranch,
+  expected_commit_sha: expectedCommitSha,
   principal,
 };
 const exactBinding = {
-  binding_id: "270b0d29-c7fc-4520-83f3-630162861ff7",
+  binding_id: "binding-platform-admin-service-test",
   tenant_id: tenantId,
   workspace_id: workspaceId,
   user_id: principal.principal_id,
@@ -70,6 +74,8 @@ const exactAuthorityArgs = {
   workspaceId,
   resourceType: "github_repo",
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey: "repo_patch_batch_apply",
   operationMode: "atomic_change_set",
   now: new Date("2026-08-08T08:00:00.000Z"),
@@ -86,6 +92,8 @@ const exactAuthorityStatus = authorityStatus({
   principal,
   resourceType: "github_repo",
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey: "repo_patch_batch_apply",
   operationMode: "atomic_change_set",
   tenantId,
@@ -98,6 +106,8 @@ const exactAuthorityStatus = authorityStatus({
   sourceTiers: { selected_source_tier: "tenant_managed" },
 });
 assert.equal(exactAuthorityStatus.exact_platform_resource_authority, true);
+assert.equal(exactAuthorityStatus.exact_platform_resource_authority_scope.resource_branch, resourceBranch);
+assert.equal(exactAuthorityStatus.exact_platform_resource_authority_scope.expected_commit_sha, expectedCommitSha);
 assert.equal(exactAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), false);
 assert.equal(exactAuthorityStatus.missing.includes("elevated_permission_missing"), false);
 assert.equal(exactAuthorityStatus.missing.includes("dispatch_certification_missing_or_not_allowed"), true);
@@ -138,6 +148,32 @@ assert.equal(hasExactAdminResourceAuthority({
   resourceUri: "github://mad4bdigital-ai/another-repo",
 }), false);
 
+// Branch and expected commit are part of the exact authority scope.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "gpt/different-branch",
+}), false);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  expectedCommitSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+}), false);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "",
+}), true);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "",
+  bindings: [
+    exactBinding,
+    {
+      ...exactBinding,
+      binding_id: "binding-ambiguous-branch-test",
+      resource_ref_json: JSON.stringify({ ...resourceRef, branch: "gpt/another-same-sha-branch" }),
+    },
+  ],
+}), false);
+
 // Case C: expired bindings never authorize.
 assert.equal(hasExactAdminResourceAuthority({
   ...exactAuthorityArgs,
@@ -157,7 +193,7 @@ assert.equal(hasExactAdminResourceAuthority({
 }), false);
 
 // Case F: tenant/user principals cannot borrow platform service authority.
-const tenantPrincipal = { principal_type: "user", principal_id: "33333333-3333-4333-8333-333333333333" };
+const tenantPrincipal = { principal_type: "user", principal_id: "tenant-user-authority-test" };
 assert.equal(hasExactAdminResourceAuthority({ ...exactAuthorityArgs, principal: tenantPrincipal }), false);
 const tenantAuthorityStatus = authorityStatus({
   workspace: { workspace_id: workspaceId },
@@ -166,6 +202,8 @@ const tenantAuthorityStatus = authorityStatus({
   principal: tenantPrincipal,
   resourceType: "github_repo",
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey: "repo_patch_batch_apply",
   operationMode: "atomic_change_set",
   tenantId,
@@ -188,6 +226,8 @@ const noBindingStatus = authorityStatus({
   principal,
   resourceType: "github_repo",
   resourceUri,
+  resourceBranch,
+  expectedCommitSha,
   recipeKey: "repo_patch_batch_apply",
   operationMode: "atomic_change_set",
   tenantId,
