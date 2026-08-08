@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "a82c63f7452e38a98ae114d35bc98adba9750f0427ccef153c54b9c07ddb4848",
+    "source_digest": "17ed638a61dc9d94612128b0d630b35e02475d651eec6f1d0ab8510adaa9b9ae",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -336,7 +336,7 @@
       },
       {
         "file": "routes/activationAwarenessRoutes.js",
-        "sha256": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+        "sha256": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
         "present": true
       },
       {
@@ -491,7 +491,7 @@
       },
       {
         "file": "routes/connectorProxyRoutes.js",
-        "sha256": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
+        "sha256": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
         "present": true
       },
       {
@@ -13393,7 +13393,7 @@
       "family_key": "activation-awareness.tenant",
       "label": "activation awareness (tenant)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
       "mount_prefix": "/",
       "mount_order": 14253,
       "split_from_mixed_scope_file": true,
@@ -14424,7 +14424,7 @@
       "family_key": "activation-awareness.unresolved",
       "label": "activation awareness (unresolved)",
       "source_file": "routes/activationAwarenessRoutes.js",
-      "source_digest": "202990f18eb2349671a6e8540ea12063c99978d63c71de9afc6810a9e46a253e",
+      "source_digest": "ba36774899e9e8cd59be00028def7fb7f64e9e659b87413f5a52ebc8293a34b7",
       "mount_prefix": "/",
       "mount_order": 14253,
       "split_from_mixed_scope_file": true,
@@ -83478,7 +83478,7 @@
       "family_key": "connector-proxy.admin",
       "label": "connector proxy (admin)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
+      "source_digest": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
       "mount_prefix": "/",
       "mount_order": 21826,
       "split_from_mixed_scope_file": true,
@@ -84961,7 +84961,7 @@
       "family_key": "connector-proxy.local_device",
       "label": "connector proxy (local_device)",
       "source_file": "routes/connectorProxyRoutes.js",
-      "source_digest": "14c99a514426d4359f574793bdd2918bc4435a801522c7fb4c68052c9e8fac6e",
+      "source_digest": "10dfe0966ed696dba7071dd736ffe791e302885688a91552032aa85f71796f0c",
       "mount_prefix": "/",
       "mount_order": 21826,
       "split_from_mixed_scope_file": true,

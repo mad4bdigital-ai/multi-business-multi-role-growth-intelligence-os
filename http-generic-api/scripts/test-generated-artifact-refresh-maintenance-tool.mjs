@@ -108,6 +108,24 @@ runCheck("tool-canonical-auth-repair", () => {
   const dispatchIndex = toolSource.indexOf("generate_frontend_dispatch");
   assert.ok(authSyncIndex >= 0 && dispatchIndex > authSyncIndex, "auth repair must precede frontend projection generation");
 });
+runCheck("tool-work-map-self-hosting-bootstrap", () => {
+  assert.match(toolSource, /work_map_self_hosting_bootstrap/u);
+  assert.match(toolSource, /work_map_self_hosting_scope_violation/u);
+  assert.match(toolSource, /"git", \["diff", "--name-only", "main", "HEAD"\]/u);
+  assert.match(toolSource, /\.github\/workflows\/spec-kit-work-map-autofix\.yml/u);
+  assert.match(toolSource, /scripts\/platform-work-map-generator\.mjs", "--write"/u);
+  assert.match(toolSource, /scripts\/spec014-refresh-final-work-map-binding\.mjs/u);
+  assert.match(toolSource, /014-retail-commerce-operations-growth-os/u);
+  assert.match(toolSource, /capture_first_work_map_bootstrap_diff/u);
+  assert.match(toolSource, /capture_second_work_map_bootstrap_diff/u);
+  assert.match(toolSource, /work_map_self_hosting_not_idempotent/u);
+  assert.match(toolSource, /verify_work_maps_current/u);
+  assert.match(toolSource, /verify_hostinger_spec014_binding_current/u);
+  assert.match(toolSource, /verify_retail_spec014_binding_current/u);
+  assert.match(toolSource, /docs\/work-maps/u);
+  assert.match(toolSource, /ci-evidence-routing\\\.md/u);
+  assert.match(toolSource, /self_hosting_scope_bounded/u);
+});
 
 const workflowSource = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 runCheck("governed-workflow-dispatch-only", () => {
@@ -189,6 +207,17 @@ runCheck("maintenance-tool-registration", () => {
     registration?.allowed_changed_path_patterns?.includes("^http-generic-api/openapi/support-tickets\\.yaml$"),
     "canonical support-ticket auth repair must be explicitly governed",
   );
+  for (const requiredPattern of [
+    "^docs/work-maps/.*$",
+    "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
+    "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
+    "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
+  ]) {
+    assert.ok(
+      registration?.allowed_changed_path_patterns?.includes(requiredPattern),
+      `Work Map self-hosting bootstrap output must be registered: ${requiredPattern}`,
+    );
+  }
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
 });
 
@@ -198,6 +227,7 @@ console.log(JSON.stringify({
   checks,
   exact_head_verification_dispatch: true,
   canonical_auth_repair_registered: true,
+  work_map_self_hosting_bootstrap_registered: true,
   pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,
