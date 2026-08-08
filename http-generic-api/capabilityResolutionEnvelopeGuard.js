@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
+import { resolveExactAdminResourceAuthority } from "./scripts/capability-resolution-dry-run.mjs";
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
@@ -65,6 +66,19 @@ async function loadEnvelopeRow(pool, envelopeId) {
   return rows?.[0] || null;
 }
 
+async function loadPlatformResourceAuthorityBinding(pool, bindingId) {
+  if (!bindingId) return null;
+  const [rows] = await pool.query(
+    `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
+            recipe_key, permission_level, allowed_modes_json, authority_source, status, expires_at, created_at
+       FROM platform_resource_authority_bindings
+      WHERE binding_id = ?
+      LIMIT 1`,
+    [bindingId],
+  );
+  return rows?.[0] || null;
+}
+
 function envelopeCommitHint(row = {}) {
   const envelopeJson = parseJson(row.envelope_json, {});
   return compact(
@@ -107,6 +121,7 @@ function repoPatchSourceScope(source = {}, expectedCommitSha = "") {
     branch: compact(source.branch || source.resource_branch || source.resourceBranch, 255),
     expected_commit_sha: compact(
       source.expected_branch_sha || source.expectedBranchSha ||
+      source.expected_head_sha || source.expectedHeadSha ||
       source.expected_commit_sha || source.expectedCommitSha ||
       source.expected_base_sha || source.expectedBaseSha ||
       expectedCommitSha,
@@ -242,10 +257,12 @@ export async function resolveCapabilityExecutionEnvelope({
   const principalId = compact(principal.principal_id, 64);
   const authorityScope = envelopeJson?.authority?.exact_platform_resource_authority_scope || {};
   const scopeMatched = authorityScope?.matched === true;
+  const bindingId = compact(authorityScope?.binding_id, 64);
   const envelopeBranch = compact(requestContext.resource_branch || authorityScope.resource_branch, 255);
   const scopedCommitSha = compact(requestContext.expected_commit_sha || authorityScope.expected_commit_sha, 64).toLowerCase();
+  const serviceScoped = principalType === "service" || scopeMatched;
 
-  if (principalType === "service") {
+  if (serviceScoped) {
     if (!principalId || compact(row.user_id, 64) !== principalId) {
       return capabilityEnvelopeFailure("capability_resolution_envelope_service_principal_binding_mismatch", {
         envelope_id: resolvedEnvelopeId,
@@ -284,6 +301,61 @@ export async function resolveCapabilityExecutionEnvelope({
           commit_hint_required: true,
         });
       }
+    }
+  }
+
+  if (scopeMatched) {
+    if (!bindingId) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_id_missing", {
+        envelope_id: resolvedEnvelopeId,
+      });
+    }
+    let liveBinding;
+    try {
+      liveBinding = await loadPlatformResourceAuthorityBinding(db, bindingId);
+    } catch {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_revalidation_unavailable", {
+        envelope_id: resolvedEnvelopeId,
+        binding_id: bindingId,
+      });
+    }
+    if (!liveBinding) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_not_found", {
+        envelope_id: resolvedEnvelopeId,
+        binding_id: bindingId,
+      });
+    }
+    if (compact(liveBinding.status, 32).toLowerCase() !== "active") {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_inactive", {
+        envelope_id: resolvedEnvelopeId,
+        binding_id: bindingId,
+      });
+    }
+    if (liveBinding.expires_at && new Date(liveBinding.expires_at).getTime() <= Date.now()) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_expired", {
+        envelope_id: resolvedEnvelopeId,
+        binding_id: bindingId,
+      });
+    }
+
+    const revalidated = resolveExactAdminResourceAuthority({
+      principal: { principal_type: principalType, principal_id: principalId },
+      bindings: [liveBinding],
+      tenantId: compact(row.tenant_id, 64),
+      workspaceId: compact(row.workspace_id, 64),
+      resourceType: compact(requestContext.resource_type || requestContext.resourceType || (repoPatchRequest ? "github_repo" : ""), 128),
+      resourceUri: resolvedExpectedResourceUri || envelopeResourceUri,
+      resourceBranch: repoPatchRequest ? sourceScope.branch : envelopeBranch,
+      expectedCommitSha: repoPatchRequest ? sourceScope.expected_commit_sha : scopedCommitSha,
+      recipeKey: compact(requestContext.recipe_key || requestContext.recipeKey, 191),
+      operationMode: compact(requestContext.operation_mode || requestContext.operationMode, 128),
+    });
+    if (!revalidated.matched || revalidated.binding_id !== bindingId) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_resource_authority_binding_revalidation_failed", {
+        envelope_id: resolvedEnvelopeId,
+        binding_id: bindingId,
+        authority_reason: revalidated.reason || "exact_scope_mismatch",
+      });
     }
   }
 
@@ -359,7 +431,7 @@ export async function resolveCapabilityExecutionEnvelope({
     resource_uri: envelopeResourceUri || null,
     resource_branch: envelopeBranch || null,
     expected_commit_sha: scopedCommitSha || hintedSha || null,
-    principal_type: principalType || null,
+    principal_type: principalType || (scopeMatched ? "service" : null),
     principal_id: principalId || row.user_id || null,
     binding_sha256: envelopeBindingSha256 || null,
     capability_sha256: envelopeCapabilitySha256 || null,
