@@ -1,0 +1,139 @@
+name: PR 6635 Spec 014 Binding Refresh Once
+
+on:
+  push:
+    branches:
+      - fix/ci-exact-head-recovery-6634-20260807
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6635-spec014-binding-refresh-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact trigger head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Verify immutable trigger scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent="5245a7a3b7896627d4031bb5d8b507294c165416"
+          expected_main="24e3be31d71c5ae2940931ca8e9853731eb9974b"
+          target_branch="fix/ci-exact-head-recovery-6634-20260807"
+          workflow_path=".github/workflows/pr6635-spec014-binding-refresh-once.yml"
+
+          test "${GITHUB_REF_NAME}" = "${target_branch}"
+          test "$(git rev-parse HEAD^)" = "${expected_parent}"
+          test "$(git diff --name-only HEAD^ HEAD)" = "${workflow_path}"
+          test -z "$(git status --porcelain)"
+
+          git fetch origin main --depth=1
+          test "$(git rev-parse origin/main)" = "${expected_main}"
+          remote_head="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+
+      - name: Refresh only the two stale ready Spec 014 bindings
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow_path=".github/workflows/pr6635-spec014-binding-refresh-once.yml"
+          hostinger_manifest="specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          retail_manifest="specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+
+          git rm -- "${workflow_path}"
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-governed-hostinger-storage-orchestration
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os
+
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-governed-hostinger-storage-orchestration --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os --check
+
+          actual="$(git diff HEAD --name-only | sort)"
+          expected="$(printf '%s\n' \
+            "${workflow_path}" \
+            "${hostinger_manifest}" \
+            "${retail_manifest}" | sort)"
+          test "${actual}" = "${expected}"
+
+      - name: Verify bounded repair against exact PR changed set
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_parent="5245a7a3b7896627d4031bb5d8b507294c165416"
+          hostinger_manifest="specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          retail_manifest="specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          node http-generic-api/scripts/work-map-schema-classification.mjs
+          node http-generic-api/scripts/spec014-final-work-map-readback.mjs
+
+          changed_files_json="$(
+            {
+              git diff --name-only "origin/main...${expected_parent}"
+              printf '%s\n' "${hostinger_manifest}" "${retail_manifest}"
+            } | sort -u | jq -Rsc 'split("\n") | map(select(length > 0))'
+          )"
+          WORK_MAP_CHANGED_FILES_JSON="${changed_files_json}" \
+            node http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs --ci --changed
+
+          node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs
+          node http-generic-api/test-spec-kit-work-map-governance-gate.mjs
+          git diff --check
+
+      - name: Retire one-shot writer and push one bounded repair commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_main="24e3be31d71c5ae2940931ca8e9853731eb9974b"
+          target_branch="fix/ci-exact-head-recovery-6634-20260807"
+          workflow_path=".github/workflows/pr6635-spec014-binding-refresh-once.yml"
+          hostinger_manifest="specs/014-governed-hostinger-storage-orchestration/work-map-integration.json"
+          retail_manifest="specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "${hostinger_manifest}" "${retail_manifest}"
+
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            "${workflow_path}" \
+            "${hostinger_manifest}" \
+            "${retail_manifest}" | sort)"
+          test "${actual}" = "${expected}"
+          git diff --cached --check
+
+          git commit -m "fix(work-map): refresh Spec 014 registry bindings"
+          result_sha="$(git rev-parse HEAD)"
+          [[ "${result_sha}" =~ ^[0-9a-f]{40}$ ]]
+
+          git fetch origin main --depth=1
+          test "$(git rev-parse origin/main)" = "${expected_main}"
+          remote_head="$(git ls-remote origin "refs/heads/${target_branch}" | awk '{print $1}')"
+          test "${remote_head}" = "${GITHUB_SHA}"
+
+          git push origin "HEAD:${target_branch}"
+          echo "result_head_sha=${result_sha}" >> "$GITHUB_STEP_SUMMARY"
+          echo "bounded_write_set=${hostinger_manifest},${retail_manifest}" >> "$GITHUB_STEP_SUMMARY"
+          echo "force_push=false" >> "$GITHUB_STEP_SUMMARY"
+          echo "protected_branch_mutation=false" >> "$GITHUB_STEP_SUMMARY"
