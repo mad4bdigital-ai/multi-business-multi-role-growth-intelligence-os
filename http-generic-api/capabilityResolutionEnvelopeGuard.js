@@ -26,7 +26,7 @@ function isRepoPatchEnvelopeRequest(options = {}) {
     ...(options.acceptedIntents || []),
     ...(options.acceptedCapabilityKeys || []),
   ].map((value) => compact(value, 191).toLowerCase());
-  return values.some((value) => ["repo_patch_apply", "github_repo_patch", "repo_mutation", "write", "create", "delete"].includes(value));
+  return values.some((value) => ["repo_patch_apply", "github_repo_patch"].includes(value));
 }
 
 async function resolveRepoPatchExpectedResourceUri(options = {}) {
