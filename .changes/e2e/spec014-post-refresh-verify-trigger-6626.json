@@ -1,0 +1,9 @@
+{
+  "contract": "mad4b.exact-head-verification-trigger.v1",
+  "canonical_pr": 6626,
+  "expected_main_sha": "d8277c4a10f839eaa0ad0cc6238dbc20d9926ba3",
+  "expected_head_sha": "843e946ca4ae769d8e752e6e8bff6c8cf2f6c10c",
+  "repository_mutation": false,
+  "protected_branch_mutation": false,
+  "force_push": false
+}
