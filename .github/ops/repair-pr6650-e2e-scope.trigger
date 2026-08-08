@@ -1,0 +1,5 @@
+pr=6650
+scope=single-pr-e2e-runtime-scope
+previous_head=319b41d5499d75fc74e719fc7c581c987bdfc611
+launcher_head=d40c694595d4375809caf210f96cd3194680ef24
+repair_contract=single-pr-e2e-runtime-scope-v1
