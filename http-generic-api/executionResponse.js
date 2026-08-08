@@ -1,5 +1,7 @@
 import { isRawTextResponseRequest } from "./upstreamResponseParser.js";
 
+const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
 function isEffectivelyRuntimeCallable(action = {}, endpoint = {}, deps = {}) {
   const boolFromSheet = deps.boolFromSheet || (value => {
     if (value === true || value === false) return value;
@@ -18,6 +20,43 @@ function isEffectivelyRuntimeCallable(action = {}, endpoint = {}, deps = {}) {
     primaryExecutor === "http_client_backend" ||
     (executionMode === "http_delegated" && transportRequired && transportActionKey !== "")
   );
+}
+
+function isPotentiallyMutatingRequest(resolvedMethodPath = {}) {
+  const method = String(resolvedMethodPath?.method || "").trim().toUpperCase();
+  return Boolean(method) && !SAFE_HTTP_METHODS.has(method);
+}
+
+function buildPostMutationSchemaDriftPayload({
+  schemaErrorCode,
+  schemaErrorMessage,
+  upstreamStatus,
+  openaiSchemaFileId,
+  drift,
+  errors = undefined,
+}) {
+  return {
+    ok: false,
+    error: {
+      code: "UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED",
+      message: "Provider mutation returned success, but response validation could not safely confirm the final outcome. Governed reconciliation is required before retry.",
+      details: {
+        outcome_classification: "unknown_outcome",
+        reconciliation_required: true,
+        retry_allowed: false,
+        automatic_retry_performed: false,
+        upstream_success_confirmed: true,
+        upstream_status: upstreamStatus,
+        original_schema_error_code: schemaErrorCode,
+        original_schema_error_message: schemaErrorMessage,
+        ...(errors ? { errors } : {}),
+        ...drift,
+        schema_learning_candidate_emitted: true,
+        openai_schema_file_id: openaiSchemaFileId,
+        secrets_included: false,
+      },
+    },
+  };
 }
 
 export async function validateAndShapeExecutionResponse(dispatchResult, context, deps) {
@@ -95,6 +134,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
 
   const currentContentType = String(contentType || "").toLowerCase();
   const rawTextResponse = isRawTextResponseRequest(requestPayload, currentContentType);
+  const mutationMayHaveOccurred = upstream.ok && isPotentiallyMutatingRequest(resolvedMethodPath);
 
   const responseContent =
     schemaOperationInfo.operation?.responses?.[String(upstream.status)]?.content ||
@@ -117,6 +157,46 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
   if (responseSchemaEnforcementEnabled && contentTypeEligible) {
     if (!responseJsonSchema) {
       responseSchemaAlignmentStatus = "degraded";
+      const drift = {
+        schema_drift_detected: true,
+        schema_drift_type: "structure_mismatch",
+        schema_drift_scope: "response",
+      };
+
+      if (mutationMayHaveOccurred) {
+        const responsePayload = buildPostMutationSchemaDriftPayload({
+          schemaErrorCode: "response_schema_missing",
+          schemaErrorMessage: "Response schema could not be resolved for schema-bound endpoint.",
+          upstreamStatus: upstream.status,
+          openaiSchemaFileId: action.openai_schema_file_id,
+          drift,
+        });
+
+        await performUniversalServerWriteback({
+          mode: "sync",
+          job_id: undefined,
+          target_key: requestPayload.target_key,
+          parent_action_key,
+          endpoint_key,
+          route_id,
+          target_module,
+          target_workflow,
+          source_layer: "http_client_backend",
+          entry_type: "sync_execution",
+          execution_class: "sync",
+          attempt_count: 1,
+          status_source: "unknown_outcome",
+          responseBody: responsePayload,
+          error_code: "UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED",
+          error_message_short: responsePayload.error.message,
+          http_status: upstream.status,
+          brand_name,
+          execution_trace_id,
+          started_at: sync_execution_started_at
+        });
+
+        return { status: 409, body: responsePayload };
+      }
 
       const responsePayload = {
         ok: false,
@@ -124,9 +204,7 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
           code: "response_schema_missing",
           message: "Response schema could not be resolved for schema-bound endpoint.",
           details: {
-            schema_drift_detected: true,
-            schema_drift_type: "structure_mismatch",
-            schema_drift_scope: "response",
+            ...drift,
             schema_learning_candidate_emitted: true,
             upstream_status: upstream.status,
             openai_schema_file_id: action.openai_schema_file_id
@@ -170,6 +248,43 @@ export async function validateAndShapeExecutionResponse(dispatchResult, context,
       };
 
       responseSchemaAlignmentStatus = "degraded";
+
+      if (mutationMayHaveOccurred) {
+        const responsePayload = buildPostMutationSchemaDriftPayload({
+          schemaErrorCode: "response_schema_mismatch",
+          schemaErrorMessage: "Response failed strict schema validation.",
+          upstreamStatus: upstream.status,
+          openaiSchemaFileId: action.openai_schema_file_id,
+          drift,
+          errors: responseErrors,
+        });
+
+        await performUniversalServerWriteback({
+          mode: "sync",
+          job_id: undefined,
+          target_key: requestPayload.target_key,
+          parent_action_key,
+          endpoint_key,
+          route_id,
+          target_module,
+          target_workflow,
+          source_layer: "http_client_backend",
+          entry_type: "sync_execution",
+          execution_class: "sync",
+          attempt_count: 1,
+          status_source: "unknown_outcome",
+          responseBody: responsePayload,
+          error_code: "UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED",
+          error_message_short: responsePayload.error.message,
+          http_status: upstream.status,
+          brand_name,
+          execution_trace_id,
+          started_at: sync_execution_started_at
+        });
+
+        return { status: 409, body: responsePayload };
+      }
+
       const responsePayload = {
         ok: false,
         error: {
