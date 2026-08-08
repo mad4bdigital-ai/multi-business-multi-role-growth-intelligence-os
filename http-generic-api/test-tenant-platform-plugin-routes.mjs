@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
 import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRoutes.js";
+import { buildTenantPlatformPluginEligibility } from "./tenantPlatformPluginEligibility.js";
 
 {
   assert.equal(_testingTenantPlatformPluginRoutes.boundedInt("20", 10, 1, 100), 20);
@@ -140,6 +141,84 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
 }
 
 {
+  const ready = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: true,
+    approval: { approval_required: false },
+    execution: { will_execute: true },
+    security_decision: { gates: [{ key: "binding_state", required: true, state: "pass", reason: "binding_active" }] },
+  });
+  assert.equal(ready.status, "ready");
+  assert.equal(ready.dispatch_ready, true);
+  assert.equal(ready.blocker_count, 0);
+  assert.equal(ready.secrets_included, false);
+
+  const missingBinding = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "binding_state", required: true, state: "deny", reason: "action_binding_not_found" }] },
+  });
+  assert.equal(missingBinding.status, "blocked");
+  assert.equal(missingBinding.blockers[0].blocker_code, "missing_action_binding");
+  assert.equal(missingBinding.blockers[0].repair_class, "platform_admin_required");
+  assert.equal(missingBinding.blockers[0].safe_action, "register_runtime_binding");
+
+  const missingCertification = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "smoke_certification", required: true, state: "deny", reason: "smoke_certification_required" }] },
+  });
+  assert.equal(missingCertification.status, "blocked");
+  assert.equal(missingCertification.blockers[0].blocker_code, "missing_smoke_certification");
+  assert.equal(missingCertification.blockers[0].repair_class, "platform_admin_required");
+  assert.equal(missingCertification.blockers[0].safe_action, "certify_platform_plugin_operation");
+
+  const credentialRequired = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "credential", required: true, state: "deny", reason: "credential_required" }] },
+  });
+  assert.equal(credentialRequired.blockers[0].repair_class, "user_action_required");
+  assert.equal(credentialRequired.blockers[0].safe_action, "credential_intake_or_oauth");
+
+  const ambiguity = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "credential", required: true, state: "deny", reason: "connection_selection_ambiguous" }] },
+  });
+  assert.equal(ambiguity.blockers[0].repair_class, "tenant_admin_action_available");
+  assert.equal(ambiguity.blockers[0].safe_action, "resolve_connection_binding_ambiguity");
+
+  const approval = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: true,
+    approval: { approval_required: true },
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "approval", required: true, state: "deny", reason: "action_grant_required" }] },
+  });
+  assert.equal(approval.status, "approval_required");
+  assert.equal(approval.blockers[0].repair_class, "platform_admin_required");
+
+  const unavailable = buildTenantPlatformPluginEligibility({
+    plugin: { status: "disabled" },
+    execution: { will_execute: false },
+    security_decision: { gates: [] },
+  });
+  assert.equal(unavailable.status, "unavailable");
+
+  const deprecated = buildTenantPlatformPluginEligibility({
+    plugin: { status: "deprecated" },
+    execution: { will_execute: false },
+    security_decision: { gates: [] },
+  });
+  assert.equal(deprecated.status, "deprecated");
+}
+
+{
   const routes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
   assert(routes.includes("/tenant/platform/plugins/catalog"), "tenant catalog route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/install"), "tenant install route must be mounted");
@@ -156,6 +235,8 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert(routes.includes("tenantId: req.auth.tenant_id"), "tenant install/resolve must derive tenant_id from auth");
   assert(routes.includes("userId: req.auth.user_id"), "tenant install/resolve must derive user_id from auth");
   assert(routes.includes("security_decision_trace_admin: _adminTrace"), "tenant resolve must strip admin decision trace projection");
+  assert(routes.includes("buildTenantPlatformPluginEligibility(result)"), "tenant resolve must derive normalized eligibility from the canonical resolver result");
+  assert(routes.includes("eligibility,"), "tenant resolve response must expose normalized eligibility");
   assert(!routes.includes("tenantId: input.tenant_id"), "tenant install must not trust body tenant_id");
   assert(!routes.includes("userId: input.user_id"), "tenant install must not trust body user_id");
 }
