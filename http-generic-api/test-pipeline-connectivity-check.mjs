@@ -322,6 +322,9 @@ jobs:
   assert.ok(bridgeWorkflow.includes("delegation_comment_id"));
   assert.ok(bridgeWorkflow.includes("spec-kit-work-map-autofix.yml/dispatches"));
   assert.ok(bridgeWorkflow.includes("run_id"));
+  assert.ok(bridgeWorkflow.includes("group: work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number || github.run_id }}"));
+  assert.ok(bridgeWorkflow.includes("queue: max"));
+  assert.ok(bridgeWorkflow.includes("--arg pr_number \"${PR_NUMBER}\""));
   assert.ok(bridgeWorkflow.includes("direct_repository_mutation:false"));
   assert.ok(bridgeWorkflow.includes("protected_branch_mutation:false"));
   assert.ok(bridgeWorkflow.includes("force_push:false"));
@@ -364,6 +367,7 @@ jobs:
   const permissionsBlock = writerWorkflow.slice(writerWorkflow.indexOf("permissions:"), writerWorkflow.indexOf("concurrency:"));
   const concurrencyBlock = writerWorkflow.slice(writerWorkflow.indexOf("concurrency:"), writerWorkflow.indexOf("jobs:"));
   assert.ok(triggerBlock.includes("workflow_dispatch:"));
+  assert.ok(triggerBlock.includes("pr_number:"));
   assert.ok(triggerBlock.includes("expected_head_sha:"));
   assert.ok(triggerBlock.includes("recovery_run_id:"));
   assert.ok(triggerBlock.includes("delegation_comment_id:"));
@@ -372,17 +376,23 @@ jobs:
   assert.ok(permissionsBlock.includes("contents: write"));
   assert.ok(permissionsBlock.includes("pull-requests: write"));
   assert.ok(permissionsBlock.includes("issues: write"));
-  assert.ok(concurrencyBlock.includes("inputs.branch"));
+  assert.ok(concurrencyBlock.includes("inputs.pr_number"));
+  assert.ok(concurrencyBlock.includes("work-map-writer-delegation-"));
   assert.ok(concurrencyBlock.includes("cancel-in-progress: false"));
+  assert.ok(concurrencyBlock.includes("queue: max"));
 
   assert.ok(writerWorkflow.includes("Initialize diagnostics and validate inputs"));
   assert.ok(writerWorkflow.includes("Checkout exact authorized head"));
   assert.ok(writerWorkflow.includes("Pin branch and pull request identity"));
   assert.ok(writerWorkflow.includes("Verify and consume Recovery-issued writer delegation"));
+  assert.ok(writerWorkflow.includes('test "${GITHUB_ACTOR}" = "github-actions[bot]"'));
+  assert.ok(writerWorkflow.includes('test "${actual_pr_number}" = "${REQUESTED_PR_NUMBER}"'));
   assert.ok(writerWorkflow.includes('test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${pr_count}" = "1"'));
   assert.ok(writerWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
+  assert.ok(writerWorkflow.includes('test "$(jq -r \'.status\' "${recovery_file}")" = "completed"'));
+  assert.ok(writerWorkflow.includes('test "$(jq -r \'.conclusion\' "${recovery_file}")" = "success"'));
   assert.ok(writerWorkflow.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
   assert.ok(writerWorkflow.includes("state=consumed recovery_run_id=${RECOVERY_RUN_ID}"));
   assert.ok(writerWorkflow.includes('issues/comments/${DELEGATION_COMMENT_ID}'));
