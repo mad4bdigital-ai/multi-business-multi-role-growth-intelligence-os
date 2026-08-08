@@ -35,7 +35,7 @@
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     },
     "generated-artifact-refresh": {
-      "description": "Regenerate the bounded OpenAPI and frontend contract artifacts on an exact governed work-branch head after typed confirmation, including operation-level support-ticket auth parity without widening document defaults.",
+      "description": "Regenerate bounded OpenAPI/frontend artifacts or, only for an exact scoped Work Map writer self-hosting candidate, bootstrap canonical Work Maps plus Spec014 bindings through the same registered exact-head writer authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
@@ -48,7 +48,11 @@
         "^http-generic-api/openapi/openapi\\.custom-gpt\\.activation-admin\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.auth\\.yaml$",
         "^http-generic-api/openapi/openapi\\.tenant-gpt\\.activation\\.yaml$",
-        "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$"
+        "^http-generic-api/openapi\\.gpt-action\\.local-connector\\.yaml$",
+        "^docs/work-maps/.*$",
+        "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
+        "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
+        "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
