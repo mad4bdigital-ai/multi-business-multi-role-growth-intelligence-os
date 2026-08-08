@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { _testingOperationalAlerts } from "./operationalAlertService.js";
+import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
 import { _testingActivationAwarenessRoutes } from "./routes/activationAwarenessRoutes.js";
 
 function read(relativePath) {
@@ -312,6 +313,122 @@ function testSummaryAndRouteInputs() {
   assert.equal(_testingActivationAwarenessRoutes.queryBoolean("0"), false);
 }
 
+function testCapabilityDriftAlertLifecycleProjection() {
+  const tenantVisible = {
+    capability_key: "tenant_tool.wordpress_publish",
+    gap_key: "active_export_missing",
+    gap_severity: "high",
+    display_name: "WordPress Publish",
+    capability_family: "tenant_tool",
+    source_table: "tenant_platform_endpoint_tools",
+    source_key: "wordpress_publish",
+    runtime_status: "active",
+    exposure_scope: "tenant",
+    operation_class: "tenant_tool_dispatch",
+    risk_class: "B",
+    maturity_status: "runtime_exists",
+    maturity_score: 4,
+    gap_flags: "active_export_missing",
+    evidence_ref: null,
+    observed_at: "2026-08-08T15:00:00.000Z",
+  };
+  const internalOnly = {
+    ...tenantVisible,
+    capability_key: "admin_tool.internal_repair",
+    source_key: "internal_repair",
+    exposure_scope: "admin",
+  };
+  const tenantOne = buildCapabilityDriftAlertInputs([tenantVisible, internalOnly], {
+    subject: { is_admin: false, tenant_id: "tenant-1" },
+  });
+  assert.equal(tenantOne.length, 1, "tenant alert projection must exclude admin-only capability gaps");
+  const first = tenantOne[0];
+  assert.match(first.alertKey, /^capability-drift-alert\.[a-f0-9]{64}$/);
+  assert.equal(first.sourceType, CAPABILITY_DRIFT_SOURCE);
+  assert.equal(first.tenantId, "tenant-1");
+  assert.equal(first.reasonCode, "capability_drift_active_export_missing");
+  assert.equal(first.occurrenceCount, 1);
+  assert.equal(first.verificationState, "verified");
+  assert.equal(first.requiresConfirmation, false);
+  assert.equal(first.evidence.tenant_visible, true);
+  assert.equal(first.evidence.auto_repair_eligible, false);
+  assert.equal(first.evidence.repair_class, "platform_admin_required");
+  assert.equal(first.evidence.admin_evidence, undefined);
+
+  const tenantTwoLater = buildCapabilityDriftAlertInputs([
+    { ...tenantVisible, observed_at: "2026-08-08T16:00:00.000Z" },
+  ], {
+    subject: { is_admin: false, tenant_id: "tenant-2" },
+  });
+  assert.equal(tenantTwoLater[0].alertKey, first.alertKey, "platform-global capability drift must dedupe across tenant projections and observation times");
+  assert.notEqual(tenantTwoLater[0].lastSeenAt, first.lastSeenAt);
+
+  const persistenceInput = buildCapabilityDriftAlertInputs([tenantVisible], {
+    subject: { is_admin: true },
+    persistenceMode: true,
+  })[0];
+  assert.equal(persistenceInput.alertKey, first.alertKey);
+  assert.equal(persistenceInput.tenantId, null, "Admin sync must persist one global tenant-visible capability alert, not one row per tenant");
+  assert.equal(persistenceInput.evidence.admin_evidence.source_table, "tenant_platform_endpoint_tools");
+
+  const persistedRow = {
+    alert_id: "alert-capability-1",
+    alert_key: first.alertKey,
+    fingerprint_sha256: "a".repeat(64),
+    operation_fingerprint_sha256: null,
+    resource_fingerprint_sha256: null,
+    source_type: CAPABILITY_DRIFT_SOURCE,
+    source_ref: first.sourceRef,
+    source_record_id: first.sourceRecordId,
+    tenant_id: null,
+    user_id: null,
+    workspace_id: null,
+    container_key: null,
+    category: "capability_drift",
+    severity: "high",
+    title: first.title,
+    summary: first.summary,
+    reason_code: first.reasonCode,
+    lifecycle_status: "investigating",
+    verification_state: "verified",
+    evidence_type: "platform_capability_gap",
+    evidence_ref: first.evidenceRef,
+    evidence_json: JSON.stringify({
+      tenant_visible: true,
+      capability_key: tenantVisible.capability_key,
+      gap_key: tenantVisible.gap_key,
+      admin_evidence: { source_table: "tenant_platform_endpoint_tools", source_key: "wordpress_publish" },
+    }),
+    occurrence_count: 7,
+    first_seen_at: "2026-08-08T12:00:00.000Z",
+    last_seen_at: "2026-08-08T15:00:00.000Z",
+    updated_at: "2026-08-08T15:00:00.000Z",
+    recommended_action_key: first.recommendedActionKey,
+    requires_confirmation: 0,
+    manual_known_issue: 0,
+  };
+  const tenantPersisted = _testingOperationalAlerts.mapPersistedAlert(persistedRow, {
+    subject: { is_admin: false, tenant_id: "tenant-1" },
+  });
+  assert.equal(tenantPersisted.tenant_id, "tenant-1");
+  assert.equal(tenantPersisted.lifecycle_status, "investigating");
+  assert.equal(tenantPersisted.occurrence_count, 7);
+  assert.equal(tenantPersisted.evidence.admin_evidence, undefined, "tenant persisted projection must strip Admin registry evidence");
+  const adminPersisted = _testingOperationalAlerts.mapPersistedAlert(persistedRow, {
+    subject: { is_admin: true },
+  });
+  assert.equal(adminPersisted.tenant_id, null);
+  assert.equal(adminPersisted.evidence.admin_evidence.source_table, "tenant_platform_endpoint_tools");
+  assert.equal(_testingOperationalAlerts.notificationEligible({
+    ...tenantPersisted,
+    source_type: CAPABILITY_DRIFT_SOURCE,
+    severity: "high",
+    lifecycle_status: "open",
+    verification_state: "verified",
+    source_record_id: first.sourceRecordId,
+  }), false, "global capability-drift alerts must not fan out notifications before an explicit policy exists");
+}
+
 function testRepositoryContracts() {
   const service = read("./operationalAlertService.js");
   const routes = read("./routes/activationAwarenessRoutes.js");
@@ -334,6 +451,13 @@ function testRepositoryContracts() {
   assert.match(service, /resolution_skipped_due_to_degraded_sources/);
   assert.match(service, /truncated_sources/);
   assert.match(service, /collectExecutionLogSource/);
+  assert.match(service, /v_platform_capability_gaps/);
+  assert.match(service, /WHERE c\.exposure_scope = 'tenant'/);
+  assert.match(service, /mysql_primary_capability_gap_view/);
+  assert.match(service, /persistenceMode: true/);
+  assert.match(service, /tenant_id IS NULL AND source_type = 'v_platform_capability_gaps'/);
+  assert.match(service, /WHEN VALUES\(source_type\) = 'v_platform_capability_gaps' THEN occurrence_count \+ 1/);
+  assert.match(service, /item\.source_type === CAPABILITY_DRIFT_SOURCE/);
   assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
   assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
   assert.match(service, /COUNT\(\*\) AS occurrence_count/);
@@ -589,6 +713,7 @@ async function main() {
   testP0ReconciliationSemantics();
   testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
+  testCapabilityDriftAlertLifecycleProjection();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
   console.log("operational alerting control plane contract tests passed");

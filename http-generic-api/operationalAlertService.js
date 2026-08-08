@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { buildSqlCacheOperationalDiagnostics } from "./sqlCacheOperationalDiagnostics.js";
+import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
 
 const SENSITIVE_KEY_PATTERN = /(secret|credential|token|password|private_key|cipher|api_key|value_ciphertext|system_prompt|raw_prompt|payload_json)/i;
 const SEVERITY_WEIGHT = Object.freeze({ critical: 5, high: 4, medium: 3, low: 2, info: 1 });
@@ -11,6 +12,7 @@ const ALERT_EXECUTION_STATUSES = new Set(["failed", "degraded", "blocked", "bloc
 const SUCCESS_EXECUTION_STATUSES = new Set(["success", "succeeded", "completed", "pass", "passed"]);
 const RECOVERY_STATUS_PATTERN = /(recovered|fallback.*used|resolved|succeeded|completed)/i;
 const SOURCE_ROW_CAPS = Object.freeze({
+  [CAPABILITY_DRIFT_SOURCE]: 250,
   connected_systems: 500,
   v_activation_pending_tasks: 500,
   v_activation_agent_catalog: 500,
@@ -553,6 +555,7 @@ function parseConfigJson(value) {
 }
 
 function notificationEligible(item = {}) {
+  if (item.source_type === CAPABILITY_DRIFT_SOURCE) return false;
   if (!["critical", "high"].includes(item.severity)) return false;
   if (!OPEN_LIFECYCLE_STATES.includes(item.lifecycle_status)) return false;
   if (item.verification_state !== "verified") return false;
@@ -561,10 +564,17 @@ function notificationEligible(item = {}) {
   return true;
 }
 
-function mapPersistedAlert(row) {
+function mapPersistedAlert(row, { subject = null } = {}) {
   let evidence = row.evidence_json;
   if (typeof evidence === "string") {
     try { evidence = JSON.parse(evidence); } catch { evidence = {}; }
+  }
+  const tenantCapabilityProjection = Boolean(
+    subject && !subject.is_admin && row.source_type === CAPABILITY_DRIFT_SOURCE && !row.tenant_id
+  );
+  if (tenantCapabilityProjection && evidence && typeof evidence === "object") {
+    const { admin_evidence: _adminEvidence, ...tenantSafeEvidence } = evidence;
+    evidence = tenantSafeEvidence;
   }
   return candidate({
     alertId: row.alert_id,
@@ -572,7 +582,7 @@ function mapPersistedAlert(row) {
     sourceType: row.source_type,
     sourceRef: row.source_ref,
     sourceRecordId: row.source_record_id,
-    tenantId: row.tenant_id,
+    tenantId: tenantCapabilityProjection ? subject.tenant_id || null : row.tenant_id,
     userId: row.user_id,
     workspaceId: row.workspace_id,
     containerKey: row.container_key,
@@ -648,7 +658,7 @@ function mergeCandidates(items = []) {
   return [...merged.values()];
 }
 
-async function collectOperationalAlertCandidates({ subject, lookbackHours = 168, includePersisted = true } = {}) {
+async function collectOperationalAlertCandidates({ subject, lookbackHours = 168, includePersisted = true, persistenceMode = false } = {}) {
   const tenant = tenantPredicate(subject);
   const tenantExecution = tenantPredicate(subject, "e");
   const userTenant = userTenantPredicate(subject);
@@ -656,6 +666,21 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
 
   const queries = [
     collectExecutionLogSource({ tenantExecution, boundedLookback }),
+    safeRows(
+      CAPABILITY_DRIFT_SOURCE,
+      `SELECT g.capability_key, g.gap_key, g.gap_severity, g.gap_description,
+              c.display_name, c.capability_family, c.source_table, c.source_key,
+              c.runtime_status, c.exposure_scope, c.operation_class, c.risk_class,
+              c.evidence_ref, m.maturity_status, m.maturity_score, m.gap_flags,
+              NOW() AS observed_at
+         FROM v_platform_capability_gaps g
+         JOIN v_platform_capabilities_current c ON c.capability_key = g.capability_key
+         LEFT JOIN v_platform_capability_maturity m ON m.capability_key = g.capability_key
+        WHERE c.exposure_scope = 'tenant'
+        ORDER BY FIELD(g.gap_severity,'critical','high','medium','low'), g.capability_key ASC, g.gap_key ASC
+        LIMIT 250`,
+      []
+    ),
     safeRows(
       "connected_systems",
       `SELECT system_id, tenant_id, system_key, display_name, provider_family,
@@ -763,7 +788,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
               occurrence_count, first_seen_at, last_seen_at, recommended_action_key,
               requires_confirmation, manual_known_issue
          FROM operational_alerts
-        WHERE ${subject.is_admin ? "1 = 1" : "tenant_id = ?"}
+        WHERE ${subject.is_admin ? "1 = 1" : "(tenant_id = ? OR (tenant_id IS NULL AND source_type = 'v_platform_capability_gaps'))"}
         ORDER BY FIELD(severity,'critical','high','medium','low','info'), last_seen_at DESC
         LIMIT 2000`,
       subject.is_admin ? [] : [subject.tenant_id || "__missing_tenant__"]
@@ -796,6 +821,13 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
   }
 
   alerts.push(...mapExecutionAlerts(bySource.get("execution_log")?.rows || []));
+
+  for (const input of buildCapabilityDriftAlertInputs(
+    bySource.get(CAPABILITY_DRIFT_SOURCE)?.rows || [],
+    { subject, persistenceMode }
+  )) {
+    alerts.push(candidate(input));
+  }
 
   for (const row of bySource.get("connected_systems")?.rows || []) {
     const config = parseConfigJson(row.config_json);
@@ -989,7 +1021,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
     }));
   }
 
-  for (const row of bySource.get("operational_alerts")?.rows || []) alerts.push(mapPersistedAlert(row));
+  for (const row of bySource.get("operational_alerts")?.rows || []) alerts.push(mapPersistedAlert(row, { subject }));
 
   return {
     subject,
@@ -1002,7 +1034,7 @@ async function collectOperationalAlertCandidates({ subject, lookbackHours = 168,
         row_count: result.rows.length,
         row_cap: rowCap,
         truncated: Boolean(result.truncated ?? (result.ok && rowCap && result.rows.length >= rowCap)),
-        authority: result.authority || "sql_primary_runtime_table",
+        authority: result.authority || (result.source === CAPABILITY_DRIFT_SOURCE ? "mysql_primary_capability_gap_view" : "sql_primary_runtime_table"),
         aggregation: result.aggregation || null,
         error: result.error || null,
       };
@@ -1160,7 +1192,10 @@ async function upsertAlert(connection, item, syncRunId) {
        reason_code = VALUES(reason_code), verification_state = VALUES(verification_state),
        evidence_type = VALUES(evidence_type), evidence_ref = VALUES(evidence_ref), evidence_json = VALUES(evidence_json),
        execution_log_id = VALUES(execution_log_id), trace_id = VALUES(trace_id),
-       occurrence_count = VALUES(occurrence_count), first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),
+       occurrence_count = CASE
+         WHEN VALUES(source_type) = 'v_platform_capability_gaps' THEN occurrence_count + 1
+         ELSE VALUES(occurrence_count)
+       END, first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),
        last_seen_at = GREATEST(last_seen_at, VALUES(last_seen_at)), last_sync_run_id = VALUES(last_sync_run_id),
        recommended_action_key = VALUES(recommended_action_key), requires_confirmation = VALUES(requires_confirmation),
        lifecycle_status = IF(lifecycle_status IN ('resolved','ignored'), 'open', lifecycle_status),
@@ -1213,7 +1248,7 @@ export async function synchronizeOperationalAlerts({
   requestedBy = "platform_admin",
 } = {}) {
   const subject = resolveSubject(sessionContext || {}, explicitSubject);
-  const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: false });
+  const collected = await collectOperationalAlertCandidates({ subject, lookbackHours, includePersisted: false, persistenceMode: true });
   const incompleteSources = collected.source_health.filter((source) => !source.ok || source.truncated);
   const runId = randomUUID();
   const connection = await getPool().getConnection();
@@ -1554,6 +1589,7 @@ export const _testingOperationalAlerts = {
   executionRecoveryKey,
   groupSkillApprovalRows,
   notificationEligible,
+  mapPersistedAlert,
   summarize,
   executionSeverity,
 };
