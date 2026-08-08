@@ -52,24 +52,42 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git diff --check
-          node --check http-generic-api/tenantRequestInboxService.js
-          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs)
+          if ! git diff --check; then
+            echo '::error title=PR6662 diff check::git diff --check failed'
+            exit 1
+          fi
+          syntax_log="$RUNNER_TEMP/pr6662-syntax.log"
+          if ! node --check http-generic-api/tenantRequestInboxService.js >"$syntax_log" 2>&1; then
+            first="$(grep -m1 -E 'SyntaxError|Error:' "$syntax_log" || true)"
+            echo "::error title=PR6662 syntax::${first:-node --check failed}"
+            tail -n 25 "$syntax_log"
+            exit 1
+          fi
+          focused_log="$RUNNER_TEMP/pr6662-focused.log"
+          set +e
+          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs) >"$focused_log" 2>&1
+          focused_status=$?
+          set -e
+          if [ "$focused_status" -ne 0 ]; then
+            first="$(grep -m1 -E 'ReferenceError|AssertionError|ERR_ASSERTION|TypeError|Error:' "$focused_log" || true)"
+            echo "::error title=PR6662 focused test::${first:-focused test failed with exit $focused_status}"
+            tail -n 35 "$focused_log"
+            exit "$focused_status"
+          fi
           mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
           printf '%s\n' "${changed[@]}"
-          test "${#changed[@]}" -eq 4
-          test "${changed[0]}" = ".changes/e2e/tenant-request-identity-collation-repair.json"
-          test "${changed[1]}" = "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql"
-          test "${changed[2]}" = "http-generic-api/tenantRequestInboxService.js"
-          test "${changed[3]}" = "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs"
+          if [ "${#changed[@]}" -ne 4 ] || \
+             [ "${changed[0]:-}" != ".changes/e2e/tenant-request-identity-collation-repair.json" ] || \
+             [ "${changed[1]:-}" != "http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql" ] || \
+             [ "${changed[2]:-}" != "http-generic-api/tenantRequestInboxService.js" ] || \
+             [ "${changed[3]:-}" != "http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs" ]; then
+            joined="$(printf '%s;' "${changed[@]}")"
+            echo "::error title=PR6662 write set::unexpected files: $joined"
+            exit 1
+          fi
+          echo 'Focused validation passed in diagnostic-only mode.'
       - name: Commit and fast-forward target
+        if: ${{ false }}
         shell: bash
         run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
-          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
-          git config user.name MAD4B
-          git config user.email 271942579+mad4bdigital-ai@users.noreply.github.com
-          git add .changes/e2e/tenant-request-identity-collation-repair.json http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql http-generic-api/tenantRequestInboxService.js http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
-          git commit -m 'fix(tenant): preserve indexed identity collation lookups'
-          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          echo 'Diagnostic-only run: target push intentionally disabled.'
