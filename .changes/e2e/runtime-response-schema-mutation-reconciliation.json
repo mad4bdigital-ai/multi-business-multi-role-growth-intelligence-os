@@ -1,0 +1,71 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-response-schema-mutation-reconciliation",
+  "title": "Require reconciliation after successful provider mutation with response-schema drift",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "docs/registry-export-schema-parity.md",
+      "http-generic-api/executionResponse.js",
+      "http-generic-api/test-execution-response.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent callers from treating post-side-effect response-schema drift as a retry-safe failure after an upstream provider mutation has already returned success, while preserving strict validation for safe reads and preserving the original schema-drift evidence.",
+      "e2e_journeys": [
+        {
+          "id": "successful-provider-mutation-schema-drift-requires-reconciliation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Runtime caller receiving a successful provider mutation response through the governed HTTP execution path",
+          "entrypoint": "validateAndShapeExecutionResponse after an upstream provider response",
+          "terminal_outcome": "A successful unsafe-method provider response with missing or mismatched response schema is returned as UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED with retry disabled and upstream success preserved; safe reads retain strict schema-validation failure semantics.",
+          "steps": [
+            "Dispatch has already completed and the provider returns a successful 2xx response for a potentially mutating HTTP method.",
+            "Strict response-schema enforcement detects either a missing response schema or a response schema mismatch.",
+            "Classify the post-side-effect result as unknown_outcome and require governed reconciliation before any retry instead of returning an ordinary retry-safe schema failure.",
+            "Preserve the provider HTTP status and the original response-schema drift code/diagnostics in the structured evidence.",
+            "Write the execution audit through the existing universal writer using an unknown_outcome status source, which maps to the existing generic stored status unknown rather than inventing a new execution-log status.",
+            "For GET, HEAD, and OPTIONS, preserve the existing strict schema-validation failure because a repeated safe read does not repeat an external mutation."
+          ],
+          "assertions": [
+            "A POST provider response with upstream 201 plus response_schema_missing returns HTTP 409 with UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED.",
+            "The reconciliation-required payload sets outcome_classification=unknown_outcome, reconciliation_required=true, retry_allowed=false, and automatic_retry_performed=false.",
+            "The payload records upstream_success_confirmed=true and preserves the exact upstream status rather than replacing the provider 2xx with a synthetic 422 audit status.",
+            "The original response_schema_missing or response_schema_mismatch code and schema-drift diagnostics remain available for repair and learning workflows.",
+            "A successful mutation with response_schema_mismatch follows the same non-retryable reconciliation path.",
+            "Safe GET response-schema failures retain the existing 422 response_schema_missing behavior.",
+            "No automatic provider retry, compensating write, credential payload, or secret material is introduced by this bounded runtime guard.",
+            "This change does not claim that registry/export schema parity is repaired; canonical endpoint/export schemas still require independent parity remediation."
+          ],
+          "tests": [
+            {
+              "id": "execution-response-post-mutation-schema-drift-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-execution-response.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/runtime-response-schema-mutation-reconciliation.json",
+            "docs/registry-export-schema-parity.md",
+            "http-generic-api/executionResponse.js",
+            "http-generic-api/test-execution-response.mjs",
+            "http-generic-api/execution.js",
+            "http-generic-api/governedReconciliationKernel.js",
+            "specs/011-durable-governed-execution-and-agent-delegation/contracts/error-codes.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
