@@ -1,0 +1,14 @@
+{
+  "contract": "mad4b.spec014-binding-refresh-trigger.v1",
+  "canonical_pr": 6629,
+  "authorized_head_sha": "cc0240874c453ea2168ae8d3420fb47ffb223ad1",
+  "expected_main_sha": "a3561230aabb6b629c7ceca9587290593cea759a",
+  "authorization_command": "AUTHORIZE_SPEC014_FINAL_WORK_MAP_BINDING_REFRESH cc0240874c453ea2168ae8d3420fb47ffb223ad1",
+  "validation_only": true,
+  "merge_this_trigger_pr": false,
+  "provider_dispatch": false,
+  "live_database_access": false,
+  "migration_apply": false,
+  "force_push": false,
+  "secrets_included": false
+}
