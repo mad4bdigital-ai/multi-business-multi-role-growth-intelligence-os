@@ -70,6 +70,11 @@ const listPool = fakePool([
     rows: [{ ticket_id: ticketId }],
     assert(sql, params) {
       assert.match(sql, /UNION ALL/u, "candidate discovery must combine bounded activity sources set-wise");
+      assert(sql.includes("CONVERT(candidate_case.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci"), "candidate case ticket identity must normalize collation");
+      assert(sql.includes("CONVERT(candidate_case_newer.tenant_id USING utf8mb4) COLLATE utf8mb4_unicode_ci"), "newer-case tenant identity must normalize collation");
+      assert(sql.includes("CONVERT(tle.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci"), "candidate lifecycle ticket identity must normalize collation");
+      assert.doesNotMatch(sql, /candidate_case\.ticket_id = t\.ticket_id/u, "candidate case joins must not compare mixed collations directly");
+      assert.doesNotMatch(sql, /tle\.ticket_id = t\.ticket_id/u, "candidate lifecycle joins must not compare mixed collations directly");
       assert.match(sql, /candidate_case_newer\.id IS NULL/u, "candidate discovery must bind the latest case without a scalar lookup");
       assert.match(sql, /GROUP BY t\.ticket_id/u, "each activity source must collapse to one candidate per ticket before final ranking");
       assert.match(sql, /LIMIT 408/u, "candidate discovery must use a bounded window derived from the page limit");
@@ -108,7 +113,11 @@ const listPool = fakePool([
       latest_activity_at: lastSeenAt,
     }],
     assert(sql, params) {
-      assert.match(sql, /c2\.ticket_id = t\.ticket_id/u);
+      assert(sql.includes("CONVERT(c2.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci"), "detail/list case join must normalize resolution ticket identity");
+      assert(sql.includes("CONVERT(tle.tenant_id USING utf8mb4) COLLATE utf8mb4_unicode_ci"), "latest activity must normalize lifecycle tenant identity");
+      assert.doesNotMatch(sql, /c2\.ticket_id = t\.ticket_id/u, "resolution case joins must not compare mixed collations directly");
+      assert.doesNotMatch(sql, /tle\.tenant_id = t\.tenant_id/u, "latest-activity joins must not compare mixed collations directly");
+      assert.doesNotMatch(sql, /tle\.ticket_id = t\.ticket_id/u, "latest-activity joins must not compare mixed collations directly");
       assert.match(sql, /t\.ticket_id IN \(\?\)/u, "exact latest-activity calculation must be restricted to bounded candidates");
       assert.match(sql, /ORDER BY latest_activity_at DESC, t\.ticket_id DESC/u);
       assert.match(sql, /SELECT MAX\(tle\.created_at\)/u, "latest activity must include visible ticket lifecycle events");
@@ -215,6 +224,17 @@ assert.equal(schema.secrets_included, false);
 const inboxService = fs.readFileSync(new URL("./tenantRequestInboxService.js", import.meta.url), "utf8");
 assert.match(inboxService, /const \[membership\] = rows;/u, "membership scope resolution must bind the verified query result without a second unproven first-candidate lookup");
 assert.doesNotMatch(inboxService, /role:\s*rows\[0\]\.role/u, "membership role projection must not select rows[0] directly");
+assert.match(inboxService, /const TENANT_REQUEST_IDENTITY_COLLATION = "utf8mb4_unicode_ci";/u, "tenant request identity joins must pin the canonical compatibility collation");
+for (const unsafeJoin of [
+  /c2\.tenant_id = t\.tenant_id/u,
+  /c2\.ticket_id = t\.ticket_id/u,
+  /candidate_case\.tenant_id = t\.tenant_id/u,
+  /candidate_case\.ticket_id = t\.ticket_id/u,
+  /candidate_case_newer\.tenant_id = t\.tenant_id/u,
+  /candidate_case_newer\.ticket_id = t\.ticket_id/u,
+  /tle\.tenant_id = t\.tenant_id/u,
+  /tle\.ticket_id = t\.ticket_id/u,
+]) assert.doesNotMatch(inboxService, unsafeJoin, `unsafe mixed-collation identity join remains: ${unsafeJoin}`);
 
 const migration = fs.readFileSync(new URL("./migrations/1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql", import.meta.url), "utf8");
 assert.match(migration, /ADD COLUMN ticket_id CHAR\(36\)/u);
@@ -231,6 +251,17 @@ assert.match(migration, /idx_resolution_readbacks_inbox_activity/u);
 assert.match(migration, /v_governed_response_chunk_runtime_schema_readiness/u);
 assert.doesNotMatch(migration, /DROP\s+(TABLE|COLUMN|INDEX)/iu);
 assert.doesNotMatch(migration, /DELETE\s+FROM/iu);
+
+const identityCollationMigration = fs.readFileSync(new URL("./migrations/20260808_tenant_request_identity_collation_alignment.sql", import.meta.url), "utf8");
+assert.match(identityCollationMigration, /ALTER TABLE `ticket_lifecycle_events`/u);
+assert.match(identityCollationMigration, /MODIFY COLUMN `ticket_id` VARCHAR\(36\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL/u);
+assert.match(identityCollationMigration, /MODIFY COLUMN `tenant_id` VARCHAR\(36\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL/u);
+assert.match(identityCollationMigration, /ALTER TABLE `tenant_resolution_cases`/u);
+assert.match(identityCollationMigration, /MODIFY COLUMN `resource_ref` VARCHAR\(512\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL/u);
+assert.match(identityCollationMigration, /MODIFY COLUMN `ticket_id` CHAR\(36\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL/u);
+assert.doesNotMatch(identityCollationMigration, /ALTER TABLE `tickets`/u, "bounded repair must not silently recollate the central tickets table while other ticket_* families remain uca1400");
+assert.doesNotMatch(identityCollationMigration, /DROP\s+(TABLE|COLUMN|INDEX)/iu);
+assert.doesNotMatch(identityCollationMigration, /DELETE\s+FROM/iu);
 
 const resolutionService = fs.readFileSync(new URL("./supportTicketResolutionService.js", import.meta.url), "utf8");
 assert.match(
