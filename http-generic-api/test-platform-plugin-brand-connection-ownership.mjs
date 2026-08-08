@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { loadTenantPlatformPluginOwnershipScopedConnections } from "./platformPluginConnectionOwnership.js";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
+import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
+
+const { parseTenantPlatformPluginResolveContract } = _testingTenantPlatformPluginRoutes;
 
 function brandConnection(id = "conn-brand-1", workspaceId = "workspace-company-1") {
   return {
@@ -141,6 +144,39 @@ function makePool({
       return [[]];
     },
   };
+}
+
+{
+  const canonical = parseTenantPlatformPluginResolveContract({
+    plugin_key: "github",
+    action_key: "github.repo.read",
+    workspace_id: "workspace-company-1",
+    brand_ref: "brand-1",
+  });
+  assert.equal(canonical.workspaceId, "workspace-company-1");
+  assert.equal(canonical.brandRef, "brand-1");
+  assert.deepEqual(canonical.compatibilityTelemetry.legacy_fields, []);
+  assert.equal(canonical.compatibilityTelemetry.contract_version, "one-selector-workspace-v2");
+
+  const legacy = parseTenantPlatformPluginResolveContract({
+    pluginKey: "github",
+    actionKey: "github.repo.read",
+    workspaceId: "workspace-company-1",
+    brandRef: "brand-1",
+  });
+  assert.equal(legacy.brandRef, "brand-1");
+  assert.ok(legacy.compatibilityTelemetry.legacy_fields.includes("brandRef"));
+
+  assert.throws(
+    () => parseTenantPlatformPluginResolveContract({
+      plugin_key: "github",
+      action_key: "github.repo.read",
+      workspace_id: "workspace-company-1",
+      brand_ref: "brand-1",
+      brandRef: "brand-2",
+    }),
+    (error) => error?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && error?.details?.field === "brand_ref",
+  );
 }
 
 {
