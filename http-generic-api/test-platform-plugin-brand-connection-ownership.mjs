@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { loadTenantPlatformPluginOwnershipScopedConnections } from "./platformPluginConnectionOwnership.js";
 import { resolvePlatformPluginExecution } from "./platformPluginResolver.js";
 
-function brandConnection(id = "conn-brand-1") {
+function brandConnection(id = "conn-brand-1", workspaceId = "workspace-company-1") {
   return {
     connection_id: id,
     tenant_id: "tenant-1",
@@ -13,7 +13,7 @@ function brandConnection(id = "conn-brand-1") {
     last_validated_at: "2026-08-08T12:00:00.000Z",
     last_used_at: null,
     is_primary: 1,
-    workspace_id: "workspace-brand-1",
+    workspace_id: workspaceId,
     owner_scope_type: "brand",
     owner_scope_ref: "brand-1",
     brand_id: "brand-1",
@@ -23,7 +23,30 @@ function brandConnection(id = "conn-brand-1") {
   };
 }
 
-function makePool({ membershipRole = "owner", grantPermissions = [], connectionRows = [brandConnection()] } = {}) {
+function rootWorkspace({
+  workspaceId = "workspace-company-1",
+  ownershipType = "company",
+  ownerUserId = null,
+  workspaceType = "workspace",
+} = {}) {
+  return {
+    workspace_id: workspaceId,
+    tenant_id: "tenant-1",
+    workspace_type: workspaceType,
+    workspace_ownership_type: ownershipType,
+    owner_user_id: ownerUserId,
+    linked_brand_key: null,
+    bootstrap_status: "ready",
+    ownership_revision: 12,
+  };
+}
+
+function makePool({
+  membershipRole = "owner",
+  grantPermissions = [],
+  connectionRows = [brandConnection()],
+  workspaceRow = rootWorkspace(),
+} = {}) {
   const calls = [];
   return {
     calls,
@@ -68,18 +91,7 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
           source: "test",
         }]];
       }
-      if (statement.includes("FROM workspace_registry")) {
-        return [[{
-          workspace_id: "workspace-brand-1",
-          tenant_id: "tenant-1",
-          workspace_type: "brand",
-          workspace_ownership_type: "company",
-          owner_user_id: null,
-          linked_brand_key: "brand-1",
-          bootstrap_status: "ready",
-          ownership_revision: 12,
-        }]];
-      }
+      if (statement.includes("FROM workspace_registry")) return [[workspaceRow]];
       if (statement.includes("FROM memberships")) {
         if (!membershipRole) return [[]];
         return [[{
@@ -137,23 +149,27 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
     pool,
     pluginKey: "github",
     tenantId: "tenant-1",
-    workspaceId: "workspace-brand-1",
+    workspaceId: "workspace-company-1",
+    brandRef: "brand-1",
     userId: "user-1",
   });
 
   assert.equal(result.ok, true);
+  assert.equal(result.workspace_ownership_type, "company");
   assert.equal(result.credential_scope, "tenant_connection");
   assert.equal(result.owner_scope_type, "brand");
   assert.equal(result.owner_scope_ref, "brand-1");
+  assert.equal(result.brand_ref, "brand-1");
   assert.equal(result.brand_connections_included, true);
   assert.equal(result.brand_authority_source, "tenant_owner_membership");
   assert.equal(result.connections.length, 1);
   assert.equal(result.connections[0].connection_id, "conn-brand-1");
+  assert.equal(result.connections[0].workspace_id, "workspace-company-1");
   assert.equal(result.connections[0].user_id, null);
   assert.equal(JSON.stringify(result).includes("secret-conn-brand-1"), false);
 
   const scopedCall = pool.calls.find((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility"));
-  assert.deepEqual(scopedCall.params, ["tenant-1", "workspace-brand-1", "github", "brand-1", "brand-1"]);
+  assert.deepEqual(scopedCall.params, ["tenant-1", "workspace-company-1", "github", "brand-1", "brand-1"]);
   assert.match(scopedCall.sql, /owner_scope_type = 'brand'/);
   assert.match(scopedCall.sql, /BINARY v\.owner_scope_ref <=> BINARY \?/);
   assert.match(scopedCall.sql, /BINARY v\.brand_id <=> BINARY \?/);
@@ -165,12 +181,14 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
     pool,
     pluginKey: "github",
     tenantId: "tenant-1",
-    workspaceId: "workspace-brand-1",
+    workspaceId: "workspace-company-1",
+    brandRef: "brand-1",
     userId: "user-1",
   });
 
   assert.equal(result.ok, false);
   assert.equal(result.denial_code, "BRAND_CONNECTION_AUTHORITY_REQUIRED");
+  assert.equal(result.workspace_ownership_type, "company");
   assert.equal(result.row_count, 0);
   assert.equal(result.secrets_included, false);
   assert.equal(pool.calls.some((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility")), false);
@@ -182,15 +200,97 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
     pool,
     pluginKey: "github",
     tenantId: "tenant-1",
-    workspaceId: "workspace-brand-1",
+    workspaceId: "workspace-company-1",
+    brandRef: "brand-1",
     userId: "user-1",
   });
 
   assert.equal(result.ok, true);
   assert.equal(result.brand_authority_source, "workspace_resource_grant");
+  assert.equal(result.workspace_ownership_type, "company");
   assert.equal(result.owner_scope_type, "brand");
   assert.equal(result.owner_scope_ref, "brand-1");
   assert.equal(result.connections[0].connection_id, "conn-brand-1");
+}
+
+{
+  const personalWorkspaceId = "workspace-personal-1";
+  const pool = makePool({
+    membershipRole: "owner",
+    workspaceRow: rootWorkspace({
+      workspaceId: personalWorkspaceId,
+      ownershipType: "personal",
+      ownerUserId: "user-1",
+    }),
+    connectionRows: [brandConnection("conn-personal-brand", personalWorkspaceId)],
+  });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: personalWorkspaceId,
+    brandRef: "brand-1",
+    userId: "user-1",
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.workspace_ownership_type, "personal");
+  assert.equal(result.credential_scope, "tenant_connection");
+  assert.equal(result.owner_scope_type, "brand");
+  assert.equal(result.brand_ref, "brand-1");
+  assert.equal(result.connections[0].connection_id, "conn-personal-brand");
+}
+
+{
+  const personalWorkspaceId = "workspace-personal-1";
+  const pool = makePool({
+    membershipRole: "owner",
+    workspaceRow: rootWorkspace({
+      workspaceId: personalWorkspaceId,
+      ownershipType: "personal",
+      ownerUserId: "different-user",
+    }),
+    connectionRows: [brandConnection("conn-personal-brand", personalWorkspaceId)],
+  });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: personalWorkspaceId,
+    brandRef: "brand-1",
+    userId: "user-1",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.denial_code, "CONNECTION_OWNERSHIP_SCOPE_DENIED");
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM memberships")), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility")), false);
+}
+
+{
+  const pool = makePool({
+    workspaceRow: rootWorkspace({
+      workspaceId: "workspace-brand-child-1",
+      ownershipType: "",
+      ownerUserId: null,
+      workspaceType: "brand",
+    }),
+  });
+  const result = await loadTenantPlatformPluginOwnershipScopedConnections({
+    pool,
+    pluginKey: "github",
+    tenantId: "tenant-1",
+    workspaceId: "workspace-brand-child-1",
+    brandRef: "brand-1",
+    userId: "user-1",
+  });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "brand_child_workspace_is_not_root_connection_context");
+  assert.equal(result.denial_code, "CONNECTION_OWNERSHIP_SCOPE_DENIED");
+  assert.equal(result.root_workspace_required, true);
+  assert.equal(pool.calls.some((call) => call.sql.includes("FROM memberships")), false);
+  assert.equal(pool.calls.some((call) => call.sql.includes("v_context_kernel_connection_ownership_compatibility")), false);
 }
 
 {
@@ -203,7 +303,8 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
-    workspaceId: "workspace-brand-1",
+    workspaceId: "workspace-company-1",
+    brandRef: "brand-1",
     userId: "user-1",
     agentId: "agent-1",
     principalClass: "tenant",
@@ -212,8 +313,12 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
 
   assert.equal(result.allowed, false);
   assert.equal(result.execution.will_execute, false);
+  assert.equal(result.connection_ownership_resolution.workspace_ownership_type, "company");
   assert.equal(result.connection_ownership_resolution.owner_scope_type, "brand");
+  assert.equal(result.connection_ownership_resolution.owner_scope_ref, "brand-1");
+  assert.equal(result.connection_ownership_resolution.brand_ref, "brand-1");
   assert.equal(result.connection_ownership_resolution.brand_connections_included, true);
+  assert.equal(result.connection_ownership_resolution.brand_authority_source, "tenant_owner_membership");
   assert.equal(result.credential_resolution.resolution_state, "ambiguous");
   assert.equal(result.credential_resolution.denial_code, "AMBIGUOUS_CONNECTION_SELECTION");
   assert.equal(result.credential_resolution.ambiguous_scope, "tenant_connection");
@@ -226,4 +331,4 @@ function makePool({ membershipRole = "owner", grantPermissions = [], connectionR
   assert.equal(serialized.includes("secret-conn-brand-b"), false);
 }
 
-console.log("platform plugin brand connection ownership regression passed");
+console.log("platform plugin Brand scope inside root workspace regression passed");
