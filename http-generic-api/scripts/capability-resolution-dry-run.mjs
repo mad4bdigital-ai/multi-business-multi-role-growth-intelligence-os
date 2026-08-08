@@ -85,6 +85,11 @@ function normalizePrincipalContext(args = {}) {
   return { principal_type: principalType, principal_id: principalId };
 }
 
+function canResolveServiceAuthority(principal = {}) {
+  const principalType = normalizeKey(principal?.principal_type).toLowerCase();
+  return Boolean(principal?.principal_id && (!principalType || principalType === "service"));
+}
+
 function inferResourceType(resourceUri = "") {
   const uri = normalizeKey(resourceUri);
   return EXACT_GITHUB_RESOURCE_RE.test(uri) ? "github_repo" : "";
@@ -315,8 +320,7 @@ export async function loadPlatformResourceAuthorityBindings(pool, {
   recipeKey,
 }) {
   if (
-    principal?.principal_type !== "service"
-    || !principal?.principal_id
+    !canResolveServiceAuthority(principal)
     || !tenantId
     || !workspaceId
     || !resourceType
@@ -399,7 +403,7 @@ export function hasExactAdminResourceAuthority({
   operationMode,
   now = new Date(),
 }) {
-  if (principal?.principal_type !== "service" || !principal?.principal_id) return false;
+  if (!canResolveServiceAuthority(principal)) return false;
   if (!tenantId || !workspaceId || !resourceType || !resourceUri || !recipeKey || !operationMode) return false;
   if (resourceUri.includes("*") || (resourceType === "github_repo" && !EXACT_GITHUB_RESOURCE_RE.test(resourceUri))) return false;
   const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
@@ -630,8 +634,9 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const app = await loadApp(pool, args.appKey);
   const appMap = await loadAppMap(pool, args.appKey);
   const brandCore = await loadBrandCore(pool, brandKey);
+  const workspaceGrantPrincipalId = principal.principal_id;
   const userPrincipalId = principal.principal_type === "user" ? principal.principal_id : "";
-  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: userPrincipalId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
+  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: workspaceGrantPrincipalId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
   const platformResourceAuthorityBindings = await loadPlatformResourceAuthorityBindings(pool, {
     tenantId,
     workspaceId,
@@ -769,7 +774,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       notes: [
         "This is a dry-run envelope only; no tool/app/runtime was executed.",
         "Workspace_type values are read from the current workspace_registry enum; extended archetypes are policy-level context until a separate schema migration is approved.",
-        "Exact platform resource authority may satisfy high-risk resource authority for typed service principals only; it never satisfies dispatch certification, approval, readback, protected-branch, or mutation-policy gates.",
+        "Exact platform resource authority may satisfy high-risk resource authority for typed service principals only; a legacy untyped principal id qualifies only when the exact persisted binding proves principal_type=service for the same principal id.",
+        "Resource authority never satisfies dispatch certification, approval, readback, protected-branch, or mutation-policy gates.",
         "No credential values are read or returned; only counts and metadata are exposed.",
       ],
       source_tier_policy: sourceTierConfig?.json || null,
