@@ -73,14 +73,26 @@ request:
 - `readback.required=true`;
 - `readback.policy_key="github_issue_comment_exact_readback_v1"`.
 
+For `github_rest_endpoint_dispatch`, the three mutation-governance facts are
+carried inside `readback.governance`, not as top-level `tool_args` evidence.
+This is intentional: `normalizePlatformEndpointCallArgs` preserves the complete
+`readback` envelope when it converts a catalog binding into the
+`runtime_endpoint_call` payload, while unrelated top-level mutation metadata is
+not part of that normalization contract. The dispatcher therefore fails closed
+when approval/preflight/live evidence is supplied only at the top level. Direct
+`runtime_endpoint_call` remains backward-compatible with top-level or nested
+governance evidence, but the exported dispatcher contract uses the nested form
+so validated evidence cannot disappear between binding selection and execution.
+
 An arbitrary non-empty readback mode is not accepted as proof of executable
 readback. The policy key must match the exact runtime implementation.
 
-A direct create-comment call with `dry_run=true` or `preflight_only=true` is
-rejected by the public create-comment facade before provider dispatch. The
-no-provider-call preflight path is `runtime_endpoint_preview`; its approved
-preflight evidence is then supplied to the later live
-`github_rest_endpoint_dispatch` call.
+A create-comment request with `preflight_only=true` and no `dry_run` fails
+closed before execution resolution, so the flag cannot fall through into a live
+POST. The public `github_rest_endpoint_dispatch` also rejects `dry_run` or
+`preflight_only` mutation calls and points callers to `runtime_endpoint_preview`.
+`runtime_endpoint_preview` adds `dry_run=true` internally and therefore follows
+the passive execution branch without a provider mutation.
 
 After a successful live POST, `executionFacade` does not immediately claim
 governed success. It extracts the returned GitHub comment id and performs a
@@ -142,6 +154,13 @@ from bypassing the approval/preflight/live/readback contract. The guard is
 intentionally operation-specific and does not replace the broader mutation
 policy for other GitHub or provider operations.
 
+The public descriptor for a multi-binding `github_rest_endpoint_dispatch`
+contains an endpoint-specific JSON Schema condition for
+`github_create_issue_comment`. That condition requires the exact readback policy
+and a `readback.governance` object containing approved mutation, completed
+preflight, and live-execution evidence. Other endpoint keys retain their
+existing schemas and are not forced into this create-comment-specific envelope.
+
 ## Response schema alignment
 
 GitHub issue-label add, replace, and remove operations return the complete remaining label array on `200 OK`. Their canonical endpoint rows and exported registry copies must include the corresponding JSON response schema. A description-only success response is insufficient because the runtime response validator treats the missing content schema as contract drift even when GitHub completed the mutation successfully.
@@ -178,15 +197,34 @@ Response contracts should remain tolerant of additive provider fields while vali
 The corresponding method and path are loaded from `endpoints`; they are not accepted from this request.
 
 For `github_create_issue_comment`, first use `runtime_endpoint_preview` for the
-no-provider-call preflight. A later live call must carry the approved preflight
-evidence together with explicit mutation approval, `live_execution_approved`,
-and:
+no-provider-call preflight. A later live `github_rest_endpoint_dispatch` call
+must carry the approved preflight evidence and mutation approvals in the
+normalized envelope:
 
 ```json
 {
-  "readback": {
-    "required": true,
-    "policy_key": "github_issue_comment_exact_readback_v1"
+  "tool_args": {
+    "parent_action_key": "github_api_mcp",
+    "endpoint_key": "github_create_issue_comment",
+    "path_params": {
+      "owner": "mad4bdigital-ai",
+      "repo": "multi-business-multi-role-growth-intelligence-os",
+      "issue_number": 4451
+    },
+    "body": {
+      "body": "Governed comment body"
+    },
+    "readback": {
+      "required": true,
+      "policy_key": "github_issue_comment_exact_readback_v1",
+      "governance": {
+        "mutation_approval": {
+          "approved": true
+        },
+        "approved_preflight_dry_run_validated": true,
+        "live_execution_approved": true
+      }
+    }
   }
 }
 ```
