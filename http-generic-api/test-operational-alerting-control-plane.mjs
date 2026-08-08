@@ -3,6 +3,12 @@ import { readFileSync } from "node:fs";
 import { _testingOperationalAlerts } from "./operationalAlertService.js";
 import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";
 import { CAPABILITY_DRIFT_ESCALATION_POLICY, evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";
+import {
+  CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY,
+  buildCapabilityDriftTenantNotificationKey,
+  capabilityDriftNotificationEligible,
+  evaluateCapabilityDriftTenantTargets,
+} from "./capabilityDriftNotificationFanoutPolicy.js";
 import { _testingActivationAwarenessRoutes } from "./routes/activationAwarenessRoutes.js";
 
 function read(relativePath) {
@@ -379,6 +385,61 @@ function testCapabilityDriftAgeSeverityEscalationPolicy() {
   assert.equal(monotonic.effective_severity, "critical", "an unresolved blocker must not be downgraded by a weaker source observation");
 }
 
+function testCapabilityDriftNotificationFanoutPolicy() {
+  const base = {
+    source_type: CAPABILITY_DRIFT_SOURCE,
+    severity: "high",
+    lifecycle_status: "open",
+    verification_state: "verified",
+    source_record_id: "tenant_tool.wordpress_publish|active_export_missing",
+    notification_episode_started_at: "2026-08-08 12:00:00",
+    evidence: {
+      age_escalation: {
+        policy_key: "capability_drift_age_escalation_v1",
+        blocker_age_hours: 24,
+      },
+    },
+  };
+  assert.equal(CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.max_tenant_targets, 1000);
+  assert.equal(CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.channel, "in_app");
+  assert.equal(CAPABILITY_DRIFT_NOTIFICATION_FANOUT_POLICY.recipient_scope, "active_tenant_members");
+  assert.equal(capabilityDriftNotificationEligible(base), true);
+  assert.equal(capabilityDriftNotificationEligible({
+    ...base,
+    evidence: { age_escalation: { policy_key: "capability_drift_age_escalation_v1", blocker_age_hours: 23.99 } },
+  }), false, "capability fan-out must not fire before the blocker becomes persistent");
+  assert.equal(capabilityDriftNotificationEligible({ ...base, notification_episode_started_at: null }), false);
+  assert.equal(capabilityDriftNotificationEligible({ ...base, lifecycle_status: "resolved" }), false);
+
+  const keyA = buildCapabilityDriftTenantNotificationKey("a".repeat(191), "critical", "tenant-a", "2026-08-08 12:00:00");
+  const keyAReplay = buildCapabilityDriftTenantNotificationKey("a".repeat(191), "critical", "tenant-a", "2026-08-08 12:00:00");
+  const keyTenantB = buildCapabilityDriftTenantNotificationKey("a".repeat(191), "critical", "tenant-b", "2026-08-08 12:00:00");
+  const keyNewEpisode = buildCapabilityDriftTenantNotificationKey("a".repeat(191), "critical", "tenant-a", "2026-08-09 12:00:00");
+  assert.equal(keyA, keyAReplay);
+  assert.notEqual(keyA, keyTenantB);
+  assert.notEqual(keyA, keyNewEpisode, "resolved then reopened blocker must be able to queue a new episode notification");
+  assert.ok(keyA.length <= 255, "tenant+episode notification keys must fit the existing schema");
+
+  const targetDecision = evaluateCapabilityDriftTenantTargets([
+    { tenant_id: "tenant-b" },
+    { tenant_id: "tenant-a" },
+    { tenant_id: "tenant-a" },
+    { tenant_id: null },
+  ]);
+  assert.equal(targetDecision.status, "ready");
+  assert.deepEqual(targetDecision.tenant_ids, ["tenant-a", "tenant-b"]);
+  assert.equal(targetDecision.target_count, 2);
+
+  const overCap = evaluateCapabilityDriftTenantTargets(
+    Array.from({ length: 1001 }, (_, index) => ({ tenant_id: `tenant-${String(index).padStart(4, "0")}` }))
+  );
+  assert.equal(overCap.status, "skipped_fail_closed");
+  assert.equal(overCap.reason, "active_tenant_target_cap_exceeded");
+  assert.equal(overCap.target_count, 0);
+  assert.deepEqual(overCap.tenant_ids, []);
+  assert.equal(overCap.observed_min_count, 1001);
+}
+
 function testCapabilityDriftAlertLifecycleProjection() {
   const tenantVisible = {
     capability_key: "tenant_tool.wordpress_publish",
@@ -562,12 +623,38 @@ function testCapabilityDriftAlertLifecycleProjection() {
     lifecycle_status: "open",
     verification_state: "verified",
     source_record_id: first.sourceRecordId,
-  }), false, "global capability-drift alerts must not fan out notifications before an explicit policy exists");
+  }), false, "capability alerts without persisted age-escalation evidence must not fan out");
+
+  const persistedNotificationCandidate = _testingOperationalAlerts.notificationCandidateFromPersisted(
+    {
+      ...newerLiveBaseSeverity,
+      severity: "medium",
+      evidence: { tenant_visible: true },
+    },
+    {
+      severity: "high",
+      lifecycle_status: "investigating",
+      verification_state: "verified",
+      source_type: CAPABILITY_DRIFT_SOURCE,
+      source_record_id: first.sourceRecordId,
+      evidence_json: JSON.stringify({
+        tenant_visible: true,
+        age_escalation: {
+          policy_key: "capability_drift_age_escalation_v1",
+          blocker_age_hours: 24,
+        },
+      }),
+      notification_episode_started_at: "2026-08-08 12:00:00",
+    }
+  );
+  assert.equal(persistedNotificationCandidate.severity, "high", "persisted effective severity must control fan-out, not the pre-upsert live severity");
+  assert.equal(_testingOperationalAlerts.notificationEligible(persistedNotificationCandidate), true);
 }
 
 function testRepositoryContracts() {
   const service = read("./operationalAlertService.js");
   const escalationPolicy = read("./capabilityDriftAlertEscalationPolicy.js");
+  const fanoutPolicy = read("./capabilityDriftNotificationFanoutPolicy.js");
   const routes = read("./routes/activationAwarenessRoutes.js");
   const awareness = read("./activationAwarenessService.js");
   const migration = read("./migrations/1013_sprint69_operational_alerting_control_plane.sql");
@@ -607,6 +694,22 @@ function testRepositoryContracts() {
   assert.match(escalationPolicy, /capability_drift_age_escalation_v1/);
   assert.match(escalationPolicy, /high_after_hours: 24/);
   assert.match(escalationPolicy, /critical_after_hours: 72/);
+  assert.match(fanoutPolicy, /capability_drift_notification_fanout_v1/);
+  assert.match(fanoutPolicy, /minimum_blocker_age_hours: 24/);
+  assert.match(fanoutPolicy, /max_tenant_targets: 1000/);
+  assert.match(service, /FROM memberships m/);
+  assert.match(service, /JOIN tenants t ON t\.tenant_id = m\.tenant_id/);
+  assert.match(service, /m\.status = 'active'/);
+  assert.match(service, /t\.status = 'active'/);
+  assert.match(service, /maxTargets \+ 1/);
+  assert.match(service, /active_tenant_members/);
+  assert.match(service, /buildCapabilityDriftTenantNotificationKey/);
+  assert.match(service, /DATE_FORMAT\(first_seen_at, '%Y-%m-%d %H:%i:%s'\) AS notification_episode_started_at/);
+  assert.match(service, /LEFT\(SHA2\(COALESCE\(o\.tenant_id, ''\), 256\), 24\)/);
+  assert.match(service, /LEFT\(SHA2\(DATE_FORMAT\(a\.first_seen_at, '%Y-%m-%d %H:%i:%s'\), 256\), 12\)/);
+  assert.match(service, /capability_notification_fanout/);
+  assert.match(service, /'in_app', 'active_tenant_members'/);
+  assert.match(fanoutPolicy, /external_send: false/);
   assert.doesNotMatch(service, /EXECUTION_LOG_MAX_ROWS/);
   assert.doesNotMatch(service, /execution_log: EXECUTION_LOG_MAX_ROWS/);
   assert.match(service, /COUNT\(\*\) AS occurrence_count/);
@@ -863,6 +966,7 @@ async function main() {
   testOperationalAlertLifecycleFingerprintFoundation();
   testDedupeAndLifecyclePrecedence();
   testCapabilityDriftAgeSeverityEscalationPolicy();
+  testCapabilityDriftNotificationFanoutPolicy();
   testCapabilityDriftAlertLifecycleProjection();
   testSummaryAndRouteInputs();
   testRepositoryContracts();
