@@ -9,6 +9,7 @@
   "scope": {
     "include": [
       "docs/github-rest-endpoint-dispatch.md",
+      "http-generic-api/executionFacade.js",
       "http-generic-api/migrations/20260808_github_issue_comment_dispatch_parity.sql",
       "http-generic-api/platformEndpointToolFacade.js",
       "http-generic-api/test-github-rest-endpoint-dispatch-foundation.mjs",
@@ -29,8 +30,8 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Platform admin discovering, preflighting, approving, executing, and reading back the canonical GitHub issue-comment mutation through the governed registry dispatcher",
-          "entrypoint": "github_rest_endpoint_dispatch -> runtime_endpoint_call for endpoint_key=github_create_issue_comment",
-          "terminal_outcome": "Exactly one existing active/ready POST issue-comment endpoint retains a 201 JSON object response schema, appears in exactly one intended admin-only export and dispatch binding, and cannot reach provider dispatch until explicit approval, completed preflight evidence, live execution approval, and required same-cycle readback are present.",
+          "entrypoint": "github_rest_endpoint_dispatch -> runtime_endpoint_call -> executionFacade for endpoint_key=github_create_issue_comment",
+          "terminal_outcome": "Exactly one existing active/ready POST issue-comment endpoint retains a 201 JSON object response schema, appears in exactly one intended admin-only export and dispatch binding, cannot reach provider dispatch until explicit approval, completed preflight evidence, live execution approval, and the exact readback policy are present, and after a successful POST is not reported as governed success until the exact created comment id is observed through github_list_issue_comments in the same execution cycle.",
           "steps": [
             "Count the exact canonical endpoint and exact enabled Admin dispatcher candidates before any registry mutation; proceed only when both cardinalities are exactly one.",
             "Use the existing github_create_issue_comment endpoint row with a non-null canonical endpoint_id; do not register a replacement endpoint or accept caller-supplied method, URL, or authorization material.",
@@ -38,8 +39,9 @@
             "Add github_create_issue_comment to the existing canonical github_rest_endpoint_dispatch endpoint-key allowlist only when absent without tightening the shared pull-request body field used by other GitHub operations.",
             "Create or repair one admin platform endpoint export whose logical identity and source_endpoint_id point to the exact canonical endpoint and whose input_schema_json is copied from endpoints.schema_json.",
             "Create or repair one active db_admin_tool dispatch binding for github_issue_comments_write / github_issue_comment_create using the same export and endpoint source identity through runtime_endpoint_call.",
-            "Use runtime_endpoint_preview for no-provider-call preflight; a dry_run or preflight_only request submitted directly to the create-comment facade fails closed before provider dispatch.",
-            "Before live issue-comment dispatch, require explicit mutation approval, completed preflight evidence, live_execution_approved, and a required non-none same-cycle readback contract at platform endpoint binding selection.",
+            "Use runtime_endpoint_preview for no-provider-call preflight; direct dry-run/preflight attempts through the create-comment facade fail closed with provider_call_allowed=false.",
+            "Before any live provider dispatch, executionFacade requires explicit mutation approval, completed preflight evidence, live_execution_approved, and readback.required=true with policy_key=github_issue_comment_exact_readback_v1.",
+            "After a successful create-comment response, executionFacade extracts the returned comment id, performs a same-cycle github_list_issue_comments read using the same repository/issue path context, and verifies that exact id is present. Missing identity, readback failure, or non-observation fails closed without automatic retry and without claiming governed success.",
             "Use v_platform_endpoint_export_schema_parity for general export parity and v_github_issue_comment_dispatch_parity for exact endpoint/201/allowlist/export/binding post-apply readiness."
           ],
           "assertions": [
@@ -52,11 +54,15 @@
             "The Admin dispatcher allowlist gains github_create_issue_comment idempotently without adding minLength to the shared body.body property, so unrelated operations can still clear a pull-request body.",
             "The export upsert repairs export_key, parent_action_key, endpoint_key, tenant_id, source_endpoint_id, and schema parity to the canonical admin identity.",
             "The binding upsert repairs binding_id, parent_action_key, endpoint_key, tool_key, export/source identity, and remains registry-driven through runtime_endpoint_call.",
-            "The platform endpoint facade blocks github_create_issue_comment before provider dispatch unless approval, completed preflight evidence, live execution approval, and required same-cycle readback are all present; read-only GitHub bindings remain unaffected.",
+            "The actual executionFacade used by runtime_endpoint_call enforces the create-comment mutation gate before provider dispatch, so the Admin dispatcher cannot bypass approval/preflight/live/readback requirements.",
+            "Only the exact readback policy key github_issue_comment_exact_readback_v1 satisfies the live gate; arbitrary non-none modes do not authorize a provider write.",
+            "After a successful provider write, executionFacade performs an executable same-cycle read through github_list_issue_comments and verifies the exact provider-returned comment id before returning governance_readback.status=verified.",
+            "If the provider response lacks a comment id, the readback call fails, or the exact id is not observed, execution returns a typed no-secret governance error with mutation_executed=true and automatic_retry_allowed=false rather than claiming verified success.",
+            "Read-only GitHub endpoint bindings remain unaffected by the create-comment-specific live mutation gate.",
             "Direct dry-run/preflight requests for github_create_issue_comment fail closed with runtime_endpoint_preview guidance and provider_call_allowed=false.",
             "v_github_issue_comment_dispatch_parity returns ready only when exact ready/http_generic_api endpoint identity, 201 response schema, canonical Admin dispatcher allowlist, source-bound export schema parity, and a binding joined to that same export and endpoint all converge to one; otherwise it returns blocked.",
-            "No provider call, credential payload read, raw secret access, external send, external write, DB migration apply, Production mutation, generated-artifact edit, force push, PREPARE, or EXECUTE is performed by the source change.",
-            "This bounded change closes only github_create_issue_comment registry/export parity; it does not claim full platform catalog/runtime/certification parity or close #4451."
+            "No provider call, credential payload read, raw secret access, external send, external write, DB migration apply, Production mutation, generated-artifact edit, force push, PREPARE, or EXECUTE is performed by the source change itself; provider calls occur only when the governed runtime tool is invoked later with the required authority and evidence.",
+            "This bounded change closes only github_create_issue_comment registry/export/runtime-readback parity; it does not claim full platform catalog/runtime/certification parity or close #4451."
           ],
           "tests": [
             {
@@ -77,6 +83,7 @@
           "evidence_paths": [
             ".changes/e2e/github-issue-comment-dispatch-parity.json",
             "docs/github-rest-endpoint-dispatch.md",
+            "http-generic-api/executionFacade.js",
             "http-generic-api/migrations/20260808_github_issue_comment_dispatch_parity.sql",
             "http-generic-api/migrations/1029_sprint69_registry_export_schema_parity_gate.sql",
             "http-generic-api/platformEndpointToolFacade.js",
