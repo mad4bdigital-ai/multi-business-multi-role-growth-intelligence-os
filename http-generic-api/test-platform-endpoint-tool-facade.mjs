@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
+  GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
   buildPlatformEndpointToolDescriptors,
   selectPlatformEndpointToolBinding,
 } from "./platformEndpointToolFacade.js";
@@ -291,10 +293,12 @@ const githubRows = [
       mutation_approval: { approved: true },
       dry_run_preflight_completed: true,
       live_execution_approved: true,
+      readback: { required: true, mode: "bogus" },
     }),
     (error) => error.code === "github_issue_comment_mutation_readback_required"
+      && error.details.required_readback_policy_key === GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY
       && error.details.provider_call_allowed === false,
-    "issue-comment mutation must require a non-none same-cycle readback contract",
+    "arbitrary non-none readback modes must not satisfy the exact comment readback gate",
   );
 
   assert.throws(
@@ -314,7 +318,7 @@ const githubRows = [
     mutation_approval: { approved: true },
     approved_preflight_dry_run_validated: true,
     live_execution_approved: true,
-    readback: { required: true, mode: "same_cycle" },
+    readback: { required: true, policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY },
   });
   assert.equal(selected.endpoint_key, "github_create_issue_comment");
   assert.equal(selected.method, "POST");
@@ -325,6 +329,43 @@ const githubRows = [
     "github_rest_endpoint_dispatch",
   );
   assert.equal(readOnlySelected.endpoint_key, "github_list_issue_comments");
+}
+
+{
+  const executionFacadeSource = readFileSync(
+    new URL("./executionFacade.js", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    executionFacadeSource,
+    /if \(isGithubIssueCommentLiveMutation\(reqBody\)\) \{\s*enforceGithubIssueCommentMutationGate\(reqBody, reqBody\);/,
+    "actual runtime execution facade must enforce the create-comment gate before resolution/provider dispatch",
+  );
+  assert.match(
+    executionFacadeSource,
+    /endpoint_key: "github_list_issue_comments"/,
+    "same-cycle readback must execute the canonical read-only issue-comments endpoint",
+  );
+  assert.match(
+    executionFacadeSource,
+    /facade\.execute\(\s*buildGithubIssueCommentReadbackPayload/,
+    "same-cycle readback must be an executable runtime call rather than metadata only",
+  );
+  assert.match(
+    executionFacadeSource,
+    /comments\.some\(\(comment\) => String\(comment\?\.id \?\? ""\)\.trim\(\) === commentId\)/,
+    "readback must verify the exact provider-returned comment identity",
+  );
+  assert.match(
+    executionFacadeSource,
+    /github_issue_comment_readback_not_observed/,
+    "missing exact comment observation must fail closed after the mutation",
+  );
+  assert.match(
+    executionFacadeSource,
+    /governance_readback:[\s\S]*policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY[\s\S]*status: "verified"/,
+    "successful live mutation must return bounded verified readback evidence",
+  );
 }
 
 console.log("platform endpoint tool facade tests passed");
