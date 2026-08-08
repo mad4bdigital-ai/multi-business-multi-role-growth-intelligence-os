@@ -1,0 +1,160 @@
+name: TEMP PR-Equivalent Verify 6626 dfa5b4eb
+
+on:
+  pull_request:
+    branches:
+      - gpt/exact-head-verify-base-6626-2bf8c0b5-dfa5b4eb
+    types: [opened, reopened, synchronize]
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CANONICAL_PR: '6626'
+      EXPECTED_MAIN_SHA: 2bf8c0b56ea05b50650938400ca3e32ca11f52ee
+      EXPECTED_HEAD_SHA: dfa5b4ebd9d4bf0acf1f89efa609147fd416c7e1
+      TARGET_BRANCH: fix/generated-artifact-refresh-eligible-request-json-20260807
+      TRIGGER_BRANCH: fix/exact-head-verify-trigger-6626-dfa5b4eb-20260808
+      TRIGGER_PATH: .changes/e2e/exact-head-verify-trigger-6626-dfa5b4eb.json
+      REPORT_DIR: /tmp/pr-equivalent-verification
+    steps:
+      - name: Validate exact target and trigger
+        id: target
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TRIGGER_PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -Eeuo pipefail
+          trigger="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}")"
+          test "$(jq -r '.state' <<<"${trigger}")" = 'open'
+          test "$(jq -r '.head.repo.full_name' <<<"${trigger}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' <<<"${trigger}")" = "${TRIGGER_BRANCH}"
+          test "$(jq -r '.base.ref' <<<"${trigger}")" = 'gpt/exact-head-verify-base-6626-2bf8c0b5-dfa5b4eb'
+          files="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${TRIGGER_PR}/files" --jq '.[].filename')"
+          test "${files}" = "${TRIGGER_PATH}"
+
+          pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${CANONICAL_PR}")"
+          test "$(jq -r '.state' <<<"${pr}")" = 'open'
+          test "$(jq -r '.draft' <<<"${pr}")" = 'false'
+          test "$(jq -r '.base.ref' <<<"${pr}")" = 'main'
+          test "$(jq -r '.base.sha' <<<"${pr}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.head.ref' <<<"${pr}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' <<<"${pr}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "${EXPECTED_MAIN_SHA}"
+          comparison="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${EXPECTED_MAIN_SHA}...${EXPECTED_HEAD_SHA}")"
+          test "$(jq -r '.behind_by' <<<"${comparison}")" = '0'
+          test "$(jq -r '.merge_base_commit.sha' <<<"${comparison}")" = "${EXPECTED_MAIN_SHA}"
+          test "$(jq -r '.files | length' <<<"${comparison}")" = '7'
+
+      - name: Checkout exact canonical candidate
+        if: steps.target.outcome == 'success'
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.EXPECTED_HEAD_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js 22
+        if: steps.target.outcome == 'success'
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run PR-equivalent direct governance checks
+        id: direct
+        if: steps.target.outcome == 'success'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          mkdir -p "${REPORT_DIR}"
+          status=0
+
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-dispatch-workflow.mjs) || status=1
+          (cd http-generic-api && node test-governed-generated-artifact-refresh-pr-target-bridge.mjs) || status=1
+
+          node http-generic-api/scripts/e2e-parallel-pr-gate.mjs check \
+            --head-ref "${TARGET_BRANCH}" \
+            --base-ref main \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-parallel-work-evaluation.json" || status=1
+
+          node http-generic-api/scripts/e2e-phase-governance.mjs check \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-phase-evaluation.json" || status=1
+
+          node http-generic-api/scripts/e2e-contract-reference-integrity.mjs \
+            --base "${EXPECTED_MAIN_SHA}" \
+            --head "${EXPECTED_HEAD_SHA}" \
+            --report-file "${REPORT_DIR}/e2e-contract-reference-integrity.json" || status=1
+
+          if [[ -f "${REPORT_DIR}/e2e-contract-reference-integrity.json" ]]; then
+            node http-generic-api/scripts/e2e-contract-git-index-integrity.mjs \
+              --report-file "${REPORT_DIR}/e2e-contract-reference-integrity.json" || status=1
+          fi
+
+          exit "${status}"
+
+      - name: Dispatch workflow-dispatch-safe exact-head checks
+        id: dispatch
+        if: steps.target.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          workflows=(
+            ci.yml
+            spec-kit-work-map-integration.yml
+            automation-overlap-guard.yml
+            hostinger-storage-final-work-map-readback-guard.yml
+          )
+          dispatch_started_at="$(date -u -d '5 seconds ago' +'%Y-%m-%dT%H:%M:%SZ')"
+          payload="$(jq -cn --arg ref "${TARGET_BRANCH}" '{ref:$ref}')"
+          mkdir -p "${REPORT_DIR}"
+          : > "${REPORT_DIR}/verification-runs.tsv"
+
+          for workflow in "${workflows[@]}"; do
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = 'active'
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" --input - <<<"${payload}"
+            run_id=''
+            for _ in $(seq 1 30); do
+              run_id="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/runs" -f event=workflow_dispatch -f branch="${TARGET_BRANCH}" -f per_page=30 --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${EXPECTED_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${run_id}" ]]; then break; fi
+              sleep 2
+            done
+            [[ "${run_id}" =~ ^[1-9][0-9]*$ ]]
+            printf '%s\t%s\n' "${workflow}" "${run_id}" >> "${REPORT_DIR}/verification-runs.tsv"
+          done
+          cat "${REPORT_DIR}/verification-runs.tsv"
+
+      - name: Upload PR-equivalent verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-equivalent-verification-6626-dfa5b4eb-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Enforce verifier result
+        if: always()
+        env:
+          TARGET_OUTCOME: ${{ steps.target.outcome }}
+          DIRECT_OUTCOME: ${{ steps.direct.outcome }}
+          DISPATCH_OUTCOME: ${{ steps.dispatch.outcome }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${TARGET_OUTCOME}" = 'success'
+          test "${DIRECT_OUTCOME}" = 'success'
+          test "${DISPATCH_OUTCOME}" = 'success'
