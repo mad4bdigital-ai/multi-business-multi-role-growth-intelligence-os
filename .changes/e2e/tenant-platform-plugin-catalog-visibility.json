@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".changes/e2e/tenant-platform-plugin-catalog-visibility.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/platformPluginCatalog.js",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
       "http-generic-api/test-platform-plugin-catalog.mjs"
@@ -25,7 +26,7 @@
         {
           "id": "tenant-catalog-excludes-admin-tool-bindings",
           "end_to_end": true,
-          "level": "in_process",
+          "level": "synthetic_runtime",
           "actor": "Authenticated tenant user listing available Platform Plugins",
           "entrypoint": "GET /tenant/platform/plugins/catalog through loadPlatformPluginCatalog with principalClass=tenant",
           "terminal_outcome": "The tenant catalog contains tenant-visible tool bindings only, while the Admin catalog retains its existing internal bindings and no secret values are exposed.",
@@ -56,6 +57,7 @@
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-platform-plugin-catalog-visibility.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/platformPluginCatalog.js",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
             "http-generic-api/test-platform-plugin-catalog.mjs"
