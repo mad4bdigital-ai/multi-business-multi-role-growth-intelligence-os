@@ -8,10 +8,14 @@
   "scope": {
     "include": [
       ".changes/e2e/tenant-brand-connection-ownership-4451.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
       "http-generic-api/platformPluginConnectionOwnership.js",
       "http-generic-api/platformPluginResolver.js",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
-      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+      "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
       "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs"
     ]
   },
@@ -48,6 +52,7 @@
             "A Brand child workspace context fails closed with CONNECTION_OWNERSHIP_SCOPE_DENIED and cannot reach connection lookup.",
             "Two eligible Brand connections return AMBIGUOUS_CONNECTION_SELECTION with candidate_count=2, no connection_id selection, and no candidate/secret leakage.",
             "The tenant-safe ownership projection exposes Brand scope metadata but never credential payloads.",
+            "The governed generated-artifact writer materializes root OpenAPI, tenant auth OpenAPI, and frontend surface dispatch parity without widening the mutation write set.",
             "No live database, provider, credential, Production, SQL/Migration Apply, or external mutation action occurs."
           ],
           "tests": [
@@ -57,14 +62,25 @@
               "working_directory": "http-generic-api",
               "path": "test-platform-plugin-brand-connection-ownership.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-root-workspace-brand-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-brand-connection-authority.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-brand-connection-ownership-4451.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
             "http-generic-api/platformPluginConnectionOwnership.js",
             "http-generic-api/platformPluginResolver.js",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
-            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+            "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
             "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs"
           ]
         }
