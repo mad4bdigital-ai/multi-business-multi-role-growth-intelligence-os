@@ -647,6 +647,12 @@ function mergeCandidates(items = []) {
           ? item.severity
           : current.severity)
       : latest.severity;
+    const mergedFirstSeenAt = capabilityDriftMerge
+      && persistedLifecycleClosed
+      && hasNewerLiveOccurrence
+      && live
+      ? live.first_seen_at
+      : earliest.first_seen_at;
     merged.set(item.alert_key, {
       ...current,
       ...latest,
@@ -658,7 +664,7 @@ function mergeCandidates(items = []) {
         ? item.verification_state
         : current.verification_state,
       occurrence_count: Math.max(safeNumber(current.occurrence_count), safeNumber(item.occurrence_count)),
-      first_seen_at: earliest.first_seen_at,
+      first_seen_at: mergedFirstSeenAt,
       last_seen_at: latest.last_seen_at,
       manual_known_issue: current.manual_known_issue || item.manual_known_issue,
       persisted: current.persisted || item.persisted,

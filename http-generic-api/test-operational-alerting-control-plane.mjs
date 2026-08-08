@@ -552,6 +552,7 @@ function testCapabilityDriftAlertLifecycleProjection() {
   const reopenedEpisode = _testingOperationalAlerts.mergeCandidates([newerLiveBaseSeverity, resolvedPriorEpisode]);
   assert.equal(reopenedEpisode[0].lifecycle_status, "open", "a live occurrence newer than resolution must reopen the capability alert");
   assert.equal(reopenedEpisode[0].severity, "medium", "a new lifecycle episode must not inherit age-escalated severity from a resolved episode");
+  assert.equal(reopenedEpisode[0].first_seen_at, newerLiveBaseSeverity.first_seen_at, "a new lifecycle episode must expose the new episode start instead of the resolved episode age");
   assert.equal(reopenedEpisode[0].last_seen_at, newerLiveBaseSeverity.last_seen_at);
   assert.equal(reopenedEpisode[0].alert_id, "alert-capability-resolved");
   assert.equal(_testingOperationalAlerts.notificationEligible({
@@ -599,6 +600,8 @@ function testRepositoryContracts() {
   assert.match(service, /system_age_escalation/);
   assert.match(service, /const capabilityDriftMerge/);
   assert.match(service, /preservePersistedCapabilitySeverity/);
+  assert.match(service, /const mergedFirstSeenAt/);
+  assert.match(service, /first_seen_at: mergedFirstSeenAt/);
   assert.match(service, /severity: mergedSeverity/);
   assert.match(service, /lifecycle_status IN \('resolved','ignored'\)/);
   assert.match(escalationPolicy, /capability_drift_age_escalation_v1/);
