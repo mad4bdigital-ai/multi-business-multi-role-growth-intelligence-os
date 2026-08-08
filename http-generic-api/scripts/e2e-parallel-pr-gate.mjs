@@ -151,53 +151,35 @@ function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, 
   return matches.length === 1 ? matches[0] : null;
 }
 
-function resolveCanonicalRef(root, name) {
-  for (const candidate of [`refs/remotes/origin/${name}`, `refs/heads/${name}`, name]) {
-    try {
-      execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      });
-      return candidate;
-    } catch {}
-  }
-  return null;
-}
-
 function resolveCanonicalMainRef(root) {
-  return resolveCanonicalRef(root, "main");
-}
-
-function resolveLiveProtectedSha(root, name) {
-  let originConfigured = false;
+  const mainRef = "refs/remotes/origin/main";
   try {
-    originConfigured = Boolean(execFileSync("git", ["remote", "get-url", "origin"], {
+    execFileSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
       cwd: root,
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
-    }).trim());
-  } catch {}
-
-  if (originConfigured) {
-    try {
-      const output = execFileSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      }).trim();
-      const rows = output.split(/\r?\n/).filter(Boolean);
-      if (rows.length !== 1) return null;
-      const [sha, ref] = rows[0].trim().split(/\s+/);
-      if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
-      return sha;
-    } catch {
-      return null;
-    }
+    });
+    return mainRef;
+  } catch {
+    return null;
   }
+}
 
-  const localRef = resolveCanonicalRef(root, name);
-  return resolveCommit(root, localRef);
+function resolveLiveProtectedSha(root, name) {
+  try {
+    const output = execFileSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    const rows = output.split(/\r?\n/).filter(Boolean);
+    if (rows.length !== 1) return null;
+    const [sha, ref] = rows[0].trim().split(/\s+/);
+    if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
+    return sha;
+  } catch {
+    return null;
+  }
 }
 
 function isAncestor(root, ancestor, descendant) {
