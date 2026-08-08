@@ -115,12 +115,13 @@ const workMapResourceGroup = overlapPolicy.resource_groups.find(
   (entry) => entry.key === "pull-request-work-map-generated-artifacts",
 );
 const expectedWorkMapConcurrency = "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}";
+const expectedRecoveryConcurrency = "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number || github.run_id }}";
 
 assert(workMapResourceGroup, "Work Map generated-artifact resource group must remain registered");
 assert.equal(
   workMapResourceGroup.required_concurrency_group,
   expectedWorkMapConcurrency,
-  "Work Map resource-group policy must match the PR-keyed Recovery/writer serialization identity",
+  "Work Map resource-group policy must match the PR-keyed writer serialization identity",
 );
 assert.deepEqual(
   workMapResourceGroup.workflows,
@@ -132,8 +133,8 @@ assert(
   "Work Map writer workflow must use the policy-required PR-keyed concurrency group",
 );
 assert(
-  workMapRecoveryWorkflow.includes(`group: ${expectedWorkMapConcurrency}`),
-  "Recovery and Work Map writer must share the same PR-keyed serialization lease",
+  workMapRecoveryWorkflow.includes(`group: ${expectedRecoveryConcurrency}`),
+  "Recovery must use the same PR-keyed serialization lease and retain a run-id fallback before PR resolution",
 );
 assert(
   workMapWorkflow.includes("cancel-in-progress: false") && workMapRecoveryWorkflow.includes("cancel-in-progress: false"),
