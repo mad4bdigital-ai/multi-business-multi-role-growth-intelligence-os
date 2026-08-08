@@ -24,6 +24,9 @@ for (const legacyColumn of ["brand_name", "google_drive_link", "asset_type", "do
 }
 
 const materializationRuntimeSource = readFileSync(new URL("./workspaceBrandCoreAssetMaterialization.js", import.meta.url), "utf8");
+const canonicalBrandLookupSql = materializationRuntimeSource.match(/`SELECT target_key, brand_name, normalized_brand_name[\s\S]*?FROM brands[\s\S]*?LIMIT 2 FOR UPDATE`/)?.[0] || "";
+assert(canonicalBrandLookupSql, "Brand Core materialization must expose one bounded canonical Brand identity query after shared authority resolution");
+assert.doesNotMatch(canonicalBrandLookupSql, /\bstatus\b/, "Brand Core local Brand identity readback must not re-project the legacy brands.status column after shared authority already validated Brand lifecycle");
 const brandCoreLookupSql = materializationRuntimeSource.match(/`SELECT id, brand_key,[\s\S]*?FROM brand_core[\s\S]*?LIMIT 3 FOR UPDATE`/)?.[0] || "";
 assert(brandCoreLookupSql, "Brand Core materialization must expose one bounded canonical source query");
 assert.match(brandCoreLookupSql, /LOWER\(COALESCE\(brand_key,''\)\)/, "Brand Core lookup must scope through the canonical brand_key column");
@@ -68,7 +71,7 @@ function ownerMembership() {
 }
 
 function brandRow() {
-  return [{ target_key: "brand-a", brand_name: "Brand A", normalized_brand_name: "brand a", status: "active" }];
+  return [{ target_key: "brand-a", brand_name: "Brand A", normalized_brand_name: "brand a" }];
 }
 
 function brandWorkspaceRow(overrides = {}) {

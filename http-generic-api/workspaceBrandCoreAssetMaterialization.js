@@ -196,7 +196,7 @@ async function resolveCanonicalBrand(connection, tenantId, actorUserId, requeste
     brandRef: requestedBrandRef,
   });
   const [brandRows] = await connection.query(
-    `SELECT target_key, brand_name, normalized_brand_name, status
+    `SELECT target_key, brand_name, normalized_brand_name
        FROM brands
       WHERE target_key=?
       LIMIT 2 FOR UPDATE`,
