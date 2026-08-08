@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { materializeWorkspaceBrandCoreAsset } from "./workspaceBrandCoreAssetMaterialization.js";
+import {
+  buildBrandCoreMaterializedAssetRef,
+  materializeWorkspaceBrandCoreAsset,
+} from "./workspaceBrandCoreAssetMaterialization.js";
 
 const workspaceAssetFoundationSql = readFileSync(
   new URL("./migrations/193_sprint67_workspace_resource_authority_foundation.sql", import.meta.url),
@@ -8,6 +11,25 @@ const workspaceAssetFoundationSql = readFileSync(
 );
 assert.match(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'external_ref'/, "Brand Core reference materialization must use a workspace_assets asset_type admitted by the canonical foundation schema");
 assert.doesNotMatch(workspaceAssetFoundationSql, /asset_type enum\([^\n]*'brand_core'/, "tests must not rely on an undeclared brand_core workspace asset type");
+assert.match(workspaceAssetFoundationSql, /UNIQUE KEY uq_workspace_asset_ref \(tenant_id, asset_type, asset_ref\)/, "Brand Core materialization must respect the canonical tenant-wide workspace asset identity key");
+
+const canonicalSchemaSql = readFileSync(new URL("./schema.sql", import.meta.url), "utf8");
+const brandCoreSchema = canonicalSchemaSql.match(/CREATE TABLE IF NOT EXISTS `brand_core` \(([\s\S]*?)\) ENGINE=InnoDB/)?.[1] || "";
+assert(brandCoreSchema, "canonical schema must declare brand_core");
+for (const canonicalColumn of ["brand_key", "asset_key", "doc_key", "doc_id", "file_id", "google_doc_id", "status", "created_at", "updated_at"]) {
+  assert.match(brandCoreSchema, new RegExp(`\\\`${canonicalColumn}\\\``), `brand_core schema must expose ${canonicalColumn}`);
+}
+for (const legacyColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
+  assert.doesNotMatch(brandCoreSchema, new RegExp(`\\\`${legacyColumn}\\\``), `regression fixture must not assume undeclared brand_core.${legacyColumn}`);
+}
+
+const materializationRuntimeSource = readFileSync(new URL("./workspaceBrandCoreAssetMaterialization.js", import.meta.url), "utf8");
+const brandCoreLookupSql = materializationRuntimeSource.match(/`SELECT id, brand_key,[\s\S]*?FROM brand_core[\s\S]*?LIMIT 3 FOR UPDATE`/)?.[0] || "";
+assert(brandCoreLookupSql, "Brand Core materialization must expose one bounded canonical source query");
+assert.match(brandCoreLookupSql, /LOWER\(COALESCE\(brand_key,''\)\)/, "Brand Core lookup must scope through the canonical brand_key column");
+for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
+  assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not require undeclared ${undeclaredColumn}`);
+}
 
 const containerFoundationSql = readFileSync(
   new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql", import.meta.url),
@@ -97,18 +119,12 @@ function sourceRow(overrides = {}) {
   return [{
     id: 11,
     brand_key: "brand-a",
-    brand_name: "Brand A",
     asset_key: "positioning",
     doc_key: null,
     doc_id: "doc-123",
     file_id: null,
     google_doc_id: null,
-    google_drive_link: "https://docs.google.com/document/d/doc-123/edit",
-    asset_type: "Brand Positioning",
-    document_name: "Brand A Positioning",
     status: "active",
-    validation_status: "validated",
-    active_status: "TRUE",
     created_at: "2026-08-01 10:00:00",
     updated_at: "2026-08-07 10:00:00",
     ...overrides,
@@ -222,17 +238,21 @@ async function materialize(connection, sourceRef = "positioning") {
 }
 
 {
-  const connection = buildConnection();
+  const source = sourceRow()[0];
+  const expectedAssetRef = buildBrandCoreMaterializedAssetRef("brand-a", source);
+  const connection = buildConnection({ sources: [source] });
   const result = await materialize(connection);
   assert.equal(result.tenant_id, "tenant-a", "tenant authority must be derived from the selected root workspace");
   assert.equal(result.asset.brand_ref, "brand-a");
   assert.equal(result.asset.asset_type, "external_ref");
-  assert.equal(result.asset.asset_ref, "asset_key:positioning");
+  assert.equal(result.asset.asset_ref, expectedAssetRef);
+  assert.match(result.asset.asset_ref, /^brand_core:[0-9a-f]{64}$/);
   assert.equal(result.asset.source_type, "import");
   assert.equal(result.asset.source_provider, "brand_core");
   assert.equal(result.asset.source_revision, "2026-08-07 10:00:00");
   assert.equal(result.asset.content_sha256, null, "content hash must remain null when provider content was not fetched");
-  assert.equal(result.asset.content_identity, "asset_ref:external_ref:asset_key:positioning");
+  assert.equal(result.asset.content_identity, `asset_ref:external_ref:${expectedAssetRef}`);
+  assert.equal(result.source.source_ref, "asset_key:positioning");
   assert.equal(result.source.provider_content_fetched, false);
   assert.equal(result.workspace.workspace_id, "workspace-root-a");
   assert.equal(result.workspace.workspace_ownership_type, "company");
@@ -245,6 +265,7 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(metadata.brand_workspace_id, "workspace-brand-a");
   assert.equal(metadata.brand_container_id, "container-brand-a");
   assert.equal(metadata.brand_container_relationship_id, "relationship-root-a-brand-a");
+  assert.equal(metadata.brand_core_asset_ref, expectedAssetRef);
   assert.equal(metadata.brand_core_source_ref, "asset_key:positioning");
   assert.equal(metadata.source_provider, "brand_core");
   assert.equal(metadata.secrets_included, false);
@@ -256,21 +277,26 @@ async function materialize(connection, sourceRef = "positioning") {
 }
 
 {
-  const connection = buildConnection({
-    sources: sourceRow({
-      asset_key: null,
-      doc_key: null,
-      doc_id: null,
-      file_id: null,
-      google_doc_id: null,
-      google_drive_link: "https://docs.google.com/document/d/legacy-doc-456/edit",
-      document_name: "Legacy Positioning",
-    }),
-  });
+  const source = sourceRow({
+    asset_key: null,
+    doc_key: null,
+    doc_id: "legacy-doc-456",
+    file_id: null,
+    google_doc_id: null,
+  })[0];
+  const connection = buildConnection({ sources: [source] });
   const result = await materialize(connection, "https://docs.google.com/document/d/legacy-doc-456/edit");
   assert.equal(result.source.source_ref, "google_file:legacy-doc-456");
-  assert.equal(result.asset.asset_ref, "google_file:legacy-doc-456");
+  assert.equal(result.asset.asset_ref, buildBrandCoreMaterializedAssetRef("brand-a", source));
   assert.equal(result.asset.asset_type, "external_ref");
+}
+
+{
+  const source = sourceRow()[0];
+  const brandAAssetRef = buildBrandCoreMaterializedAssetRef("brand-a", source);
+  const brandBAssetRef = buildBrandCoreMaterializedAssetRef("brand-b", { ...source, brand_key: "brand-b" });
+  assert.notEqual(brandAAssetRef, brandBAssetRef, "the same Brand Core source key must materialize to distinct workspace asset identities for different Brands in one tenant");
+  assert.equal(brandAAssetRef, buildBrandCoreMaterializedAssetRef("BRAND-A", source), "Brand identity casing must not fork the deterministic materialization identity");
 }
 
 {
@@ -317,7 +343,7 @@ async function materialize(connection, sourceRef = "positioning") {
 }
 
 {
-  const connection = buildConnection({ sources: sourceRow({ status: "inactive", validation_status: "invalid", active_status: "FALSE" }) });
+  const connection = buildConnection({ sources: sourceRow({ status: "inactive" }) });
   await assert.rejects(materialize(connection), (error) => error?.code === "brand_core_source_inactive" && error?.status === 409);
   assert.equal(connection.insertAttempts, 0);
 }

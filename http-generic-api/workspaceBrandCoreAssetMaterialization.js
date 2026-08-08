@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
 import { extractGoogleFileId } from "./resolvers/brandReferenceResolver.js";
 import { resolveWorkspaceAssetBrandRef } from "./workspaceAssetBrandAuthority.js";
@@ -70,6 +71,16 @@ function canonicalBrandCoreSourceRef(row = {}) {
   return "";
 }
 
+export function buildBrandCoreMaterializedAssetRef(canonicalBrandRef, source = {}) {
+  const brandIdentity = lower(canonicalBrandRef);
+  const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
+  if (!brandIdentity || !canonicalSourceRef) return "";
+  const digest = createHash("sha256")
+    .update(`brand_core_asset_v1\0${brandIdentity}\0${canonicalSourceRef}`, "utf8")
+    .digest("hex");
+  return `brand_core:${digest}`;
+}
+
 function sourceLookupCandidates(value) {
   const raw = text(value, 512);
   if (!raw) return [];
@@ -83,20 +94,21 @@ function sourceRevision(row = {}) {
 
 function materializedAssetInput({ rootWorkspace, brandWorkspace, topology, canonicalBrandRef, source }) {
   const canonicalSourceRef = canonicalBrandCoreSourceRef(source);
-  if (!canonicalSourceRef) {
+  const canonicalAssetRef = buildBrandCoreMaterializedAssetRef(canonicalBrandRef, source);
+  if (!canonicalSourceRef || !canonicalAssetRef) {
     throw materializationError(422, "brand_core_source_identity_unverifiable", "Brand Core source does not expose a stable materialization identity.");
   }
   const validationStatus = sourceValidationStatus(source);
   return {
     asset_type: "external_ref",
-    asset_ref: canonicalSourceRef,
-    display_name: text(source.document_name || source.asset_key || source.doc_key || canonicalSourceRef, 255),
+    asset_ref: canonicalAssetRef,
+    display_name: text(source.asset_key || source.doc_key || canonicalSourceRef, 255),
     brand_ref: canonicalBrandRef,
     visibility: "restricted",
     lifecycle_status: "active",
     source_type: "import",
     source_provider: "brand_core",
-    source_uri: `brand-core:${canonicalSourceRef}`,
+    source_uri: `brand-core:${canonicalBrandRef}:${canonicalSourceRef}`,
     source_revision: sourceRevision(source) || null,
     content_sha256: null,
     metadata_json: {
@@ -111,8 +123,9 @@ function materializedAssetInput({ rootWorkspace, brandWorkspace, topology, canon
       brand_container_key: text(topology.brand_container_key, 255),
       brand_container_relationship_id: text(topology.relationship_id, 64),
       brand_core_row_id: source.id,
+      brand_core_asset_ref: canonicalAssetRef,
       brand_core_source_ref: canonicalSourceRef,
-      brand_core_asset_type: text(source.asset_type, 255) || null,
+      brand_core_asset_type: null,
       source_validation_status: validationStatus || null,
       source_updated_at: source.updated_at || null,
       provider_content_fetched: false,
@@ -346,21 +359,19 @@ async function resolveBrandCoreSource(connection, brand, sourceLookup) {
     text(brand.normalized_brand_name, 255),
   ].filter(Boolean).map((value) => value.toLowerCase()))];
   const sourceConditions = candidates.map(() => `(
-    asset_key=? OR doc_key=? OR doc_id=? OR file_id=? OR google_doc_id=? OR google_drive_link=?
+    asset_key=? OR doc_key=? OR doc_id=? OR file_id=? OR google_doc_id=?
   )`).join(" OR ");
-  const sourceParams = candidates.flatMap((candidate) => [candidate, candidate, candidate, candidate, candidate, candidate]);
+  const sourceParams = candidates.flatMap((candidate) => [candidate, candidate, candidate, candidate, candidate]);
   const brandPlaceholders = brandRefs.map(() => "?").join(",");
   const [rows] = await connection.query(
-    `SELECT id, brand_key, brand_name, asset_key, doc_key, doc_id, file_id, google_doc_id,
-            google_drive_link, asset_type, document_name, status, validation_status,
-            active_status, created_at, updated_at
+    `SELECT id, brand_key, asset_key, doc_key, doc_id, file_id, google_doc_id,
+            status, created_at, updated_at
        FROM brand_core
-      WHERE (LOWER(COALESCE(brand_key,'')) IN (${brandPlaceholders})
-         OR LOWER(COALESCE(brand_name,'')) IN (${brandPlaceholders}))
+      WHERE LOWER(COALESCE(brand_key,'')) IN (${brandPlaceholders})
         AND (${sourceConditions})
       ORDER BY updated_at DESC, id DESC
       LIMIT 3 FOR UPDATE`,
-    [...brandRefs, ...brandRefs, ...sourceParams]
+    [...brandRefs, ...sourceParams]
   );
   if (!Array.isArray(rows) || rows.length === 0) {
     throw materializationError(404, "brand_core_source_not_found", "Brand Core source did not resolve inside the canonical Brand.");
@@ -409,9 +420,10 @@ async function persistMaterializedAsset(connection, {
   const [lineage] = lineageRows;
   const metadata = parseWorkspaceAssetMetadata(lineage.metadata_json);
   const expectedSourceRef = canonicalBrandCoreSourceRef(source);
+  const expectedAssetRef = buildBrandCoreMaterializedAssetRef(canonicalBrandRef, source);
   if (
     text(lineage.asset_type) !== input.asset_type ||
-    text(lineage.asset_ref) !== expectedSourceRef ||
+    text(lineage.asset_ref) !== expectedAssetRef ||
     text(lineage.brand_ref) !== canonicalBrandRef ||
     text(metadata.root_workspace_id) !== text(rootWorkspace.workspace_id, 64) ||
     lower(metadata.root_workspace_ownership_type) !== lower(rootWorkspace.workspace_ownership_type) ||
@@ -419,6 +431,7 @@ async function persistMaterializedAsset(connection, {
     text(metadata.brand_workspace_id) !== text(brandWorkspace.workspace_id, 64) ||
     text(metadata.brand_container_id) !== text(topology.brand_container_id, 64) ||
     text(metadata.brand_container_relationship_id) !== text(topology.relationship_id, 64) ||
+    text(metadata.brand_core_asset_ref) !== expectedAssetRef ||
     text(metadata.brand_core_source_ref) !== expectedSourceRef ||
     text(metadata.source_provider) !== "brand_core" ||
     text(metadata.source_type) !== "import" ||
@@ -534,14 +547,3 @@ export async function materializeWorkspaceBrandCoreAssetTransaction({
     connection.release();
   }
 }
-
-export const _testingWorkspaceBrandCoreAssetMaterialization = {
-  ROOT_WORKSPACE_OWNERSHIP_TYPES,
-  sourceActive,
-  sourceValidationStatus,
-  sourceFileId,
-  canonicalBrandCoreSourceRef,
-  sourceLookupCandidates,
-  sourceRevision,
-  materializedAssetInput,
-};
