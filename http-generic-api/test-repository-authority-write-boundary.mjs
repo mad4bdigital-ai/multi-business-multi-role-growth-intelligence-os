@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createRepositoryAuthorityCheckedFetch } from "./githubRepositoryLifecycle.js";
+import {
+  createRepositoryAuthorityCheckedFetch,
+  REPOSITORY_PATCH_MUTATION_INTENTS,
+} from "./githubRepositoryLifecycle.js";
 
 const SHA = "a".repeat(40);
 const BRANCH = "fix/authority-write-boundary";
 const REPO_URI = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 
-function envelopeRow() {
+function envelopeRow(operationIntent = "repo_patch_apply") {
   return {
     envelope_id: "envelope-write-boundary",
     tenant_id: "tenant-1",
@@ -16,7 +19,7 @@ function envelopeRow() {
     brand_key: null,
     app_key: "github",
     capability_key: "repo_patch_apply",
-    operation_intent: "repo_patch_apply",
+    operation_intent: operationIntent,
     risk_class: "high",
     selected_source_tier: "platform_managed_fallback",
     selected_runtime_surface: "repo_patch_batch_apply",
@@ -80,7 +83,7 @@ function binding(status = "active") {
   };
 }
 
-function boundaryHarness(initialStatus = "active") {
+function boundaryHarness(initialStatus = "active", operationIntent = "repo_patch_apply") {
   let liveBinding = binding(initialStatus);
   let envelopeReads = 0;
   let bindingReads = 0;
@@ -91,7 +94,7 @@ function boundaryHarness(initialStatus = "active") {
       if (/capability_resolution_envelope_ledger/.test(statement)) {
         envelopeReads += 1;
         assert.deepEqual(params, ["envelope-write-boundary"]);
-        return [[envelopeRow()]];
+        return [[envelopeRow(operationIntent)]];
       }
       if (/FROM platform_resource_authority_bindings/.test(statement)) {
         bindingReads += 1;
@@ -184,13 +187,54 @@ function boundaryHarness(initialStatus = "active") {
   assert.equal(harness.providerCalls.filter((call) => call.url.endsWith("/git/refs")).length, 0, "new-branch ref creation must also revalidate at the final boundary");
 }
 
+for (const intent of REPOSITORY_PATCH_MUTATION_INTENTS) {
+  const harness = boundaryHarness("active", intent);
+  await harness.checkedFetch(
+    "https://api.github.com/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/git/trees",
+    { method: "POST", body: "{}" },
+  );
+  assert.deepEqual(harness.counts(), { envelopeReads: 1, bindingReads: 1 }, `${intent} must retain live authority revalidation at the first provider write`);
+  assert.equal(harness.providerCalls.length, 1, `${intent} must remain dispatchable through the provider write boundary`);
+}
+
+{
+  const harness = boundaryHarness("active", "unsupported_repo_mutation_intent");
+  await assert.rejects(
+    () => harness.checkedFetch(
+      "https://api.github.com/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/git/trees",
+      { method: "POST", body: "{}" },
+    ),
+    (error) => error.code === "capability_resolution_envelope_intent_mismatch"
+      && error.details?.write_boundary_phase === "pre_first_provider_write",
+  );
+  assert.equal(harness.providerCalls.length, 0, "unsupported repository mutation intents must fail before provider transport");
+}
+
 const publicLifecycle = readFileSync(new URL("./githubRepositoryLifecycle.js", import.meta.url), "utf8");
 const routes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
+const policyMigration = readFileSync(new URL("./migrations/234_sprint67_repo_patch_capability_envelope_requirement.sql", import.meta.url), "utf8");
 assert.match(publicLifecycle, /createRepositoryAuthorityCheckedFetch/);
 assert.match(publicLifecycle, /pre_first_provider_write/);
 assert.match(publicLifecycle, /pre_ref_update/);
 assert.match(publicLifecycle, /resolveCapabilityExecutionEnvelope/);
 assert.match(routes, /from "\.\.\/githubRepositoryLifecycle\.js"/);
 assert.doesNotMatch(routes, /githubRepositoryLifecycleCore\.js/, "runtime routes must not bypass the authority-checked public lifecycle module");
+
+const configuredIntentMatch = policyMigration.match(/'accepted_intents',JSON_ARRAY\(([^)]+)\)/);
+assert.ok(configuredIntentMatch, "repo patch envelope policy must declare accepted_intents");
+const configuredIntents = Array.from(configuredIntentMatch[1].matchAll(/'([^']+)'/g), (match) => match[1]);
+assert.deepEqual(
+  [...REPOSITORY_PATCH_MUTATION_INTENTS],
+  configuredIntents,
+  "provider write-boundary accepted intents must match the repository patch envelope policy contract",
+);
+
+const repoPatchGuardStart = routes.indexOf("async function requireRepoPatchCapabilityEnvelope");
+const repoPatchGuardEnd = routes.indexOf("\nasync function ", repoPatchGuardStart + 1);
+assert.ok(repoPatchGuardStart >= 0 && repoPatchGuardEnd > repoPatchGuardStart, "repo patch route envelope guard must remain discoverable");
+const repoPatchGuardSource = routes.slice(repoPatchGuardStart, repoPatchGuardEnd);
+for (const intent of REPOSITORY_PATCH_MUTATION_INTENTS) {
+  assert.ok(repoPatchGuardSource.includes(`"${intent}"`), `repo patch route guard must preserve configured intent ${intent}`);
+}
 
 console.log("Repository authority write-boundary regression passed");
