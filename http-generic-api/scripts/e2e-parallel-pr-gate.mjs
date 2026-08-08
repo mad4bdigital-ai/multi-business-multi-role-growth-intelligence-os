@@ -327,7 +327,10 @@ function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha 
     };
   }
 
-  if (headSha.startsWith(candidateRef.candidate_prefix) && isAncestor(root, headSha, mainRef)) {
+  if (!headSha.startsWith(candidateRef.candidate_prefix)) {
+    return { allowed: false, identity: null, phase_evaluation_base: null };
+  }
+  if (isAncestor(root, headSha, mainRef)) {
     return {
       allowed: true,
       identity: "immutable_main_snapshot",
@@ -337,16 +340,23 @@ function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha 
     };
   }
 
-  const reconciliation = resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree });
-  if (!reconciliation || !reconciliation.anchor_sha.startsWith(candidateRef.candidate_prefix)) {
+  const headTree = resolveTree(root, headSha);
+  const parents = resolveParents(root, headSha);
+  if (
+    !headTree
+    || parents.length !== 2
+    || parents[0] !== mainSha
+    || parents[1] !== baseSha
+    || headTree !== mainTree
+  ) {
     return { allowed: false, identity: null, phase_evaluation_base: null };
   }
   return {
     allowed: true,
     identity: "history_preserving_main_reconciliation",
     phase_evaluation_base: mainSha,
-    promotion_anchor_sha: reconciliation.anchor_sha,
-    rearm_depth: reconciliation.rearm_depth
+    promotion_anchor_sha: headSha,
+    rearm_depth: 0
   };
 }
 
