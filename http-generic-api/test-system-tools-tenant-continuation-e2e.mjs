@@ -13,7 +13,7 @@ const chunkRows = new Map();
 const fakePool = {
   async query(sql, params = []) {
     const statement = String(sql);
-    if (/information_schema\.columns/i.test(statement) && /governed_tool_response_chunks/i.test(statement)) {
+    if (/information_schema\.columns/i.test(statement) && params[0] === "governed_tool_response_chunks") {
       return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
     }
     if (/INSERT INTO governed_tool_response_chunks/i.test(statement)) {
