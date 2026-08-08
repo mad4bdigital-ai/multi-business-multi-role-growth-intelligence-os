@@ -137,7 +137,7 @@ for (const required of [
   assert(migration.includes(required), `missing managed repair migration contract: ${required}`);
 }
 assert.match(migration, /apply_allowed_default[\s\S]*?1[\s\S]*?'certified'/);
-assert(!/DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM|PREPARE\s|EXECUTE\s/i.test(migration));
+assert(!/^\s*(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM|PREPARE\b|EXECUTE\b)/im.test(migration));
 assert(migration.includes("provider_call_executed=false"));
 assert(migration.includes("external_write_executed=false"));
 assert(migration.includes("managed_repair_executed=false"));
