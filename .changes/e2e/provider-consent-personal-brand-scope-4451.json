@@ -1,0 +1,65 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "provider-consent-personal-brand-scope-4451",
+  "title": "Provider consent Brand scope inside personal Root Workspaces",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/provider-consent-personal-brand-scope-4451.json",
+      "http-generic-api/contextKernel/application/authenticatedProviderConsentUseCaseService.js",
+      "http-generic-api/test-context-kernel-provider-consent-personal-brand-scope.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow an exact Brand provider-connection scope inside a canonical personal Root Workspace without weakening personal ownership or Brand authority checks.",
+      "e2e_journeys": [
+        {
+          "id": "personal-root-brand-provider-consent-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user operating inside their personal Root Workspace with an exact Brand scope",
+          "entrypoint": "createAuthenticatedProviderConsentUseCaseService",
+          "terminal_outcome": "The personal Root owner may list or authorize Brand-scoped provider connections only after exact Brand authority is verified, while a non-owner is denied before Brand or connection lookup.",
+          "steps": [
+            "Resolve authenticated tenant membership and exact personal Root Workspace ownership.",
+            "Verify the authenticated user owns the personal Root Workspace before any Brand authority lookup.",
+            "Resolve exact Brand authority and project Brand-owned provider connections without credential payloads.",
+            "Issue an authorize consent state for the exact Brand scope when provider_connection.manage is granted.",
+            "Repeat with a different personal Root owner and verify failure occurs before Brand authority, connection lookup, or consent issuance."
+          ],
+          "assertions": [
+            "Root Workspace ownership remains personal; Brand is an owner scope inside that Root Workspace rather than a third Root ownership mode.",
+            "Personal Root owner mismatch returns provider_consent_personal_owner_mismatch before Brand authority lookup.",
+            "Brand list resolution requires exact tenant/workspace/Brand/principal authority and returns ownerScopeType=brand.",
+            "Brand authorize resolution requires provider_connection.manage and passes exact Root Workspace plus Brand owner scope into consent issuance.",
+            "Projected connection results do not expose credential payloads or secrets.",
+            "No live provider call, credential read, database migration, Production mutation, or external effect is executed by the regression."
+          ],
+          "tests": [
+            {
+              "id": "provider-consent-personal-brand-scope-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-context-kernel-provider-consent-personal-brand-scope.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/provider-consent-personal-brand-scope-4451.json",
+            "http-generic-api/contextKernel/application/authenticatedProviderConsentUseCaseService.js",
+            "http-generic-api/test-context-kernel-provider-consent-personal-brand-scope.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

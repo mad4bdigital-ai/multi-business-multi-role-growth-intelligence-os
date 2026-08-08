@@ -6,6 +6,7 @@ import {
   resolvePlatformPluginExecution,
   validateCapabilitySelectorContract,
 } from "../platformPluginResolver.js";
+import { buildTenantPlatformPluginEligibility } from "../tenantPlatformPluginEligibility.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
@@ -26,6 +27,8 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "toolKey",
   "workspace_id",
   "workspaceId",
+  "brand_ref",
+  "brandRef",
   "agent_id",
   "agentId",
   "requested_credential_scope",
@@ -163,6 +166,7 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   const action = tenantValueFromAliases(input, "action_key", "actionKey");
   const tool = tenantValueFromAliases(input, "tool_key", "toolKey");
   const workspace = tenantValueFromAliases(input, "workspace_id", "workspaceId");
+  const brand = tenantValueFromAliases(input, "brand_ref", "brandRef");
   if (!workspace.value) {
     throw tenantResolveContractError(
       "TENANT_WORKSPACE_CONTEXT_REQUIRED",
@@ -176,9 +180,11 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   if (action.legacyUsed) legacyFields.push("actionKey");
   if (tool.legacyUsed) legacyFields.push("toolKey");
   if (workspace.legacyUsed) legacyFields.push("workspaceId");
+  if (brand.legacyUsed) legacyFields.push("brandRef");
   return {
     pluginKey: pluginKey.value,
     workspaceId: workspace.value,
+    brandRef: brand.value,
     selector,
     compatibilityTelemetry: {
       legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
@@ -196,6 +202,7 @@ export function buildTenantPlatformPluginRoutes() {
       const result = await loadPlatformPluginCatalog({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
+        principalClass: "tenant",
         includeInactive: false,
         includeBindings: req.query.include_bindings === undefined ? true : bool(req.query.include_bindings),
         limit: boundedInt(req.query.limit, 100, 1, 250),
@@ -381,6 +388,7 @@ export function buildTenantPlatformPluginRoutes() {
         toolKey: contract.selector.toolKey,
         tenantId: req.auth.tenant_id,
         workspaceId: contract.workspaceId,
+        brandRef: contract.brandRef,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "tenant",
@@ -392,8 +400,10 @@ export function buildTenantPlatformPluginRoutes() {
         correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
       const { security_decision_trace_admin: _adminTrace, ...tenantSafeResult } = result;
+      const eligibility = buildTenantPlatformPluginEligibility(result);
       return res.status(200).json({
         ...tenantSafeResult,
+        eligibility,
         compatibility_telemetry: contract.compatibilityTelemetry,
         auth_context: {
           tenant_id: req.auth.tenant_id,

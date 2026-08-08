@@ -1,3 +1,5 @@
+export const GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY = "github_issue_comment_exact_readback_v1";
+
 function normalizedText(value) {
   return String(value || "").trim();
 }
@@ -75,9 +77,268 @@ function createSelectionError(status, code, message, details = {}) {
   return error;
 }
 
+function boolish(value) {
+  if (value === true || value === false) return value;
+  const normalized = normalizedText(value).toLowerCase();
+  return normalized === "true" || normalized === "yes" || normalized === "1";
+}
+
+function governanceEnvelope(args = {}) {
+  const governance = args?.readback?.governance;
+  return governance && typeof governance === "object" && !Array.isArray(governance)
+    ? governance
+    : {};
+}
+
+function mutationApproval(args = {}, governanceOnly = false) {
+  const governance = governanceEnvelope(args);
+  const approval = governanceOnly
+    ? governance.mutation_approval || governance.operator_approval || {}
+    : args?.mutation_approval
+      || args?.operator_approval
+      || governance.mutation_approval
+      || governance.operator_approval
+      || {};
+  return approval && typeof approval === "object" && !Array.isArray(approval) ? approval : {};
+}
+
+function hasExplicitMutationApproval(args = {}, governanceOnly = false) {
+  const approval = mutationApproval(args, governanceOnly);
+  const governance = governanceEnvelope(args);
+  if (governanceOnly) {
+    return (
+      boolish(governance.operator_approved) ||
+      boolish(governance.operator_approval_granted) ||
+      boolish(approval.approved) ||
+      boolish(approval.operator_approved) ||
+      boolish(approval.operator_approval_granted)
+    );
+  }
+  return (
+    boolish(args?.operator_approved) ||
+    boolish(args?.operator_approval_granted) ||
+    boolish(governance.operator_approved) ||
+    boolish(governance.operator_approval_granted) ||
+    boolish(approval.approved) ||
+    boolish(approval.operator_approved) ||
+    boolish(approval.operator_approval_granted)
+  );
+}
+
+function hasCompletedMutationPreflight(args = {}, governanceOnly = false) {
+  const approval = mutationApproval(args, governanceOnly);
+  const governance = governanceEnvelope(args);
+  if (governanceOnly) {
+    return (
+      boolish(governance.dry_run_preflight_completed) ||
+      boolish(governance.approved_preflight_dry_run_validated) ||
+      boolish(approval.dry_run_preflight_completed) ||
+      boolish(approval.approved_preflight_dry_run_validated)
+    );
+  }
+  return (
+    boolish(args?.dry_run_preflight_completed) ||
+    boolish(args?.approved_preflight_dry_run_validated) ||
+    boolish(governance.dry_run_preflight_completed) ||
+    boolish(governance.approved_preflight_dry_run_validated) ||
+    boolish(approval.dry_run_preflight_completed) ||
+    boolish(approval.approved_preflight_dry_run_validated)
+  );
+}
+
+function hasLiveMutationApproval(args = {}, governanceOnly = false) {
+  const approval = mutationApproval(args, governanceOnly);
+  const governance = governanceEnvelope(args);
+  if (governanceOnly) {
+    return (
+      boolish(governance.live_execution_approved) ||
+      boolish(governance.execute_live) ||
+      boolish(approval.live_execution_approved) ||
+      boolish(approval.execute_live)
+    );
+  }
+  return (
+    boolish(args?.live_execution_approved) ||
+    boolish(args?.execute_live) ||
+    boolish(governance.live_execution_approved) ||
+    boolish(governance.execute_live) ||
+    boolish(approval.live_execution_approved) ||
+    boolish(approval.execute_live)
+  );
+}
+
+function hasRequiredSameCycleReadback(args = {}) {
+  const readback = args?.readback;
+  if (!readback || typeof readback !== "object" || Array.isArray(readback)) return false;
+  return boolish(readback.required)
+    && normalizedText(readback.policy_key) === GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY;
+}
+
+function githubIssueCommentTargetShape(value = {}) {
+  const toolName = normalizedText(value.tool_name);
+  const method = normalizedText(value.method).toUpperCase();
+  return (
+    normalizedText(value.parent_action_key) === "github_api_mcp" &&
+    normalizedText(value.endpoint_key) === "github_create_issue_comment" &&
+    (!toolName || toolName === "github_rest_endpoint_dispatch") &&
+    (!method || method === "POST")
+  );
+}
+
+export function isGithubIssueCommentMutationTarget(value = {}) {
+  const target = githubIssueCommentTargetShape(value);
+  if (
+    target
+    && boolish(value?.preflight_only)
+    && !boolish(value?.dry_run)
+  ) {
+    throw createSelectionError(
+      409,
+      "github_issue_comment_mutation_preflight_requires_preview",
+      "GitHub issue-comment preflight must use runtime_endpoint_preview so preflight_only cannot fall through to provider dispatch.",
+      {
+        parent_action_key: "github_api_mcp",
+        endpoint_key: "github_create_issue_comment",
+        preview_tool: "runtime_endpoint_preview",
+        provider_call_allowed: false,
+      },
+    );
+  }
+  return target;
+}
+
+function isGithubIssueCommentDispatcherRow(row = {}) {
+  return githubIssueCommentTargetShape(row)
+    && normalizedText(row.tool_name) === "github_rest_endpoint_dispatch";
+}
+
+export function enforceGithubIssueCommentMutationGate(row = {}, args = {}) {
+  if (!isGithubIssueCommentMutationTarget(row)) return;
+
+  const governance = governanceEnvelope(args);
+  const governanceOnly = isGithubIssueCommentDispatcherRow(row);
+  const details = {
+    tool_name: "github_rest_endpoint_dispatch",
+    parent_action_key: "github_api_mcp",
+    endpoint_key: "github_create_issue_comment",
+    provider_call_allowed: false,
+    governance_evidence_location: governanceOnly
+      ? "readback.governance"
+      : "top_level_or_readback.governance",
+  };
+
+  if (
+    boolish(args?.dry_run)
+    || boolish(args?.preflight_only)
+    || boolish(governance.preflight_only)
+  ) {
+    throw createSelectionError(
+      409,
+      "github_issue_comment_mutation_preflight_requires_preview",
+      "GitHub issue-comment preflight must use runtime_endpoint_preview so the preflight cannot perform a provider write.",
+      {
+        ...details,
+        preview_tool: "runtime_endpoint_preview",
+      },
+    );
+  }
+
+  if (!hasExplicitMutationApproval(args, governanceOnly)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_approval_required",
+      governanceOnly
+        ? "GitHub issue-comment mutation requires explicit operator approval inside readback.governance before provider dispatch."
+        : "GitHub issue-comment mutation requires explicit operator approval before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasCompletedMutationPreflight(args, governanceOnly)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_preflight_required",
+      governanceOnly
+        ? "GitHub issue-comment mutation requires completed dry-run/preflight evidence inside readback.governance before provider dispatch."
+        : "GitHub issue-comment mutation requires completed dry-run/preflight evidence before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasLiveMutationApproval(args, governanceOnly)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_live_approval_required",
+      governanceOnly
+        ? "GitHub issue-comment mutation requires live_execution_approved=true inside readback.governance before provider dispatch."
+        : "GitHub issue-comment mutation requires explicit live_execution_approved=true before provider dispatch.",
+      details,
+    );
+  }
+
+  if (!hasRequiredSameCycleReadback(args)) {
+    throw createSelectionError(
+      403,
+      "github_issue_comment_mutation_readback_required",
+      `GitHub issue-comment mutation requires readback.required=true with policy_key=${GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY} before provider dispatch.`,
+      {
+        ...details,
+        required_readback_policy_key: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY,
+      },
+    );
+  }
+}
+
+function githubIssueCommentGovernanceCondition(endpointKeys = []) {
+  if (!endpointKeys.includes("github_create_issue_comment")) return null;
+  return {
+    if: {
+      properties: {
+        endpoint_key: { const: "github_create_issue_comment" },
+      },
+      required: ["endpoint_key"],
+    },
+    then: {
+      required: ["readback"],
+      properties: {
+        readback: {
+          type: "object",
+          required: ["required", "policy_key", "governance"],
+          properties: {
+            required: { const: true },
+            policy_key: { const: GITHUB_ISSUE_COMMENT_READBACK_POLICY_KEY },
+            governance: {
+              type: "object",
+              required: [
+                "mutation_approval",
+                "approved_preflight_dry_run_validated",
+                "live_execution_approved",
+              ],
+              properties: {
+                mutation_approval: {
+                  type: "object",
+                  required: ["approved"],
+                  properties: { approved: { const: true } },
+                  additionalProperties: true,
+                },
+                approved_preflight_dry_run_validated: { const: true },
+                live_execution_approved: { const: true },
+                preflight_only: { const: false },
+              },
+              additionalProperties: true,
+            },
+          },
+          additionalProperties: true,
+        },
+      },
+    },
+  };
+}
+
 function buildMultiBindingSchema(rows, normalizeInputSchema) {
   const endpointKeys = allowedEndpointKeys(rows);
   const normalizedSchemas = rows.map((row) => normalizeInputSchema(row.input_schema_json));
+  const governanceCondition = githubIssueCommentGovernanceCondition(endpointKeys);
   return {
     type: "object",
     properties: {
@@ -90,6 +351,7 @@ function buildMultiBindingSchema(rows, normalizeInputSchema) {
     },
     required: ["endpoint_key"],
     additionalProperties: normalizedSchemas.some((schema) => schema?.additionalProperties !== false),
+    ...(governanceCondition ? { allOf: [governanceCondition] } : {}),
   };
 }
 
@@ -197,6 +459,7 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
         },
       );
     }
+    enforceGithubIssueCommentMutationGate(row, args);
     return row;
   }
 
@@ -243,5 +506,6 @@ export function selectPlatformEndpointToolBinding(rows = [], args = {}, name = "
   }
 
   const [row] = selected;
+  enforceGithubIssueCommentMutationGate(row, args);
   return row;
 }
