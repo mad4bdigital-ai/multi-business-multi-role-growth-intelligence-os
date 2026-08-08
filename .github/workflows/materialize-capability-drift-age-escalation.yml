@@ -1,0 +1,154 @@
+name: Materialize capability drift age escalation
+
+on:
+  push:
+    branches:
+      - fix/capability-drift-age-severity-escalation-4450-20260808
+    paths:
+      - .github/workflows/materialize-capability-drift-age-escalation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@v5
+        with:
+          ref: fix/capability-drift-age-severity-escalation-4450-20260808
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify current main ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge-base --is-ancestor origin/main HEAD
+          test "$(git rev-parse origin/main)" = "f861f181fd5c00e65208cae058b7b96eaf688458"
+
+      - name: Apply bounded source and regression patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one anchor, found {count}")
+              p.write_text(text.replace(old, new, 1))
+
+          service = "http-generic-api/operationalAlertService.js"
+          test = "http-generic-api/test-operational-alerting-control-plane.mjs"
+
+          replace_once(
+              service,
+              'import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";\n',
+              'import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";\nimport { evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";\n'
+          )
+
+          replace_once(
+              service,
+              '''async function upsertAlert(connection, item, syncRunId) {\n  const alertId = item.alert_id || randomUUID();\n''',
+              '''async function upsertAlert(connection, item, syncRunId, requestedBy = "operational_alert_sync") {\n  let priorCapabilityAlert = null;\n  let capabilityAgeEscalation = null;\n  if (item.source_type === CAPABILITY_DRIFT_SOURCE) {\n    const [priorRows] = await connection.query(\n      `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, first_seen_at, last_seen_at,\n              operation_fingerprint_sha256, resource_fingerprint_sha256\n         FROM operational_alerts\n        WHERE alert_key = ?\n        LIMIT 1\n        FOR UPDATE`,\n      [item.alert_key]\n    );\n    priorCapabilityAlert = priorRows[0] || null;\n    const priorClosed = Boolean(priorCapabilityAlert && ["resolved", "ignored"].includes(priorCapabilityAlert.lifecycle_status));\n    const episodeFirstSeenAt = priorClosed\n      ? item.first_seen_at\n      : priorCapabilityAlert?.first_seen_at || item.first_seen_at;\n    const episodeCurrentSeverity = priorClosed\n      ? item.severity\n      : priorCapabilityAlert?.severity || item.severity;\n    capabilityAgeEscalation = evaluateCapabilityDriftAgeEscalation({\n      baseSeverity: item.severity,\n      currentSeverity: episodeCurrentSeverity,\n      firstSeenAt: episodeFirstSeenAt,\n      observedAt: new Date(),\n    });\n    item = {\n      ...item,\n      severity: capabilityAgeEscalation.effective_severity,\n      first_seen_at: episodeFirstSeenAt,\n      evidence: sanitizeEvidence({\n        ...(item.evidence || {}),\n        age_escalation: capabilityAgeEscalation,\n      }),\n    };\n  }\n  const alertId = item.alert_id || priorCapabilityAlert?.alert_id || randomUUID();\n'''
+          )
+
+          replace_once(
+              service,
+              '''       occurrence_count = CASE\n         WHEN VALUES(source_type) = 'v_platform_capability_gaps' THEN occurrence_count + 1\n         ELSE VALUES(occurrence_count)\n       END, first_seen_at = LEAST(first_seen_at, VALUES(first_seen_at)),\n''',
+              '''       occurrence_count = CASE\n         WHEN VALUES(source_type) = 'v_platform_capability_gaps' THEN occurrence_count + 1\n         ELSE VALUES(occurrence_count)\n       END,\n       first_seen_at = CASE\n         WHEN VALUES(source_type) = 'v_platform_capability_gaps' AND lifecycle_status IN ('resolved','ignored')\n           THEN VALUES(first_seen_at)\n         ELSE LEAST(first_seen_at, VALUES(first_seen_at))\n       END,\n'''
+          )
+
+          replace_once(
+              service,
+              '''  const [rows] = await connection.query(\n    "SELECT alert_id, lifecycle_status FROM operational_alerts WHERE alert_key = ? LIMIT 1",\n    [item.alert_key]\n  );\n  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status };\n}\n''',
+              '''  if (priorCapabilityAlert && capabilityAgeEscalation?.age_escalated) {\n    const nextRevision = safeNumber(priorCapabilityAlert.lifecycle_revision) + 1;\n    const actorId = String(requestedBy || "operational_alert_sync").slice(0, 191);\n    const fromSeverity = priorCapabilityAlert.severity || item.severity;\n    const toSeverity = capabilityAgeEscalation.effective_severity;\n    const note = `Capability drift remained unresolved for ${capabilityAgeEscalation.blocker_age_hours} hour(s); severity escalated from ${fromSeverity} to ${toSeverity}.`;\n    const idempotencyKey = `sync:${syncRunId}:severity_escalated:${fromSeverity}:${toSeverity}`.slice(0, 191);\n    await connection.query(\n      `UPDATE operational_alerts\n          SET lifecycle_revision = lifecycle_revision + 1, updated_at = CURRENT_TIMESTAMP\n        WHERE alert_key = ?`,\n      [item.alert_key]\n    );\n    await connection.query(\n      `INSERT INTO operational_alert_lifecycle_events\n        (event_id, alert_id, alert_key, tenant_id, user_id, workspace_id, source_type, source_record_id,\n         from_status, to_status, lifecycle_revision, event_type, actor_id, actor_type, note, idempotency_key,\n         operation_fingerprint_sha256, resource_fingerprint_sha256, evidence_json, sync_run_id, secrets_included)\n       VALUES (?, ?, ?, NULL, NULL, NULL, ?, ?, ?, ?, ?, 'severity_escalated', ?, 'system_age_escalation', ?, ?, ?, ?, ?, ?, 0)\n       ON DUPLICATE KEY UPDATE event_id = event_id`,\n      [\n        randomUUID(),\n        priorCapabilityAlert.alert_id,\n        item.alert_key,\n        item.source_type,\n        item.source_record_id,\n        priorCapabilityAlert.lifecycle_status,\n        priorCapabilityAlert.lifecycle_status,\n        nextRevision,\n        actorId,\n        note,\n        idempotencyKey,\n        priorCapabilityAlert.operation_fingerprint_sha256,\n        priorCapabilityAlert.resource_fingerprint_sha256,\n        JSON.stringify(sanitizeEvidence({\n          sync_run_id: syncRunId,\n          from_severity: fromSeverity,\n          to_severity: toSeverity,\n          lifecycle_status: priorCapabilityAlert.lifecycle_status,\n          age_escalation: capabilityAgeEscalation,\n        })),\n        syncRunId,\n      ]\n    );\n  }\n  const [rows] = await connection.query(\n    `SELECT alert_id, lifecycle_status, lifecycle_revision, severity, first_seen_at, last_seen_at\n       FROM operational_alerts WHERE alert_key = ? LIMIT 1`,\n    [item.alert_key]\n  );\n  return rows[0] || { alert_id: alertId, lifecycle_status: item.lifecycle_status, severity: item.severity };\n}\n'''
+          )
+
+          replace_once(
+              service,
+              '      const row = await upsertAlert(connection, item, runId);\n',
+              '      const row = await upsertAlert(connection, item, runId, requestedBy);\n'
+          )
+
+          replace_once(
+              test,
+              'import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";\n',
+              'import { CAPABILITY_DRIFT_SOURCE, buildCapabilityDriftAlertInputs } from "./capabilityDriftAlertAdapter.js";\nimport { CAPABILITY_DRIFT_ESCALATION_POLICY, evaluateCapabilityDriftAgeEscalation } from "./capabilityDriftAlertEscalationPolicy.js";\n'
+          )
+
+          capability_test_anchor = '''function testCapabilityDriftAlertLifecycleProjection() {\n'''
+          capability_test = '''function testCapabilityDriftAgeSeverityEscalationPolicy() {\n  const firstSeenAt = "2026-08-01T00:00:00.000Z";\n  assert.equal(CAPABILITY_DRIFT_ESCALATION_POLICY.high_after_hours, 24);\n  assert.equal(CAPABILITY_DRIFT_ESCALATION_POLICY.critical_after_hours, 72);\n\n  const beforeHigh = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "medium",\n    currentSeverity: "medium",\n    firstSeenAt,\n    observedAt: "2026-08-01T23:59:59.000Z",\n  });\n  assert.equal(beforeHigh.effective_severity, "medium");\n  assert.equal(beforeHigh.age_escalated, false);\n  assert.equal(beforeHigh.next_escalation_at, "2026-08-02T00:00:00.000Z");\n\n  const high = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "medium",\n    currentSeverity: "medium",\n    firstSeenAt,\n    observedAt: "2026-08-02T00:00:00.000Z",\n  });\n  assert.equal(high.effective_severity, "high");\n  assert.equal(high.age_floor_severity, "high");\n  assert.equal(high.age_escalated, true);\n  assert.equal(high.blocker_age_hours, 24);\n\n  const highAlreadyPersisted = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "medium",\n    currentSeverity: "high",\n    firstSeenAt,\n    observedAt: "2026-08-03T00:00:00.000Z",\n  });\n  assert.equal(highAlreadyPersisted.effective_severity, "high");\n  assert.equal(highAlreadyPersisted.age_escalated, false, "the same age floor must not emit duplicate escalation transitions");\n\n  const critical = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "medium",\n    currentSeverity: "high",\n    firstSeenAt,\n    observedAt: "2026-08-04T00:00:00.000Z",\n  });\n  assert.equal(critical.effective_severity, "critical");\n  assert.equal(critical.age_floor_severity, "critical");\n  assert.equal(critical.age_escalated, true);\n  assert.equal(critical.blocker_age_hours, 72);\n  assert.equal(critical.next_escalation_at, null);\n\n  const strongerSource = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "critical",\n    currentSeverity: "high",\n    firstSeenAt,\n    observedAt: "2026-08-01T01:00:00.000Z",\n  });\n  assert.equal(strongerSource.effective_severity, "critical");\n  assert.equal(strongerSource.age_escalated, false, "source severity increases must not be misclassified as age escalation");\n\n  const monotonic = evaluateCapabilityDriftAgeEscalation({\n    baseSeverity: "medium",\n    currentSeverity: "critical",\n    firstSeenAt,\n    observedAt: "2026-08-01T02:00:00.000Z",\n  });\n  assert.equal(monotonic.effective_severity, "critical", "an unresolved blocker must not be downgraded by a weaker source observation");\n}\n\nfunction testCapabilityDriftAlertLifecycleProjection() {\n'''
+          replace_once(test, capability_test_anchor, capability_test)
+
+          replace_once(
+              test,
+              '  const service = read("./operationalAlertService.js");\n',
+              '  const service = read("./operationalAlertService.js");\n  const escalationPolicy = read("./capabilityDriftAlertEscalationPolicy.js");\n'
+          )
+
+          replace_once(
+              test,
+              '  assert.match(service, /item\\.source_type === CAPABILITY_DRIFT_SOURCE/);\n',
+              '''  assert.match(service, /item\\.source_type === CAPABILITY_DRIFT_SOURCE/);\n  assert.match(service, /evaluateCapabilityDriftAgeEscalation/);\n  assert.match(service, /severity_escalated/);\n  assert.match(service, /system_age_escalation/);\n  assert.match(service, /lifecycle_status IN \\('resolved','ignored'\\)/);\n  assert.match(escalationPolicy, /capability_drift_age_escalation_v1/);\n  assert.match(escalationPolicy, /high_after_hours: 24/);\n  assert.match(escalationPolicy, /critical_after_hours: 72/);\n'''
+          )
+
+          replace_once(
+              test,
+              '  testDedupeAndLifecyclePrecedence();\n  testCapabilityDriftAlertLifecycleProjection();\n',
+              '  testDedupeAndLifecyclePrecedence();\n  testCapabilityDriftAgeSeverityEscalationPolicy();\n  testCapabilityDriftAlertLifecycleProjection();\n'
+          )
+          PY
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node http-generic-api/test-operational-alerting-control-plane.mjs
+          node http-generic-api/scripts/test-operation-observability-service.mjs
+
+      - name: Remove temporary materializer and enforce exact scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-capability-drift-age-escalation.yml
+          git add -A
+          git diff --cached --check
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              ".changes/e2e/capability-drift-age-severity-escalation.json",
+              "http-generic-api/capabilityDriftAlertEscalationPolicy.js",
+              "http-generic-api/operationalAlertService.js",
+              "http-generic-api/test-operational-alerting-control-plane.mjs",
+          }
+          actual = set(subprocess.check_output(
+              ["git", "diff", "--cached", "--name-only", "origin/main"],
+              text=True,
+          ).splitlines())
+          if actual != expected:
+              raise SystemExit(f"unexpected final scope: expected={sorted(expected)} actual={sorted(actual)}")
+          PY
+
+      - name: Commit bounded materialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat(observability): escalate persistent capability blockers by age"
+          git push origin HEAD:fix/capability-drift-age-severity-escalation-4450-20260808
