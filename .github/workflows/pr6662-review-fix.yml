@@ -13,6 +13,7 @@ jobs:
     timeout-minutes: 15
     env:
       EXPECTED_HEAD: aab2bcd050f8ca85a3896918143e86e8fb36ae50
+      EXPECTED_MAIN: 12ae7e4e77ad54519be9a226b8da2b97d30a7d65
       TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
     steps:
       - name: Checkout launcher
@@ -41,6 +42,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
       - name: Set up Node.js 22
         uses: actions/setup-node@v6
         with:
@@ -107,7 +109,25 @@ jobs:
             exit 1
           fi
       - name: Commit and fast-forward target
-        if: ${{ false }}
+        if: ${{ success() }}
         shell: bash
         run: |
-          echo 'Diagnostic-only run: target push intentionally disabled.'
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            .changes/e2e/tenant-request-identity-collation-repair.json \
+            http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql \
+            http-generic-api/tenantRequestInboxService.js \
+            http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+          git diff --cached --check
+          git commit -m 'fix(tenant): preserve sargable identity collation joins'
+          NEW_HEAD="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_MAIN"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          echo "Fast-forwarded $TARGET_BRANCH to $NEW_HEAD"
