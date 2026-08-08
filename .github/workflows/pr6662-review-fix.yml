@@ -48,32 +48,48 @@ jobs:
       - name: Apply bounded review fix
         shell: bash
         run: node "$RUNNER_TEMP/pr6662-review-fix.mjs"
-      - name: Validate exact write set and focused tests
+      - name: Validate diff
         shell: bash
         run: |
           set -euo pipefail
-          if ! git diff --check; then
-            echo '::error title=PR6662 diff check::git diff --check failed'
-            exit 1
-          fi
-          syntax_log="$RUNNER_TEMP/pr6662-syntax.log"
-          if ! node --check http-generic-api/tenantRequestInboxService.js >"$syntax_log" 2>&1; then
-            first="$(grep -m1 -E 'SyntaxError|Error:' "$syntax_log" || true)"
-            echo "::error title=PR6662 syntax::${first:-node --check failed}"
-            tail -n 25 "$syntax_log"
-            exit 1
-          fi
-          focused_log="$RUNNER_TEMP/pr6662-focused.log"
+          git diff --check
+      - name: Validate service syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/tenantRequestInboxService.js
+      - name: Validate regression syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs
+      - name: Run focused regression
+        id: focused_regression
+        shell: bash
+        run: |
           set +e
-          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs) >"$focused_log" 2>&1
+          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs) >"$RUNNER_TEMP/pr6662-focused.log" 2>&1
           focused_status=$?
           set -e
+          cat "$RUNNER_TEMP/pr6662-focused.log"
           if [ "$focused_status" -ne 0 ]; then
-            first="$(grep -m1 -E 'ReferenceError|AssertionError|ERR_ASSERTION|TypeError|Error:' "$focused_log" || true)"
-            echo "::error title=PR6662 focused test::${first:-focused test failed with exit $focused_status}"
-            tail -n 35 "$focused_log"
+            first="$(grep -m1 -E 'ReferenceError|AssertionError|ERR_ASSERTION|TypeError|SyntaxError|Error:' "$RUNNER_TEMP/pr6662-focused.log" || true)"
+            echo "::error title=PR6662 focused regression::${first:-focused regression failed with exit $focused_status}"
             exit "$focused_status"
           fi
+      - name: Upload focused regression diagnostic
+        if: ${{ failure() && steps.focused_regression.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr6662-focused-regression-diagnostic
+          path: ${{ runner.temp }}/pr6662-focused.log
+          if-no-files-found: error
+          retention-days: 1
+      - name: Validate exact write set
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          set -euo pipefail
           mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
           printf '%s\n' "${changed[@]}"
           if [ "${#changed[@]}" -ne 4 ] || \
@@ -85,7 +101,6 @@ jobs:
             echo "::error title=PR6662 write set::unexpected files: $joined"
             exit 1
           fi
-          echo 'Focused validation passed in diagnostic-only mode.'
       - name: Commit and fast-forward target
         if: ${{ false }}
         shell: bash
