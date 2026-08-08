@@ -31,10 +31,11 @@ The Admin tool `github_rest_endpoint_dispatch` forwards to the existing `runtime
 
 The dispatcher rejects caller-supplied raw methods and URLs. GitHub authorization remains server-side and must not be supplied in caller headers.
 
-Supported initial endpoint keys:
+Supported endpoint keys include:
 
 - `github_update_pull_request`
 - `github_list_issue_comments`
+- `github_create_issue_comment`
 - `github_list_issue_labels`
 - `github_add_issue_labels`
 - `github_set_issue_labels`
@@ -51,6 +52,20 @@ read pull-request review comments, which are a separate GitHub REST resource.
 The operation is read-only, accepts optional `since`, `page`, and `per_page`
 query parameters, and remains bound to server-side GitHub App authentication.
 The caller cannot provide a raw method, URL, or authorization header.
+
+`github_create_issue_comment` creates an issue or pull-request conversation
+comment through `POST /repos/{owner}/{repo}/issues/{issue_number}/comments`.
+The canonical compiled GitHub schema already models the provider success as
+`201 Created` with the `Comment` response object. The SQL endpoint row and its
+Admin export must preserve that same response contract so a successful provider
+write is not converted into local response-schema drift.
+
+The create-comment export is admin-only and does not bypass mutation governance.
+It remains dispatched through `runtime_endpoint_call` and requires the normal
+preflight, approval, audit, and same-cycle readback evidence. The caller still
+cannot supply a raw method, URL, or authorization header. The export only makes
+the existing active/ready canonical endpoint discoverable through its intended
+governed catalog instead of requiring a direct system-tool escape hatch.
 
 ## Canonical row eligibility
 
@@ -76,7 +91,11 @@ PATCH, POST, PUT, and DELETE operations remain subject to the existing runtime m
 
 GitHub issue-label add, replace, and remove operations return the complete remaining label array on `200 OK`. Their canonical endpoint rows and exported registry copies must include the corresponding JSON response schema. A description-only success response is insufficient because the runtime response validator treats the missing content schema as contract drift even when GitHub completed the mutation successfully.
 
-Response contracts should remain tolerant of additive provider fields while validating the stable label fields used by the platform.
+GitHub issue-comment creation follows the same rule at `201 Created`. The compiled provider schema defines the response as a `Comment` object, so `endpoints.schema_json` and `platform_endpoint_tool_exports.input_schema_json` must retain an object response schema for `github_create_issue_comment`. Migration `20260808_github_issue_comment_dispatch_parity.sql` reconciles the existing active/ready endpoint row and exports it through `github_rest_endpoint_dispatch`; it does not register a new provider endpoint or execute a GitHub write.
+
+`v_platform_endpoint_export_schema_parity` remains the canonical registry/export parity diagnostic. The create-comment export is not ready when its active export diverges from the source endpoint schema.
+
+Response contracts should remain tolerant of additive provider fields while validating the stable provider response class used by the platform.
 
 ## Example
 
