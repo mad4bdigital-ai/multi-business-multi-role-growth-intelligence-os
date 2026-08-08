@@ -73,6 +73,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-parity-refresh-dispatch.yml`
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -137,6 +138,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
+- `.github/workflows/migration-1049-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
@@ -233,6 +235,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
 - `http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs`
+- `http-generic-api/test-openapi-precise-inline-registry-transition.mjs`
 - `http-generic-api/test-openapi-precise-legacy-registry-transition.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
@@ -244,7 +247,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-authority.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
+- `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
 - `http-generic-api/test-platform-plugin-contribution.mjs`
 - `http-generic-api/test-platform-plugin-install.mjs`

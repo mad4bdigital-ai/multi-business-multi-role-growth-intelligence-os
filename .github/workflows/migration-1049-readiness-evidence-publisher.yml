@@ -1,0 +1,66 @@
+name: Migration 1049 Readiness Evidence Publisher
+
+on:
+  workflow_run:
+    workflows:
+      - Governed Migration 1049 GitHub Repository Policy Rollout
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+
+concurrency:
+  group: migration-1049-readiness-publisher-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.event == 'issue_comment' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_sha != null
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact source head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Discover readiness evidence artifact
+        id: readiness
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const expected = `github-repository-policy-1049-readiness-${context.payload.workflow_run.id}`;
+            const response = await github.rest.actions.listWorkflowRunArtifacts({ owner: context.repo.owner, repo: context.repo.repo, run_id: context.payload.workflow_run.id, per_page: 100 });
+            const matches = response.data.artifacts.filter((artifact) => artifact.name === expected && artifact.expired === false);
+            if (matches.length > 1) { core.setFailed(`Ambiguous Migration 1049 readiness artifact: ${matches.length}`); return; }
+            core.setOutput('found', matches.length === 1 ? 'true' : 'false');
+            core.setOutput('name', expected);
+      - name: Download exact readiness evidence
+        if: steps.readiness.outputs.found == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ steps.readiness.outputs.name }}
+          path: ${{ runner.temp }}/migration-1049-readiness
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+      - name: Publish checksum-bound readiness marker to control issue
+        if: steps.readiness.outputs.found == 'true'
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_WORKFLOW: ${{ github.event.workflow_run.name }}
+          CONTROL_ISSUE: '6612'
+          READINESS_SUMMARY_PATH: ${{ runner.temp }}/migration-1049-readiness/summary.json
+        run: node http-generic-api/scripts/migration-1049-readiness-issue-publisher.mjs
