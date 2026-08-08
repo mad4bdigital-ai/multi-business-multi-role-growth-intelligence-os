@@ -278,9 +278,13 @@ jobs:
     ["docs-agent", "openapi-auto-sync", "spec-kit-work-map-integration", "work-map-recovery-bridge"].sort(),
   );
   assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_AUTOFIX_V3"));
+  assert.ok(writerPolicy.required_writer_commands.includes("Verify and consume Recovery-issued writer delegation"));
+  assert.ok(writerPolicy.required_writer_commands.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
+  assert.ok(writerPolicy.required_writer_commands.includes("gh api --method PATCH"));
   assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/ci.yml/dispatches"));
   assert.ok(writerPolicy.required_writer_commands.includes("actions/workflows/spec-kit-work-map-integration.yml/dispatches"));
   assert.ok(writerPolicy.forbidden_writer_commands.includes("WORK_MAP_AUTOFIX_V2"));
+  assert.ok(!writerPolicy.forbidden_writer_commands.includes("gh api --method PATCH"));
   assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run ci.yml"));
   assert.ok(writerPolicy.forbidden_writer_commands.includes("gh workflow run spec-kit-work-map-integration.yml"));
 
@@ -294,8 +298,13 @@ jobs:
     bridgeContract.forbidden_triggers.sort(),
     ["issue_comment", "pull_request", "pull_request_target", "push", "schedule", "workflow_run"].sort(),
   );
+  assert.ok(bridgeContract.required_commands.includes("Issue exact one-time writer delegation grant"));
+  assert.ok(bridgeContract.required_commands.includes("authorization_consumed=true"));
   assert.deepEqual(writerContract.required_triggers, ["workflow_dispatch"]);
   assert.ok(writerContract.forbidden_triggers.includes("pull_request"));
+  assert.ok(writerContract.required_commands.includes("Verify and consume Recovery-issued writer delegation"));
+  assert.ok(writerContract.required_commands.includes("RECOVERY_RUN_ID"));
+  assert.ok(writerContract.required_commands.includes("DELEGATION_COMMENT_ID"));
 
   assert.match(integrityWorkflow, /permissions:\s+[\s\S]*contents: read/);
   assert.ok(!integrityWorkflow.includes("actions: write"));
@@ -307,6 +316,10 @@ jobs:
   assert.ok(bridgeWorkflow.includes("Resolve and validate exact same-repository target"));
   assert.ok(bridgeWorkflow.includes("work-map-autofix:authorized"));
   assert.ok(bridgeWorkflow.includes("consumed=true"));
+  assert.ok(bridgeWorkflow.includes("Issue exact one-time writer delegation grant"));
+  assert.ok(bridgeWorkflow.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
+  assert.ok(bridgeWorkflow.includes("authorization_consumed=true"));
+  assert.ok(bridgeWorkflow.includes("delegation_comment_id"));
   assert.ok(bridgeWorkflow.includes("spec-kit-work-map-autofix.yml/dispatches"));
   assert.ok(bridgeWorkflow.includes("run_id"));
   assert.ok(bridgeWorkflow.includes("direct_repository_mutation:false"));
@@ -352,6 +365,8 @@ jobs:
   const concurrencyBlock = writerWorkflow.slice(writerWorkflow.indexOf("concurrency:"), writerWorkflow.indexOf("jobs:"));
   assert.ok(triggerBlock.includes("workflow_dispatch:"));
   assert.ok(triggerBlock.includes("expected_head_sha:"));
+  assert.ok(triggerBlock.includes("recovery_run_id:"));
+  assert.ok(triggerBlock.includes("delegation_comment_id:"));
   assert.ok(!triggerBlock.includes("pull_request:"));
   assert.ok(permissionsBlock.includes("actions: write"));
   assert.ok(permissionsBlock.includes("contents: write"));
@@ -363,10 +378,15 @@ jobs:
   assert.ok(writerWorkflow.includes("Initialize diagnostics and validate inputs"));
   assert.ok(writerWorkflow.includes("Checkout exact authorized head"));
   assert.ok(writerWorkflow.includes("Pin branch and pull request identity"));
+  assert.ok(writerWorkflow.includes("Verify and consume Recovery-issued writer delegation"));
   assert.ok(writerWorkflow.includes('test "${actual_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"'));
   assert.ok(writerWorkflow.includes('test "${pr_count}" = "1"'));
   assert.ok(writerWorkflow.includes('head="${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}"'));
+  assert.ok(writerWorkflow.includes("WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued"));
+  assert.ok(writerWorkflow.includes("state=consumed recovery_run_id=${RECOVERY_RUN_ID}"));
+  assert.ok(writerWorkflow.includes('issues/comments/${DELEGATION_COMMENT_ID}'));
+  assert.ok(writerWorkflow.includes("gh api --method PATCH"));
   assert.ok(writerWorkflow.includes("Regenerate and prove idempotency"));
   assert.ok(writerWorkflow.includes("Commit and push governed Work Maps"));
   assert.ok(writerWorkflow.includes("Dispatch exact-head verification"));
@@ -386,7 +406,6 @@ jobs:
   assert.ok(!writerWorkflow.includes("WORK_MAP_AUTOFIX_V2"));
   assert.ok(!writerWorkflow.includes("mad4b.spec-kit-work-map-autofix.v2"));
   assert.ok(!writerWorkflow.includes("work-map-autofix:authorized"));
-  assert.ok(!writerWorkflow.includes("gh api --method PATCH"));
   assert.ok(!writerWorkflow.includes("--force"));
   assert.ok(!writerWorkflow.includes("--force-with-lease"));
   assert.ok(manifest.includes("node test-work-map-autofix-diagnostics.mjs"));
@@ -395,6 +414,7 @@ jobs:
     "Initialize diagnostics and validate inputs",
     "Checkout exact authorized head",
     "Pin branch and pull request identity",
+    "Verify and consume Recovery-issued writer delegation",
     "Validate generator and governance contracts",
     "Regenerate and prove idempotency",
     "Commit and push governed Work Maps",
@@ -404,6 +424,9 @@ jobs:
   ].map((name) => writerWorkflow.indexOf(name));
   assert.ok(order.every((index) => index >= 0));
   assert.deepEqual(order, [...order].sort((left, right) => left - right));
+
+  const delegationEdge = contract.edges.find((row) => row.from === "work-map-recovery-bridge" && row.to === "spec-kit-work-map-autofix");
+  assert.equal(delegationEdge?.type, "recovery_issued_one_time_delegation");
 
   const realResult = validatePipelineConnectivity({ repoRoot });
   assert.equal(realResult.ok, true, JSON.stringify(realResult.findings, null, 2));
