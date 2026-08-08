@@ -2,15 +2,17 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "tenant-brand-connection-ownership-4451",
-  "title": "Tenant Brand connection ownership and ambiguity isolation",
+  "title": "Tenant Brand connection scope inside canonical Root Workspaces",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/tenant-brand-connection-ownership-4451.json",
-      "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs",
       "http-generic-api/platformPluginConnectionOwnership.js",
-      "http-generic-api/platformPluginResolver.js"
+      "http-generic-api/platformPluginResolver.js",
+      "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+      "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs"
     ]
   },
   "merge_contract": {
@@ -20,34 +22,37 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove that Brand-scoped platform plugin connections are resolved only through exact Brand ownership authority and fail closed on missing authority or multiple eligible Brand connections.",
+      "objective": "Prove that personal/company remain the only canonical Root Workspace ownership modes while an optional exact Brand reference can narrow connection ownership inside either Root Workspace without widening authority or silently selecting one of multiple connections.",
       "e2e_journeys": [
         {
-          "id": "tenant-brand-connection-authority-and-ambiguity",
+          "id": "tenant-root-workspace-brand-connection-authority-and-ambiguity",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authenticated tenant user resolving a platform capability inside a Brand workspace",
-          "entrypoint": "loadTenantPlatformPluginOwnershipScopedConnections / resolvePlatformPluginExecution",
-          "terminal_outcome": "Exact Brand-scoped authority resolves the intended connection set, unauthorized Brand use is denied before connection lookup, delegated Brand operate authority is accepted, and multiple eligible Brand connections block execution without selecting or leaking a candidate.",
+          "actor": "Authenticated tenant user resolving a platform capability inside a canonical personal or company Root Workspace with an optional exact Brand scope",
+          "entrypoint": "tenant resolve contract / loadTenantPlatformPluginOwnershipScopedConnections / resolvePlatformPluginExecution",
+          "terminal_outcome": "The Root Workspace remains personal or company, exact Brand scope is separately authorized and bound to connection lookup, Brand child workspaces cannot masquerade as Root Workspaces, and ambiguous Brand connection sets block execution without candidate selection or leakage.",
           "steps": [
-            "Resolve a Brand workspace whose canonical linked_brand_key is brand-1.",
-            "Verify a tenant owner resolves only Brand-scoped connections bound to the exact workspace and Brand reference.",
-            "Verify a non-owner without a Brand resource grant is denied before the connection compatibility view is queried.",
-            "Verify a non-owner with an effective Brand operate grant may resolve the Brand-scoped connection set.",
-            "Resolve execution with two active validated Brand connections and verify typed ambiguity blocks dispatch instead of selecting the first row."
+            "Parse tenant resolve input containing canonical workspace_id plus optional brand_ref without changing the existing one-selector-workspace-v2 compatibility contract.",
+            "Resolve a company Root Workspace with exact brand_ref and verify the Brand-owned connection query binds tenant, Root Workspace, provider, owner scope and brand id exactly.",
+            "Verify a non-owner without Brand authority is denied before the connection compatibility view is queried, while an effective Brand operate grant is accepted.",
+            "Resolve an exact Brand-owned connection inside a personal Root Workspace only when the authenticated user owns that Root Workspace.",
+            "Reject a Brand child workspace id as Root connection context before Brand authority or connection lookup.",
+            "Resolve execution with two active validated Brand-owned connections and verify typed ambiguity blocks dispatch instead of selecting the first row."
           ],
           "assertions": [
-            "Brand workspaces map to credential_scope=tenant_connection and owner_scope_type=brand with owner_scope_ref equal to the canonical linked Brand key.",
-            "The Brand connection query binds tenant_id, workspace_id, provider_key, owner_scope_ref, and brand_id exactly.",
-            "Tenant owner/admin authority is accepted without widening Brand scope.",
-            "A user without owner/admin membership or an effective Brand use grant receives BRAND_CONNECTION_AUTHORITY_REQUIRED before connection lookup.",
-            "An effective Brand operate grant authorizes connection resolution without exposing credential payloads.",
+            "Root Workspace ownership remains personal or company; Brand is an optional connection owner scope and never a third Root Workspace ownership mode.",
+            "brand_ref is accepted as an optional tenant resolve field and is passed to the resolver separately from workspace_id.",
+            "The Brand connection query binds tenant_id, Root workspace_id, provider_key, owner_scope_ref, and brand_id exactly.",
+            "Personal Root Workspace ownership is checked before Brand authority, preventing another user from using Brand scope inside someone else's personal workspace.",
+            "Tenant owner/admin Brand authority or an exact effective Brand operate-or-stronger grant is required before Brand connection lookup.",
+            "A Brand child workspace context fails closed with CONNECTION_OWNERSHIP_SCOPE_DENIED and cannot reach connection lookup.",
             "Two eligible Brand connections return AMBIGUOUS_CONNECTION_SELECTION with candidate_count=2, no connection_id selection, and no candidate/secret leakage.",
-            "No live database, provider, credential, Production, or mutation action occurs."
+            "The tenant-safe ownership projection exposes Brand scope metadata but never credential payloads.",
+            "No live database, provider, credential, Production, SQL/Migration Apply, or external mutation action occurs."
           ],
           "tests": [
             {
-              "id": "tenant-brand-connection-ownership-regression",
+              "id": "tenant-root-workspace-brand-connection-ownership-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-platform-plugin-brand-connection-ownership.mjs",
@@ -56,9 +61,11 @@
           ],
           "evidence_paths": [
             ".changes/e2e/tenant-brand-connection-ownership-4451.json",
-            "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs",
             "http-generic-api/platformPluginConnectionOwnership.js",
-            "http-generic-api/platformPluginResolver.js"
+            "http-generic-api/platformPluginResolver.js",
+            "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+            "http-generic-api/test-platform-plugin-brand-connection-ownership.mjs"
           ]
         }
       ]
