@@ -1,8 +1,10 @@
 name: PR 6662 review fix
 on:
   push:
-    branches: [gpt/pr6662-review-fix-aab2bcd-20260808]
-    paths: [.github/workflows/pr6662-review-fix.yml]
+    branches:
+      - gpt/pr6662-review-fix-aab2bcd-20260808
+    paths:
+      - .github/workflows/pr6662-review-fix.yml
 permissions:
   contents: write
 jobs:
@@ -13,203 +15,40 @@ jobs:
       EXPECTED_HEAD: aab2bcd050f8ca85a3896918143e86e8fb36ae50
       TARGET_BRANCH: gpt/tenant-request-identity-collation-repair-20260808
     steps:
-      - uses: actions/checkout@v5
-        with: {ref: aab2bcd050f8ca85a3896918143e86e8fb36ae50, fetch-depth: 0, persist-credentials: true}
-      - uses: actions/setup-node@v6
-        with: {node-version: '22'}
+      - name: Checkout launcher
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Stage patcher outside repository
+        shell: bash
+        run: cp http-generic-api/scripts/tmp-pr6662-review-fix.mjs "$RUNNER_TEMP/pr6662-review-fix.mjs"
+      - name: Checkout exact target
+        uses: actions/checkout@v5
+        with:
+          ref: aab2bcd050f8ca85a3896918143e86e8fb36ae50
+          fetch-depth: 0
+          persist-credentials: true
+          clean: true
       - name: Verify exact target lease
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           test "$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')" = "$EXPECTED_HEAD"
-      - name: Apply bounded review fixes
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Apply bounded review fix
         shell: bash
-        run: |
-          set -euo pipefail
-          node <<'NODE'
-          const fs = require('node:fs');
-          const svcPath = 'http-generic-api/tenantRequestInboxService.js';
-          const testPath = 'http-generic-api/test-tenant-request-inbox-and-chunk-hardening.mjs';
-          const migPath = 'http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql';
-          const e2ePath = '.changes/e2e/tenant-request-identity-collation-repair.json';
-          function between(text, start, end, replacement, label) {
-            const a = text.indexOf(start); const b = text.indexOf(end, a + start.length);
-            if (a < 0 || b < 0 || text.indexOf(start, a + 1) >= 0) throw new Error(`boundary_${label}`);
-            return text.slice(0, a) + replacement + text.slice(b);
-          }
-          function replaceN(text, oldText, newText, expected, label) {
-            const count = text.split(oldText).length - 1;
-            if (count !== expected) throw new Error(`${label}_count_${count}`);
-            return text.split(oldText).join(newText);
-          }
-          const D = (s) => s.replaceAll('__D__', '$');
-          let svc = fs.readFileSync(svcPath, 'utf8');
-          svc = between(svc, 'const TENANT_REQUEST_IDENTITY_COLLATION', 'function text(', D(`const TENANT_REQUEST_ALLOWED_IDENTITY_COLLATIONS = new Set(["utf8mb4_unicode_ci", "utf8mb4_uca1400_ai_ci"]);
-
-function requireTenantRequestIdentityCollation(value, field, { optional = false } = {}) {
-  const collation = String(value ?? "").trim();
-  if (!collation && optional) return null;
-  if (!TENANT_REQUEST_ALLOWED_IDENTITY_COLLATIONS.has(collation)) {
-    const error = new Error(__D__{collation ? `Unsupported tenant request identity collation for __D__{field}: __D__{collation}.` : `Missing tenant request identity collation for __D__{field}.`});
-    error.status = 503;
-    error.code = collation ? "tenant_request_identity_collation_unsupported" : "tenant_request_identity_schema_incomplete";
-    throw error;
-  }
-  return collation;
-}
-
-function normalizeOuterTenantRequestIdentitySql(expression, collation) {
-  const trustedCollation = requireTenantRequestIdentityCollation(collation, expression);
-  return `CONVERT(__D__{expression} USING utf8mb4) COLLATE __D__{trustedCollation}`;
-}
-
-function indexedTenantRequestIdentityEqualsSql(indexedExpression, outerExpression, collation) {
-  return `__D__{indexedExpression} = __D__{normalizeOuterTenantRequestIdentitySql(outerExpression, collation)}`;
-}
-
-`), 'identity_helpers');
-          svc = between(svc, 'async function hasResolutionTicketIdColumn', 'async function authorizeTenantRequestScope', D(`async function inspectTenantRequestIdentitySchema(pool) {
-  const [rows] = await pool.query(
-    `SELECT table_name, column_name, collation_name
-       FROM information_schema.columns
-      WHERE table_schema = DATABASE()
-        AND ((table_name = 'tenant_resolution_cases' AND column_name IN ('tenant_id','ticket_id','resource_ref'))
-          OR (table_name = 'ticket_lifecycle_events' AND column_name IN ('tenant_id','ticket_id')))`
-  );
-  const byColumn = new Map((rows || []).map((row) => [`__D__{row.table_name}.__D__{row.column_name}`, row.collation_name]));
-  const read = (table, column, optional = false) => {
-    const key = `__D__{table}.__D__{column}`;
-    return requireTenantRequestIdentityCollation(byColumn.get(key), key, { optional });
-  };
-  const resolutionTicketId = read("tenant_resolution_cases", "ticket_id", true);
-  return {
-    hasResolutionTicketId: Boolean(resolutionTicketId),
-    lifecycle: {
-      tenantId: read("ticket_lifecycle_events", "tenant_id"),
-      ticketId: read("ticket_lifecycle_events", "ticket_id"),
-    },
-    resolution: {
-      tenantId: read("tenant_resolution_cases", "tenant_id"),
-      ticketId: resolutionTicketId,
-      resourceRef: read("tenant_resolution_cases", "resource_ref"),
-    },
-  };
-}
-
-`), 'schema_inspector');
-          svc = between(svc, 'function latestActivitySql', 'function caseJoinSql', D(`function latestActivitySql(alias = "t", caseAlias = "c", ticketEventVisibility = "", identitySchema = {}) {
-  const ticketFallback = `COALESCE(__D__{alias}.last_seen_at, __D__{alias}.updated_at, __D__{alias}.created_at)`;
-  const lifecycleTenantIdentity = indexedTenantRequestIdentityEqualsSql("tle.tenant_id", `__D__{alias}.tenant_id`, identitySchema.lifecycle.tenantId);
-  const lifecycleTicketIdentity = indexedTenantRequestIdentityEqualsSql("tle.ticket_id", `__D__{alias}.ticket_id`, identitySchema.lifecycle.ticketId);
-  return `GREATEST(
-    __D__{ticketFallback},
-    COALESCE(__D__{caseAlias}.updated_at, __D__{ticketFallback}),
-    COALESCE((
-      SELECT MAX(tle.created_at)
-        FROM ticket_lifecycle_events tle
-       WHERE __D__{lifecycleTenantIdentity}
-         AND __D__{lifecycleTicketIdentity}
-         __D__{ticketEventVisibility}
-    ), __D__{ticketFallback}),
-    COALESCE((SELECT MAX(trce.created_at) FROM tenant_resolution_case_events trce WHERE trce.case_id = __D__{caseAlias}.case_id), __D__{ticketFallback}),
-    COALESCE((SELECT MAX(trr.created_at) FROM tenant_resolution_readbacks trr WHERE trr.case_id = __D__{caseAlias}.case_id), __D__{ticketFallback})
-  )`;
-}
-
-`), 'latest_activity');
-          svc = between(svc, 'function caseJoinSql', 'function projectTicket', D(`function caseJoinSql(hasTicketId, identitySchema) {
-  const tenantIdentity = indexedTenantRequestIdentityEqualsSql("c2.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
-  const ticketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("c2.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
-  const resourceIdentity = indexedTenantRequestIdentityEqualsSql("c2.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
-  const relation = hasTicketId ? `(__D__{ticketIdentity} OR (c2.ticket_id IS NULL AND __D__{resourceIdentity}))` : resourceIdentity;
-  return `LEFT JOIN tenant_resolution_cases c
-    ON c.id = (
-      SELECT c2.id
-        FROM tenant_resolution_cases c2
-       WHERE __D__{tenantIdentity}
-         AND __D__{relation}
-       ORDER BY c2.updated_at DESC, c2.id DESC
-       LIMIT 1
-    )`;
-}
-
-`), 'case_join');
-          svc = between(svc, 'function candidateCaseJoinSql', 'function boundedCandidateWindow', D(`function candidateCaseJoinSql(hasTicketId, identitySchema) {
-  const tenantIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
-  const ticketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("candidate_case.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
-  const resourceIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
-  const newerTenantIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case_newer.tenant_id", "t.tenant_id", identitySchema.resolution.tenantId);
-  const newerTicketIdentity = hasTicketId ? indexedTenantRequestIdentityEqualsSql("candidate_case_newer.ticket_id", "t.ticket_id", identitySchema.resolution.ticketId) : null;
-  const newerResourceIdentity = indexedTenantRequestIdentityEqualsSql("candidate_case_newer.resource_ref", "CONCAT('ticket://', t.ticket_id)", identitySchema.resolution.resourceRef);
-  const relation = hasTicketId ? `(__D__{ticketIdentity} OR (candidate_case.ticket_id IS NULL AND __D__{resourceIdentity}))` : resourceIdentity;
-  const newerRelation = hasTicketId ? `(__D__{newerTicketIdentity} OR (candidate_case_newer.ticket_id IS NULL AND __D__{newerResourceIdentity}))` : newerResourceIdentity;
-  return `LEFT JOIN tenant_resolution_cases candidate_case
-    ON __D__{tenantIdentity}
-   AND __D__{relation}
-  LEFT JOIN tenant_resolution_cases candidate_case_newer
-    ON __D__{newerTenantIdentity}
-   AND __D__{newerRelation}
-   AND (
-     COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) > COALESCE(candidate_case.updated_at, candidate_case.created_at)
-     OR (COALESCE(candidate_case_newer.updated_at, candidate_case_newer.created_at) = COALESCE(candidate_case.updated_at, candidate_case.created_at) AND candidate_case_newer.id > candidate_case.id)
-   )`;
-}
-
-`), 'candidate_join');
-          svc = replaceN(svc, 'const hasTicketId = await hasResolutionTicketIdColumn(pool);', 'const identitySchema = await inspectTenantRequestIdentitySchema(pool);\n  const hasTicketId = identitySchema.hasResolutionTicketId;', 2, 'schema_calls');
-          svc = replaceN(svc, 'const candidateJoin = candidateCaseJoinSql(hasTicketId);', 'const candidateJoin = candidateCaseJoinSql(hasTicketId, identitySchema);', 1, 'candidate_call');
-          svc = replaceN(svc, 'const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"));', 'const activity = latestActivitySql("t", "c", ticketEventVisibilitySql(scope, "tle"), identitySchema);', 2, 'activity_calls');
-          svc = replaceN(svc, '${caseJoinSql(hasTicketId)}', '${caseJoinSql(hasTicketId, identitySchema)}', 2, 'case_calls');
-          svc = replaceN(svc, 'extraJoin: `JOIN ticket_lifecycle_events tle ON ${tenantRequestIdentityEqualsSql("tle.tenant_id", "t.tenant_id")} AND ${tenantRequestIdentityEqualsSql("tle.ticket_id", "t.ticket_id")}`,', 'extraJoin: `JOIN ticket_lifecycle_events tle ON ${indexedTenantRequestIdentityEqualsSql("tle.tenant_id", "t.tenant_id", identitySchema.lifecycle.tenantId)} AND ${indexedTenantRequestIdentityEqualsSql("tle.ticket_id", "t.ticket_id", identitySchema.lifecycle.ticketId)}`,', 1, 'candidate_lifecycle');
-          fs.writeFileSync(svcPath, svc);
-
-          fs.writeFileSync(migPath, `-- Tenant request relational identity collation alignment.\n-- Source incident: Spec 017 fixture readback run 31250853393 returned ER_CANT_AGGREGATE_2COLLATIONS.\n-- ticket_lifecycle_events was canonically created by migration 233 with utf8mb4_uca1400_ai_ci.\n-- tenant_resolution_cases was created with utf8mb4_unicode_ci, but tenant_id/ticket_id are relational ticket identity keys.\n-- The runtime reads actual dependent-column collations and normalizes only outer expressions, so it remains compatible before and after this source-only migration.\n-- No data deletion, provider call, credential access, Production mutation, or Migration Apply is performed by this source file.\n\nALTER TABLE \`ticket_lifecycle_events\`\n  DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci;\n\nALTER TABLE \`ticket_lifecycle_events\`\n  MODIFY COLUMN \`ticket_id\` VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,\n  MODIFY COLUMN \`tenant_id\` VARCHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL;\n\nALTER TABLE \`tenant_resolution_cases\`\n  MODIFY COLUMN \`tenant_id\` VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,\n  MODIFY COLUMN \`ticket_id\` CHAR(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL;\n`);
-
-          let test = fs.readFileSync(testPath, 'utf8');
-          test = replaceN(test, 'const lastSeenAt = "2026-07-29T05:34:19.000Z";', `const lastSeenAt = "2026-07-29T05:34:19.000Z";\nconst identitySchemaRows = [\n  { table_name: "tenant_resolution_cases", column_name: "tenant_id", collation_name: "utf8mb4_unicode_ci" },\n  { table_name: "tenant_resolution_cases", column_name: "ticket_id", collation_name: "utf8mb4_unicode_ci" },\n  { table_name: "tenant_resolution_cases", column_name: "resource_ref", collation_name: "utf8mb4_unicode_ci" },\n  { table_name: "ticket_lifecycle_events", column_name: "tenant_id", collation_name: "utf8mb4_uca1400_ai_ci" },\n  { table_name: "ticket_lifecycle_events", column_name: "ticket_id", collation_name: "utf8mb4_uca1400_ai_ci" },\n];`, 1, 'schema_fixture');
-          test = replaceN(test, 'rows: [{ present: 1 }],\n    assert(sql) { assert.match(sql, /information_schema\\.columns/u); },', 'rows: identitySchemaRows,\n    assert(sql) { assert.match(sql, /information_schema\\.columns/u); },', 1, 'list_schema_mock');
-          test = replaceN(test, '{ rows: [{ present: 1 }] },', '{ rows: identitySchemaRows },', 1, 'detail_schema_mock');
-          const swaps = [
-            ['CONVERT(candidate_case.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci', 'candidate_case.ticket_id = CONVERT(t.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci'],
-            ['CONVERT(candidate_case_newer.tenant_id USING utf8mb4) COLLATE utf8mb4_unicode_ci', 'candidate_case_newer.tenant_id = CONVERT(t.tenant_id USING utf8mb4) COLLATE utf8mb4_unicode_ci'],
-            ['CONVERT(tle.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci', 'tle.ticket_id = CONVERT(t.ticket_id USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci'],
-            ['CONVERT(c2.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci', 'c2.ticket_id = CONVERT(t.ticket_id USING utf8mb4) COLLATE utf8mb4_unicode_ci'],
-            ['CONVERT(tle.tenant_id USING utf8mb4) COLLATE utf8mb4_unicode_ci', 'tle.tenant_id = CONVERT(t.tenant_id USING utf8mb4) COLLATE utf8mb4_uca1400_ai_ci'],
-          ];
-          for (const [a,b] of swaps) test = replaceN(test, a, b, 1, `assert_${a.slice(0,12)}`);
-          test = replaceN(test, 'assert.match(inboxService, /const \\[membership\\] = rows;/u, "membership scope resolution must bind the verified query result without a second unproven first-candidate lookup");\nassert.doesNotMatch(inboxService, /role:\\s*rows\\[0\\]\\.role/u, "membership role projection must not select rows[0] directly");\nassert.match(inboxService, /const TENANT_REQUEST_IDENTITY_COLLATION = "utf8mb4_unicode_ci";/u, "tenant request identity joins must pin the canonical compatibility collation");', 'assert.match(inboxService, /const \\[membership\\] = rows;/u, "membership scope resolution must bind the verified query result without a second unproven first-candidate lookup");\nassert.doesNotMatch(inboxService, /role:\\s*rows\\[0\\]\\.role/u, "membership role projection must not select rows[0] directly");\nassert.match(inboxService, /TENANT_REQUEST_ALLOWED_IDENTITY_COLLATIONS/u, "tenant request identity joins must fail closed to repository-approved collations");\nfor (const indexedAlias of ["c2", "candidate_case", "candidate_case_newer", "tle"]) {\n  assert.doesNotMatch(inboxService, new RegExp(`CONVERT\\\\(${indexedAlias}\\\\.`), `indexed identity alias ${indexedAlias} must remain bare for sargable lookup`);\n}', 1, 'static_contract');
-          test = test.replace(/assert\.match\(identityCollationMigration, \/MODIFY COLUMN `ticket_id` VARCHAR\\\\\(36\\\\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL\/u\);/, 'assert.match(identityCollationMigration, /MODIFY COLUMN `ticket_id` VARCHAR\\(36\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL/u);');
-          test = test.replace(/assert\.match\(identityCollationMigration, \/MODIFY COLUMN `tenant_id` VARCHAR\\\\\(36\\\\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL\/u\);/, 'assert.match(identityCollationMigration, /MODIFY COLUMN `tenant_id` VARCHAR\\(36\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL/u);');
-          test = replaceN(test, 'assert.match(identityCollationMigration, /MODIFY COLUMN `resource_ref` VARCHAR\\(512\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL/u);\nassert.match(identityCollationMigration, /MODIFY COLUMN `ticket_id` CHAR\\(36\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NULL/u);', 'assert.match(identityCollationMigration, /MODIFY COLUMN `tenant_id` VARCHAR\\(64\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL/u);\nassert.match(identityCollationMigration, /MODIFY COLUMN `ticket_id` CHAR\\(36\\) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NULL/u);\nassert.doesNotMatch(identityCollationMigration, /MODIFY COLUMN `resource_ref`/u, "non-relational resource_ref must retain the resolution registry collation");', 1, 'resolution_migration_contract');
-          fs.writeFileSync(testPath, test);
-
-          const e2e = JSON.parse(fs.readFileSync(e2ePath, 'utf8'));
-          const journey = e2e.phases[0].e2e_journeys[0];
-          journey.steps = [
-            'Read the actual utf8mb4 collations of indexed tenant-resolution and lifecycle identity columns from information_schema and reject unknown collations.',
-            'Keep indexed dependent-table columns bare while converting only outer ticket expressions to the indexed column collation.',
-            'Preserve bounded candidate discovery and latest-activity ordering.',
-            'Restore ticket_lifecycle_events ticket/tenant identity to its canonical utf8mb4_uca1400_ai_ci schema and align tenant_resolution_cases relational tenant_id/ticket_id keys to the same ticket-domain collation through a separately governed source migration.',
-            'Leave tickets and non-relational tenant_resolution_cases resource_ref/default collation unchanged.'
-          ];
-          journey.assertions = [
-            'Indexed resolution-case and lifecycle identity columns are never wrapped in CONVERT/COLLATE in inbox joins.',
-            'Outer ticket expressions are normalized to the actual indexed-column collation with an explicit two-collation fail-closed allowlist.',
-            'The migration keeps ticket_lifecycle_events on utf8mb4_uca1400_ai_ci and aligns only tenant_resolution_cases tenant_id/ticket_id relational keys to that ticket-domain collation.',
-            'The migration is source-only in this PR and does not alter tickets, tenant_resolution_cases resource_ref, or Production.'
-          ];
-          fs.writeFileSync(e2ePath, JSON.stringify(e2e, null, 2) + '\n');
-          NODE
+        run: node "$RUNNER_TEMP/pr6662-review-fix.mjs"
       - name: Validate exact write set and focused tests
         shell: bash
-        working-directory: http-generic-api
         run: |
           set -euo pipefail
           git diff --check
-          node --check tenantRequestInboxService.js
-          node test-tenant-request-inbox-and-chunk-hardening.mjs
-          cd ..
+          node --check http-generic-api/tenantRequestInboxService.js
+          (cd http-generic-api && node test-tenant-request-inbox-and-chunk-hardening.mjs)
           mapfile -t changed < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
           printf '%s\n' "${changed[@]}"
           test "${#changed[@]}" -eq 4
