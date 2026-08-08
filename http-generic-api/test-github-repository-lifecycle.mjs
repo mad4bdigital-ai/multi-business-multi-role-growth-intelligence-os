@@ -620,7 +620,7 @@ function authorityHarness({ branch, expectedSha }) {
       expected_head_sha: HEAD_SHA,
       commit_message: "fix: reject stale existing blob update",
       changes: [{ path: "docs/report.json", blob_sha: BLOB_SHA }],
-      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } }]),
+      fetchImpl: queuedFetch([{ status: 200, payload: { object: { sha: BASE_SHA } } } }]),
     }),
     (error) => error.code === "github_existing_blob_head_mismatch"
   );
