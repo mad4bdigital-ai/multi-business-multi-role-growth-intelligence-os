@@ -3,6 +3,10 @@ name: Spec Kit Work Map Autofix
 on:
   workflow_dispatch:
     inputs:
+      pr_number:
+        description: Pull request number bound to the Recovery-issued delegation
+        required: true
+        type: string
       branch:
         description: Existing same-repository pull-request branch to update
         required: true
@@ -27,8 +31,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}
+  group: work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   regenerate:
@@ -39,6 +44,7 @@ jobs:
       run:
         shell: bash
     env:
+      REQUESTED_PR_NUMBER: ${{ inputs.pr_number }}
       TARGET_BRANCH: ${{ inputs.branch }}
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
       RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
@@ -53,6 +59,8 @@ jobs:
           mkdir -p "${diagnostic_root}"
           : > "${diagnostic_root}/validation-results.tsv"
 
+          [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          test "${GITHUB_ACTOR}" = "github-actions[bot]"
           git check-ref-format --branch "${TARGET_BRANCH}"
           [[ "${TARGET_BRANCH}" != refs/* ]]
           [[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]
@@ -67,6 +75,7 @@ jobs:
           |---|---|
           | Repository | \`${GITHUB_REPOSITORY}\` |
           | Run | \`${GITHUB_RUN_ID}\` |
+          | Pull request | \`${REQUESTED_PR_NUMBER}\` |
           | Target branch | \`${TARGET_BRANCH}\` |
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
           | Recovery run | \`${RECOVERY_RUN_ID}\` |
@@ -106,11 +115,13 @@ jobs:
             -f per_page=2 > "${pr_file}"
           pr_count="$(jq 'length' "${pr_file}")"
           test "${pr_count}" = "1"
+          actual_pr_number="$(jq -r '.[0].number' "${pr_file}")"
+          test "${actual_pr_number}" = "${REQUESTED_PR_NUMBER}"
           test "$(jq -r '.[0].head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
           test "$(jq -r '.[0].head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
-          echo "pr_number=$(jq -r '.[0].number' "${pr_file}")" >> "$GITHUB_OUTPUT"
+          echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
 
       - name: Verify and consume Recovery-issued writer delegation
         id: delegation
@@ -131,13 +142,8 @@ jobs:
           test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
           test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
           test "$(jq -r '.head_branch' "${recovery_file}")" = "main"
-          recovery_status="$(jq -r '.status' "${recovery_file}")"
-          case "${recovery_status}" in
-            queued|in_progress|completed) ;;
-            *) echo "Untrusted Recovery run status: ${recovery_status}"; exit 1 ;;
-          esac
-          recovery_conclusion="$(jq -r '.conclusion // ""' "${recovery_file}")"
-          [[ -z "${recovery_conclusion}" || "${recovery_conclusion}" = "success" ]]
+          test "$(jq -r '.status' "${recovery_file}")" = "completed"
+          test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
           recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"
           [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
 
