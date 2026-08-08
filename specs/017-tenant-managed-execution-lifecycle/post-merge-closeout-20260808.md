@@ -8,14 +8,34 @@
 - Observed Production SHA: `70dd049a42380116773d45d3283e1ff55e4043a8`
 - Migration 1043 state: `already_applied_verified`; no additional Apply is authorized or required.
 
-## Evidence state
+## Hostinger Production Runtime Readback R7
 
-This closeout file is an evidence-only carrier. It does not claim Production runtime parity or protected-canary completion before the corresponding governed artifacts exist.
+Governed read-only run `31249264517` completed successfully from trusted default-branch tooling.
 
-- Hostinger Production Runtime Readback R7: pending governed read-only run.
-- Spec 017 protected managed-execution canary: pending an existing explicitly pinned fixture; no random discovery and no resource/grant creation is permitted as a side effect.
+- Expected Production SHA: `70dd049a42380116773d45d3283e1ff55e4043a8`
+- Runtime `/version` SHA: `70dd049a42380116773d45d3283e1ff55e4043a8`
+- Runtime `/deployment-info` SHA: `70dd049a42380116773d45d3283e1ff55e4043a8`
+- Runtime branch: `Production`
+- HTTP `/health`, `/version`, `/deployment-info`, `/connector-agent/version`: `200 / 200 / 200 / 200`
+- Classification: `production_current`
+- `production_current`: `true`
+- Artifact: `hostinger-production-runtime-readback-r7-31249264517`
+- Artifact ID: `9019476581`
+- Artifact digest: `sha256:0b8a5ab190c2fa7cf2c4c596ed081b89b0aac9f12509a0a784fa000b19f94308`
+- Public GET only: `true`
+- Repository/provider/database/Production mutation: `false`
+- Deployment/restart/release activation: `false`
+- Direct SQL / Migration Apply: `false / false`
+- External business send: `false`
+- Secrets included: `false`
+
+R7 therefore proves exact current Production runtime parity for the pinned Production SHA without performing a mutation.
+
+## Remaining evidence state
+
+- Spec 017 protected managed-execution canary: pending an existing explicitly pinned fixture containing `user_id`, `tenant_id`, `parent_ticket_id`, `capability_key`, `resource_type`, and `resource_ref`. No random discovery and no resource/grant creation is permitted as a side effect.
 - Unknown-provider-outcome / fault-injection evidence: still unresolved and must remain independently open until proven through an official provider-free governed surface.
-- `tasks.md`, `completion.json`, and phase completion metadata: unchanged until exact artifacts justify updates.
+- `tasks.md`, `completion.json`, and phase completion metadata: unchanged until exact protected-canary and remaining closure artifacts justify updates.
 
 ## Safety boundary
 
