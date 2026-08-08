@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getPool } from "./db.js";
+import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 
 function compact(value = "", max = 255) {
   return String(value ?? "").trim().slice(0, max);
@@ -88,6 +89,44 @@ function envelopeRequestContext(row = {}) {
     : {};
 }
 
+function exactGithubUri(owner = "", repo = "") {
+  const normalizedOwner = compact(owner, 191);
+  const normalizedRepo = compact(repo, 191).replace(/\.git$/i, "");
+  return normalizedOwner && normalizedRepo ? `github://${normalizedOwner}/${normalizedRepo}` : "";
+}
+
+function isRepoPatchEnvelopeRequest({ acceptedAppKeys = [], acceptedIntents = [], acceptedCapabilityKeys = [] } = {}) {
+  const apps = new Set(acceptedAppKeys.map((value) => compact(value, 128).toLowerCase()));
+  if (!apps.has("github")) return false;
+  const values = [...acceptedIntents, ...acceptedCapabilityKeys].map((value) => compact(value, 191).toLowerCase());
+  return values.some((value) => ["repo_patch_apply", "github_repo_patch"].includes(value));
+}
+
+function repoPatchSourceScope(source = {}, expectedCommitSha = "") {
+  return {
+    branch: compact(source.branch || source.resource_branch || source.resourceBranch, 255),
+    expected_commit_sha: compact(
+      source.expected_branch_sha || source.expectedBranchSha ||
+      source.expected_commit_sha || source.expectedCommitSha ||
+      source.expected_base_sha || source.expectedBaseSha ||
+      expectedCommitSha,
+      64,
+    ).toLowerCase(),
+  };
+}
+
+async function resolveRepoPatchExpectedResourceUri({ source = {}, expectedResourceUri = "", pool = null } = {}) {
+  const explicit = compact(expectedResourceUri, 2048);
+  if (explicit) return explicit;
+  const direct = exactGithubUri(source.owner, source.repo);
+  if (direct) return direct;
+  const bootstrap = await resolveActivationBootstrapConfig({
+    query: pool?.query ? (sql, params) => pool.query(sql, params) : undefined,
+  });
+  if (!bootstrap?.ok) return "";
+  return exactGithubUri(bootstrap.config?.github_owner, bootstrap.config?.github_repo);
+}
+
 export async function resolveCapabilityExecutionEnvelope({
   pool = null,
   envelopeId = "",
@@ -122,6 +161,18 @@ export async function resolveCapabilityExecutionEnvelope({
   const db = pool || getPool();
   const row = await loadEnvelopeRow(db, resolvedEnvelopeId);
   if (!row) return capabilityEnvelopeFailure("capability_resolution_envelope_not_found", { envelope_id: resolvedEnvelopeId });
+
+  const repoPatchRequest = isRepoPatchEnvelopeRequest({ acceptedAppKeys, acceptedIntents, acceptedCapabilityKeys });
+  const sourceScope = repoPatchSourceScope(source, expectedCommitSha);
+  const resolvedExpectedResourceUri = repoPatchRequest
+    ? await resolveRepoPatchExpectedResourceUri({ source, expectedResourceUri, pool: db })
+    : compact(expectedResourceUri, 2048);
+  if (repoPatchRequest && !resolvedExpectedResourceUri) {
+    return capabilityEnvelopeFailure("capability_resolution_envelope_resource_target_unresolved", {
+      envelope_id: resolvedEnvelopeId,
+      message: "The exact GitHub repository target must resolve before repository mutation dispatch.",
+    });
+  }
 
   if (requireNoSecrets && boolNumber(row.secrets_included)) {
     return capabilityEnvelopeFailure("capability_resolution_envelope_secret_boundary_failed", { envelope_id: resolvedEnvelopeId });
@@ -173,15 +224,67 @@ export async function resolveCapabilityExecutionEnvelope({
     });
   }
 
+  const envelopeJson = parseJson(row.envelope_json, {});
   const requestContext = envelopeRequestContext(row);
   const envelopeResourceUri = compact(requestContext.resource_uri || requestContext.resourceUri, 2048);
-  const resourceUri = compact(expectedResourceUri, 2048);
-  if (resourceUri && envelopeResourceUri !== resourceUri) {
+  if (resolvedExpectedResourceUri && envelopeResourceUri !== resolvedExpectedResourceUri) {
     return capabilityEnvelopeFailure("capability_resolution_envelope_resource_uri_mismatch", {
       envelope_id: resolvedEnvelopeId,
       envelope_resource_uri: envelopeResourceUri || null,
-      expected_resource_uri: resourceUri,
+      expected_resource_uri: resolvedExpectedResourceUri,
     });
+  }
+
+  const principal = requestContext.principal && typeof requestContext.principal === "object" && !Array.isArray(requestContext.principal)
+    ? requestContext.principal
+    : {};
+  const principalType = compact(principal.principal_type, 32).toLowerCase();
+  const principalId = compact(principal.principal_id, 64);
+  const authorityScope = envelopeJson?.authority?.exact_platform_resource_authority_scope || {};
+  const scopeMatched = authorityScope?.matched === true;
+  const envelopeBranch = compact(requestContext.resource_branch || authorityScope.resource_branch, 255);
+  const scopedCommitSha = compact(requestContext.expected_commit_sha || authorityScope.expected_commit_sha, 64).toLowerCase();
+
+  if (principalType === "service") {
+    if (!principalId || compact(row.user_id, 64) !== principalId) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_service_principal_binding_mismatch", {
+        envelope_id: resolvedEnvelopeId,
+      });
+    }
+    if (userId && userId !== principalId) {
+      return capabilityEnvelopeFailure("capability_resolution_envelope_user_mismatch", { envelope_id: resolvedEnvelopeId });
+    }
+    if (repoPatchRequest && scopeMatched) {
+      if (!envelopeBranch || !sourceScope.branch) {
+        return capabilityEnvelopeFailure("capability_resolution_envelope_resource_branch_target_unresolved", {
+          envelope_id: resolvedEnvelopeId,
+          envelope_resource_branch: envelopeBranch || null,
+          expected_resource_branch: sourceScope.branch || null,
+        });
+      }
+      if (envelopeBranch !== sourceScope.branch) {
+        return capabilityEnvelopeFailure("capability_resolution_envelope_resource_branch_mismatch", {
+          envelope_id: resolvedEnvelopeId,
+          envelope_resource_branch: envelopeBranch,
+          expected_resource_branch: sourceScope.branch,
+        });
+      }
+      if (!scopedCommitSha || !sourceScope.expected_commit_sha) {
+        return capabilityEnvelopeFailure("capability_resolution_envelope_commit_target_unresolved", {
+          envelope_id: resolvedEnvelopeId,
+          envelope_commit_sha: scopedCommitSha || null,
+          expected_commit_sha: sourceScope.expected_commit_sha || null,
+        });
+      }
+      if (scopedCommitSha !== sourceScope.expected_commit_sha) {
+        return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", {
+          envelope_id: resolvedEnvelopeId,
+          expected_commit_sha: sourceScope.expected_commit_sha,
+          envelope_commit_sha: scopedCommitSha,
+          commit_hint_required: true,
+        });
+      }
+    }
   }
 
   const envelopeBindingSha256 = compact(requestContext.binding_sha256 || requestContext.bindingSha256, 64).toLowerCase();
@@ -229,7 +332,7 @@ export async function resolveCapabilityExecutionEnvelope({
     return capabilityEnvelopeFailure("capability_resolution_envelope_intent_mismatch", { envelope_id: resolvedEnvelopeId, operation_intent: row.operation_intent });
   }
 
-  const sha = compact(expectedCommitSha, 64).toLowerCase();
+  const sha = compact(sourceScope.expected_commit_sha || expectedCommitSha, 64).toLowerCase();
   const hintedSha = envelopeCommitHint(row);
   if (sha && ((requireCommitHint && hintedSha !== sha) || (!requireCommitHint && hintedSha && hintedSha !== sha))) {
     return capabilityEnvelopeFailure("capability_resolution_envelope_commit_mismatch", {
@@ -254,7 +357,10 @@ export async function resolveCapabilityExecutionEnvelope({
     capability_key: row.capability_key || null,
     operation_intent: row.operation_intent || null,
     resource_uri: envelopeResourceUri || null,
-    expected_commit_sha: hintedSha || null,
+    resource_branch: envelopeBranch || null,
+    expected_commit_sha: scopedCommitSha || hintedSha || null,
+    principal_type: principalType || null,
+    principal_id: principalId || row.user_id || null,
     binding_sha256: envelopeBindingSha256 || null,
     capability_sha256: envelopeCapabilitySha256 || null,
     selected_source_tier: row.selected_source_tier || null,
