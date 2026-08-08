@@ -138,14 +138,16 @@ When maps, migrations, schema taxonomy, classification rules, or exception recor
 
 The required validation workflow is read-only. It checks an immutable pull-request head SHA and never commits, pushes, or runs the generator in write mode.
 
-Generated changes may be published only by a producer registered in `.specify/pipeline-connectivity-contract.json`. Under the current contract, Docs Agent is preview-only and must never commit or push Work Maps; `docs-agent-write` and `docs-agent-automerge` are forbidden as Work Map write authority. `spec-kit-work-map-autofix.yml` is the sole remote Work Map writer. Its write path is delegated through the independent Recovery bridge after one-time authorization and requires a governed non-protected branch plus its exact current head SHA.
+Generated changes may be published only by a producer registered in `.specify/pipeline-connectivity-contract.json`. Under the current contract, Docs Agent is preview-only and must never commit or push Work Maps; `docs-agent-write` and `docs-agent-automerge` are forbidden as Work Map write authority. `spec-kit-work-map-autofix.yml` is the sole remote Work Map writer. Its write path is delegated through the independent Recovery bridge after one-time authorization and requires a governed non-protected branch plus its exact current head SHA. Direct writer dispatch is not write authority: before generation, the writer must verify a trusted `spec-kit-work-map-autofix-recovery-dispatch.yml` run on `main` and consume the bot-authored one-time delegation grant bound to that Recovery run, PR, branch, and exact head SHA.
 
 ```text
 source change
 → read-only freshness check
 → stale: exact-head repair candidate
 → one-time Recovery authorization
-→ exact-head sole-writer dispatch
+→ Recovery-issued exact-target writer delegation grant
+→ writer verifies and consumes grant
+→ exact-head sole-writer execution
 → generate twice and prove idempotency
 → reject files outside the governed generated root
 → re-read the remote branch head
@@ -154,7 +156,7 @@ source change
 → explicitly dispatch CI and Work Map validation for the new head
 ```
 
-The Recovery bridge itself never mutates repository content. It validates the exact same-repository target, consumes the one-time authorization, and delegates the exact head to the sole writer. Pull-request Draft/Ready metadata is not repository-write authority; actual authority remains bound to the open same-repository PR, governed branch, exact head, current `main` relationship, and one-time authorization contract.
+The Recovery bridge itself never mutates repository content. It validates the exact same-repository target, consumes the one-time authorization, issues one bot-authored exact-target writer delegation grant, and delegates the exact head to the sole writer. An issued grant is single-use; the writer changes it to `state=consumed` before generation, while a Recovery run that becomes blocked revokes an orphaned unconsumed grant. Pull-request Draft/Ready metadata is not repository-write authority; actual authority remains bound to the open same-repository PR, governed branch, exact head, current `main` relationship, one-time authorization, and Recovery-issued delegation contract.
 
 A producer may not use `--force`, `--force-with-lease`, a stale branch head, a no-op commit, or a silent best-effort validation dispatch. Because pushes made with `GITHUB_TOKEN` do not provide a reliable recursive validation trigger, the governed Work Map writer must explicitly dispatch `ci.yml` and `spec-kit-work-map-integration.yml` after successful push readback. Failure to dispatch either validator fails the producer job.
 
@@ -228,7 +230,8 @@ The reusable convergence controls are:
 - pin the moving `main` line and merge that pinned ancestry into the feature branch through a normal two-parent merge commit;
 - require `behind_by = 0` and a merge base equal to the pinned `main` SHA before one-time authorization is consumed;
 - keep Docs Agent preview-only;
-- publish generator-owned Work Maps only through the exact-head sole writer after Recovery authorization;
+- publish generator-owned Work Maps only through the exact-head sole writer after Recovery authorization and successful one-time writer-delegation consumption;
+- reject direct writer dispatch that cannot prove its Recovery run and exact bot-authored delegation grant;
 - require writer-side remote-head readback before fast-forward push and resulting-SHA readback after push;
 - explicitly dispatch CI and Spec Kit Work Map Integration for the writer-produced exact head;
 - repeat ancestry and review readback immediately before merge and reject the merge if `main` moved, the head changed, a review thread reopened, or a required gate is not successful.
