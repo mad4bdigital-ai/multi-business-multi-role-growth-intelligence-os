@@ -115,6 +115,9 @@ const staticDiscoveryCommands = [
   "node test-workflow-registry-authority-resolver.mjs",
   "node test-workspace-brand-core-asset-materialization.mjs",
   "node test-workspace-brand-core-personal-owner-boundary.mjs",
+  "node test-workspace-brand-create.mjs",
+  "node test-workspace-brand-create-operation-governance.mjs",
+  "node test-workspace-brand-root-topology.mjs",
 ];
 
 export const testCommands = Object.freeze([
