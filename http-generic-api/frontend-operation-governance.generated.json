@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v8-route-scoped-root-workspace-brand-create-topology",
-    "source_digest": "3e89f89805891210598cedfd0dc29f109a096c9c04b0e0fd85f968f2f330ab5a",
+    "source_digest": "53fe88ce89e47299dc93a52b3a482b84ff99fb503908d90dc70cafaee3186d32",
     "fail_closed": true
   },
   "source_authority": [
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "6629b0288da9a7e3a1ca19b132db18b4c5bbd88db7ececc3091dc6d8d3596af7",
+      "sha256": "e9abd9cb2f4f584b65c91951c4424d98a2b1502a494c73d85363ca81b35f8e3a",
       "present": true
     },
     {
@@ -148,7 +148,7 @@
     },
     {
       "file": "workspaceBrandRootTopology.js",
-      "sha256": "4205349235b54b00db9f1e8890f97c3a06cd5a1397e0cfa72948b6c57645a554",
+      "sha256": "160e45f4d769973da4e3c04425126ccb73ff245f03b920a215fccb3a17583669",
       "present": true
     }
   ],
@@ -282,7 +282,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
+        "source_digest": "f1e4bfb30d242f1672663889859708f49233daa527d16cab129c78b26a5cc335",
         "fail_closed": true
       }
     },
@@ -326,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
+        "source_digest": "f1e4bfb30d242f1672663889859708f49233daa527d16cab129c78b26a5cc335",
         "fail_closed": true
       }
     },
@@ -371,7 +371,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
+        "source_digest": "f1e4bfb30d242f1672663889859708f49233daa527d16cab129c78b26a5cc335",
         "fail_closed": true
       }
     },
@@ -510,7 +510,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v2-root-workspace-topology",
-        "source_digest": "172db72de7302069fd3bdeb86777c4f0aef959c4ec954fd212cdbed0995863ff",
+        "source_digest": "716f864870d0cb5eee0ede8ace0a4665da8709f5c59aff8f70f7ad81eaf215f6",
         "fail_closed": true
       }
     },
