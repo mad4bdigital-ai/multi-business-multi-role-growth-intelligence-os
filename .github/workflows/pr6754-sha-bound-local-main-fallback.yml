@@ -1,0 +1,222 @@
+name: PR 6754 SHA-bound local-main fallback patch
+
+on:
+  push:
+    branches:
+      - gpt/pr6754-sha-bound-local-main-fallback-981576-20260809
+    paths:
+      - .github/workflows/pr6754-sha-bound-local-main-fallback.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pr6754-sha-bound-local-main-fallback-981576
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_TARGET_SHA: 981576d98e0c088e019ed9bafd9f66ee00239280
+      TARGET_BRANCH: gpt/fix-production-promotion-classifier-bridge-20260809
+      LAUNCHER_PATH: .github/workflows/pr6754-sha-bound-local-main-fallback.yml
+      GATE_PATH: http-generic-api/scripts/e2e-parallel-pr-gate.mjs
+      SELF_TEST_PATH: http-generic-api/scripts/e2e-production-promotion-bridge-self-test.mjs
+      CONTRACT_PATH: .changes/e2e/e2e-default-branch-and-production-promotion-classification.json
+
+    steps:
+      - name: Checkout launcher
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify immutable launcher topology
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_TARGET_SHA"
+          mapfile -t changed < <(git diff --name-only HEAD^ HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$LAUNCHER_PATH"
+          test -z "$(git status --porcelain)"
+
+      - name: Checkout exact target without launcher
+        uses: actions/checkout@v5
+        with:
+          ref: 981576d98e0c088e019ed9bafd9f66ee00239280
+          fetch-depth: 0
+          persist-credentials: true
+          clean: true
+
+      - name: Verify target exact head lease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_TARGET_SHA"
+          test -z "$(git status --porcelain)"
+
+      - name: Apply bounded SHA-bound local-main fallback patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          function replaceOnce(source, before, after, label) {
+            const first = source.indexOf(before);
+            if (first < 0) throw new Error(`${label}: source fragment not found`);
+            if (source.indexOf(before, first + before.length) >= 0) throw new Error(`${label}: source fragment is not unique`);
+            return source.slice(0, first) + after + source.slice(first + before.length);
+          }
+
+          const gatePath = process.env.GATE_PATH;
+          let gate = fs.readFileSync(gatePath, 'utf8');
+          const oldResolver = `function resolveCanonicalMainRef(root) {
+            const mainRef = "refs/remotes/origin/main";
+            const result = spawnSync("git", ["rev-parse", "--verify", \`${'${mainRef}'}^{commit}\`], {
+              cwd: root,
+              encoding: "utf8",
+              stdio: ["ignore", "pipe", "ignore"]
+            });
+            if (result.error || result.status !== 0) return null;
+            return mainRef;
+          }`;
+          const newResolver = `function resolveCanonicalMainRef(root, { allowLocalFallback = false } = {}) {
+            const candidates = allowLocalFallback
+              ? ["refs/remotes/origin/main", "refs/heads/main"]
+              : ["refs/remotes/origin/main"];
+            for (const mainRef of candidates) {
+              const result = spawnSync("git", ["rev-parse", "--verify", \`${'${mainRef}'}^{commit}\`], {
+                cwd: root,
+                encoding: "utf8",
+                stdio: ["ignore", "pipe", "ignore"]
+              });
+              if (!result.error && result.status === 0) return mainRef;
+            }
+            return null;
+          }`;
+          gate = replaceOnce(gate, oldResolver, newResolver, 'canonical-main-resolver');
+          gate = replaceOnce(
+            gate,
+            '  const mainRef = resolveCanonicalMainRef(root);',
+            '  const mainRef = resolveCanonicalMainRef(root, { allowLocalFallback: candidateRef.kind === "sha_bound" });',
+            'candidate-specific-main-resolution'
+          );
+          fs.writeFileSync(gatePath, gate);
+
+          const selfTestPath = process.env.SELF_TEST_PATH;
+          let selfTest = fs.readFileSync(selfTestPath, 'utf8');
+          const anchor = `assert.equal(exactShaBoundReport.production_promotion_rearm_depth, 0);
+
+          const rearmedShaBound = invoke(root, { base: productionSha, head: rearmSha, headRef: shaBoundRef });`;
+          const replacement = `assert.equal(exactShaBoundReport.production_promotion_rearm_depth, 0);
+
+          run("git", ["update-ref", "-d", "refs/remotes/origin/main"], root);
+          const localMainShaBound = invoke(root, { base: productionSha, head: candidateSha, headRef: shaBoundRef });
+          assert.equal(localMainShaBound.status, 0, localMainShaBound.stderr || localMainShaBound.stdout);
+          const localMainShaBoundReport = JSON.parse(localMainShaBound.stdout);
+          assert.equal(localMainShaBoundReport.production_promotion, true);
+          assert.equal(localMainShaBoundReport.production_promotion_identity, "history_preserving_main_reconciliation");
+
+          const bridgeWithoutRemoteTrackingMain = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
+          assert.notEqual(bridgeWithoutRemoteTrackingMain.status, 0, "dispatch bridge must retain strict remote-main identity");
+          const bridgeWithoutRemoteTrackingMainReport = JSON.parse(bridgeWithoutRemoteTrackingMain.stdout);
+          assert.equal(bridgeWithoutRemoteTrackingMainReport.production_promotion, false);
+          assert(bridgeWithoutRemoteTrackingMainReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+          run("git", ["update-ref", "refs/remotes/origin/main", mainSha], root);
+
+          const rearmedShaBound = invoke(root, { base: productionSha, head: rearmSha, headRef: shaBoundRef });`;
+          selfTest = replaceOnce(selfTest, anchor, replacement, 'local-main-sha-bound-regression');
+          selfTest = replaceOnce(selfTest, '  tests: 10,', '  tests: 12,', 'test-count');
+          selfTest = replaceOnce(
+            selfTest,
+            '  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_and_zero_diff_rearm",',
+            '  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_local_main_fallback_and_zero_diff_rearm",',
+            'contract-label'
+          );
+          fs.writeFileSync(selfTestPath, selfTest);
+
+          const contractPath = process.env.CONTRACT_PATH;
+          const contract = JSON.parse(fs.readFileSync(contractPath, 'utf8'));
+          const phase = contract.phases.find((row) => row.id === contract.current_phase);
+          if (!phase) throw new Error('current phase missing');
+          const journey = phase.e2e_journeys.find((row) => row.id === 'classify-default-branch-parallel-pr-and-governed-production-promotions');
+          if (!journey) throw new Error('classifier journey missing');
+          const step = 'When the remote-tracking main ref is absent but refs/heads/main is valid, retain local-main fallback only for legacy SHA-bound classification and keep governed dispatch-bridge classification strict.';
+          const assertion = 'Legacy SHA-bound candidates may use refs/heads/main only when origin/main is unavailable; governed dispatch bridges still require the canonical remote main plus live protected-ref verification.';
+          if (!journey.steps.includes(step)) {
+            const index = journey.steps.findIndex((row) => row.startsWith('Accept a SHA-bound reconciliation candidate'));
+            journey.steps.splice(index >= 0 ? index + 1 : journey.steps.length, 0, step);
+          }
+          if (!journey.assertions.includes(assertion)) journey.assertions.push(assertion);
+          if (!journey.terminal_outcome.includes('local-main fallback')) {
+            journey.terminal_outcome += ' Legacy SHA-bound candidates retain a local-main fallback when the remote-tracking main ref is unavailable, without weakening governed dispatch-bridge live-ref requirements.';
+          }
+          fs.writeFileSync(contractPath, JSON.stringify(contract, null, 2) + '\n');
+          NODE
+
+      - name: Enforce exact source write set
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t changed < <(git status --porcelain=v1 --untracked-files=all | sed -E 's/^...//' | sort)
+          printf '%s\n' "${changed[@]}"
+          test "${#changed[@]}" -eq 3
+          test "${changed[0]}" = "$CONTRACT_PATH"
+          test "${changed[1]}" = "$GATE_PATH"
+          test "${changed[2]}" = "$SELF_TEST_PATH"
+          git diff --check
+
+      - name: Run focused classifier regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check "$GATE_PATH"
+          node --check "$SELF_TEST_PATH"
+          node -e "JSON.parse(require('node:fs').readFileSync(process.env.CONTRACT_PATH, 'utf8'))"
+          node http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs
+          node "$SELF_TEST_PATH"
+          node http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs
+
+      - name: Commit and fast-forward target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_SHA"
+          remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_TARGET_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- "$CONTRACT_PATH" "$GATE_PATH" "$SELF_TEST_PATH"
+          mapfile -t staged < <(git diff --cached --name-only | sort)
+          test "${#staged[@]}" -eq 3
+          test "${staged[0]}" = "$CONTRACT_PATH"
+          test "${staged[1]}" = "$GATE_PATH"
+          test "${staged[2]}" = "$SELF_TEST_PATH"
+          git commit -m 'fix(e2e): preserve SHA-bound local main fallback'
+          result_sha="$(git rev-parse HEAD)"
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_TARGET_SHA"
+          remote_head="$(git ls-remote origin "refs/heads/$TARGET_BRANCH" | awk '{print $1}')"
+          test "$remote_head" = "$EXPECTED_TARGET_SHA"
+          git push origin "HEAD:refs/heads/$TARGET_BRANCH"
+          echo "RESULT_HEAD_SHA=$result_sha" >> "$GITHUB_ENV"
+
+      - name: Summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'PR6754_SHA_BOUND_LOCAL_MAIN_FALLBACK=success'
+          echo "RESULT_HEAD_SHA=${RESULT_HEAD_SHA}"
+          echo 'WRITE_SET=3_source_files'
+          echo 'BRIDGE_REMOTE_MAIN_STRICT=true'
+          echo 'SHA_BOUND_LOCAL_MAIN_FALLBACK=true'
+          echo 'FORCE_PUSH=false'
+          echo 'PRODUCTION_MUTATION=false'
+          echo 'PROVIDER_DISPATCH=false'
+          echo 'DATABASE_MUTATION=false'
+          echo 'MIGRATION_APPLY=false'
