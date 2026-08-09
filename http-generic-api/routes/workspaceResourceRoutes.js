@@ -3,7 +3,13 @@ import { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { assertGrantResourceInWorkspace } from "../workspaceGrantResourceAuthority.js";
-import { createWorkspaceBrand } from "../workspaceBrandLifecycle.js";
+import { withContainerAuthorityMutation, rebuildContainerClosure } from "../dynamicContainerAuthorityRepository.js";
+import { invalidateContainerAuthorityCache } from "../dynamicContainerAuthorityResolver.js";
+import {
+  createWorkspaceBrandWithRootTopology,
+  readWorkspaceBrandRootScope,
+  verifyWorkspaceBrandRootTopology,
+} from "../workspaceBrandRootTopology.js";
 
 const requireCanonicalUserJwt = createUserJwtMiddleware();
 const OWNER_ROLES = new Set(["owner", "admin"]);
@@ -221,30 +227,57 @@ export function buildWorkspaceResourceRoutes() {
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_brand_create
   router.post("/me/workspaces/:tenant_id/brands", requireCanonicalUserJwt, requireUserJwt, async (req, res) => {
-    const connection = await getPool().getConnection();
+    const rootWorkspaceId = String(req.body?.root_workspace_id || "").trim();
     try {
-      await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_brand_create
-      const result = await createWorkspaceBrand(connection, {
-        tenantId: req.params.tenant_id,
+      const rootScope = await readWorkspaceBrandRootScope(getPool(), {
+        rootWorkspaceId,
         actorUserId: req.auth.user_id,
-        displayName: req.body?.display_name ?? req.body?.brand_name,
       });
-      await connection.commit();
+      if (String(rootScope.tenant_id) !== String(req.params.tenant_id)) {
+        throw Object.assign(new Error("Root workspace does not belong to the requested tenant."), {
+          status: 403,
+          code: "workspace_brand_root_workspace_cross_tenant",
+        });
+      }
+      const mutation = await withContainerAuthorityMutation({
+        tenantId: rootScope.tenant_id,
+        mutationType: "workspace_brand_create",
+        mutationRef: `${rootScope.workspace_id}:${req.auth.user_id}`,
+        rebuildClosure: false,
+        work: async (connection, currentEpoch) => { // MUTATION_TRANSACTION: workspace_brand_create
+          const result = await createWorkspaceBrandWithRootTopology(connection, {
+            tenantId: rootScope.tenant_id,
+            rootWorkspaceId: rootScope.workspace_id,
+            actorUserId: req.auth.user_id,
+            displayName: req.body?.display_name ?? req.body?.brand_name,
+          });
+          const closure = await rebuildContainerClosure(connection, rootScope.tenant_id, Number(currentEpoch) + 1);
+          const topology = await verifyWorkspaceBrandRootTopology(connection, {
+            tenantId: rootScope.tenant_id,
+            rootWorkspaceId: rootScope.workspace_id,
+            brandTargetKey: result.brand.target_key,
+            expectedRelationshipId: result.topology.relationship_id,
+          }); // MUTATION_READBACK: workspace_brand_create
+          return { ...result, topology, closure_rows: closure.rowCount };
+        },
+      });
+      invalidateContainerAuthorityCache(rootScope.tenant_id);
+      const result = mutation.result;
       return res.status(result.created ? 201 : 200).json({
         ok: true,
-        tenant_id: req.params.tenant_id,
+        tenant_id: rootScope.tenant_id,
+        root_workspace: result.root_workspace,
         brand: result.brand,
         workspace_link: result.link,
         creator_grant: result.grant,
+        topology: result.topology,
+        authority_epoch: mutation.authorityEpoch,
         idempotent_reuse: !result.created,
         next_steps: result.next_steps,
         secrets_included: false,
       });
     } catch (err) {
-      await connection.rollback();
       return res.status(err.status || 500).json({ ok: false, error: { code: err.code || "workspace_brand_create_failed", message: err.message, details: err.details || [] }, secrets_included: false });
-    } finally {
-      connection.release();
     }
   });
 
