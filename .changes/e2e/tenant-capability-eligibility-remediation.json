@@ -10,6 +10,8 @@
     "include": [
       ".changes/e2e/tenant-capability-eligibility-remediation.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/managedExecutionAuthority.js",
+      "http-generic-api/managedExecutionCore.js",
       "http-generic-api/migrations/1052_tenant_platform_plugin_managed_repair_authority.sql",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
       "http-generic-api/tenantPlatformPluginEligibility.js",
@@ -28,7 +30,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Project canonical Platform Plugin resolver decisions into tenant-safe eligibility, validate source-only dry-run repair authority, and bind that canonical repair identity to the existing Managed Execution create-run input contract without mounting a route or creating a run before activation readiness is certified.",
+      "objective": "Project canonical Platform Plugin resolver decisions into tenant-safe eligibility, bind staged managed repair to the existing Managed Execution input contract, and define an exact source-only dry-run authority path that remains blocked until Migration 1052 metadata and a non-expired dispatch-only Runtime Dispatch Certification exist.",
       "e2e_journeys": [
         {
           "id": "tenant-resolve-projects-eligibility-and-staged-remediation",
@@ -36,7 +38,7 @@
           "level": "synthetic_runtime",
           "actor": "Authenticated tenant user resolving a Platform Plugin capability",
           "entrypoint": "POST /tenant/platform/plugins/resolve after canonical User-JWT and active-membership authorization",
-          "terminal_outcome": "The tenant response remains fail-closed and managed_repair.available remains false. Source-only dry-run code validates a resolver-bound smoke-certification candidate and authoritative User-JWT tenant/user/workspace context, then can deterministically build the exact internal createManagedExecutionRun input contract for a caller-supplied parent ticket without invoking that service, mounting a repair route, granting authority, or performing an external mutation.",
+          "terminal_outcome": "The tenant response remains fail-closed and managed_repair.available remains false. Source-only dry-run code validates canonical User-JWT tenant/user/workspace authority, builds an immutable Managed Execution dry-run input, and permits that exact managed_operation authority only when the staged route-family metadata, exact non-expired dispatch-only runtime certification, and existing operate-or-stronger resource grant all validate. No certification is issued, no route is mounted, no run is created, and no external mutation occurs in this phase.",
           "steps": [
             "Resolve the requested capability through the existing canonical Platform Plugin resolver and its fail-closed security gates.",
             "Strip the admin-only decision trace projection from the tenant response as before.",
@@ -56,11 +58,19 @@
             "Build the Managed Execution binding from authenticated tenant/user/workspace identity, an explicit parent_ticket_id, the canonical operation identity, and the allowlisted dry-run repair operations only.",
             "Derive one deterministic platform_plugin_operation resource_ref and one deterministic managed-execution idempotency key; transport request/correlation IDs cannot alter the run identity or managed_execution_input_hash.",
             "Bind the future invocation to the internal createManagedExecutionRun service and explicitly forbid using the backend-only /managed-execution-runs HTTP route as the tenant integration seam.",
-            "Keep effect_class=managed_operation and execution_mode=dry_run in the staged input rather than weakening authority semantics by pretending the repair is read_only.",
-            "Keep run_creation_allowed=false and run_created=false because Migration 1052 is still unapplied, executor_registered=0, capability dispatch certification is absent, and the existing generic Managed Execution authority correctly blocks managed_operation when apply authority is not active.",
+            "Normalize execution_mode explicitly at the Managed Execution envelope boundary; live remains the backward-compatible default, dry_run is explicit, and conflicting top-level versus input_json modes fail closed.",
+            "Keep effect_class=managed_operation and execution_mode=dry_run rather than weakening authority semantics by pretending the repair is read_only.",
+            "Recognize the dry-run authority exception only when workflow_key, capability_key, resource_type, effect_class and execution_mode all exactly match the canonical tenant Platform Plugin managed-repair contract.",
+            "Require the staged route-family capability row to retain resource authority, audit, readback and the canonical tenant_platform_plugin_managed_repair_authority evidence requirement even though its base dispatch/apply flags remain disabled.",
+            "Require exactly one Runtime Dispatch Certification whose certification key, surface key and target key match the managed-repair dry-run contract, whose status is active/certified, whose dispatch_allowed=1 and apply_allowed=0, and whose dry-run/resource-authority/audit/readback flags and bounded evidence are present.",
+            "Require a valid future certification expiry and normalize certification timestamps before persisting the immutable Managed Execution authority snapshot.",
+            "Continue requiring an existing exact platform_plugin_operation or workspace grant with operate-or-stronger permission; the repair path cannot create or broaden its own resource authority.",
+            "Re-resolve both resource authority and the exact dry-run certification before privileged managed steps; certification rotation, evidence change or expiry fails closed through authority drift/revalidation.",
+            "Keep the generic Managed Execution apply gate unchanged for live mode, other workflows, other capabilities and every non-exact managed-operation path.",
+            "Keep run_creation_allowed=false and run_created=false because this source phase issues no certification, applies no migration and invokes no Managed Execution service.",
             "Keep target authority, credential, approval, skill and canonical-policy blockers outside this dry-run executor so remediation cannot grant itself authority or credentials.",
-            "Keep Migration 1052 metadata-only with apply_allowed_default=0, enforcement_status=baseline_registered and executor_registered=0.",
-            "Require a later governed activation for Migration 1052 apply/readback, dedicated executor registration, capability runtime/dispatch certification, capability-specific dry-run enforcement, Managed Execution dry-run authority certification, actual run creation, reconciliation and representative Production canary evidence."
+            "Keep Migration 1052 metadata-only with apply_allowed_default=0, enforcement_status=baseline_registered and executor_registered=0 until separately governed application/readback.",
+            "Require a later governed activation for Migration 1052 state verification, trusted internal certification issuance, actual internal run creation, reconciliation/final eligibility readback and representative Production canary evidence."
           ],
           "assertions": [
             "A dispatch-ready canonical resolver decision projects to status=ready with zero blockers.",
@@ -85,12 +95,18 @@
             "Only certify_platform_plugin_operation is allowlisted for this source-only dry-run executor.",
             "The same principal, canonical operation and repair operation set produces a deterministic preview fingerprint independent of request ID.",
             "Managed Execution binding requires parent_ticket_id but derives tenant_id, user_id and workspace_id only from authenticated context.",
-            "Managed Execution binding uses workflow_key=tenant_platform_plugin_managed_repair_v1, the canonical managed-repair capability key, resource_type=platform_plugin_operation, effect_class=managed_operation and input execution_mode=dry_run.",
+            "Managed Execution binding uses workflow_key=tenant_platform_plugin_managed_repair_v1, the canonical managed-repair capability key, resource_type=platform_plugin_operation, effect_class=managed_operation and explicit top-level plus nested execution_mode=dry_run.",
+            "Conflicting or unsupported Managed Execution execution modes fail closed before authority resolution.",
             "The same authenticated principal, parent ticket and canonical operation produce the same idempotency key and managed_execution_input_hash even when transport request/correlation IDs change.",
             "The staged resource identity is deterministic and no resource grant or authority is created by the binding contract.",
             "The binding names createManagedExecutionRun as the internal service, sets direct_http_route_allowed=false, and never invokes it in this phase.",
-            "The dry-run source reports source_executor_implemented=true, executor_registered=false, apply_allowed=false and dispatch_apply_allowed=false.",
-            "No Managed Execution run, authority or credential, migration application, provider call, Production mutation or external write is performed.",
+            "Exact managed-repair dry-run authority can use dispatch-only certification while base route-family dispatch/apply flags remain false, but effective apply remains false.",
+            "Missing, ambiguous, inactive, expired, apply-enabled or incomplete dry-run certification fails closed.",
+            "An operate-or-stronger existing resource grant remains mandatory after certification succeeds.",
+            "Live mode or a non-canonical workflow cannot use the managed-repair dry-run exception and retains the generic Managed Execution capability/apply gates.",
+            "Dry-run certification evidence and timestamps are part of the immutable authority snapshot and are revalidated before managed steps; changed certification evidence produces authority drift.",
+            "The dry-run source still reports source_executor_implemented=true, executor_registered=false, apply_allowed=false and dispatch_apply_allowed=false until later activation.",
+            "No Runtime Dispatch Certification issuance, Managed Execution run, authority or credential creation, migration application, provider call, Production mutation or external write is performed.",
             "Migration 1052 remains staged with dispatch/apply blocked and executor_registered=0.",
             "A pending governed approval projects to approval_required rather than ready."
           ],
@@ -127,6 +143,8 @@
           "evidence_paths": [
             ".changes/e2e/tenant-capability-eligibility-remediation.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/managedExecutionAuthority.js",
+            "http-generic-api/managedExecutionCore.js",
             "http-generic-api/migrations/1052_tenant_platform_plugin_managed_repair_authority.sql",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
             "http-generic-api/tenantPlatformPluginEligibility.js",
