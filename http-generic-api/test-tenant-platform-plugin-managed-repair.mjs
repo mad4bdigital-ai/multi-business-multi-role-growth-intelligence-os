@@ -91,6 +91,7 @@ assert.deepEqual(certificationEligibility.managed_repair.repair_operations, ["ce
 assert.equal(certificationEligibility.managed_repair.affected_operation.plugin_key, "github");
 assert.equal(certificationEligibility.managed_repair.affected_operation.selector.type, "action_key");
 assert.equal(certificationEligibility.managed_repair.affected_operation.selector.value, "github_create_issue_comment");
+assert.deepEqual(certificationEligibility.managed_repair.affected_operation.blocker_codes, ["missing_smoke_certification"]);
 assert.match(certificationEligibility.managed_repair.affected_operation.identity_sha256, /^[0-9a-f]{64}$/);
 assert(certificationEligibility.managed_repair.activation_requirements.includes("dedicated_executor_registered"));
 assert(certificationEligibility.managed_repair.activation_requirements.includes("capability_specific_dry_run_enforcement"));
@@ -123,6 +124,11 @@ const expiredCertification = buildTenantPlatformPluginEligibility(
 assert.equal(expiredCertification.blockers[0].blocker_code, "expired_smoke_certification");
 assert.equal(expiredCertification.managed_repair.available, false);
 assert.equal(expiredCertification.managed_repair.reason, "managed_repair_executor_not_registered");
+assert.deepEqual(expiredCertification.managed_repair.affected_operation.blocker_codes, ["expired_smoke_certification"]);
+assert.equal(
+  expiredCertification.managed_repair.affected_operation.identity_sha256,
+  certificationEligibility.managed_repair.affected_operation.identity_sha256,
+);
 
 const unavailablePlugin = buildTenantPlatformPluginEligibility(
   resultWithGate("binding_state", "action_binding_not_found", {
