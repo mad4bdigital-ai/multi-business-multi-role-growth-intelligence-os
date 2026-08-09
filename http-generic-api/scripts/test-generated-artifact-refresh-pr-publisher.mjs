@@ -176,9 +176,20 @@ const bootstrapEvidence = normalizeGovernedGeneratedArtifactEvidence({
   report: governedReport({
     recipe: "work_map_self_hosting_bootstrap",
     candidateSourceFiles: [
-      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      ".changes/e2e/work-map-autofix-v2-contract-regression.json",
       ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "docs/ci-evidence-routing.md",
+      "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/platform-work-map-generator.mjs",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
     ],
     changedFiles: [
       "docs/work-maps/README.md",
