@@ -35,34 +35,26 @@ assert.equal(
   TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
 );
 assert.equal(bindingEligibility.managed_repair.available, false);
-assert.equal(bindingEligibility.managed_repair.reason, "managed_repair_executor_not_registered");
-assert.equal(bindingEligibility.managed_repair.mode, "staged_dry_run_candidate");
-assert.deepEqual(bindingEligibility.managed_repair.repair_operations, ["register_runtime_binding"]);
-assert.equal(bindingEligibility.managed_repair.affected_operation.plugin_key, "github");
-assert.match(bindingEligibility.managed_repair.affected_operation.identity_sha256, /^[0-9a-f]{64}$/);
-assert(bindingEligibility.managed_repair.activation_requirements.includes("dedicated_executor_registered"));
-assert(bindingEligibility.managed_repair.activation_requirements.includes("capability_specific_dry_run_enforcement"));
-assert(bindingEligibility.managed_repair.activation_requirements.includes("jwt_bound_principal_injection"));
-assert(bindingEligibility.managed_repair.activation_requirements.includes("workspace_context_persisted_for_readback"));
+assert.equal(bindingEligibility.managed_repair.reason, "canonical_plugin_operation_identity_required");
+assert(!Object.hasOwn(bindingEligibility.managed_repair, "affected_operation"));
+assert(!Object.hasOwn(bindingEligibility.managed_repair, "repair_operations"));
 assert.equal(bindingEligibility.managed_repair.mutation_executed, false);
 assert.equal(bindingEligibility.managed_repair.secrets_included, false);
-assert(!Object.hasOwn(bindingEligibility.managed_repair, "execution"));
-assert(!Object.hasOwn(bindingEligibility.managed_repair, "request_template"));
 
-const canonicalPluginIdentity = buildTenantPlatformPluginEligibility(
+const differentlyCasedMissingBinding = buildTenantPlatformPluginEligibility(
   resultWithGate("binding_state", "action_binding_not_found", {
-    plugin_key: "GITHUB",
-    plugin: { plugin_key: "github", status: "active" },
+    selector: { type: "action_key", value: "GITHUB_CREATE_ISSUE_COMMENT" },
+    requested_action_key: "GITHUB_CREATE_ISSUE_COMMENT",
   }),
 );
-assert.equal(canonicalPluginIdentity.managed_repair.affected_operation.plugin_key, "github");
-assert.equal(
-  canonicalPluginIdentity.managed_repair.affected_operation.identity_sha256,
-  bindingEligibility.managed_repair.affected_operation.identity_sha256,
-);
+assert.equal(differentlyCasedMissingBinding.managed_repair.available, false);
+assert.equal(differentlyCasedMissingBinding.managed_repair.reason, "canonical_plugin_operation_identity_required");
+assert(!Object.hasOwn(differentlyCasedMissingBinding.managed_repair, "affected_operation"));
 
 const inactiveBinding = buildTenantPlatformPluginEligibility(
-  resultWithGate("binding_state", "binding_not_active"),
+  resultWithGate("binding_state", "binding_not_active", {
+    binding: { action_key: "github_create_issue_comment", status: "disabled" },
+  }),
 );
 assert.equal(inactiveBinding.blockers[0].blocker_code, "binding_not_active");
 assert.equal(inactiveBinding.blockers[0].repair_class, TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED);
@@ -71,14 +63,21 @@ assert.equal(inactiveBinding.managed_repair.available, false);
 assert.equal(inactiveBinding.managed_repair.reason, "no_allowlisted_managed_repair_for_current_blockers");
 
 const toolBinding = buildTenantPlatformPluginEligibility(
-  resultWithGate("binding_state", "tool_binding_not_found"),
+  resultWithGate("binding_state", "tool_binding_not_found", {
+    selector: { type: "tool_key", value: "github_comment_tool" },
+    requested_action_key: null,
+    requested_tool_key: "github_comment_tool",
+  }),
 );
 assert.equal(toolBinding.blockers[0].blocker_code, "missing_tool_binding");
 assert.equal(toolBinding.managed_repair.available, false);
-assert.deepEqual(toolBinding.managed_repair.repair_operations, ["register_runtime_binding"]);
+assert.equal(toolBinding.managed_repair.reason, "canonical_plugin_operation_identity_required");
+assert(!Object.hasOwn(toolBinding.managed_repair, "affected_operation"));
 
 const certificationEligibility = buildTenantPlatformPluginEligibility(
-  resultWithGate("smoke_certification", "smoke_certification_missing"),
+  resultWithGate("smoke_certification", "smoke_certification_missing", {
+    binding: { action_key: "github_create_issue_comment", status: "active" },
+  }),
 );
 assert.equal(certificationEligibility.blockers[0].blocker_code, "missing_smoke_certification");
 assert.equal(
@@ -87,13 +86,43 @@ assert.equal(
 );
 assert.equal(certificationEligibility.managed_repair.available, false);
 assert.equal(certificationEligibility.managed_repair.reason, "managed_repair_executor_not_registered");
+assert.equal(certificationEligibility.managed_repair.mode, "staged_dry_run_candidate");
 assert.deepEqual(certificationEligibility.managed_repair.repair_operations, ["certify_platform_plugin_operation"]);
+assert.equal(certificationEligibility.managed_repair.affected_operation.plugin_key, "github");
+assert.equal(certificationEligibility.managed_repair.affected_operation.selector.type, "action_key");
+assert.equal(certificationEligibility.managed_repair.affected_operation.selector.value, "github_create_issue_comment");
+assert.match(certificationEligibility.managed_repair.affected_operation.identity_sha256, /^[0-9a-f]{64}$/);
+assert(certificationEligibility.managed_repair.activation_requirements.includes("dedicated_executor_registered"));
+assert(certificationEligibility.managed_repair.activation_requirements.includes("capability_specific_dry_run_enforcement"));
+assert(certificationEligibility.managed_repair.activation_requirements.includes("jwt_bound_principal_injection"));
+assert(certificationEligibility.managed_repair.activation_requirements.includes("workspace_context_persisted_for_readback"));
+assert(!Object.hasOwn(certificationEligibility.managed_repair, "execution"));
+assert(!Object.hasOwn(certificationEligibility.managed_repair, "request_template"));
+
+const canonicalSelectorIdentity = buildTenantPlatformPluginEligibility(
+  resultWithGate("smoke_certification", "smoke_certification_missing", {
+    plugin_key: "GITHUB",
+    plugin: { plugin_key: "github", status: "active" },
+    selector: { type: "action_key", value: "GITHUB_CREATE_ISSUE_COMMENT" },
+    requested_action_key: "GITHUB_CREATE_ISSUE_COMMENT",
+    binding: { action_key: "github_create_issue_comment", status: "active" },
+  }),
+);
+assert.equal(canonicalSelectorIdentity.managed_repair.affected_operation.plugin_key, "github");
+assert.equal(canonicalSelectorIdentity.managed_repair.affected_operation.selector.value, "github_create_issue_comment");
+assert.equal(
+  canonicalSelectorIdentity.managed_repair.affected_operation.identity_sha256,
+  certificationEligibility.managed_repair.affected_operation.identity_sha256,
+);
 
 const expiredCertification = buildTenantPlatformPluginEligibility(
-  resultWithGate("smoke_certification", "smoke_certification_expired"),
+  resultWithGate("smoke_certification", "smoke_certification_expired", {
+    binding: { action_key: "github_create_issue_comment", status: "active" },
+  }),
 );
 assert.equal(expiredCertification.blockers[0].blocker_code, "expired_smoke_certification");
 assert.equal(expiredCertification.managed_repair.available, false);
+assert.equal(expiredCertification.managed_repair.reason, "managed_repair_executor_not_registered");
 
 const unavailablePlugin = buildTenantPlatformPluginEligibility(
   resultWithGate("binding_state", "action_binding_not_found", {
@@ -107,6 +136,7 @@ assert.equal(unavailablePlugin.managed_repair.reason, "plugin_not_executable");
 const deprecatedPlugin = buildTenantPlatformPluginEligibility(
   resultWithGate("smoke_certification", "smoke_certification_missing", {
     plugin: { plugin_key: "github", status: "deprecated" },
+    binding: { action_key: "github_create_issue_comment", status: "active" },
   }),
 );
 assert.equal(deprecatedPlugin.status, "deprecated");
@@ -135,7 +165,7 @@ const incompleteCanonicalIdentity = buildTenantPlatformPluginEligibility({
   allowed: false,
   plugin: { status: "active" },
   security_decision: {
-    gates: [{ key: "binding_state", required: true, state: "deny", reason: "action_binding_not_found" }],
+    gates: [{ key: "smoke_certification", required: true, state: "deny", reason: "smoke_certification_missing" }],
   },
   execution: { will_execute: false },
 });
