@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
-import {
-  normalizeManagedExecutionEnvelope,
-  resolveManagedExecutionRunAuthority,
-} from "./managedExecutionLifecycleService.js";
+import { normalizeManagedExecutionEnvelope } from "./managedExecutionLifecycleService.js";
+import { resolveManagedExecutionRunAuthority } from "./managedExecutionRunService.js";
 
 const base = {
   tenant_id: "tenant-1",
