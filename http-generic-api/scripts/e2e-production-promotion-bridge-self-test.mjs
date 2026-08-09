@@ -101,6 +101,7 @@ const rearmSha = run("git", [
   "-m", "human zero-diff re-arm"
 ], root).trim();
 const bridgeRef = `release/production-candidate-${mainSha.slice(0, 12)}-${productionSha.slice(0, 12)}-bridge-31282314470`;
+const pushFallbackRef = `release/production-candidate-${mainSha.slice(0, 12)}-${productionSha.slice(0, 12)}-push-31282314471`;
 
 const accepted = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
 assert.equal(accepted.status, 0, accepted.stderr || accepted.stdout);
@@ -112,6 +113,23 @@ assert.equal(acceptedReport.production_promotion_identity, "history_preserving_m
 assert.equal(acceptedReport.phase_evaluation_base, mainSha);
 assert.equal(acceptedReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(acceptedReport.production_promotion_rearm_depth, 1);
+
+const pushFallbackAccepted = invoke(root, { base: productionSha, head: rearmSha, headRef: pushFallbackRef });
+assert.equal(pushFallbackAccepted.status, 0, pushFallbackAccepted.stderr || pushFallbackAccepted.stdout);
+const pushFallbackAcceptedReport = JSON.parse(pushFallbackAccepted.stdout);
+assert.equal(pushFallbackAcceptedReport.ok, true, JSON.stringify(pushFallbackAcceptedReport.findings));
+assert.equal(pushFallbackAcceptedReport.production_promotion, true);
+assert.equal(pushFallbackAcceptedReport.production_promotion_identity, "history_preserving_main_reconciliation");
+assert.equal(pushFallbackAcceptedReport.phase_evaluation_base, mainSha);
+assert.equal(pushFallbackAcceptedReport.production_promotion_anchor_sha, candidateSha);
+assert.equal(pushFallbackAcceptedReport.production_promotion_rearm_depth, 1);
+
+const unsupportedGovernedSuffixRef = `release/production-candidate-${mainSha.slice(0, 12)}-${productionSha.slice(0, 12)}-manual-31282314472`;
+const unsupportedGovernedSuffix = invoke(root, { base: productionSha, head: rearmSha, headRef: unsupportedGovernedSuffixRef });
+assert.notEqual(unsupportedGovernedSuffix.status, 0);
+const unsupportedGovernedSuffixReport = JSON.parse(unsupportedGovernedSuffix.stdout);
+assert.equal(unsupportedGovernedSuffixReport.production_promotion, false);
+assert(unsupportedGovernedSuffixReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
 
 const authenticatedAccepted = invoke(root, {
   base: productionSha,
@@ -222,8 +240,8 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 12,
-  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_local_main_fallback_and_zero_diff_rearm",
+  tests: 14,
+  contract: "governed_dispatch_bridge_and_push_fallback_authenticated_live_refs_exact_sha_bound_identity_local_main_fallback_and_zero_diff_rearm",
   authenticated_ref_lookup: true,
   authenticated_lookup_fails_closed_without_git_fallback: true,
   secrets_included: false

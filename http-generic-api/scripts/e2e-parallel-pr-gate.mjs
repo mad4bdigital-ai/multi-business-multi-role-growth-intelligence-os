@@ -274,7 +274,7 @@ function resolveParents(root, headSha) {
 }
 
 function parseProductionCandidateRef(headRef) {
-  const bridge = /^release\/production-candidate-([0-9a-f]{12})-([0-9a-f]{12})-bridge-([1-9]\d*)$/.exec(headRef);
+  const bridge = /^release\/production-candidate-([0-9a-f]{12})-([0-9a-f]{12})-(?:bridge|push)-([1-9]\d*)$/.exec(headRef);
   if (bridge) {
     return {
       kind: "governed_dispatch_bridge",
