@@ -118,6 +118,7 @@ const staticDiscoveryCommands = [
   "node test-workspace-brand-create.mjs",
   "node test-workspace-brand-create-operation-governance.mjs",
   "node test-workspace-brand-root-topology.mjs",
+  "node test-workspace-brand-root-topology-effective-state.mjs",
 ];
 
 export const testCommands = Object.freeze([
