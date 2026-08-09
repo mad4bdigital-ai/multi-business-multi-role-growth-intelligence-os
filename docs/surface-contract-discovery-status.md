@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 465
+- Migrations with detected surfaces: 467
 - Migrations reported here: 80
-- OpenAPI operations detected: 1043
-- OpenAPI paths detected: 1029
+- OpenAPI operations detected: 1044
+- OpenAPI paths detected: 1030
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,11 +32,11 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 461/465 (99.14%)
-- Documentation gap migrations: 4
-- Gap severity: high=1, medium=0, low=3
+- Documentation complete migrations: 461/467 (98.72%)
+- Documentation gap migrations: 6
+- Gap severity: high=2, medium=0, low=4
 - SQL route coverage in OpenAPI: 31/32 (96.88%)
-- SQL route-like literals exempted from OpenAPI scoring: 675/707
+- SQL route-like literals exempted from OpenAPI scoring: 676/708
 - SQL routes missing OpenAPI path coverage: 1
 - Migrations without explicit `secrets_included=false` marker: 1
 
@@ -45,20 +45,20 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | Surface type | Discovered items | Migrations with type |
 |---|---:|---:|
 | plugins | 15 | 12 |
-| tools | 749 | 271 |
-| views | 512 | 206 |
+| tools | 751 | 272 |
+| views | 514 | 207 |
 | policies | 196 | 135 |
-| routes | 707 | 292 |
+| routes | 708 | 293 |
 
 ### Documentation Target Gaps
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 4 |
-| `deployment_parity_checklist.md` | 4 |
-| `docs/ai-docs-agent-governance.md` | 4 |
-| `docs/auto-docs-agent/README.md` | 4 |
-| `docs/change-documentation-governance.md` | 4 |
+| `Updating Registry Patch Index.md` | 6 |
+| `deployment_parity_checklist.md` | 6 |
+| `docs/ai-docs-agent-governance.md` | 6 |
+| `docs/auto-docs-agent/README.md` | 6 |
+| `docs/change-documentation-governance.md` | 6 |
 
 ### Safety Marker Coverage
 
@@ -69,14 +69,14 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 | no_raw_secrets | 462 |
 | no_external_send | 462 |
 | no_external_write | 462 |
-| secrets_included_false | 464 |
+| secrets_included_false | 466 |
 
 ### Route Classification Coverage
 
 | Route class | SQL route-like literals |
 |---|---:|
 | http_route | 32 |
-| admin_tool_registry_route | 216 |
+| admin_tool_registry_route | 217 |
 | tenant_tool_registry_route | 42 |
 | system_tool_dispatch_route | 15 |
 | registry_only_surface | 8 |
@@ -88,16 +88,18 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 4
-- Critical review: 1
+- Total queue items: 6
+- Critical review: 2
 - High review: 0
-- Medium review: 3
+- Medium review: 4
 - Low review: 0
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
 |---|---:|---:|---:|---:|---:|---:|---|
 | `20260808_github_issue_comment_dispatch_parity.sql` | critical_review | 910 | high | 5 | 1 | 5 | document_surface_contract, review_openapi_contract, verify_readback_view, add_explicit_safety_markers |
+| `1050_github_repository_policy_controller_bootstrap_repair.sql` | critical_review | 713 | high | 5 | 0 | 5 | document_surface_contract, verify_tool_registry_binding, add_explicit_safety_markers |
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
+| `1052_tenant_platform_plugin_managed_repair_authority.sql` | medium_review | 348 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql` | medium_review | 335 | low | 5 | 0 | 4 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260728_governed_response_chunk_ownership.sql` | medium_review | 318 | low | 5 | 0 | 0 | document_surface_contract, verify_readback_view |
 
@@ -189,6 +191,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 
 ## High-Risk Documentation Gaps
 
+- `1050_github_repository_policy_controller_bootstrap_repair.sql`
 - `20260808_github_issue_comment_dispatch_parity.sql`
 
 ## SQL Route OpenAPI Gaps

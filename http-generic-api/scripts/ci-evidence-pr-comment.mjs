@@ -283,10 +283,34 @@ export async function publishEvidenceComment(options) {
   return { ok: true, action: "created", comment_id: created.id, pr_number: prNumber, evidence };
 }
 
+export function classifyExpectedPublicationSkip(error) {
+  if (error?.message === "Refusing to publish canonical evidence for a stale PR head.") {
+    return "stale_pr_head";
+  }
+  if (error?.message === "Refusing to publish diagnostic evidence for a stale or substituted merge candidate.") {
+    return "stale_merge_candidate";
+  }
+  return null;
+}
+
 export async function runCiEvidencePrComment(argv = process.argv.slice(2)) {
-  const result = await publishEvidenceComment(parseArgs(argv));
-  process.stdout.write(`${JSON.stringify({ ...result, secrets_included: false })}\n`);
-  return result;
+  try {
+    const result = await publishEvidenceComment(parseArgs(argv));
+    process.stdout.write(`${JSON.stringify({ ...result, secrets_included: false })}\n`);
+    return result;
+  } catch (error) {
+    const reason = classifyExpectedPublicationSkip(error);
+    if (!reason) throw error;
+    const result = {
+      ok: true,
+      action: "skipped",
+      reason,
+      evidence_published: false,
+      secrets_included: false
+    };
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    return result;
+  }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

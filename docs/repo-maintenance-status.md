@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 614
+- Paths: 615
 - Operations: 566
 - Top-level tags: 36
 
@@ -187,6 +187,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/tenant-request-identity-collation-runtime-readiness.yml`
 - `.github/workflows/transport-response-schema-1048-governed-rollout.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
 - `.github/workflows/verify-runtime.yml`
@@ -253,6 +254,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
 - `http-generic-api/test-platform-plugin-brand-connection-authority.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
 - `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
@@ -284,6 +286,9 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
@@ -291,7 +296,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
 - `http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs`
 - `http-generic-api/test-work-map-schema-classification-contract.mjs`
-- `http-generic-api/test-work-map-schema-classification.mjs`
+- ...and 1 more
 
 ## Maintenance Contract
 

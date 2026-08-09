@@ -10,10 +10,14 @@
       ".changes/e2e/work-map-recovery-independent-bootstrap.json",
       ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
       ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
       ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
       ".specify/pipeline-connectivity-contract.json",
       "docs/spec-kit-work-map-integration-governance.md",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
       "http-generic-api/test-work-map-autofix-diagnostics.mjs"
     ]
   },
@@ -41,7 +45,7 @@
             "Enable and read back only spec-kit-work-map-autofix-recovery-dispatch.yml.",
             "Dispatch the existing Recovery workflow with pr_number and exact expected_head_sha.",
             "Observe the delegated run ID and publish bounded JSON plus PR evidence.",
-            "Leave marker consumption, writer enablement, Work Map generation, commit, and push to the existing Recovery and sole writer workflows."
+            "Leave marker consumption, writer delegation issuance, Work Map generation, commit, and push to the existing Recovery and sole writer workflows."
           ],
           "assertions": [
             "The bootstrap has actions:write, contents:read, issues:write, and pull-requests:read with no contents:write.",
@@ -49,7 +53,7 @@
             "The command is bound to one exact lowercase 40-character head SHA.",
             "The target PR must be open, same-repository, current with main, and the remote head must equal the requested SHA; Draft readiness must neither grant nor block recovery authority.",
             "The bootstrap dispatches Recovery only and never dispatches the sole writer directly.",
-            "The bootstrap does not consume the one-time marker, commit, push, mutate protected refs, force push, deploy, access providers, databases, migrations, credentials, or external business systems.",
+            "The bootstrap does not consume the one-time marker, issue writer grants, commit, push, mutate protected refs, force push, deploy, access providers, databases, migrations, credentials, or external business systems.",
             "Structured evidence declares direct_repository_mutation=false, authorization_consumed=false, protected_branch_mutation=false, force_push=false, and secrets_included=false."
           ],
           "tests": [
@@ -72,30 +76,33 @@
     {
       "id": "operational",
       "status": "implemented",
-      "objective": "Delegate to the existing Recovery workflow while preserving that workflow as the authorization consumer and the Spec Kit Work Map Autofix workflow as the sole remote writer.",
+      "objective": "Delegate to the existing Recovery workflow while preserving Recovery as the one-time authorization consumer and grant issuer, and require the sole Work Map writer to verify and consume that exact delegation before any generated-content mutation.",
       "e2e_journeys": [
         {
           "id": "bootstrap-preserves-recovery-and-writer-ownership",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository automation governance reviewer",
-          "entrypoint": "Bootstrap, Recovery, connectivity and runbook contracts plus executable regressions",
-          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced, Draft readiness is not promoted into an authority signal, Docs Agent remains preview-only, and the delegated Recovery surface remains explicitly dispatched and exact-head bound.",
+          "entrypoint": "Bootstrap, Recovery, writer, connectivity and runbook contracts plus executable regressions",
+          "terminal_outcome": "No duplicate Work Map producer or authorization consumer is introduced, Draft readiness is not promoted into an authority signal, Docs Agent remains preview-only, and every writer execution is bound to one Recovery-issued, bot-authored, exact-target, one-time delegation grant.",
           "steps": [
             "Inspect the bootstrap workflow as trusted default-branch code.",
             "Verify it enables and dispatches only the existing Recovery workflow.",
             "Verify Bootstrap and Recovery validate open, same-repository, main-targeted exact-head pull requests without reading Draft readiness as a permission boundary.",
             "Verify the Recovery workflow accepts workflow_dispatch only and validates the exact requested head before consuming authorization.",
+            "After marker consumption, require Recovery to issue a bot-authored delegation grant bound to recovery run, run attempt, PR, branch, and exact head SHA.",
+            "Require Recovery to pass recovery_run_id and delegation_comment_id to the sole writer and revoke an unconsumed grant when Recovery terminates blocked.",
+            "Require the writer to verify the Recovery run path and trusted main ref, verify the bot-authored exact grant, and atomically consume that grant before generator execution or push.",
             "Verify marker consumption remains absent from the bootstrap.",
-            "Verify Docs Agent remains preview-only and legacy docs-agent-write/docs-agent-automerge labels are not Work Map write authority.",
-            "Verify no git commit, git push, writer dispatch from Bootstrap, or generated path mutation exists."
+            "Verify Docs Agent remains preview-only and legacy docs-agent-write/docs-agent-automerge labels are not Work Map write authority."
           ],
           "assertions": [
-            "The Recovery workflow remains the only one-time authorization consumer.",
+            "The Recovery workflow remains the only one-time PR authorization consumer and the only issuer of Work Map writer delegation grants.",
             "The Recovery trigger contract requires workflow_dispatch and explicitly forbids pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run.",
             "Bootstrap and Recovery do not read pull_request.draft or otherwise use Draft/Ready state to grant or deny repository write authority.",
             "Bootstrap and Recovery run on ubuntu-24.04-arm after runner allocation.",
-            "spec-kit-work-map-autofix.yml remains the unchanged Windows sole remote Work Map writer.",
+            "spec-kit-work-map-autofix.yml remains the Windows sole remote Work Map writer, but direct workflow_dispatch without a valid unconsumed Recovery grant fails closed before generator execution.",
+            "A writer delegation is exact-target bound, bot-authored, one-time, and replay-resistant through state=issued to state=consumed transition under per-branch writer concurrency.",
             "Docs Agent is preview-only under the current connectivity contract; docs-agent-write and docs-agent-automerge are not valid Work Map write authority.",
             "Pull-request validation workflows remain read-only under the repository-write separation contract."
           ],
@@ -130,22 +137,23 @@
     {
       "id": "resilient",
       "status": "implemented",
-      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, protected targets, forbidden external triggers, disabled Recovery readback, rejected dispatch, unobserved delegated runs, or stale runbook authority while keeping Draft readiness outside the authority model.",
+      "objective": "Fail closed on untrusted actors, malformed commands, stale heads, missing authorization, forged or replayed writer delegation, protected targets, forbidden external triggers, disabled Recovery readback, rejected dispatch, unobserved delegated runs, or stale runbook authority while keeping Draft readiness outside the authority model.",
       "e2e_journeys": [
         {
           "id": "bootstrap-fails-closed-before-delegation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "repository lifecycle gate",
-          "entrypoint": "Candidate changes to the Bootstrap, Recovery, connectivity contract, operator runbook, or their executable regressions",
-          "terminal_outcome": "Regression, connectivity, documentation and lifecycle checks reject any mixed PR-write path, forbidden Recovery trigger, stale exact-head delegation, readiness-derived authority, legacy Docs Agent write authority, or unbound writer handoff before merge.",
+          "entrypoint": "Candidate changes to the Bootstrap, Recovery, writer, connectivity contract, operator runbook, or their executable regressions",
+          "terminal_outcome": "Regression, connectivity, documentation and lifecycle checks reject any mixed PR-write path, forbidden Recovery trigger, stale exact-head delegation, readiness-derived authority, direct writer bypass, forged/replayed grant, legacy Docs Agent write authority, or unbound writer handoff before merge.",
           "steps": [
-            "Validate workflow syntax, trigger contracts, static authority boundaries, and operator runbook alignment.",
+            "Validate workflow syntax, trigger contracts, static authority boundaries, delegation binding, and operator runbook alignment.",
             "Require exact SHA, branch, marker, actor permission, open state, same-repository identity, main target, and main freshness.",
             "Require Draft/Ready state to remain absent from Bootstrap and Recovery authorization decisions.",
             "Require Recovery to be workflow_dispatch-only and reject pull_request, pull_request_target, issue_comment, push, schedule, and workflow_run triggers.",
+            "Require the sole writer to reject missing, forged, already-consumed, wrong-PR, wrong-branch, wrong-SHA, wrong-Recovery-run, or non-bot delegation comments before generation.",
             "Reject Docs Agent labels or preview paths as Work Map repository-write authority.",
-            "Reject contents:write in Bootstrap, direct writer dispatch from Bootstrap, marker consumption outside Recovery, git commit, git push, and force push.",
+            "Reject contents:write in Bootstrap, direct writer dispatch from Bootstrap, marker consumption outside Recovery, writer mutation before delegation consumption, and force push.",
             "Run Work Map diagnostics and pipeline connectivity regressions against the exact candidate tree.",
             "Publish bounded evidence even when activation or dispatch is blocked."
           ],
@@ -153,9 +161,10 @@
             "Bootstrap and Recovery allocate ubuntu-24.04-arm runners before initializing report paths.",
             "Recovery validates open state, same-repository identity, main target, exact requested head, and behind_by=0 before consuming the one-time marker.",
             "Neither Bootstrap nor Recovery reads pull_request.draft or treats readiness as an authorization condition.",
+            "Recovery creates the exact writer grant only after authorization consumption and revokes an orphaned issued grant on blocked completion.",
+            "The Windows writer verifies the Recovery workflow run and bot-authored exact grant, changes grant state from issued to consumed, and only then reaches generator or repository-content mutation steps.",
             "Docs Agent remains preview-only and the runbook does not advertise legacy docs-agent-write/docs-agent-automerge labels as current Work Map authority.",
             "No repository content mutation is performed by Bootstrap or Recovery.",
-            "The Windows writer remains unchanged and is the sole remote Work Map content writer.",
             "No deployment, runtime contact, database access, provider action, Migration Apply, protected-ref mutation, force push, or secrets are included."
           ],
           "tests": [
@@ -179,6 +188,7 @@
             ".github/workflows/repository-write-workflow-prerequisite-guard.yml",
             ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
             ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+            ".github/workflows/spec-kit-work-map-autofix.yml",
             ".specify/pipeline-connectivity-contract.json",
             "docs/spec-kit-work-map-integration-governance.md",
             "http-generic-api/test-pipeline-connectivity-check.mjs",
@@ -197,5 +207,6 @@
       "status": "not_applicable",
       "objective": "This repository-control recovery chain performs no Production action or deployment."
     }
-  ]
+  ],
+  "secrets_included": false
 }
