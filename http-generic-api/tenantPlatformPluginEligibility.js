@@ -69,10 +69,24 @@ function classifyBlocker(gate = {}) {
   }
 
   if (key === "binding_state") {
+    if (reason === "action_binding_not_found") {
+      return {
+        blocker_code: "missing_action_binding",
+        repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+        safe_action: "register_runtime_binding",
+      };
+    }
+    if (reason === "tool_binding_not_found") {
+      return {
+        blocker_code: "missing_tool_binding",
+        repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+        safe_action: "register_runtime_binding",
+      };
+    }
     return {
-      blocker_code: reason === "tool_binding_not_found" ? "missing_tool_binding" : "missing_action_binding",
+      blocker_code: reason || "binding_not_executable",
       repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
-      safe_action: "register_runtime_binding",
+      safe_action: "review_runtime_binding_state",
     };
   }
 
@@ -151,7 +165,7 @@ function deriveEligibilityState(result = {}) {
 }
 
 function canonicalRepairIdentity(result = {}, blockerCodes = []) {
-  const pluginKey = String(result.plugin_key || result.plugin?.plugin_key || "").trim();
+  const pluginKey = String(result.plugin?.plugin_key || result.plugin_key || "").trim();
   const selectorType = String(
     result.selector?.type || (result.requested_action_key ? "action_key" : (result.requested_tool_key ? "tool_key" : ""))
   ).trim();
@@ -168,17 +182,23 @@ function canonicalRepairIdentity(result = {}, blockerCodes = []) {
   return { ...payload, sha256 };
 }
 
-function unavailableManagedRepair(reason) {
+function unavailableManagedRepair(reason, details = {}) {
   return Object.freeze({
     schema_version: TenantPlatformPluginManagedRepairContract.schema_version,
     available: false,
     reason,
+    ...details,
     mutation_executed: false,
     secrets_included: false,
   });
 }
 
 function buildManagedRepairProjection(result = {}, blockers = []) {
+  const pluginStatus = normalize(result.plugin?.status);
+  if (pluginStatus && !["active", "beta"].includes(pluginStatus)) {
+    return unavailableManagedRepair("plugin_not_executable");
+  }
+
   const eligibleBlockers = blockers.filter((blocker) => MANAGED_REPAIR_BLOCKERS.has(blocker.blocker_code));
   if (!eligibleBlockers.length) return unavailableManagedRepair("no_allowlisted_managed_repair_for_current_blockers");
 
@@ -186,13 +206,8 @@ function buildManagedRepairProjection(result = {}, blockers = []) {
   if (!identity) return unavailableManagedRepair("canonical_plugin_operation_identity_required");
 
   const repairOperations = [...new Set(eligibleBlockers.map((blocker) => blocker.safe_action).filter(Boolean))].sort();
-  const resourceRef = `platform_plugin_operation:${identity.sha256}`;
-  const idempotencyKey = `tenant-platform-plugin-repair:${identity.sha256}`;
-
-  return Object.freeze({
-    schema_version: TenantPlatformPluginManagedRepairContract.schema_version,
-    available: true,
-    mode: "dry_run_plan",
+  return unavailableManagedRepair("managed_repair_executor_not_registered", {
+    mode: "staged_dry_run_candidate",
     affected_operation: Object.freeze({
       plugin_key: identity.plugin_key,
       selector: Object.freeze(identity.selector),
@@ -200,46 +215,14 @@ function buildManagedRepairProjection(result = {}, blockers = []) {
       blocker_codes: Object.freeze(identity.blockers),
     }),
     repair_operations: Object.freeze(repairOperations),
-    execution: Object.freeze({
-      create_route: TenantPlatformPluginManagedRepairContract.create_route,
-      reconcile_route_template: TenantPlatformPluginManagedRepairContract.reconcile_route_template,
-      identity_source: "canonical_user_jwt_scope_binding",
-      principal_fields_injected_by_route_authorization: Object.freeze(["tenant_id", "user_id"]),
-      parent_ticket_id_required: true,
-      approval_policy: "managed_handoff",
-      approval_role: "managed_operator",
-      runtime_authority_revalidation_required: true,
-      apply_authorized_by_projection: false,
-      request_template: Object.freeze({
-        parent_ticket_id: null,
-        workflow_key: TenantPlatformPluginManagedRepairContract.workflow_key,
-        capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
-        resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
-        resource_ref: resourceRef,
-        effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
-        idempotency_key: idempotencyKey,
-        service_mode: "managed",
-        task_title: `Repair Platform Plugin operation ${identity.plugin_key}:${identity.selector.value}`.slice(0, 512),
-        input_json: Object.freeze({
-          mode: "dry_run",
-          plugin_key: identity.plugin_key,
-          selector: Object.freeze(identity.selector),
-          repair_operations: Object.freeze(repairOperations),
-          expected_blockers_cleared: Object.freeze(identity.blockers),
-          readback_route: TenantPlatformPluginManagedRepairContract.readback_route,
-          provider_mutation_allowed: false,
-        }),
-      }),
-    }),
-    readback: Object.freeze({
-      required: true,
-      route: TenantPlatformPluginManagedRepairContract.readback_route,
-      success_condition: "affected blocker codes are absent and canonical resolver gates pass",
-      automatic_retry_after_unknown_outcome: false,
-    }),
+    activation_requirements: Object.freeze([
+      "dedicated_executor_registered",
+      "capability_dispatch_certified",
+      "capability_specific_dry_run_enforcement",
+      "jwt_bound_principal_injection",
+      "workspace_context_persisted_for_readback",
+    ]),
     registry_source_migration: TenantPlatformPluginManagedRepairContract.registry_source_migration,
-    mutation_executed: false,
-    secrets_included: false,
   });
 }
 
