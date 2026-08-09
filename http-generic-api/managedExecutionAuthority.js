@@ -8,7 +8,7 @@ import {
 import { TenantPlatformPluginManagedRepairContract } from "./tenantPlatformPluginEligibility.js";
 
 const MANAGED_REPAIR_BASE_RUNTIME_STATUSES = new Set(["baseline_registered", "active", "available", "certified"]);
-const ACTIVE_DRY_RUN_CERTIFICATION_STATUSES = new Set(["ci_certified", "certified", "active", "verified", "pass", "passed"]);
+const ACTIVE_DRY_RUN_CERTIFICATION_STATUSES = new Set(["ci_certified"]);
 
 function isTenantPlatformPluginManagedRepairDryRun(envelope = {}) {
   return envelope.execution_mode === "dry_run"
@@ -75,6 +75,7 @@ async function resolveManagedRepairDryRunCertification({ connection, now = new D
   if (!ACTIVE_DRY_RUN_CERTIFICATION_STATUSES.has(certificationStatus)) {
     throw managedError(409, "managed_execution_dry_run_certification_not_active", "Managed repair dry-run certification is not active.", {
       certification_status: certification.certification_status || null,
+      allowed_statuses: [...ACTIVE_DRY_RUN_CERTIFICATION_STATUSES],
     });
   }
   if (Number(certification.dispatch_allowed || 0) !== 1) {
