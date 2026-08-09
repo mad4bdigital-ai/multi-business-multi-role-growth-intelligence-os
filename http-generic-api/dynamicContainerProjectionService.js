@@ -516,7 +516,6 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       metadata_json:JSON.stringify({ display_name:asset.display_name,credential_payload_included:false })
     });
   }
-
   const sourceSnapshot = {
     counts:Object.fromEntries(Object.entries(source).map(([key,rows]) => [key,Array.isArray(rows) ? rows.length : 0])),
     maximumUpdatedAt:Object.fromEntries(Object.entries(source).map(([key,rows]) => [key,(rows || []).map(row => row.updated_at || row.created_at || row.granted_at || "").sort().at(-1) || null]))
@@ -590,6 +589,8 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
       WHERE r.tenant_id=?
         AND r.relationship_type_key='contains'
         AND r.status='active'
+        AND (r.valid_from IS NULL OR r.valid_from<=UTC_TIMESTAMP())
+        AND (r.valid_until IS NULL OR r.valid_until>UTC_TIMESTAMP())
         AND r.to_container_id IN (?)
       FOR UPDATE`,
     [tenantId, brandContainerIds]
