@@ -166,16 +166,16 @@ function deriveEligibilityState(result = {}) {
 
 function canonicalRepairIdentity(result = {}, blockerCodes = []) {
   const pluginKey = String(result.plugin?.plugin_key || result.plugin_key || "").trim();
-  const selectorType = String(
+  const requestedSelectorType = String(
     result.selector?.type || (result.requested_action_key ? "action_key" : (result.requested_tool_key ? "tool_key" : ""))
   ).trim();
-  const selectorValue = String(
-    result.selector?.value || result.requested_action_key || result.requested_tool_key || ""
-  ).trim();
-  if (!pluginKey || !selectorType || !selectorValue) return null;
+  const selectorValue = requestedSelectorType === "action_key"
+    ? String(result.binding?.action_key || "").trim()
+    : (requestedSelectorType === "tool_key" ? String(result.binding?.tool_key || "").trim() : "");
+  if (!pluginKey || !requestedSelectorType || !selectorValue) return null;
   const payload = {
     plugin_key: pluginKey,
-    selector: { type: selectorType, value: selectorValue },
+    selector: { type: requestedSelectorType, value: selectorValue },
     blockers: [...new Set(blockerCodes)].sort(),
   };
   const sha256 = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
