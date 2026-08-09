@@ -19,7 +19,14 @@ export function createTenantPlatformPluginManagedRepairDryRunInvocationContext()
 }
 
 export function assertManagedExecutionInvocationContext({ envelope = {}, invocationContext = null } = {}) {
-  if (!isTenantPlatformPluginManagedRepairDryRunEnvelope(envelope)) return true;
+  if (envelope.execution_mode !== "dry_run") return true;
+  if (!isTenantPlatformPluginManagedRepairDryRunEnvelope(envelope)) {
+    throw managedError(
+      403,
+      "managed_execution_dry_run_dedicated_executor_required",
+      "Dry-run Managed Execution requests require a dedicated executor contract; the generic run service cannot create arbitrary dry-run runs.",
+    );
+  }
   if (
     invocationContext?.kind !== "tenant_platform_plugin_managed_repair_dry_run"
     || invocationContext?.token !== TENANT_PLATFORM_PLUGIN_MANAGED_REPAIR_DRY_RUN_TOKEN
