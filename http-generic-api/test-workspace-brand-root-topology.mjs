@@ -184,6 +184,39 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
 }
 
 {
+  const rows = sourceRows();
+  rows.workspaces.push({
+    workspace_id: "brand-workspace-b",
+    tenant_id: "tenant-a",
+    workspace_key: "brand-workspace-b",
+    display_name: "Acme Travel Duplicate",
+    workspace_type: "brand",
+    workspace_ownership_type: null,
+    owner_user_id: null,
+    bootstrap_status: "in_progress",
+    linked_brand_key: "brand-a",
+    config_json: JSON.stringify({ root_workspace_id: personalRoot.workspace_id }),
+  });
+  const plan = await buildLegacyContainerProjectionPlan({ sourceRows: rows });
+  assert.ok(plan.issues.some((item) =>
+    item.issue_code === "workspace_brand_operational_workspace_ambiguous" &&
+    item.severity === "high" &&
+    item.status === "held"
+  ));
+  const brandContainer = plan.containers.find((row) => row.container_type_key === "brand" && row.canonical_subject_ref === "brand-a");
+  const workspaceContainerIds = new Set(plan.containers.filter((row) => row.container_type_key === "workspace").map((row) => row.container_id));
+  assert.equal(
+    plan.relationships.some((row) =>
+      row.relationship_type_key === "contains" &&
+      row.to_container_id === brandContainer?.container_id &&
+      workspaceContainerIds.has(row.from_container_id)
+    ),
+    false,
+    "duplicate operational Brand workspaces must hold containment even when they point at the same Root Workspace"
+  );
+}
+
+{
   const containers = [
     { container_id: "root-container", tenant_id: "tenant-a", container_type_key: "workspace" },
     { container_id: "brand-workspace-container", tenant_id: "tenant-a", container_type_key: "workspace" },
