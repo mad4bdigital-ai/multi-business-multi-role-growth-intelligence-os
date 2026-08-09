@@ -1,6 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { normalizeManagedExecutionEnvelope } from "./managedExecutionCore.js";
+import {
+  buildManagedAuthoritySnapshot,
+  normalizeManagedExecutionEnvelope,
+  resolveManagedExecutionGate,
+} from "./managedExecutionCore.js";
+import {
+  assertManagedExecutionAuthorityStillEffective,
+  resolveManagedExecutionAuthority,
+} from "./managedExecutionAuthority.js";
+import { TenantPlatformPluginManagedRepairContract } from "./tenantPlatformPluginEligibility.js";
 import {
   bindTenantPlatformPluginManagedRepairToManagedExecution,
   previewTenantPlatformPluginManagedRepair,
@@ -120,11 +129,13 @@ assert.equal(binding.managed_execution.managed_execution_input.workflow_key, "te
 assert.equal(binding.managed_execution.managed_execution_input.capability_key, "resource_authority_route_family.tenant_platform_plugin_managed_repair");
 assert.equal(binding.managed_execution.managed_execution_input.resource_type, "platform_plugin_operation");
 assert.equal(binding.managed_execution.managed_execution_input.effect_class, "managed_operation");
+assert.equal(binding.managed_execution.managed_execution_input.execution_mode, "dry_run");
 assert.equal(binding.managed_execution.managed_execution_input.input_json.execution_mode, "dry_run");
 assert.equal(binding.managed_execution.managed_execution_input.input_json.apply_allowed, false);
 assert.equal(Object.prototype.hasOwnProperty.call(binding.managed_execution.managed_execution_input.input_json, "secrets_included"), false);
 assert.doesNotThrow(() => normalizeManagedExecutionEnvelope(binding.managed_execution.managed_execution_input));
 const normalizedBindingInput = normalizeManagedExecutionEnvelope(binding.managed_execution.managed_execution_input);
+assert.equal(normalizedBindingInput.execution_mode, "dry_run");
 assert.equal(normalizedBindingInput.input_json.execution_mode, "dry_run");
 assert.equal(normalizedBindingInput.input_json.apply_allowed, false);
 assert.equal(
@@ -161,6 +172,22 @@ assert.equal(JSON.stringify(binding).includes("tenant-spoofed"), false);
 assert.equal(JSON.stringify(binding).includes("user-spoofed"), false);
 assert.equal(JSON.stringify(binding).includes("workspace-spoofed"), false);
 
+assert.throws(
+  () => normalizeManagedExecutionEnvelope({
+    ...binding.managed_execution.managed_execution_input,
+    execution_mode: "live",
+  }),
+  (error) => error.code === "managed_execution_execution_mode_conflict",
+);
+assert.throws(
+  () => normalizeManagedExecutionEnvelope({
+    ...binding.managed_execution.managed_execution_input,
+    execution_mode: "unexpected",
+    input_json: { ...binding.managed_execution.managed_execution_input.input_json, execution_mode: "unexpected" },
+  }),
+  (error) => error.code === "managed_execution_execution_mode_invalid",
+);
+
 const bindingRepeat = bindTenantPlatformPluginManagedRepairToManagedExecution({
   authContext,
   resolverResult: certificationBlockedResult(),
@@ -183,6 +210,193 @@ assert.equal(
 assert.equal(
   bindingRepeat.managed_execution.managed_execution_input.correlation_id,
   binding.managed_execution.managed_execution_input.idempotency_key,
+);
+
+function managedRepairAuthorityConnection({
+  capabilityOverrides = {},
+  certificationOverrides = {},
+  certificationRows = undefined,
+  grantRows = undefined,
+} = {}) {
+  const defaultCertification = {
+    certification_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_key,
+    surface_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_surface_key,
+    surface_family: "managed_execution",
+    tool_or_action_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_target_key,
+    risk_class: "C",
+    certification_status: "ci_certified",
+    smoke_strategy: "bounded_evidence_readback",
+    dispatch_allowed: 1,
+    apply_allowed: 0,
+    requires_resource_authority: 1,
+    requires_dry_run: 1,
+    requires_audit_evidence: 1,
+    requires_readback: 1,
+    last_evidence_ref: "ci://tenant-platform-plugin-managed-repair/dry-run-authority/exact-head",
+    last_certified_at: "2026-08-09T12:00:00.000Z",
+    expires_at: "2099-08-09T12:00:00.000Z",
+    ...certificationOverrides,
+  };
+  const defaultGrantRows = [{
+    grant_id: "grant-managed-repair-operate",
+    tenant_id: authContext.tenant_id,
+    grantee_user_id: authContext.user_id,
+    resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
+    resource_ref: binding.managed_execution.resource_identity.resource_ref,
+    permission: "operate",
+    grant_status: "active",
+    source: "owner_assignment",
+    granted_by: "tenant-owner",
+    granted_at: "2026-08-09T11:00:00.000Z",
+    expires_at: null,
+  }];
+  return {
+    async query(sql) {
+      if (sql.includes("v_platform_capabilities_effective_evidence")) {
+        return [[{
+          capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
+          display_name: "Tenant Platform Plugin managed repair",
+          operation_class: "managed_repair",
+          risk_class: "C",
+          runtime_status: "baseline_registered",
+          exposure_scope: "internal",
+          resource_authority_required: 1,
+          dispatch_allowed: 0,
+          apply_allowed: 0,
+          requires_audit_evidence: 1,
+          requires_readback: 1,
+          evidence_ref: TenantPlatformPluginManagedRepairContract.authority_requirement_key,
+          ...capabilityOverrides,
+        }]];
+      }
+      if (sql.includes("runtime_dispatch_certification_registry")) {
+        return [certificationRows === undefined ? [defaultCertification] : certificationRows];
+      }
+      if (sql.includes("v_workspace_resource_grant_effective")) {
+        return [grantRows === undefined ? defaultGrantRows : grantRows];
+      }
+      throw new Error(`Unexpected managed repair authority query: ${sql}`);
+    },
+  };
+}
+
+const dryRunEnvelope = normalizeManagedExecutionEnvelope(binding.managed_execution.managed_execution_input);
+const dryRunAuthority = await resolveManagedExecutionAuthority({
+  connection: managedRepairAuthorityConnection(),
+  envelope: dryRunEnvelope,
+});
+assert.equal(dryRunAuthority.capability.capability_key, TenantPlatformPluginManagedRepairContract.capability_key);
+assert.equal(dryRunAuthority.capability.execution_mode, "dry_run");
+assert.equal(dryRunAuthority.capability.base_dispatch_allowed, false);
+assert.equal(dryRunAuthority.capability.base_apply_allowed, false);
+assert.equal(dryRunAuthority.capability.dispatch_allowed, true);
+assert.equal(dryRunAuthority.capability.apply_allowed, false);
+assert.equal(dryRunAuthority.capability.dry_run_certification.certification_key, TenantPlatformPluginManagedRepairContract.dry_run_certification_key);
+assert.equal(dryRunAuthority.capability.dry_run_certification.dispatch_allowed, true);
+assert.equal(dryRunAuthority.capability.dry_run_certification.apply_allowed, false);
+assert.equal(dryRunAuthority.capability.dry_run_certification.requires_dry_run, true);
+assert.equal(dryRunAuthority.resource_grant.permission, "operate");
+assert.equal(dryRunAuthority.resource_grant.exact_resource, true);
+
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection({ certificationRows: [] }),
+    envelope: dryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_required",
+);
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection({
+      certificationOverrides: { expires_at: "2020-01-01T00:00:00.000Z" },
+    }),
+    envelope: dryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_expired",
+);
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection({
+      certificationOverrides: { apply_allowed: 1 },
+    }),
+    envelope: dryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_apply_must_be_blocked",
+);
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection({
+      certificationOverrides: { certification_status: "draft" },
+    }),
+    envelope: dryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_not_active",
+);
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection({ grantRows: [] }),
+    envelope: dryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_resource_grant_required",
+);
+
+const liveManagedRepairEnvelope = normalizeManagedExecutionEnvelope({
+  ...binding.managed_execution.managed_execution_input,
+  execution_mode: "live",
+  input_json: { ...binding.managed_execution.managed_execution_input.input_json, execution_mode: "live" },
+});
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection(),
+    envelope: liveManagedRepairEnvelope,
+  }),
+  (error) => error.code === "managed_execution_capability_not_active",
+);
+const wrongWorkflowDryRunEnvelope = normalizeManagedExecutionEnvelope({
+  ...binding.managed_execution.managed_execution_input,
+  workflow_key: "other_managed_workflow",
+});
+await assert.rejects(
+  resolveManagedExecutionAuthority({
+    connection: managedRepairAuthorityConnection(),
+    envelope: wrongWorkflowDryRunEnvelope,
+  }),
+  (error) => error.code === "managed_execution_capability_not_active",
+);
+
+const dryRunGate = resolveManagedExecutionGate({
+  access_decision: "ROUTE_TO_MANAGED_SERVICE",
+  effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
+});
+const dryRunSnapshot = buildManagedAuthoritySnapshot({
+  envelope: dryRunEnvelope,
+  access: {
+    decision: "ROUTE_TO_MANAGED_SERVICE",
+    reason: "managed_repair_dry_run",
+    service_mode: "managed",
+    resolved_at: "2026-08-09T12:10:00.000Z",
+  },
+  gate: dryRunGate,
+  authority: dryRunAuthority,
+});
+assert.equal(dryRunSnapshot.execution_mode, "dry_run");
+assert.equal(dryRunSnapshot.capability_authority.dry_run_certification.apply_allowed, false);
+await assert.doesNotReject(
+  assertManagedExecutionAuthorityStillEffective({
+    connection: managedRepairAuthorityConnection(),
+    authoritySnapshot: dryRunSnapshot,
+  }),
+);
+await assert.rejects(
+  assertManagedExecutionAuthorityStillEffective({
+    connection: managedRepairAuthorityConnection({
+      certificationOverrides: {
+        last_evidence_ref: "ci://tenant-platform-plugin-managed-repair/dry-run-authority/rotated-evidence",
+      },
+    }),
+    authoritySnapshot: dryRunSnapshot,
+  }),
+  (error) => error.code === "managed_execution_authority_drift" && error.details?.drift?.includes("dry_run_certification_evidence_changed"),
 );
 
 assert.throws(
