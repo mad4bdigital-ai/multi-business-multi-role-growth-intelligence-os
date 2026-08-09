@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { normalizeManagedExecutionEnvelope } from "./managedExecutionCore.js";
 import {
   bindTenantPlatformPluginManagedRepairToManagedExecution,
   previewTenantPlatformPluginManagedRepair,
@@ -120,6 +122,15 @@ assert.equal(binding.managed_execution.managed_execution_input.resource_type, "p
 assert.equal(binding.managed_execution.managed_execution_input.effect_class, "managed_operation");
 assert.equal(binding.managed_execution.managed_execution_input.input_json.execution_mode, "dry_run");
 assert.equal(binding.managed_execution.managed_execution_input.input_json.apply_allowed, false);
+assert.equal(Object.prototype.hasOwnProperty.call(binding.managed_execution.managed_execution_input.input_json, "secrets_included"), false);
+assert.doesNotThrow(() => normalizeManagedExecutionEnvelope(binding.managed_execution.managed_execution_input));
+const normalizedBindingInput = normalizeManagedExecutionEnvelope(binding.managed_execution.managed_execution_input);
+assert.equal(normalizedBindingInput.input_json.execution_mode, "dry_run");
+assert.equal(normalizedBindingInput.input_json.apply_allowed, false);
+assert.equal(
+  binding.managed_execution.idempotency_key_sha256,
+  createHash("sha256").update(binding.managed_execution.managed_execution_input.idempotency_key).digest("hex"),
+);
 assert.equal(binding.managed_execution.resource_identity.authority_or_grant_created, false);
 assert.match(binding.managed_execution.resource_identity.resource_ref, /^platform_plugin_operation:[0-9a-f]{64}$/);
 assert.equal(binding.safety.managed_execution_run_created, false);
