@@ -169,6 +169,7 @@ async function ensureCanonicalContainer(connection, {
   displayName,
   actorUserId,
   metadata,
+  activateDraft = false,
 }) {
   const [rows] = await connection.query(
     `SELECT container_id, tenant_id, container_key, container_type_key, canonical_subject_type, canonical_subject_ref, status
@@ -182,10 +183,45 @@ async function ensureCanonicalContainer(connection, {
   }
   if (rows.length === 1) {
     const [existing] = rows;
-    if (lower(existing.container_type_key) !== containerType || lower(existing.status) !== "active") {
+    if (lower(existing.container_type_key) !== containerType) {
       throw topologyError(409, "workspace_brand_container_identity_conflict", "Canonical container exists with an incompatible type or lifecycle state.", [{ container_id: existing.container_id }]);
     }
-    return existing;
+    const existingStatus = lower(existing.status);
+    if (existingStatus === "active") return existing;
+    if (activateDraft && existingStatus === "draft") {
+      const [updateResult] = await connection.query(
+        `UPDATE containers
+            SET status='active', updated_by=?, updated_at=UTC_TIMESTAMP()
+          WHERE container_id=?
+            AND tenant_id=?
+            AND status='draft'
+            AND container_type_key=?
+            AND canonical_subject_type=?
+            AND canonical_subject_ref=?`,
+        [actorUserId, existing.container_id, tenantId, containerType, subjectType, subjectRef]
+      );
+      if (Number(updateResult?.affectedRows || 0) !== 1) {
+        throw topologyError(409, "workspace_brand_container_reconcile_conflict", "Canonical Root Workspace container could not be activated from draft under lock.", [{ container_id: existing.container_id }]);
+      }
+      const [reconciledRows] = await connection.query(
+        `SELECT container_id, tenant_id, container_key, container_type_key, canonical_subject_type, canonical_subject_ref, status
+           FROM containers
+          WHERE tenant_id=? AND canonical_subject_type=? AND canonical_subject_ref=?
+          LIMIT 2 FOR UPDATE`,
+        [tenantId, subjectType, subjectRef]
+      );
+      const reconciled = requireExactlyOne(reconciledRows, {
+        missingCode: "workspace_brand_container_reconcile_readback_missing",
+        missingMessage: "Activated Root Workspace container was not readable.",
+        ambiguousCode: "workspace_brand_container_reconcile_readback_ambiguous",
+        ambiguousMessage: "Activated Root Workspace container resolved ambiguously.",
+      });
+      if (lower(reconciled.container_type_key) !== containerType || lower(reconciled.status) !== "active") {
+        throw topologyError(409, "workspace_brand_container_reconcile_readback_invalid", "Activated Root Workspace container failed lifecycle readback.", [{ container_id: reconciled.container_id }]);
+      }
+      return reconciled;
+    }
+    throw topologyError(409, "workspace_brand_container_identity_conflict", "Canonical container exists with an incompatible type or lifecycle state.", [{ container_id: existing.container_id }]);
   }
   const containerId = stableUuid("container", tenantId, containerType, containerKey);
   await connection.query(
@@ -345,6 +381,7 @@ async function ensureRootBrandContainers(connection, { rootWorkspace, brand, bra
     subjectRef: rootWorkspace.workspace_id,
     displayName: rootWorkspace.display_name || rootWorkspace.workspace_key || rootWorkspace.workspace_id,
     actorUserId,
+    activateDraft: true,
     metadata: {
       projection_source: "workspace_registry",
       ownership_topology_source: "workspace_owner_brand_create",
@@ -447,6 +484,8 @@ export async function verifyWorkspaceBrandRootTopology(connection, {
        JOIN containers b ON b.container_id=r.to_container_id AND b.status='active'
       WHERE r.tenant_id=?
         AND r.status='active'
+        AND (r.valid_from IS NULL OR r.valid_from<=UTC_TIMESTAMP())
+        AND (r.valid_until IS NULL OR r.valid_until>UTC_TIMESTAMP())
         AND r.relationship_type_key='contains'
         AND p.container_type_key='workspace'
         AND p.canonical_subject_type='workspace'
@@ -502,4 +541,5 @@ export const _testingWorkspaceBrandRootTopology = Object.freeze({
   stableUuid,
   validateRootWorkspace,
   parseJson,
+  ensureCanonicalContainer,
 });
