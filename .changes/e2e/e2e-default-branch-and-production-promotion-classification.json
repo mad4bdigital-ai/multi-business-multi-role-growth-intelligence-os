@@ -11,6 +11,7 @@
       "http-generic-api/scripts/e2e-parallel-pr-flow-self-test.mjs",
       "http-generic-api/scripts/e2e-production-promotion-bridge-self-test.mjs",
       "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
       "http-generic-api/test-hostinger-storage-durable-authorized-injection-schema-ddl-workflow.mjs"
     ]
   },
