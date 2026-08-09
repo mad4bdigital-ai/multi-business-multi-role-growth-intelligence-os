@@ -98,7 +98,7 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, paral
     const contract = readJson(absolute);
     if (contract.parallel_work?.enabled !== true) continue;
     summariesByPath.set(contractPath, {
-      feature_key: contract.feature_key || feature,
+      feature_key: contract.feature_key || null,
       contract_path: contractPath
     });
   }
@@ -163,6 +163,27 @@ function resolveCanonicalMainRef(root) {
 }
 
 function resolveLiveProtectedSha(root, name) {
+  const token = String(process.env.GITHUB_TOKEN_FOR_REF_LOOKUP || "").trim();
+  if (token) {
+    const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
+    const childEnv = { ...process.env, GH_TOKEN: token };
+    delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
+    const result = spawnSync(
+      "gh",
+      ["api", `repos/${repository}/git/ref/heads/${name}`, "--jq", ".object.sha"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: childEnv,
+        stdio: ["ignore", "pipe", "ignore"]
+      }
+    );
+    if (result.error || result.status !== 0) return null;
+    const sha = String(result.stdout || "").trim();
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  }
+
   const result = spawnSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
     cwd: root,
     encoding: "utf8",
