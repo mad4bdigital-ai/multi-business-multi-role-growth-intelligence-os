@@ -9,6 +9,7 @@ import { TenantPlatformPluginManagedRepairContract } from "./tenantPlatformPlugi
 
 const MANAGED_REPAIR_BASE_RUNTIME_STATUSES = new Set(["baseline_registered", "active", "available", "certified"]);
 const ACTIVE_DRY_RUN_CERTIFICATION_STATUSES = new Set(["ci_certified"]);
+const MANAGED_EXECUTION_REVALIDATION_MODES = new Set(["live", "dry_run"]);
 
 function isTenantPlatformPluginManagedRepairDryRun(envelope = {}) {
   return envelope.execution_mode === "dry_run"
@@ -170,7 +171,7 @@ export async function resolveManagedExecutionAuthority({ connection, envelope })
     [envelope.capability_key],
   );
   if (capabilityRows.length !== 1) throw managedError(409, capabilityRows.length ? "managed_execution_capability_ambiguous" : "managed_execution_capability_not_registered", "Capability authority could not be resolved uniquely.");
-  const capability = capabilityRows[0];
+  const [capability] = capabilityRows;
   const managedRepairDryRun = isTenantPlatformPluginManagedRepairDryRun(envelope);
   let dryRunCertification = null;
 
@@ -218,7 +219,28 @@ export async function resolveManagedExecutionAuthority({ connection, envelope })
   };
 }
 
-export async function assertManagedExecutionAuthorityStillEffective({ connection, authoritySnapshot }) {
+export async function assertManagedExecutionAuthorityStillEffective({
+  connection,
+  authoritySnapshot,
+  allowDryRunRevalidation = false,
+}) {
+  const executionMode = String(authoritySnapshot?.execution_mode || "live").trim().toLowerCase();
+  if (!MANAGED_EXECUTION_REVALIDATION_MODES.has(executionMode)) {
+    throw managedError(
+      409,
+      "managed_execution_existing_execution_mode_invalid",
+      "Managed execution authority snapshot contains an invalid execution mode.",
+      { execution_mode: executionMode || null },
+    );
+  }
+  if (executionMode === "dry_run" && allowDryRunRevalidation !== true) {
+    throw managedError(
+      409,
+      "managed_execution_dry_run_dedicated_executor_required",
+      "Dry-run managed execution authority cannot be used by the generic execution or recovery lifecycle; a dedicated dry-run executor is required.",
+    );
+  }
+
   const resource = authoritySnapshot?.resource || {};
   const envelope = normalizeManagedExecutionEnvelope({
     tenant_id: authoritySnapshot?.tenant_id,
@@ -229,7 +251,7 @@ export async function assertManagedExecutionAuthorityStillEffective({ connection
     resource_type: resource.type,
     resource_ref: resource.ref,
     effect_class: authoritySnapshot?.effect_class,
-    execution_mode: authoritySnapshot?.execution_mode || "live",
+    execution_mode: executionMode,
     idempotency_key: authoritySnapshot?.idempotency_key,
     service_mode: authoritySnapshot?.service_mode || "managed",
   });
