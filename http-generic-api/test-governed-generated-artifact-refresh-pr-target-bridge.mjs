@@ -92,6 +92,8 @@ assert.match(dispatcherWorkflow, /for attempt in \$\(seq 1 20\)/u, "writer obser
 assert.match(dispatcherWorkflow, /delegated_workflow_run_not_observed/u);
 assert.match(dispatcherWorkflow, /delegated_run_observed:true/u);
 assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
+assert.doesNotMatch(dispatcherWorkflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "unfinished delegated writer runs must not filter the dispatcher report object");
+assert.match(dispatcherWorkflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "queued or in-progress delegated writer conclusions must be encoded as JSON null");
 assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@v5/u);
 assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
 assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
@@ -117,7 +119,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 93,
+  tests: 95,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",

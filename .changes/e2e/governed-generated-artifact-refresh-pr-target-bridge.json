@@ -43,6 +43,7 @@
             "Reject main and Production through an explicit target_branch guard that emits blocked evidence and exits non-zero.",
             "Dispatch governed-generated-artifact-refresh.yml on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
             "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
+            "Encode an absent delegated-run conclusion as JSON null while the exact writer is queued or in progress, preserving a non-empty canonical dispatch report.",
             "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
             "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
             "Verify the read-only PR generated-artifact evaluator remains pinned to the explicit ubuntu-24.04 runner after post-allocation report-path initialization.",
@@ -61,6 +62,7 @@
             "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "A queued or in-progress delegated writer with no conclusion still emits a valid non-empty dispatch report and represents delegated_run_conclusion as null.",
             "The read-only PR generated-artifact evaluator uses explicit ubuntu-24.04 rather than the mutable ubuntu-latest alias.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
             "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
