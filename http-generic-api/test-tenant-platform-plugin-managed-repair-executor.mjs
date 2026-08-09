@@ -308,7 +308,7 @@ await assert.rejects(
 await assert.rejects(
   resolveManagedExecutionAuthority({
     connection: managedRepairAuthorityConnection({
-      certificationOverrides: { expires_at: "2020-01-01T00:00:00.000Z" },
+      certificationOverrides: { last_certified_at: "2019-01-01T00:00:00.000Z", expires_at: "2020-01-01T00:00:00.000Z" },
     }),
     envelope: dryRunEnvelope,
   }),
