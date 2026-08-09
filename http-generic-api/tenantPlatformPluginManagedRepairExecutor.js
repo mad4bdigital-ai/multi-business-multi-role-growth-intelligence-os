@@ -153,6 +153,7 @@ function buildManagedExecutionBinding({
     resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
     resource_ref: resourceRef,
     effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
+    execution_mode: "dry_run",
     idempotency_key: idempotencyKey,
     workspace_id: principal.workspace_id,
     request_id: idempotencyKey,
@@ -186,8 +187,7 @@ function buildManagedExecutionBinding({
     activation_requirements: Object.freeze([
       "migration_1052_applied_and_read_back",
       "dedicated_executor_registered",
-      "capability_runtime_certified",
-      "capability_dispatch_allowed",
+      "exact_runtime_dispatch_certification_issued",
       "capability_specific_dry_run_enforcement",
       "managed_execution_dry_run_authority_contract_certified",
     ]),
