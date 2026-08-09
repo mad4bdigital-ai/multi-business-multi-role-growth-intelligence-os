@@ -45,6 +45,12 @@ function stableObject(value) {
   return Object.fromEntries(Object.keys(value).sort().map((key) => [key, stableObject(value[key])]));
 }
 
+function deepFreeze(value) {
+  if (!value || typeof value !== "object" || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) deepFreeze(child);
+  return Object.freeze(value);
+}
+
 function sha256Json(value) {
   return createHash("sha256").update(JSON.stringify(stableObject(value))).digest("hex");
 }
@@ -138,7 +144,7 @@ function buildManagedExecutionBinding({
     execution_mode: "dry_run",
   };
   const idempotencyKey = `tenant-platform-plugin-managed-repair:${sha256Json(idempotencyPayload)}`;
-  const managedExecutionInput = {
+  const managedExecutionInput = deepFreeze({
     tenant_id: principal.tenant_id,
     user_id: principal.user_id,
     parent_ticket_id: parentTicket,
@@ -169,7 +175,7 @@ function buildManagedExecutionBinding({
       readback_route: TenantPlatformPluginManagedRepairContract.readback_route,
       workspace_id: principal.workspace_id,
     },
-  };
+  });
   return Object.freeze({
     schema_version: "tenant_platform_plugin_managed_repair_managed_execution_binding.v1",
     internal_service: "createManagedExecutionRun",
@@ -185,7 +191,7 @@ function buildManagedExecutionBinding({
       "capability_specific_dry_run_enforcement",
       "managed_execution_dry_run_authority_contract_certified",
     ]),
-    managed_execution_input: Object.freeze(managedExecutionInput),
+    managed_execution_input: managedExecutionInput,
     managed_execution_input_hash: sha256Json(managedExecutionInput),
     idempotency_key_sha256: sha256String(idempotencyKey),
     resource_identity: Object.freeze({
@@ -296,6 +302,7 @@ export const _testingTenantPlatformPluginManagedRepairExecutor = {
   assertDryRunRepairOperations,
   buildPreviewFingerprint,
   buildManagedExecutionBinding,
+  deepFreeze,
   sha256Json,
   sha256String,
 };
