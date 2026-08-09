@@ -76,7 +76,7 @@ function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
-function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, parallelSummaries }) {
+function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries }) {
   const summariesByPath = new Map(
     parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
   );
@@ -96,6 +96,11 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, paral
     if (!fs.existsSync(absolute)) continue;
     const contract = readJson(absolute);
     if (contract.parallel_work?.enabled !== true) continue;
+    const scope = contract.scope?.include || [];
+    if (
+      !Array.isArray(scope)
+      || !runtimeFiles.some((runtimeFile) => scope.some((pattern) => matchesPattern(runtimeFile, pattern)))
+    ) continue;
     summariesByPath.set(contractPath, {
       feature_key: contract.feature_key || feature,
       contract_path: contractPath
@@ -363,6 +368,7 @@ function main() {
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,
       changedFiles: report.changed_files,
+      runtimeFiles,
       policy,
       parallelSummaries: report.contracts
     });
