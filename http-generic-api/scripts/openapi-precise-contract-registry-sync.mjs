@@ -15,6 +15,9 @@ const HTTP_METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const HTTP_METHOD_KEYS = new Set([...HTTP_METHODS].map((method) => method.toLowerCase()));
 const COMPOSITION_MODES = new Set(["ref", "inline"]);
 const SUPPORT_TICKET_ROUTE_FILE = "routes/supportTicketRoutes.js";
+const PLATFORM_PLUGIN_ROUTE_FILE = "routes/tenantPlatformPluginRoutes.js";
+const PLATFORM_PLUGIN_RESOLVE_SIGNATURE = "POST /tenant/platform/plugins/resolve";
+const PLATFORM_PLUGIN_RESOLVE_OPERATION_ID = "tenantPlatformPluginResolve";
 const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
   [
     "POST /admin/support/tickets/{ticket_id}/external-delivery/completion-certification",
@@ -28,10 +31,10 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
     },
   ],
   [
-    "POST /tenant/platform/plugins/resolve",
+    PLATFORM_PLUGIN_RESOLVE_SIGNATURE,
     {
-      route_file: "routes/tenantPlatformPluginRoutes.js",
-      operation_id: "tenantPlatformPluginResolve",
+      route_file: PLATFORM_PLUGIN_ROUTE_FILE,
+      operation_id: PLATFORM_PLUGIN_RESOLVE_OPERATION_ID,
       auth_profile: null,
       consequential: false,
       composition_mode: "inline",
@@ -243,6 +246,63 @@ function isKnownLegacyRegisteredOperation(operation, contract) {
     && operation["x-contract-completeness"] == null;
 }
 
+function isKnownWorkspaceV2RegisteredOperation(operation, contract) {
+  if (!operation || typeof operation !== "object") return false;
+  if (contract.signature !== PLATFORM_PLUGIN_RESOLVE_SIGNATURE
+    || contract.route_file !== PLATFORM_PLUGIN_ROUTE_FILE
+    || contract.path_item_ref !== "./openapi/platform-plugin-tenant-resolve.yaml#/tenantPlatformPluginResolvePath"
+    || contract.composition_mode !== "inline") return false;
+
+  const schema = operation?.requestBody?.content?.["application/json"]?.schema;
+  const required = Array.isArray(schema?.required) ? schema.required : [];
+  const properties = schema?.properties && typeof schema.properties === "object" ? schema.properties : {};
+  const versions = operation?.responses?.["200"]?.content?.["application/json"]?.schema
+    ?.properties?.compatibility_telemetry?.properties?.contract_version?.enum;
+  const ownership = operation?.responses?.["200"]?.content?.["application/json"]?.schema
+    ?.properties?.connection_ownership_resolution?.properties;
+  const ownerScopeTypes = ownership?.owner_scope_type?.enum;
+  const brandIncluded = ownership?.brand_connections_included?.enum;
+  const brandAuthoritySource = ownership?.brand_authority_source;
+  const security = expectedSecurity("user_jwt");
+  const previousWorkspaceOnly = Array.isArray(ownerScopeTypes)
+    && ownerScopeTypes.includes("personal_workspace")
+    && ownerScopeTypes.includes("company_workspace")
+    && !ownerScopeTypes.includes("brand")
+    && Array.isArray(brandIncluded)
+    && brandIncluded.length === 1
+    && brandIncluded[0] === false
+    && !Object.hasOwn(ownership, "brand_authority_source");
+  const previousCanonicalBrandWorkspace = equivalent(ownerScopeTypes, ["personal_workspace", "company_workspace", "brand", null])
+    && ownership?.brand_connections_included?.type === "boolean"
+    && !Object.hasOwn(ownership.brand_connections_included, "enum")
+    && equivalent(brandAuthoritySource?.type, ["string", "null"])
+    && equivalent(brandAuthoritySource?.enum, ["tenant_owner_membership", "workspace_resource_grant", null])
+    && !Object.hasOwn(properties, "brand_ref")
+    && !Object.hasOwn(ownership, "owner_scope_ref")
+    && !Object.hasOwn(ownership, "brand_ref");
+
+  return operation.operationId === PLATFORM_PLUGIN_RESOLVE_OPERATION_ID
+    && operation["x-runtime-contract-source"] === PLATFORM_PLUGIN_ROUTE_FILE
+    && operation["x-runtime-auth-profile"] === "user_jwt"
+    && operation["x-contract-completeness"] === "precise-runtime-contract"
+    && operation["x-openai-isConsequential"] === false
+    && security !== null
+    && canonicalSecurity(operation.security) === canonicalSecurity(security)
+    && typeof operation.summary === "string"
+    && operation.summary.length > 0
+    && operation.responses
+    && typeof operation.responses === "object"
+    && required.includes("plugin_key")
+    && required.includes("workspace_id")
+    && Object.hasOwn(properties, "workspace_id")
+    && Array.isArray(versions)
+    && versions.length === 1
+    && versions[0] === "one-selector-workspace-v2"
+    && ownership
+    && typeof ownership === "object"
+    && (previousWorkspaceOnly || previousCanonicalBrandWorkspace);
+}
+
 function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contracts) {
   if (!current || typeof current !== "object" || Array.isArray(current) || current.$ref) return null;
   const currentKeys = Object.keys(current);
@@ -260,7 +320,8 @@ function inspectReplaceableRegisteredPath(current, routePath, pathItemRef, contr
   if (expected.some((contract) => {
     const operation = current[contract.method.toLowerCase()];
     return !isRuntimeDerivedRegisteredOperation(operation, contract.method)
-      && !isKnownLegacyRegisteredOperation(operation, contract);
+      && !isKnownLegacyRegisteredOperation(operation, contract)
+      && !isKnownWorkspaceV2RegisteredOperation(operation, contract);
   })) return null;
 
   return {

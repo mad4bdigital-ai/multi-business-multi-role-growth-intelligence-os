@@ -22298,7 +22298,7 @@ paths:
         - platform-plugins
       operationId: tenantPlatformPluginResolve
       summary: Resolve tenant readiness for a Platform Plugin action/tool in one exact workspace
-      description: Checks tenant plugin readiness without executing actions or returning secrets. The exact workspace_id is mandatory and is resolved against canonical Context Kernel ownership. Personal workspaces may resolve only the authenticated owner's personal connection; company workspaces may resolve only company-workspace connections. Brand-owned connections remain excluded until canonical Brand-management authority is composed.
+      description: Checks tenant plugin readiness without executing actions or returning secrets. The exact workspace_id is mandatory and is resolved as the canonical personal or company Root Workspace. Without brand_ref, personal workspaces may resolve only the authenticated owner's personal connection and company workspaces may resolve only company-workspace connections. When an exact brand_ref is supplied, the Root Workspace remains personal or company while connection ownership is narrowed to that Brand. Brand-scoped resolution requires the existing Root Workspace authority plus tenant owner/admin authority or an exact effective Brand grant at operate or stronger. A Brand child workspace id is not a substitute for the Root Workspace, and caller-supplied Brand identity cannot widen tenant, user, Workspace, or Brand authority.
       security:
         - userJwtAuth: []
       requestBody:
@@ -22331,7 +22331,12 @@ paths:
                   type: string
                   minLength: 1
                   maxLength: 64
-                  description: Exact authenticated tenant workspace used for Context Kernel connection ownership resolution. It is not an authority grant and cannot widen tenant, user, or Brand scope.
+                  description: Exact authenticated tenant Root Workspace used for Context Kernel connection ownership resolution. Root Workspace ownership remains personal or company; Brand child workspace ids are not accepted as a replacement connection context.
+                brand_ref:
+                  type: string
+                  minLength: 1
+                  maxLength: 191
+                  description: Optional exact Brand owner scope inside the authenticated Root Workspace. It narrows connection ownership only and requires Brand use authority; it never changes Root Workspace ownership or widens tenant/user authority.
                 action_key:
                   type: string
                   minLength: 1
@@ -22448,6 +22453,11 @@ paths:
                         type: boolean
                       reason:
                         type: string
+                      denial_code:
+                        type:
+                          - string
+                          - "null"
+                        description: Stable ownership denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH or BRAND_CONNECTION_AUTHORITY_REQUIRED.
                       credential_scope:
                         type:
                           - string
@@ -22471,14 +22481,32 @@ paths:
                         enum:
                           - personal_workspace
                           - company_workspace
+                          - brand
                           - null
+                      owner_scope_ref:
+                        type:
+                          - string
+                          - "null"
+                        description: Exact resolved Root Workspace or Brand owner-scope reference; never a credential value.
+                      brand_ref:
+                        type:
+                          - string
+                          - "null"
+                        description: Exact requested Brand owner scope when Brand-scoped connection resolution is active.
                       row_count:
                         type: integer
                         minimum: 0
                       brand_connections_included:
                         type: boolean
+                        description: True only when an exact brand_ref was authorized inside the canonical personal/company Root Workspace before credential lookup.
+                      brand_authority_source:
+                        type:
+                          - string
+                          - "null"
                         enum:
-                          - false
+                          - tenant_owner_membership
+                          - workspace_resource_grant
+                          - null
                       secrets_included:
                         type: boolean
                         enum:
@@ -22500,7 +22528,7 @@ paths:
                         type:
                           - string
                           - "null"
-                        description: Stable denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH or AMBIGUOUS_CONNECTION_SELECTION.
+                        description: Stable denial code such as CONNECTION_OWNERSHIP_SCOPE_MISMATCH, BRAND_CONNECTION_AUTHORITY_REQUIRED, or AMBIGUOUS_CONNECTION_SELECTION.
                   target_authorization:
                     type: object
                     additionalProperties: true
@@ -22604,8 +22632,10 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
         "403":
-          description: Active tenant membership or canonical workspace ownership scope is not authorized.
+          description: Active tenant membership, canonical Root Workspace ownership, or exact Brand operation authority is not authorized.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
+    $ref: ./openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core

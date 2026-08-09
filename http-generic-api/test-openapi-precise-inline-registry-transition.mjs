@@ -74,6 +74,8 @@ function canonicalOperation() {
     tags: ["platform-plugins"],
     operationId: OPERATION_ID,
     summary: "Resolve tenant readiness for a Platform Plugin action/tool in one exact workspace",
+    description: "Canonical exact-workspace contract with exact Brand operation authority.",
+    security: [{ userJwtAuth: [] }],
     requestBody: {
       required: true,
       content: {
@@ -106,6 +108,20 @@ function canonicalOperation() {
                     contract_version: { type: "string", enum: ["one-selector-workspace-v2"] },
                   },
                 },
+                connection_ownership_resolution: {
+                  type: ["object", "null"],
+                  properties: {
+                    owner_scope_type: {
+                      type: ["string", "null"],
+                      enum: ["personal_workspace", "company_workspace", "brand", null],
+                    },
+                    brand_connections_included: { type: "boolean" },
+                    brand_authority_source: {
+                      type: ["string", "null"],
+                      enum: ["tenant_owner_membership", "workspace_resource_grant", null],
+                    },
+                  },
+                },
               },
             },
           },
@@ -117,7 +133,28 @@ function canonicalOperation() {
   };
 }
 
-async function createFixture(operation = legacyOperation()) {
+function rootScopedBrandOperation() {
+  const operation = structuredClone(canonicalOperation());
+  operation.description = "Canonical Root Workspace contract with an explicit Brand owner scope.";
+  const requestProperties = operation.requestBody.content["application/json"].schema.properties;
+  requestProperties.brand_ref = { type: "string", minLength: 1, maxLength: 191 };
+  const ownership = operation.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties;
+  ownership.owner_scope_ref = { type: ["string", "null"] };
+  ownership.brand_ref = { type: ["string", "null"] };
+  return operation;
+}
+
+function previousWorkspaceV2Operation(overrides = {}) {
+  const operation = structuredClone(canonicalOperation());
+  operation.description = "Previous exact-workspace contract with Brand connections excluded.";
+  const ownership = operation.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties;
+  ownership.owner_scope_type.enum = ["personal_workspace", "company_workspace", null];
+  ownership.brand_connections_included = { type: "boolean", enum: [false] };
+  delete ownership.brand_authority_source;
+  return { ...operation, ...overrides };
+}
+
+async function createFixture(operation = legacyOperation(), targetOperation = canonicalOperation()) {
   const root = await mkdtemp(path.join(os.tmpdir(), "openapi-precise-inline-transition-"));
   await mkdir(path.join(root, "routes"), { recursive: true });
   await mkdir(path.join(root, "openapi"), { recursive: true });
@@ -135,7 +172,7 @@ async function createFixture(operation = legacyOperation()) {
     },
   }), "utf8");
   await writeFile(path.join(root, "openapi", "platform-plugin-tenant-resolve.yaml"), YAML.stringify({
-    tenantPlatformPluginResolvePath: { post: canonicalOperation() },
+    tenantPlatformPluginResolvePath: { post: targetOperation },
   }), "utf8");
   await writeFile(path.join(root, "openapi.yaml"), YAML.stringify({
     openapi: "3.1.0",
@@ -164,39 +201,63 @@ async function runSync(root, args) {
   }
 }
 
-const validRoot = await createFixture();
-try {
-  const write = await runSync(validRoot, ["--write"]);
-  assert.equal(write.ok, true, write.stderr || write.stdout);
-  const summary = JSON.parse(write.stdout);
-  assert.equal(summary.ok, true);
-  assert.equal(summary.changed, true);
-  assert.equal(summary.inline_contract_count, 1);
-  assert.equal(summary.applied_registered_path_replacements.length, 1);
-  assert.equal(summary.applied_registered_path_replacements[0].composition_mode, "inline");
+async function assertUpgradesToCanonical(operation, targetOperation = canonicalOperation()) {
+  const root = await createFixture(operation, targetOperation);
+  try {
+    const write = await runSync(root, ["--write"]);
+    assert.equal(write.ok, true, write.stderr || write.stdout);
+    const summary = JSON.parse(write.stdout);
+    assert.equal(summary.ok, true);
+    assert.equal(summary.changed, true);
+    assert.equal(summary.inline_contract_count, 1);
+    assert.equal(summary.applied_registered_path_replacements.length, 1);
+    assert.equal(summary.applied_registered_path_replacements[0].composition_mode, "inline");
 
-  const written = YAML.parse(await readFile(path.join(validRoot, "openapi.yaml"), "utf8"));
-  const pathItem = written.paths[ROUTE_PATH];
-  assert.equal(pathItem.$ref, undefined, "inline composition must not emit an external root path reference");
-  assert.deepEqual(pathItem, { post: canonicalOperation() });
-  const requestSchema = pathItem.post.requestBody.content["application/json"].schema;
-  assert(requestSchema.required.includes("workspace_id"));
-  assert.equal(requestSchema.properties.workspace_id.maxLength, 64);
-  assert.deepEqual(
-    pathItem.post.responses["200"].content["application/json"].schema.properties.compatibility_telemetry.properties.contract_version.enum,
-    ["one-selector-workspace-v2"],
-  );
+    const written = YAML.parse(await readFile(path.join(root, "openapi.yaml"), "utf8"));
+    const pathItem = written.paths[ROUTE_PATH];
+    assert.equal(pathItem.$ref, undefined, "inline composition must not emit an external root path reference");
+    assert.deepEqual(pathItem, { post: targetOperation });
+    const requestSchema = pathItem.post.requestBody.content["application/json"].schema;
+    assert(requestSchema.required.includes("workspace_id"));
+    assert.equal(requestSchema.properties.workspace_id.maxLength, 64);
+    if (Object.hasOwn(targetOperation.requestBody.content["application/json"].schema.properties, "brand_ref")) {
+      assert.equal(requestSchema.properties.brand_ref.maxLength, 191);
+    }
+    assert.deepEqual(
+      pathItem.post.responses["200"].content["application/json"].schema.properties.compatibility_telemetry.properties.contract_version.enum,
+      ["one-selector-workspace-v2"],
+    );
+    const ownership = pathItem.post.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties;
+    assert(ownership.owner_scope_type.enum.includes("brand"));
+    assert.equal(ownership.brand_connections_included.enum, undefined);
+    assert.deepEqual(ownership.brand_authority_source.enum, ["tenant_owner_membership", "workspace_resource_grant", null]);
 
-  const check = await runSync(validRoot, ["--check"]);
-  assert.equal(check.ok, true, check.stderr || check.stdout);
-  const checkSummary = JSON.parse(check.stdout);
-  assert.equal(checkSummary.ok, true);
-  assert.equal(checkSummary.changed, false);
-  assert.equal(checkSummary.replaceable_registered_path_count, 0);
-  assert.equal(checkSummary.conflict_count, 0);
-} finally {
-  await rm(validRoot, { recursive: true, force: true });
+    const check = await runSync(root, ["--check"]);
+    assert.equal(check.ok, true, check.stderr || check.stdout);
+    const checkSummary = JSON.parse(check.stdout);
+    assert.equal(checkSummary.ok, true);
+    assert.equal(checkSummary.changed, false);
+    assert.equal(checkSummary.replaceable_registered_path_count, 0);
+    assert.equal(checkSummary.conflict_count, 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 }
+
+await assertUpgradesToCanonical(legacyOperation());
+await assertUpgradesToCanonical(previousWorkspaceV2Operation());
+await assertUpgradesToCanonical(canonicalOperation(), rootScopedBrandOperation());
+
+const previousWithBrand = previousWorkspaceV2Operation();
+previousWithBrand.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties.owner_scope_type.enum.push("brand");
+const previousWithAuthoritySource = previousWorkspaceV2Operation();
+previousWithAuthoritySource.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties.brand_authority_source = {
+  type: ["string", "null"],
+  enum: ["workspace_resource_grant", null],
+};
+const previousWithBrandEnabled = previousWorkspaceV2Operation();
+previousWithBrandEnabled.responses["200"].content["application/json"].schema.properties.connection_ownership_resolution.properties.brand_connections_included.enum = [true];
+const previousWithWrongSecurity = previousWorkspaceV2Operation({ security: [{ adminBearerAuth: [] }] });
 
 for (const malformed of [
   legacyOperation({ operationId: `${OPERATION_ID}Unexpected` }),
@@ -210,11 +271,15 @@ for (const malformed of [
     type: "object",
     properties: { compatibility_telemetry: { type: "object", properties: { contract_version: { enum: ["unexpected-v9"] } } } },
   } } } } } }),
+  previousWithBrand,
+  previousWithAuthoritySource,
+  previousWithBrandEnabled,
+  previousWithWrongSecurity,
 ]) {
   const blockedRoot = await createFixture(malformed);
   try {
     const result = await runSync(blockedRoot, ["--write"]);
-    assert.equal(result.ok, false, "Unrecognized inline legacy contract must fail closed.");
+    assert.equal(result.ok, false, "Unrecognized inline predecessor contract must fail closed.");
     assert.match(result.stderr, /openapi_precise_contract_path_conflict/);
     assert.match(result.stderr, /registered_path_inline_contract_not_replaceable/);
     const unchanged = YAML.parse(await readFile(path.join(blockedRoot, "openapi.yaml"), "utf8"));
@@ -226,11 +291,12 @@ for (const malformed of [
 
 console.log(JSON.stringify({
   ok: true,
-  contract: "openapi_precise_inline_registered_path_transition.v1",
+  contract: "openapi_precise_inline_registered_path_transition.v2",
   signature: SIGNATURE,
   operation_id: OPERATION_ID,
   composition_mode: "inline",
-  malformed_variants_blocked: 4,
+  predecessor_variants_upgraded: 3,
+  malformed_variants_blocked: 8,
   idempotency_passed: true,
   secrets_included: false,
 }, null, 2));

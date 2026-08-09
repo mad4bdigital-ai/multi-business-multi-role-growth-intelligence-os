@@ -1,0 +1,120 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "admin-service-resource-authority-resolution",
+  "title": "Honor exact platform resource authority for admin service principals",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/scripts/capability-resolution-dry-run.mjs",
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+      "http-generic-api/capabilityEnvelopeTemplateResolver.js",
+      "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+      "http-generic-api/githubRepositoryLifecycle.js",
+      "http-generic-api/githubRepositoryLifecycleCore.js",
+      "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
+      "http-generic-api/test-capability-envelope-template-resolver.mjs",
+      "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
+      "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
+      "http-generic-api/test-repository-authority-write-boundary.mjs",
+      "http-generic-api/test-repository-authority-resolved-parent-boundary.mjs",
+      "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs",
+      "http-generic-api/test-github-repository-lifecycle.mjs",
+      "http-generic-api/test-repo-patch-apply.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow high-risk capability resolution, envelope creation and repository dispatch to accept and preserve an exact bounded platform resource-authority binding for a service principal, including repository, branch and expected commit SHA, and revalidate that exact authority both at dispatch and immediately at provider mutation boundaries without weakening tenant/user workspace-grant requirements or independent dispatch gates.",
+      "e2e_journeys": [
+        {
+          "id": "exact-admin-service-resource-authority-resolves-without-escalation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed platform admin service principal resolving, enveloping and dispatch-validating a high-risk repository mutation capability",
+          "entrypoint": "capability-resolution dry-run, github_repo_patch_apply_v1 envelope resolution, shared execution-envelope guard and authority-checked GitHub repository lifecycle for an exact repository, branch and expected commit SHA",
+          "terminal_outcome": "An active exact service-principal binding removes only the two resource-authority gaps, survives envelope creation, and can mutate a repository only while that same binding remains active, unexpired and exact through the first provider write and final ref mutation; revoked, expired, mutated, mismatched, ambiguous, wildcard, tenant/user or absent authority remains blocked and independent dispatch gates remain enforced.",
+          "steps": [
+            "Evaluate platform_admin_service with an active exact repository binding for repo_patch_batch_apply and atomic_change_set.",
+            "Verify exact tenant, workspace, principal, resource type, repository URI, recipe, allowed mode and sufficient permission before accepting platform resource authority.",
+            "Require the requested expected commit SHA to match resource_ref.expected_commit_sha; require an explicit branch match when supplied, otherwise derive a branch only when the matching binding scope is unambiguous.",
+            "Propagate principal ID, exact GitHub resource, derived or explicit branch, expected commit SHA, recipe and operation mode through direct and template envelope creation.",
+            "Persist the effective service principal ID in the envelope ledger while retaining principal evidence in request_context.principal without inferring service type from names or admin role.",
+            "At execution, derive the exact GitHub target from explicit owner/repo when present or the canonical activation bootstrap target for repo_patch paths, and compare it with the envelope resource URI before dispatch.",
+            "At execution, compare the actual target branch and expected branch, head, commit or base SHA with the branch/SHA authority scope stored in the envelope.",
+            "When exact platform resource authority matched at resolution, reload the persisted binding by binding_id at dispatch and re-run the canonical exact-authority matcher against the current binding state and execution scope.",
+            "Wrap repository change-set transport so read-only preparation does not consume a write-boundary check, then revalidate the same envelope and live binding immediately before the first GitHub provider mutation.",
+            "Capture the exact commit parent resolved by the canonical lifecycle through its pre-write Git commit read and use that resolved parent as the sole commit SHA for provider write-boundary authority revalidation.",
+            "Preserve every repository mutation intent alias declared by repo_patch_apply_capability_envelope_requirement_v1 when revalidating at the provider write boundary, while rejecting intents outside that configured set before transport.",
+            "Revalidate again immediately before an existing-branch ref PATCH or new-branch ref POST so revocation or expiry during Git object preparation cannot update repository branch state.",
+            "Exercise successful lifecycle change-set unit fixtures with exact in-memory envelope and live-binding authority harnesses so isolated CI covers the production write-boundary path without a database connection or runtime bypass.",
+            "Keep repo-patch static lifecycle contracts bound to both the public authority wrapper and delegated canonical Core so wrapper extraction cannot silently disable moved-main, optimistic-head, no-op, empty-tree or tree-readback protections.",
+            "Reject dispatch or provider mutation when the persisted platform binding is missing, revoked, inactive, expired, or no longer matches principal, tenant, workspace, repository, recipe, mode, permission, branch or expected commit SHA.",
+            "Apply the same service identity and branch/SHA checks when the request context is intentionally untyped but the exact persisted binding proves principal_type=service for the same principal ID.",
+            "Reject a service envelope whose ledger user_id does not equal its principal_id, and reject a different authenticated user attempting to reuse it.",
+            "Repeat with resource, branch, SHA, expiry, recipe, mode, permission and wildcard mismatches and assert fail-closed behavior.",
+            "Assert dispatch certification, approval, readback and other mutation gates remain independent."
+          ],
+          "assertions": [
+            "An exact active service-principal binding removes workspace_resource_grant_missing_for_high_risk_operation and elevated_permission_missing only for the exact repository execution scope.",
+            "A binding issued for branch A at commit X cannot authorize branch B or commit Y.",
+            "If branch is not explicitly supplied during template resolution, expected_commit_sha may derive the branch only when all matching authority rows converge on one branch; multiple branches fail closed as ambiguous.",
+            "A platform-authority envelope cannot dispatch after its persisted binding is revoked, expires, disappears, or changes so that its exact mode, permission, principal or resource scope no longer matches.",
+            "If authority is revoked before the first provider mutation, zero GitHub mutation requests are sent.",
+            "If authority is revoked after Git object preparation but before the final ref mutation, the ref PATCH or ref-creation POST is blocked before transport.",
+            "Read-only GitHub preparation calls do not substitute for or prematurely consume the first provider-write authority check.",
+            "If lifecycle drift resolves the actual commit parent from authorized commit X to commit Y, the first provider mutation revalidates against Y and fails with zero provider mutations unless the exact envelope authority covers Y.",
+            "Provider write-boundary intent acceptance exactly matches the six aliases declared by repo_patch_apply_capability_envelope_requirement_v1: repo_patch_apply, repo_mutation, github_repo_patch, write, create and delete; an unsupported intent is rejected before provider transport.",
+            "Lifecycle unit tests remain database-free by injecting exact authority fixtures into successful mutation cases rather than disabling or bypassing revalidation in runtime code.",
+            "A binding-proven service principal remains subject to service identity and branch/SHA checks even when request_context.principal.principal_type was intentionally left blank by the official template flow.",
+            "Repository mutation routes using expected_head_sha are checked against the same exact expected-commit authority scope as expected_branch_sha, expected_commit_sha and expected_base_sha.",
+            "Runtime routes continue to import the authority-checked public githubRepositoryLifecycle module rather than the implementation Core.",
+            "Static lifecycle dispatch-binding integrity checks evaluate both the public authority wrapper and its delegated canonical implementation while also rejecting direct runtime-route imports of the Core module.",
+            "Repo-patch lifecycle static contracts evaluate the public wrapper plus delegated Core while explicitly proving that the public wrapper remains bound to the Core implementation.",
+            "Dispatch certification remains independently blocking when absent.",
+            "Direct and template envelope creation preserve the exact authority context without service-name or admin-role inference.",
+            "The service principal ID is persisted in ledger user_id and remains bound to the principal evidence carried by the envelope.",
+            "A repo-A envelope cannot authorize repo-B dispatch.",
+            "A service envelope with missing or inconsistent ledger principal binding is rejected.",
+            "A different authenticated user cannot borrow the service-principal envelope.",
+            "Resource URI, branch, expected commit SHA, recipe, operation-mode, permission, expiry and wildcard mismatches remain blocked.",
+            "Tenant/user principals without workspace authority cannot borrow platform service authority.",
+            "The follow-up performs no database migration, Production database write, deployment, credential read or mutation, protected-ref bypass, wildcard authority seed, or OpenAPI change."
+          ],
+          "tests": [
+            { "id": "dynamic-capability-resource-authority-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-dynamic-capability-resolution-graph.mjs", "args": [] },
+            { "id": "capability-envelope-authority-propagation-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-capability-envelope-template-resolver.mjs", "args": [] },
+            { "id": "capability-envelope-dispatch-binding-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-capability-resolution-envelope-shared-guard.mjs", "args": [] },
+            { "id": "platform-resource-authority-branch-commit-scope-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-resource-authority-branch-commit-scope.mjs", "args": [] },
+            { "id": "repository-authority-write-boundary-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-repository-authority-write-boundary.mjs", "args": [] },
+            { "id": "repository-authority-resolved-parent-boundary-regression", "runner": "node", "working_directory": "http-generic-api", "path": "test-repository-authority-resolved-parent-boundary.mjs", "args": [] },
+            { "id": "github-repository-lifecycle-authorized-fixtures", "runner": "node", "working_directory": "http-generic-api", "path": "test-github-repository-lifecycle.mjs", "args": [] },
+            { "id": "repo-patch-wrapper-core-lifecycle-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-repo-patch-apply.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/admin-service-resource-authority-resolution.json",
+            "http-generic-api/scripts/capability-resolution-dry-run.mjs",
+            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+            "http-generic-api/capabilityEnvelopeTemplateResolver.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/githubRepositoryLifecycleCore.js",
+            "http-generic-api/test-dynamic-capability-resolution-graph.mjs",
+            "http-generic-api/test-capability-envelope-template-resolver.mjs",
+            "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
+            "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
+            "http-generic-api/test-repository-authority-write-boundary.mjs",
+            "http-generic-api/test-repository-authority-resolved-parent-boundary.mjs",
+            "http-generic-api/test-platform-tool-dispatch-binding-integrity.mjs",
+            "http-generic-api/test-github-repository-lifecycle.mjs",
+            "http-generic-api/test-repo-patch-apply.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

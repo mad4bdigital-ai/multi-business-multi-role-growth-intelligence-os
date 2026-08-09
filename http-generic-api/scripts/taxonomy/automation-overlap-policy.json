@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-03.v5",
+  "version": "2026-08-09.v7",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -35,12 +35,15 @@
       "key": "pull-request-work-map-generated-artifacts",
       "kind": "pull_request_branch_write",
       "owner": "http-generic-api/scripts/platform-work-map-generator.mjs",
-      "required_concurrency_group": "spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}",
+      "required_concurrency_group": "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}",
       "workflows": [
         { "path": ".github/workflows/spec-kit-work-map-autofix.yml", "access": "write" }
       ],
       "write_patterns": [
-        "docs/work-maps/**"
+        "docs/work-maps/**",
+        "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+        "specs/014-governed-hostinger-storage-orchestration/tasks.md",
+        "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
       ]
     }
   ],

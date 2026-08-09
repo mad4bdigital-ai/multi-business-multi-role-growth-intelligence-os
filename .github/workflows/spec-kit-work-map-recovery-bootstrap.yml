@@ -94,7 +94,6 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${REQUESTED_PR_NUMBER}" > "${pr_file}"
 
           test "$(jq -r '.state' "${pr_file}")" = "open"
-          test "$(jq -r '.draft' "${pr_file}")" = "false"
           test "$(jq -r '.base.ref' "${pr_file}")" = "main"
           test "$(jq -r '.head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
 

@@ -1,0 +1,157 @@
+name: Spec 017 Protected Managed Execution Canary
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spec017-protected-managed-execution-canary-${{ github.event.comment.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: Exercise protected tenant/admin managed execution lifecycle
+    if: >-
+      github.event.issue.pull_request != null &&
+      github.event.comment.user.id == 271942579 &&
+      startsWith(github.event.comment.body, 'RUN_SPEC017_PROTECTED_MANAGED_EXECUTION_CANARY ')
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    env:
+      AUTHORIZATION_USER_ID: '271942579'
+      TRIGGER_TOKEN: RUN_SPEC017_PROTECTED_MANAGED_EXECUTION_CANARY
+      EVENT_COMMENT_BODY: ${{ github.event.comment.body }}
+      EVENT_COMMENT_ID: ${{ github.event.comment.id }}
+      EVENT_COMMENT_USER_ID: ${{ github.event.comment.user.id }}
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+    steps:
+      - name: Resolve immutable trigger contract
+        id: trigger
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "${EVENT_COMMENT_USER_ID}" = "${AUTHORIZATION_USER_ID}"
+          pattern='^RUN_SPEC017_PROTECTED_MANAGED_EXECUTION_CANARY[[:space:]]expected_main_sha=([0-9a-f]{40})[[:space:]]expected_production_sha=([0-9a-f]{40})[[:space:]]user_id=([A-Za-z0-9._:@/+\-]{1,64})[[:space:]]tenant_id=([A-Za-z0-9._:@/+\-]{1,64})[[:space:]]parent_ticket_id=([A-Za-z0-9._:@/+\-]{1,64})[[:space:]]capability_key=([A-Za-z0-9._:@/+\-]{1,191})[[:space:]]resource_type=([A-Za-z0-9._:@/+\-]{1,128})[[:space:]]resource_ref=([A-Za-z0-9._:@/+\-]{1,255})$'
+          if [[ ! "${EVENT_COMMENT_BODY}" =~ ${pattern} ]]; then
+            echo "Invalid Spec 017 protected canary trigger format." >&2
+            exit 1
+          fi
+          echo "expected_main_sha=${BASH_REMATCH[1]}" >> "${GITHUB_OUTPUT}"
+          echo "expected_production_sha=${BASH_REMATCH[2]}" >> "${GITHUB_OUTPUT}"
+          echo "user_id=${BASH_REMATCH[3]}" >> "${GITHUB_OUTPUT}"
+          echo "tenant_id=${BASH_REMATCH[4]}" >> "${GITHUB_OUTPUT}"
+          echo "parent_ticket_id=${BASH_REMATCH[5]}" >> "${GITHUB_OUTPUT}"
+          echo "capability_key=${BASH_REMATCH[6]}" >> "${GITHUB_OUTPUT}"
+          echo "resource_type=${BASH_REMATCH[7]}" >> "${GITHUB_OUTPUT}"
+          echo "resource_ref=${BASH_REMATCH[8]}" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout exact trusted default-branch tooling
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ steps.trigger.outputs.expected_main_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact trusted main and protected Production refs
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${EXPECTED_MAIN_SHA}"
+          remote_main_sha="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          remote_production_sha="$(git ls-remote origin refs/heads/Production | awk '{print $1}')"
+          test "${remote_main_sha}" = "${EXPECTED_MAIN_SHA}"
+          test "${remote_production_sha}" = "${EXPECTED_PRODUCTION_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${EXPECTED_MAIN_SHA}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run static canary safety contract
+        working-directory: http-generic-api
+        run: node test-spec017-protected-managed-execution-canary.mjs
+
+      - name: Execute protected managed execution canary
+        id: execute
+        working-directory: http-generic-api
+        env:
+          BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+          SOURCE_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+          SPEC017_CANARY_USER_ID: ${{ steps.trigger.outputs.user_id }}
+          SPEC017_CANARY_TENANT_ID: ${{ steps.trigger.outputs.tenant_id }}
+          SPEC017_CANARY_PARENT_TICKET_ID: ${{ steps.trigger.outputs.parent_ticket_id }}
+          SPEC017_CANARY_CAPABILITY_KEY: ${{ steps.trigger.outputs.capability_key }}
+          SPEC017_CANARY_RESOURCE_TYPE: ${{ steps.trigger.outputs.resource_type }}
+          SPEC017_CANARY_RESOURCE_REF: ${{ steps.trigger.outputs.resource_ref }}
+          SPEC017_CANARY_EVIDENCE_PATH: ${{ runner.temp }}/spec017-protected-canary/summary.json
+        run: node scripts/spec017-managed-execution-protected-canary.mjs
+
+      - name: Re-read protected refs after canary
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_MAIN_SHA: ${{ steps.trigger.outputs.expected_main_sha }}
+          EXPECTED_PRODUCTION_SHA: ${{ steps.trigger.outputs.expected_production_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "${EXPECTED_MAIN_SHA}"
+          test "$(git ls-remote origin refs/heads/Production | awk '{print $1}')" = "${EXPECTED_PRODUCTION_SHA}"
+
+      - name: Upload sanitized canary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec017-protected-managed-execution-canary-${{ github.run_id }}
+          path: ${{ runner.temp }}/spec017-protected-canary/summary.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce protected canary decision
+        if: always()
+        shell: bash
+        env:
+          REPORT: ${{ runner.temp }}/spec017-protected-canary/summary.json
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+        run: |
+          set -Eeuo pipefail
+          test "${EXECUTE_OUTCOME}" = "success"
+          jq -e '
+            .report_type == "spec017_managed_execution_protected_canary" and
+            .status == "pass" and
+            .tenant_identity.short_lived_platform_jwt_used == true and
+            .tenant_identity.long_lived_user_jwt_secret_used == false and
+            .assertions.active_user_membership_verified == true and
+            .assertions.cross_tenant_scope_rejected == true and
+            .assertions.read_only_no_approval_path == true and
+            .assertions.run_idempotency_verified == true and
+            .assertions.step_idempotency_verified == true and
+            .assertions.tenant_safe_projection_verified == true and
+            .assertions.admin_projection_verified == true and
+            .assertions.reconciliation_dry_run_verified == true and
+            .assertions.bounded_retry_verified == true and
+            .assertions.reassignment_active_membership_verified == true and
+            .assertions.read_only_terminal_zero_contradictions == true and
+            .assertions.approval_required_path_created == true and
+            .assertions.approval_hold_blocks_execution == true and
+            .assertions.admin_approval_path_verified == true and
+            .assertions.rollback_lifecycle_verified == true and
+            .assertions.rollback_terminal_zero_contradictions == true and
+            .assertions.final_zero_action_reconciliation_readback == true and
+            .provider_dispatch_executed == false and
+            .external_business_effect_executed == false and
+            .migration_apply_executed == false and
+            .sql_executed_by_canary == false and
+            .deployment_mutated == false and
+            .secrets_included == false
+          ' "${REPORT}" >/dev/null

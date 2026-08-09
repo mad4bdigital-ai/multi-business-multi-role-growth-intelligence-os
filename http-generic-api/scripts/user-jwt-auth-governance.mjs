@@ -14,6 +14,7 @@ export const HARDENED_AUTH_FILES = Object.freeze([
   "http-generic-api/runtimeGuards.js",
   "http-generic-api/routes/connectRoutes.js",
   "http-generic-api/routes/connectApiRoutes.js",
+  "http-generic-api/routes/activationAwarenessRoutes.js",
 ]);
 
 const JWT_FALLBACK = /JWT_SECRET\s*(?:\|\||\?\?)\s*(?:"[^"]+"|'[^']+'|`[^`]+`)/;

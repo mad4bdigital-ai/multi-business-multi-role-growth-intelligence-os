@@ -1,5 +1,6 @@
 import { testCommands as spec011Commands } from "./manifests/test-manifest-spec011.mjs";
 import { testCommands as spec012Commands } from "./manifests/test-manifest-spec012.mjs";
+import { testCommands as spec017Commands } from "./manifests/test-manifest-spec017.mjs";
 import { testCommands as upstreamMainCommands } from "./manifests/test-manifest-upstream-main.mjs";
 
 const upstreamCommands = [
@@ -28,6 +29,7 @@ const staticDiscoveryCommands = [
   "node test-agent-capability-admin-tool-registry.mjs",
   "node test-agent-capability-coverage.mjs",
   "node test-audit-payload-evidence.mjs",
+  "node test-brand-core-asset-materialization-operation-governance.mjs",
   "node test-canonical-execution-intent-isolation.mjs",
   "node test-capability-assurance-graph.mjs",
   "node test-capability-envelope-template-resolver.mjs",
@@ -73,6 +75,7 @@ const staticDiscoveryCommands = [
   "node test-phase12-verification-release-readiness.mjs",
   "node test-platform-engine-orchestration.mjs",
   "node test-platform-endpoint-tool-facade.mjs",
+  "node test-platform-plugin-brand-connection-authority.mjs",
   "node test-platform-plugin-contract-docs.mjs",
   "node test-platform-plugin-resolver.mjs",
   "node test-platform-resource-recipe-capability.mjs",
@@ -110,12 +113,15 @@ const staticDiscoveryCommands = [
   "node test-transport-response-chunk-schema-recovery.mjs",
   "node test-user-dashboard-dynamic-tabs-bridge.mjs",
   "node test-workflow-registry-authority-resolver.mjs",
+  "node test-workspace-brand-core-asset-materialization.mjs",
+  "node test-workspace-brand-core-personal-owner-boundary.mjs",
 ];
 
 export const testCommands = Object.freeze([
   ...new Set([
     ...spec011Commands,
     ...spec012Commands,
+    ...spec017Commands,
     ...upstreamMainCommands,
     ...upstreamCommands,
     ...staticDiscoveryCommands,
