@@ -336,11 +336,19 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       continue;
     }
     const brandEdge = relationshipRow({ tenantId,fromId:brandParentContainer.container_id,toId:brandContainer.container_id,source:brandEdgeSource });
+    if (workspaceType === "brand") {
+      brandEdge.metadata_json = JSON.stringify({
+        ...parseJson(brandEdge.metadata_json, {}),
+        operational_workspace_id:String(workspace.workspace_id || ""),
+        root_workspace_id:String(brandParentContainer.canonical_subject_ref || ""),
+      });
+    }
     relationships.set(brandEdge.relationship_id,brandEdge);
     if (!plannedParent) {
       plannedBrandParentByBrand.set(brandParentKey,{
         parentContainerId:String(brandParentContainer.container_id),
         parentSubjectRef:String(brandParentContainer.canonical_subject_ref || ""),
+        operationalWorkspaceId:workspaceType === "brand" ? String(workspace.workspace_id || "") : null,
         relationshipId:brandEdge.relationship_id,
       });
     }
@@ -525,15 +533,20 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
     if (parent?.container_type_key === "workspace" && child?.container_type_key === "brand") {
       const brandContainerId = String(child.container_id);
       const parentContainerId = String(parent.container_id);
-      const existingParentId = desiredParentByBrand.get(brandContainerId);
-      if (existingParentId && existingParentId !== parentContainerId) {
+      const metadata = parseJson(relationship.metadata_json, {}) || {};
+      const desiredParent = {
+        parentContainerId,
+        operationalWorkspaceId:String(metadata.operational_workspace_id || "").trim() || null,
+      };
+      const existingParent = desiredParentByBrand.get(brandContainerId);
+      if (existingParent && existingParent.parentContainerId !== parentContainerId) {
         const error = new Error("Brand projection plan contains multiple distinct Workspace parents for one canonical Brand container.");
         error.code = "container_projection_brand_root_plan_ambiguous";
         error.status = 409;
-        error.details = [{ tenant_id:tenantId,brand_container_id:brandContainerId,planned_parent_container_ids:[existingParentId,parentContainerId] }];
+        error.details = [{ tenant_id:tenantId,brand_container_id:brandContainerId,planned_parent_container_ids:[existingParent.parentContainerId,parentContainerId] }];
         throw error;
       }
-      desiredParentByBrand.set(brandContainerId, parentContainerId);
+      desiredParentByBrand.set(brandContainerId, desiredParent);
     }
   }
   const brandContainerIds = [...desiredParentByBrand.keys()];
@@ -563,13 +576,16 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
   );
   let archived = 0;
   for (const row of rows || []) {
-    const desiredParentId = desiredParentByBrand.get(String(row.to_container_id));
+    const desiredParent = desiredParentByBrand.get(String(row.to_container_id));
+    const desiredParentId = desiredParent?.parentContainerId;
     if (!desiredParentId || String(row.from_container_id) === desiredParentId) continue;
     const isLegacyOperationalParent =
       row.created_by === "legacy_projection" &&
       String(row.parent_subject_type || "") === "workspace" &&
       String(row.parent_workspace_type || "").toLowerCase() === "brand" &&
-      !String(row.parent_workspace_ownership_type || "").trim();
+      !String(row.parent_workspace_ownership_type || "").trim() &&
+      Boolean(desiredParent?.operationalWorkspaceId) &&
+      String(row.parent_subject_ref || "") === desiredParent.operationalWorkspaceId;
     if (!isLegacyOperationalParent) {
       const error = new Error("Brand projection would silently reparent an existing canonical Brand container.");
       error.code = "container_projection_brand_root_conflict";
