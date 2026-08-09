@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "tenant-capability-eligibility-remediation",
-  "title": "Expose fail-closed tenant capability eligibility and governed remediation",
+  "title": "Expose fail-closed tenant capability eligibility and staged governed remediation",
   "delivery_mode": "single_pr",
   "secrets_included": false,
   "current_phase": "mvp",
@@ -24,40 +24,42 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Project the canonical Platform Plugin resolver decision into a tenant-safe eligibility state with typed blockers and bounded managed-repair dry-run guidance, without claiming dispatch or repair authority when credential, resource-authority, approval, or security gates fail.",
+      "objective": "Project the canonical Platform Plugin resolver decision into a tenant-safe eligibility state with typed blockers and staged managed-repair candidate metadata, while remaining fail-closed until a dedicated executor and capability-specific execution contract are actually registered and certified.",
       "e2e_journeys": [
         {
-          "id": "tenant-resolve-projects-eligibility-and-governed-remediation",
+          "id": "tenant-resolve-projects-eligibility-and-staged-remediation",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Authenticated tenant user resolving a Platform Plugin capability",
           "entrypoint": "POST /tenant/platform/plugins/resolve after canonical User-JWT and active-membership authorization",
-          "terminal_outcome": "The response exposes ready, blocked, approval_required, unavailable, or deprecated eligibility plus typed repair classes. Missing runtime binding or smoke certification may expose a bounded managed-repair dry-run plan, while actual execution remains exclusively behind tenant-managed-execution-v1 authority, approval, idempotency and readback.",
+          "terminal_outcome": "The response exposes ready, blocked, approval_required, unavailable, or deprecated eligibility plus typed repair classes. Missing runtime binding or smoke certification may expose a non-executable staged repair candidate, but managed_repair.available remains false until a dedicated executor, dispatch certification, dry-run enforcement, JWT principal binding and workspace readback context exist.",
           "steps": [
             "Resolve the requested capability through the existing canonical Platform Plugin resolver and its fail-closed security gates.",
             "Strip the admin-only decision trace projection from the tenant response as before.",
             "Project required denied or unevaluated gates into tenant-safe blocker codes and repair classes without reading secrets or executing a repair.",
             "Return ready only when the canonical resolver reports execution.will_execute=true.",
-            "For an exact canonical plugin+selector identity, map only missing runtime binding and missing/expired smoke certification to managed_repair_available.",
-            "Build a deterministic dry-run managed-execution request template using a dedicated repair capability, exact hashed plugin-operation resource identity and stable idempotency key.",
-            "Require parent ticket linkage, managed_handoff approval and managed_operator role; do not authorize Apply from discovery.",
-            "Keep target authority, credential, approval, skill and canonical-policy blockers outside managed repair so the repair surface cannot grant itself authority or credentials.",
-            "Route any later repair execution through /managed-execution-runs, where canonical User-JWT scope binding and #4449 authority/resource-grant revalidation apply before state mutation.",
-            "Require post-repair readback through /tenant/platform/plugins/resolve and disallow automatic retry after unknown outcome."
+            "Preserve inactive or otherwise non-executable bindings as their actual blocker state; only explicit action_binding_not_found and tool_binding_not_found are classified as missing binding.",
+            "For an exact canonical plugin+selector identity, expose only staged candidate metadata for missing binding or missing/expired smoke certification.",
+            "Prefer the canonical plugin key from the resolved plugin row when deriving the candidate identity.",
+            "Keep managed_repair.available=false and omit any executable request template while tenant_platform_plugin_managed_repair_v1 has no dedicated executor.",
+            "Keep target authority, credential, approval, skill and canonical-policy blockers outside managed repair so the remediation surface cannot grant itself authority or credentials.",
+            "Keep Migration 1052 metadata-only with apply_allowed_default=0 and enforcement_status=baseline_registered so direct managed-execution calls remain blocked.",
+            "Require a later governed activation to add the dedicated executor, capability-specific dry-run validation, JWT-bound tenant/user injection, workspace readback context, idempotency and reconciliation before managed repair may become available."
           ],
           "assertions": [
             "A dispatch-ready canonical resolver decision projects to status=ready with zero blockers.",
-            "Missing action/tool binding with canonical plugin+selector identity projects to blocked + managed_repair_available and produces only a dry-run plan.",
-            "Missing/expired smoke certification with canonical plugin+selector identity projects to blocked + managed_repair_available and produces only a dry-run plan.",
-            "If canonical plugin+selector identity is unavailable, those blockers remain platform_admin_required fail-closed.",
+            "Missing action/tool binding with canonical plugin+selector identity remains platform_admin_required and managed_repair.available=false while exposing only staged candidate metadata.",
+            "Missing/expired smoke certification with canonical plugin+selector identity remains platform_admin_required and managed_repair.available=false while exposing only staged candidate metadata.",
+            "Inactive bindings are not rewritten as missing bindings and never become managed repair candidates.",
+            "If canonical plugin+selector identity is unavailable, the blocker remains platform_admin_required fail-closed.",
+            "The canonical resolved plugin key takes precedence over caller-supplied equivalent casing when deriving candidate identity.",
+            "Disabled and deprecated plugins never expose an available managed repair plan.",
             "Missing credential projects to blocked + user_action_required with credential/OAuth intake guidance only.",
             "Multiple eligible connection ambiguity projects to blocked + tenant_admin_action_available and never selects a first candidate.",
             "Target resource authority remains platform_admin_required and is never auto-granted by managed repair.",
-            "The dry-run request template does not accept tenant_id or user_id from discovery; canonical route authorization owns those principal fields.",
-            "The managed repair capability requires managed_operation, managed_handoff approval, stable idempotency and readback; discovery sets apply_authorized_by_projection=false.",
-            "Migration 1052 registers metadata/readiness only and performs no repair, provider call, resource-grant creation, credential read, Production mutation, or external write.",
-            "A pending governed approval projects to approval_required rather than ready.",
-            "Disabled and deprecated plugin states project to unavailable and deprecated respectively."
+            "No executable request template, idempotency key, caller-supplied tenant_id/user_id or workspace-dependent readback request is emitted before the executor contract exists.",
+            "Migration 1052 registers staged metadata/readiness only, with dispatch/apply blocked and no repair, provider call, resource-grant creation, credential read, Production mutation, or external write.",
+            "A pending governed approval projects to approval_required rather than ready."
           ],
           "tests": [
             {
