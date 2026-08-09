@@ -42,7 +42,7 @@ function resolveAuthenticatedPrincipal(authContext = {}) {
     user_id: requiredContextValue(authContext.user_id, "user_id"),
     workspace_id: requiredContextValue(authContext.workspace_id, "workspace_id"),
     tenant_role: String(authContext.tenant_role || "").trim() || null,
-    source: "authenticated_user_jwt_context",
+    source: String(authContext.source || "authenticated_user_jwt_context").trim(),
   });
 }
 
@@ -115,7 +115,9 @@ export function previewTenantPlatformPluginManagedRepair({
     workflow_key: TenantPlatformPluginManagedRepairContract.workflow_key,
     capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
     execution_mode: "dry_run",
-    executor_registered: true,
+    source_executor_implemented: true,
+    executor_registered: false,
+    activation_status: "source_only_unregistered",
     apply_allowed: false,
     dispatch_apply_allowed: false,
     principal,
@@ -127,7 +129,7 @@ export function previewTenantPlatformPluginManagedRepair({
     managed_execution: Object.freeze({
       internal_service: "createManagedExecutionRun",
       run_created: false,
-      reason: "migration_1052_application_and_certification_required",
+      reason: "migration_1052_application_and_capability_certification_required",
     }),
     readback: Object.freeze({
       route: TenantPlatformPluginManagedRepairContract.readback_route,
