@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
+import { normalizeManagedExecutionEnvelope } from "./managedExecutionCore.js";
+import {
+  assertManagedExecutionInvocationContext,
+  createTenantPlatformPluginManagedRepairDryRunInvocationContext,
+} from "./managedExecutionInvocationContext.js";
 import { _testingManagedExecutionRunService } from "./managedExecutionRunService.js";
+import { TenantPlatformPluginManagedRepairContract } from "./tenantPlatformPluginEligibility.js";
 
 const {
   managedExecutionRunMode,
@@ -10,9 +16,9 @@ const {
 function managedRun(executionMode, options = {}) {
   const authoritySnapshot = {
     contract: "tenant-managed-execution-v1",
-    capability_key: "resource_authority_route_family.tenant_platform_plugin_managed_repair",
+    capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
     resource: {
-      type: "platform_plugin_operation",
+      type: TenantPlatformPluginManagedRepairContract.resource_type,
       ref: "platform_plugin_operation:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     },
     ...(executionMode ? { execution_mode: executionMode } : {}),
@@ -71,5 +77,50 @@ assert.throws(
   () => assertGenericManagedExecutionStepMode({ execution_mode: "apply" }),
   (error) => error.code === "managed_execution_existing_execution_mode_invalid",
 );
+
+const canonicalDryRunEnvelope = normalizeManagedExecutionEnvelope({
+  tenant_id: "tenant-authenticated",
+  user_id: "user-authenticated",
+  parent_ticket_id: "ticket-managed-repair-001",
+  workflow_key: TenantPlatformPluginManagedRepairContract.workflow_key,
+  capability_key: TenantPlatformPluginManagedRepairContract.capability_key,
+  resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
+  resource_ref: "platform_plugin_operation:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
+  execution_mode: "dry_run",
+  idempotency_key: "managed-repair-dry-run-idempotency",
+  workspace_id: "workspace-authenticated",
+  service_mode: "managed",
+  input_json: {
+    execution_mode: "dry_run",
+    apply_allowed: false,
+  },
+});
+assert.throws(
+  () => assertManagedExecutionInvocationContext({ envelope: canonicalDryRunEnvelope, invocationContext: null }),
+  (error) => error.code === "managed_execution_dry_run_internal_executor_required",
+);
+assert.throws(
+  () => assertManagedExecutionInvocationContext({
+    envelope: canonicalDryRunEnvelope,
+    invocationContext: { kind: "tenant_platform_plugin_managed_repair_dry_run", token: Symbol("forged") },
+  }),
+  (error) => error.code === "managed_execution_dry_run_internal_executor_required",
+);
+const trustedInvocationContext = createTenantPlatformPluginManagedRepairDryRunInvocationContext();
+assert.equal(Object.isFrozen(trustedInvocationContext), true);
+assert.equal(
+  assertManagedExecutionInvocationContext({
+    envelope: canonicalDryRunEnvelope,
+    invocationContext: trustedInvocationContext,
+  }),
+  true,
+);
+const liveEnvelope = normalizeManagedExecutionEnvelope({
+  ...canonicalDryRunEnvelope,
+  execution_mode: "live",
+  input_json: { execution_mode: "live" },
+});
+assert.equal(assertManagedExecutionInvocationContext({ envelope: liveEnvelope, invocationContext: null }), true);
 
 console.log("tenant Platform Plugin managed repair run-mode isolation tests passed");
