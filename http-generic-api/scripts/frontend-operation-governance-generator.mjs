@@ -27,7 +27,9 @@ const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease"
 
 const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
 const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
+const BRAND_ROOT_TOPOLOGY_FILE = "workspaceBrandRootTopology.js";
 const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
+const BRAND_ROOT_TEST_FILE = "test-workspace-brand-root-topology.mjs";
 const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
 
 const MATERIALIZE_ROUTE_FILE = "routes/resourceApiRoutes.js";
@@ -154,46 +156,71 @@ function evaluateLeaseRecipe(apiRoot) {
 function evaluateBrandCreateRecipe(apiRoot) {
   const routeSource = readText(apiRoot, BRAND_ROUTE_FILE);
   const serviceSource = readText(apiRoot, BRAND_SERVICE_FILE);
+  const topologySource = readText(apiRoot, BRAND_ROOT_TOPOLOGY_FILE);
   const route = routeRegistry(routeSource, BRAND_ROUTE_FILE).get(BRAND_CREATE_OPERATION);
+  const routeDeclaration = route?.declaration || "";
   const createBlock = extractFunctionBlock(serviceSource, "createWorkspaceBrand");
   const ownerBlock = extractFunctionBlock(serviceSource, "requireOwnerAuthority");
   const linkBlock = extractFunctionBlock(serviceSource, "ensureTenantBrandLink");
   const workspaceBlock = extractFunctionBlock(serviceSource, "ensureBrandWorkspace");
   const grantBlock = extractFunctionBlock(serviceSource, "ensureCreatorBrandGrant");
+  const rootValidationBlock = extractFunctionBlock(topologySource, "validateRootWorkspace");
+  const topologyCreateBlock = extractFunctionBlock(topologySource, "createWorkspaceBrandWithRootTopology");
+  const topologyVerifyBlock = extractFunctionBlock(topologySource, "verifyWorkspaceBrandRootTopology");
+  const relationshipBlock = extractFunctionBlock(topologySource, "ensureRootBrandRelationship");
   const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CREATE_OPERATION) || [];
   const gates = [
     evidenceGate("route_present", route, BRAND_ROUTE_FILE),
     evidenceGate("user_jwt_guard", route?.route_guards?.includes("requireUserJwt"), "requireUserJwt"),
-    evidenceGate("route_service_binding", route?.declaration?.includes("createWorkspaceBrand"), "createWorkspaceBrand"),
-    evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_create") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "begin/commit/rollback"),
+    evidenceGate("route_service_binding", routeDeclaration.includes("createWorkspaceBrandWithRootTopology"), "createWorkspaceBrandWithRootTopology"),
+    evidenceGate("root_workspace_request_binding", routeDeclaration.includes("root_workspace_id") && routeDeclaration.includes("readWorkspaceBrandRootScope") && routeDeclaration.includes("workspace_brand_root_workspace_cross_tenant"), "explicit root_workspace_id preflight and tenant match"),
+    evidenceGate("container_authority_transaction_scope", routeDeclaration.includes("withContainerAuthorityMutation") && routeDeclaration.includes('mutationType: "workspace_brand_create"') && routeDeclaration.includes("MUTATION_TRANSACTION: workspace_brand_create") && routeDeclaration.includes("rebuildClosure: false"), "canonical withContainerAuthorityMutation transaction"),
+    evidenceGate("transactional_topology_readback", routeDeclaration.includes("rebuildContainerClosure") && routeDeclaration.includes("verifyWorkspaceBrandRootTopology") && routeDeclaration.includes("MUTATION_READBACK: workspace_brand_create"), "closure rebuild and exact Root-to-Brand readback before commit"),
     evidenceGate("service_present", createBlock, "createWorkspaceBrand"),
     evidenceGate("locked_owner_authority", ownerBlock.includes("LIMIT 2 FOR UPDATE") && ownerBlock.includes("OWNER_ROLES.has"), "owner/admin locked membership"),
+    evidenceGate("root_workspace_authority", rootValidationBlock.includes("ROOT_WORKSPACE_OWNERSHIP_TYPES.has") && rootValidationBlock.includes("workspace_type") && rootValidationBlock.includes("brand") && rootValidationBlock.includes("bootstrap_status") && rootValidationBlock.includes("personal") && rootValidationBlock.includes("owner_user_id") && rootValidationBlock.includes("actorUserId"), "personal/company Root Workspace classification, readiness, child-workspace rejection, and personal owner identity"),
+    evidenceGate("root_workspace_locked_recheck", topologyCreateBlock.includes("loadRootWorkspace") && topologyCreateBlock.includes("expectedTenantId") && topologyCreateBlock.includes("lock: true") && topologyCreateBlock.includes("createWorkspaceBrand") && topologyCreateBlock.includes("bindOperationalWorkspaceToRoot") && topologyCreateBlock.includes("ensureRootBrandContainers"), "Root Workspace authority rechecked under lock before canonical Brand/topology convergence"),
     evidenceGate("canonical_identity", serviceSource.includes("canonicalWorkspaceBrandTargetKey") && serviceSource.includes("normalizeWorkspaceBrandName"), "deterministic canonical identity"),
     evidenceGate("explicit_tenant_link", linkBlock.includes("workspace_owner_brand_create") && linkBlock.includes("tenant_brand_links") && linkBlock.includes("FOR UPDATE"), "tenant_brand_links explicit authority/readback"),
     evidenceGate("brand_workspace_binding", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "brand workspace registry/readback"),
     evidenceGate("creator_admin_grant", grantBlock.includes("workspace_resource_grants") && grantBlock.includes("'brand'") && grantBlock.includes("'admin'") && grantBlock.includes("FOR UPDATE"), "creator brand/admin grant/readback"),
-    evidenceGate("no_secret_response", routeSource.includes("secrets_included: false"), "secrets_included=false"),
+    evidenceGate("topology_conflict_guard", relationshipBlock.includes("legacy_projection") && relationshipBlock.includes("workspace_brand_root_topology_conflict") && relationshipBlock.includes("workspace_type") && relationshipBlock.includes("brand") && relationshipBlock.includes("container_relationships"), "only known legacy operational parent may be retired; any other active parent fails closed"),
+    evidenceGate("direct_closure_readback", topologyVerifyBlock.includes("FROM container_closure") && topologyVerifyBlock.includes("shortest_depth") && topologyVerifyBlock.includes("longest_depth") && topologyVerifyBlock.includes("path_count") && topologyVerifyBlock.includes("workspace_brand_root_closure_invalid") && topologyVerifyBlock.includes("expectedRelationshipId"), "one direct unambiguous Root-to-Brand closure path"),
+    evidenceGate("no_secret_response", routeDeclaration.includes("secrets_included: false"), "secrets_included=false"),
     evidenceGate("registered_operation_test", claimedTests.includes(BRAND_TEST_FILE), BRAND_TEST_FILE),
   ];
   const recipe = {
-    recipe_id: "workspace-brand-create-v1",
+    recipe_id: "workspace-brand-create-v2-root-workspace-topology",
     rule_id: "generated-workspace-brand-create-governance",
     operation: BRAND_CREATE_OPERATION,
     source_file: BRAND_ROUTE_FILE,
     owner: "workspace-platform",
-    rationale: "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
-    preflight_mode: "locked_workspace_owner_authority_and_canonical_identity",
+    rationale: "Creates or idempotently reuses one canonical Brand only after an explicit personal/company Root Workspace is tenant-matched before mutation and revalidated under lock. Brand lifecycle, tenant link, operational Brand workspace, creator grant, canonical Root-to-Brand contains topology, closure rebuild, and exact direct-path readback converge inside the canonical container-authority transaction; only a known legacy operational-workspace projection parent may be retired and every other parent conflict fails closed.",
+    preflight_mode: "root_workspace_authority_and_canonical_brand_identity",
     approval_mode: "runtime_authorization",
     parameter_bindings: {
-      tenant_id: "request.path.tenant_id",
+      tenant_id: "request.path.tenant_id validated_against root_workspace.tenant_id",
+      root_workspace_id: "request.body.root_workspace_id",
       display_name: "request.body.display_name|request.body.brand_name",
       actor_user_id: "authenticated_user.user_id",
       brand_target_key: "response.brand.target_key",
       brand_workspace_id: "response.workspace_link.workspace_id",
       creator_grant_id: "response.creator_grant.grant_id",
+      topology_relationship_id: "response.topology.relationship_id",
+      authority_epoch: "response.authority_epoch",
     },
   };
-  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE] };
+  return {
+    recipe,
+    gates,
+    evidenceFiles: [
+      BRAND_ROUTE_FILE,
+      BRAND_SERVICE_FILE,
+      BRAND_ROOT_TOPOLOGY_FILE,
+      BRAND_TEST_FILE,
+      BRAND_ROOT_TEST_FILE,
+    ],
+  };
 }
 
 function evaluateBrandCoreMaterializeRecipe(apiRoot) {
@@ -314,7 +341,9 @@ function withSourceAuthority(plan, apiRoot) {
     LEASE_TEST_FILE,
     BRAND_ROUTE_FILE,
     BRAND_SERVICE_FILE,
+    BRAND_ROOT_TOPOLOGY_FILE,
     BRAND_TEST_FILE,
+    BRAND_ROOT_TEST_FILE,
     MATERIALIZE_ROUTE_FILE,
     MATERIALIZE_SERVICE_FILE,
     MATERIALIZE_REPOSITORY_FILE,
@@ -335,7 +364,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v6-root-workspace-brand-container",
+      id: "frontend-operation-governance-generator-v7-root-workspace-brand-create-topology",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
