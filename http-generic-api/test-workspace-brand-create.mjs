@@ -259,11 +259,14 @@ for (const invalidName of ["", " ", "x", "x".repeat(256)]) {
 const routeSource = await fs.readFile(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
 assert.match(routeSource, /RESOURCE_API_CALLABILITY_CONTRACT: workspace_brand_create/);
 assert.match(routeSource, /router\.post\("\/me\/workspaces\/:tenant_id\/brands"/);
-assert.match(routeSource, /createWorkspaceBrand\(connection,/);
+assert.match(routeSource, /root_workspace_id/);
+assert.match(routeSource, /createWorkspaceBrandWithRootTopology\(connection,/);
 assert.match(routeSource, /workspace_link: result\.link/);
-assert.match(routeSource, /await connection\.beginTransaction\(\); \/\/ MUTATION_TRANSACTION: workspace_brand_create/);
-assert.match(routeSource, /await connection\.commit\(\)/);
-assert.match(routeSource, /await connection\.rollback\(\)/);
+assert.match(routeSource, /withContainerAuthorityMutation/);
+assert.match(routeSource, /rebuildContainerClosure/);
+assert.match(routeSource, /verifyWorkspaceBrandRootTopology/);
+assert.match(routeSource, /MUTATION_TRANSACTION: workspace_brand_create/);
+assert.match(routeSource, /MUTATION_READBACK: workspace_brand_create/);
 assert.match(routeSource, /secrets_included: false/);
 
 console.log("workspace brand create tests passed");
