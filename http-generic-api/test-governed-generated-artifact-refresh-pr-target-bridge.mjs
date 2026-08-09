@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { resolveParallelMaintenanceScope } from "./scripts/e2e-parallel-pr-gate.mjs";
 
 const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml";
 const retiredRequestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
@@ -8,11 +9,32 @@ const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact
 const delegatedDecisionWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
 const writerWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";
 const verificationWorkflowPath = "../.github/workflows/pr-generated-artifact-refresh.yml";
+const hostingerParallelContractPath = "../specs/014-governed-hostinger-storage-orchestration/e2e-phases.json";
 const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
 const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
 const delegatedDecisionWorkflow = fs.readFileSync(delegatedDecisionWorkflowPath, "utf8");
 const writerWorkflow = fs.readFileSync(writerWorkflowPath, "utf8");
 const verificationWorkflow = fs.readFileSync(verificationWorkflowPath, "utf8");
+const hostingerParallelContract = JSON.parse(fs.readFileSync(hostingerParallelContractPath, "utf8"));
+
+const workstreamOnlyMaintenancePath = "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs";
+assert.equal(
+  hostingerParallelContract.scope.include.includes(workstreamOnlyMaintenancePath),
+  false,
+  "fixture path must remain absent from the Hostinger contract-level scope so the regression exercises workstream ownership"
+);
+assert.equal(
+  hostingerParallelContract.parallel_work.workstreams.some((workstream) =>
+    Array.isArray(workstream.scope?.include) && workstream.scope.include.includes(workstreamOnlyMaintenancePath)
+  ),
+  true,
+  "fixture path must be owned by a Hostinger parallel workstream"
+);
+assert.equal(
+  resolveParallelMaintenanceScope(hostingerParallelContract).includes(workstreamOnlyMaintenancePath),
+  true,
+  "maintenance scope must include paths declared only by parallel workstreams"
+);
 
 const pinnedRunnerWorkflows = [
   ["read-only request", requestWorkflow],
@@ -119,7 +141,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 95,
+  tests: 98,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
