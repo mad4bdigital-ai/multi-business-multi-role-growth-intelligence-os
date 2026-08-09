@@ -390,6 +390,21 @@ async function materialize(connection, sourceRef = "positioning") {
   assert.equal(connection.insertAttempts, 0);
 }
 
+for (const validationStatus of ["pending", "unknown"]) {
+  const connection = buildConnection({
+    sources: sourceRow({ status: "active", validation_status: validationStatus }),
+  });
+  await assert.rejects(
+    materialize(connection),
+    (error) => error?.code === "brand_core_source_inactive" && error?.status === 409
+  );
+  assert.equal(
+    connection.insertAttempts,
+    0,
+    `${validationStatus} validation must fail before workspace asset persistence`
+  );
+}
+
 {
   const rows = sourceRow();
   const connection = buildConnection({ sources: [rows[0], { ...rows[0], id: 12 }] });
