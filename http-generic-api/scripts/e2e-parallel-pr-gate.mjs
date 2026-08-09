@@ -540,4 +540,5 @@ function main() {
   if (!report.ok) process.exit(1);
 }
 
-main();
+const isDirectExecution = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectExecution) main();
