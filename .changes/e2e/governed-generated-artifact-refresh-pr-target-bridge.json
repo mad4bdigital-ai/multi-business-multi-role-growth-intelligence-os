@@ -8,6 +8,7 @@
   "scope": {
     "include": [
       ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+      ".github/workflows/pr-generated-artifact-refresh.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
       ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json"
@@ -34,6 +35,7 @@
             "Ignore github-actions[bot] synchronization so a generated writer commit cannot recursively request another writer run.",
             "Perform no repository checkout and grant only contents:read and pull-requests:read to the request workflow.",
             "Read the current pull request through the GitHub API and require open non-draft state, same-repository head, base main, governed work-branch syntax, exact current head SHA, and generated-artifact-refresh label.",
+            "Emit a non-empty mad4b.governed-generated-artifact-refresh-request.v1 JSON object for eligible requests even when no blocking reason exists, encoding the absent reason as JSON null rather than filtering out the object.",
             "Upload mad4b.governed-generated-artifact-refresh-request.v1 with candidate_code_checkout=false and repository_mutation_performed=false.",
             "Trigger Governed Generated Artifact Refresh Request Dispatcher only from completion of the named request workflow or explicit workflow_dispatch.",
             "Download the exact request artifact using the triggering workflow run ID and reject source-run substitution.",
@@ -41,14 +43,17 @@
             "Reject main and Production through an explicit target_branch guard that emits blocked evidence and exits non-zero.",
             "Dispatch governed-generated-artifact-refresh.yml on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
             "Observe only the workflow_dispatch run whose exact display title contains the same target ref and SHA.",
+            "Encode an absent delegated-run conclusion as JSON null while the exact writer is queued or in progress, preserving a non-empty canonical dispatch report.",
             "Checkout trusted main publisher code only after candidate validation, with persisted credentials disabled.",
             "Upload and directly publish mad4b.governed-generated-artifact-refresh-dispatch.v1 before enforcing the result.",
+            "Verify the read-only PR generated-artifact evaluator remains pinned to the explicit ubuntu-24.04 runner after post-allocation report-path initialization.",
             "Run the focused bridge contract through this E2E journey."
           ],
           "assertions": [
             "The retired governed-generated-artifact-refresh-pr-target-bridge.yml path is absent and bridge-v2 is the sole request workflow path.",
             "The pull-request request workflow has no actions:write, issues:write, contents:write, write-all, API mutation, checkout, git push, or secret access.",
             "The pull-request request workflow emits structured evidence only and does not publish comments or dispatch workflows.",
+            "An eligible request with an empty reason still emits a valid non-empty JSON object and represents the absent reason as null.",
             "The write-capable dispatcher has workflow_run and workflow_dispatch entrypoints but no pull_request, pull_request_target, push, or issue_comment trigger.",
             "The dispatcher has actions:write, contents:read, issues:write, and pull-requests:read with no contents:write.",
             "The dispatcher validates an exact run-bound request artifact and current PR identity before checkout or API mutation.",
@@ -57,6 +62,8 @@
             "The dispatcher checks out trusted main only and never checks out the PR head, merge ref, or candidate SHA.",
             "The writer remains the only workflow with repository contents-write authority.",
             "Passed evidence requires delegated_run_observed=true and a numeric delegated_run_id.",
+            "A queued or in-progress delegated writer with no conclusion still emits a valid non-empty dispatch report and represents delegated_run_conclusion as null.",
+            "The read-only PR generated-artifact evaluator uses explicit ubuntu-24.04 rather than the mutable ubuntu-latest alias.",
             "Job logs remain diagnostic-only; consult_job_logs=false and secrets_included=false.",
             "No migration, SQL, deployment, Production mutation, provider call, credential access, external send, direct protected-branch update, or force push occurs in either bridge stage."
           ],
@@ -71,6 +78,7 @@
           ],
           "evidence_paths": [
             ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+            ".github/workflows/pr-generated-artifact-refresh.yml",
             ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
             "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
           ]
