@@ -3,8 +3,8 @@
   "feature_key": "014-governed-hostinger-storage-orchestration",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "06f704a781c951c94d8c3aeddbf7738c0168dfb01d489cc8ce8d87fd8d9bda4d",
-    "index_source_hash": "d0ff3c061b025d3d825a9db5d1c36aac0fead8edd3dd3e039d4b4b48779e73f7",
+    "fingerprint": "3a4fa08746519668cfcb42ca99b48f6587d199593f4fb107c15207f220200de1",
+    "index_source_hash": "88b766a637b29997cde0f381f934d2ada8c6d56d25f0563dd72b224c3f920ba6",
     "coverage_source_hash": "def8a8287e39515c4eab01df7444c37a63af05ef2c73d7418d553a94d2264fd9",
     "map_count": 19,
     "domain_count": 16,
