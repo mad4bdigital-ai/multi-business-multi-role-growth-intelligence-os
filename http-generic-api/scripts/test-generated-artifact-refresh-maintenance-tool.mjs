@@ -125,6 +125,19 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   assert.match(toolSource, /docs\/work-maps/u);
   assert.match(toolSource, /ci-evidence-routing\\\.md/u);
   assert.match(toolSource, /test-spec014-refresh-final-work-map-binding/u);
+  const firstConvergenceIndex = toolSource.indexOf("converge();");
+  const workMapsCurrentIndex = toolSource.indexOf("verify_work_maps_current");
+  const hostingerCurrentIndex = toolSource.indexOf("verify_hostinger_spec014_binding_current");
+  const retailCurrentIndex = toolSource.indexOf("verify_retail_spec014_binding_current");
+  const bindingRegressionIndex = toolSource.indexOf("verify_spec014_binding_regression");
+  assert.ok(
+    firstConvergenceIndex >= 0
+      && workMapsCurrentIndex > firstConvergenceIndex
+      && hostingerCurrentIndex > workMapsCurrentIndex
+      && retailCurrentIndex > hostingerCurrentIndex
+      && bindingRegressionIndex > retailCurrentIndex,
+    "Spec014 regression must run only after Work Map and both Spec014 bindings have converged and passed currentness checks",
+  );
   assert.match(toolSource, /self_hosting_scope_bounded/u);
 });
 
