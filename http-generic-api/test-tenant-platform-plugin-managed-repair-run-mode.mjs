@@ -116,6 +116,27 @@ assert.equal(
   }),
   true,
 );
+
+const noncanonicalDryRunEnvelope = normalizeManagedExecutionEnvelope({
+  ...canonicalDryRunEnvelope,
+  workflow_key: "other_managed_workflow",
+  idempotency_key: "noncanonical-dry-run-idempotency",
+});
+assert.throws(
+  () => assertManagedExecutionInvocationContext({
+    envelope: noncanonicalDryRunEnvelope,
+    invocationContext: null,
+  }),
+  (error) => error.code === "managed_execution_dry_run_dedicated_executor_required",
+);
+assert.throws(
+  () => assertManagedExecutionInvocationContext({
+    envelope: noncanonicalDryRunEnvelope,
+    invocationContext: trustedInvocationContext,
+  }),
+  (error) => error.code === "managed_execution_dry_run_dedicated_executor_required",
+);
+
 const liveEnvelope = normalizeManagedExecutionEnvelope({
   ...canonicalDryRunEnvelope,
   execution_mode: "live",
