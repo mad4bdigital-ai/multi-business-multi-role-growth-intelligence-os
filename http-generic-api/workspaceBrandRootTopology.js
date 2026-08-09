@@ -35,7 +35,8 @@ function requireExactlyOne(rows, { missingCode, missingMessage, ambiguousCode, a
   if (rows.length !== 1) {
     throw topologyError(409, ambiguousCode, ambiguousMessage, [{ count: rows.length }]);
   }
-  return rows[0];
+  const [row] = rows;
+  return row;
 }
 
 function validateRootWorkspace(row, { actorUserId = null, expectedTenantId = null } = {}) {
