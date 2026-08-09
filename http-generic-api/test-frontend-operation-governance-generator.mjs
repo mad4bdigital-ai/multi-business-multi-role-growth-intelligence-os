@@ -65,7 +65,9 @@ const EVIDENCE_FILES = [
   "test-repository-reconciliation-lease-control.mjs",
   "routes/workspaceResourceRoutes.js",
   "workspaceBrandLifecycle.js",
+  "workspaceBrandRootTopology.js",
   "test-workspace-brand-create-operation-governance.mjs",
+  "test-workspace-brand-root-topology.mjs",
   "workspaceBrandCoreAssetMaterialization.js",
   "test-brand-core-asset-materialization-operation-governance.mjs",
   "migrations/319_sprint69_dynamic_container_authority_foundation.sql",
@@ -126,10 +128,14 @@ const brandRule = plan.operation_rules.find((rule) => rule.operation === BRAND_O
 assert(brandRule, "Brand Create operation must have a generated rule");
 assert.equal(brandRule.rule_id, "generated-workspace-brand-create-governance");
 assert.equal(brandRule.classification, "state_change");
-assert.equal(brandRule.preflight.mode, "locked_workspace_owner_authority_and_canonical_identity");
+assert.equal(brandRule.preflight.mode, "root_workspace_authority_and_canonical_brand_identity");
 assert.equal(brandRule.approval.mode, "runtime_authorization");
 assert.equal(brandRule.readback.before_commit, true);
+assert.equal(brandRule.parameter_bindings.root_workspace_id, "request.body.root_workspace_id");
 assert.equal(brandRule.parameter_bindings.brand_target_key, "response.brand.target_key");
+assert.equal(brandRule.parameter_bindings.topology_relationship_id, "response.topology.relationship_id");
+assert(brandRule.evidence_refs.includes("workspaceBrandRootTopology.js"));
+assert(brandRule.evidence_refs.includes("test-workspace-brand-root-topology.mjs"));
 assert.match(brandRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
 
 const materializeRule = plan.operation_rules.find((rule) => rule.operation === MATERIALIZE_OPERATION);
@@ -185,6 +191,21 @@ const noBrandOwnerFixture = createFixture();
 replaceEvidence(noBrandOwnerFixture, "workspaceBrandLifecycle.js", "OWNER_ROLES.has", "ownerRoleEvidenceRemoved");
 const noBrandOwnerPlan = buildOperationGovernance({ apiRoot: noBrandOwnerFixture });
 assert(rejection(noBrandOwnerPlan, BRAND_OPERATION).missing_evidence.includes("locked_owner_authority"));
+
+const noBrandRootAuthorityFixture = createFixture();
+replaceEvidence(noBrandRootAuthorityFixture, "workspaceBrandRootTopology.js", "ROOT_WORKSPACE_OWNERSHIP_TYPES.has", "rootWorkspaceOwnershipEvidenceRemoved");
+const noBrandRootAuthorityPlan = buildOperationGovernance({ apiRoot: noBrandRootAuthorityFixture });
+assert(rejection(noBrandRootAuthorityPlan, BRAND_OPERATION).missing_evidence.includes("root_workspace_authority"));
+
+const noBrandTransactionFixture = createFixture();
+replaceEvidence(noBrandTransactionFixture, "routes/workspaceResourceRoutes.js", "withContainerAuthorityMutation", "containerAuthorityMutationEvidenceRemoved");
+const noBrandTransactionPlan = buildOperationGovernance({ apiRoot: noBrandTransactionFixture });
+assert(rejection(noBrandTransactionPlan, BRAND_OPERATION).missing_evidence.includes("container_authority_transaction_scope"));
+
+const noBrandClosureReadbackFixture = createFixture();
+replaceEvidence(noBrandClosureReadbackFixture, "workspaceBrandRootTopology.js", "workspace_brand_root_closure_invalid", "brandRootClosureEvidenceRemoved");
+const noBrandClosureReadbackPlan = buildOperationGovernance({ apiRoot: noBrandClosureReadbackFixture });
+assert(rejection(noBrandClosureReadbackPlan, BRAND_OPERATION).missing_evidence.includes("direct_closure_readback"));
 
 const noMaterializePersistenceFixture = createFixture();
 replaceEvidence(
@@ -256,4 +277,4 @@ replaceEvidence(
 const noMaterializeRegistrationPlan = buildOperationGovernance({ apiRoot: noMaterializeRegistrationFixture });
 assert(rejection(noMaterializeRegistrationPlan, MATERIALIZE_OPERATION).missing_evidence.includes("registered_operation_test"));
 
-console.log("generated frontend operation governance Lease + Brand Create + Root Workspace Brand Container materialization extension tests passed");
+console.log("generated frontend operation governance Lease + Brand Create Root topology + Root Workspace Brand Container materialization extension tests passed");
