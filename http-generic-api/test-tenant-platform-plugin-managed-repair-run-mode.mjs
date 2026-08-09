@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { _testingManagedExecutionAuthority } from "./managedExecutionAuthority.js";
 import { normalizeManagedExecutionEnvelope } from "./managedExecutionCore.js";
+import { syncManagedExecutionRunStatus } from "./managedExecutionDecisionService.js";
 import {
   assertManagedExecutionInvocationContext,
   createTenantPlatformPluginManagedRepairDryRunInvocationContext,
@@ -145,6 +146,51 @@ const liveEnvelope = normalizeManagedExecutionEnvelope({
   input_json: { execution_mode: "live" },
 });
 assert.equal(assertManagedExecutionInvocationContext({ envelope: liveEnvelope, invocationContext: null }), true);
+
+const dryRunCompletionQueries = [];
+const dryRunCompletionConnection = {
+  async beginTransaction() {},
+  async commit() {},
+  async rollback() {},
+  release() {},
+  async query(sql) {
+    dryRunCompletionQueries.push(sql);
+    if (sql.includes("SELECT * FROM workflow_runs WHERE run_id")) {
+      return [[{
+        run_id: "run-dry-run-completion",
+        status: "running",
+        execution_context_json: JSON.stringify({
+          source: "managed_execution_lifecycle",
+          contract: "tenant-managed-execution-v1",
+          execution_mode: "dry_run",
+          authority_snapshot: {
+            contract: "tenant-managed-execution-v1",
+            execution_mode: "dry_run",
+          },
+        }),
+      }]];
+    }
+    throw new Error(`Unexpected query after dry-run completion guard: ${sql}`);
+  },
+};
+const dryRunCompletionPool = {
+  async getConnection() {
+    return dryRunCompletionConnection;
+  },
+};
+await assert.rejects(
+  syncManagedExecutionRunStatus({
+    pool: dryRunCompletionPool,
+    runId: "run-dry-run-completion",
+    nextStatus: "completed",
+    actorId: "tenant-requester",
+  }),
+  (error) => error.code === "managed_execution_dry_run_completion_executor_required",
+);
+assert.equal(dryRunCompletionQueries.length, 1);
+assert.equal(dryRunCompletionQueries.some((sql) => /^\s*(UPDATE|INSERT|DELETE)\b/i.test(sql)), false);
+assert.equal(dryRunCompletionQueries.some((sql) => sql.includes("step_runs")), false);
+assert.equal(dryRunCompletionQueries.some((sql) => sql.includes("managed_execution_bindings")), false);
 
 function certificationRow(overrides = {}) {
   return {
