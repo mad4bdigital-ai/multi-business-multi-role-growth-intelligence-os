@@ -81,6 +81,21 @@ assert.equal(acceptedReport.phase_evaluation_base, mainSha);
 assert.equal(acceptedReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(acceptedReport.production_promotion_rearm_depth, 1);
 
+const shaBoundRef = `release/production-candidate-${candidateSha.slice(0, 8)}`;
+const exactShaBound = invoke(root, { base: productionSha, head: candidateSha, headRef: shaBoundRef });
+assert.equal(exactShaBound.status, 0, exactShaBound.stderr || exactShaBound.stdout);
+const exactShaBoundReport = JSON.parse(exactShaBound.stdout);
+assert.equal(exactShaBoundReport.production_promotion, true);
+assert.equal(exactShaBoundReport.production_promotion_identity, "history_preserving_main_reconciliation");
+assert.equal(exactShaBoundReport.production_promotion_anchor_sha, candidateSha);
+assert.equal(exactShaBoundReport.production_promotion_rearm_depth, 0);
+
+const rearmedShaBound = invoke(root, { base: productionSha, head: rearmSha, headRef: shaBoundRef });
+assert.notEqual(rearmedShaBound.status, 0);
+const rearmedShaBoundReport = JSON.parse(rearmedShaBound.stdout);
+assert.equal(rearmedShaBoundReport.production_promotion, false);
+assert(rearmedShaBoundReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+
 const productionTree = run("git", ["rev-parse", `${productionSha}^{tree}`], root).trim();
 const advancedProductionSha = run("git", [
   "commit-tree", productionTree,
@@ -139,7 +154,7 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 6,
-  contract: "governed_dispatch_bridge_live_protected_refs_identity_and_zero_diff_rearm",
+  tests: 8,
+  contract: "governed_dispatch_bridge_live_protected_refs_exact_sha_bound_identity_and_zero_diff_rearm",
   secrets_included: false
 }));
