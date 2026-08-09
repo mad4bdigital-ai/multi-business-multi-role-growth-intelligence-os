@@ -10,11 +10,65 @@ import {
   managedError,
   normalizeManagedExecutionEnvelope,
   optionalString,
+  parseJson,
   requiredString,
   resolveManagedExecutionGate,
 } from "./managedExecutionCore.js";
 import { assertManagedExecutionAuthorityStillEffective, resolveManagedExecutionAuthority } from "./managedExecutionAuthority.js";
 import { appendManagedEvent, withManagedTransaction } from "./managedExecutionPersistence.js";
+
+const MANAGED_EXECUTION_RUN_MODES = new Set(["live", "dry_run"]);
+
+function managedExecutionRunMode(run = {}) {
+  const context = parseJson(run?.execution_context_json, {});
+  const authoritySnapshot = context?.authority_snapshot && typeof context.authority_snapshot === "object"
+    ? context.authority_snapshot
+    : {};
+  const mode = String(authoritySnapshot.execution_mode || context.execution_mode || "live").trim().toLowerCase();
+  if (!MANAGED_EXECUTION_RUN_MODES.has(mode)) {
+    throw managedError(409, "managed_execution_existing_execution_mode_invalid", "Existing managed execution has an invalid execution mode.", {
+      execution_mode: mode || null,
+    });
+  }
+  return mode;
+}
+
+function assertManagedExecutionReuseMode({ run = {}, requestedMode, reuseReason }) {
+  const existingMode = managedExecutionRunMode(run);
+  const normalizedRequestedMode = String(requestedMode || "live").trim().toLowerCase();
+  if (existingMode !== normalizedRequestedMode) {
+    throw managedError(
+      409,
+      reuseReason === "idempotency_key"
+        ? "managed_execution_idempotency_mode_conflict"
+        : "managed_execution_active_scope_mode_conflict",
+      "Existing managed execution mode does not match the requested execution mode.",
+      {
+        reuse_reason: reuseReason,
+        existing_execution_mode: existingMode,
+        requested_execution_mode: normalizedRequestedMode,
+      },
+    );
+  }
+  return existingMode;
+}
+
+function assertGenericManagedExecutionStepMode(authoritySnapshot = {}) {
+  const executionMode = String(authoritySnapshot.execution_mode || "live").trim().toLowerCase();
+  if (executionMode === "dry_run") {
+    throw managedError(
+      409,
+      "managed_execution_dry_run_step_executor_required",
+      "Dry-run managed executions cannot create generic managed steps; a dedicated dry-run step executor is required.",
+    );
+  }
+  if (executionMode !== "live") {
+    throw managedError(409, "managed_execution_existing_execution_mode_invalid", "Managed execution authority snapshot contains an invalid execution mode.", {
+      execution_mode: executionMode || null,
+    });
+  }
+  return true;
+}
 
 export async function createManagedExecutionStep({ pool, runId, input = {}, actorId = null }) {
   const stepKey = requiredString(input.step_key, "step_key", 128);
@@ -26,10 +80,11 @@ export async function createManagedExecutionStep({ pool, runId, input = {}, acto
   return withManagedTransaction(pool, async (connection) => {
     const [runRows] = await connection.query("SELECT * FROM workflow_runs WHERE run_id = ? LIMIT 2 FOR UPDATE", [runId]);
     if (runRows.length !== 1) throw managedError(404, "managed_execution_run_not_found", "Managed execution run was not found.");
-    const run = runRows[0];
+    const [run] = runRows;
     const [holds] = await connection.query("SELECT * FROM approval_holds WHERE run_id = ? ORDER BY id FOR UPDATE", [runId]);
     const eligibility = assertManagedExecutionStepEligibility({ run, holds });
     if (!eligibility.managed) throw managedError(409, "managed_execution_contract_required", "Run is not owned by managed execution lifecycle.");
+    assertGenericManagedExecutionStepMode(eligibility.authority_snapshot);
     await assertManagedExecutionAuthorityStillEffective({ connection, authoritySnapshot: eligibility.authority_snapshot });
 
     const [requestRows] = await connection.query(
@@ -38,14 +93,15 @@ export async function createManagedExecutionStep({ pool, runId, input = {}, acto
     );
     if (requestRows.length > 1) throw managedError(409, "managed_execution_step_idempotency_ambiguous", "Step idempotency key resolved to multiple requests.");
     if (requestRows.length === 1) {
-      const existing = requestRows[0];
+      const [existing] = requestRows;
       const [stepRows] = await connection.query("SELECT * FROM step_runs WHERE step_run_id = ? LIMIT 1", [existing.step_run_id]);
-      return { ok: true, reused: true, request: existing, step: stepRows[0] || null, secrets_included: false };
+      const [step = null] = stepRows;
+      return { ok: true, reused: true, request: existing, step, secrets_included: false };
     }
 
     const [bindingRows] = await connection.query("SELECT * FROM managed_execution_bindings WHERE run_id = ? LIMIT 2 FOR UPDATE", [runId]);
     if (bindingRows.length !== 1) throw managedError(409, "managed_execution_binding_missing", "Managed execution binding is missing or ambiguous.");
-    const binding = bindingRows[0];
+    const [binding] = bindingRows;
     const stepRunId = randomUUID();
     const requestId = randomUUID();
     await connection.query(
@@ -107,9 +163,17 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
 
   return withManagedTransaction(pool, async (connection) => {
     const readReuse = async (binding, reuseReason) => {
-      const [runRows] = await connection.query("SELECT * FROM workflow_runs WHERE run_id = ? LIMIT 1", [binding.run_id]);
+      const [runRows] = await connection.query("SELECT * FROM workflow_runs WHERE run_id = ? LIMIT 2", [binding.run_id]);
+      if (runRows.length !== 1) {
+        throw managedError(409, "managed_execution_reuse_run_missing_or_ambiguous", "Managed execution reuse target does not resolve to exactly one workflow run.", {
+          reuse_reason: reuseReason,
+          candidate_count: runRows.length,
+        });
+      }
+      const [run] = runRows;
+      assertManagedExecutionReuseMode({ run, requestedMode: envelope.execution_mode, reuseReason });
       const [holdRows] = await connection.query("SELECT * FROM approval_holds WHERE run_id = ? ORDER BY id", [binding.run_id]);
-      return { ok: true, reused: true, reuse_reason: reuseReason, binding, run: runRows[0] || null, holds: holdRows, secrets_included: false };
+      return { ok: true, reused: true, reuse_reason: reuseReason, binding, run, holds: holdRows, secrets_included: false };
     };
 
     const [existingRows] = await connection.query(
@@ -117,7 +181,8 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
       [envelope.tenant_id, envelope.idempotency_key],
     );
     if (existingRows.length > 1) throw managedError(409, "managed_execution_idempotency_ambiguous", "Idempotency key resolved to multiple managed execution bindings.");
-    if (existingRows.length === 1) return readReuse(existingRows[0], "idempotency_key");
+    const [existingBinding = null] = existingRows;
+    if (existingBinding) return readReuse(existingBinding, "idempotency_key");
 
     const [activeScopeRows] = await connection.query(
       `SELECT b.*
@@ -131,14 +196,16 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
       [envelope.tenant_id, envelope.user_id, envelope.parent_ticket_id, envelope.capability_key, envelope.resource_type, envelope.resource_ref, envelope.effect_class],
     );
     if (activeScopeRows.length > 1) throw managedError(409, "managed_execution_active_scope_ambiguous", "Multiple active managed executions exist for the same requester and scope.");
-    if (activeScopeRows.length === 1) return readReuse(activeScopeRows[0], "active_scope");
+    const [activeScopeBinding = null] = activeScopeRows;
+    if (activeScopeBinding) return readReuse(activeScopeBinding, "active_scope");
 
     const [parentRows] = await connection.query(
       "SELECT ticket_id, tenant_id, status, lifecycle_state FROM tickets WHERE ticket_id = ? AND tenant_id = ? LIMIT 2 FOR UPDATE",
       [envelope.parent_ticket_id, envelope.tenant_id],
     );
     if (parentRows.length !== 1) throw managedError(404, "managed_execution_parent_ticket_not_found", "Parent ticket was not found for the tenant.");
-    if (!OPEN_PARENT_STATUSES.has(parentRows[0].status)) throw managedError(409, "managed_execution_parent_ticket_terminal", "Parent ticket is already terminal.");
+    const [parent] = parentRows;
+    if (!OPEN_PARENT_STATUSES.has(parent.status)) throw managedError(409, "managed_execution_parent_ticket_terminal", "Parent ticket is already terminal.");
 
     const authority = await resolveManagedExecutionAuthority({ connection, envelope });
     const authoritySnapshot = buildManagedAuthoritySnapshot({ envelope, access, gate, authority });
@@ -166,6 +233,7 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
         managed_execution_contract: "tenant-managed-execution-v1",
         workflow_key: envelope.workflow_key,
         effect_class: envelope.effect_class,
+        execution_mode: envelope.execution_mode,
         resource_type: envelope.resource_type,
         resource_ref: envelope.resource_ref,
         authority_fingerprint_sha256: authoritySnapshot.fingerprint_sha256,
@@ -184,6 +252,7 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
       binding_id: bindingId,
       parent_ticket_id: envelope.parent_ticket_id,
       task_ticket_id: taskTicketId,
+      execution_mode: envelope.execution_mode,
       authority_snapshot: authoritySnapshot,
       secrets_included: false,
     };
@@ -215,7 +284,7 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
           holdId, runId, envelope.tenant_id, envelope.workspace_id, envelope.workspace_key,
           envelope.user_id, envelope.user_id, envelope.user_id, envelope.brand_id, envelope.brand_key,
           envelope.request_id, envelope.session_id, envelope.conversation_id, correlationId,
-          JSON.stringify({ source: "managed_execution_lifecycle", contract: "tenant-managed-execution-v1", binding_id: bindingId, authority_fingerprint_sha256: authoritySnapshot.fingerprint_sha256, secrets_included: false }),
+          JSON.stringify({ source: "managed_execution_lifecycle", contract: "tenant-managed-execution-v1", binding_id: bindingId, authority_fingerprint_sha256: authoritySnapshot.fingerprint_sha256, execution_mode: envelope.execution_mode, secrets_included: false }),
           gate.hold_type, gate.required_role,
         ],
       );
@@ -237,7 +306,7 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
     await appendManagedEvent(connection, {
       bindingId, runId, tenantId: envelope.tenant_id, eventType: "managed_execution_created",
       toState: gate.lifecycle_state, actorId: envelope.user_id,
-      evidence: { task_ticket_id: taskTicketId, approval_hold_id: holdId, effect_class: envelope.effect_class, authority_fingerprint_sha256: authoritySnapshot.fingerprint_sha256 },
+      evidence: { task_ticket_id: taskTicketId, approval_hold_id: holdId, effect_class: envelope.effect_class, execution_mode: envelope.execution_mode, authority_fingerprint_sha256: authoritySnapshot.fingerprint_sha256 },
     });
     return {
       ok: true,
@@ -249,3 +318,9 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
     };
   });
 }
+
+export const _testingManagedExecutionRunService = {
+  managedExecutionRunMode,
+  assertManagedExecutionReuseMode,
+  assertGenericManagedExecutionStepMode,
+};
