@@ -54,7 +54,7 @@ assert.match(requestWorkflow, /pull_request_is_draft/u);
 assert.match(requestWorkflow, /mad4b\.governed-generated-artifact-refresh-request\.v1/u);
 assert.match(
   requestWorkflow,
-  /reason:\(if \(\$reason\|length\)>0 then \$reason else null end\)/u,
+  /reason:\(if \(\$reason \| length\) > 0 then \$reason else null end\)/u,
   "eligible request must keep a parseable structured report when reason is empty",
 );
 assert.doesNotMatch(
