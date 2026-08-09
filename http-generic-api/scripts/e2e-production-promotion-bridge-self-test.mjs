@@ -14,7 +14,7 @@ function run(program, args, cwd) {
   return execFileSync(program, args, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-function invoke(root, { base, head, headRef }) {
+function invoke(root, { base, head, headRef, environment = {} }) {
   return spawnSync(process.execPath, [
     GATE,
     "--root", root,
@@ -22,7 +22,15 @@ function invoke(root, { base, head, headRef }) {
     "--head", head,
     "--head-ref", headRef,
     "--base-ref", "Production"
-  ], { cwd: root, encoding: "utf8" });
+  ], {
+    cwd: root,
+    encoding: "utf8",
+    env: {
+      ...process.env,
+      GITHUB_TOKEN_FOR_REF_LOOKUP: "",
+      ...environment
+    }
+  });
 }
 
 function updateRemoteRef(remoteRoot, ref, sha, cwd) {
@@ -32,6 +40,7 @@ function updateRemoteRef(remoteRoot, ref, sha, cwd) {
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-production-bridge-"));
 const remoteRoot = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-production-bridge-origin-"));
+const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-production-bridge-gh-"));
 run("git", ["init", "--bare", remoteRoot], root);
 fs.mkdirSync(path.join(root, ".specify"), { recursive: true });
 fs.copyFileSync(POLICY, path.join(root, ".specify", "e2e-phase-governance.json"));
@@ -57,6 +66,29 @@ run("git", ["update-ref", "refs/remotes/origin/main", mainSha], root);
 updateRemoteRef(remoteRoot, "refs/heads/main", mainSha, root);
 const mainTree = run("git", ["rev-parse", `${mainSha}^{tree}`], root).trim();
 
+const fakeGh = path.join(fakeBin, "gh");
+fs.writeFileSync(fakeGh, `#!/usr/bin/env node
+const [verb, endpoint, jqFlag, jqQuery] = process.argv.slice(2);
+if (process.env.GH_TOKEN !== "synthetic-read-token") process.exit(21);
+if (process.env.FAKE_GH_FORCE_FAILURE === "1") process.exit(22);
+if (verb !== "api" || jqFlag !== "--jq" || jqQuery !== ".object.sha") process.exit(23);
+if (endpoint === "repos/example/private-repo/git/ref/heads/main") {
+  process.stdout.write(String(process.env.FAKE_GH_MAIN_SHA || "") + "\\n");
+} else if (endpoint === "repos/example/private-repo/git/ref/heads/Production") {
+  process.stdout.write(String(process.env.FAKE_GH_PRODUCTION_SHA || "") + "\\n");
+} else {
+  process.exit(24);
+}
+`);
+fs.chmodSync(fakeGh, 0o755);
+const authenticatedEnvironment = {
+  GITHUB_TOKEN_FOR_REF_LOOKUP: "synthetic-read-token",
+  GITHUB_REPOSITORY: "example/private-repo",
+  FAKE_GH_MAIN_SHA: mainSha,
+  FAKE_GH_PRODUCTION_SHA: productionSha,
+  PATH: `${fakeBin}${path.delimiter}${process.env.PATH || ""}`
+};
+
 const candidateSha = run("git", [
   "commit-tree", mainTree,
   "-p", mainSha,
@@ -80,6 +112,28 @@ assert.equal(acceptedReport.production_promotion_identity, "history_preserving_m
 assert.equal(acceptedReport.phase_evaluation_base, mainSha);
 assert.equal(acceptedReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(acceptedReport.production_promotion_rearm_depth, 1);
+
+const authenticatedAccepted = invoke(root, {
+  base: productionSha,
+  head: rearmSha,
+  headRef: bridgeRef,
+  environment: authenticatedEnvironment
+});
+assert.equal(authenticatedAccepted.status, 0, authenticatedAccepted.stderr || authenticatedAccepted.stdout);
+const authenticatedAcceptedReport = JSON.parse(authenticatedAccepted.stdout);
+assert.equal(authenticatedAcceptedReport.production_promotion, true);
+assert.equal(authenticatedAcceptedReport.production_promotion_identity, "history_preserving_main_reconciliation");
+
+const authenticatedFailure = invoke(root, {
+  base: productionSha,
+  head: rearmSha,
+  headRef: bridgeRef,
+  environment: { ...authenticatedEnvironment, FAKE_GH_FORCE_FAILURE: "1" }
+});
+assert.notEqual(authenticatedFailure.status, 0, "authenticated API failure must not fall back to unauthenticated git");
+const authenticatedFailureReport = JSON.parse(authenticatedFailure.stdout);
+assert.equal(authenticatedFailureReport.production_promotion, false);
+assert(authenticatedFailureReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
 
 const shaBoundRef = `release/production-candidate-${candidateSha.slice(0, 8)}`;
 const exactShaBound = invoke(root, { base: productionSha, head: candidateSha, headRef: shaBoundRef });
@@ -154,7 +208,9 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 8,
-  contract: "governed_dispatch_bridge_live_protected_refs_exact_sha_bound_identity_and_zero_diff_rearm",
+  tests: 10,
+  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_and_zero_diff_rearm",
+  authenticated_ref_lookup: true,
+  authenticated_lookup_fails_closed_without_git_fallback: true,
   secrets_included: false
 }));
