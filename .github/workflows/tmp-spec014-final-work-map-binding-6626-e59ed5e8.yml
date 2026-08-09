@@ -1,0 +1,221 @@
+name: Temporary Spec 014 Final Work Map Binding Writer 6626 e59ed5e8
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/tmp-spec014-final-work-map-binding-6626-e59ed5e8.yml'
+
+permissions:
+  actions: write
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: tmp-spec014-final-work-map-binding-6626-e59ed5e8-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh-final-bindings:
+    if: >-
+      github.event.pull_request.number == 6626 &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'fix/generated-artifact-refresh-eligible-request-json-20260807' &&
+      github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      AUTHORIZED_SOURCE_SHA: e59ed5e8fbeb705000fcb5f6497c5e976ec8cf44
+      EXPECTED_MAIN_SHA: 16eb1b9e0c66b05160469b799b6db8b7d83e5936
+      EXPECTED_FINGERPRINT: b7b814a127fd2d4efad031368b745ac922c95f4efaa54c63c99a7fe604bc3661
+      EXPECTED_INDEX_SOURCE_HASH: 851d8bd2d4ace37b3aa4eac23879cfcabfa2dbbe9cad25bc48e33bd3bb241311
+      TARGET_BRANCH: fix/generated-artifact-refresh-eligible-request-json-20260807
+      TEMP_WORKFLOW: .github/workflows/tmp-spec014-final-work-map-binding-6626-e59ed5e8.yml
+      HOSTINGER_MANIFEST: specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+      RETAIL_MANIFEST: specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+    steps:
+      - name: Initialize bounded evidence directory
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          report_dir="${RUNNER_TEMP}/spec014-final-work-map-binding-6626"
+          rm -rf "${report_dir}"
+          mkdir -p "${report_dir}"
+          echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
+
+      - name: Checkout exact writer envelope head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify exact authorization ancestry and bounded source set
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "${{ github.event.pull_request.base.sha }}" = "${EXPECTED_MAIN_SHA}"
+          test "${{ github.event.pull_request.head.ref }}" = "${TARGET_BRANCH}"
+          test "$(git rev-parse HEAD^)" = "${AUTHORIZED_SOURCE_SHA}"
+          test "$(git rev-list --parents -n 1 HEAD | awk '{print NF}')" -eq 2
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN_SHA}"
+          git merge-base --is-ancestor "${EXPECTED_MAIN_SHA}" "${AUTHORIZED_SOURCE_SHA}"
+
+          mapfile -t writer_delta < <(git diff --name-only "${AUTHORIZED_SOURCE_SHA}" HEAD)
+          test "${#writer_delta[@]}" -eq 1
+          test "${writer_delta[0]}" = "${TEMP_WORKFLOW}"
+
+          mapfile -t source_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}" "${AUTHORIZED_SOURCE_SHA}")
+          test "${#source_paths[@]}" -eq 10
+          for required in \
+            ".changes/e2e/governed-generated-artifact-refresh-dispatch.json" \
+            ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json" \
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml" \
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml" \
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml" \
+            ".github/workflows/pr-generated-artifact-refresh.yml" \
+            "docs/work-maps/README.md" \
+            "docs/work-maps/repository-automation-map.md" \
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs" \
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs"
+          do
+            printf '%s\n' "${source_paths[@]}" | grep -Fx "${required}"
+          done
+          test -z "$(git status --porcelain)"
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Run canonical deterministic binding refresh for both Spec 014 manifests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs > "${REPORT_DIR}/refresh-hostinger.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os \
+            > "${REPORT_DIR}/refresh-retail.json"
+
+          mapfile -t generated < <(git diff --name-only)
+          test "${#generated[@]}" -eq 2
+          printf '%s\n' "${generated[@]}" | grep -Fx "${HOSTINGER_MANIFEST}"
+          printf '%s\n' "${generated[@]}" | grep -Fx "${RETAIL_MANIFEST}"
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const reportDir = process.env.REPORT_DIR;
+          const expectedFingerprint = process.env.EXPECTED_FINGERPRINT;
+          const expectedIndex = process.env.EXPECTED_INDEX_SOURCE_HASH;
+          for (const name of ['refresh-hostinger.json', 'refresh-retail.json']) {
+            const r = JSON.parse(fs.readFileSync(`${reportDir}/${name}`, 'utf8'));
+            if (r.ok !== true) throw new Error(`${name}: refresh not ok`);
+            if (!Array.isArray(r.changed_files) || r.changed_files.length !== 1) throw new Error(`${name}: unexpected changed_files`);
+            if (r.current_registry?.fingerprint !== expectedFingerprint) throw new Error(`${name}: fingerprint mismatch`);
+            if (r.current_registry?.index_source_hash !== expectedIndex) throw new Error(`${name}: index source hash mismatch`);
+            if (r.classification_coverage_percent !== 100 || r.unresolved_schema_objects !== 0) throw new Error(`${name}: classification not complete`);
+          }
+          NODE
+          git diff --check
+
+      - name: Prove canonical refresh idempotency and exact readback
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check > "${REPORT_DIR}/check-hostinger.json"
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs \
+            --feature-key 014-retail-commerce-operations-growth-os \
+            --check \
+            > "${REPORT_DIR}/check-retail.json"
+
+          REPORT_PATH="${REPORT_DIR}/readback-hostinger.json" \
+            node http-generic-api/scripts/spec014-final-work-map-readback.mjs \
+            > "${REPORT_DIR}/readback-hostinger.stdout.json"
+
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const reportDir = process.env.REPORT_DIR;
+          const expectedFingerprint = process.env.EXPECTED_FINGERPRINT;
+          const expectedIndex = process.env.EXPECTED_INDEX_SOURCE_HASH;
+          for (const name of ['check-hostinger.json', 'check-retail.json']) {
+            const r = JSON.parse(fs.readFileSync(`${reportDir}/${name}`, 'utf8'));
+            if (r.ok !== true) throw new Error(`${name}: check not ok`);
+            if (!Array.isArray(r.changed_files) || r.changed_files.length !== 0) throw new Error(`${name}: check is not idempotent`);
+            if (r.current_registry?.fingerprint !== expectedFingerprint) throw new Error(`${name}: fingerprint mismatch`);
+            if (r.current_registry?.index_source_hash !== expectedIndex) throw new Error(`${name}: index source hash mismatch`);
+          }
+          const rb = JSON.parse(fs.readFileSync(`${reportDir}/readback-hostinger.json`, 'utf8'));
+          if (rb.ok !== true || rb.findings.length !== 0) throw new Error('Hostinger readback is not clean');
+          if (rb.classification?.coverage_percent !== 100 || rb.classification?.unresolved_count !== 0) throw new Error('classification readback is not complete');
+          if (rb.current_registry?.fingerprint !== expectedFingerprint || rb.current_registry?.index_source_hash !== expectedIndex) throw new Error('readback registry mismatch');
+          NODE
+
+      - name: Retire writer and publish bounded candidate commit
+        id: publish
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          remote_before="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_before}" = "$(git rev-parse HEAD)"
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add "${HOSTINGER_MANIFEST}" "${RETAIL_MANIFEST}"
+          git rm "${TEMP_WORKFLOW}"
+
+          mapfile -t final_paths < <(git diff --name-only "${EXPECTED_MAIN_SHA}")
+          test "${#final_paths[@]}" -eq 12
+          for required in \
+            ".changes/e2e/governed-generated-artifact-refresh-dispatch.json" \
+            ".changes/e2e/governed-generated-artifact-refresh-pr-target-bridge.json" \
+            ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml" \
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml" \
+            ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml" \
+            ".github/workflows/pr-generated-artifact-refresh.yml" \
+            "docs/work-maps/README.md" \
+            "docs/work-maps/repository-automation-map.md" \
+            "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs" \
+            "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs" \
+            "${HOSTINGER_MANIFEST}" \
+            "${RETAIL_MANIFEST}"
+          do
+            printf '%s\n' "${final_paths[@]}" | grep -Fx "${required}"
+          done
+          test ! -e "${TEMP_WORKFLOW}"
+          git diff --cached --check
+
+          git commit -m 'chore(spec-014): refresh final Work Map bindings for PR 6626'
+          result_sha="$(git rev-parse HEAD)"
+          remote_pre_push="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_pre_push}" = "${{ github.event.pull_request.head.sha }}"
+          git push origin "HEAD:${TARGET_BRANCH}"
+          remote_after="$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
+          test "${remote_after}" = "${result_sha}"
+          echo "result_sha=${result_sha}" >> "$GITHUB_OUTPUT"
+
+          node -e "const fs=require('fs'); fs.writeFileSync(process.env.REPORT_DIR+'/result.json', JSON.stringify({contract:'mad4b.spec014-final-work-map-binding-writer.v2',authorized_source_sha:process.env.AUTHORIZED_SOURCE_SHA,expected_main_sha:process.env.EXPECTED_MAIN_SHA,result_sha:'${result_sha}',target_branch:process.env.TARGET_BRANCH,write_set:[process.env.HOSTINGER_MANIFEST,process.env.RETAIL_MANIFEST],force_push:false,protected_branch_mutation:false,provider_dispatch:false,live_database_access:false,migration_apply:false,secrets_included:false},null,2)+'\\n')"
+
+      - name: Dispatch exact-head CI and Work Map verification
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESULT_SHA: ${{ steps.publish.outputs.result_sha }}
+        run: |
+          set -Eeuo pipefail
+          test "$(git ls-remote origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')" = "${RESULT_SHA}"
+          for workflow in ci.yml spec-kit-work-map-integration.yml; do
+            payload="$(jq -cn --arg ref "${TARGET_BRANCH}" '{ref:$ref}')"
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" --input - <<<"${payload}"
+          done
+
+      - name: Upload bounded no-secret evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spec014-final-work-map-binding-6626-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/*
+          if-no-files-found: warn
+          retention-days: 30
