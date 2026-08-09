@@ -134,6 +134,53 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
 }
 
 {
+  const rows = sourceRows();
+  rows.workspaces.push(
+    {
+      workspace_id: companyRoot.workspace_id,
+      tenant_id: "tenant-a",
+      workspace_key: companyRoot.workspace_key,
+      display_name: companyRoot.display_name,
+      workspace_type: companyRoot.workspace_type,
+      workspace_ownership_type: companyRoot.workspace_ownership_type,
+      owner_user_id: companyRoot.owner_user_id,
+      bootstrap_status: "ready",
+      linked_brand_key: null,
+      config_json: JSON.stringify({}),
+    },
+    {
+      workspace_id: "brand-workspace-b",
+      tenant_id: "tenant-a",
+      workspace_key: "brand-workspace-b",
+      display_name: "Acme Travel Duplicate",
+      workspace_type: "brand",
+      workspace_ownership_type: null,
+      owner_user_id: null,
+      bootstrap_status: "in_progress",
+      linked_brand_key: "brand-a",
+      config_json: JSON.stringify({ root_workspace_id: companyRoot.workspace_id }),
+    }
+  );
+  const plan = await buildLegacyContainerProjectionPlan({ sourceRows: rows });
+  assert.ok(plan.issues.some((item) =>
+    item.issue_code === "workspace_brand_root_projection_ambiguous" &&
+    item.severity === "high" &&
+    item.status === "held"
+  ));
+  const brandContainer = plan.containers.find((row) => row.container_type_key === "brand" && row.canonical_subject_ref === "brand-a");
+  const workspaceContainerIds = new Set(plan.containers.filter((row) => row.container_type_key === "workspace").map((row) => row.container_id));
+  assert.equal(
+    plan.relationships.some((row) =>
+      row.relationship_type_key === "contains" &&
+      row.to_container_id === brandContainer?.container_id &&
+      workspaceContainerIds.has(row.from_container_id)
+    ),
+    false,
+    "ambiguous Brand roots must hold all planned Workspace-to-Brand containment instead of selecting a candidate"
+  );
+}
+
+{
   const containers = [
     { container_id: "root-container", tenant_id: "tenant-a", container_type_key: "workspace" },
     { container_id: "brand-workspace-container", tenant_id: "tenant-a", container_type_key: "workspace" },
@@ -208,6 +255,44 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
     () => archiveSupersededLegacyBrandEdges(connection, containers, relationships, "tenant-a"),
     (error) => error?.code === "container_projection_brand_root_conflict"
   );
+}
+
+{
+  const containers = [
+    { container_id: "root-a", tenant_id: "tenant-a", container_type_key: "workspace" },
+    { container_id: "root-b", tenant_id: "tenant-a", container_type_key: "workspace" },
+    { container_id: "brand-container", tenant_id: "tenant-a", container_type_key: "brand" },
+  ];
+  const relationships = [
+    {
+      relationship_id: "root-a-edge",
+      tenant_id: "tenant-a",
+      from_container_id: "root-a",
+      to_container_id: "brand-container",
+      relationship_type_key: "contains",
+      status: "active",
+    },
+    {
+      relationship_id: "root-b-edge",
+      tenant_id: "tenant-a",
+      from_container_id: "root-b",
+      to_container_id: "brand-container",
+      relationship_type_key: "contains",
+      status: "active",
+    },
+  ];
+  const calls = [];
+  const connection = {
+    async query(sql) {
+      calls.push(String(sql));
+      throw new Error(`Ambiguous plan must fail before SQL: ${sql}`);
+    },
+  };
+  await assert.rejects(
+    () => archiveSupersededLegacyBrandEdges(connection, containers, relationships, "tenant-a"),
+    (error) => error?.code === "container_projection_brand_root_plan_ambiguous"
+  );
+  assert.equal(calls.length, 0, "ambiguous planned roots must be rejected before any archive/read mutation SQL");
 }
 
 const routeSource = await fs.readFile(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
