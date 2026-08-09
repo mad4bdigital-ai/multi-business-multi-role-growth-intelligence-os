@@ -12,6 +12,7 @@
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/workspaceBrandRootTopology.js",
       "http-generic-api/dynamicContainerProjectionService.js",
+      "http-generic-api/test-dynamic-container-authority-runtime.mjs",
       "http-generic-api/test-workspace-brand-create.mjs",
       "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
       "http-generic-api/test-workspace-brand-root-topology.mjs",
@@ -56,7 +57,7 @@
             "Rebuild container_closure inside the same mutation transaction using the pending authority epoch and require one direct unambiguous Root-to-Brand path with shortest_depth=1, longest_depth=1, and path_count=1 before commit.",
             "Advance the tenant container_authority_epoch, commit once, and invalidate the container authority cache after successful commit.",
             "Require dynamicContainerProjectionService to consume workspace_registry.config_json.root_workspace_id for operational Brand workspaces and never fall back to making the operational workspace the Brand authority parent.",
-            "Register the Brand Create and Root topology regressions in the canonical test manifest and exact frontend operation evidence.",
+            "Register the Brand Create, Root topology, and legacy dynamic-container projection regressions in the canonical test manifest and exact frontend operation evidence.",
             "Generate the Brand Create state_change rule only when route, runtime auth, Root authority, transaction, locked owner authority, canonical identity, tenant link, operational Brand workspace, creator grant, exact topology readback, no-secret response, and registered operation test evidence all pass.",
             "Require generated operation governance, frontend dispatch, and runtime route evidence to match the final source tree through the governed generated-artifact lifecycle."
           ],
@@ -78,6 +79,7 @@
             "Root-to-Brand closure readback is one direct path with shortest_depth=1, longest_depth=1, and path_count=1 before commit.",
             "Brand Create and legacy projection derive identical deterministic container and relationship identities.",
             "Projection with a missing or invalid root_workspace_id records a high-severity held issue and emits no fallback Brand containment edge from the operational Brand workspace.",
+            "The legacy dynamic-container runtime regression projects a Brand through workspace_registry.config_json.root_workspace_id without falling back to the operational Brand workspace as authority parent.",
             "Idempotent retries converge on the same Brand, operational workspace, Root-to-Brand relationship, and direct closure without creating a second authority path.",
             "The operation-governance generator fails closed when required Brand Create evidence is missing.",
             "With complete evidence, Brand Create is classified state_change with runtime authorization, canonical container-authority transaction, exact topology readback before commit, parameter bindings, and registered test evidence.",
@@ -107,6 +109,13 @@
               "args": []
             },
             {
+              "id": "dynamic-container-authority-runtime-brand-root-projection",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-dynamic-container-authority-runtime.mjs",
+              "args": []
+            },
+            {
               "id": "frontend-operation-governance-generator-brand-extension",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -120,6 +129,7 @@
             "http-generic-api/workspaceBrandLifecycle.js",
             "http-generic-api/workspaceBrandRootTopology.js",
             "http-generic-api/dynamicContainerProjectionService.js",
+            "http-generic-api/test-dynamic-container-authority-runtime.mjs",
             "http-generic-api/test-workspace-brand-create.mjs",
             "http-generic-api/test-workspace-brand-create-operation-governance.mjs",
             "http-generic-api/test-workspace-brand-root-topology.mjs",
