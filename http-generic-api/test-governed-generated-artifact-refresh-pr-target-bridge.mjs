@@ -60,7 +60,7 @@ assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
 assert.match(requestWorkflow, /secrets_included:\s*false/u);
 assert.match(requestWorkflow, /Upload exact-head refresh request/u);
 assert.doesNotMatch(requestWorkflow, /reason:\(\$reason\|select\(length>0\)\)/u, "eligible requests must not be filtered into an empty JSON document");
-assert.match(requestWorkflow, /reason:\(if \(\$reason\|length\)>0 then \$reason else null end\)/u, "eligible requests must encode an absent reason as JSON null while preserving the request object");
+assert.match(requestWorkflow, /reason:\(\s*if\s+\(\s*\$reason\s*\|\s*length\s*\)\s*>\s*0\s+then\s+\$reason\s+else\s+null\s+end\s*\)/u, "eligible requests must encode an absent reason as JSON null while preserving the request object");
 
 assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
