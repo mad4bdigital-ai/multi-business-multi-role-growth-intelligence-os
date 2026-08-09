@@ -1,7 +1,9 @@
--- Register a dedicated governed authority for tenant Platform Plugin managed repair.
+-- Register a staged governed authority contract for tenant Platform Plugin managed repair.
 -- This migration changes registry/readiness metadata only. It does NOT execute a
 -- repair, call a provider, create a managed execution run, grant a tenant/user
 -- resource permission, read secret payloads, or mutate Production by itself.
+-- The dedicated repair executor is intentionally NOT registered by this migration,
+-- so dispatch/apply remain fail-closed until a later governed executor activation.
 -- provider_call_executed=false; external_write_executed=false;
 -- managed_repair_executed=false; resource_grant_created=false;
 -- credential_payload_read=false; force_push=false; secrets_included=false.
@@ -22,10 +24,10 @@ VALUES
    1,
    1,
    1,
-   1,
-   'certified',
+   0,
+   'baseline_registered',
    'routes/managedExecutionRoutes.js',
-   'Allowlisted internal repair recipes execute only through tenant-managed-execution-v1. The route revalidates capability authority and an operate-or-stronger exact/workspace resource grant, requires managed_handoff approval, idempotency and readback. This row does not grant resource authority or execute a repair.')
+   'Staged authority metadata only. Dispatch/apply remain blocked until a dedicated tenant_platform_plugin_managed_repair_v1 executor, capability-specific dry-run validation, JWT-bound principal injection, workspace readback context, approval, idempotency and readback are all governed and certified.')
 ON DUPLICATE KEY UPDATE
   display_name=VALUES(display_name),
   route_family=VALUES(route_family),
@@ -36,8 +38,8 @@ ON DUPLICATE KEY UPDATE
   dry_run_required=1,
   audit_required=1,
   readback_required=1,
-  apply_allowed_default=1,
-  enforcement_status='certified',
+  apply_allowed_default=0,
+  enforcement_status='baseline_registered',
   runtime_surface=VALUES(runtime_surface),
   notes=VALUES(notes),
   updated_at=CURRENT_TIMESTAMP;
@@ -53,18 +55,9 @@ SELECT
   MAX(CASE WHEN COALESCE(c.requires_audit_evidence, 0) = 1 THEN 1 ELSE 0 END) AS audit_required,
   MAX(CASE WHEN COALESCE(c.requires_readback, 0) = 1 THEN 1 ELSE 0 END) AS readback_required,
   MAX(CASE WHEN NULLIF(TRIM(COALESCE(c.evidence_ref, '')), '') IS NOT NULL THEN 1 ELSE 0 END) AS authority_evidence_declared,
-  CASE
-    WHEN COUNT(c.capability_key) = 1
-     AND MAX(CASE WHEN LOWER(COALESCE(c.runtime_status, '')) = 'certified' THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN COALESCE(c.dispatch_allowed, 0) = 1 THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN COALESCE(c.apply_allowed, 0) = 1 THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN COALESCE(c.resource_authority_required, 0) = 1 THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN COALESCE(c.requires_audit_evidence, 0) = 1 THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN COALESCE(c.requires_readback, 0) = 1 THEN 1 ELSE 0 END) = 1
-     AND MAX(CASE WHEN NULLIF(TRIM(COALESCE(c.evidence_ref, '')), '') IS NOT NULL THEN 1 ELSE 0 END) = 1
-    THEN 'ready'
-    ELSE 'blocked'
-  END AS readiness_status,
+  0 AS executor_registered,
+  'blocked' AS readiness_status,
+  'managed_repair_executor_not_registered' AS readiness_reason,
   'managed_execution_revalidates_resource_grant_before_run_creation' AS caller_authority_requirement,
   0 AS repair_executed,
   0 AS provider_call_executed,
@@ -87,11 +80,14 @@ VALUES
    1,
    1,
    1,
-   'Authorize metadata-only registration of the dedicated Platform Plugin managed-repair authority and readiness view. Applying this migration does not execute any repair; every repair still requires a separate tenant-managed execution run, effective resource grant, managed_handoff approval, idempotency and readback.',
+   'Authorize metadata-only registration of a staged Platform Plugin managed-repair authority and blocked readiness view. Applying this migration does not enable dispatch/apply or execute any repair. A later governed executor activation must replace the blocked readiness contract after executable dry-run, JWT principal binding, workspace readback, approval, idempotency and reconciliation are proven.',
    JSON_OBJECT(
      'scope','tenant_platform_plugin_managed_repair_authority_registration',
      'typed_migration_confirmation_required',TRUE,
      'managed_repair_execution',FALSE,
+     'managed_repair_dispatch_enabled',FALSE,
+     'managed_repair_apply_enabled',FALSE,
+     'executor_registered',FALSE,
      'provider_calls',FALSE,
      'external_writes',FALSE,
      'resource_grant_creation',FALSE,
