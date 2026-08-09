@@ -13,6 +13,10 @@
       "http-generic-api/migrations/1052_tenant_platform_plugin_managed_repair_authority.sql",
       "http-generic-api/routes/tenantPlatformPluginRoutes.js",
       "http-generic-api/tenantPlatformPluginEligibility.js",
+      "http-generic-api/tenantPlatformPluginManagedRepairAuthority.js",
+      "http-generic-api/tenantPlatformPluginManagedRepairExecutor.js",
+      "http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs",
+      "http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs",
       "http-generic-api/test-tenant-platform-plugin-managed-repair.mjs",
       "http-generic-api/test-tenant-platform-plugin-routes.mjs"
     ]
@@ -24,7 +28,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Project the canonical Platform Plugin resolver decision into a tenant-safe eligibility state with typed blockers and staged managed-repair candidate metadata, while remaining fail-closed until a dedicated executor and capability-specific execution contract are actually registered and certified.",
+      "objective": "Project canonical Platform Plugin resolver decisions into tenant-safe eligibility and implement the source-only managed-repair dry-run contract with Context Kernel workspace authority, while remaining fail-closed until route registration, Migration 1052 application, capability certification and Managed Execution activation are separately governed.",
       "e2e_journeys": [
         {
           "id": "tenant-resolve-projects-eligibility-and-staged-remediation",
@@ -32,7 +36,7 @@
           "level": "synthetic_runtime",
           "actor": "Authenticated tenant user resolving a Platform Plugin capability",
           "entrypoint": "POST /tenant/platform/plugins/resolve after canonical User-JWT and active-membership authorization",
-          "terminal_outcome": "The response exposes ready, blocked, approval_required, unavailable, or deprecated eligibility plus typed repair classes. Missing runtime bindings remain fail-closed without staged identity when the resolver has only a request selector; missing or expired smoke certification may expose non-executable staged metadata only when an exact selector is proven by the resolved binding. managed_repair.available remains false until a dedicated executor, dispatch certification, dry-run enforcement, JWT principal binding and workspace readback context exist.",
+          "terminal_outcome": "The tenant response remains fail-closed and managed_repair.available remains false. Source-only dry-run code can validate a resolver-bound smoke-certification candidate and an authoritative User-JWT tenant/user/workspace context, but it is not registered as a callable executor, creates no Managed Execution run and performs no repair or external mutation.",
           "steps": [
             "Resolve the requested capability through the existing canonical Platform Plugin resolver and its fail-closed security gates.",
             "Strip the admin-only decision trace projection from the tenant response as before.",
@@ -42,29 +46,33 @@
             "Never treat the request selector echo as a canonical repair identity; derive action_key or tool_key only from the resolved binding row.",
             "Withhold staged candidate metadata for missing bindings because no resolved binding exists to prove a canonical selector.",
             "For missing or expired smoke certification, expose staged candidate metadata only when the resolved binding supplies the exact canonical selector.",
-            "Prefer the canonical plugin key from the resolved plugin row when deriving the candidate identity.",
-            "Hash only the canonical plugin key plus canonical selector for affected_operation.identity_sha256; expose blocker codes separately so the operation identity stays stable across remediation state transitions.",
-            "Keep managed_repair.available=false and omit any executable request template while tenant_platform_plugin_managed_repair_v1 has no dedicated executor.",
-            "Keep target authority, credential, approval, skill and canonical-policy blockers outside managed repair so the remediation surface cannot grant itself authority or credentials.",
-            "Keep Migration 1052 metadata-only with apply_allowed_default=0 and enforcement_status=baseline_registered so direct managed-execution calls remain blocked.",
-            "Require a later governed activation to add the dedicated executor, capability-specific dry-run validation, JWT-bound tenant/user injection, workspace readback context, idempotency and reconciliation before managed repair may become available."
+            "Hash only the canonical plugin key plus canonical selector for affected_operation.identity_sha256 so operation identity stays stable across remediation state transitions.",
+            "Resolve dry-run tenant/user authority from authenticated User-JWT membership context, never from resolver-result or request identity echoes.",
+            "Validate requested workspace membership through Context Kernel AuthorizedScopeRepository before using it as execution context.",
+            "Validate workspace ownership through Context Kernel WorkspaceOwnershipRepository; personal workspaces require the authenticated user to be the owner and company workspaces require active authorized scope.",
+            "Allow the source-only dry-run executor to preview only certify_platform_plugin_operation for a resolver-bound canonical smoke-certification blocker.",
+            "Keep source_executor_implemented=true but executor_registered=false and activation_status=source_only_unregistered until a later governed activation mounts and certifies the executor.",
+            "Never call createManagedExecutionRun in this phase; expose it only as the internal Managed Execution seam planned for later activation.",
+            "Keep target authority, credential, approval, skill and canonical-policy blockers outside this dry-run executor so remediation cannot grant itself authority or credentials.",
+            "Keep Migration 1052 metadata-only with apply_allowed_default=0, enforcement_status=baseline_registered and executor_registered=0.",
+            "Require a later governed activation for route registration, Migration 1052 apply/readback, capability dispatch certification, Managed Execution run creation, idempotency, reconciliation and representative Production canary evidence."
           ],
           "assertions": [
             "A dispatch-ready canonical resolver decision projects to status=ready with zero blockers.",
             "Missing action/tool binding remains platform_admin_required with managed_repair.available=false and reason=canonical_plugin_operation_identity_required because the request selector is not canonical evidence.",
-            "Differently cased request selectors cannot create distinct staged repair identities when no resolved binding exists.",
             "Missing/expired smoke certification with a resolved canonical binding remains platform_admin_required and managed_repair.available=false while exposing only staged candidate metadata.",
-            "Staged candidate selector identity is taken from result.binding.action_key or result.binding.tool_key, never from result.selector or requested_* key casing.",
-            "affected_operation.identity_sha256 remains stable for the same canonical plugin+selector when blocker codes change, while blocker_codes continue to reflect the current remediation state.",
-            "Inactive bindings are not rewritten as missing bindings and never become managed repair candidates.",
-            "If canonical plugin+selector identity is unavailable, the blocker remains platform_admin_required fail-closed.",
-            "The canonical resolved plugin key takes precedence over caller-supplied equivalent casing when deriving candidate identity.",
-            "Disabled and deprecated plugins never expose an available managed repair plan.",
-            "Missing credential projects to blocked + user_action_required with credential/OAuth intake guidance only.",
-            "Multiple eligible connection ambiguity projects to blocked + tenant_admin_action_available and never selects a first candidate.",
+            "Staged candidate selector identity is taken from result.binding.action_key or result.binding.tool_key, never from request selector casing.",
+            "The dry-run preview rejects admin/backend principals and requires authenticated tenant_id, user_id and verified workspace_id context.",
+            "Caller or resolver-result identity echoes cannot replace authenticated tenant/user/workspace authority.",
+            "Requested workspace must exist in the authenticated user's Context Kernel authorized scope.",
+            "Personal workspace dry-run authority fails closed when owner_user_id differs from the authenticated user.",
+            "Unclassified workspace ownership fails closed.",
+            "Only certify_platform_plugin_operation is allowlisted for this source-only dry-run executor.",
+            "The same principal, canonical operation and repair operation set produces a deterministic preview fingerprint independent of request ID.",
+            "The dry-run source reports source_executor_implemented=true, executor_registered=false, apply_allowed=false and dispatch_apply_allowed=false.",
+            "No Managed Execution run, authority or credential, migration application, provider call, Production mutation or external write is performed.",
             "Target resource authority remains platform_admin_required and is never auto-granted by managed repair.",
-            "No executable request template, idempotency key, caller-supplied tenant_id/user_id or workspace-dependent readback request is emitted before the executor contract exists.",
-            "Migration 1052 registers staged metadata/readiness only, with dispatch/apply blocked and no repair, provider call, resource-grant creation, credential read, Production mutation, or external write.",
+            "Migration 1052 remains staged with dispatch/apply blocked and executor_registered=0.",
             "A pending governed approval projects to approval_required rather than ready."
           ],
           "tests": [
@@ -81,6 +89,20 @@
               "working_directory": "http-generic-api",
               "path": "test-tenant-platform-plugin-managed-repair.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-managed-repair-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-managed-repair-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-managed-repair-executor-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-managed-repair-executor.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -89,6 +111,10 @@
             "http-generic-api/migrations/1052_tenant_platform_plugin_managed_repair_authority.sql",
             "http-generic-api/routes/tenantPlatformPluginRoutes.js",
             "http-generic-api/tenantPlatformPluginEligibility.js",
+            "http-generic-api/tenantPlatformPluginManagedRepairAuthority.js",
+            "http-generic-api/tenantPlatformPluginManagedRepairExecutor.js",
+            "http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs",
+            "http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs",
             "http-generic-api/test-tenant-platform-plugin-managed-repair.mjs",
             "http-generic-api/test-tenant-platform-plugin-routes.mjs"
           ]
