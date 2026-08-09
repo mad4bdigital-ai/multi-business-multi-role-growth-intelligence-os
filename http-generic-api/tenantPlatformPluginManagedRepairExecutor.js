@@ -120,8 +120,6 @@ function buildManagedExecutionBinding({
   repairOperations,
   previewFingerprintSha256,
   parentTicketId,
-  requestId = null,
-  correlationId = null,
 }) {
   const parentTicket = requiredInputValue(parentTicketId, "parent_ticket_id", 64);
   const resourceRef = `platform_plugin_operation:${affectedOperation.identity_sha256}`;
@@ -147,8 +145,8 @@ function buildManagedExecutionBinding({
     effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
     idempotency_key: idempotencyKey,
     workspace_id: principal.workspace_id,
-    request_id: String(requestId || "").trim() || idempotencyKey,
-    correlation_id: String(correlationId || requestId || "").trim() || idempotencyKey,
+    request_id: idempotencyKey,
+    correlation_id: idempotencyKey,
     service_mode: "managed",
     task_title: `Managed dry-run repair: ${affectedOperation.plugin_key}/${affectedOperation.selector.value}`,
     input_json: {
@@ -279,8 +277,6 @@ export function bindTenantPlatformPluginManagedRepairToManagedExecution({
       repairOperations: preview.repair_operations,
       previewFingerprintSha256: preview.preview_fingerprint_sha256,
       parentTicketId,
-      requestId,
-      correlationId,
     }),
     safety: Object.freeze({
       ...preview.safety,
