@@ -33,6 +33,7 @@ const authContext = {
   user_id: "user-authenticated",
   workspace_id: "workspace-authenticated",
   tenant_role: "admin",
+  source: "context_kernel_authorized_scope_and_workspace_ownership",
 };
 
 const preview = previewTenantPlatformPluginManagedRepair({
@@ -47,13 +48,15 @@ const preview = previewTenantPlatformPluginManagedRepair({
 
 assert.equal(preview.ok, true);
 assert.equal(preview.execution_mode, "dry_run");
-assert.equal(preview.executor_registered, true);
+assert.equal(preview.source_executor_implemented, true);
+assert.equal(preview.executor_registered, false);
+assert.equal(preview.activation_status, "source_only_unregistered");
 assert.equal(preview.apply_allowed, false);
 assert.equal(preview.dispatch_apply_allowed, false);
 assert.equal(preview.principal.tenant_id, "tenant-authenticated");
 assert.equal(preview.principal.user_id, "user-authenticated");
 assert.equal(preview.principal.workspace_id, "workspace-authenticated");
-assert.equal(preview.principal.source, "authenticated_user_jwt_context");
+assert.equal(preview.principal.source, "context_kernel_authorized_scope_and_workspace_ownership");
 assert.equal(preview.affected_operation.plugin_key, "github");
 assert.equal(preview.affected_operation.selector.type, "action_key");
 assert.equal(preview.affected_operation.selector.value, "github_create_issue_comment");
@@ -61,7 +64,7 @@ assert.deepEqual(preview.repair_operations, ["certify_platform_plugin_operation"
 assert.match(preview.preview_fingerprint_sha256, /^[0-9a-f]{64}$/);
 assert.equal(preview.managed_execution.internal_service, "createManagedExecutionRun");
 assert.equal(preview.managed_execution.run_created, false);
-assert.equal(preview.managed_execution.reason, "migration_1052_application_and_certification_required");
+assert.equal(preview.managed_execution.reason, "migration_1052_application_and_capability_certification_required");
 assert.equal(preview.readback.route, "/tenant/platform/plugins/resolve");
 assert.equal(preview.readback.workspace_id, "workspace-authenticated");
 assert.equal(preview.readback.executed, false);
