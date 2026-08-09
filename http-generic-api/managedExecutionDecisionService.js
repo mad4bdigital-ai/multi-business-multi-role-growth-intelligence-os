@@ -41,7 +41,11 @@ export async function decideManagedExecutionApproval({ pool, connection: supplie
       const [runRows] = await connection.query("SELECT execution_context_json FROM workflow_runs WHERE run_id = ? LIMIT 2 FOR UPDATE", [hold.run_id]);
       if (runRows.length !== 1) throw managedError(409, "managed_execution_run_missing", "Managed execution run is missing or ambiguous.");
       const authoritySnapshot = assertSnapshotFingerprint(parseJson(runRows[0].execution_context_json, {}).authority_snapshot || {});
-      await assertManagedExecutionAuthorityStillEffective({ connection, authoritySnapshot });
+      await assertManagedExecutionAuthorityStillEffective({
+        connection,
+        authoritySnapshot,
+        allowDryRunRevalidation: true,
+      });
     }
 
     const actor = String(decisionBy || "system").slice(0, 36);
