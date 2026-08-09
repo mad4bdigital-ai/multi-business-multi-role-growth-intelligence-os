@@ -152,6 +152,8 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
   const activityContainerByTenantAndKey = new Map();
+  const plannedBrandParentByBrand = new Map();
+  const ambiguousBrandParentKeys = new Set();
   const workspaceByTenantAndId = new Map(
     (source.workspaces || []).map((workspace) => [`${String(workspace.tenant_id || "")}|${String(workspace.workspace_id || "")}`, workspace])
   );
@@ -314,8 +316,34 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       brandParentContainer = ensureWorkspaceProjection(rootWorkspace, tenantContainer);
       brandEdgeSource = "workspace_registry.config_json.root_workspace_id";
     }
+    const brandParentKey = `${tenantId}|${brandContainer.container_id}`;
+    if (ambiguousBrandParentKeys.has(brandParentKey)) continue;
+    const plannedParent = plannedBrandParentByBrand.get(brandParentKey);
+    if (plannedParent && plannedParent.parentContainerId !== String(brandParentContainer.container_id)) {
+      relationships.delete(plannedParent.relationshipId);
+      plannedBrandParentByBrand.delete(brandParentKey);
+      ambiguousBrandParentKeys.add(brandParentKey);
+      issues.push(issue(projectionRunId,{
+        tenant_id:tenantId,
+        workspace_id:workspace.workspace_id,
+        source_table:"workspace_registry",
+        source_ref:brandKey,
+        issue_code:"workspace_brand_root_projection_ambiguous",
+        severity:"high",
+        issue_detail:"Brand projection resolved multiple distinct Workspace parents; containment was held instead of selecting one candidate.",
+        candidate_refs:[plannedParent.parentSubjectRef,brandParentContainer.canonical_subject_ref].filter(Boolean)
+      }));
+      continue;
+    }
     const brandEdge = relationshipRow({ tenantId,fromId:brandParentContainer.container_id,toId:brandContainer.container_id,source:brandEdgeSource });
     relationships.set(brandEdge.relationship_id,brandEdge);
+    if (!plannedParent) {
+      plannedBrandParentByBrand.set(brandParentKey,{
+        parentContainerId:String(brandParentContainer.container_id),
+        parentSubjectRef:String(brandParentContainer.canonical_subject_ref || ""),
+        relationshipId:brandEdge.relationship_id,
+      });
+    }
 
     const paths = source.brandPaths.filter(row => activeValue(row.active || row.status) && [row.brand_key,row.target_key].filter(Boolean).some(value => String(value).toLowerCase() === brandKey.toLowerCase()));
     const businessTypes = [...new Set(paths.map(row => row.business_type_key).filter(Boolean).map(value => String(value).trim()).filter(Boolean))];
@@ -495,7 +523,17 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
     const parent = containerById.get(String(relationship.from_container_id));
     const child = containerById.get(String(relationship.to_container_id));
     if (parent?.container_type_key === "workspace" && child?.container_type_key === "brand") {
-      desiredParentByBrand.set(String(child.container_id), String(parent.container_id));
+      const brandContainerId = String(child.container_id);
+      const parentContainerId = String(parent.container_id);
+      const existingParentId = desiredParentByBrand.get(brandContainerId);
+      if (existingParentId && existingParentId !== parentContainerId) {
+        const error = new Error("Brand projection plan contains multiple distinct Workspace parents for one canonical Brand container.");
+        error.code = "container_projection_brand_root_plan_ambiguous";
+        error.status = 409;
+        error.details = [{ tenant_id:tenantId,brand_container_id:brandContainerId,planned_parent_container_ids:[existingParentId,parentContainerId] }];
+        throw error;
+      }
+      desiredParentByBrand.set(brandContainerId, parentContainerId);
     }
   }
   const brandContainerIds = [...desiredParentByBrand.keys()];
