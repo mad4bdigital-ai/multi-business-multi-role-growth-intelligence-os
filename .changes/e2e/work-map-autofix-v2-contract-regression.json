@@ -17,7 +17,8 @@
       "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
-      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs"
+      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+      "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
     ]
   },
   "merge_contract": {

@@ -1,9 +1,12 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const workflowPath = "../.github/workflows/spec-kit-work-map-autofix.yml";
-const producerPath = "scripts/spec014-refresh-final-work-map-binding.mjs";
+const HERE = path.dirname(fileURLToPath(import.meta.url));
+const workflowPath = path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix.yml");
+const producerPath = path.join(HERE, "scripts", "spec014-refresh-final-work-map-binding.mjs");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const producer = fs.readFileSync(producerPath, "utf8");
 
