@@ -28,7 +28,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Project canonical Platform Plugin resolver decisions into tenant-safe eligibility and implement the source-only managed-repair dry-run contract with Context Kernel workspace authority, while remaining fail-closed until route registration, Migration 1052 application, capability certification and Managed Execution activation are separately governed.",
+      "objective": "Project canonical Platform Plugin resolver decisions into tenant-safe eligibility, validate source-only dry-run repair authority, and bind that canonical repair identity to the existing Managed Execution create-run input contract without mounting a route or creating a run before activation readiness is certified.",
       "e2e_journeys": [
         {
           "id": "tenant-resolve-projects-eligibility-and-staged-remediation",
@@ -36,7 +36,7 @@
           "level": "synthetic_runtime",
           "actor": "Authenticated tenant user resolving a Platform Plugin capability",
           "entrypoint": "POST /tenant/platform/plugins/resolve after canonical User-JWT and active-membership authorization",
-          "terminal_outcome": "The tenant response remains fail-closed and managed_repair.available remains false. Source-only dry-run code can validate a resolver-bound smoke-certification candidate and an authoritative User-JWT tenant/user/workspace context, but it is not registered as a callable executor, creates no Managed Execution run and performs no repair or external mutation.",
+          "terminal_outcome": "The tenant response remains fail-closed and managed_repair.available remains false. Source-only dry-run code validates a resolver-bound smoke-certification candidate and authoritative User-JWT tenant/user/workspace context, then can deterministically build the exact internal createManagedExecutionRun input contract for a caller-supplied parent ticket without invoking that service, mounting a repair route, granting authority, or performing an external mutation.",
           "steps": [
             "Resolve the requested capability through the existing canonical Platform Plugin resolver and its fail-closed security gates.",
             "Strip the admin-only decision trace projection from the tenant response as before.",
@@ -53,11 +53,14 @@
             "Validate requested workspace membership through Context Kernel AuthorizedScopeRepository before using it as execution context.",
             "Validate workspace ownership through Context Kernel WorkspaceOwnershipRepository; personal workspaces require the authenticated user to be the owner and company workspaces require active authorized scope.",
             "Allow the source-only dry-run executor to preview only certify_platform_plugin_operation for a resolver-bound canonical smoke-certification blocker.",
-            "Keep source_executor_implemented=true but executor_registered=false and activation_status=source_only_unregistered until a later governed activation mounts and certifies the executor.",
-            "Never call createManagedExecutionRun in this phase; expose it only as the internal Managed Execution seam planned for later activation.",
+            "Build the Managed Execution binding from authenticated tenant/user/workspace identity, an explicit parent_ticket_id, the canonical operation identity, and the allowlisted dry-run repair operations only.",
+            "Derive one deterministic platform_plugin_operation resource_ref and one deterministic managed-execution idempotency key; transport request/correlation IDs cannot alter the run identity or managed_execution_input_hash.",
+            "Bind the future invocation to the internal createManagedExecutionRun service and explicitly forbid using the backend-only /managed-execution-runs HTTP route as the tenant integration seam.",
+            "Keep effect_class=managed_operation and execution_mode=dry_run in the staged input rather than weakening authority semantics by pretending the repair is read_only.",
+            "Keep run_creation_allowed=false and run_created=false because Migration 1052 is still unapplied, executor_registered=0, capability dispatch certification is absent, and the existing generic Managed Execution authority correctly blocks managed_operation when apply authority is not active.",
             "Keep target authority, credential, approval, skill and canonical-policy blockers outside this dry-run executor so remediation cannot grant itself authority or credentials.",
             "Keep Migration 1052 metadata-only with apply_allowed_default=0, enforcement_status=baseline_registered and executor_registered=0.",
-            "Require a later governed activation for route registration, Migration 1052 apply/readback, capability dispatch certification, Managed Execution run creation, idempotency, reconciliation and representative Production canary evidence."
+            "Require a later governed activation for Migration 1052 apply/readback, dedicated executor registration, capability runtime/dispatch certification, capability-specific dry-run enforcement, Managed Execution dry-run authority certification, actual run creation, reconciliation and representative Production canary evidence."
           ],
           "assertions": [
             "A dispatch-ready canonical resolver decision projects to status=ready with zero blockers.",
@@ -81,6 +84,11 @@
             "Unclassified workspace ownership fails closed.",
             "Only certify_platform_plugin_operation is allowlisted for this source-only dry-run executor.",
             "The same principal, canonical operation and repair operation set produces a deterministic preview fingerprint independent of request ID.",
+            "Managed Execution binding requires parent_ticket_id but derives tenant_id, user_id and workspace_id only from authenticated context.",
+            "Managed Execution binding uses workflow_key=tenant_platform_plugin_managed_repair_v1, the canonical managed-repair capability key, resource_type=platform_plugin_operation, effect_class=managed_operation and input execution_mode=dry_run.",
+            "The same authenticated principal, parent ticket and canonical operation produce the same idempotency key and managed_execution_input_hash even when transport request/correlation IDs change.",
+            "The staged resource identity is deterministic and no resource grant or authority is created by the binding contract.",
+            "The binding names createManagedExecutionRun as the internal service, sets direct_http_route_allowed=false, and never invokes it in this phase.",
             "The dry-run source reports source_executor_implemented=true, executor_registered=false, apply_allowed=false and dispatch_apply_allowed=false.",
             "No Managed Execution run, authority or credential, migration application, provider call, Production mutation or external write is performed.",
             "Migration 1052 remains staged with dispatch/apply blocked and executor_registered=0.",
