@@ -21,6 +21,10 @@ function activeValue(value) {
 const GOVERNED_SANDBOX_FIXTURE_ALLOWLIST = new Set([
   "activation_authorized_access_tenant_smoke",
 ]);
+const BRAND_PARENT_AMBIGUITY_ISSUE_CODES = new Set([
+  "workspace_brand_root_projection_ambiguous",
+  "workspace_brand_operational_workspace_ambiguous",
+]);
 
 function governedSandboxFixture(workspace) {
   if (String(workspace?.workspace_type || "").trim().toLowerCase() !== "sandbox") return null;
@@ -313,6 +317,19 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
         }));
         continue;
       }
+      if (String(rootWorkspace.bootstrap_status || "").trim().toLowerCase() !== "ready") {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:rootWorkspaceId,
+          issue_code:"workspace_brand_root_workspace_not_ready",
+          severity:"high",
+          issue_detail:"Brand Root Workspace must be ready before active Brand containment can be projected.",
+          candidate_refs:[rootWorkspace.workspace_id]
+        }));
+        continue;
+      }
       brandParentContainer = ensureWorkspaceProjection(rootWorkspace, tenantContainer);
       brandEdgeSource = "workspace_registry.config_json.root_workspace_id";
     }
@@ -542,6 +559,26 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   };
 }
 
+function assertNoHeldBrandParentAmbiguity(plan, tenantId) {
+  const blockers = (plan?.issues || []).filter((row) =>
+    String(row?.tenant_id || "") === String(tenantId) &&
+    row?.status === "held" &&
+    BRAND_PARENT_AMBIGUITY_ISSUE_CODES.has(String(row?.issue_code || ""))
+  );
+  if (!blockers.length) return;
+  const error = new Error("Brand projection apply is blocked because the canonical Brand parent plan is ambiguous.");
+  error.code = "container_projection_brand_parent_plan_ambiguous";
+  error.status = 409;
+  error.details = blockers.map((row) => ({
+    tenant_id: tenantId,
+    workspace_id: row.workspace_id || null,
+    source_ref: row.source_ref,
+    issue_code: row.issue_code,
+    candidate_refs: parseJson(row.candidate_refs_json, []),
+  }));
+  throw error;
+}
+
 async function archiveSupersededLegacyBrandEdges(connection, containers, relationships, tenantId) {
   const containerById = new Map(containers.map((row) => [String(row.container_id), row]));
   const desiredParentByBrand = new Map();
@@ -628,6 +665,7 @@ async function archiveSupersededLegacyBrandEdges(connection, containers, relatio
 }
 
 async function upsertProjectionRows(connection, plan, tenantId) {
+  assertNoHeldBrandParentAmbiguity(plan, tenantId);
   const containers = plan.containers.filter(row => String(row.tenant_id) === String(tenantId));
   const relationships = plan.relationships.filter(row => String(row.tenant_id) === String(tenantId));
   const assignments = plan.roleAssignments.filter(row => String(row.tenant_id) === String(tenantId));
@@ -720,4 +758,4 @@ export async function applyLegacyContainerProjection(plan, { createdBy = "dynami
   }
 }
 
-export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows,archiveSupersededLegacyBrandEdges };
+export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows,archiveSupersededLegacyBrandEdges,assertNoHeldBrandParentAmbiguity };
