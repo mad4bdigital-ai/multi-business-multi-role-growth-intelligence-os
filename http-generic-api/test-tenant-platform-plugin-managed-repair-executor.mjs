@@ -131,6 +131,28 @@ assert.equal(
   binding.managed_execution.idempotency_key_sha256,
   createHash("sha256").update(binding.managed_execution.managed_execution_input.idempotency_key).digest("hex"),
 );
+const stagedInputHash = binding.managed_execution.managed_execution_input_hash;
+assert.equal(Object.isFrozen(binding.managed_execution.managed_execution_input), true);
+assert.equal(Object.isFrozen(binding.managed_execution.managed_execution_input.input_json), true);
+assert.equal(Object.isFrozen(binding.managed_execution.managed_execution_input.input_json.affected_operation), true);
+assert.equal(Object.isFrozen(binding.managed_execution.managed_execution_input.input_json.affected_operation.selector), true);
+assert.equal(Object.isFrozen(binding.managed_execution.managed_execution_input.input_json.repair_operations), true);
+assert.throws(
+  () => { binding.managed_execution.managed_execution_input.input_json.execution_mode = "apply"; },
+  TypeError,
+);
+assert.throws(
+  () => { binding.managed_execution.managed_execution_input.input_json.affected_operation.selector.value = "other_operation"; },
+  TypeError,
+);
+assert.throws(
+  () => { binding.managed_execution.managed_execution_input.input_json.repair_operations.push("unexpected_operation"); },
+  TypeError,
+);
+assert.equal(binding.managed_execution.managed_execution_input.input_json.execution_mode, "dry_run");
+assert.equal(binding.managed_execution.managed_execution_input.input_json.affected_operation.selector.value, "github_create_issue_comment");
+assert.deepEqual(binding.managed_execution.managed_execution_input.input_json.repair_operations, ["certify_platform_plugin_operation"]);
+assert.equal(binding.managed_execution.managed_execution_input_hash, stagedInputHash);
 assert.equal(binding.managed_execution.resource_identity.authority_or_grant_created, false);
 assert.match(binding.managed_execution.resource_identity.resource_ref, /^platform_plugin_operation:[0-9a-f]{64}$/);
 assert.equal(binding.safety.managed_execution_run_created, false);
