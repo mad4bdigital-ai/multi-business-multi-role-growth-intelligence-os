@@ -223,7 +223,6 @@ function runFrontendOpenApiRefresh() {
 function runWorkMapSelfHostingBootstrap() {
   run("verify_work_map_generator_syntax", "node", ["--check", "scripts/platform-work-map-generator.mjs"], { cwd: apiDir });
   run("verify_spec014_binding_syntax", "node", ["--check", "scripts/spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
-  run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
   run("verify_work_map_schema_contract", "node", ["scripts/work-map-schema-classification-contract.mjs"], { cwd: apiDir });
   run("verify_work_map_schema_classification", "node", ["scripts/work-map-schema-classification.mjs"], { cwd: apiDir });
 
@@ -250,6 +249,7 @@ function runWorkMapSelfHostingBootstrap() {
   run("verify_work_maps_current", "node", ["scripts/platform-work-map-generator.mjs", "--check"], { cwd: apiDir });
   run("verify_hostinger_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--check"], { cwd: apiDir });
   run("verify_retail_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os", "--check"], { cwd: apiDir });
+  run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
 }
 
 function isAllowedGeneratedOutput(recipe, file) {
