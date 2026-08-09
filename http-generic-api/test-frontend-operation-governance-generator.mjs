@@ -202,6 +202,11 @@ replaceEvidence(noBrandTransactionFixture, "routes/workspaceResourceRoutes.js", 
 const noBrandTransactionPlan = buildOperationGovernance({ apiRoot: noBrandTransactionFixture });
 assert(rejection(noBrandTransactionPlan, BRAND_OPERATION).missing_evidence.includes("container_authority_transaction_scope"));
 
+const noBrandRouteReadbackFixture = createFixture();
+replaceEvidence(noBrandRouteReadbackFixture, "routes/workspaceResourceRoutes.js", "verifyWorkspaceBrandRootTopology", "brandRootRouteReadbackEvidenceRemoved");
+const noBrandRouteReadbackPlan = buildOperationGovernance({ apiRoot: noBrandRouteReadbackFixture });
+assert(rejection(noBrandRouteReadbackPlan, BRAND_OPERATION).missing_evidence.includes("transactional_topology_readback"));
+
 const noBrandClosureReadbackFixture = createFixture();
 replaceEvidence(noBrandClosureReadbackFixture, "workspaceBrandRootTopology.js", "workspace_brand_root_closure_invalid", "brandRootClosureEvidenceRemoved");
 const noBrandClosureReadbackPlan = buildOperationGovernance({ apiRoot: noBrandClosureReadbackFixture });
