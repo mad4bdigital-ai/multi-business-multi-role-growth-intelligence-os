@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import { matchesPattern } from "./e2e-phase-governance.mjs";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
 const PARALLEL_MAINTENANCE_CONTEXT_ARTIFACTS = new Set(["work-map-integration.json"]);
+const MAX_PRODUCTION_PROMOTION_REARM_DEPTH = 4;
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -111,7 +112,7 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles,
       !runtimeFiles.some((runtimeFile) => scope.some((pattern) => matchesPattern(runtimeFile, pattern)))
     ) continue;
     summariesByPath.set(contractPath, {
-      feature_key: contract.feature_key || feature,
+      feature_key: contract.feature_key || null,
       contract_path: contractPath
     });
   }
@@ -164,18 +165,56 @@ function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, 
   return matches.length === 1 ? matches[0] : null;
 }
 
-function resolveCanonicalMainRef(root) {
-  for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
-    try {
-      execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      });
-      return candidate;
-    } catch {}
+function resolveCanonicalMainRef(root, { allowLocalFallback = false } = {}) {
+  const candidates = allowLocalFallback
+    ? ["refs/remotes/origin/main", "refs/heads/main"]
+    : ["refs/remotes/origin/main"];
+  for (const mainRef of candidates) {
+    const result = spawnSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    if (!result.error && result.status === 0) return mainRef;
   }
   return null;
+}
+
+function resolveLiveProtectedSha(root, name) {
+  const token = String(process.env.GITHUB_TOKEN_FOR_REF_LOOKUP || "").trim();
+  if (token) {
+    const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
+    const childEnv = { ...process.env, GH_TOKEN: token };
+    delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
+    const result = spawnSync(
+      "gh",
+      ["api", `repos/${repository}/git/ref/heads/${name}`, "--jq", ".object.sha"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: childEnv,
+        stdio: ["ignore", "pipe", "ignore"]
+      }
+    );
+    if (result.error || result.status !== 0) return null;
+    const sha = String(result.stdout || "").trim();
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  }
+
+  const result = spawnSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+  if (result.error || result.status !== 0) return null;
+  const output = String(result.stdout || "").trim();
+  const rows = output.split(/\r?\n/).filter(Boolean);
+  if (rows.length !== 1) return null;
+  const [onlyRow] = rows;
+  const [sha, ref] = onlyRow.trim().split(/\s+/);
+  if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
+  return sha;
 }
 
 function isAncestor(root, ancestor, descendant) {
@@ -248,41 +287,116 @@ function resolveParents(root, headSha) {
   }
 }
 
+function parseProductionCandidateRef(headRef) {
+  const bridge = /^release\/production-candidate-([0-9a-f]{12})-([0-9a-f]{12})-(?:bridge|push)-([1-9]\d*)$/.exec(headRef);
+  if (bridge) {
+    return {
+      kind: "governed_dispatch_bridge",
+      main_prefix: bridge[1],
+      production_prefix: bridge[2],
+      dispatch_run_id: bridge[3]
+    };
+  }
+
+  const shaBound = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
+  if (shaBound) {
+    return {
+      kind: "sha_bound",
+      candidate_prefix: shaBound[1]
+    };
+  }
+  return null;
+}
+
+function resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree }) {
+  let current = headSha;
+  for (let depth = 0; depth <= MAX_PRODUCTION_PROMOTION_REARM_DEPTH; depth += 1) {
+    const currentTree = resolveTree(root, current);
+    if (!currentTree || currentTree !== mainTree) return null;
+
+    const parents = resolveParents(root, current);
+    if (parents.length === 2 && parents[0] === mainSha && parents[1] === baseSha) {
+      return { anchor_sha: current, rearm_depth: depth };
+    }
+    if (parents.length !== 1) return null;
+    current = parents[0];
+  }
+  return null;
+}
+
 function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {
   if (headRef === "main" && baseRef === "Production") {
-    return { allowed: true, identity: "protected_main" };
+    return { allowed: true, identity: "protected_main", phase_evaluation_base: resolveFirstParent(root, headSha) };
   }
-  if (baseRef !== "Production") return { allowed: false, identity: null };
-
-  const match = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
-  if (!match) return { allowed: false, identity: null };
-  if (!/^[0-9a-f]{40}$/.test(headSha) || !headSha.startsWith(match[1])) {
-    return { allowed: false, identity: null };
+  if (baseRef !== "Production") return { allowed: false, identity: null, phase_evaluation_base: null };
+  if (!/^[0-9a-f]{40}$/.test(headSha || "") || !/^[0-9a-f]{40}$/.test(baseSha || "")) {
+    return { allowed: false, identity: null, phase_evaluation_base: null };
   }
 
-  const mainRef = resolveCanonicalMainRef(root);
-  if (!mainRef) return { allowed: false, identity: null };
-  if (isAncestor(root, headSha, mainRef)) {
-    return { allowed: true, identity: "immutable_main_snapshot" };
-  }
+  const candidateRef = parseProductionCandidateRef(headRef);
+  if (!candidateRef) return { allowed: false, identity: null, phase_evaluation_base: null };
 
+  const mainRef = resolveCanonicalMainRef(root, { allowLocalFallback: candidateRef.kind === "sha_bound" });
+  if (!mainRef) return { allowed: false, identity: null, phase_evaluation_base: null };
   const mainSha = resolveCommit(root, mainRef);
   const mainTree = resolveTree(root, mainRef);
+  if (!mainSha || !mainTree) return { allowed: false, identity: null, phase_evaluation_base: null };
+
+  if (candidateRef.kind === "governed_dispatch_bridge") {
+    const liveMainSha = resolveLiveProtectedSha(root, "main");
+    const liveProductionSha = resolveLiveProtectedSha(root, "Production");
+    if (
+      !liveMainSha
+      || liveMainSha !== mainSha
+      || !liveProductionSha
+      || liveProductionSha !== baseSha
+      || !liveMainSha.startsWith(candidateRef.main_prefix)
+      || !liveProductionSha.startsWith(candidateRef.production_prefix)
+    ) {
+      return { allowed: false, identity: null, phase_evaluation_base: null };
+    }
+    const reconciliation = resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree });
+    if (!reconciliation) return { allowed: false, identity: null, phase_evaluation_base: null };
+    return {
+      allowed: true,
+      identity: "history_preserving_main_reconciliation",
+      phase_evaluation_base: mainSha,
+      promotion_anchor_sha: reconciliation.anchor_sha,
+      rearm_depth: reconciliation.rearm_depth
+    };
+  }
+
+  if (!headSha.startsWith(candidateRef.candidate_prefix)) {
+    return { allowed: false, identity: null, phase_evaluation_base: null };
+  }
+  if (isAncestor(root, headSha, mainRef)) {
+    return {
+      allowed: true,
+      identity: "immutable_main_snapshot",
+      phase_evaluation_base: resolveFirstParent(root, headSha),
+      promotion_anchor_sha: headSha,
+      rearm_depth: 0
+    };
+  }
+
   const headTree = resolveTree(root, headSha);
   const parents = resolveParents(root, headSha);
   if (
-    !mainSha ||
-    !mainTree ||
-    !headTree ||
-    !/^[0-9a-f]{40}$/.test(baseSha || "") ||
-    parents.length !== 2 ||
-    parents[0] !== mainSha ||
-    parents[1] !== baseSha ||
-    headTree !== mainTree
+    !headTree
+    || parents.length !== 2
+    || parents[0] !== mainSha
+    || parents[1] !== baseSha
+    || headTree !== mainTree
   ) {
-    return { allowed: false, identity: null };
+    return { allowed: false, identity: null, phase_evaluation_base: null };
   }
-  return { allowed: true, identity: "history_preserving_main_reconciliation" };
+  return {
+    allowed: true,
+    identity: "history_preserving_main_reconciliation",
+    phase_evaluation_base: mainSha,
+    promotion_anchor_sha: headSha,
+    rearm_depth: 0
+  };
 }
 
 function main() {
@@ -303,7 +417,7 @@ function main() {
     baseSha: options.base
   });
   const productionPromotion = promotion.allowed;
-  const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
+  const phaseEvaluationBase = productionPromotion ? promotion.phase_evaluation_base : null;
   if (productionPromotion && !phaseEvaluationBase) {
     addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
       head_sha: options.head,
@@ -408,6 +522,8 @@ function main() {
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
   report.phase_evaluation_base = phaseEvaluationBase;
+  report.production_promotion_anchor_sha = promotion.promotion_anchor_sha || null;
+  report.production_promotion_rearm_depth = Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : null;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
@@ -416,7 +532,9 @@ function main() {
     workstream_id: workstreamId,
     production_promotion: productionPromotion,
     production_promotion_identity: promotion.identity || "",
-    phase_evaluation_base: phaseEvaluationBase || ""
+    phase_evaluation_base: phaseEvaluationBase || "",
+    production_promotion_anchor_sha: promotion.promotion_anchor_sha || "",
+    production_promotion_rearm_depth: Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : ""
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);
