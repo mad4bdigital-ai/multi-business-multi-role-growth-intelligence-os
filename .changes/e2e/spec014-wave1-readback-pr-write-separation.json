@@ -37,7 +37,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation, the permanent owner-bound R7 runtime readback contract, fail-closed governance for bounded post-integration maintenance, exact candidate-history checkout for storage validation, exact base/head Work Map changed-file resolution, structured no-secret Work Map governance diagnostics, and separate canonical Work Map and schema-classification overlay fingerprints.",
+      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation, the permanent owner-bound R7 runtime readback contract, fail-closed governance for bounded post-integration maintenance, runtime-scoped filtering of neutral generated maintenance context, exact candidate-history checkout for storage validation, exact base/head Work Map changed-file resolution, structured no-secret Work Map governance diagnostics, and separate canonical Work Map and schema-classification overlay fingerprints.",
       "e2e_journeys": [
         {
           "id": "retire-single-use-readback-and-retain-r7-boundary",
@@ -45,13 +45,14 @@
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer validating Spec 014 evidence lifecycle boundaries",
           "entrypoint": "A change to the storage control-plane or cleanup guard, permanent R7 readback surface, lifecycle contract, post-integration maintenance gate, exact Work Map changed-file resolver, or schema-classification overlay",
-          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, storage cleanup validation checks the exact candidate with complete comparison history, future public runtime verification is available only through the bounded owner-bound R7 workflow, a maintenance branch can target main only when one changed implemented single-PR contract covers every changed runtime file after all affected parallel workstreams are integrated, Work Map governance evaluates the immutable base/head file set while publishing bounded structured findings, and manifest bindings remain attached to the canonical Work Map registry while schema-classification drift retains an independent fingerprint.",
+          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, storage cleanup validation checks the exact candidate with complete comparison history, future public runtime verification is available only through the bounded owner-bound R7 workflow, a maintenance branch can target main only when one changed implemented single-PR contract covers every changed runtime file after all affected parallel workstreams are integrated, unrelated Work Map integration artifacts do not pull non-overlapping parallel contracts into maintenance readiness, Work Map governance evaluates the immutable base/head file set while publishing bounded structured findings, and manifest bindings remain attached to the canonical Work Map registry while schema-classification drift retains an independent fingerprint.",
           "steps": [
             "Load the retained storage control-plane guard, storage cleanup guard, and permanent R7 workflow through executable contract coverage.",
             "Require the storage control-plane pull-request guard to retain contents: read and its control-plane validation job.",
             "Require the storage cleanup guard to check out the exact candidate SHA with full comparison history before evaluating branch-relative contracts.",
             "Require the R7 workflow to remain owner-bound, public-HTTPS-GET-only, exact-SHA-bound, and conversation-read-only.",
             "Allow bounded post-integration maintenance only when the target is main, every affected multi-PR contract is implemented with all required workstreams integrated, and one changed implemented single-PR contract covers every changed runtime file.",
+            "Filter maintenance-only Work Map integration context to parallel contracts whose declared scope intersects at least one changed runtime file before evaluating integrated-workstream readiness.",
             "Independently derive and revalidate the unique changed single-PR maintenance contract inside phase evaluation, and suppress only stale unchanged-contract findings for implemented multi-PR contracts whose required workstreams remain integrated.",
             "Resolve Work Map changed files from the immutable pull-request base and head SHAs, and reject unavailable or moved identities without falling back to HEAD~1.",
             "Persist a bounded Work Map governance diagnostic artifact containing exact head identity, exit status, and combined structured gate output before failing closed.",
@@ -65,6 +66,7 @@
             "The storage cleanup guard binds checkout to the exact candidate SHA and fetches sufficient history for comparison-based validation.",
             "The permanent R7 readback remains exact-command, owner-bound, bounded, scrubbed, and public-GET-only.",
             "Post-integration maintenance fails closed unless one changed implemented single-PR contract covers every changed runtime file and every affected multi-PR workstream remains integrated.",
+            "Unrelated Work Map integration artifacts do not enter maintenance parallel context unless the referenced parallel contract scope overlaps the changed runtime files.",
             "Phase evaluation independently revalidates the unique changed maintenance contract and removes no finding unless runtime coverage, main targeting, implemented status, secret exclusion, and integrated parallel work all hold.",
             "Work Map integration resolves the exact base/head changed-file set and never falls back to historical first-parent scope.",
             "A failing Work Map gate uploads a bounded structured artifact before the workflow fails closed, without adding repository write authority or secrets.",
@@ -73,7 +75,7 @@
             "Post-integration maintenance is rejected when it targets a branch other than main or when parallel delivery is reopened.",
             "The retained surfaces perform no runtime, database, provider, deployment, credential, or external business mutation.",
             "Final required checks run from a repository-owner-authored exact head after any governed Work Map writer commit.",
-            "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, heuristic changed-file fallback, shallow candidate checkout, classification-overlay fingerprint leakage into canonical manifest bindings, or unstructured-only failure evidence returns."
+            "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, unrelated generated maintenance-context contamination, heuristic changed-file fallback, shallow candidate checkout, classification-overlay fingerprint leakage into canonical manifest bindings, or unstructured-only failure evidence returns."
           ],
           "tests": [
             {
@@ -137,12 +139,12 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Keep the retained R7 evidence path, exact-history storage validation, bounded post-integration maintenance classification, exact Work Map changed-file resolution, structured Work Map diagnostics, and separate canonical/overlay fingerprints aligned as future repository changes occur."
+      "objective": "Keep the retained R7 evidence path, exact-history storage validation, bounded post-integration maintenance classification, runtime-scoped generated maintenance context, exact Work Map changed-file resolution, structured Work Map diagnostics, and separate canonical/overlay fingerprints aligned as future repository changes occur."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove lifecycle separation across R7 reruns, malformed commands, protected-ref movement, shallow-history attempts, under-scoped maintenance, non-main targets, reopened parallel work, unavailable base/head identities, classification-registry drift, and future control-plane guard changes without restoring one-time write authority."
+      "objective": "Prove lifecycle separation across R7 reruns, malformed commands, protected-ref movement, shallow-history attempts, under-scoped maintenance, unrelated generated maintenance context, non-main targets, reopened parallel work, unavailable base/head identities, classification-registry drift, and future control-plane guard changes without restoring one-time write authority."
     },
     {
       "id": "canary",
