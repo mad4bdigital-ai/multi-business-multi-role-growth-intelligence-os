@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "5a26b0ad203bde1d17d49f9b10ee12d411220603b2e63df8a6ec7fa4c609a81f",
+    "source_digest": "eed5ea6900695f4847b719ecd5007554b8765ad2ec2e4791a147d5746d3d2aaa",
     "fail_closed": true
   },
   "source_authority": [
@@ -133,7 +133,7 @@
     },
     {
       "file": "workspaceBrandCoreAssetMaterialization.js",
-      "sha256": "08a7f596e768234ac9498725b53afa3d6ded522f5721b87290b845c6102fb26f",
+      "sha256": "664488222a12e4a9fcec6e13d5ca9cdc3feb0a2c8cd4017b79866b02603dfded",
       "present": true
     },
     {
@@ -629,7 +629,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-core-asset-materialize-v3-root-brand-container",
-        "source_digest": "7ab78e6e069f686c5508931370ff10a05cb50e42487a397298cad167170cf10c",
+        "source_digest": "de6debd1c2a8c2900202f9c1ce49bd1f7e5420679b541bcc47b1149490607ee4",
         "fail_closed": true
       }
     }
