@@ -39,6 +39,12 @@ function assertManagedRepairBaseCapability(capability) {
   }
 }
 
+function normalizeCertificationTimestamp(value, code, message) {
+  const parsed = value instanceof Date ? value.getTime() : new Date(value || "").getTime();
+  if (!Number.isFinite(parsed)) throw managedError(409, code, message);
+  return new Date(parsed).toISOString();
+}
+
 async function resolveManagedRepairDryRunCertification({ connection, now = new Date() }) {
   const [rows] = await connection.query(
     `SELECT certification_key, surface_key, surface_family, tool_or_action_key, risk_class,
@@ -91,13 +97,19 @@ async function resolveManagedRepairDryRunCertification({ connection, now = new D
   if (!evidenceRef) {
     throw managedError(409, "managed_execution_dry_run_certification_evidence_required", "Managed repair dry-run certification requires bounded evidence.");
   }
-  const expiresAtMs = certification.expires_at ? new Date(certification.expires_at).getTime() : Number.NaN;
-  if (!Number.isFinite(expiresAtMs)) {
-    throw managedError(409, "managed_execution_dry_run_certification_expiry_required", "Managed repair dry-run certification requires a valid expiry.");
-  }
-  if (expiresAtMs <= now.getTime()) {
+  const lastCertifiedAt = normalizeCertificationTimestamp(
+    certification.last_certified_at,
+    "managed_execution_dry_run_certification_timestamp_required",
+    "Managed repair dry-run certification requires a valid certification timestamp.",
+  );
+  const expiresAt = normalizeCertificationTimestamp(
+    certification.expires_at,
+    "managed_execution_dry_run_certification_expiry_required",
+    "Managed repair dry-run certification requires a valid expiry.",
+  );
+  if (new Date(expiresAt).getTime() <= now.getTime()) {
     throw managedError(409, "managed_execution_dry_run_certification_expired", "Managed repair dry-run certification has expired.", {
-      expires_at: certification.expires_at,
+      expires_at: expiresAt,
     });
   }
   return Object.freeze({
@@ -115,8 +127,8 @@ async function resolveManagedRepairDryRunCertification({ connection, now = new D
     requires_audit_evidence: true,
     requires_readback: true,
     last_evidence_ref: evidenceRef,
-    last_certified_at: certification.last_certified_at || null,
-    expires_at: certification.expires_at,
+    last_certified_at: lastCertifiedAt,
+    expires_at: expiresAt,
   });
 }
 
@@ -244,5 +256,6 @@ export async function assertManagedExecutionAuthorityStillEffective({ connection
 export const _testingManagedExecutionAuthority = {
   isTenantPlatformPluginManagedRepairDryRun,
   assertManagedRepairBaseCapability,
+  normalizeCertificationTimestamp,
   resolveManagedRepairDryRunCertification,
 };
