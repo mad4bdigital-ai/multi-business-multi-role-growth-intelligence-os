@@ -76,7 +76,7 @@ assert.equal(preview.affected_operation.selector.type, "action_key");
 assert.equal(preview.affected_operation.selector.value, "github_create_issue_comment");
 assert.deepEqual(preview.repair_operations, ["certify_platform_plugin_operation"]);
 assert.match(preview.preview_fingerprint_sha256, /^[0-9a-f]{64}$/);
-assert.equal(preview.managed_execution.internal_service, "createManagedExecutionRun");
+assert.equal(preview.managed_execution.internal_service, "createTenantPlatformPluginManagedRepairDryRun");
 assert.equal(preview.managed_execution.run_created, false);
 assert.equal(preview.managed_execution.reason, "migration_1052_application_and_capability_certification_required");
 assert.equal(preview.readback.route, "/tenant/platform/plugins/resolve");
@@ -111,7 +111,7 @@ const binding = bindTenantPlatformPluginManagedRepairToManagedExecution({
 });
 
 assert.equal(binding.ok, true);
-assert.equal(binding.managed_execution.internal_service, "createManagedExecutionRun");
+assert.equal(binding.managed_execution.internal_service, "createTenantPlatformPluginManagedRepairDryRun");
 assert.equal(binding.managed_execution.direct_http_route_allowed, false);
 assert.equal(binding.managed_execution.execution_mode, "dry_run");
 assert.equal(binding.managed_execution.run_creation_allowed, false);
