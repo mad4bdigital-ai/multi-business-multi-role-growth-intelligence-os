@@ -25,6 +25,7 @@ requireFragment('HEAD_REF: ${{ github.event.pull_request.head.ref }}', 'head ref
 requireFragment('HEAD_SHA: ${{ github.event.pull_request.head.sha }}', 'head SHA classifier input');
 requireFragment('HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}', 'head repository classifier input');
 requireFragment('REPOSITORY: ${{ github.repository }}', 'repository identity classifier input');
+requireFragment('GITHUB_TOKEN_FOR_REF_LOOKUP: ${{ github.token }}', 'ephemeral authenticated protected-ref readback token');
 requireFragment("import { execFileSync } from 'node:child_process'", 'canonical gate process executor');
 requireFragment("contract.delivery_mode === 'multi_pr'", 'multi-PR contract requirement');
 requireFragment('contract.parallel_work?.enabled === true', 'parallel work requirement');
@@ -88,6 +89,7 @@ assert.equal(source.includes('directMainRelease'), false, 'workflow must not dup
 assert.equal(source.includes('immutableMainSnapshot'), false, 'workflow must not duplicate immutable-snapshot classification');
 assert.equal(source.includes('gpt/'), false, 'permanent workflow must not embed a work-branch name');
 assert.equal(source.includes('contents: write'), false, 'workflow must remain read-only');
+assert.equal(source.includes('persist-credentials: true'), false, 'workflow must never persist Git credentials for protected-ref readback');
 assert.equal(source.includes('git push'), false, 'workflow must not mutate repository state');
 
 const classification = source.indexOf('Classify governed candidate mode');
@@ -207,6 +209,8 @@ console.log(JSON.stringify({
   contract_governed_integration_mode: true,
   contract_governed_release_mode: true,
   release_identity_delegated_to_canonical_e2e_parallel_pr_gate: true,
+  authenticated_protected_ref_readback_wired: true,
+  git_credentials_persisted: false,
   accepted_release_identities: [
     'protected_main',
     'immutable_main_snapshot',
