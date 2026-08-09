@@ -42,6 +42,7 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
   /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/test-spec014-refresh-final-work-map-binding\.mjs$/u,
   /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
   /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
 ];
