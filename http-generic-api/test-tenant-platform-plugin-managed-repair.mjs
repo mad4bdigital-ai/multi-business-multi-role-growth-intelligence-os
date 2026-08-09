@@ -1,0 +1,183 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  buildTenantPlatformPluginEligibility,
+  TenantCapabilityRepairClass,
+  TenantPlatformPluginManagedRepairContract,
+} from "./tenantPlatformPluginEligibility.js";
+
+function resultWithGate(key, reason, overrides = {}) {
+  return {
+    ok: true,
+    allowed: false,
+    plugin_key: "github",
+    selector: { type: "action_key", value: "github_create_issue_comment" },
+    requested_action_key: "github_create_issue_comment",
+    requested_tool_key: null,
+    plugin: { plugin_key: "github", status: "active" },
+    security_decision: {
+      gates: [{ key, required: true, state: "deny", reason }],
+    },
+    approval: { approval_required: false },
+    execution: { will_execute: false },
+    secrets_included: false,
+    ...overrides,
+  };
+}
+
+const bindingEligibility = buildTenantPlatformPluginEligibility(
+  resultWithGate("binding_state", "action_binding_not_found"),
+);
+assert.equal(bindingEligibility.status, "blocked");
+assert.equal(bindingEligibility.blockers[0].blocker_code, "missing_action_binding");
+assert.equal(
+  bindingEligibility.blockers[0].repair_class,
+  TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+);
+assert.equal(bindingEligibility.managed_repair.available, false);
+assert.equal(bindingEligibility.managed_repair.reason, "managed_repair_executor_not_registered");
+assert.equal(bindingEligibility.managed_repair.mode, "staged_dry_run_candidate");
+assert.deepEqual(bindingEligibility.managed_repair.repair_operations, ["register_runtime_binding"]);
+assert.equal(bindingEligibility.managed_repair.affected_operation.plugin_key, "github");
+assert.match(bindingEligibility.managed_repair.affected_operation.identity_sha256, /^[0-9a-f]{64}$/);
+assert(bindingEligibility.managed_repair.activation_requirements.includes("dedicated_executor_registered"));
+assert(bindingEligibility.managed_repair.activation_requirements.includes("capability_specific_dry_run_enforcement"));
+assert(bindingEligibility.managed_repair.activation_requirements.includes("jwt_bound_principal_injection"));
+assert(bindingEligibility.managed_repair.activation_requirements.includes("workspace_context_persisted_for_readback"));
+assert.equal(bindingEligibility.managed_repair.mutation_executed, false);
+assert.equal(bindingEligibility.managed_repair.secrets_included, false);
+assert(!Object.hasOwn(bindingEligibility.managed_repair, "execution"));
+assert(!Object.hasOwn(bindingEligibility.managed_repair, "request_template"));
+
+const canonicalPluginIdentity = buildTenantPlatformPluginEligibility(
+  resultWithGate("binding_state", "action_binding_not_found", {
+    plugin_key: "GITHUB",
+    plugin: { plugin_key: "github", status: "active" },
+  }),
+);
+assert.equal(canonicalPluginIdentity.managed_repair.affected_operation.plugin_key, "github");
+assert.equal(
+  canonicalPluginIdentity.managed_repair.affected_operation.identity_sha256,
+  bindingEligibility.managed_repair.affected_operation.identity_sha256,
+);
+
+const inactiveBinding = buildTenantPlatformPluginEligibility(
+  resultWithGate("binding_state", "binding_not_active"),
+);
+assert.equal(inactiveBinding.blockers[0].blocker_code, "binding_not_active");
+assert.equal(inactiveBinding.blockers[0].repair_class, TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED);
+assert.equal(inactiveBinding.blockers[0].safe_action, "review_runtime_binding_state");
+assert.equal(inactiveBinding.managed_repair.available, false);
+assert.equal(inactiveBinding.managed_repair.reason, "no_allowlisted_managed_repair_for_current_blockers");
+
+const toolBinding = buildTenantPlatformPluginEligibility(
+  resultWithGate("binding_state", "tool_binding_not_found"),
+);
+assert.equal(toolBinding.blockers[0].blocker_code, "missing_tool_binding");
+assert.equal(toolBinding.managed_repair.available, false);
+assert.deepEqual(toolBinding.managed_repair.repair_operations, ["register_runtime_binding"]);
+
+const certificationEligibility = buildTenantPlatformPluginEligibility(
+  resultWithGate("smoke_certification", "smoke_certification_missing"),
+);
+assert.equal(certificationEligibility.blockers[0].blocker_code, "missing_smoke_certification");
+assert.equal(
+  certificationEligibility.blockers[0].repair_class,
+  TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+);
+assert.equal(certificationEligibility.managed_repair.available, false);
+assert.equal(certificationEligibility.managed_repair.reason, "managed_repair_executor_not_registered");
+assert.deepEqual(certificationEligibility.managed_repair.repair_operations, ["certify_platform_plugin_operation"]);
+
+const expiredCertification = buildTenantPlatformPluginEligibility(
+  resultWithGate("smoke_certification", "smoke_certification_expired"),
+);
+assert.equal(expiredCertification.blockers[0].blocker_code, "expired_smoke_certification");
+assert.equal(expiredCertification.managed_repair.available, false);
+
+const unavailablePlugin = buildTenantPlatformPluginEligibility(
+  resultWithGate("binding_state", "action_binding_not_found", {
+    plugin: { plugin_key: "github", status: "disabled" },
+  }),
+);
+assert.equal(unavailablePlugin.status, "unavailable");
+assert.equal(unavailablePlugin.managed_repair.available, false);
+assert.equal(unavailablePlugin.managed_repair.reason, "plugin_not_executable");
+
+const deprecatedPlugin = buildTenantPlatformPluginEligibility(
+  resultWithGate("smoke_certification", "smoke_certification_missing", {
+    plugin: { plugin_key: "github", status: "deprecated" },
+  }),
+);
+assert.equal(deprecatedPlugin.status, "deprecated");
+assert.equal(deprecatedPlugin.managed_repair.available, false);
+assert.equal(deprecatedPlugin.managed_repair.reason, "plugin_not_executable");
+
+const targetAuthorityEligibility = buildTenantPlatformPluginEligibility(
+  resultWithGate("target_authority", "credential_target_not_authorized"),
+);
+assert.equal(
+  targetAuthorityEligibility.blockers[0].repair_class,
+  TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+);
+assert.equal(targetAuthorityEligibility.managed_repair.available, false);
+
+const credentialEligibility = buildTenantPlatformPluginEligibility(
+  resultWithGate("credential", "credential_required"),
+);
+assert.equal(
+  credentialEligibility.blockers[0].repair_class,
+  TenantCapabilityRepairClass.USER_ACTION_REQUIRED,
+);
+assert.equal(credentialEligibility.managed_repair.available, false);
+
+const incompleteCanonicalIdentity = buildTenantPlatformPluginEligibility({
+  allowed: false,
+  plugin: { status: "active" },
+  security_decision: {
+    gates: [{ key: "binding_state", required: true, state: "deny", reason: "action_binding_not_found" }],
+  },
+  execution: { will_execute: false },
+});
+assert.equal(
+  incompleteCanonicalIdentity.blockers[0].repair_class,
+  TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+);
+assert.equal(incompleteCanonicalIdentity.managed_repair.available, false);
+assert.equal(incompleteCanonicalIdentity.managed_repair.reason, "canonical_plugin_operation_identity_required");
+
+assert.equal(TenantPlatformPluginManagedRepairContract.create_route, "/managed-execution-runs");
+assert.equal(TenantPlatformPluginManagedRepairContract.readback_route, "/tenant/platform/plugins/resolve");
+
+const migration = readFileSync(
+  "migrations/1052_tenant_platform_plugin_managed_repair_authority.sql",
+  "utf8",
+);
+for (const required of [
+  "tenant_platform_plugin_managed_repair",
+  "resource_authority_route_family.tenant_platform_plugin_managed_repair",
+  "managed_repair",
+  "managedExecutionRoutes.js",
+  "v_tenant_platform_plugin_managed_repair_readiness",
+  "v_platform_capabilities_effective_evidence",
+  "managed_execution_revalidates_resource_grant_before_run_creation",
+  "governed_migration_authorization_registry",
+  "requires_confirmation",
+  "managed_repair_executor_not_registered",
+  "executor_registered",
+]) {
+  assert(migration.includes(required), `missing managed repair migration contract: ${required}`);
+}
+assert.match(migration, /apply_allowed_default[\s\S]*?0[\s\S]*?'baseline_registered'/);
+assert.match(migration, /apply_allowed_default=0/);
+assert.match(migration, /enforcement_status='baseline_registered'/);
+assert(!migration.includes("enforcement_status='certified'"));
+assert(!migration.includes("apply_allowed_default=1"));
+assert(!/^\s*(?:DROP\s+TABLE|TRUNCATE\s+TABLE|DELETE\s+FROM|PREPARE\b|EXECUTE\b)/im.test(migration));
+assert(migration.includes("provider_call_executed=false"));
+assert(migration.includes("external_write_executed=false"));
+assert(migration.includes("managed_repair_executed=false"));
+assert(migration.includes("resource_grant_created=false"));
+assert(migration.includes("secrets_included=false"));
+
+console.log("tenant Platform Plugin staged managed repair tests passed");
