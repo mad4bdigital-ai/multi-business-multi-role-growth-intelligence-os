@@ -16,6 +16,21 @@ import {
 import { assertManagedExecutionAuthorityStillEffective, resolveManagedExecutionAuthority } from "./managedExecutionAuthority.js";
 import { appendManagedEvent, withManagedTransaction } from "./managedExecutionPersistence.js";
 
+export async function resolveManagedExecutionRunAuthority({
+  connection,
+  envelope,
+  authorityResolver = resolveManagedExecutionAuthority,
+} = {}) {
+  if (typeof authorityResolver !== "function") {
+    throw managedError(
+      500,
+      "managed_execution_authority_resolver_invalid",
+      "Managed execution authority resolver must be a function.",
+    );
+  }
+  return authorityResolver({ connection, envelope });
+}
+
 export async function createManagedExecutionStep({ pool, runId, input = {}, actorId = null }) {
   const stepKey = requiredString(input.step_key, "step_key", 128);
   const stepType = optionalString(input.step_type, 32) || "action";
@@ -91,7 +106,13 @@ export async function createManagedExecutionStep({ pool, runId, input = {}, acto
   });
 }
 
-export async function createManagedExecutionRun({ pool, input, accessResolver = resolveAccess, ticketCreator = createOrAppendSupportTicketWithIntegrityAtomic }) {
+export async function createManagedExecutionRun({
+  pool,
+  input,
+  accessResolver = resolveAccess,
+  ticketCreator = createOrAppendSupportTicketWithIntegrityAtomic,
+  authorityResolver = resolveManagedExecutionAuthority,
+}) {
   const envelope = normalizeManagedExecutionEnvelope(input);
   const access = await accessResolver({
     tenant_id: envelope.tenant_id,
@@ -140,7 +161,7 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
     if (parentRows.length !== 1) throw managedError(404, "managed_execution_parent_ticket_not_found", "Parent ticket was not found for the tenant.");
     if (!OPEN_PARENT_STATUSES.has(parentRows[0].status)) throw managedError(409, "managed_execution_parent_ticket_terminal", "Parent ticket is already terminal.");
 
-    const authority = await resolveManagedExecutionAuthority({ connection, envelope });
+    const authority = await resolveManagedExecutionRunAuthority({ connection, envelope, authorityResolver });
     const authoritySnapshot = buildManagedAuthoritySnapshot({ envelope, access, gate, authority });
 
     const taskResult = await ticketCreator({
