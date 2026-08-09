@@ -77,7 +77,17 @@ function normalize(value) {
   return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
 }
 
-function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, parallelSummaries }) {
+export function resolveParallelMaintenanceScope(contract) {
+  const contractScope = Array.isArray(contract.scope?.include) ? contract.scope.include : [];
+  const workstreamScopes = Array.isArray(contract.parallel_work?.workstreams)
+    ? contract.parallel_work.workstreams.flatMap((workstream) =>
+        Array.isArray(workstream.scope?.include) ? workstream.scope.include : []
+      )
+    : [];
+  return [...new Set([...contractScope, ...workstreamScopes].map(normalize).filter(Boolean))];
+}
+
+function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries }) {
   const summariesByPath = new Map(
     parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
   );
@@ -97,6 +107,10 @@ function resolveParallelMaintenanceSummaries({ root, changedFiles, policy, paral
     if (!fs.existsSync(absolute)) continue;
     const contract = readJson(absolute);
     if (contract.parallel_work?.enabled !== true) continue;
+    const scope = resolveParallelMaintenanceScope(contract);
+    if (
+      !runtimeFiles.some((runtimeFile) => scope.some((pattern) => matchesPattern(runtimeFile, pattern)))
+    ) continue;
     summariesByPath.set(contractPath, {
       feature_key: contract.feature_key || null,
       contract_path: contractPath
@@ -477,6 +491,7 @@ function main() {
     const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
       root: options.root,
       changedFiles: report.changed_files,
+      runtimeFiles,
       policy,
       parallelSummaries: report.contracts
     });

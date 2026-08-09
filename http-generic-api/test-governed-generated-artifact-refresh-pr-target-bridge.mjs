@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { resolveParallelMaintenanceScope } from "./scripts/e2e-parallel-pr-gate.mjs";
 
 const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml";
 const retiredRequestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
@@ -8,11 +9,32 @@ const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact
 const delegatedDecisionWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
 const writerWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";
 const verificationWorkflowPath = "../.github/workflows/pr-generated-artifact-refresh.yml";
+const hostingerParallelContractPath = "../specs/014-governed-hostinger-storage-orchestration/e2e-phases.json";
 const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
 const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
 const delegatedDecisionWorkflow = fs.readFileSync(delegatedDecisionWorkflowPath, "utf8");
 const writerWorkflow = fs.readFileSync(writerWorkflowPath, "utf8");
 const verificationWorkflow = fs.readFileSync(verificationWorkflowPath, "utf8");
+const hostingerParallelContract = JSON.parse(fs.readFileSync(hostingerParallelContractPath, "utf8"));
+
+const workstreamOnlyMaintenancePath = "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs";
+assert.equal(
+  hostingerParallelContract.scope.include.includes(workstreamOnlyMaintenancePath),
+  false,
+  "fixture path must remain absent from the Hostinger contract-level scope so the regression exercises workstream ownership"
+);
+assert.equal(
+  hostingerParallelContract.parallel_work.workstreams.some((workstream) =>
+    Array.isArray(workstream.scope?.include) && workstream.scope.include.includes(workstreamOnlyMaintenancePath)
+  ),
+  true,
+  "fixture path must be owned by a Hostinger parallel workstream"
+);
+assert.equal(
+  resolveParallelMaintenanceScope(hostingerParallelContract).includes(workstreamOnlyMaintenancePath),
+  true,
+  "maintenance scope must include paths declared only by parallel workstreams"
+);
 
 const pinnedRunnerWorkflows = [
   ["read-only request", requestWorkflow],
@@ -52,16 +74,6 @@ assert.match(requestWorkflow, /protected_branch_mutation_forbidden/u);
 assert.match(requestWorkflow, /cross_repository_pull_request_forbidden/u);
 assert.match(requestWorkflow, /pull_request_is_draft/u);
 assert.match(requestWorkflow, /mad4b\.governed-generated-artifact-refresh-request\.v1/u);
-assert.match(
-  requestWorkflow,
-  /reason:\(if \(\$reason \| length\) > 0 then \$reason else null end\)/u,
-  "eligible request must keep a parseable structured report when reason is empty",
-);
-assert.doesNotMatch(
-  requestWorkflow,
-  /reason:\(\$reason\|select\(length>0\)\)/u,
-  "optional reason filtering must not suppress the entire request object",
-);
 assert.match(requestWorkflow, /candidate_code_checkout:false/u);
 assert.match(requestWorkflow, /repository_mutation_performed:false/u);
 assert.match(requestWorkflow, /source_of_truth:\s*"structured_report"/u);
@@ -69,6 +81,8 @@ assert.match(requestWorkflow, /job_logs_role:\s*"diagnostic_only"/u);
 assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
 assert.match(requestWorkflow, /secrets_included:\s*false/u);
 assert.match(requestWorkflow, /Upload exact-head refresh request/u);
+assert.doesNotMatch(requestWorkflow, /reason:\(\$reason\|select\(length>0\)\)/u, "eligible requests must not be filtered into an empty JSON document");
+assert.match(requestWorkflow, /reason:\(\s*if\s+\(\s*\$reason\s*\|\s*length\s*\)\s*>\s*0\s+then\s+\$reason\s+else\s+null\s+end\s*\)/u, "eligible requests must encode an absent reason as JSON null while preserving the request object");
 
 assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
@@ -100,6 +114,8 @@ assert.match(dispatcherWorkflow, /for attempt in \$\(seq 1 20\)/u, "writer obser
 assert.match(dispatcherWorkflow, /delegated_workflow_run_not_observed/u);
 assert.match(dispatcherWorkflow, /delegated_run_observed:true/u);
 assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
+assert.doesNotMatch(dispatcherWorkflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "unfinished delegated writer runs must not filter the dispatcher report object");
+assert.match(dispatcherWorkflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "queued or in-progress delegated writer conclusions must be encoded as JSON null");
 assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@v5/u);
 assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
 assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
@@ -125,7 +141,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 93,
+  tests: 98,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
