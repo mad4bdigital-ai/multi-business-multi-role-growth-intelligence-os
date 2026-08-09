@@ -303,6 +303,27 @@ async function archiveLegacyOperationalParent(connection, row) {
   );
 }
 
+async function readCanonicalRootBrandRelationship(connection, relationshipId) {
+  const [rows] = await connection.query(
+    `SELECT relationship_id, tenant_id, status, from_container_id, to_container_id, relationship_type_key,
+            valid_from, valid_until,
+            CASE
+              WHEN status='active'
+               AND (valid_from IS NULL OR valid_from<=UTC_TIMESTAMP())
+               AND (valid_until IS NULL OR valid_until>UTC_TIMESTAMP())
+              THEN 1 ELSE 0
+            END AS currently_effective
+       FROM container_relationships
+      WHERE relationship_id=?
+      LIMIT 2 FOR UPDATE`,
+    [relationshipId]
+  );
+  if (rows.length > 1) {
+    throw topologyError(409, "workspace_brand_root_relationship_ambiguous", "Canonical Root-to-Brand relationship identity resolved ambiguously.");
+  }
+  return rows[0] || null;
+}
+
 async function ensureRootBrandRelationship(connection, { tenantId, rootWorkspace, brandWorkspace, rootContainer, brandContainer, actorUserId }) {
   await requireContainsRegistry(connection);
   const parents = await loadActiveBrandParents(connection, tenantId, brandContainer.container_id);
@@ -327,27 +348,47 @@ async function ensureRootBrandRelationship(connection, { tenantId, rootWorkspace
   if (desiredParents.length === 1) return desiredParents[0];
 
   const relationshipId = stableUuid("container-relationship", tenantId, rootContainer.container_id, brandContainer.container_id, "contains");
-  const [existingRows] = await connection.query(
-    `SELECT relationship_id, status, from_container_id, to_container_id, relationship_type_key
-       FROM container_relationships
-      WHERE relationship_id=?
-      LIMIT 2 FOR UPDATE`,
-    [relationshipId]
-  );
-  if (existingRows.length > 1) {
-    throw topologyError(409, "workspace_brand_root_relationship_ambiguous", "Canonical Root-to-Brand relationship identity resolved ambiguously.");
-  }
-  if (existingRows.length === 1) {
-    const [existing] = existingRows;
+  const existing = await readCanonicalRootBrandRelationship(connection, relationshipId);
+  if (existing) {
     if (
       lower(existing.status) !== "active" ||
+      existing.tenant_id !== tenantId ||
       existing.from_container_id !== rootContainer.container_id ||
       existing.to_container_id !== brandContainer.container_id ||
       existing.relationship_type_key !== "contains"
     ) {
       throw topologyError(409, "workspace_brand_root_relationship_conflict", "Canonical Root-to-Brand relationship exists in an incompatible state.");
     }
-    return existing;
+    if (Number(existing.currently_effective) === 1) return existing;
+    const [repairResult] = await connection.query(
+      `UPDATE container_relationships
+          SET valid_from=NULL, valid_until=NULL, updated_at=UTC_TIMESTAMP()
+        WHERE relationship_id=?
+          AND tenant_id=?
+          AND status='active'
+          AND from_container_id=?
+          AND to_container_id=?
+          AND relationship_type_key='contains'
+          AND ((valid_from IS NOT NULL AND valid_from>UTC_TIMESTAMP())
+            OR (valid_until IS NOT NULL AND valid_until<=UTC_TIMESTAMP()))`,
+      [relationshipId, tenantId, rootContainer.container_id, brandContainer.container_id]
+    );
+    if (Number(repairResult?.affectedRows || 0) !== 1) {
+      throw topologyError(409, "workspace_brand_root_relationship_reconcile_conflict", "Canonical Root-to-Brand relationship validity could not be reconciled under lock.", [{ relationship_id: relationshipId }]);
+    }
+    const reconciled = await readCanonicalRootBrandRelationship(connection, relationshipId);
+    if (
+      !reconciled ||
+      Number(reconciled.currently_effective) !== 1 ||
+      lower(reconciled.status) !== "active" ||
+      reconciled.tenant_id !== tenantId ||
+      reconciled.from_container_id !== rootContainer.container_id ||
+      reconciled.to_container_id !== brandContainer.container_id ||
+      reconciled.relationship_type_key !== "contains"
+    ) {
+      throw topologyError(409, "workspace_brand_root_relationship_reconcile_readback_invalid", "Canonical Root-to-Brand relationship failed effective validity readback.", [{ relationship_id: relationshipId }]);
+    }
+    return reconciled;
   }
   const metadata = JSON.stringify({
     authority_source: "workspace_owner_brand_create",
@@ -542,4 +583,5 @@ export const _testingWorkspaceBrandRootTopology = Object.freeze({
   validateRootWorkspace,
   parseJson,
   ensureCanonicalContainer,
+  ensureRootBrandRelationship,
 });
