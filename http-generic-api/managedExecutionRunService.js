@@ -15,6 +15,10 @@ import {
   resolveManagedExecutionGate,
 } from "./managedExecutionCore.js";
 import { assertManagedExecutionAuthorityStillEffective, resolveManagedExecutionAuthority } from "./managedExecutionAuthority.js";
+import {
+  assertManagedExecutionInvocationContext,
+  createTenantPlatformPluginManagedRepairDryRunInvocationContext,
+} from "./managedExecutionInvocationContext.js";
 import { appendManagedEvent, withManagedTransaction } from "./managedExecutionPersistence.js";
 
 const MANAGED_EXECUTION_RUN_MODES = new Set(["live", "dry_run"]);
@@ -147,8 +151,15 @@ export async function createManagedExecutionStep({ pool, runId, input = {}, acto
   });
 }
 
-export async function createManagedExecutionRun({ pool, input, accessResolver = resolveAccess, ticketCreator = createOrAppendSupportTicketWithIntegrityAtomic }) {
+export async function createManagedExecutionRun({
+  pool,
+  input,
+  accessResolver = resolveAccess,
+  ticketCreator = createOrAppendSupportTicketWithIntegrityAtomic,
+  invocationContext = null,
+}) {
   const envelope = normalizeManagedExecutionEnvelope(input);
+  assertManagedExecutionInvocationContext({ envelope, invocationContext });
   const access = await accessResolver({
     tenant_id: envelope.tenant_id,
     user_id: envelope.user_id,
@@ -316,6 +327,21 @@ export async function createManagedExecutionRun({ pool, input, accessResolver = 
       holds: holdId ? [{ hold_id: holdId, status: "open", hold_type: gate.hold_type }] : [],
       secrets_included: false,
     };
+  });
+}
+
+export function createTenantPlatformPluginManagedRepairDryRun({
+  pool,
+  input,
+  accessResolver = resolveAccess,
+  ticketCreator = createOrAppendSupportTicketWithIntegrityAtomic,
+}) {
+  return createManagedExecutionRun({
+    pool,
+    input,
+    accessResolver,
+    ticketCreator,
+    invocationContext: createTenantPlatformPluginManagedRepairDryRunInvocationContext(),
   });
 }
 
