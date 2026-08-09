@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "eed5ea6900695f4847b719ecd5007554b8765ad2ec2e4791a147d5746d3d2aaa",
+    "source_digest": "b25fd534254b32c1093e4761e3911b563f632cd3b5d877766c37b825998f9c59",
     "fail_closed": true
   },
   "source_authority": [
@@ -58,7 +58,7 @@
     },
     {
       "file": "routes/workspaceResourceRoutes.js",
-      "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "sha256": "4f03aab48c49f3205c03e5f1061b6a3ee90316e26e500a16f33fdeb201c6e720",
       "present": true
     },
     {
@@ -73,7 +73,7 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "c221cc4600927ee7b5d820185c0ae4617b902fc0f4c98616c23b8c4b34ef59af",
+      "sha256": "6629b0288da9a7e3a1ca19b132db18b4c5bbd88db7ececc3091dc6d8d3596af7",
       "present": true
     },
     {
@@ -128,7 +128,7 @@
     },
     {
       "file": "test-workspace-brand-create-operation-governance.mjs",
-      "sha256": "3f2e3665b2d456c0076988b79f766b26d2411c263f754d44b0f9907ad2321d49",
+      "sha256": "020f9d62d7ad7298f8dd93ab0b92cbe8d296b3c87fade0835e74f12c9c855ec5",
       "present": true
     },
     {
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "3008804be14c2eceb6a9ac83abf37cdfdb881fdcbed0eda6c95daaaf098363c5",
+        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "3008804be14c2eceb6a9ac83abf37cdfdb881fdcbed0eda6c95daaaf098363c5",
+        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "3008804be14c2eceb6a9ac83abf37cdfdb881fdcbed0eda6c95daaaf098363c5",
+        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
         "fail_closed": true
       }
     },
@@ -495,7 +495,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "05d4a479575f9ab59fda8179d41847b6159ce34b6a1bfd556f731108357eb150",
+        "source_digest": "e660c0dd9150cf223adf1eac477d2c358f5faf2170cc28d47b2639ec3d293fd0",
         "fail_closed": true
       }
     },

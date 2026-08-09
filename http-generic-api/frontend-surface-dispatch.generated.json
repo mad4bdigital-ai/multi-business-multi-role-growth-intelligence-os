@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "08de865e48f1aec8ba1733085a3c5faf3ec62248e62f17b56c0bd598a72b21bb",
+    "source_digest": "580bbc42cc1ed723545ff6707b1baee2affa7c30dd765365e66f919fe4f61367",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "aa92ec229786c334a9c6fff6d7c36b37c3edc96daa42cea51b17168b31800e9b",
+        "sha256": "59682c7b170dc7c5505e55ef3a5ded9a5db5f59671424705629886f7c9db16b6",
         "present": true
       },
       {
@@ -1031,7 +1031,7 @@
       },
       {
         "file": "routes/workspaceResourceRoutes.js",
-        "sha256": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+        "sha256": "4f03aab48c49f3205c03e5f1061b6a3ee90316e26e500a16f33fdeb201c6e720",
         "present": true
       },
       {
@@ -1046,7 +1046,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c221cc4600927ee7b5d820185c0ae4617b902fc0f4c98616c23b8c4b34ef59af",
+        "sha256": "6629b0288da9a7e3a1ca19b132db18b4c5bbd88db7ececc3091dc6d8d3596af7",
         "present": true
       },
       {
@@ -1062,6 +1062,11 @@
       {
         "file": "test-frontend-operation-governance-generator.mjs",
         "sha256": "0bb6f07ece465476b5ad63f069379b7925e921e53e5bed65c2db75407ae4d71d",
+        "present": true
+      },
+      {
+        "file": "test-workspace-brand-create-operation-governance.mjs",
+        "sha256": "020f9d62d7ad7298f8dd93ab0b92cbe8d296b3c87fade0835e74f12c9c855ec5",
         "present": true
       },
       {
@@ -1120,8 +1125,8 @@
     "unresolved_surface_decision_count": 163,
     "test_owned_family_count": 0,
     "untested_family_count": 178,
-    "test_owned_operation_count": 4,
-    "untested_operation_count": 1049,
+    "test_owned_operation_count": 5,
+    "untested_operation_count": 1048,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -30828,7 +30833,7 @@
       "family_key": "workspace-resource",
       "label": "workspace resource",
       "source_file": "routes/workspaceResourceRoutes.js",
-      "source_digest": "10226b9fb53a264fed0830b1519dbb5cc78bd0be715fd649a846662db796402f",
+      "source_digest": "4f03aab48c49f3205c03e5f1061b6a3ee90316e26e500a16f33fdeb201c6e720",
       "mount_prefix": "/",
       "mount_order": 16754,
       "split_from_mixed_scope_file": false,
@@ -31136,7 +31141,9 @@
           "embedded_ui": false,
           "embedded_ui_evidence": [],
           "delivery_kind": "api",
-          "tests": [],
+          "tests": [
+            "test-workspace-brand-create-operation-governance.mjs"
+          ],
           "governance": {
             "classification": "state_change",
             "classification_source": "generated_operation_rule",
@@ -31322,13 +31329,14 @@
       ],
       "auth_contract_gaps": [],
       "evidence_routes": [],
-      "tests": [],
+      "tests": [
+        "test-workspace-brand-create-operation-governance.mjs"
+      ],
       "untested_operations": [
         "GET /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants",
         "POST /me/workspaces/{tenant_id}/resource-grants/{grant_id}/revoke",
         "GET /me/workspaces/{tenant_id}/assets",
-        "POST /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/brands",
         "GET /me/workspaces/{tenant_id}/vaults"
       ],
@@ -31361,7 +31369,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/workspaceResourceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-workspace-brand-create-operation-governance.mjs"
       ],
       "surface_decision": {
         "decision": "requires_review",
@@ -90697,7 +90706,8 @@
         "resource-api-coverage.manifest.json",
         "routes/index.js",
         "routes/workspaceResourceRoutes.js",
-        "scripts/test-manifest.mjs"
+        "scripts/test-manifest.mjs",
+        "test-workspace-brand-create-operation-governance.mjs"
       ],
       "acceptance_gates": [
         "source_baseline_unchanged",
@@ -90710,7 +90720,8 @@
       ],
       "verification": [
         "node scripts/frontend-surface-dispatch.mjs --check",
-        "node scripts/resource-api-coverage-audit.mjs --changed"
+        "node scripts/resource-api-coverage-audit.mjs --changed",
+        "node test-workspace-brand-create-operation-governance.mjs"
       ]
     },
     {
