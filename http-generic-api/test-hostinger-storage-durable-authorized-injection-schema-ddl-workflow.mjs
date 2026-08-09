@@ -4,8 +4,10 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const WORKFLOW = '.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml';
+const REPO_ROOT = fileURLToPath(new URL('../', import.meta.url));
+const WORKFLOW = fileURLToPath(new URL('../.github/workflows/hostinger-storage-durable-authorized-injection-schema-ddl-guard.yml', import.meta.url));
 const source = readFileSync(WORKFLOW, 'utf8');
 
 function requireFragment(fragment, label) {
@@ -54,8 +56,8 @@ requireFragment('CANDIDATE_MODE: ${{ steps.candidate_mode.outputs.candidate_mode
 requireFragment('CANDIDATE_MODE_SOURCE: ${{ steps.candidate_mode.outputs.candidate_mode_source }}', 'candidate mode source output binding');
 requireFragment('RELEASE_IDENTITY: ${{ steps.candidate_mode.outputs.release_identity }}', 'release identity output binding');
 requireFragment('CANONICAL_PROMOTION_VALIDATED: ${{ steps.candidate_mode.outputs.canonical_promotion_validated }}', 'canonical promotion validation binding');
-requireFragment('PROMOTION_GATE_OUTCOME: ${{ steps.candidate_mode.outputs.promotion_gate_outcome }}', 'promotion gate outcome binding');
-requireFragment('PROMOTION_PHASE_EVALUATION_BASE: ${{ steps.candidate_mode.outputs.promotion_phase_evaluation_base }}', 'promotion phase baseline binding');
+requireFragment('PROMOTION_GATE_OUTCOME: ${{ steps.candidate_mode.outputs.promotion_gate_outcome }}', 'canonical promotion gate outcome binding');
+requireFragment('PROMOTION_PHASE_EVALUATION_BASE: ${{ steps.candidate_mode.outputs.promotion_phase_evaluation_base }}', 'canonical promotion phase baseline binding');
 requireFragment('MODE_OUTCOME: ${{ steps.candidate_mode.outcome }}', 'candidate mode outcome binding');
 requireFragment("'candidate_mode_source': os.environ.get('CANDIDATE_MODE_SOURCE') or 'unknown'", 'candidate mode evidence source');
 requireFragment("'release_identity': os.environ.get('RELEASE_IDENTITY') or 'none'", 'release identity evidence');
@@ -123,7 +125,7 @@ const gitEnvironment = {
   GIT_COMMITTER_EMAIL: 'ddl-workflow@example.invalid',
 };
 function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8', env: gitEnvironment }).trim();
+  return execFileSync('git', args, { cwd: REPO_ROOT, encoding: 'utf8', env: gitEnvironment }).trim();
 }
 function parseOutputs(file) {
   return Object.fromEntries(
@@ -139,7 +141,7 @@ function parseOutputs(file) {
 }
 
 const mainRef = ['refs/remotes/origin/main', 'refs/heads/main']
-  .find((candidate) => spawnSync('git', ['rev-parse', '--verify', `${candidate}^{commit}`], { stdio: 'ignore' }).status === 0);
+  .find((candidate) => spawnSync('git', ['rev-parse', '--verify', `${candidate}^{commit}`], { cwd: REPO_ROOT, stdio: 'ignore' }).status === 0);
 assert(mainRef, 'canonical main ref must exist in the full-history checkout');
 const mainSha = git(['rev-parse', `${mainRef}^{commit}`]);
 const mainTree = git(['rev-parse', `${mainSha}^{tree}`]);
@@ -166,7 +168,7 @@ const classifierEnvironment = {
   GITHUB_OUTPUT: validOutput,
 };
 const validClassification = spawnSync(process.execPath, [classifierFile], {
-  cwd: process.cwd(),
+  cwd: REPO_ROOT,
   env: classifierEnvironment,
   encoding: 'utf8',
 });
@@ -186,7 +188,7 @@ const reversedCandidate = git([
   '-m', 'synthetic reversed-parent reconciliation',
 ]);
 const invalidClassification = spawnSync(process.execPath, [classifierFile], {
-  cwd: process.cwd(),
+  cwd: REPO_ROOT,
   env: {
     ...classifierEnvironment,
     HEAD_REF: `release/production-candidate-20260804-${reversedCandidate.slice(0, 8)}-v1`,
