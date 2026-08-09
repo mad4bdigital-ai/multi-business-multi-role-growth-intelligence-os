@@ -53,7 +53,7 @@
             "The one-time work-map-autofix authorization marker remains outside the writer in the recovery bridge.",
             "The writer is bound to one existing same-repository PR branch and immutable expected_head_sha; main and Production remain forbidden targets.",
             "Hostinger and Retail Spec014 bindings are refreshed only through http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs after Work Map generation.",
-            "The generated-artifact self-hosting source scope explicitly permits the canonical Spec014 binding regression used before convergence while unrelated source paths remain fail-closed.",
+            "The generated-artifact self-hosting source scope explicitly permits the canonical Spec014 binding regression, and the bootstrap runs that strict regression only after Work Map and both Spec014 bindings have converged and passed currentness checks, while unrelated source paths remain fail-closed.",
             "The writer accepts no changed paths outside docs/work-maps, specs/014-governed-hostinger-storage-orchestration/work-map-integration.json, optional canonical Hostinger tasks.md, and specs/014-retail-commerce-operations-growth-os/work-map-integration.json.",
             "Combined Work Map plus Spec014 binding generation is idempotent and both producers pass check mode before any commit.",
             "The remote branch is re-read against expected_head_sha immediately before one normal push; force push remains forbidden.",
