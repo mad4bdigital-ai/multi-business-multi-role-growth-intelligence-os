@@ -101,7 +101,7 @@ async function loadProjectionSources(executor = getPool()) {
   ];
   const queries = [
     "SELECT tenant_id,tenant_type,display_name,status,updated_at FROM tenants",
-    "SELECT workspace_id,tenant_id,workspace_key,display_name,workspace_type,bootstrap_status,linked_brand_key,config_json,updated_at FROM workspace_registry",
+    "SELECT workspace_id,tenant_id,workspace_key,display_name,workspace_type,workspace_ownership_type,owner_user_id,bootstrap_status,linked_brand_key,config_json,updated_at FROM workspace_registry",
     "SELECT id,brand_name,normalized_brand_name,target_key,status,updated_at FROM brands",
     "SELECT brand_key,target_key,business_type_key,status,active,updated_at FROM brand_paths",
     "SELECT business_activity_type_key,activity_key,business_type_key,label,parent_activity_type,supported_workflows,status,active,updated_at FROM business_activity_types",
@@ -152,6 +152,9 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   const workspaceContainerByWorkspace = new Map();
   const brandContainerByTenantAndTarget = new Map();
   const activityContainerByTenantAndKey = new Map();
+  const workspaceByTenantAndId = new Map(
+    (source.workspaces || []).map((workspace) => [`${String(workspace.tenant_id || "")}|${String(workspace.workspace_id || "")}`, workspace])
+  );
   const existingContainerByCanonicalIdentity = new Map(
     (source.existingContainers || [])
       .filter(row => row.tenant_id && row.canonical_subject_type && row.canonical_subject_ref)
@@ -164,6 +167,26 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const canonicalIdentity = `${String(fields.tenantId)}|${String(fields.subjectType)}|${String(fields.subjectRef)}`;
     const existing = existingContainerByCanonicalIdentity.get(canonicalIdentity);
     return containerRow({ ...fields, containerId: existing?.container_id || null });
+  };
+  const ensureWorkspaceProjection = (workspace, tenantContainer) => {
+    const tenantId = String(workspace.tenant_id || "");
+    let workspaceContainer = workspaceContainerByWorkspace.get(String(workspace.workspace_id));
+    if (!workspaceContainer) {
+      workspaceContainer = addUnique(containers, projectedContainerRow({
+        tenantId,
+        type:"workspace",
+        key:workspace.workspace_key || `workspace:${workspace.workspace_id}`,
+        subjectType:"workspace",
+        subjectRef:workspace.workspace_id,
+        displayName:workspace.display_name || workspace.workspace_key || workspace.workspace_id,
+        status:workspace.bootstrap_status === "ready" ? "active" : "draft",
+        source:"workspace_registry"
+      }));
+      workspaceContainerByWorkspace.set(String(workspace.workspace_id), workspaceContainer);
+    }
+    const tenantEdge = relationshipRow({ tenantId,fromId:tenantContainer.container_id,toId:workspaceContainer.container_id,source:"workspace_registry" });
+    relationships.set(tenantEdge.relationship_id,tenantEdge);
+    return workspaceContainer;
   };
 
   for (const tenant of source.tenants.filter(row => activeValue(row.status))) {
@@ -206,13 +229,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       issues.push(issue(projectionRunId,{ tenant_id:tenantId,workspace_id:workspace.workspace_id,source_table:"workspace_registry",source_ref:workspace.workspace_id,issue_code:"workspace_tenant_missing",severity:"high",issue_detail:"Workspace tenant is absent or inactive.",candidate_refs:[] }));
       continue;
     }
-    const workspaceContainer = addUnique(containers,projectedContainerRow({
-      tenantId,type:"workspace",key:workspace.workspace_key || `workspace:${workspace.workspace_id}`,subjectType:"workspace",subjectRef:workspace.workspace_id,
-      displayName:workspace.display_name || workspace.workspace_key || workspace.workspace_id,status:workspace.bootstrap_status === "ready" ? "active" : "draft",source:"workspace_registry"
-    }));
-    workspaceContainerByWorkspace.set(String(workspace.workspace_id),workspaceContainer);
-    const tenantEdge = relationshipRow({ tenantId,fromId:tenantContainer.container_id,toId:workspaceContainer.container_id,source:"workspace_registry" });
-    relationships.set(tenantEdge.relationship_id,tenantEdge);
+    const workspaceContainer = ensureWorkspaceProjection(workspace, tenantContainer);
 
     let linkedBrandKey = String(workspace.linked_brand_key || "").trim();
     const workspaceType = String(workspace.workspace_type || "").trim().toLowerCase();
@@ -260,7 +277,44 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
     const brandKey = String(brand.target_key);
     const brandContainer = addUnique(containers,projectedContainerRow({ tenantId,type:"brand",key:`brand:${brandKey}`,subjectType:"brand_target_key",subjectRef:brandKey,displayName:brand.brand_name || brandKey,source:"brands.target_key" }));
     brandContainerByTenantAndTarget.set(`${tenantId}|${brandKey}`,brandContainer);
-    const brandEdge = relationshipRow({ tenantId,fromId:workspaceContainer.container_id,toId:brandContainer.container_id,source:workspace.linked_brand_key ? "workspace_registry.linked_brand_key" : "tenant_brand_links.brand_target_key" });
+
+    let brandParentContainer = workspaceContainer;
+    let brandEdgeSource = workspace.linked_brand_key ? "workspace_registry.linked_brand_key" : "tenant_brand_links.brand_target_key";
+    if (workspaceType === "brand") {
+      const config = parseJson(workspace.config_json, {});
+      const rootWorkspaceId = String(config?.root_workspace_id || "").trim();
+      if (!rootWorkspaceId) {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:workspace.workspace_id,
+          issue_code:"workspace_brand_root_workspace_missing",
+          severity:"high",
+          issue_detail:"Operational Brand workspace must declare the canonical Root Workspace before Brand containment can be projected.",
+          candidate_refs:[]
+        }));
+        continue;
+      }
+      const rootWorkspace = workspaceByTenantAndId.get(`${tenantId}|${rootWorkspaceId}`);
+      const ownershipType = String(rootWorkspace?.workspace_ownership_type || "").trim().toLowerCase();
+      if (!rootWorkspace || String(rootWorkspace.workspace_type || "").trim().toLowerCase() === "brand" || !new Set(["personal","company"]).has(ownershipType)) {
+        issues.push(issue(projectionRunId,{
+          tenant_id:tenantId,
+          workspace_id:workspace.workspace_id,
+          source_table:"workspace_registry",
+          source_ref:rootWorkspaceId,
+          issue_code:"workspace_brand_root_workspace_invalid",
+          severity:"high",
+          issue_detail:"Brand Root Workspace must resolve exactly within the tenant as a personal or company Root Workspace.",
+          candidate_refs:rootWorkspace ? [rootWorkspace.workspace_id] : []
+        }));
+        continue;
+      }
+      brandParentContainer = ensureWorkspaceProjection(rootWorkspace, tenantContainer);
+      brandEdgeSource = "workspace_registry.config_json.root_workspace_id";
+    }
+    const brandEdge = relationshipRow({ tenantId,fromId:brandParentContainer.container_id,toId:brandContainer.container_id,source:brandEdgeSource });
     relationships.set(brandEdge.relationship_id,brandEdge);
 
     const paths = source.brandPaths.filter(row => activeValue(row.active || row.status) && [row.brand_key,row.target_key].filter(Boolean).some(value => String(value).toLowerCase() === brandKey.toLowerCase()));
@@ -388,7 +442,7 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
       binding_id:bindingId,tenant_id:grant.tenant_id,container_id:container.container_id,dimension_key:"skills",resource_type:"agent_skill",resource_ref:grant.skill_id,
       effect:"allow",permission_key:"use",operation_patterns_json:JSON.stringify([]),capability_keys_json:JSON.stringify([]),inheritance_mode:"inherit_down",merge_priority:0,
       conditions_json:JSON.stringify({ agent_id:grant.agent_id }),valid_from:grant.granted_at || null,valid_until:grant.expires_at || null,status:"active",version:1,
-      source_table:"agent_skill_grants",source_pk:grant.grant_id,delegated_by_principal_type:null,delegated_by_principal_id:null,delegator_resolution_id:null,created_by:grant.granted_by || "legacy_projection",approved_by:grant.granted_by || null,
+      source_table:"agent_skill_grants",source_pk:grant.grant_id,delegated_by_principal_type:null,delegated_by_principal_id:null,delegator_resolution_id:null,created_by:grant.granted_by || "legacy_projection",approved_by:null,
       metadata_json:JSON.stringify({ credential_payload_included:false })
     });
   }
@@ -433,6 +487,71 @@ export async function buildLegacyContainerProjectionPlan({ createdBy = "dynamic_
   };
 }
 
+async function archiveSupersededLegacyBrandEdges(connection, containers, relationships, tenantId) {
+  const containerById = new Map(containers.map((row) => [String(row.container_id), row]));
+  const desiredParentByBrand = new Map();
+  for (const relationship of relationships) {
+    if (relationship.relationship_type_key !== "contains" || relationship.status !== "active") continue;
+    const parent = containerById.get(String(relationship.from_container_id));
+    const child = containerById.get(String(relationship.to_container_id));
+    if (parent?.container_type_key === "workspace" && child?.container_type_key === "brand") {
+      desiredParentByBrand.set(String(child.container_id), String(parent.container_id));
+    }
+  }
+  const brandContainerIds = [...desiredParentByBrand.keys()];
+  if (!brandContainerIds.length) return 0;
+  const [rows] = await connection.query(
+    `SELECT r.relationship_id, r.from_container_id, r.to_container_id, r.created_by,
+            p.canonical_subject_type AS parent_subject_type,
+            p.canonical_subject_ref AS parent_subject_ref,
+            wr.workspace_type AS parent_workspace_type,
+            wr.workspace_ownership_type AS parent_workspace_ownership_type
+       FROM container_relationships r
+       JOIN container_relationship_type_registry rt
+         ON rt.relationship_type_key=r.relationship_type_key
+        AND rt.status='active'
+        AND rt.contributes_to_ancestry=1
+        AND rt.contributes_to_inheritance=1
+       JOIN containers p ON p.container_id=r.from_container_id AND p.status='active'
+       LEFT JOIN workspace_registry wr
+         ON p.canonical_subject_type='workspace'
+        AND BINARY wr.workspace_id <=> BINARY p.canonical_subject_ref
+      WHERE r.tenant_id=?
+        AND r.relationship_type_key='contains'
+        AND r.status='active'
+        AND r.to_container_id IN (?)
+      FOR UPDATE`,
+    [tenantId, brandContainerIds]
+  );
+  let archived = 0;
+  for (const row of rows || []) {
+    const desiredParentId = desiredParentByBrand.get(String(row.to_container_id));
+    if (!desiredParentId || String(row.from_container_id) === desiredParentId) continue;
+    const isLegacyOperationalParent =
+      row.created_by === "legacy_projection" &&
+      String(row.parent_subject_type || "") === "workspace" &&
+      String(row.parent_workspace_type || "").toLowerCase() === "brand" &&
+      !String(row.parent_workspace_ownership_type || "").trim();
+    if (!isLegacyOperationalParent) {
+      const error = new Error("Brand projection would silently reparent an existing canonical Brand container.");
+      error.code = "container_projection_brand_root_conflict";
+      error.status = 409;
+      error.details = [{ tenant_id:tenantId,relationship_id:row.relationship_id,brand_container_id:row.to_container_id,existing_parent_container_id:row.from_container_id,planned_parent_container_id:desiredParentId }];
+      throw error;
+    }
+    const [updateResult] = await connection.query(
+      "UPDATE container_relationships SET status='disabled',updated_at=UTC_TIMESTAMP() WHERE relationship_id=? AND status='active' AND created_by='legacy_projection'",
+      [row.relationship_id]
+    );
+    if (Number(updateResult?.affectedRows || 0) === 1) archived += 1;
+    await connection.query(
+      "UPDATE platform_graph_edges SET lifecycle_status='archived',updated_at=UTC_TIMESTAMP() WHERE source_table='container_relationships' AND source_pk=? AND lifecycle_status='active'",
+      [row.relationship_id]
+    );
+  }
+  return archived;
+}
+
 async function upsertProjectionRows(connection, plan, tenantId) {
   const containers = plan.containers.filter(row => String(row.tenant_id) === String(tenantId));
   const relationships = plan.relationships.filter(row => String(row.tenant_id) === String(tenantId));
@@ -454,6 +573,7 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       [`container:${row.container_id}`,`container_${row.container_type_key}`,row.display_name,row.container_type_key,row.canonical_subject_ref,row.container_id,row.metadata_json]
     );
   }
+  const archivedLegacyBrandRelationshipCount = await archiveSupersededLegacyBrandEdges(connection, containers, relationships, tenantId);
   for (const row of relationships) {
     await connection.query(
       `INSERT INTO container_relationships
@@ -488,7 +608,7 @@ async function upsertProjectionRows(connection, plan, tenantId) {
       [row.binding_id,row.tenant_id,row.container_id,row.dimension_key,row.resource_type,row.resource_ref,row.effect,row.permission_key,row.operation_patterns_json,row.capability_keys_json,row.inheritance_mode,row.merge_priority,row.conditions_json,row.valid_from,row.valid_until,row.status,row.version,row.source_table,row.source_pk,row.delegated_by_principal_type,row.delegated_by_principal_id,row.delegator_resolution_id,row.delegation_relationship_id || null,row.created_by,row.approved_by,row.metadata_json]
     );
   }
-  return { containerCount:containers.length,relationshipCount:relationships.length,roleAssignmentCount:assignments.length,resourceBindingCount:bindings.length };
+  return { containerCount:containers.length,relationshipCount:relationships.length,roleAssignmentCount:assignments.length,resourceBindingCount:bindings.length,archivedLegacyBrandRelationshipCount };
 }
 
 export async function applyLegacyContainerProjection(plan, { createdBy = "dynamic_container_projection" } = {}) {
@@ -525,4 +645,4 @@ export async function applyLegacyContainerProjection(plan, { createdBy = "dynami
   }
 }
 
-export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows };
+export const _testingDynamicContainerProjectionService = { stableUuid,activeValue,roleTemplateFor,parseJson,loadProjectionSources,upsertProjectionRows,archiveSupersededLegacyBrandEdges };
