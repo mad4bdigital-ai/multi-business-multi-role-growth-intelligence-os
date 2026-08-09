@@ -381,10 +381,18 @@ const dryRunSnapshot = buildManagedAuthoritySnapshot({
 });
 assert.equal(dryRunSnapshot.execution_mode, "dry_run");
 assert.equal(dryRunSnapshot.capability_authority.dry_run_certification.apply_allowed, false);
+await assert.rejects(
+  assertManagedExecutionAuthorityStillEffective({
+    connection: managedRepairAuthorityConnection(),
+    authoritySnapshot: dryRunSnapshot,
+  }),
+  (error) => error.code === "managed_execution_dry_run_dedicated_executor_required",
+);
 await assert.doesNotReject(
   assertManagedExecutionAuthorityStillEffective({
     connection: managedRepairAuthorityConnection(),
     authoritySnapshot: dryRunSnapshot,
+    allowDryRunRevalidation: true,
   }),
 );
 await assert.rejects(
@@ -395,6 +403,7 @@ await assert.rejects(
       },
     }),
     authoritySnapshot: dryRunSnapshot,
+    allowDryRunRevalidation: true,
   }),
   (error) => error.code === "managed_execution_authority_drift" && error.details?.drift?.includes("dry_run_certification_evidence_changed"),
 );
