@@ -173,13 +173,13 @@ function canonicalRepairIdentity(result = {}, blockerCodes = []) {
     ? String(result.binding?.action_key || "").trim()
     : (requestedSelectorType === "tool_key" ? String(result.binding?.tool_key || "").trim() : "");
   if (!pluginKey || !requestedSelectorType || !selectorValue) return null;
-  const payload = {
+  const operationIdentity = {
     plugin_key: pluginKey,
     selector: { type: requestedSelectorType, value: selectorValue },
-    blockers: [...new Set(blockerCodes)].sort(),
   };
-  const sha256 = createHash("sha256").update(JSON.stringify(payload)).digest("hex");
-  return { ...payload, sha256 };
+  const blockers = [...new Set(blockerCodes)].sort();
+  const sha256 = createHash("sha256").update(JSON.stringify(operationIdentity)).digest("hex");
+  return { ...operationIdentity, blockers, sha256 };
 }
 
 function unavailableManagedRepair(reason, details = {}) {
