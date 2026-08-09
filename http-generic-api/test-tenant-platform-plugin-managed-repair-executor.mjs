@@ -9,6 +9,7 @@ import {
   assertManagedExecutionAuthorityStillEffective,
   resolveManagedExecutionAuthority,
 } from "./managedExecutionAuthority.js";
+import { decideManagedExecutionApproval } from "./managedExecutionDecisionService.js";
 import { TenantPlatformPluginManagedRepairContract } from "./tenantPlatformPluginEligibility.js";
 import {
   bindTenantPlatformPluginManagedRepairToManagedExecution,
@@ -407,6 +408,112 @@ await assert.rejects(
   }),
   (error) => error.code === "managed_execution_authority_drift" && error.details?.drift?.includes("dry_run_certification_evidence_changed"),
 );
+
+function managedRepairApprovalConnection(authorityOptions = {}) {
+  const authorityConnection = managedRepairAuthorityConnection(authorityOptions);
+  const queries = [];
+  const holdId = "hold-managed-repair-dry-run-approval";
+  const runId = "run-managed-repair-dry-run-approval";
+  const bindingId = "binding-managed-repair-dry-run-approval";
+  const taskTicketId = "task-managed-repair-dry-run-approval";
+  return {
+    holdId,
+    runId,
+    queries,
+    connection: {
+      async query(sql, params = []) {
+        queries.push({ sql, params });
+        if (sql.includes("SELECT * FROM approval_holds WHERE hold_id")) {
+          return [[{
+            hold_id: holdId,
+            run_id: runId,
+            tenant_id: authContext.tenant_id,
+            status: "open",
+            expires_at: "2099-08-09T12:00:00.000Z",
+            execution_context_json: JSON.stringify({ source: "managed_execution_lifecycle", execution_mode: "dry_run" }),
+          }]];
+        }
+        if (sql.includes("SELECT * FROM managed_execution_bindings WHERE run_id")) {
+          return [[{
+            binding_id: bindingId,
+            run_id: runId,
+            tenant_id: authContext.tenant_id,
+            task_ticket_id: taskTicketId,
+            lifecycle_state: "waiting_for_approval",
+            customer_status: "waiting_for_approval",
+          }]];
+        }
+        if (sql.includes("SELECT execution_context_json FROM workflow_runs WHERE run_id")) {
+          return [[{
+            execution_context_json: JSON.stringify({
+              source: "managed_execution_lifecycle",
+              contract: "tenant-managed-execution-v1",
+              execution_mode: "dry_run",
+              authority_snapshot: dryRunSnapshot,
+            }),
+          }]];
+        }
+        if (
+          sql.includes("v_platform_capabilities_effective_evidence")
+          || sql.includes("runtime_dispatch_certification_registry")
+          || sql.includes("v_workspace_resource_grant_effective")
+        ) {
+          return authorityConnection.query(sql, params);
+        }
+        if (/^\s*(UPDATE|INSERT)\b/i.test(sql)) return [{ affectedRows: 1 }];
+        throw new Error(`Unexpected managed repair approval query: ${sql}`);
+      },
+    },
+  };
+}
+
+const approvalHarness = managedRepairApprovalConnection();
+const approvalResult = await decideManagedExecutionApproval({
+  connection: approvalHarness.connection,
+  holdId: approvalHarness.holdId,
+  decision: "approved",
+  decisionBy: "tenant-owner",
+  decisionNote: "approve bounded managed repair dry-run",
+});
+assert.equal(approvalResult.ok, true);
+assert.equal(approvalResult.decision, "approved");
+assert.equal(approvalResult.run_id, approvalHarness.runId);
+assert.equal(approvalResult.run_status, "running");
+assert.equal(approvalResult.lifecycle_state, "executing");
+assert.equal(approvalResult.customer_status, "in_progress");
+const approvalHoldWrite = approvalHarness.queries.find(({ sql }) => sql.includes("UPDATE approval_holds SET status = ?"));
+const approvalRunWrite = approvalHarness.queries.find(({ sql }) => sql.includes("UPDATE workflow_runs SET status = ?"));
+assert.equal(approvalHoldWrite?.params?.[0], "approved");
+assert.equal(approvalRunWrite?.params?.[0], "running");
+assert.equal(approvalHarness.queries.some(({ sql }) => sql.includes("step_runs")), false);
+assert.equal(approvalHarness.queries.some(({ sql }) => sql.includes("managed_execution_step_requests")), false);
+assert.equal(approvalHarness.queries.some(({ sql }) => /provider|connector|external_write/i.test(sql)), false);
+
+const expiredApprovalHarness = managedRepairApprovalConnection({
+  certificationOverrides: { last_certified_at: "2019-01-01T00:00:00.000Z", expires_at: "2020-01-01T00:00:00.000Z" },
+});
+await assert.rejects(
+  decideManagedExecutionApproval({
+    connection: expiredApprovalHarness.connection,
+    holdId: expiredApprovalHarness.holdId,
+    decision: "approved",
+    decisionBy: "tenant-owner",
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_expired",
+);
+assert.equal(expiredApprovalHarness.queries.some(({ sql }) => /^\s*(UPDATE|INSERT|DELETE)\b/i.test(sql)), false);
+
+const missingGrantApprovalHarness = managedRepairApprovalConnection({ grantRows: [] });
+await assert.rejects(
+  decideManagedExecutionApproval({
+    connection: missingGrantApprovalHarness.connection,
+    holdId: missingGrantApprovalHarness.holdId,
+    decision: "approved",
+    decisionBy: "tenant-owner",
+  }),
+  (error) => error.code === "managed_execution_resource_grant_required",
+);
+assert.equal(missingGrantApprovalHarness.queries.some(({ sql }) => /^\s*(UPDATE|INSERT|DELETE)\b/i.test(sql)), false);
 
 assert.throws(
   () => bindTenantPlatformPluginManagedRepairToManagedExecution({
