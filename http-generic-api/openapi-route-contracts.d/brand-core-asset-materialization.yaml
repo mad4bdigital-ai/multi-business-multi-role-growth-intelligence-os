@@ -1,0 +1,8 @@
+version: 1
+contracts:
+  "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core":
+    route_file: routes/resourceApiRoutes.js
+    path_item_ref: './openapi/brand-core-asset-materialization.yaml#/paths/~1me~1workspaces~1{workspace_id}~1brands~1{brand_key}~1assets~1materialize-brand-core'
+    owner: workspace-platform
+    exposure: tenant_user
+    notes: Canonical User-JWT Brand Core materialization mutation. The selected personal/company Root Workspace derives tenant scope; workspace_type=brand remains a child operational compatibility workspace; exact Workspace contains Brand container topology and closure are mandatory and fail closed. Existing Brand grant authority remains authoritative while Dynamic Container Authority enforcement stays outside this slice. Canonical asset provenance compatibility, transactional readback, and no-provider-fetch boundaries remain authoritative.

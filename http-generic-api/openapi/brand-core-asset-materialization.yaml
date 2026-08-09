@@ -1,0 +1,195 @@
+openapi: 3.1.0
+info:
+  title: Brand Core Asset Materialization
+  version: 1.1.0
+  description: Canonical User-JWT mutation for materializing an already-known Brand Core context source through a personal/company Root Workspace and its child Brand container without provider content fetch.
+paths:
+  /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core:
+    post:
+      tags: [workspace-assets, brand-core]
+      operationId: materializeBrandCoreAssetForSignedInUser
+      summary: Materialize a canonical Brand Core source through its Root Workspace and Brand container
+      description: |
+        Resolves the selected Root Workspace first and derives tenant authority from it. The Root
+        Workspace must be classified as personal or company and cannot be a workspace_type=brand
+        child row. The canonical Brand must have exactly one child operational Brand Workspace and
+        exactly one active inheritance-bearing Workspace contains Brand container relationship from
+        the selected Root Workspace, materialized as one direct container_closure path.
+
+        Existing canonical Brand mutation authority remains authoritative; this operation does not
+        turn the Dynamic Container Authority shadow foundation into a new grant store. Missing,
+        ambiguous, cross-workspace, or stale container topology fails closed before asset persistence.
+        The operation then requires exactly one active and validated Brand Core source and persists it
+        through the canonical workspace asset repository. It does not download provider content;
+        content_sha256 therefore remains null unless a future content-fetch flow establishes it.
+        Retries converge on the canonical asset identity and conflicting provenance fails closed.
+      security: [{ userJwtAuth: [] }]
+      x-openai-isConsequential: true
+      parameters:
+        - $ref: '#/components/parameters/WorkspaceId'
+        - $ref: '#/components/parameters/BrandKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BrandCoreAssetMaterializationRequest'
+      responses:
+        '201':
+          description: Brand Core source materialized and read back in the same transaction cycle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BrandCoreAssetMaterializationSuccess'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+components:
+  securitySchemes:
+    userJwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: User JWT
+  parameters:
+    WorkspaceId:
+      name: workspace_id
+      in: path
+      required: true
+      description: Canonical Root Workspace id. Tenant authority is derived from this workspace rather than supplied by the caller.
+      schema: { type: string, maxLength: 64 }
+    BrandKey:
+      name: brand_key
+      in: path
+      required: true
+      description: Brand identifier resolved through canonical tenant Brand authority and required to be contained by the selected Root Workspace.
+      schema: { type: string, maxLength: 512 }
+  schemas:
+    BrandCoreAssetMaterializationRequest:
+      type: object
+      additionalProperties: false
+      required: [source_ref]
+      properties:
+        source_ref:
+          type: string
+          minLength: 1
+          maxLength: 512
+          description: Stable Brand Core source lookup reference such as asset_key, doc_key, provider file id, or provider document URL.
+    BrandCoreMaterializedAsset:
+      type: object
+      required: [asset_id, tenant_id, asset_type, asset_ref, brand_ref, lifecycle_status, source_type, source_provider, content_identity]
+      properties:
+        asset_id: { type: string }
+        tenant_id: { type: string }
+        asset_type:
+          type: string
+          enum: [external_ref]
+          description: Canonical workspace_assets type used because this mutation persists a known external/context reference without fetching provider content.
+        asset_ref: { type: string }
+        display_name: { type: [string, 'null'] }
+        brand_ref: { type: string }
+        visibility: { type: [string, 'null'] }
+        lifecycle_status: { type: string }
+        created_by: { type: [string, 'null'] }
+        created_at: { type: [string, 'null'] }
+        updated_at: { type: [string, 'null'] }
+        provenance_schema_version: { type: [string, 'null'] }
+        source_type: { type: string, enum: [import] }
+        source_provider: { type: string, enum: [brand_core] }
+        source_revision: { type: [string, 'null'] }
+        content_sha256: { type: [string, 'null'] }
+        content_identity: { type: string }
+        ingestion_mode: { type: [string, 'null'] }
+        source_locator_present: { type: [integer, boolean] }
+    BrandCoreMaterializationSource:
+      type: object
+      required: [source_type, source_provider, source_ref, provider_content_fetched]
+      properties:
+        source_type: { type: string, enum: [import] }
+        source_provider: { type: string, enum: [brand_core] }
+        source_ref: { type: string }
+        source_revision: { type: [string, 'null'] }
+        source_validation_status: { type: [string, 'null'] }
+        content_sha256: { type: [string, 'null'] }
+        content_identity: { type: [string, 'null'] }
+        provider_content_fetched: { type: boolean, enum: [false] }
+    BrandCoreMaterializationWorkspace:
+      type: object
+      required:
+        - workspace_id
+        - workspace_key
+        - workspace_ownership_type
+        - brand_workspace_id
+        - brand_workspace_key
+        - brand_container_id
+        - brand_container_key
+        - containment_relationship_id
+        - brand_ref
+      properties:
+        workspace_id:
+          type: string
+          description: Root Workspace id.
+        workspace_key: { type: [string, 'null'] }
+        workspace_ownership_type: { type: string, enum: [personal, company] }
+        brand_workspace_id:
+          type: string
+          description: Child operational workspace_registry row with workspace_type=brand.
+        brand_workspace_key: { type: [string, 'null'] }
+        brand_container_id:
+          type: string
+          description: Canonical Dynamic Container Authority Brand container.
+        brand_container_key: { type: string }
+        containment_relationship_id:
+          type: string
+          description: Exact active contains relationship from the selected Root Workspace container to the Brand container.
+        brand_ref: { type: string }
+    BrandCoreAssetMaterializationSuccess:
+      type: object
+      additionalProperties: false
+      required: [ok, tenant_id, workspace_id, brand_key, asset, source, workspace, readback, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [true] }
+        tenant_id:
+          type: string
+          description: Tenant id derived from the selected Root Workspace.
+        workspace_id: { type: string }
+        brand_key: { type: string }
+        asset: { $ref: '#/components/schemas/BrandCoreMaterializedAsset' }
+        source: { $ref: '#/components/schemas/BrandCoreMaterializationSource' }
+        workspace: { $ref: '#/components/schemas/BrandCoreMaterializationWorkspace' }
+        readback: { type: string, enum: [same_cycle] }
+        secrets_included: { type: boolean, enum: [false] }
+    ErrorEnvelope:
+      type: object
+      required: [ok, error, secrets_included]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: { type: [object, 'null'] }
+        secrets_included: { type: boolean, enum: [false] }
+  responses:
+    BadRequest:
+      description: Required Root Workspace, Brand, or source input is invalid
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: User JWT required
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Brand mutation authority denied or Brand container belongs to another Root Workspace
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Root Workspace, Brand, or Brand Core source was not found in canonical authority
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Root Workspace classification, Brand child workspace, container topology, source, provenance, or readback is ambiguous or inconsistent
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unprocessable:
+      description: Required Brand child workspace, Workspace contains Brand container parent, or stable source identity is unavailable
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
