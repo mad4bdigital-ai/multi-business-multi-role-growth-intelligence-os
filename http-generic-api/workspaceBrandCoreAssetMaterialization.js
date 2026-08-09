@@ -44,6 +44,10 @@ function sourceActive(row = {}) {
   if (values.some((value) => ["inactive", "disabled", "archived", "deleted", "invalid", "failed", "false", "0", "no"].includes(value))) {
     return false;
   }
+  const validationStatus = lower(row.validation_status);
+  if (validationStatus && !["active", "validated", "ready", "approved", "published", "true", "1", "yes"].includes(validationStatus)) {
+    return false;
+  }
   return values.some((value) => ["active", "validated", "ready", "approved", "published", "true", "1", "yes"].includes(value));
 }
 
