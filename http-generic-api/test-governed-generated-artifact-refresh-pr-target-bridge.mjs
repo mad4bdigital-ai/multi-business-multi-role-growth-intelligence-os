@@ -52,6 +52,16 @@ assert.match(requestWorkflow, /protected_branch_mutation_forbidden/u);
 assert.match(requestWorkflow, /cross_repository_pull_request_forbidden/u);
 assert.match(requestWorkflow, /pull_request_is_draft/u);
 assert.match(requestWorkflow, /mad4b\.governed-generated-artifact-refresh-request\.v1/u);
+assert.match(
+  requestWorkflow,
+  /reason:\(if \(\$reason\|length\)>0 then \$reason else null end\)/u,
+  "eligible request must keep a parseable structured report when reason is empty",
+);
+assert.doesNotMatch(
+  requestWorkflow,
+  /reason:\(\$reason\|select\(length>0\)\)/u,
+  "optional reason filtering must not suppress the entire request object",
+);
 assert.match(requestWorkflow, /candidate_code_checkout:false/u);
 assert.match(requestWorkflow, /repository_mutation_performed:false/u);
 assert.match(requestWorkflow, /source_of_truth:\s*"structured_report"/u);
@@ -115,7 +125,7 @@ assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head a
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 91,
+  tests: 93,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
