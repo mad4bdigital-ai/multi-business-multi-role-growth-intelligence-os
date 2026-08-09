@@ -3,10 +3,13 @@ import {
   verifyWorkspaceBrandRootTopology,
   _testingWorkspaceBrandRootTopology,
 } from "./workspaceBrandRootTopology.js";
-import { _testingDynamicContainerProjectionService } from "./dynamicContainerProjectionService.js";
+import {
+  buildLegacyContainerProjectionPlan,
+  _testingDynamicContainerProjectionService,
+} from "./dynamicContainerProjectionService.js";
 
-const { ensureCanonicalContainer } = _testingWorkspaceBrandRootTopology;
-const { archiveSupersededLegacyBrandEdges } = _testingDynamicContainerProjectionService;
+const { ensureCanonicalContainer, ensureRootBrandRelationship, stableUuid } = _testingWorkspaceBrandRootTopology;
+const { archiveSupersededLegacyBrandEdges, upsertProjectionRows } = _testingDynamicContainerProjectionService;
 
 {
   const calls = [];
@@ -154,6 +157,162 @@ const { archiveSupersededLegacyBrandEdges } = _testingDynamicContainerProjection
   const archived = await archiveSupersededLegacyBrandEdges(connection, containers, relationships, "tenant-a");
   assert.equal(archived, 0);
   assert.equal(scanSeen, true);
+}
+
+{
+  const rootContainer = { container_id: "root-container" };
+  const brandContainer = { container_id: "brand-container" };
+  const relationshipId = stableUuid("container-relationship", "tenant-a", rootContainer.container_id, brandContainer.container_id, "contains");
+  let canonicalReadCount = 0;
+  let updateCount = 0;
+  let insertCount = 0;
+  const connection = {
+    async query(sql, params) {
+      const statement = String(sql);
+      if (statement.includes("FROM container_relationship_type_registry")) {
+        return [[{
+          relationship_type_key: "contains",
+          relationship_class: "containment",
+          contributes_to_ancestry: 1,
+          contributes_to_inheritance: 1,
+          status: "active",
+        }]];
+      }
+      if (statement.includes("FROM container_relationships r")) return [[]];
+      if (statement.includes("CASE") && statement.includes("currently_effective")) {
+        canonicalReadCount += 1;
+        assert.deepEqual(params, [relationshipId]);
+        return [[{
+          relationship_id: relationshipId,
+          tenant_id: "tenant-a",
+          status: "active",
+          from_container_id: "root-container",
+          to_container_id: "brand-container",
+          relationship_type_key: "contains",
+          valid_from: canonicalReadCount === 1 ? "2099-01-01T00:00:00Z" : null,
+          valid_until: null,
+          currently_effective: canonicalReadCount === 1 ? 0 : 1,
+        }]];
+      }
+      if (statement.startsWith("UPDATE container_relationships")) {
+        updateCount += 1;
+        assert.match(statement, /SET valid_from=NULL, valid_until=NULL/);
+        assert.match(statement, /relationship_id=\?/);
+        assert.match(statement, /tenant_id=\?/);
+        assert.match(statement, /status='active'/);
+        assert.match(statement, /from_container_id=\?/);
+        assert.match(statement, /to_container_id=\?/);
+        assert.match(statement, /relationship_type_key='contains'/);
+        assert.deepEqual(params, [relationshipId, "tenant-a", "root-container", "brand-container"]);
+        return [{ affectedRows: 1 }];
+      }
+      if (statement.startsWith("INSERT INTO container_relationships")) {
+        insertCount += 1;
+        throw new Error("Canonical relationship reconciliation must not insert a duplicate edge.");
+      }
+      throw new Error(`Unexpected SQL: ${statement}`);
+    },
+  };
+  const reconciled = await ensureRootBrandRelationship(connection, {
+    tenantId: "tenant-a",
+    rootWorkspace: { workspace_id: "root-personal" },
+    brandWorkspace: { workspace_id: "brand-workspace" },
+    rootContainer,
+    brandContainer,
+    actorUserId: "user-a",
+  });
+  assert.equal(reconciled.relationship_id, relationshipId);
+  assert.equal(reconciled.currently_effective, 1);
+  assert.equal(canonicalReadCount, 2);
+  assert.equal(updateCount, 1);
+  assert.equal(insertCount, 0);
+}
+
+{
+  let queryCount = 0;
+  const connection = {
+    async query() {
+      queryCount += 1;
+      throw new Error("Ambiguous Brand-parent projection must fail before the first durable mutation.");
+    },
+  };
+  const plan = {
+    containers: [],
+    relationships: [],
+    roleAssignments: [],
+    resourceBindings: [],
+    issues: [{
+      tenant_id: "tenant-a",
+      workspace_id: "brand-workspace-a",
+      source_ref: "brand-a",
+      issue_code: "workspace_brand_root_projection_ambiguous",
+      candidate_refs_json: JSON.stringify(["root-a", "root-b"]),
+      status: "held",
+    }],
+  };
+  await assert.rejects(
+    () => upsertProjectionRows(connection, plan, "tenant-a"),
+    (error) => error?.code === "container_projection_brand_parent_plan_ambiguous" && error?.status === 409
+  );
+  assert.equal(queryCount, 0);
+}
+
+{
+  const sourceRows = {
+    tenants: [{ tenant_id: "tenant-a", display_name: "Tenant A", status: "active" }],
+    workspaces: [
+      {
+        workspace_id: "root-pending",
+        tenant_id: "tenant-a",
+        workspace_key: "root-pending",
+        display_name: "Pending Root",
+        workspace_type: "workspace",
+        workspace_ownership_type: "personal",
+        owner_user_id: "user-a",
+        bootstrap_status: "pending",
+        linked_brand_key: null,
+        config_json: "{}",
+      },
+      {
+        workspace_id: "brand-workspace-a",
+        tenant_id: "tenant-a",
+        workspace_key: "brand-workspace-a",
+        display_name: "Brand Workspace A",
+        workspace_type: "brand",
+        workspace_ownership_type: null,
+        owner_user_id: null,
+        bootstrap_status: "ready",
+        linked_brand_key: "brand-a",
+        config_json: JSON.stringify({ root_workspace_id: "root-pending" }),
+      },
+    ],
+    brands: [{ id: 1, brand_name: "Brand A", normalized_brand_name: "brand a", target_key: "brand-a", status: "active" }],
+    brandPaths: [],
+    activities: [],
+    workflows: [],
+    memberships: [],
+    roleAssignments: [],
+    workspaceGrants: [],
+    workspaceAppLinks: [],
+    actionGrants: [],
+    skillGrants: [],
+    workspaceAssets: [],
+    tenantBrandLinks: [],
+    existingContainers: [],
+  };
+  const plan = await buildLegacyContainerProjectionPlan({ sourceRows });
+  const readinessIssues = plan.issues.filter((row) => row.issue_code === "workspace_brand_root_workspace_not_ready");
+  assert.equal(readinessIssues.length, 1);
+  assert.equal(readinessIssues[0].severity, "high");
+  assert.equal(readinessIssues[0].status, "held");
+  const containerById = new Map(plan.containers.map((row) => [row.container_id, row]));
+  const rootBrandEdges = plan.relationships.filter((row) => {
+    if (row.relationship_type_key !== "contains" || row.status !== "active") return false;
+    const parent = containerById.get(row.from_container_id);
+    const child = containerById.get(row.to_container_id);
+    return parent?.canonical_subject_ref === "root-pending" && child?.canonical_subject_ref === "brand-a";
+  });
+  assert.equal(rootBrandEdges.length, 0);
 }
 
 console.log("workspace Brand Root effective topology state regressions passed");
