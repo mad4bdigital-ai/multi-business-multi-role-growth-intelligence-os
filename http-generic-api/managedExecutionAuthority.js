@@ -109,7 +109,21 @@ async function resolveManagedRepairDryRunCertification({ connection, now = new D
     "managed_execution_dry_run_certification_expiry_required",
     "Managed repair dry-run certification requires a valid expiry.",
   );
-  if (new Date(expiresAt).getTime() <= now.getTime()) {
+  const nowMs = now.getTime();
+  const lastCertifiedAtMs = new Date(lastCertifiedAt).getTime();
+  const expiresAtMs = new Date(expiresAt).getTime();
+  if (expiresAtMs <= lastCertifiedAtMs) {
+    throw managedError(409, "managed_execution_dry_run_certification_window_invalid", "Managed repair dry-run certification expiry must follow its certification timestamp.", {
+      last_certified_at: lastCertifiedAt,
+      expires_at: expiresAt,
+    });
+  }
+  if (lastCertifiedAtMs > nowMs) {
+    throw managedError(409, "managed_execution_dry_run_certification_not_yet_valid", "Managed repair dry-run certification timestamp is in the future.", {
+      last_certified_at: lastCertifiedAt,
+    });
+  }
+  if (expiresAtMs <= nowMs) {
     throw managedError(409, "managed_execution_dry_run_certification_expired", "Managed repair dry-run certification has expired.", {
       expires_at: expiresAt,
     });
