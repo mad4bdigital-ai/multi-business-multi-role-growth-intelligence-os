@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export const TenantCapabilityEligibilityState = Object.freeze({
   READY: "ready",
   BLOCKED: "blocked",
@@ -14,6 +16,25 @@ export const TenantCapabilityRepairClass = Object.freeze({
   PROVIDER_EXTERNAL_ACTION_REQUIRED: "provider_external_action_required",
   NOT_REPAIRABLE: "not_repairable",
 });
+
+export const TenantPlatformPluginManagedRepairContract = Object.freeze({
+  schema_version: "tenant_platform_plugin_managed_repair.v1",
+  workflow_key: "tenant_platform_plugin_managed_repair_v1",
+  capability_key: "resource_authority_route_family.tenant_platform_plugin_managed_repair",
+  resource_type: "platform_plugin_operation",
+  effect_class: "managed_operation",
+  create_route: "/managed-execution-runs",
+  reconcile_route_template: "/managed-execution-runs/{run_id}/reconcile",
+  readback_route: "/tenant/platform/plugins/resolve",
+  registry_source_migration: "1052_tenant_platform_plugin_managed_repair_authority.sql",
+});
+
+const MANAGED_REPAIR_BLOCKERS = new Set([
+  "missing_action_binding",
+  "missing_tool_binding",
+  "missing_smoke_certification",
+  "expired_smoke_certification",
+]);
 
 function normalize(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -48,10 +69,24 @@ function classifyBlocker(gate = {}) {
   }
 
   if (key === "binding_state") {
+    if (reason === "action_binding_not_found") {
+      return {
+        blocker_code: "missing_action_binding",
+        repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+        safe_action: "register_runtime_binding",
+      };
+    }
+    if (reason === "tool_binding_not_found") {
+      return {
+        blocker_code: "missing_tool_binding",
+        repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
+        safe_action: "register_runtime_binding",
+      };
+    }
     return {
-      blocker_code: reason === "tool_binding_not_found" ? "missing_tool_binding" : "missing_action_binding",
+      blocker_code: reason || "binding_not_executable",
       repair_class: TenantCapabilityRepairClass.PLATFORM_ADMIN_REQUIRED,
-      safe_action: "register_runtime_binding",
+      safe_action: "review_runtime_binding_state",
     };
   }
 
@@ -129,9 +164,71 @@ function deriveEligibilityState(result = {}) {
   return TenantCapabilityEligibilityState.BLOCKED;
 }
 
+function canonicalRepairIdentity(result = {}, blockerCodes = []) {
+  const pluginKey = String(result.plugin?.plugin_key || result.plugin_key || "").trim();
+  const requestedSelectorType = String(
+    result.selector?.type || (result.requested_action_key ? "action_key" : (result.requested_tool_key ? "tool_key" : ""))
+  ).trim();
+  const selectorValue = requestedSelectorType === "action_key"
+    ? String(result.binding?.action_key || "").trim()
+    : (requestedSelectorType === "tool_key" ? String(result.binding?.tool_key || "").trim() : "");
+  if (!pluginKey || !requestedSelectorType || !selectorValue) return null;
+  const operationIdentity = {
+    plugin_key: pluginKey,
+    selector: { type: requestedSelectorType, value: selectorValue },
+  };
+  const blockers = [...new Set(blockerCodes)].sort();
+  const sha256 = createHash("sha256").update(JSON.stringify(operationIdentity)).digest("hex");
+  return { ...operationIdentity, blockers, sha256 };
+}
+
+function unavailableManagedRepair(reason, details = {}) {
+  return Object.freeze({
+    schema_version: TenantPlatformPluginManagedRepairContract.schema_version,
+    available: false,
+    reason,
+    ...details,
+    mutation_executed: false,
+    secrets_included: false,
+  });
+}
+
+function buildManagedRepairProjection(result = {}, blockers = []) {
+  const pluginStatus = normalize(result.plugin?.status);
+  if (pluginStatus && !["active", "beta"].includes(pluginStatus)) {
+    return unavailableManagedRepair("plugin_not_executable");
+  }
+
+  const eligibleBlockers = blockers.filter((blocker) => MANAGED_REPAIR_BLOCKERS.has(blocker.blocker_code));
+  if (!eligibleBlockers.length) return unavailableManagedRepair("no_allowlisted_managed_repair_for_current_blockers");
+
+  const identity = canonicalRepairIdentity(result, eligibleBlockers.map((blocker) => blocker.blocker_code));
+  if (!identity) return unavailableManagedRepair("canonical_plugin_operation_identity_required");
+
+  const repairOperations = [...new Set(eligibleBlockers.map((blocker) => blocker.safe_action).filter(Boolean))].sort();
+  return unavailableManagedRepair("managed_repair_executor_not_registered", {
+    mode: "staged_dry_run_candidate",
+    affected_operation: Object.freeze({
+      plugin_key: identity.plugin_key,
+      selector: Object.freeze(identity.selector),
+      identity_sha256: identity.sha256,
+      blocker_codes: Object.freeze(identity.blockers),
+    }),
+    repair_operations: Object.freeze(repairOperations),
+    activation_requirements: Object.freeze([
+      "dedicated_executor_registered",
+      "capability_dispatch_certified",
+      "capability_specific_dry_run_enforcement",
+      "jwt_bound_principal_injection",
+      "workspace_context_persisted_for_readback",
+    ]),
+    registry_source_migration: TenantPlatformPluginManagedRepairContract.registry_source_migration,
+  });
+}
+
 export function buildTenantPlatformPluginEligibility(result = {}) {
   const gates = Array.isArray(result.security_decision?.gates) ? result.security_decision.gates : [];
-  const blockers = gates
+  const classifiedBlockers = gates
     .filter((gate) => gate?.required !== false && ["deny", "not_evaluated"].includes(normalize(gate?.state)))
     .map((gate) => {
       const classification = classifyBlocker(gate);
@@ -143,12 +240,20 @@ export function buildTenantPlatformPluginEligibility(result = {}) {
       };
     });
 
+  const managedRepair = buildManagedRepairProjection(result, classifiedBlockers);
+  const blockers = classifiedBlockers.map((blocker) => (
+    managedRepair.available && MANAGED_REPAIR_BLOCKERS.has(blocker.blocker_code)
+      ? { ...blocker, repair_class: TenantCapabilityRepairClass.MANAGED_REPAIR_AVAILABLE }
+      : blocker
+  ));
+
   return Object.freeze({
     schema_version: "tenant_capability_eligibility.v1",
     status: deriveEligibilityState(result),
     dispatch_ready: result.execution?.will_execute === true,
     blocker_count: blockers.length,
     blockers: Object.freeze(blockers.map((blocker) => Object.freeze(blocker))),
+    managed_repair: managedRepair,
     source: "platform_plugin_resolver",
     secrets_included: false,
   });
