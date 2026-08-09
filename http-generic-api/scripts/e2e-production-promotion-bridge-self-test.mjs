@@ -144,6 +144,20 @@ assert.equal(exactShaBoundReport.production_promotion_identity, "history_preserv
 assert.equal(exactShaBoundReport.production_promotion_anchor_sha, candidateSha);
 assert.equal(exactShaBoundReport.production_promotion_rearm_depth, 0);
 
+run("git", ["update-ref", "-d", "refs/remotes/origin/main"], root);
+const localMainShaBound = invoke(root, { base: productionSha, head: candidateSha, headRef: shaBoundRef });
+assert.equal(localMainShaBound.status, 0, localMainShaBound.stderr || localMainShaBound.stdout);
+const localMainShaBoundReport = JSON.parse(localMainShaBound.stdout);
+assert.equal(localMainShaBoundReport.production_promotion, true);
+assert.equal(localMainShaBoundReport.production_promotion_identity, "history_preserving_main_reconciliation");
+
+const bridgeWithoutRemoteTrackingMain = invoke(root, { base: productionSha, head: rearmSha, headRef: bridgeRef });
+assert.notEqual(bridgeWithoutRemoteTrackingMain.status, 0, "dispatch bridge must retain strict remote-main identity");
+const bridgeWithoutRemoteTrackingMainReport = JSON.parse(bridgeWithoutRemoteTrackingMain.stdout);
+assert.equal(bridgeWithoutRemoteTrackingMainReport.production_promotion, false);
+assert(bridgeWithoutRemoteTrackingMainReport.findings.some((row) => row.code === "production_promotion_identity_invalid"));
+run("git", ["update-ref", "refs/remotes/origin/main", mainSha], root);
+
 const rearmedShaBound = invoke(root, { base: productionSha, head: rearmSha, headRef: shaBoundRef });
 assert.notEqual(rearmedShaBound.status, 0);
 const rearmedShaBoundReport = JSON.parse(rearmedShaBound.stdout);
@@ -208,8 +222,8 @@ assert(mutatedReport.findings.some((row) => row.code === "production_promotion_i
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 10,
-  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_and_zero_diff_rearm",
+  tests: 12,
+  contract: "governed_dispatch_bridge_authenticated_live_refs_exact_sha_bound_identity_local_main_fallback_and_zero_diff_rearm",
   authenticated_ref_lookup: true,
   authenticated_lookup_fails_closed_without_git_fallback: true,
   secrets_included: false

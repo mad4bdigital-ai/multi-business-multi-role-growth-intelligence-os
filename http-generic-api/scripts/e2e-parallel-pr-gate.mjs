@@ -151,15 +151,19 @@ function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, 
   return matches.length === 1 ? matches[0] : null;
 }
 
-function resolveCanonicalMainRef(root) {
-  const mainRef = "refs/remotes/origin/main";
-  const result = spawnSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
-    cwd: root,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"]
-  });
-  if (result.error || result.status !== 0) return null;
-  return mainRef;
+function resolveCanonicalMainRef(root, { allowLocalFallback = false } = {}) {
+  const candidates = allowLocalFallback
+    ? ["refs/remotes/origin/main", "refs/heads/main"]
+    : ["refs/remotes/origin/main"];
+  for (const mainRef of candidates) {
+    const result = spawnSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    if (!result.error && result.status === 0) return mainRef;
+  }
+  return null;
 }
 
 function resolveLiveProtectedSha(root, name) {
@@ -318,7 +322,7 @@ function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha 
   const candidateRef = parseProductionCandidateRef(headRef);
   if (!candidateRef) return { allowed: false, identity: null, phase_evaluation_base: null };
 
-  const mainRef = resolveCanonicalMainRef(root);
+  const mainRef = resolveCanonicalMainRef(root, { allowLocalFallback: candidateRef.kind === "sha_bound" });
   if (!mainRef) return { allowed: false, identity: null, phase_evaluation_base: null };
   const mainSha = resolveCommit(root, mainRef);
   const mainTree = resolveTree(root, mainRef);
