@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "580bbc42cc1ed723545ff6707b1baee2affa7c30dd765365e66f919fe4f61367",
+    "source_digest": "bf8d6935e3cad818cf068334b69105cdcfeeeb0f05468789864ebd4e4c2f1fa8",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "59682c7b170dc7c5505e55ef3a5ded9a5db5f59671424705629886f7c9db16b6",
+        "sha256": "34f7c1fb80232f76c924e6ac348c051227f7ee076e661f080d5173a629816ecd",
         "present": true
       },
       {
@@ -1036,7 +1036,7 @@
       },
       {
         "file": "scripts/frontend-operation-governance-generator.mjs",
-        "sha256": "268a5d4882ac6f713276dfad54ef94d06cdd8f156eb52d84ea3d2a8d1a9d71b5",
+        "sha256": "d925cd01fc565a39edefc3c69c0b1b4a83c2210fa6167ab3c62cbaf8a5f810e4",
         "present": true
       },
       {
@@ -1061,7 +1061,7 @@
       },
       {
         "file": "test-frontend-operation-governance-generator.mjs",
-        "sha256": "0bb6f07ece465476b5ad63f069379b7925e921e53e5bed65c2db75407ae4d71d",
+        "sha256": "4a8eedb5494363fa7c0afc23fddcce5f53f12700de43662cd3742407c4d15697",
         "present": true
       },
       {
@@ -31151,7 +31151,7 @@
             "governed": true,
             "controls": {
               "preflight": {
-                "mode": "locked_workspace_owner_authority_and_canonical_identity"
+                "mode": "root_workspace_authority_and_canonical_brand_identity"
               },
               "approval": {
                 "mode": "runtime_authorization"
@@ -31170,21 +31170,26 @@
               }
             },
             "parameter_bindings": {
-              "tenant_id": "request.path.tenant_id",
+              "tenant_id": "request.path.tenant_id validated_against root_workspace.tenant_id",
+              "root_workspace_id": "request.body.root_workspace_id",
               "display_name": "request.body.display_name|request.body.brand_name",
               "actor_user_id": "authenticated_user.user_id",
               "brand_target_key": "response.brand.target_key",
               "brand_workspace_id": "response.workspace_link.workspace_id",
-              "creator_grant_id": "response.creator_grant.grant_id"
+              "creator_grant_id": "response.creator_grant.grant_id",
+              "topology_relationship_id": "response.topology.relationship_id",
+              "authority_epoch": "response.authority_epoch"
             },
             "blockers": [],
             "rule_id": "generated-workspace-brand-create-governance",
             "owner": "workspace-platform",
-            "rationale": "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+            "rationale": "Creates or idempotently reuses one canonical Brand only after an explicit personal/company Root Workspace is tenant-matched before mutation and revalidated under lock. Brand lifecycle, tenant link, operational Brand workspace, creator grant, canonical Root-to-Brand contains topology, closure rebuild, and exact direct-path readback converge inside the canonical container-authority transaction; only a known legacy operational-workspace projection parent may be retired and every other parent conflict fails closed.",
             "evidence_refs": [
               "routes/workspaceResourceRoutes.js",
               "test-workspace-brand-create-operation-governance.mjs",
-              "workspaceBrandLifecycle.js"
+              "test-workspace-brand-root-topology.mjs",
+              "workspaceBrandLifecycle.js",
+              "workspaceBrandRootTopology.js"
             ]
           },
           "mutation_candidate": true,

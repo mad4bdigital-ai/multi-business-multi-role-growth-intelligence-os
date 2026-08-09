@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
-    "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "b25fd534254b32c1093e4761e3911b563f632cd3b5d877766c37b825998f9c59",
+    "id": "frontend-operation-governance-generator-v8-route-scoped-root-workspace-brand-create-topology",
+    "source_digest": "3e89f89805891210598cedfd0dc29f109a096c9c04b0e0fd85f968f2f330ab5a",
     "fail_closed": true
   },
   "source_authority": [
@@ -68,7 +68,7 @@
     },
     {
       "file": "scripts/frontend-operation-governance-generator.mjs",
-      "sha256": "268a5d4882ac6f713276dfad54ef94d06cdd8f156eb52d84ea3d2a8d1a9d71b5",
+      "sha256": "d925cd01fc565a39edefc3c69c0b1b4a83c2210fa6167ab3c62cbaf8a5f810e4",
       "present": true
     },
     {
@@ -108,7 +108,7 @@
     },
     {
       "file": "test-frontend-operation-governance-generator.mjs",
-      "sha256": "0bb6f07ece465476b5ad63f069379b7925e921e53e5bed65c2db75407ae4d71d",
+      "sha256": "4a8eedb5494363fa7c0afc23fddcce5f53f12700de43662cd3742407c4d15697",
       "present": true
     },
     {
@@ -132,6 +132,11 @@
       "present": true
     },
     {
+      "file": "test-workspace-brand-root-topology.mjs",
+      "sha256": "10a135e646dcb32ea4f6349898c6186518c3addfee4507753a6c73f14d9a4664",
+      "present": true
+    },
+    {
       "file": "workspaceBrandCoreAssetMaterialization.js",
       "sha256": "664488222a12e4a9fcec6e13d5ca9cdc3feb0a2c8cd4017b79866b02603dfded",
       "present": true
@@ -139,6 +144,11 @@
     {
       "file": "workspaceBrandLifecycle.js",
       "sha256": "85ccdf3cd567b836f4eb52ae405b390191cc040e827605b99e3c24e273508fc3",
+      "present": true
+    },
+    {
+      "file": "workspaceBrandRootTopology.js",
+      "sha256": "4205349235b54b00db9f1e8890f97c3a06cd5a1397e0cfa72948b6c57645a554",
       "present": true
     }
   ],
@@ -272,7 +282,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
+        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
         "fail_closed": true
       }
     },
@@ -316,7 +326,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
+        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
         "fail_closed": true
       }
     },
@@ -361,7 +371,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "2d708a8e35727c7b59f3489efd4bb2a657a5bcf570f6478a1983da50f1425c36",
+        "source_digest": "3107248feb3f944143ebf4829f0d2a044b645e2a5b7a10b259e291c770da7fd6",
         "fail_closed": true
       }
     },
@@ -461,9 +471,9 @@
       "source_file": "routes/workspaceResourceRoutes.js",
       "classification": "state_change",
       "owner": "workspace-platform",
-      "rationale": "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+      "rationale": "Creates or idempotently reuses one canonical Brand only after an explicit personal/company Root Workspace is tenant-matched before mutation and revalidated under lock. Brand lifecycle, tenant link, operational Brand workspace, creator grant, canonical Root-to-Brand contains topology, closure rebuild, and exact direct-path readback converge inside the canonical container-authority transaction; only a known legacy operational-workspace projection parent may be retired and every other parent conflict fails closed.",
       "preflight": {
-        "mode": "locked_workspace_owner_authority_and_canonical_identity"
+        "mode": "root_workspace_authority_and_canonical_brand_identity"
       },
       "approval": {
         "mode": "runtime_authorization"
@@ -481,21 +491,26 @@
         ]
       },
       "parameter_bindings": {
-        "tenant_id": "request.path.tenant_id",
+        "tenant_id": "request.path.tenant_id validated_against root_workspace.tenant_id",
+        "root_workspace_id": "request.body.root_workspace_id",
         "display_name": "request.body.display_name|request.body.brand_name",
         "actor_user_id": "authenticated_user.user_id",
         "brand_target_key": "response.brand.target_key",
         "brand_workspace_id": "response.workspace_link.workspace_id",
-        "creator_grant_id": "response.creator_grant.grant_id"
+        "creator_grant_id": "response.creator_grant.grant_id",
+        "topology_relationship_id": "response.topology.relationship_id",
+        "authority_epoch": "response.authority_epoch"
       },
       "evidence_refs": [
         "routes/workspaceResourceRoutes.js",
         "workspaceBrandLifecycle.js",
-        "test-workspace-brand-create-operation-governance.mjs"
+        "workspaceBrandRootTopology.js",
+        "test-workspace-brand-create-operation-governance.mjs",
+        "test-workspace-brand-root-topology.mjs"
       ],
       "generated_evidence": {
-        "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "e660c0dd9150cf223adf1eac477d2c358f5faf2170cc28d47b2639ec3d293fd0",
+        "recipe_id": "workspace-brand-create-v2-root-workspace-topology",
+        "source_digest": "172db72de7302069fd3bdeb86777c4f0aef959c4ec954fd212cdbed0995863ff",
         "fail_closed": true
       }
     },
