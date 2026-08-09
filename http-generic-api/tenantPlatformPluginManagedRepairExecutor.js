@@ -179,7 +179,7 @@ function buildManagedExecutionBinding({
   });
   return Object.freeze({
     schema_version: "tenant_platform_plugin_managed_repair_managed_execution_binding.v1",
-    internal_service: "createManagedExecutionRun",
+    internal_service: "createTenantPlatformPluginManagedRepairDryRun",
     direct_http_route_allowed: false,
     execution_mode: "dry_run",
     run_creation_allowed: false,
@@ -240,7 +240,7 @@ export function previewTenantPlatformPluginManagedRepair({
     request_id: String(requestId || "").trim() || null,
     correlation_id: String(correlationId || requestId || "").trim() || null,
     managed_execution: Object.freeze({
-      internal_service: "createManagedExecutionRun",
+      internal_service: "createTenantPlatformPluginManagedRepairDryRun",
       run_created: false,
       reason: "migration_1052_application_and_capability_certification_required",
     }),
