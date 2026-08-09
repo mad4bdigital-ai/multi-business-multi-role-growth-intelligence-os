@@ -12,8 +12,10 @@
       ".github/workflows/e2e-contract-reference-integrity.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
@@ -35,22 +37,23 @@
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer",
-          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix workflow, canonical Spec014 final binding producer, and their pipeline/automation-overlap contracts",
+          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix workflow, governed generated-artifact refresh authority, canonical Spec014 final binding producer, and their pipeline/automation-overlap contracts",
           "terminal_outcome": "The reviewer receives deterministic evidence only when the exact-head writer regenerates Work Maps, refreshes Hostinger and Retail Spec014 bindings from the same final registry, proves the combined write set idempotent/current, pushes once without force, and dispatches verification for the resulting exact head.",
           "steps": [
-            "Load the current E2E Work Map recovery bridge and sole workflow-dispatch writer.",
-            "Validate branch/head identity, protected-ref rejection, recovery delegation, shared concurrency, and no-force-push boundaries.",
+            "Load the current E2E Work Map recovery bridge, sole workflow-dispatch writer, and registered generated-artifact refresh maintenance authority.",
+            "Validate branch/head identity, protected-ref rejection, recovery delegation, shared concurrency, self-hosting source scope, and no-force-push boundaries.",
             "Run Work Map generation followed by the existing Spec014 binding producer for Hostinger and Retail.",
             "Restrict the candidate delta to docs/work-maps plus the producer-owned Hostinger integration manifest/tasks and Retail integration manifest.",
             "Repeat both generators and compare the complete bounded diff to prove combined idempotency.",
             "Run Work Map currentness plus both Spec014 binding checks before commit/push.",
-            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, and Spec014 binding convergence regressions against the same repository tree."
+            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, generated-artifact maintenance authority, and Spec014 binding convergence regressions against the same repository tree."
           ],
           "assertions": [
             "Work Map Autofix remains the sole remote writer for docs/work-maps and does not gain a pull_request trigger.",
             "The one-time work-map-autofix authorization marker remains outside the writer in the recovery bridge.",
             "The writer is bound to one existing same-repository PR branch and immutable expected_head_sha; main and Production remain forbidden targets.",
             "Hostinger and Retail Spec014 bindings are refreshed only through http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs after Work Map generation.",
+            "The generated-artifact self-hosting source scope explicitly permits the canonical Spec014 binding regression used before convergence while unrelated source paths remain fail-closed.",
             "The writer accepts no changed paths outside docs/work-maps, specs/014-governed-hostinger-storage-orchestration/work-map-integration.json, optional canonical Hostinger tasks.md, and specs/014-retail-commerce-operations-growth-os/work-map-integration.json.",
             "Combined Work Map plus Spec014 binding generation is idempotent and both producers pass check mode before any commit.",
             "The remote branch is re-read against expected_head_sha immediately before one normal push; force push remains forbidden.",
@@ -80,6 +83,13 @@
               "args": []
             },
             {
+              "id": "generated-artifact-refresh-maintenance-tool",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
               "id": "work-map-autofix-spec014-binding-convergence",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -97,7 +107,9 @@
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-v2-contract-regression.json",
             ".github/workflows/spec-kit-work-map-autofix.yml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
             "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
