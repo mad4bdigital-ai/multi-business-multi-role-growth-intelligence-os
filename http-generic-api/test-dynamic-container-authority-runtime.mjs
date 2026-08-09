@@ -386,14 +386,35 @@ assert(namespaceMismatch.issues.some(row => row.issue_code === "workspace_brand_
 const tenantBrandLinkFallbackProjection=await buildLegacyContainerProjectionPlan({
   sourceRows:{
     ...projectionSources,
-    workspaces:[{ ...projectionSources.workspaces[0],workspace_id:"workspace-brand-fallback",workspace_type:"brand",linked_brand_key:null }],
+    workspaces:[
+      {
+        ...projectionSources.workspaces[0],
+        workspace_id:"workspace-root-fallback",
+        workspace_key:"workspace-root-fallback",
+        display_name:"Fallback Root Workspace",
+        workspace_type:"workspace",
+        workspace_ownership_type:"company",
+        linked_brand_key:null,
+        config_json:"{}"
+      },
+      {
+        ...projectionSources.workspaces[0],
+        workspace_id:"workspace-brand-fallback",
+        workspace_key:"workspace-brand-fallback",
+        display_name:"Fallback Brand Workspace",
+        workspace_type:"brand",
+        workspace_ownership_type:null,
+        linked_brand_key:null,
+        config_json:JSON.stringify({ root_workspace_id:"workspace-root-fallback" })
+      }
+    ],
     tenantBrandLinks:[{ tenant_id:TENANT,brand_target_key:"brand-key-1",status:"active" }]
   }
 });
 assert.equal(tenantBrandLinkFallbackProjection.summary.highRiskIssueCount,0);
 assert(!tenantBrandLinkFallbackProjection.issues.some(row => row.issue_code === "workspace_brand_link_missing"));
 assert(tenantBrandLinkFallbackProjection.relationships.some(row =>
-  JSON.parse(row.metadata_json).projection_source === "tenant_brand_links.brand_target_key"
+  JSON.parse(row.metadata_json).projection_source === "workspace_registry.config_json.root_workspace_id"
 ));
 
 const nonBrandWorkspaceWithoutBrandProjection=await buildLegacyContainerProjectionPlan({
@@ -537,7 +558,6 @@ assert.deepEqual(Object.keys(sequentialSources),[
   "tenants","workspaces","brands","brandPaths","activities","workflows","memberships","roleAssignments",
   "workspaceGrants","workspaceAppLinks","actionGrants","skillGrants","workspaceAssets","tenantBrandLinks","existingContainers"
 ]);
-
 const failingSourceExecutor={
   query:async sql => {
     if(String(sql).includes("FROM brands")) throw Object.assign(new Error("simulated source timeout"),{ code:"ETIMEDOUT" });
