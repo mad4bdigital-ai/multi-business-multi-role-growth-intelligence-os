@@ -49,6 +49,10 @@ function sha256Json(value) {
   return createHash("sha256").update(JSON.stringify(stableObject(value))).digest("hex");
 }
 
+function sha256String(value) {
+  return createHash("sha256").update(String(value)).digest("hex");
+}
+
 function resolveAuthenticatedPrincipal(authContext = {}) {
   if (String(authContext.mode || "").trim() !== "user_jwt" || authContext.is_admin === true) {
     throw executorError(
@@ -164,7 +168,6 @@ function buildManagedExecutionBinding({
       preview_fingerprint_sha256: previewFingerprintSha256,
       readback_route: TenantPlatformPluginManagedRepairContract.readback_route,
       workspace_id: principal.workspace_id,
-      secrets_included: false,
     },
   };
   return Object.freeze({
@@ -184,7 +187,7 @@ function buildManagedExecutionBinding({
     ]),
     managed_execution_input: Object.freeze(managedExecutionInput),
     managed_execution_input_hash: sha256Json(managedExecutionInput),
-    idempotency_key_sha256: sha256Json(idempotencyKey),
+    idempotency_key_sha256: sha256String(idempotencyKey),
     resource_identity: Object.freeze({
       resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
       resource_ref: resourceRef,
@@ -294,4 +297,5 @@ export const _testingTenantPlatformPluginManagedRepairExecutor = {
   buildPreviewFingerprint,
   buildManagedExecutionBinding,
   sha256Json,
+  sha256String,
 };
