@@ -113,6 +113,9 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
   assert.equal(brandParents[0].from_container_id, rootContainer.container_id, "Brand must be contained by the Root Workspace container");
   assert.notEqual(brandParents[0].from_container_id, operationalContainer.container_id, "operational Brand workspace must not own the Brand container");
   assert.match(brandParents[0].metadata_json, /workspace_registry\.config_json\.root_workspace_id/);
+  const brandParentMetadata = JSON.parse(brandParents[0].metadata_json);
+  assert.equal(brandParentMetadata.operational_workspace_id, "brand-workspace-a");
+  assert.equal(brandParentMetadata.root_workspace_id, "root-personal");
 }
 
 {
@@ -193,6 +196,7 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
     to_container_id: "brand-container",
     relationship_type_key: "contains",
     status: "active",
+    metadata_json: JSON.stringify({ operational_workspace_id: "brand-workspace-a", root_workspace_id: "root-personal" }),
   }];
   const calls = [];
   const connection = {
@@ -219,6 +223,47 @@ function sourceRows({ root = personalRoot, rootWorkspaceId = root.workspace_id }
   assert.equal(archived, 1);
   assert.ok(calls.some((call) => call.sql.includes("status='disabled'")));
   assert.ok(calls.some((call) => call.sql.includes("lifecycle_status='archived'")));
+}
+
+{
+  const containers = [
+    { container_id: "root-container", tenant_id: "tenant-a", container_type_key: "workspace" },
+    { container_id: "brand-workspace-container", tenant_id: "tenant-a", container_type_key: "workspace" },
+    { container_id: "brand-container", tenant_id: "tenant-a", container_type_key: "brand" },
+  ];
+  const relationships = [{
+    relationship_id: "desired-root-edge",
+    tenant_id: "tenant-a",
+    from_container_id: "root-container",
+    to_container_id: "brand-container",
+    relationship_type_key: "contains",
+    status: "active",
+    metadata_json: JSON.stringify({ operational_workspace_id: "brand-workspace-a", root_workspace_id: "root-personal" }),
+  }];
+  const calls = [];
+  const connection = {
+    async query(sql, params) {
+      calls.push({ sql: String(sql), params });
+      if (String(sql).includes("FROM container_relationships r")) {
+        return [[{
+          relationship_id: "wrong-legacy-operational-edge",
+          from_container_id: "brand-workspace-container",
+          to_container_id: "brand-container",
+          created_by: "legacy_projection",
+          parent_subject_type: "workspace",
+          parent_subject_ref: "brand-workspace-b",
+          parent_workspace_type: "brand",
+          parent_workspace_ownership_type: null,
+        }]];
+      }
+      throw new Error(`Wrong operational workspace must not be mutated: ${sql}`);
+    },
+  };
+  await assert.rejects(
+    () => archiveSupersededLegacyBrandEdges(connection, containers, relationships, "tenant-a"),
+    (error) => error?.code === "container_projection_brand_root_conflict"
+  );
+  assert.equal(calls.filter((call) => call.sql.startsWith("UPDATE ")).length, 0, "a different legacy Brand workspace parent must never be archived");
 }
 
 {
