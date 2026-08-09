@@ -70,7 +70,7 @@ async function resolveManagedRepairDryRunCertification({ connection, now = new D
       { candidate_count: rows.length },
     );
   }
-  const certification = rows[0];
+  const [certification] = rows;
   const certificationStatus = String(certification.certification_status || "").toLowerCase();
   if (!ACTIVE_DRY_RUN_CERTIFICATION_STATUSES.has(certificationStatus)) {
     throw managedError(409, "managed_execution_dry_run_certification_not_active", "Managed repair dry-run certification is not active.", {
