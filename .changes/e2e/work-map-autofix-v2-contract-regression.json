@@ -13,11 +13,13 @@
       ".github/workflows/spec-kit-work-map-autofix.yml",
       "docs/runbooks/supervisor-runtime-assurance.md",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/platform-work-map-generator.mjs",
       "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-platform-work-map-generator.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
       "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
       "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
@@ -46,14 +48,16 @@
             "Restrict the candidate delta to docs/work-maps plus the producer-owned Hostinger integration manifest/tasks and Retail integration manifest.",
             "Repeat both generators and compare the complete bounded diff to prove combined idempotency.",
             "Run Work Map currentness plus both Spec014 binding checks before commit/push.",
-            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, generated-artifact maintenance authority, and Spec014 binding convergence regressions against the same repository tree."
+            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, generated-artifact maintenance authority, Work Map generator, and Spec014 binding convergence regressions against the same repository tree."
           ],
           "assertions": [
             "Work Map Autofix remains the sole remote writer for docs/work-maps and does not gain a pull_request trigger.",
             "The one-time work-map-autofix authorization marker remains outside the writer in the recovery bridge.",
             "The writer is bound to one existing same-repository PR branch and immutable expected_head_sha; main and Production remain forbidden targets.",
             "Hostinger and Retail Spec014 bindings are refreshed only through http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs after Work Map generation.",
-            "The generated-artifact self-hosting source scope explicitly permits the canonical Spec014 binding regression, and the bootstrap runs that strict regression only after Work Map and both Spec014 bindings have converged and passed currentness checks, while unrelated source paths remain fail-closed.",
+            "The generated-artifact self-hosting source scope explicitly permits the canonical Spec014 binding regression plus the Work Map generator, supervisor runbook, and automation-overlap policy needed to govern this convergence; unrelated source paths remain fail-closed.",
+            "The maintenance bootstrap runs the strict Spec014 binding regression only after Work Map and both Spec014 bindings have converged and passed currentness checks.",
+            "The workflow, automation-overlap policy, supervisor runbook, and generated README source declare the same bounded write set: docs/work-maps, Hostinger work-map-integration.json plus optional canonical tasks.md, and Retail work-map-integration.json.",
             "The writer accepts no changed paths outside docs/work-maps, specs/014-governed-hostinger-storage-orchestration/work-map-integration.json, optional canonical Hostinger tasks.md, and specs/014-retail-commerce-operations-growth-os/work-map-integration.json.",
             "Combined Work Map plus Spec014 binding generation is idempotent and both producers pass check mode before any commit.",
             "The remote branch is re-read against expected_head_sha immediately before one normal push; force push remains forbidden.",
@@ -90,6 +94,13 @@
               "args": []
             },
             {
+              "id": "platform-work-map-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-work-map-generator.mjs",
+              "args": []
+            },
+            {
               "id": "work-map-autofix-spec014-binding-convergence",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -107,9 +118,13 @@
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-v2-contract-regression.json",
             ".github/workflows/spec-kit-work-map-autofix.yml",
+            "docs/runbooks/supervisor-runtime-assurance.md",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/platform-work-map-generator.mjs",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
+            "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/test-platform-work-map-generator.mjs",
             "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
             "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
