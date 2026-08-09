@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { _testingManagedExecutionAuthority } from "./managedExecutionAuthority.js";
 import { normalizeManagedExecutionEnvelope } from "./managedExecutionCore.js";
 import {
   assertManagedExecutionInvocationContext,
@@ -12,6 +13,7 @@ const {
   assertManagedExecutionReuseMode,
   assertGenericManagedExecutionStepMode,
 } = _testingManagedExecutionRunService;
+const { resolveManagedRepairDryRunCertification } = _testingManagedExecutionAuthority;
 
 function managedRun(executionMode, options = {}) {
   const authoritySnapshot = {
@@ -143,5 +145,71 @@ const liveEnvelope = normalizeManagedExecutionEnvelope({
   input_json: { execution_mode: "live" },
 });
 assert.equal(assertManagedExecutionInvocationContext({ envelope: liveEnvelope, invocationContext: null }), true);
+
+function certificationRow(overrides = {}) {
+  return {
+    certification_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_key,
+    surface_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_surface_key,
+    surface_family: "managed_execution",
+    tool_or_action_key: TenantPlatformPluginManagedRepairContract.dry_run_certification_target_key,
+    risk_class: "C",
+    certification_status: "ci_certified",
+    smoke_strategy: "bounded_evidence_readback",
+    dispatch_allowed: 1,
+    apply_allowed: 0,
+    requires_resource_authority: 1,
+    requires_dry_run: 1,
+    requires_audit_evidence: 1,
+    requires_readback: 1,
+    last_evidence_ref: "ci://managed-repair/certification-window",
+    last_certified_at: "2026-08-09T13:00:00.000Z",
+    expires_at: "2026-08-09T15:00:00.000Z",
+    ...overrides,
+  };
+}
+function certificationConnection(row) {
+  return {
+    async query() {
+      return [[row]];
+    },
+  };
+}
+const certificationNow = new Date("2026-08-09T14:00:00.000Z");
+await assert.doesNotReject(
+  resolveManagedRepairDryRunCertification({
+    connection: certificationConnection(certificationRow()),
+    now: certificationNow,
+  }),
+);
+await assert.rejects(
+  resolveManagedRepairDryRunCertification({
+    connection: certificationConnection(certificationRow({
+      last_certified_at: "2026-08-09T14:30:00.000Z",
+      expires_at: "2026-08-09T15:00:00.000Z",
+    })),
+    now: certificationNow,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_not_yet_valid",
+);
+await assert.rejects(
+  resolveManagedRepairDryRunCertification({
+    connection: certificationConnection(certificationRow({
+      last_certified_at: "2026-08-09T15:00:00.000Z",
+      expires_at: "2026-08-09T14:30:00.000Z",
+    })),
+    now: certificationNow,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_window_invalid",
+);
+await assert.rejects(
+  resolveManagedRepairDryRunCertification({
+    connection: certificationConnection(certificationRow({
+      last_certified_at: "2026-08-09T12:00:00.000Z",
+      expires_at: "2026-08-09T13:30:00.000Z",
+    })),
+    now: certificationNow,
+  }),
+  (error) => error.code === "managed_execution_dry_run_certification_expired",
+);
 
 console.log("tenant Platform Plugin managed repair run-mode isolation tests passed");
