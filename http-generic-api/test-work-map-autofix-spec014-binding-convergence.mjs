@@ -7,8 +7,14 @@ import { fileURLToPath } from "node:url";
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const workflowPath = path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix.yml");
 const producerPath = path.join(HERE, "scripts", "spec014-refresh-final-work-map-binding.mjs");
+const maintenancePath = path.join(HERE, "scripts", "maintenance-tools", "generated-artifact-refresh.mjs");
+const maintenanceGovernancePath = path.resolve(HERE, "..", ".github", "repository-maintenance-tool-governance.json");
+const overlapPolicyPath = path.join(HERE, "scripts", "taxonomy", "automation-overlap-policy.json");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const producer = fs.readFileSync(producerPath, "utf8");
+const maintenance = fs.readFileSync(maintenancePath, "utf8");
+const maintenanceGovernance = JSON.parse(fs.readFileSync(maintenanceGovernancePath, "utf8"));
+const overlapPolicy = JSON.parse(fs.readFileSync(overlapPolicyPath, "utf8"));
 
 const hostingerManifest = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json";
 const hostingerTasks = "specs/014-governed-hostinger-storage-orchestration/tasks.md";
@@ -38,6 +44,7 @@ assert.match(
 
 for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest, runtimeIntegrityManifest]) {
   assert.ok(workflow.includes(governedPath), `writer allowlist/staging must include ${governedPath}`);
+  assert.ok(maintenance.includes(governedPath), `self-hosting maintenance must include ${governedPath}`);
 }
 
 assert.match(workflow, /first_diff_hash=/u);
@@ -47,6 +54,29 @@ assert.match(workflow, /git add -- docs\/work-maps/u);
 assert.doesNotMatch(workflow, /git push[^\n]*(?:--force|-f)(?:\s|$)/u);
 assert.match(workflow, /remote_head_sha=.*git ls-remote/u);
 assert.match(workflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/u);
+
+assert.match(maintenance, /refresh_runtime_integrity_spec018_binding/u);
+assert.match(maintenance, /verify_runtime_integrity_spec018_binding_current/u);
+assert.match(maintenance, /018-environment-promotion-runtime-integrity/u);
+assert.doesNotMatch(maintenance, /"git", \["push"[^\n]*(?:"--force"|"-f")/u);
+
+const maintenanceRegistration = maintenanceGovernance.tools?.["generated-artifact-refresh"];
+assert.ok(maintenanceRegistration, "generated-artifact-refresh maintenance registration is required");
+assert.ok(
+  maintenanceRegistration.allowed_changed_path_patterns?.includes(
+    "^specs/018-environment-promotion-runtime-integrity/work-map-integration\\.json$",
+  ),
+  "maintenance governance must register the Spec018 integration manifest output",
+);
+
+const writerOwnership = overlapPolicy.resource_groups?.find(
+  (group) => group.key === "pull-request-work-map-generated-artifacts",
+);
+assert.ok(writerOwnership, "Work Map writer ownership group is required");
+assert.ok(
+  writerOwnership.write_patterns?.includes(runtimeIntegrityManifest),
+  "automation overlap policy must assign Spec018 to the sole Work Map writer",
+);
 
 assert.match(producer, /const DEFAULT_FEATURE_KEY = "014-governed-hostinger-storage-orchestration"/u);
 assert.match(producer, /--feature-key/u);
@@ -64,6 +94,9 @@ console.log(JSON.stringify({
   ok: true,
   combined_idempotency: true,
   runtime_integrity_binding_convergence: true,
+  self_hosting_maintenance_convergence: true,
+  maintenance_governance_registered: true,
+  overlap_ownership_registered: true,
   exact_head_push: true,
   force_push: false,
   protected_branch_mutation: false,
