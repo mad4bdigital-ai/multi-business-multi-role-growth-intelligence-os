@@ -3,6 +3,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
 import { getGovernanceDbPrivilegeReadinessSnapshot } from "../governanceDbPrivilegeReadinessRuntime.js";
+import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -151,7 +152,27 @@ async function readGitCheckoutInfo() {
   };
 }
 
-export function buildDeploymentInfoRoutes() {
+function runtimeIntegrityFailure(reason = "runtime_integrity_readback_failed") {
+  return {
+    contract: "mad4b.runtime-integrity.v1",
+    state: "degraded",
+    verified: false,
+    tracked_checkout_clean: false,
+    local_application_code_mutation_detected: false,
+    dirty_tracked_file_count: 0,
+    expected_commit_sha_available: false,
+    checkout_commit_sha_available: false,
+    commit_matches: null,
+    checkout_detected: false,
+    readback_available: false,
+    read_only_check: true,
+    untracked_files_ignored: true,
+    reason_codes: [reason],
+    secrets_included: false,
+  };
+}
+
+export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRuntimeIntegrity } = {}) {
   const router = Router();
 
   router.get("/deployment-info", async (req, res) => {
@@ -192,6 +213,18 @@ export function buildDeploymentInfoRoutes() {
       git?.head_mtime
     );
     const generatedAt = new Date().toISOString();
+    let runtimeIntegrity;
+    try {
+      runtimeIntegrity = await Promise.resolve(runtimeIntegrityReader({
+        expectedCommitSha: commitSha,
+        checkoutCommitSha: git?.commit_sha || null,
+      }));
+    } catch {
+      runtimeIntegrity = runtimeIntegrityFailure();
+    }
+    if (!runtimeIntegrity || typeof runtimeIntegrity !== "object") {
+      runtimeIntegrity = runtimeIntegrityFailure("runtime_integrity_invalid_readback");
+    }
     const includeGovernanceDbReadiness = String(req.query?.include_governance_db_readiness || "").trim() === "1";
     const governanceDbPrivilegeReadiness = includeGovernanceDbReadiness
       ? await getGovernanceDbPrivilegeReadinessSnapshot()
@@ -240,6 +273,10 @@ export function buildDeploymentInfoRoutes() {
         head_mtime: git.head_mtime || null,
         ref_mtime: git.ref_mtime || null,
       } : { detected: false },
+      runtime_integrity: runtimeIntegrity,
+      ...(includeGovernanceDbReadiness ? {
+        governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
+      } : {}),
       evidence: {
         commit_sha_available: Boolean(commitSha),
         branch_available: Boolean(branch),
@@ -248,12 +285,12 @@ export function buildDeploymentInfoRoutes() {
         manifest_detected: Boolean(deployment),
         canonical_manifest_detected: Boolean(canonicalDeployment),
         legacy_deployment_commit_detected: Boolean(legacyDeployment),
+        runtime_integrity_state: runtimeIntegrity.state || "degraded",
+        runtime_integrity_verified: runtimeIntegrity.verified === true,
+        runtime_integrity_read_only: runtimeIntegrity.read_only_check === true,
         manifest_error: manifestResult.ok ? null : manifestResult.error,
         secrets_included: false,
       },
-      ...(includeGovernanceDbReadiness ? {
-        governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
-      } : {}),
       app_env: process.env.APP_ENV || process.env.NODE_ENV || null,
       expected_dev_branch: expectedDevBranch,
       is_dev_hostname: isDevHostname,
