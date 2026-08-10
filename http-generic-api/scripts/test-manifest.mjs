@@ -108,6 +108,7 @@ const staticDiscoveryCommands = [
   "node test-support-ticket-sla-milestone-trigger.mjs",
   "node test-support-ticket-pre-migration-read-activity.mjs",
   "node test-support-ticket-resolution-service.mjs",
+  "node test-support-ticket-resolution-reconciliation.mjs",
   "node test-supervisor-admin-tool-export-sync.mjs",
   "node test-supervisor-runtime-assurance-automation.mjs",
   "node test-system-tool-catalog-v2.mjs",
