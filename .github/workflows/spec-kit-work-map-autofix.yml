@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       expected_head_sha:
-        description: Exact branch head SHA authorized for regeneration
+        description: Exact current branch head SHA authorized for regeneration
         required: true
         type: string
       recovery_run_id:
@@ -243,7 +243,7 @@ jobs:
           run_contract "schema-classification-regression" \
             node http-generic-api/test-work-map-schema-classification.mjs
           run_contract "schema-classification-contract-regression" \
-            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
+            node http-generic-api/test-work-map-schema-classification-contract.mjs
 
           {
             echo "## Validation outcomes"
