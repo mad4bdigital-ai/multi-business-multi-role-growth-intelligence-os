@@ -1,0 +1,60 @@
+name: Tenant Request Identity Collation Read-Only Diagnostic
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tenant-request-identity-collation-readonly-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnostic:
+    if: >-
+      github.event.issue.number == 4449 &&
+      !github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      github.event.comment.body == 'RUN_READ_ONLY_DIAGNOSTIC_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EVIDENCE_DIR: .artifacts/tenant-request-identity-collation-readonly-diagnostic
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Verify read-only diagnostic contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.issue.number }}" = "4449"
+          test "${{ github.event.comment.body }}" = "RUN_READ_ONLY_DIAGNOSTIC_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT"
+          test "$(git branch --show-current)" = "main"
+          node --check .github/ops/tenant-request-identity-collation-readonly-diagnostic.mjs
+
+      - name: Capture resolver and schema diagnostics without writes
+        run: node .github/ops/tenant-request-identity-collation-readonly-diagnostic.mjs
+
+      - name: Upload sanitized read-only diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-request-identity-collation-readonly-diagnostic-${{ github.run_id }}
+          path: .artifacts/tenant-request-identity-collation-readonly-diagnostic
+          if-no-files-found: error
+          retention-days: 30
