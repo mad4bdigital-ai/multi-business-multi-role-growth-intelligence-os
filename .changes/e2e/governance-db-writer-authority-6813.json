@@ -33,30 +33,32 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Separate canonical governance database writes from the ordinary runtime DB identity without weakening envelope or migration authorization semantics, while keeping this PR source-only and fail-closed when Governance DB writer credentials are absent.",
+      "objective": "Separate canonical governance control-plane database writes from the ordinary runtime DB identity without weakening envelope or migration authorization semantics, while preserving an already-open execution transaction when lifecycle consumption must remain atomic with a business mutation.",
       "e2e_journeys": [
         {
           "id": "runtime-reader-to-dedicated-governance-writer",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Governed execution runtime",
-          "entrypoint": "Capability envelope creation, approval, apply authorization, and governed migration authorization bootstrap",
-          "terminal_outcome": "Runtime authority reads remain on the ordinary read pool while canonical envelope, approval, authorization-policy, certification, and migration-authorization mutations are routed through an explicit Governance DB writer pool; missing Governance writer identity fails closed and no live database or provider action occurs in this PR.",
+          "entrypoint": "Capability envelope creation, approval, apply authorization, lifecycle/reference transition, and governed migration authorization bootstrap",
+          "terminal_outcome": "Runtime authority reads remain on the ordinary read pool; control-plane envelope and governed-migration authorization mutations default to an explicit Governance DB writer pool; execution-side lifecycle/reference updates may reuse an explicitly supplied existing transaction to preserve atomicity; missing Governance writer identity fails closed whenever no transaction override exists; no live database or provider action occurs in this PR.",
           "steps": [
             "Resolve ordinary runtime authority and envelope lookup through the runtime read pool.",
             "Resolve the Governance DB writer pool from dedicated GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD configuration without falling back to DB_USER or DB_PASSWORD.",
-            "Create, approve, and apply-authorize capability envelopes using the Governance writer for canonical mutations and transaction boundaries.",
-            "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and lifecycle mutation bound to the Governance writer pool.",
-            "Preserve legacy runtime implementations behind narrow facades so dependency injection cannot silently promote a runtime pool into writer authority.",
+            "Create, approve, and apply-authorize capability envelopes using the Governance writer for control-plane mutations and transaction/readback boundaries.",
+            "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and bootstrap lifecycle mutation bound to the Governance writer pool.",
+            "Default standalone lifecycle/reference mutations to the Governance writer while preserving an explicitly supplied existing execution transaction so envelope consumption cannot become a separate post-commit side effect.",
+            "Keep batch-expire dry-run read-only and force batch-expire apply onto the Governance writer.",
             "Publish the least-privilege Production privilege matrix and record this source boundary as a prerequisite for Spec 007 T201 without marking T201 complete.",
             "Run synthetic regressions with fake pools only; do not connect to a live database, provision grants, promote Production, run Migration 1050 readiness, dry-run, Apply, SQL, Hostinger, or provider mutation."
           ],
           "assertions": [
-            "Governance username and password are mandatory for writer-pool construction and have no runtime identity fallback.",
-            "Capability-envelope canonical INSERT/UPDATE and approval-hold mutation paths use the explicit Governance writer pool.",
-            "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit writer authority.",
+            "Governance username and password are mandatory for Governance pool construction and have no runtime credential fallback.",
+            "Envelope creation/approval/apply-authorization and governed migration bootstrap use the dedicated Governance writer by default.",
+            "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit bootstrap writer authority.",
+            "An explicitly supplied existing lifecycle/reference transaction is preserved for same-cycle execution atomicity and is not interpreted as GOVERNANCE_DB credential fallback.",
             "Runtime read paths remain independently injectable and do not require Governance write privileges.",
-            "Regression fixtures prove read/write pool separation and fail-closed Governance DB configuration without a live DB connection.",
+            "Regression fixtures prove read/write pool separation, explicit transaction preservation, and fail-closed Governance DB configuration without a live DB connection.",
             "The documented Production privilege matrix remains table-scoped and explicitly excludes broad schema/admin privileges.",
             "Spec 007 T201 remains incomplete until separately authorized Production principal provisioning, grants, secret wiring, promotion/runtime parity, and privilege/readiness proof are complete.",
             "No secret value is emitted and no Production, database, migration, Hostinger, provider, or protected-ref mutation is performed by this source slice."
@@ -70,7 +72,7 @@
               "args": []
             },
             {
-              "id": "capability-envelope-lifecycle-writer-isolation",
+              "id": "capability-envelope-lifecycle-transaction-compatibility",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-capability-envelope-lifecycle-tool.mjs",
@@ -122,7 +124,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove missing credentials, insufficient grants, stale writer identity, transaction rollback, and read/write pool misbinding fail closed without runtime identity fallback."
+      "objective": "Prove missing credentials, insufficient grants, stale writer identity, transaction rollback, and read/write pool misbinding fail closed without runtime credential fallback."
     },
     {
       "id": "canary",

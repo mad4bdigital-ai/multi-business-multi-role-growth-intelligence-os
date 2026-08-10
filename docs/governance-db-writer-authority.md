@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Canonical capability-envelope and governed-migration mutations must not execute with the ordinary runtime database identity. The application therefore uses a dedicated Governance DB writer pool for the bounded tables below while preserving the ordinary `DB_*` pool for normal runtime and authority reads.
+Canonical capability-envelope **control-plane** and governed-migration authorization mutations must not execute with the ordinary runtime database identity. The application therefore uses a dedicated Governance DB writer pool for those bounded tables while preserving the ordinary `DB_*` pool for normal runtime/authority reads and preserving an already-open execution transaction when envelope consumption must be atomic with a business mutation.
 
 This source contract addresses Issue #6813. It does **not** provision a Production principal, grant privileges, configure secrets, deploy Production, execute a migration, or prove Production readiness by itself.
 
@@ -23,15 +23,18 @@ Missing governance user/password fails closed with `GOVERNANCE_DB_CONFIG_MISSING
 ## Reader / writer boundary
 
 - Runtime reader (`getPool()`): repository/resource authority resolution and other non-mutating runtime reads.
-- Governance writer (`getGovernancePool()`): canonical governance INSERT/UPDATE operations and same-cycle readback needed to certify those operations.
-- Legacy caller-provided `pool` values are not accepted as mutation authority by `capabilityResolutionEnvelopeGuard.js`; tests and same-cycle transactions must inject `writerPool` explicitly.
-- Capability envelope creation performs authority/dry-run resolution with the runtime reader, then resolves the governance writer only at the canonical ledger write boundary.
-- Envelope approval and apply-authorization use a single writer transaction for current-state read, mutation, conditional update, and same-cycle readback.
-- Governed migration authorization resolves the capability envelope with the runtime reader, then performs authorization/policy/certification registry reads and writes with the governance writer.
+- Governance writer (`getGovernancePool()`): envelope creation/approval/apply-authorization, governed migration authorization/policy/certification writes, standalone lifecycle mutations, and same-cycle governance readback.
+- Execution transaction exception: when a business mutation already holds a SQL transaction, lifecycle/reference consumption may reuse that **explicit transaction object** so envelope state and the business mutation remain atomic. This is not a credential fallback and does not cause `GOVERNANCE_DB_USER`/`GOVERNANCE_DB_PASSWORD` to inherit `DB_USER`/`DB_PASSWORD`.
+- Capability envelope creation performs authority/dry-run resolution with the runtime reader, then resolves the governance writer only at the canonical ledger INSERT boundary.
+- Envelope approval and apply-authorization use a single Governance writer transaction for current-state read, mutation, conditional update, and same-cycle readback.
+- Governed migration authorization resolves the capability envelope with the runtime reader, then performs authorization/policy/certification registry reads and writes with the Governance writer.
+- Batch-expire dry-run remains read-only; batch-expire apply is a standalone governance mutation and stays on the Governance writer.
+
+The execution transaction exception exists to prevent a separate-principal post-commit lifecycle write from breaking atomicity. It must not be used to bypass control-plane writer selection.
 
 ## Minimum Production privilege matrix
 
-The initial principal must be table-scoped. The reviewed minimum is:
+The initial Governance writer principal must be table-scoped. The reviewed minimum is:
 
 | Table | Minimum operations |
 |---|---|
@@ -67,7 +70,8 @@ Repository CI must prove at minimum:
 - runtime-only `DB_USER`/`DB_PASSWORD` cannot satisfy governance configuration;
 - governance credential errors contain no secret values;
 - canonical envelope creation writes through `writerPool` while repository authority reads remain on `readPool`;
-- lifecycle mutations ignore legacy runtime `pool` injection;
+- approval/apply-authorization and migration bootstrap select the dedicated writer by default;
+- an explicit existing execution transaction can preserve envelope lifecycle/reference atomicity without turning runtime credentials into Governance DB credential fallback;
 - migration bootstrap uses separate reader and writer pools;
-- apply/batch mutations preserve transaction and same-cycle readback semantics;
+- batch apply preserves Governance writer transaction and same-cycle readback semantics;
 - no provider call or external business write is introduced by this boundary.

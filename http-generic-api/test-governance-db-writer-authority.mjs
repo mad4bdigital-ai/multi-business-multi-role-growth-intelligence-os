@@ -78,9 +78,11 @@ assert.match(applySource, /same-cycle readback/i);
 assert.doesNotMatch(applySource, /from "\.\.\/db\.js"/);
 
 const guardSource = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
-assert.match(guardSource, /pool: _legacyRuntimePool/);
-assert.match(guardSource, /writerPool \|\| getGovernancePool\(\)/);
+assert.match(guardSource, /resolveLifecycleMutationPool/);
+assert.match(guardSource, /transactionPool: transactionPool \|\| legacyTransactionPool/);
+assert.match(guardSource, /return getGovernancePool\(\)/);
 assert.match(guardSource, /normalizedMode !== "apply"/);
+assert.match(guardSource, /pool: writerPool \|\| getGovernancePool\(\)/);
 
 const bootstrapSource = readFileSync(new URL("./governedMigrationAuthorizationBootstrap.js", import.meta.url), "utf8");
 assert.match(bootstrapSource, /const readPool = deps\.readPool \|\| getPool\(\)/);
