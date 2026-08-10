@@ -8,11 +8,13 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const workflowPath = path.resolve(HERE, "..", ".github", "workflows", "spec-kit-work-map-autofix.yml");
 const producerPath = path.join(HERE, "scripts", "spec014-refresh-final-work-map-binding.mjs");
 const maintenancePath = path.join(HERE, "scripts", "maintenance-tools", "generated-artifact-refresh.mjs");
+const publisherPath = path.join(HERE, "scripts", "generated-artifact-refresh-pr-publisher.mjs");
 const maintenanceGovernancePath = path.resolve(HERE, "..", ".github", "repository-maintenance-tool-governance.json");
 const overlapPolicyPath = path.join(HERE, "scripts", "taxonomy", "automation-overlap-policy.json");
 const workflow = fs.readFileSync(workflowPath, "utf8");
 const producer = fs.readFileSync(producerPath, "utf8");
 const maintenance = fs.readFileSync(maintenancePath, "utf8");
+const publisher = fs.readFileSync(publisherPath, "utf8");
 const maintenanceGovernance = JSON.parse(fs.readFileSync(maintenanceGovernancePath, "utf8"));
 const overlapPolicy = JSON.parse(fs.readFileSync(overlapPolicyPath, "utf8"));
 
@@ -46,6 +48,10 @@ for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest, r
   assert.ok(workflow.includes(governedPath), `writer allowlist/staging must include ${governedPath}`);
   assert.ok(maintenance.includes(governedPath), `self-hosting maintenance must include ${governedPath}`);
 }
+assert.ok(
+  publisher.includes(runtimeIntegrityManifest),
+  "trusted generated-artifact evidence publisher must accept the Spec018 integration manifest output",
+);
 
 assert.match(workflow, /first_diff_hash=/u);
 assert.match(workflow, /second_diff_hash=/u);
@@ -96,6 +102,7 @@ console.log(JSON.stringify({
   runtime_integrity_binding_convergence: true,
   self_hosting_maintenance_convergence: true,
   maintenance_governance_registered: true,
+  publisher_scope_registered: true,
   overlap_ownership_registered: true,
   exact_head_push: true,
   force_push: false,
