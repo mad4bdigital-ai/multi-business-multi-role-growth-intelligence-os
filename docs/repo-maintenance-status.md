@@ -20,8 +20,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
-- `platform-plugins`: 52
 - `connected-systems`: 51
+- `platform-plugins`: 51
 - `platform-intelligence`: 36
 - `resource-api`: 34
 - `activation`: 31
@@ -79,6 +79,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
+- `.github/workflows/governance-db-privilege-readiness.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -276,6 +277,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-shared-tool-bindings.mjs`
 - `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
+- `http-generic-api/test-production-deployment-openapi-transition.mjs`
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
@@ -299,8 +301,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
-- `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
-- ...and 3 more
+- ...and 4 more
 
 ## Maintenance Contract
 
