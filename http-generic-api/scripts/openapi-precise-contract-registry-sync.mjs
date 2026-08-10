@@ -37,7 +37,7 @@ const LEGACY_REGISTERED_PATH_TRANSITIONS = new Map([
       operation_id: "remoteRuntimeHostingerDeployRelease",
       auth_profile: "admin_backend",
       consequential: true,
-      composition_mode: "ref",
+      composition_mode: "inline",
       path_item_ref: "./openapi/production-deployment-authority.yaml#/productionDeploymentAuthorityPath",
       legacy_request_required: ["target_id", "expected_commit_sha"],
     },
