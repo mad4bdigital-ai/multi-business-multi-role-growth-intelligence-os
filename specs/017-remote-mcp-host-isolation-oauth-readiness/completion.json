@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
   "delivery_mode": "multi_pr",
-  "status": "specification_created_implementation_not_started",
+  "status": "in_progress",
   "scope": "remote_mcp_resource_host_isolation_and_live_oauth_readiness",
   "specification": {
     "branch": "gpt/spec-017-remote-mcp-host-isolation-oauth-readiness-20260810",
