@@ -103,7 +103,7 @@ assert.equal(e2e.$schema, "../../.specify/schemas/e2e-phases.schema.json");
 assert.equal(e2e.feature_key, manifest.spec_key);
 assert.equal(e2e.delivery_mode, "multi_pr");
 assert.equal(e2e.merge_contract?.minimum_phase, "mvp");
-assert.equal(e2e.current_phase, "mvp");
+assert.equal(e2e.current_phase, "operational");
 const mvp = e2e.phases.find((phase) => phase.id === "mvp");
 assert.equal(mvp?.status, "implemented");
 const journey = mvp?.e2e_journeys?.find((row) => row.id === "remote-mcp-host-isolation-spec-to-implementation-handoff");
