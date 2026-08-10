@@ -37,6 +37,7 @@ const ACCEPTED_OPERATION_INTENTS = Object.freeze([
   "migration_authorization_bootstrap",
   "governed.migration.authorization.bootstrap",
 ]);
+const EXECUTOR_READINESS_MODES = Object.freeze(["ensure", "require_existing"]);
 
 function compact(value = "", max = 500) {
   return String(value ?? "").trim().slice(0, max);
@@ -79,6 +80,19 @@ function normalizeMigrationName(value = "") {
     throw bootstrapError(400, "governed_migration_authorization_invalid_migration", "migration must be one repository migration filename.");
   }
   return migration;
+}
+
+function normalizeExecutorReadinessMode(value = "ensure") {
+  const mode = compact(value || "ensure", 64).toLowerCase() || "ensure";
+  if (!EXECUTOR_READINESS_MODES.includes(mode)) {
+    throw bootstrapError(
+      400,
+      "governed_migration_executor_readiness_mode_invalid",
+      `executor_readiness_mode must be one of: ${EXECUTOR_READINESS_MODES.join(", ")}.`,
+      { executor_readiness_mode: mode }
+    );
+  }
+  return mode;
 }
 
 export function governedMigrationAuthorizationConfirmation(migration = "") {
@@ -274,6 +288,39 @@ async function ensureMigrationExecutorDispatchCertification(db) {
   );
 }
 
+async function requireExistingMigrationExecutorReadiness(db) {
+  const applyPolicyRow = await queryMigrationExecutorApplyPolicy(db);
+  if (!applyPolicyRow) {
+    throw bootstrapError(
+      409,
+      "governed_migration_executor_apply_policy_required",
+      "executor_readiness_mode=require_existing requires the migration executor apply policy to exist before authorization bootstrap."
+    );
+  }
+  const dispatchCertificationRow = await queryMigrationExecutorDispatchCertification(db);
+  if (!dispatchCertificationRow) {
+    throw bootstrapError(
+      409,
+      "governed_migration_executor_dispatch_certification_required",
+      "executor_readiness_mode=require_existing requires the migration executor dispatch certification to exist before authorization bootstrap."
+    );
+  }
+  return {
+    apply_policy: verifyMigrationExecutorApplyPolicy(applyPolicyRow),
+    dispatch_certification: verifyMigrationExecutorDispatchCertification(dispatchCertificationRow),
+  };
+}
+
+async function resolveMigrationExecutorReadiness(db, mode) {
+  if (mode === "require_existing") {
+    return requireExistingMigrationExecutorReadiness(db);
+  }
+  return {
+    apply_policy: await ensureMigrationExecutorApplyPolicy(db),
+    dispatch_certification: await ensureMigrationExecutorDispatchCertification(db),
+  };
+}
+
 async function queryExistingAuthorization(db, migration) {
   const [rows] = await db.query(
     `SELECT migration_file, authorization_status, authorization_source, policy_key, risk_tier,
@@ -377,6 +424,7 @@ async function reauthorizeExistingMigration({
   input,
   existing,
   markReferenced,
+  executorReadinessMode,
 }) {
   const previousChecksum = compact(input.previous_checksum_sha256, 64).toLowerCase();
   if (!/^[0-9a-f]{64}$/.test(previousChecksum)) {
@@ -418,6 +466,10 @@ async function reauthorizeExistingMigration({
     );
   }
 
+  if (executorReadinessMode === "require_existing") {
+    await requireExistingMigrationExecutorReadiness(pool);
+  }
+
   const metadata = {
     ...buildAuthorizationMetadata({ candidate, envelope, auth }),
     previous_checksum_sha256: previousChecksum,
@@ -448,8 +500,7 @@ async function reauthorizeExistingMigration({
         { migration_file: candidate.migration }
       );
     }
-    await ensureMigrationExecutorApplyPolicy(connection);
-    await ensureMigrationExecutorDispatchCertification(connection);
+    await resolveMigrationExecutorReadiness(connection, executorReadinessMode);
     if (transactional) await connection.commit();
   } catch (error) {
     if (transactional) {
@@ -472,12 +523,7 @@ async function reauthorizeExistingMigration({
       { migration_file: candidate.migration }
     );
   }
-  const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
-    await queryMigrationExecutorApplyPolicy(pool)
-  );
-  const migrationExecutorDispatchCertification = verifyMigrationExecutorDispatchCertification(
-    await queryMigrationExecutorDispatchCertification(pool)
-  );
+  const migrationExecutorReadiness = await requireExistingMigrationExecutorReadiness(pool);
   await markReferenced({
     pool,
     envelopeId: envelope.envelope_id,
@@ -492,8 +538,9 @@ async function reauthorizeExistingMigration({
     idempotent: false,
     candidate,
     authorization: readback,
-    migration_executor_apply_policy: migrationExecutorApplyPolicy,
-    migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
+    executor_readiness_mode: executorReadinessMode,
+    migration_executor_apply_policy: migrationExecutorReadiness.apply_policy,
+    migration_executor_dispatch_certification: migrationExecutorReadiness.dispatch_certification,
     migration_sql_executed: false,
     applies_migration: false,
     capability_envelope_id: envelope.envelope_id,
@@ -583,6 +630,7 @@ export async function inspectGovernedMigrationAuthorizationCandidate(input = {},
 }
 
 export async function bootstrapGovernedMigrationAuthorization(input = {}, deps = {}) {
+  const executorReadinessMode = normalizeExecutorReadinessMode(input.executor_readiness_mode);
   const pool = deps.pool || getPool();
   const auth = deps.auth || {};
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
@@ -608,10 +656,10 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
         input,
         existing,
         markReferenced,
+        executorReadinessMode,
       });
     }
-    const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
-    const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
+    const migrationExecutorReadiness = await resolveMigrationExecutorReadiness(pool, executorReadinessMode);
     await markReferenced({
       pool,
       envelopeId: envelope.envelope_id,
@@ -625,8 +673,9 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       idempotent: true,
       candidate,
       authorization: existing,
-      migration_executor_apply_policy: migrationExecutorApplyPolicy,
-      migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
+      executor_readiness_mode: executorReadinessMode,
+      migration_executor_apply_policy: migrationExecutorReadiness.apply_policy,
+      migration_executor_dispatch_certification: migrationExecutorReadiness.dispatch_certification,
       migration_sql_executed: false,
       applies_migration: false,
       capability_envelope_id: envelope.envelope_id,
@@ -641,6 +690,10 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       ledger_run_id: ledger.run_id,
       ledger_mode: ledger.mode,
     });
+  }
+
+  if (executorReadinessMode === "require_existing") {
+    await requireExistingMigrationExecutorReadiness(pool);
   }
 
   const metadata = {
@@ -675,8 +728,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
        VALUES (?, 'authorized', ?, ?, 'medium', 1, 1, 0, 1, ?, ?)`,
       [candidate.migration, AUTHORIZATION_SOURCE, AUTHORIZATION_POLICY_KEY, notes || null, JSON.stringify(metadata)]
     );
-    await ensureMigrationExecutorApplyPolicy(connection);
-    await ensureMigrationExecutorDispatchCertification(connection);
+    await resolveMigrationExecutorReadiness(connection, executorReadinessMode);
     if (transactional) await connection.commit();
   } catch (error) {
     if (transactional) {
@@ -688,16 +740,16 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
         candidate.migration_checksum_sha256
       );
       if (raced) {
-        const migrationExecutorApplyPolicy = await ensureMigrationExecutorApplyPolicy(pool);
-        const migrationExecutorDispatchCertification = await ensureMigrationExecutorDispatchCertification(pool);
+        const migrationExecutorReadiness = await resolveMigrationExecutorReadiness(pool, executorReadinessMode);
         return {
           ok: true,
           authorization_created: false,
           idempotent: true,
           candidate,
           authorization: raced,
-          migration_executor_apply_policy: migrationExecutorApplyPolicy,
-          migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
+          executor_readiness_mode: executorReadinessMode,
+          migration_executor_apply_policy: migrationExecutorReadiness.apply_policy,
+          migration_executor_dispatch_certification: migrationExecutorReadiness.dispatch_certification,
           migration_sql_executed: false,
           applies_migration: false,
           capability_envelope_id: envelope.envelope_id,
@@ -719,12 +771,7 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
       migration_file: candidate.migration,
     });
   }
-  const migrationExecutorApplyPolicy = verifyMigrationExecutorApplyPolicy(
-    await queryMigrationExecutorApplyPolicy(pool)
-  );
-  const migrationExecutorDispatchCertification = verifyMigrationExecutorDispatchCertification(
-    await queryMigrationExecutorDispatchCertification(pool)
-  );
+  const migrationExecutorReadiness = await requireExistingMigrationExecutorReadiness(pool);
   await markReferenced({
     pool,
     envelopeId: envelope.envelope_id,
@@ -737,8 +784,9 @@ export async function bootstrapGovernedMigrationAuthorization(input = {}, deps =
     idempotent: false,
     candidate,
     authorization: readback,
-    migration_executor_apply_policy: migrationExecutorApplyPolicy,
-    migration_executor_dispatch_certification: migrationExecutorDispatchCertification,
+    executor_readiness_mode: executorReadinessMode,
+    migration_executor_apply_policy: migrationExecutorReadiness.apply_policy,
+    migration_executor_dispatch_certification: migrationExecutorReadiness.dispatch_certification,
     migration_sql_executed: false,
     applies_migration: false,
     capability_envelope_id: envelope.envelope_id,
