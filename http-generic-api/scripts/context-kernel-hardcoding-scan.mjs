@@ -56,24 +56,40 @@ export function parseChangedLineRanges(diffText) {
   return rangesByFile;
 }
 
-function eventBaseSha() {
+function eventBaseSha(repositoryRoot) {
   const eventPath = String(process.env.GITHUB_EVENT_PATH || "").trim();
   if (!eventPath || !fs.existsSync(eventPath)) return "";
+  let defaultBranch = "";
   try {
     const event = JSON.parse(fs.readFileSync(eventPath, "utf8"));
     const pullRequestBase = String(event?.pull_request?.base?.sha || "").trim();
     if (pullRequestBase) return pullRequestBase;
     const pushBefore = String(event?.before || "").trim();
     if (pushBefore && !/^0+$/u.test(pushBefore)) return pushBefore;
+    defaultBranch = String(event?.repository?.default_branch || "").trim();
   } catch {
     return "";
   }
-  return "";
+  if (!defaultBranch) return "";
+  try {
+    const mergeBase = execFileSync(
+      "git",
+      ["merge-base", `origin/${defaultBranch}`, "HEAD"],
+      {
+        cwd: repositoryRoot,
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    ).trim();
+    return /^[0-9a-f]{40}$/u.test(mergeBase) ? mergeBase : "";
+  } catch {
+    return "";
+  }
 }
 
 function resolveChangedLineRanges(repositoryRoot, changedFiles) {
   if (!Array.isArray(changedFiles) || changedFiles.length === 0) return null;
-  const baseSha = eventBaseSha();
+  const baseSha = eventBaseSha(repositoryRoot);
   if (!baseSha) return null;
   try {
     const diffText = execFileSync(

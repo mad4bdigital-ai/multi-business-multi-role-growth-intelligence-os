@@ -75,6 +75,59 @@ async function requireExplicitTenantResourceBinding(connection, {
   return rows;
 }
 
+async function resolveCanonicalBrandForWorkspace(connection, { tenantId, resourceRef }) {
+  const normalizedRef = normalizeBrandRef(resourceRef);
+  const [brandRows] = await connection.query(
+    `SELECT b.target_key, b.status AS brand_status
+       FROM brands b
+      WHERE LOWER(b.target_key) = LOWER(?)
+         OR LOWER(COALESCE(b.normalized_brand_name, '')) = LOWER(?)
+         OR LOWER(COALESCE(b.brand_name, '')) = LOWER(?)
+      LIMIT 20 FOR UPDATE`,
+    [normalizedRef, normalizedRef, normalizedRef]
+  );
+  const brand = requireExactlyOne(brandRows, "brand");
+  if (String(brand.brand_status || "").toLowerCase() !== "active") {
+    throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active.");
+  }
+
+  const canonicalBrandRef = String(brand.target_key || "").trim();
+  if (!canonicalBrandRef) {
+    throw authorityError(422, "workspace_resource_reference_unverifiable", "Brand resource has no canonical target key.");
+  }
+
+  // Keep legacy `brands` and tenant authority identity comparisons collation-local.
+  // `brands` may use utf8mb4_unicode_ci while tenant_brand_links uses
+  // utf8mb4_uca1400_ai_ci. Comparing those columns in one SQL JOIN causes
+  // ER_CANT_AGGREGATE_2COLLATIONS on valid tenant Brand operations.
+  const [linkRows] = await connection.query(
+    `SELECT tbl.tenant_id, tbl.brand_target_key, tbl.status AS link_status
+       FROM tenant_brand_links tbl
+      WHERE LOWER(tbl.brand_target_key) = LOWER(?)
+      LIMIT 20 FOR UPDATE`,
+    [canonicalBrandRef]
+  );
+  if (!Array.isArray(linkRows) || linkRows.length === 0) {
+    throw authorityError(404, "workspace_resource_not_found", "Brand resource was not found in tenant brand authority.");
+  }
+
+  const tenantRows = linkRows.filter((row) => String(row.tenant_id || "") === String(tenantId || ""));
+  if (tenantRows.length === 0) {
+    throw authorityError(403, "workspace_resource_cross_tenant", "Brand resource is not linked to this workspace.");
+  }
+  const activeRows = tenantRows.filter((row) => String(row.link_status || "").toLowerCase() === "active");
+  if (activeRows.length === 0) {
+    throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active for this workspace.");
+  }
+  if (activeRows.length !== 1) {
+    throw authorityError(409, "workspace_resource_ambiguous", "Brand resource reference did not resolve uniquely for this workspace.");
+  }
+  return {
+    resource_ref: String(activeRows[0].brand_target_key),
+    authority_source: "brands+tenant_brand_links",
+  };
+}
+
 export async function assertGrantResourceInWorkspace(connection, { tenantId, resourceType, resourceRef }) {
   if (!connection || typeof connection.query !== "function") {
     throw authorityError(500, "workspace_resource_authority_unavailable", "Workspace resource authority connection is unavailable.");
@@ -205,34 +258,7 @@ export async function assertGrantResourceInWorkspace(connection, { tenantId, res
   }
 
   if (resourceType === "brand") {
-    const normalizedRef = normalizeBrandRef(resourceRef);
-    const [rows] = await connection.query(
-      `SELECT tbl.tenant_id, tbl.brand_target_key, tbl.status AS link_status, b.status AS brand_status
-         FROM tenant_brand_links tbl
-         JOIN brands b ON LOWER(b.target_key) = LOWER(tbl.brand_target_key)
-        WHERE LOWER(b.target_key) = LOWER(?)
-           OR LOWER(COALESCE(b.normalized_brand_name, '')) = LOWER(?)
-           OR LOWER(COALESCE(b.brand_name, '')) = LOWER(?)
-        LIMIT 20 FOR UPDATE`,
-      [normalizedRef, normalizedRef, normalizedRef]
-    );
-    if (!Array.isArray(rows) || rows.length === 0) {
-      throw authorityError(404, "workspace_resource_not_found", "Brand resource was not found in tenant brand authority.");
-    }
-    const tenantRows = rows.filter((row) => String(row.tenant_id || "") === String(tenantId || ""));
-    if (tenantRows.length === 0) {
-      throw authorityError(403, "workspace_resource_cross_tenant", "Brand resource is not linked to this workspace.");
-    }
-    const activeRows = tenantRows.filter(
-      (row) => String(row.link_status || "").toLowerCase() === "active" && String(row.brand_status || "").toLowerCase() === "active"
-    );
-    if (activeRows.length === 0) {
-      throw authorityError(409, "workspace_resource_inactive", "Brand resource is not active for this workspace.");
-    }
-    if (activeRows.length !== 1) {
-      throw authorityError(409, "workspace_resource_ambiguous", "Brand resource reference did not resolve uniquely for this workspace.");
-    }
-    return { resource_ref: String(activeRows[0].brand_target_key), authority_source: "tenant_brand_links" };
+    return resolveCanonicalBrandForWorkspace(connection, { tenantId, resourceRef });
   }
 
   throw authorityError(422, "workspace_resource_reference_unverifiable", "Resource type has no canonical tenant-scoped authority resolver.");
@@ -242,4 +268,5 @@ export const _testingWorkspaceGrantResourceAuthority = {
   normalizeBrandRef,
   activeValue,
   uniqueRefs,
+  resolveCanonicalBrandForWorkspace,
 };
