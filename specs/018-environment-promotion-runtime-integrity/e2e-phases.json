@@ -12,12 +12,15 @@
       "specs/018-environment-promotion-runtime-integrity/contracts/openapi.yaml",
       "specs/018-environment-promotion-runtime-integrity/e2e-phases.json",
       "specs/018-environment-promotion-runtime-integrity/plan.md",
+      "specs/018-environment-promotion-runtime-integrity/runtime-immutability-inventory.md",
       "specs/018-environment-promotion-runtime-integrity/spec.md",
       "specs/018-environment-promotion-runtime-integrity/tasks.md",
       "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
       "http-generic-api/environmentBranchAuthority.js",
       "http-generic-api/productionDeploymentAuthority.js",
       "http-generic-api/hostingerSshDeployExecutor.js",
+      "http-generic-api/runtimeIntegrity.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/openapi.yaml",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
@@ -28,7 +31,9 @@
       "http-generic-api/test-environment-branch-authority.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-production-deployment-openapi-transition.mjs",
-      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
+      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
+      "http-generic-api/test-runtime-integrity.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs"
     ]
   },
   "merge_contract": {
@@ -38,7 +43,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove the merged environment-authority foundation and the bounded B04-B09 deployment-authority candidate are internally consistent, policy-derived, exact-SHA fail-closed, no-secret, and executable in synthetic tests without applying migrations or mutating GitHub protected branches or Hostinger production.",
+      "objective": "Prove the merged environment/deployment authority and bounded runtime-immutability candidate are internally consistent, fail closed on authority or checkout drift, preserve routine local mutation denial, expose runtime integrity separately from service health, and execute without applying migrations or mutating GitHub protected branches or Hostinger production.",
       "e2e_journeys": [
         {
           "id": "spec-018-policy-derived-production-deploy-authority",
@@ -113,13 +118,63 @@
             "http-generic-api/test-production-deployment-openapi-transition.mjs",
             "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
           ]
+        },
+        {
+          "id": "spec-018-runtime-immutability-integrity-separation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform runtime integrity reviewer",
+          "entrypoint": "Hostinger production target policy plus public deployment-info diagnostics",
+          "terminal_outcome": "Routine local application-code mutation remains denied, tracked checkout drift is detected through read-only Git evidence, and a healthy diagnostic surface can independently report degraded runtime integrity without exposing file paths, file contents, credentials, or secrets.",
+          "steps": [
+            "Inventory the existing Hostinger SSH mutation and read-only probe/readback surfaces without creating new mutation authority.",
+            "Verify Production target metadata keeps deployment_allowed=false, ssh_normal_updates_allowed=false, and ssh_break_glass_only=true for routine SSH application-code mutation.",
+            "Inspect the local checkout using fixed Git argv, shell=false, GIT_OPTIONAL_LOCKS=0, and tracked files only.",
+            "Compare canonical deployed commit evidence with the checkout commit when both are available.",
+            "Classify tracked dirty state, commit mismatch, or unavailable checkout evidence as degraded runtime integrity using bounded reason codes.",
+            "Expose runtime_integrity through deployment-info while leaving the service diagnostic ok state independent.",
+            "Verify untracked runtime metadata is ignored and no modified file path or raw Git output is returned."
+          ],
+          "assertions": [
+            "Routine Hostinger SSH application-code mutation remains fail-closed under the existing Production target policy.",
+            "No break-glass authorization or local mutation exception is introduced by phase C.",
+            "Clean tracked checkout plus matching commit can report runtime_integrity.state=verified.",
+            "Tracked dirty checkout reports runtime_integrity.state=degraded with unapproved_dirty_runtime.",
+            "Commit mismatch and unavailable checkout evidence fail closed as degraded integrity.",
+            "deployment-info can return ok=true while runtime_integrity is degraded, proving health and integrity are separate states.",
+            "Runtime integrity evidence is read-only, ignores untracked files, exposes no changed paths or raw content, and includes no secrets."
+          ],
+          "tests": [
+            {
+              "id": "spec-018-runtime-integrity-classifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-integrity.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-runtime-integrity-deployment-info-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/018-environment-promotion-runtime-integrity/runtime-immutability-inventory.md",
+            "http-generic-api/runtimeIntegrity.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-runtime-integrity.mjs",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Complete runtime immutability, break-glass lifecycle, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after the environment/deployment authority foundation is merged."
+      "objective": "Complete break-glass lifecycle, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after runtime immutability is merged."
     },
     {
       "id": "resilient",

@@ -82,7 +82,25 @@ try {
   process.env.DEPLOYMENT_MANIFEST_PATH = manifestPath;
 
   const app = express();
-  app.use(buildDeploymentInfoRoutes());
+  app.use(buildDeploymentInfoRoutes({
+    runtimeIntegrityReader: async () => ({
+      contract: "mad4b.runtime-integrity.v1",
+      state: "degraded",
+      verified: false,
+      tracked_checkout_clean: false,
+      local_application_code_mutation_detected: true,
+      dirty_tracked_file_count: 1,
+      expected_commit_sha_available: true,
+      checkout_commit_sha_available: true,
+      commit_matches: true,
+      checkout_detected: true,
+      readback_available: true,
+      read_only_check: true,
+      untracked_files_ignored: true,
+      reason_codes: ["unapproved_dirty_runtime"],
+      secrets_included: false,
+    }),
+  }));
   server = await new Promise((resolve) => {
     const instance = app.listen(0, "127.0.0.1", () => resolve(instance));
   });
@@ -95,6 +113,7 @@ try {
     env: { DEPLOYMENT_MANIFEST_PATH: manifestPath },
   });
 
+  assert.equal(deploymentInfo.ok, true, "service diagnostics may remain healthy while runtime integrity is degraded");
   assert.equal(deploymentInfo.commit_sha, commitSha, "deployment-info must prioritize canonical manifest commit");
   assert.equal(deploymentInfo.branch, "main", "deployment-info must prioritize canonical manifest branch");
   assert.equal(deploymentInfo.expected_dev_branch, "main", "main is the canonical staging branch");
@@ -102,6 +121,13 @@ try {
   assert.equal(deploymentInfo.deployment.commit_sha, commitSha);
   assert.equal(deploymentInfo.evidence.canonical_manifest_detected, true);
   assert.equal(deploymentInfo.evidence.manifest_error, null);
+  assert.equal(deploymentInfo.runtime_integrity.state, "degraded");
+  assert.equal(deploymentInfo.runtime_integrity.verified, false);
+  assert.equal(deploymentInfo.runtime_integrity.local_application_code_mutation_detected, true);
+  assert.deepEqual(deploymentInfo.runtime_integrity.reason_codes, ["unapproved_dirty_runtime"]);
+  assert.equal(deploymentInfo.evidence.runtime_integrity_state, "degraded");
+  assert.equal(deploymentInfo.evidence.runtime_integrity_verified, false);
+  assert.equal(deploymentInfo.evidence.runtime_integrity_read_only, true);
   assert.equal(version.deployment.deployed_commit_sha, commitSha);
   assert.equal(
     deploymentInfo.commit_sha,
