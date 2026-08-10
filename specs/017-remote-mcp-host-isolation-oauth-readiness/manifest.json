@@ -26,7 +26,7 @@
     "registration_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/register",
     "revocation_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/revoke"
   },
-  "file_count": 11,
+  "file_count": 12,
   "files": [
     "README.md",
     "manifest.json",
@@ -49,7 +49,7 @@
   "coverage": {
     "user_scenarios": 6,
     "operation_paths": 9,
-    "risk_groups": 8,
+    "risk_groups": 16,
     "task_groups": 8,
     "e2e_phases": 6
   },
