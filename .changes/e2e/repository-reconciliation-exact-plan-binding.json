@@ -1,0 +1,70 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-reconciliation-exact-plan-binding",
+  "title": "Repository reconciliation exact plan binding",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-reconciliation-exact-plan-binding.json",
+      "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "http-generic-api/test-repository-reconciliation-plan-binding.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind repository reconciliation apply execution to the exact dry-run plan identity and hash before authority evaluation or any mutation dispatch.",
+      "e2e_journeys": [
+        {
+          "id": "dry-run-plan-to-fail-closed-apply-binding",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository reconciliation caller",
+          "entrypoint": "A dry-run repository reconciliation plan with exact operation, plan, base, and branch identity",
+          "terminal_outcome": "Only an apply request carrying the same plan_id and plan_sha256 can pass plan-binding validation; missing, changed, or replayed identity fails before authorization or mutation dispatch.",
+          "steps": [
+            "Build a deterministic dry-run plan from an exact operation id, base SHA, branch SHA, recipe, and reconciliation evidence.",
+            "Bind plan_id into the hashed plan payload and return the resulting plan_sha256.",
+            "Rebuild the plan for apply using the same operation identity and supplied plan binding.",
+            "Reject missing plan hash, wrong plan hash, changed operation identity, or changed plan identity before authority evaluation.",
+            "Preserve existing lease, step authorization, idempotency, no-force-push, and same-cycle readback controls after binding succeeds."
+          ],
+          "assertions": [
+            "plan_id is included inside the hashed plan payload.",
+            "Apply requires an explicit 64-hex plan_sha256 and explicit plan_id.",
+            "A different operation id changes the rebuilt plan hash.",
+            "A different plan id changes the rebuilt plan hash.",
+            "Plan binding is evaluated before authorizePlan and executeStep can be reached.",
+            "No force push, migration apply, protected-branch write, provider mutation, deployment, or secret access is introduced by this change."
+          ],
+          "tests": [
+            {
+              "id": "repository-reconciliation-plan-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-reconciliation-plan-binding.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-reconciliation-exact-plan-binding.json",
+            "http-generic-api/repositoryReconciliationOrchestrator.js",
+            "http-generic-api/test-repository-reconciliation-plan-binding.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Expose the already governed apply executor through the Admin adapter only after exact-plan binding, per-step authority, and same-cycle provider readback are wired and tested."
+    }
+  ],
+  "secrets_included": false
+}
