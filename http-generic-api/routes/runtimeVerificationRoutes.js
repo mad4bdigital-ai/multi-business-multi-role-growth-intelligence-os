@@ -6,6 +6,7 @@ import {
   getRuntimeVerificationRun,
   listRuntimeVerificationEvidence,
 } from "../runtimeVerificationService.js";
+import { buildRemoteMcpReadiness } from "../remoteMcpReadiness.js";
 
 function actorFromRequest(req) {
   return {
@@ -21,7 +22,13 @@ function parseLimit(value, fallback = 25) {
   return Math.min(Math.max(parsed, 1), 100);
 }
 
-export function buildRuntimeVerificationRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
+export function buildRuntimeVerificationRoutes({
+  requireBackendApiKey,
+  requireAdminPrincipal,
+  env = process.env,
+  pool = null,
+  getPool = null,
+} = {}) {
   const router = Router();
   const guards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
 
@@ -63,6 +70,23 @@ export function buildRuntimeVerificationRoutes({ requireBackendApiKey, requireAd
       res.status(200).json({ ok: true, ...parity });
     } catch (error) {
       next(error);
+    }
+  });
+
+  router.get("/runtime/readiness/remote-mcp", ...guards, async (_req, res, next) => {
+    try {
+      let readinessPool = pool;
+      if (!readinessPool && typeof getPool === "function") {
+        try {
+          readinessPool = getPool();
+        } catch {
+          readinessPool = null;
+        }
+      }
+      const readiness = await buildRemoteMcpReadiness({ env, pool: readinessPool });
+      return res.status(200).json(readiness);
+    } catch (error) {
+      return next(error);
     }
   });
 
