@@ -1,0 +1,65 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-request-identity-collation-dry-run",
+  "title": "Tenant request identity collation governed Dry Run",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/ops/tenant-request-identity-collation-dry-run.mjs",
+      ".github/workflows/tenant-request-identity-collation-dry-run.yml",
+      ".changes/e2e/tenant-request-identity-collation-dry-run.json",
+      "http-generic-api/test-tenant-request-identity-collation-dry-run-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Execute the reviewed tenant-request identity collation migration through the governed authorization bootstrap and checksum-bound Dry Run lifecycle without making migration SQL Apply available in this workflow.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-identity-collation-governed-dry-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner operating through Issue #4449",
+          "entrypoint": "Issue comment AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT",
+          "terminal_outcome": "Trusted-main tooling records or reads back the checksum-bound authorization and verifies governed_migration_execute mode=dry_run with applies_sql=false; no Apply request, provider call, credential payload access, or external business write occurs.",
+          "steps": [
+            "Verify current main and Production refs contain source merge 894f112c452887e9c8f3f58fe55af598cb04af31 and Production exposes the reviewed migration blob.",
+            "Create and, only when required, approve a short-lived Capability Resolution Envelope for governed_migration_authorization_bootstrap, bound to the current Production SHA and migration checksum.",
+            "Call governed_migration_authorization_bootstrap with the exact migration filename, checksum, statement count, source PR, source merge SHA, typed authorization confirmation, and envelope ID; require migration_sql_executed=false.",
+            "Call governed_migration_execute exactly once with mode=dry_run and the exact checksum and statement count.",
+            "Require mode=dry_run and applies_sql=false, persist sanitized evidence, and terminate without any Apply stage."
+          ],
+          "assertions": [
+            "The workflow only accepts the exact Issue #4449 authorization token from OWNER, MEMBER, or COLLABORATOR and checks out trusted main.",
+            "The authorization bootstrap may persist authorization evidence but never executes target migration SQL.",
+            "The runner contains exactly one governed migration execution request and it is mode=dry_run.",
+            "No mode=apply or APPLY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT confirmation exists in the runner or workflow.",
+            "The final evidence reports apply_authorized=false, apply_sent=false, migration_apply_executed=false, provider_call_executed=false, credential_payload_accessed=false, external_business_write_executed=false, and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-identity-collation-dry-run-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-identity-collation-dry-run-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/tenant-request-identity-collation-dry-run.mjs",
+            ".github/workflows/tenant-request-identity-collation-dry-run.yml",
+            "http-generic-api/test-tenant-request-identity-collation-dry-run-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
