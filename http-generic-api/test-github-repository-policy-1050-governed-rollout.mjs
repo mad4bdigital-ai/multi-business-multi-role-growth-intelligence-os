@@ -32,6 +32,10 @@ assert.match(runner, /assert\.equal\(gitBlobSha\(bytes\), MIGRATION_BLOB_SHA/);
 assert.match(runner, /checksum = sha256Bytes\(bytes\)/);
 assert.match(runner, /raw_bytes_checksum: true/);
 
+const readinessDecisionNote = runner.match(/Approve checksum-bound Migration 1050 authorization only[^']*executes in readiness\./)?.[0] || '';
+assert.ok(readinessDecisionNote, 'Migration 1050 readiness approval decision note must remain explicit');
+assert.doesNotMatch(readinessDecisionNote, /[;&|`$<>\\!{}()\n\r]/, 'Migration 1050 readiness decision note must remain safe for governed shell extra_args');
+
 assert.equal((runner.match(/name: 'governed_migration_execute'/g) || []).length, 2, 'Migration 1050 runner must contain one dry-run and one Apply transport call');
 assert.match(runner, /apply_retried: false/g);
 assert.match(runner, /migration_1049_retry_executed: false/g);
