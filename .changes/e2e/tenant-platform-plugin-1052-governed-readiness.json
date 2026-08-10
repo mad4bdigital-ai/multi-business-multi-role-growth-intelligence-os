@@ -14,6 +14,7 @@
       "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
       "docs/governed-migration-authorization-bootstrap.md",
