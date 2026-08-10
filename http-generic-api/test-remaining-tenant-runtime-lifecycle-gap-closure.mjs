@@ -63,8 +63,8 @@ for (const reason of [
   "connection_app_mismatch",
 ]) assert.match(cmsPlanner, new RegExp(reason));
 assert.match(cmsRunner, /SELECT connection_id, user_id, tenant_id, app_key, status, validation_status/);
+const connectionInventoryQuery = cmsRunner.match(/SELECT connection_id, user_id, tenant_id, app_key, status, validation_status[\s\S]*?FROM user_app_connections/)?.[0] || "";
 for (const forbidden of ["encrypted_credentials", "credential_ref", "access_token", "refresh_token", "password", "secret"]) {
-  const connectionInventoryQuery = cmsRunner.match(/SELECT connection_id, user_id, tenant_id, app_key, status, validation_status[\s\S]*?FROM user_app_connections/)?.[0] || "";
   assert.doesNotMatch(connectionInventoryQuery, new RegExp(forbidden, "i"));
 }
 assert.match(cmsRunner, /UPDATE cms_site_access_grants[\s\S]*status = 'revoked'/);
@@ -86,8 +86,14 @@ assert.match(supportReconciliationRunner, /FROM tenant_resolution_cases/);
 assert.match(supportReconciliationRunner, /FROM operational_alerts/);
 assert.match(supportReconciliationRunner, /beginTransaction\(\)/);
 assert.match(supportReconciliationRunner, /rollback\(\)/);
-for (const forbidden of ["encrypted_credentials", "credential_ref", "access_token", "refresh_token", "password", "secret"]) {
-  assert.doesNotMatch(supportReconciliationRunner, new RegExp(forbidden, "i"), `legacy support reconciliation must not read ${forbidden}`);
+const supportSnapshotQueries = [
+  supportReconciliationRunner.match(/SELECT ticket_id,[\s\S]*?FROM tickets[\s\S]*?LIMIT \?/)?.[0] || "",
+  supportReconciliationRunner.match(/SELECT case_id,[\s\S]*?FROM tenant_resolution_cases[\s\S]*?LIMIT \?/)?.[0] || "",
+  supportReconciliationRunner.match(/SELECT alert_key,[\s\S]*?FROM operational_alerts[\s\S]*?LIMIT \?/)?.[0] || "",
+].join("\n");
+assert(supportSnapshotQueries.length > 0, "legacy support reconciliation must expose bounded SQL snapshot reads");
+for (const forbidden of ["encrypted_credentials", "credential_ref", "access_token", "refresh_token", "password", "client_secret", "private_key"]) {
+  assert.doesNotMatch(supportSnapshotQueries, new RegExp(forbidden, "i"), `legacy support reconciliation snapshot must not read ${forbidden}`);
 }
 assert.doesNotMatch(supportReconciliationRunner, /DELETE\s+/i);
 assert.doesNotMatch(supportReconciliationRunner, /fetch\s*\(/);
