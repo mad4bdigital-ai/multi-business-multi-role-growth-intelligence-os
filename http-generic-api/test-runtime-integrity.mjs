@@ -69,16 +69,16 @@ const shaB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 {
   const calls = [];
-  const spawnSyncImpl = (command, args, options) => {
+  const execFileImpl = (command, args, options, callback) => {
     calls.push({ command, args, options });
-    if (args[0] === "rev-parse") return { status: 0, stdout: `${shaA}\n` };
-    return { status: 0, stdout: " M http-generic-api/index.js\nM  http-generic-api/routes/deploymentInfoRoutes.js\n" };
+    if (args[0] === "rev-parse") callback(null, `${shaA}\n`, "");
+    else callback(null, " M http-generic-api/index.js\nM  http-generic-api/routes/deploymentInfoRoutes.js\n", "");
   };
-  const integrity = inspectRuntimeIntegrity({
+  const integrity = await inspectRuntimeIntegrity({
     repoRoot: "/tmp/runtime-integrity-test",
     expectedCommitSha: shaA,
     checkoutCommitSha: "",
-    spawnSyncImpl,
+    execFileImpl,
     env: {},
   });
   assert.equal(integrity.state, "degraded");
@@ -89,7 +89,26 @@ const shaB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
     assert.equal(call.command, "git");
     assert.equal(call.options.shell, false);
     assert.equal(call.options.env.GIT_OPTIONAL_LOCKS, "0");
+    assert.equal(call.options.timeout, 5000);
+    assert.equal(call.options.maxBuffer, 64 * 1024);
   }
+}
+
+{
+  const integrity = await inspectRuntimeIntegrity({
+    repoRoot: "/tmp/runtime-integrity-test",
+    expectedCommitSha: shaA,
+    checkoutCommitSha: shaA,
+    execFileImpl(command, args, options, callback) {
+      assert.equal(command, "git");
+      assert.deepEqual(args, ["status", "--porcelain=v1", "--untracked-files=no", "--no-renames"]);
+      callback(new Error("git unavailable"), "", "bounded diagnostic failure");
+    },
+    env: {},
+  });
+  assert.equal(integrity.state, "degraded");
+  assert.equal(integrity.readback_available, false);
+  assert(integrity.reason_codes.includes("runtime_checkout_integrity_unavailable"));
 }
 
 {
