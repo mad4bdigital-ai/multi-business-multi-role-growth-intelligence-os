@@ -26,12 +26,16 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           p = Path('.github/workflows/governance-db-writer-authority-once.yml')
-          s = p.read_text()
-          old = "replaceOnce(applyAuthorizePath, 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs()) {\\n', 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs(), deps = {}) {\\n');"
-          new = "replaceOnce(applyAuthorizePath, 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs()) {', 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs(), deps = {}) {');"
-          if s.count(old) != 1:
-              raise SystemExit(f'expected exactly one matcher, found {s.count(old)}')
-          p.write_text(s.replace(old, new))
+          lines = p.read_text().splitlines()
+          matches = [
+              i for i, line in enumerate(lines)
+              if "replaceOnce(applyAuthorizePath" in line
+              and "authorizeCapabilityResolutionEnvelopeApply(args = parseArgs())" in line
+          ]
+          if len(matches) != 1:
+              raise SystemExit(f'expected exactly one apply-authorize matcher line, found {len(matches)}')
+          lines[matches[0]] = "          replaceOnce(applyAuthorizePath, 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs()) {', 'export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs(), deps = {}) {');"
+          p.write_text("\n".join(lines) + "\n")
           PY
           git rm .github/workflows/governance-db-writer-workflow-repair-once.yml
           git diff --check
