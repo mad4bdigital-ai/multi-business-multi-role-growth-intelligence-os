@@ -1,0 +1,126 @@
+productionDeploymentAuthorityPath:
+  post:
+    operationId: remoteRuntimeHostingerDeployRelease
+    summary: Plan or execute an approved governed Production deployment
+    description: >-
+      Resolves the production branch from environment_branch_authority_v1 and treats any
+      caller-provided branch only as a compatibility assertion. Before dispatch, the runtime
+      performs a read-only same-cycle GitHub ref readback and requires expected_commit_sha to
+      equal the current governed Production branch head. Routine Hostinger SSH production
+      mutation remains separately blocked by target policy unless independently authorized.
+    x-runtime-contract-source: routes/platformPluginRoutes.js
+    x-runtime-auth-profile: admin_backend
+    x-contract-completeness: precise-runtime-operation
+    x-custom-gpt-exclude: true
+    x-gpt-action-exclude: true
+    x-openai-isConsequential: true
+    security:
+      - adminBearerAuth: []
+      - backendApiKeyAuth: []
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            additionalProperties: false
+            required:
+              - target_id
+              - expected_commit_sha
+            properties:
+              target_id:
+                type: string
+              app_key:
+                type: string
+                default: auth.mad4b.com
+              app_path:
+                type: string
+              expected_commit_sha:
+                type: string
+                pattern: '^[0-9a-fA-F]{40}$'
+                description: Exact commit SHA that must equal the current same-cycle Production branch head.
+              dry_run:
+                type: boolean
+                default: true
+              force_clean:
+                type: boolean
+                default: false
+              restart:
+                type: boolean
+                default: true
+              approval_reason:
+                type: string
+                minLength: 20
+              capability_envelope_id:
+                type: string
+              timeout_ms:
+                type: integer
+                minimum: 1000
+                maximum: 300000
+              ssh_auth_mode:
+                type: string
+                enum: [password, private_key]
+    responses:
+      '200':
+        description: Dry-run completed or deployment completed without restart.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+              properties:
+                branch:
+                  type: string
+                  enum: [Production]
+                expected_commit_sha:
+                  type: string
+                  pattern: '^[0-9a-f]{40}$'
+                production_authority:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - production_branch
+                    - production_branch_head_sha
+                    - same_cycle_branch_readback
+                    - expected_sha_matches_production_head
+                    - secrets_included
+                  properties:
+                    source:
+                      type: [string, 'null']
+                    config_key:
+                      type: [string, 'null']
+                    production_branch:
+                      type: string
+                      enum: [Production]
+                    production_branch_head_sha:
+                      type: string
+                      pattern: '^[0-9a-f]{40}$'
+                    same_cycle_branch_readback:
+                      type: boolean
+                      const: true
+                    expected_sha_matches_production_head:
+                      type: boolean
+                      const: true
+                    secrets_included:
+                      type: boolean
+                      const: false
+                secrets_included:
+                  type: boolean
+                  const: false
+      '202':
+        description: Deployment files were updated and a deferred restart was accepted; bounded deployment readback remains required.
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      '400':
+        description: Invalid deployment input, including a missing or invalid exact expected_commit_sha.
+      '403':
+        description: Approval, capability envelope, or execution gate missing.
+      '409':
+        description: >-
+          Governed deployment conflict including production_deployment_branch_authority_mismatch,
+          production_deployment_sha_stale, target/path conflict, or Hostinger target-policy denial.
+      '502':
+        description: GitHub authority readback or SSH deployment failed before acceptance.
