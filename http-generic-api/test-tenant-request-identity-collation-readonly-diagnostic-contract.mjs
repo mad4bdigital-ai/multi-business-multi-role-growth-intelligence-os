@@ -69,12 +69,39 @@ for (const marker of [
   assert.ok(runner.includes(marker), `Read-only diagnostic evidence is missing ${marker}`);
 }
 
+assert.match(runner, /const SAFE_FALSE_EVIDENCE_KEYS = new Set\(\[/);
+for (const key of [
+  'authorization_bootstrap_attempted',
+  'credential_payload_accessed',
+  'secrets_included',
+]) {
+  assert.ok(runner.includes(`'${key}'`), `Safe false evidence allowlist is missing ${key}`);
+}
+assert.match(runner, /child === false && SAFE_FALSE_EVIDENCE_KEYS\.has\(key\)/);
+assert.match(runner, /preserveFalse \? false : \(SENSITIVE_KEY\.test\(key\) \? '\[redacted\]' : sanitize\(child\)\)/);
+
+assert.match(runner, /deployment\?\.payload\?\.commit_sha/);
+assert.match(runner, /const runtimeCommitValid = \/\^\[0-9a-f\]\{40\}\$\//);
+assert.match(runner, /runtimeCommitSha === productionSha/);
+assert.match(runner, /if \(!runtimeConverged\)/);
+assert.ok(
+  runner.indexOf('if (!runtimeConverged)') < runner.indexOf("shellInvocation('capability_resolution_dry_run'"),
+  'Runtime convergence guard must execute before the resolver alias invocation'
+);
+assert.ok(runner.includes('`--expected-commit-sha=${runtimeCommitSha}`'));
+assert.doesNotMatch(runner, /`--expected-commit-sha=\$\{productionSha\}`/);
+assert.match(runner, /commit_sha: runtimeCommitValid \? runtimeCommitSha : null/);
+assert.match(runner, /matches_production_ref: runtimeConverged/);
+assert.match(runner, /diagnostic_classification: 'runtime_not_converged'/);
+assert.match(runner, /diagnostic_classification: 'resolver_diagnostic_executed'/);
+
 console.log(JSON.stringify({
   ok: true,
   contract: 'tenant_request_identity_collation_readonly_diagnostic_contract.v1',
   issue: 4449,
   trigger: TRIGGER,
   trusted_main_only: true,
+  runtime_convergence_required: true,
   resolver_alias: 'capability_resolution_dry_run',
   fixed_select_readbacks: 4,
   governed_db_read_builder: true,

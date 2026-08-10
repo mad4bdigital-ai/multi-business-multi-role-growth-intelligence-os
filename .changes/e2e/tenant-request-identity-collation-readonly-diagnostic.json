@@ -32,15 +32,18 @@
           "terminal_outcome": "Trusted-main tooling captures sanitized resolver stdout/stderr plus schema, tool-registry, policy, and recent-ledger readbacks without creating or approving an Envelope, bootstrapping authorization, invoking governed migration execution, or executing SQL mutation.",
           "steps": [
             "Checkout trusted main and pin current main and Production refs plus the reviewed migration blob.",
-            "Invoke the built-in capability_resolution_dry_run shell alias with the same tenant, admin user, app, capability, operation intent, runtime surface, source tier, resource URI, and Production SHA used by the failed Envelope-create lifecycle.",
+            "Read health, version, and deployment-info; fail closed before resolver execution if the deployed runtime commit is absent, invalid, or different from the current Production ref, while preserving sanitized classification evidence.",
+            "Invoke the built-in capability_resolution_dry_run shell alias with the same tenant, admin user, app, capability, operation intent, runtime surface, source tier, resource URI, and verified deployed runtime SHA used as the expected commit.",
             "Capture the complete sanitized Admin control response, including child stdout/stderr when the resolver fails.",
             "Run four hard-coded SELECT-only readbacks for the Envelope ledger schema, endpoint-tool registry, runtime policies, and recent matching ledger rows.",
-            "Upload sanitized evidence that explicitly records zero mutation, zero migration execution, zero Apply, zero provider calls, and zero credential payload access."
+            "Upload sanitized evidence that preserves explicit false safety assertions for zero mutation, zero migration execution, zero Apply, zero provider calls, zero credential payload access, and no included secrets."
           ],
           "assertions": [
             "The workflow is issue_comment-only, requires Issue #4449 plus the exact read-only diagnostic trigger from OWNER, MEMBER, or COLLABORATOR, and checks out trusted main.",
+            "The resolver is not invoked until deployment-info exposes a full deployed commit SHA equal to the current Production ref, and that verified runtime SHA is passed as expected_commit_sha.",
             "The only shell alias invoked is capability_resolution_dry_run.",
             "All database diagnostics are hard-coded SELECT statements guarded against mutation keywords.",
+            "Sanitization preserves only allowlisted false safety-evidence booleans even when their key names contain sensitive words; non-false sensitive values remain redacted.",
             "No capability_resolution_envelope_create or capability_resolution_envelope_approve shell invocation exists.",
             "No governed_migration_authorization_bootstrap or governed_migration_execute tool invocation exists.",
             "No Apply confirmation or migration SQL execution is available in the diagnostic path."
