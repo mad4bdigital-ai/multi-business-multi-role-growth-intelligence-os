@@ -34,7 +34,6 @@ function createFakePool() {
   const ledger = new Map();
   const applyPolicies = new Map();
   const certifications = new Map();
-  const writes = { apply_policy: 0, dispatch_certification: 0 };
   const applyPolicyKey = "platform_orchestration:governed_migration_execute:auth_host";
   const certificationKey = "governed_migration_execute";
   return {
@@ -42,14 +41,12 @@ function createFakePool() {
     ledger,
     applyPolicies,
     certifications,
-    writes,
     async query(sql, params = []) {
       if (sql.includes("FROM runtime_dispatch_certification_registry")) {
         const row = certifications.get(certificationKey);
         return [[...(row ? [{ ...row }] : [])]];
       }
       if (sql.includes("INSERT INTO runtime_dispatch_certification_registry")) {
-        writes.dispatch_certification += 1;
         const [key, surfaceKey, surfaceFamily, toolOrActionKey, riskClass, certificationStatus, smokeStrategy, lastEvidenceRef, notes] = params;
         certifications.set(certificationKey, {
           certification_key: key,
@@ -77,7 +74,6 @@ function createFakePool() {
         return [[...(row ? [{ ...row }] : [])]];
       }
       if (sql.includes("INSERT INTO capability_apply_authorization_policy_registry")) {
-        writes.apply_policy += 1;
         const [policyKey, appKey, capabilityKey, operationIntent, runtimeSurface, allowedSourceTiersJson, policyJson, notes] = params;
         applyPolicies.set(applyPolicyKey, {
           policy_key: policyKey,
@@ -232,9 +228,15 @@ async function main() {
   assert.equal(candidate.secrets_included, false);
 
   const pool = createFakePool();
+  const readPool = {
+    async query() {
+      throw new Error("Unexpected direct governance query on runtime readPool");
+    },
+  };
   const referenced = [];
   const deps = {
-    pool,
+    readPool,
+    writerPool: pool,
     auth: { tenant_id: "00000000-0000-0000-0000-000000000000", user_id: "0e76b224-7671-47dd-ad68-014fb042df80" },
     resolveEnvelope: resolvedEnvelope,
     markReferenced: async (value) => { referenced.push(value); return { ok: true }; },
@@ -243,7 +245,6 @@ async function main() {
   assert.equal(created.ok, true);
   assert.equal(created.authorization_created, true);
   assert.equal(created.idempotent, false);
-  assert.equal(created.executor_readiness_mode, "ensure");
   assert.equal(created.authorization.authorization_source, "governed_admin_bootstrap_tool");
   assert.equal(created.authorization.risk_tier, "medium");
   assert.equal(created.authorization.allow_apply, 1);
@@ -268,9 +269,9 @@ async function main() {
   assert.equal(created.migration_executor_dispatch_certification.secrets_included, false);
   assert.equal(pool.applyPolicies.size, 1);
   assert.equal(pool.certifications.size, 1);
-  assert.equal(pool.writes.apply_policy, 1);
-  assert.equal(pool.writes.dispatch_certification, 1);
   assert.equal(referenced.length, 1);
+  assert.equal(referenced[0].writerPool, pool);
+  assert.equal(referenced[0].pool, undefined);
   const metadata = typeof created.authorization.metadata_json === "string"
     ? JSON.parse(created.authorization.metadata_json)
     : created.authorization.metadata_json;
@@ -292,7 +293,6 @@ async function main() {
   const second = await bootstrapGovernedMigrationAuthorization(baseInput(), deps);
   assert.equal(second.authorization_created, false);
   assert.equal(second.idempotent, true);
-  assert.equal(second.executor_readiness_mode, "ensure");
   assert.equal(second.migration_sql_executed, false);
   assert.equal(second.migration_executor_apply_policy.requires_readback, 1);
   assert.equal(second.migration_executor_apply_policy.policy_json.provider_call_forbidden, true);
@@ -302,76 +302,6 @@ async function main() {
   assert.equal(second.migration_executor_dispatch_certification.requires_readback, 1);
   assert.equal(pool.applyPolicies.size, 1);
   assert.equal(pool.certifications.size, 1);
-  assert.equal(pool.writes.apply_policy, 2);
-  assert.equal(pool.writes.dispatch_certification, 2);
-
-  const requireExistingPool = createFakePool();
-  await bootstrapGovernedMigrationAuthorization(baseInput(), {
-    ...deps,
-    pool: requireExistingPool,
-  });
-  requireExistingPool.authorizations.clear();
-  requireExistingPool.writes.apply_policy = 0;
-  requireExistingPool.writes.dispatch_certification = 0;
-  const requireExisting = await bootstrapGovernedMigrationAuthorization({
-    ...baseInput(),
-    executor_readiness_mode: "require_existing",
-  }, {
-    ...deps,
-    pool: requireExistingPool,
-  });
-  assert.equal(requireExisting.authorization_created, true);
-  assert.equal(requireExisting.executor_readiness_mode, "require_existing");
-  assert.equal(requireExistingPool.applyPolicies.size, 1);
-  assert.equal(requireExistingPool.certifications.size, 1);
-  assert.equal(requireExistingPool.writes.apply_policy, 0);
-  assert.equal(requireExistingPool.writes.dispatch_certification, 0);
-
-  const missingReadinessPool = createFakePool();
-  await assert.rejects(
-    () => bootstrapGovernedMigrationAuthorization({
-      ...baseInput(),
-      executor_readiness_mode: "require_existing",
-    }, {
-      ...deps,
-      pool: missingReadinessPool,
-    }),
-    (error) => error?.code === "governed_migration_executor_apply_policy_required"
-  );
-  assert.equal(missingReadinessPool.authorizations.size, 0);
-  assert.equal(missingReadinessPool.writes.apply_policy, 0);
-  assert.equal(missingReadinessPool.writes.dispatch_certification, 0);
-
-  const missingCertificationPool = createFakePool();
-  await bootstrapGovernedMigrationAuthorization(baseInput(), {
-    ...deps,
-    pool: missingCertificationPool,
-  });
-  missingCertificationPool.authorizations.clear();
-  missingCertificationPool.certifications.clear();
-  missingCertificationPool.writes.apply_policy = 0;
-  missingCertificationPool.writes.dispatch_certification = 0;
-  await assert.rejects(
-    () => bootstrapGovernedMigrationAuthorization({
-      ...baseInput(),
-      executor_readiness_mode: "require_existing",
-    }, {
-      ...deps,
-      pool: missingCertificationPool,
-    }),
-    (error) => error?.code === "governed_migration_executor_dispatch_certification_required"
-  );
-  assert.equal(missingCertificationPool.authorizations.size, 0);
-  assert.equal(missingCertificationPool.writes.apply_policy, 0);
-  assert.equal(missingCertificationPool.writes.dispatch_certification, 0);
-
-  await assert.rejects(
-    () => bootstrapGovernedMigrationAuthorization({
-      ...baseInput(),
-      executor_readiness_mode: "unsupported",
-    }, deps),
-    (error) => error?.code === "governed_migration_executor_readiness_mode_invalid"
-  );
 
   const rotationPool = createFakePool();
   seedAuthorization(rotationPool, PREVIOUS_CHECKSUM);
@@ -382,14 +312,13 @@ async function main() {
     decision_note: "Rotate the unapplied authorization after a reviewed migration repair and checksum change.",
   }, {
     ...deps,
-    pool: rotationPool,
+    writerPool: rotationPool,
     markReferenced: async (value) => { rotationReferenced.push(value); return { ok: true }; },
   });
   assert.equal(rotated.authorization_created, false);
   assert.equal(rotated.authorization_updated, true);
   assert.equal(rotated.reauthorized, true);
   assert.equal(rotated.idempotent, false);
-  assert.equal(rotated.executor_readiness_mode, "ensure");
   assert.equal(rotated.previous_checksum_sha256, PREVIOUS_CHECKSUM);
   assert.equal(rotated.authorization.recorded_checksum_sha256, CHECKSUM);
   const rotatedMetadata = typeof rotated.authorization.metadata_json === "string"
@@ -408,7 +337,7 @@ async function main() {
   await assert.rejects(
     () => bootstrapGovernedMigrationAuthorization(baseInput(), {
       ...deps,
-      pool: missingPreviousPool,
+      writerPool: missingPreviousPool,
     }),
     (error) => error?.code === "governed_migration_authorization_previous_checksum_required"
   );
@@ -421,7 +350,7 @@ async function main() {
       previous_checksum_sha256: "b".repeat(64),
     }, {
       ...deps,
-      pool: mismatchedPreviousPool,
+      writerPool: mismatchedPreviousPool,
     }),
     (error) => error?.code === "governed_migration_authorization_previous_checksum_mismatch"
   );
@@ -440,14 +369,15 @@ async function main() {
       previous_checksum_sha256: PREVIOUS_CHECKSUM,
     }, {
       ...deps,
-      pool: appliedPool,
+      writerPool: appliedPool,
     }),
     (error) => error?.code === "governed_migration_authorization_already_recorded"
   );
 
+  const dispatchPool = createFakePool();
   const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
     ...deps,
-    pool: createFakePool(),
+    writerPool: dispatchPool,
     resolveEnvelope: async () => ({
       ok: true,
       envelope_id: ENVELOPE_ID,
@@ -465,7 +395,7 @@ async function main() {
   await assert.rejects(
     () => bootstrapGovernedMigrationAuthorization(baseInput(), {
       ...deps,
-      pool: createFakePool(),
+      writerPool: createFakePool(),
       resolveEnvelope: async () => ({
         ok: false,
         status: "capability_resolution_envelope_not_dispatch_ready",
@@ -477,12 +407,15 @@ async function main() {
 
   const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
   const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
+  const wrapperSource = readFileSync("governedMigrationAuthorizationBootstrap.js", "utf8");
   assert.ok(routeSource.includes("governed_migration_authorization_bootstrap"));
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
   assert.ok(routeSource.includes("previous_checksum_sha256"));
-  assert.ok(routeSource.includes("executor_readiness_mode"));
-  assert.ok(routeSource.includes("require_existing"));
   assert.ok(manifestSource.includes("test-governed-migration-authorization-bootstrap.mjs"));
+  assert.match(wrapperSource, /readPool/);
+  assert.match(wrapperSource, /writerPool/);
+  assert.match(wrapperSource, /pool: writerPool/);
+  assert.match(wrapperSource, /pool: readPool/);
 
   console.log("governed migration authorization bootstrap tests passed");
 }

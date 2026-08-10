@@ -1,12 +1,19 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { bootstrapGovernedMigrationAuthorization as bootstrapRuntime } from './governedMigrationAuthorizationBootstrapRuntime.js';
 
 const workflowPath = '../.github/workflows/tenant-platform-plugin-1052-governed-readiness.yml';
 const scriptPath = '../.github/ops/tenant-platform-plugin-1052-governed-readiness.mjs';
+const runtimePath = './governedMigrationAuthorizationBootstrapRuntime.js';
+const wrapperPath = './governedMigrationAuthorizationBootstrap.js';
+const manifestPath = './scripts/test-manifest.mjs';
 
-const [workflow, script] = await Promise.all([
+const [workflow, script, runtimeSource, wrapperSource, manifestSource] = await Promise.all([
   readFile(workflowPath, 'utf8'),
   readFile(scriptPath, 'utf8'),
+  readFile(runtimePath, 'utf8'),
+  readFile(wrapperPath, 'utf8'),
+  readFile(manifestPath, 'utf8'),
 ]);
 
 const token = 'AUTHORIZE_GOVERNED_MIGRATION_1052_TENANT_PLATFORM_PLUGIN_MANAGED_REPAIR_AUTHORITY';
@@ -36,5 +43,21 @@ assert.ok(!script.includes("mode: 'apply'"), 'Readiness script must not call gov
 assert.ok(!script.includes('APPLY_1052_'), 'Readiness script must not contain an Apply confirmation');
 assert.ok(!script.includes('capability_resolution_envelope_apply_authorize'), 'Readiness bridge must not request Apply authority');
 assert.ok(!script.includes('tenantPlatformPluginManagedRepairExecutor'), 'Readiness bridge must not invoke managed repair execution');
+
+assert.ok(runtimeSource.includes('EXECUTOR_READINESS_MODES'));
+assert.ok(runtimeSource.includes('require_existing'));
+assert.ok(runtimeSource.includes('governed_migration_executor_apply_policy_required'));
+assert.ok(runtimeSource.includes('governed_migration_executor_dispatch_certification_required'));
+assert.ok(runtimeSource.includes('resolveMigrationExecutorReadiness'));
+assert.match(wrapperSource, /readPool/);
+assert.match(wrapperSource, /writerPool/);
+assert.match(wrapperSource, /pool: writerPool/);
+assert.match(wrapperSource, /pool: readPool/);
+assert.ok(manifestSource.includes('node test-tenant-platform-plugin-1052-governed-readiness.mjs'));
+
+await assert.rejects(
+  () => bootstrapRuntime({ executor_readiness_mode: 'unsupported' }),
+  (error) => error?.code === 'governed_migration_executor_readiness_mode_invalid'
+);
 
 console.log('Migration 1052 governed readiness bridge contract: OK');

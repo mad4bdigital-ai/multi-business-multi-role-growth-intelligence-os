@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
-import { getPool } from "../db.js";
+import { closeGovernancePool, getGovernancePool } from "../governanceDb.js";
 import { assertNoSecretBearingFields } from "../capabilityEnvelopeSecretPolicy.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -195,153 +195,173 @@ export function validateCredentialEnvelope(envelopeJson, policy) {
   }
 }
 
-export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs()) {
+export async function authorizeCapabilityResolutionEnvelopeApply(args = parseArgs(), deps = {}) {
   const envelopeId = compact(args.envelopeId, 64);
   if (!envelopeId) {
     throw validationError("capability_envelope_id_required", "--envelope-id is required.");
   }
-  const pool = getPool();
-  const row = await loadEnvelope(pool, envelopeId);
-  const policy = await loadApplyAuthorizationPolicy(pool, row);
-  validateEnvelopeForApplyAuthorization(row, policy);
-  const envelopeJson = safeJson(row.envelope_json, {});
-  validateCredentialEnvelope(envelopeJson, policy);
-  const policyJson = safeJson(policy.policy_json, {});
-  const allowExternalWrite = enabled(policy.allow_external_write);
+  const writerPool = deps.writerPool || getGovernancePool();
+  const connection = typeof writerPool.getConnection === "function" ? await writerPool.getConnection() : writerPool;
+  const transactional = typeof connection.beginTransaction === "function";
+  try {
+    if (transactional) await connection.beginTransaction();
+    const row = await loadEnvelope(connection, envelopeId);
+    const policy = await loadApplyAuthorizationPolicy(connection, row);
+    validateEnvelopeForApplyAuthorization(row, policy);
+    const envelopeJson = safeJson(row.envelope_json, {});
+    validateCredentialEnvelope(envelopeJson, policy);
+    const policyJson = safeJson(policy.policy_json, {});
+    const allowExternalWrite = enabled(policy.allow_external_write);
 
-  if (Number(row.apply_allowed || 0) === 1) {
+    if (Number(row.apply_allowed || 0) === 1) {
+      if (transactional) await connection.commit();
+      return {
+        ok: true,
+        envelope_id: row.envelope_id,
+        already_apply_authorized: true,
+        apply_allowed: true,
+        policy_key: policy.policy_key,
+        external_write_allowed: allowExternalWrite,
+        secrets_included: false,
+      };
+    }
+
+    const authorizedBy = compact(args.authorizedBy, 64) || "gpt_admin";
+    const decisionNote = compact(args.decisionNote, 512) || "Apply-authorized through governed dynamic capability apply authorization policy.";
+    const ttl = Math.max(5, Math.min(Number(args.ttlMinutes || 60), 240));
+    const holdId = randomUUID();
+    const applyAuthorization = {
+      evidence_table: "approval_holds",
+      hold_id: holdId,
+      status: "apply_authorized",
+      authorized_by: authorizedBy,
+      decision_note: decisionNote,
+      authorized_at: new Date().toISOString(),
+      policy_key: policy.policy_key,
+      app_key: row.app_key,
+      capability_key: row.capability_key,
+      operation_intent: row.operation_intent,
+      runtime_surface: row.selected_runtime_surface,
+      allow_external_write: allowExternalWrite,
+      no_external_write: !allowExternalWrite,
+      no_provider_call: true,
+      no_credential_payload_read: true,
+      no_spend_change: true,
+      requires_typed_confirmation: Boolean(enabled(policy.requires_typed_confirmation)),
+      requires_same_cycle_dry_run: Boolean(enabled(policy.requires_same_cycle_dry_run)),
+      requires_readback: Boolean(enabled(policy.requires_readback)),
+      policy: policyJson,
+      secrets_included: false,
+    };
+    const updatedEnvelope = {
+      ...envelopeJson,
+      gates: {
+        ...(envelopeJson.gates || {}),
+        dispatch_allowed: true,
+        apply_allowed: true,
+        audit_required: true,
+        readback_required: Boolean(enabled(policy.requires_readback)) || Boolean(envelopeJson.gates?.readback_required),
+        secrets_included: false,
+      },
+      apply_authorization: applyAuthorization,
+      secrets_included: false,
+    };
+    assertNoSecretBearingFields(updatedEnvelope);
+    const updatedHash = sha256Json(updatedEnvelope);
+    await connection.query(
+      `INSERT INTO approval_holds
+        (hold_id, run_id, tenant_id, workspace_id, workspace_key, hold_type, requested_by, user_id,
+         actor_id, actor_type, request_id, correlation_id, execution_context_json, assigned_to,
+         required_role, status, decision_by, decision_note, expires_at, decided_at, created_at)
+       VALUES
+        (?, ?, ?, ?, ?, 'supervisor_approval', ?, ?, ?, 'platform_admin', 'capability_resolution_envelope_apply_authorization', ?, ?, ?, 'admin', 'approved', ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW(), NOW())`,
+      [
+        holdId,
+        row.envelope_id,
+        row.tenant_id,
+        row.workspace_id || null,
+        row.workspace_key || null,
+        authorizedBy,
+        row.user_id || null,
+        authorizedBy,
+        row.envelope_id,
+        JSON.stringify({
+          envelope_id: row.envelope_id,
+          app_key: row.app_key,
+          capability_key: row.capability_key,
+          operation_intent: row.operation_intent,
+          policy_key: policy.policy_key,
+          apply_authorization_source: "dynamic_capability_apply_authorization_policy",
+          allow_external_write: allowExternalWrite,
+          no_external_write: !allowExternalWrite,
+          no_provider_call: true,
+          no_credential_payload_read: true,
+          no_spend_change: true,
+          secrets_included: false,
+        }),
+        authorizedBy,
+        authorizedBy,
+        decisionNote,
+        ttl,
+      ]
+    );
+    const [updateResult] = await connection.query(
+      `UPDATE capability_resolution_envelope_ledger
+          SET apply_allowed = 1,
+              envelope_json = ?,
+              envelope_sha256 = ?,
+              expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE),
+              updated_at = NOW()
+        WHERE envelope_id = ?
+          AND envelope_status = 'ready_for_dispatch'
+          AND dispatch_allowed = 1
+          AND blocking_gap_count = 0
+          AND secrets_included = 0`,
+      [JSON.stringify(updatedEnvelope), updatedHash, ttl, row.envelope_id]
+    );
+    if (Number(updateResult?.affectedRows || 0) !== 1) {
+      throw validationError("capability_envelope_apply_authorization_concurrent_change", "Capability envelope changed before apply authorization could be committed.");
+    }
+    const readback = await loadEnvelope(connection, envelopeId);
+    if (!readback || Number(readback.apply_allowed || 0) !== 1 || readback.envelope_status !== "ready_for_dispatch") {
+      throw validationError("capability_envelope_apply_authorization_readback_failed", "Same-cycle readback did not confirm apply authorization.");
+    }
+    if (transactional) await connection.commit();
     return {
       ok: true,
       envelope_id: row.envelope_id,
-      already_apply_authorized: true,
+      envelope_status: "ready_for_dispatch",
+      decision: "ready_for_dispatch",
       apply_allowed: true,
       policy_key: policy.policy_key,
       external_write_allowed: allowExternalWrite,
+      apply_authorization_hold_id: holdId,
+      authorized_by: authorizedBy,
+      expires_in_minutes: ttl,
+      envelope_sha256: updatedHash,
+      same_cycle_readback: true,
+      no_provider_call: true,
+      no_credential_payload_read: true,
+      no_spend_change: true,
       secrets_included: false,
     };
+  } catch (error) {
+    if (transactional) await connection.rollback().catch(() => {});
+    throw error;
+  } finally {
+    if (connection !== writerPool && typeof connection.release === "function") connection.release();
   }
-
-  const authorizedBy = compact(args.authorizedBy, 64) || "gpt_admin";
-  const decisionNote = compact(args.decisionNote, 512) || "Apply-authorized through governed dynamic capability apply authorization policy.";
-  const ttl = Math.max(5, Math.min(Number(args.ttlMinutes || 60), 240));
-  const holdId = randomUUID();
-  const applyAuthorization = {
-    evidence_table: "approval_holds",
-    hold_id: holdId,
-    status: "apply_authorized",
-    authorized_by: authorizedBy,
-    decision_note: decisionNote,
-    authorized_at: new Date().toISOString(),
-    policy_key: policy.policy_key,
-    app_key: row.app_key,
-    capability_key: row.capability_key,
-    operation_intent: row.operation_intent,
-    runtime_surface: row.selected_runtime_surface,
-    allow_external_write: allowExternalWrite,
-    no_external_write: !allowExternalWrite,
-    no_provider_call: true,
-    no_credential_payload_read: true,
-    no_spend_change: true,
-    requires_typed_confirmation: Boolean(enabled(policy.requires_typed_confirmation)),
-    requires_same_cycle_dry_run: Boolean(enabled(policy.requires_same_cycle_dry_run)),
-    requires_readback: Boolean(enabled(policy.requires_readback)),
-    policy: policyJson,
-    secrets_included: false,
-  };
-  const updatedEnvelope = {
-    ...envelopeJson,
-    gates: {
-      ...(envelopeJson.gates || {}),
-      dispatch_allowed: true,
-      apply_allowed: true,
-      audit_required: true,
-      readback_required: Boolean(enabled(policy.requires_readback)) || Boolean(envelopeJson.gates?.readback_required),
-      secrets_included: false,
-    },
-    apply_authorization: applyAuthorization,
-    secrets_included: false,
-  };
-  assertNoSecretBearingFields(updatedEnvelope);
-  const updatedHash = sha256Json(updatedEnvelope);
-  await pool.query(
-    `INSERT INTO approval_holds
-      (hold_id, run_id, tenant_id, workspace_id, workspace_key, hold_type, requested_by, user_id,
-       actor_id, actor_type, request_id, correlation_id, execution_context_json, assigned_to,
-       required_role, status, decision_by, decision_note, expires_at, decided_at, created_at)
-     VALUES
-      (?, ?, ?, ?, ?, 'supervisor_approval', ?, ?, ?, 'platform_admin', 'capability_resolution_envelope_apply_authorization', ?, ?, ?, 'admin', 'approved', ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), NOW(), NOW())`,
-    [
-      holdId,
-      row.envelope_id,
-      row.tenant_id,
-      row.workspace_id || null,
-      row.workspace_key || null,
-      authorizedBy,
-      row.user_id || null,
-      authorizedBy,
-      row.envelope_id,
-      JSON.stringify({
-        envelope_id: row.envelope_id,
-        app_key: row.app_key,
-        capability_key: row.capability_key,
-        operation_intent: row.operation_intent,
-        policy_key: policy.policy_key,
-        apply_authorization_source: "dynamic_capability_apply_authorization_policy",
-        allow_external_write: allowExternalWrite,
-        no_external_write: !allowExternalWrite,
-        no_provider_call: true,
-        no_credential_payload_read: true,
-        no_spend_change: true,
-        secrets_included: false,
-      }),
-      authorizedBy,
-      authorizedBy,
-      decisionNote,
-      ttl,
-    ]
-  );
-  await pool.query(
-    `UPDATE capability_resolution_envelope_ledger
-        SET apply_allowed = 1,
-            envelope_json = ?,
-            envelope_sha256 = ?,
-            expires_at = DATE_ADD(NOW(), INTERVAL ? MINUTE),
-            updated_at = NOW()
-      WHERE envelope_id = ?
-        AND envelope_status = 'ready_for_dispatch'
-        AND dispatch_allowed = 1
-        AND blocking_gap_count = 0
-        AND secrets_included = 0`,
-    [JSON.stringify(updatedEnvelope), updatedHash, ttl, row.envelope_id]
-  );
-  return {
-    ok: true,
-    envelope_id: row.envelope_id,
-    envelope_status: "ready_for_dispatch",
-    decision: "ready_for_dispatch",
-    apply_allowed: true,
-    policy_key: policy.policy_key,
-    external_write_allowed: allowExternalWrite,
-    apply_authorization_hold_id: holdId,
-    authorized_by: authorizedBy,
-    expires_in_minutes: ttl,
-    envelope_sha256: updatedHash,
-    no_provider_call: true,
-    no_credential_payload_read: true,
-    no_spend_change: true,
-    secrets_included: false,
-  };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   authorizeCapabilityResolutionEnvelopeApply(parseArgs())
     .then(async (result) => {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
-      await getPool().end().catch(() => {});
+      await closeGovernancePool().catch(() => {});
     })
     .catch(async (err) => {
       process.stdout.write(`${JSON.stringify({ ok: false, error: { code: err.code || "capability_envelope_apply_authorization_failed", message: err.message, details: err.details || undefined }, secrets_included: false }, null, 2)}\n`);
-      await getPool().end().catch(() => {});
+      await closeGovernancePool().catch(() => {});
       process.exitCode = 1;
     });
 }

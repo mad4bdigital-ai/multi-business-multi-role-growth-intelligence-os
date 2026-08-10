@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "d0d6eb904c178e6276dfb7aa36c38fa96c1a298fbe20b8a06c7dd8ef5bdeac13",
+    "source_digest": "646935891008704bee5481d2ca9feb5414be26b8340aaed77ad89c594469606a",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "ef24d82da4f254846c5a55ce263d0da9c833ab14105309fedb6546eeb50d4ea8",
+        "sha256": "53eb55363c5cc56f4d1cf35b6f847bf276776ef3c7174e9b8ce193e204e322c8",
         "present": true
       },
       {
@@ -596,7 +596,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+        "sha256": "bbcec703937de1939086983698fbe324d9f62ac5e4d31559e33b533e98e4406d",
         "present": true
       },
       {
@@ -646,7 +646,7 @@
       },
       {
         "file": "routes/localConnectorRoutes.js",
-        "sha256": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
+        "sha256": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
         "present": true
       },
       {
@@ -1046,7 +1046,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "7105f39ca2df219ecd42ba404da57c17ca52e2455346f93a7762bddfe36dcb32",
+        "sha256": "b10e11767b82ffeac8373c51a122eb4d94c8198ac21c27365f2d8360a283461c",
         "present": true
       },
       {
@@ -44223,7 +44223,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+      "source_digest": "bbcec703937de1939086983698fbe324d9f62ac5e4d31559e33b533e98e4406d",
       "mount_prefix": "/",
       "mount_order": 17495,
       "split_from_mixed_scope_file": false,
@@ -83273,7 +83273,7 @@
       "family_key": "local-connector.admin",
       "label": "local connector (admin)",
       "source_file": "routes/localConnectorRoutes.js",
-      "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
+      "source_digest": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
       "mount_prefix": "/",
       "mount_order": 21782,
       "split_from_mixed_scope_file": true,
@@ -83635,7 +83635,7 @@
       "family_key": "local-connector.local_device",
       "label": "local connector (local_device)",
       "source_file": "routes/localConnectorRoutes.js",
-      "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
+      "source_digest": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
       "mount_prefix": "/",
       "mount_order": 21782,
       "split_from_mixed_scope_file": true,
