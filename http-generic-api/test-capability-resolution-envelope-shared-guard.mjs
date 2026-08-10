@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 
-const helper = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
+const helper = readFileSync(new URL("./capabilityResolutionEnvelopeGuardRuntime.js", import.meta.url), "utf8");
 const wordpress = readFileSync(new URL("./wordpressBlogPublishOrchestrator.js", import.meta.url), "utf8");
 const hostinger = readFileSync(new URL("./hostingerSshDeployExecutor.js", import.meta.url), "utf8");
 

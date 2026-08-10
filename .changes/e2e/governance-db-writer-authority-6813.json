@@ -21,6 +21,7 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-capability-envelope-batch-expire.mjs",
       "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
+      "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
       "http-generic-api/test-governance-db-writer-authority.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
     ]
@@ -48,6 +49,7 @@
             "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and bootstrap lifecycle mutation bound to the Governance writer pool.",
             "Default standalone lifecycle/reference mutations to the Governance writer while preserving an explicitly supplied existing execution transaction so envelope consumption cannot become a separate post-commit side effect.",
             "Keep batch-expire dry-run read-only and force batch-expire apply onto the Governance writer.",
+            "Keep shared envelope resolution assertions bound to the runtime implementation while exercising the public facade functionally.",
             "Publish the least-privilege Production privilege matrix without provisioning it in this source-only PR.",
             "Run synthetic regressions with fake pools only; do not connect to a live database, provision grants, promote Production, run Migration 1050 readiness, dry-run, Apply, SQL, Hostinger, or provider mutation."
           ],
@@ -56,6 +58,7 @@
             "Envelope creation/approval/apply-authorization and governed migration bootstrap use the dedicated Governance writer by default.",
             "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit bootstrap writer authority.",
             "An explicitly supplied existing lifecycle/reference transaction is preserved for same-cycle execution atomicity and is not interpreted as GOVERNANCE_DB credential fallback.",
+            "Shared envelope implementation assertions target the runtime module after the facade/runtime split while functional resolution continues through the public facade.",
             "Runtime read paths remain independently injectable and do not require Governance write privileges.",
             "Regression fixtures prove read/write pool separation, explicit transaction preservation, and fail-closed Governance DB configuration without a live DB connection.",
             "The documented Production privilege matrix remains table-scoped and explicitly excludes broad schema/admin privileges.",
@@ -67,6 +70,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "capability-envelope-shared-guard-runtime-facade-split",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-resolution-envelope-shared-guard.mjs",
               "args": []
             },
             {
@@ -95,10 +105,12 @@
             "docs/governance-db-writer-authority.md",
             "http-generic-api/governanceDb.js",
             "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
             "http-generic-api/governedMigrationAuthorizationBootstrap.js",
             "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
             "http-generic-api/scripts/capability-resolution-envelope-approve.mjs",
             "http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs",
+            "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
             "http-generic-api/test-governance-db-writer-authority.mjs",
             "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
             "http-generic-api/test-capability-envelope-batch-expire.mjs",
