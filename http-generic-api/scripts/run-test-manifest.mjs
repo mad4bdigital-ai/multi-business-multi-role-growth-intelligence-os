@@ -65,6 +65,16 @@ export const testCommands = Object.freeze([
 const MAX_DIAGNOSTIC_STREAM_CHARS = 12_000;
 const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
 
+// test-auth-oauth-routes.mjs models the existing Activation edge through
+// x-forwarded-host. Spec 017 makes that authority explicit, so preserve the
+// regression fixture as a trusted-proxy simulation without changing the
+// runtime default or any other test command's environment.
+const TEST_COMMAND_ENV_OVERRIDES = Object.freeze({
+  "node test-auth-oauth-routes.mjs": Object.freeze({
+    REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+  }),
+});
+
 function defaultReportFile() {
   if (process.env.TEST_MANIFEST_REPORT_FILE) return process.env.TEST_MANIFEST_REPORT_FILE;
   if (process.env.TEST_SUITE_REPORT_DIR) {
@@ -157,10 +167,11 @@ export function buildDiagnosticStream(value, maxChars = MAX_DIAGNOSTIC_STREAM_CH
 function runCommand(command) {
   const [program, ...args] = splitCommand(command);
   const executable = program === "node" ? process.execPath : program;
+  const envOverrides = TEST_COMMAND_ENV_OVERRIDES[command] || {};
   const startedAt = Date.now();
   const result = spawnSync(executable, args, {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, ...envOverrides },
     shell: false,
     encoding: "utf8",
     maxBuffer: MAX_CAPTURE_BUFFER_BYTES,
