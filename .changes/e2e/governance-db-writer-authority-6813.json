@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/governance-db-writer-authority-6813.json",
+      "docs/governance-db-writer-authority.md",
+      "specs/007-dynamic-capability-governance/tasks.md",
       "http-generic-api/.env.example",
       "http-generic-api/governanceDb.js",
       "http-generic-api/capabilityResolutionEnvelopeGuard.js",
@@ -46,6 +48,7 @@
             "Create, approve, and apply-authorize capability envelopes using the Governance writer for canonical mutations and transaction boundaries.",
             "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and lifecycle mutation bound to the Governance writer pool.",
             "Preserve legacy runtime implementations behind narrow facades so dependency injection cannot silently promote a runtime pool into writer authority.",
+            "Publish the least-privilege Production privilege matrix and record this source boundary as a prerequisite for Spec 007 T201 without marking T201 complete.",
             "Run synthetic regressions with fake pools only; do not connect to a live database, provision grants, promote Production, run Migration 1050 readiness, dry-run, Apply, SQL, Hostinger, or provider mutation."
           ],
           "assertions": [
@@ -54,6 +57,8 @@
             "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit writer authority.",
             "Runtime read paths remain independently injectable and do not require Governance write privileges.",
             "Regression fixtures prove read/write pool separation and fail-closed Governance DB configuration without a live DB connection.",
+            "The documented Production privilege matrix remains table-scoped and explicitly excludes broad schema/admin privileges.",
+            "Spec 007 T201 remains incomplete until separately authorized Production principal provisioning, grants, secret wiring, promotion/runtime parity, and privilege/readiness proof are complete.",
             "No secret value is emitted and no Production, database, migration, Hostinger, provider, or protected-ref mutation is performed by this source slice."
           ],
           "tests": [
@@ -87,6 +92,8 @@
             }
           ],
           "evidence_paths": [
+            "docs/governance-db-writer-authority.md",
+            "specs/007-dynamic-capability-governance/tasks.md",
             "http-generic-api/governanceDb.js",
             "http-generic-api/capabilityResolutionEnvelopeGuard.js",
             "http-generic-api/governedMigrationAuthorizationBootstrap.js",
