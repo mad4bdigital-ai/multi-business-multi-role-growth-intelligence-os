@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "f5785b33da59d1d6151be4b78526f0356702c79928d0ed4aa77b1d59f663487f",
+    "source_digest": "d5cbdb6787537635daf6e1fc79bc3e33e57927756697747c4cf3c75d627a1c81",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "8622930840be5140c2f39f10febd1c0f61a517182d300bd083c39b4bc69dc862",
+        "sha256": "769b4d7875ec9b3c1a1d18b0f114387ed28e9ba688ebb3be370a6e1492762e7e",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "e69e386cce8cf57d3dfc02ae369ac8a18ffedac65f01287a6b13b6ba9e24e755",
+        "sha256": "997c7404afc6cbc3a7bc8eef0db3b7dac4dc4b8c656eebcd946753952abdd25a",
         "present": true
       },
       {
@@ -806,7 +806,7 @@
       },
       {
         "file": "routes/runtimeVerificationRoutes.js",
-        "sha256": "50730c1d8bf5ea6b65f2d1f38351f5c0a04e3b07ecf4569a88a14b56598919b0",
+        "sha256": "d3cf461bdbb9749f8a0a62ca128480aeba84d9c171f5d65225282d9768540059",
         "present": true
       },
       {
@@ -986,7 +986,7 @@
       },
       {
         "file": "routes/tenantGptOAuthMetadataRoutes.js",
-        "sha256": "4d7713763068ce2bb24e8577d41f280ef256cde7014f89bd00f8f7b85b7aa7dd",
+        "sha256": "1ac67ce00ab89e0c1f5e7cece70132ed349ff000f937aaa130a34e045afbb35f",
         "present": true
       },
       {
@@ -1046,7 +1046,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "c2d4de0b797dd698e8bcf9dac57323131b2b5eebbad593c071f6f33eada473df",
+        "sha256": "50ec3850569762cadf6eeacab02c97f46e982ae3c8e256e259deb16be0dccb54",
         "present": true
       },
       {
@@ -1099,15 +1099,15 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1053,
-    "openapi_documented_count": 1037,
+    "operation_count": 1054,
+    "openapi_documented_count": 1038,
     "openapi_canonical_documented_count": 720,
-    "openapi_generated_index_count": 317,
+    "openapi_generated_index_count": 318,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 317,
+    "openapi_detail_gap_count": 318,
     "auth_parity_counts": {
-      "equivalent": 1037,
+      "equivalent": 1038,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1121,7 +1121,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 4,
-    "untested_operation_count": 1049,
+    "untested_operation_count": 1050,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -1602,7 +1602,7 @@
       "family_key": "tenant-gpt-oauth-metadata",
       "label": "tenant gpt oauth metadata",
       "source_file": "routes/tenantGptOAuthMetadataRoutes.js",
-      "source_digest": "4d7713763068ce2bb24e8577d41f280ef256cde7014f89bd00f8f7b85b7aa7dd",
+      "source_digest": "1ac67ce00ab89e0c1f5e7cece70132ed349ff000f937aaa130a34e045afbb35f",
       "mount_prefix": "/",
       "mount_order": 12169,
       "split_from_mixed_scope_file": false,
@@ -15837,7 +15837,7 @@
       "family_key": "runtime-verification",
       "label": "runtime verification",
       "source_file": "routes/runtimeVerificationRoutes.js",
-      "source_digest": "50730c1d8bf5ea6b65f2d1f38351f5c0a04e3b07ecf4569a88a14b56598919b0",
+      "source_digest": "d3cf461bdbb9749f8a0a62ca128480aeba84d9c171f5d65225282d9768540059",
       "mount_prefix": "/",
       "mount_order": 14476,
       "split_from_mixed_scope_file": false,
@@ -16190,6 +16190,74 @@
         },
         {
           "method": "GET",
+          "path": "/runtime/readiness/remote-mcp",
+          "signature": "GET /runtime/readiness/remote-mcp",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
           "path": "/activation/hard-run/summary",
           "signature": "GET /activation/hard-run/summary",
           "source_file": "routes/runtimeVerificationRoutes.js",
@@ -16259,7 +16327,9 @@
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "GET /runtime/readiness/remote-mcp"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [
         "POST /runtime/verification-runs",
@@ -16273,6 +16343,7 @@
         "GET /runtime/verification-runs/{runId}/evidence",
         "GET /runtime/parity",
         "GET /runtime/parity/{environmentKey}",
+        "GET /runtime/readiness/remote-mcp",
         "GET /activation/hard-run/summary"
       ],
       "resources": [],
@@ -16286,6 +16357,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
@@ -16313,7 +16385,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -94435,6 +94507,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -94452,6 +94525,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
