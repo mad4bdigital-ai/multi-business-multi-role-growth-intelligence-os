@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 
 const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
 const authority = readFileSync("productionDeploymentAuthority.js", "utf8");
@@ -7,6 +8,8 @@ const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/206_sprint67_hostinger_ssh_deploy_executor.sql", "utf8");
 const authorityMigration = readFileSync("migrations/20260810_hostinger_production_deploy_authority_binding.sql", "utf8");
 const preciseOpenApi = readFileSync("openapi/production-deployment-authority.yaml", "utf8");
+const preciseOpenApiDoc = YAML.parse(preciseOpenApi);
+const preciseRequestProperties = preciseOpenApiDoc?.productionDeploymentAuthorityPath?.post?.requestBody?.content?.["application/json"]?.schema?.properties || {};
 const preciseRegistry = readFileSync("openapi-route-contracts.d/spec018-production-deployment-authority.yaml", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
 
@@ -71,7 +74,7 @@ assert(preciseOpenApi.includes("environment_branch_authority_v1"), "OpenAPI cont
 assert(preciseOpenApi.includes("same-cycle GitHub ref readback"), "OpenAPI contract must describe same-cycle Production head verification");
 assert(preciseOpenApi.includes("production_deployment_branch_authority_mismatch"), "OpenAPI conflict contract must name branch-authority mismatch");
 assert(preciseOpenApi.includes("production_deployment_sha_stale"), "OpenAPI conflict contract must name stale SHA rejection");
-assert(!/^\s+branch:\s/m.test(preciseOpenApi), "precise deploy request contract must not expose branch as a caller-selectable property");
+assert(!Object.hasOwn(preciseRequestProperties, "branch"), "precise deploy request contract must not expose branch as a caller-selectable property");
 assert(preciseOpenApi.includes("enum: [Production]"), "precise response evidence must constrain the governed production branch to Production");
 
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
