@@ -12,15 +12,16 @@ function resolveLocalConnectorIdentity(req = {}) {
   const isTenantScoped = req.auth?.mode === "user_jwt" || req.auth?.mode === "api_credential";
   if (isTenantScoped) {
     const supplied = suppliedIdentity(req);
-    const userId = req.auth?.user_id || null;
-    const tenantId = req.auth?.tenant_id || null;
+    const authenticatedIdentity = {
+      user_id: req.auth?.user_id || null,
+      tenant_id: req.auth?.tenant_id || null,
+    };
     const identityConflict = Boolean(
-      (supplied.user_id && String(supplied.user_id) !== String(userId || "")) ||
-      (supplied.tenant_id && String(supplied.tenant_id) !== String(tenantId || ""))
+      (supplied.user_id && String(supplied.user_id) !== String(authenticatedIdentity.user_id || "")) ||
+      (supplied.tenant_id && String(supplied.tenant_id) !== String(authenticatedIdentity.tenant_id || ""))
     );
     return {
-      user_id: userId,
-      tenant_id: tenantId,
+      ...authenticatedIdentity,
       auth_derived: true,
       identity_conflict: identityConflict,
     };
