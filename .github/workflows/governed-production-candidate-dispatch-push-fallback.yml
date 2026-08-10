@@ -88,7 +88,8 @@ jobs:
           fi
 
           if [[ "$DISPATCH_REQUIRED" != 'true' ]]; then
-            gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} trigger=push-v1-marker-only merge_executed=false deployment_executed=false"
+            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} trigger=push-v1-marker-only merge_executed=false deployment_executed=false"
+            gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
           fi
 
           MAIN_SHORT="${MAIN_SHA:0:12}"
@@ -152,7 +153,7 @@ jobs:
           test -n "$BUILDER_RUN_ID"
 
           BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} trigger=push-v1-marker-only fallback_run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${RELEASE_BRANCH} validation_branch=${VALIDATION_BRANCH} validation_base_branch=${VALIDATION_BASE_BRANCH} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
-          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
 
       - name: Publish summary
         if: always()
