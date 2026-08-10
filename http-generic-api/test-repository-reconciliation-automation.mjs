@@ -218,7 +218,14 @@ assert.equal(result.plan.plan.force_push_allowed, false);
 assert.equal(result.plan.plan.migration_apply_allowed, false);
 
 await assert.rejects(
-  () => runRepositoryReconciliationOrchestrator({ ...args, mode: "apply", capability_envelope_id: "e", approval_hold_id: "h" }, {
+  () => runRepositoryReconciliationOrchestrator({
+    ...args,
+    mode: "apply",
+    plan_id: result.plan.plan_id,
+    plan_sha256: result.plan.plan_sha256,
+    capability_envelope_id: "e",
+    approval_hold_id: "h",
+  }, {
     pool,
     reconcileBranch: async () => ({
       evidence: { base_ref_sha: "b".repeat(40), branch_ref_sha: "c".repeat(40) },
