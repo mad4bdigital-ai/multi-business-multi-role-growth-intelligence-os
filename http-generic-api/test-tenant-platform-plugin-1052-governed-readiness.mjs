@@ -18,7 +18,7 @@ const [workflow, script, runtimeSource, wrapperSource, manifestSource] = await P
 
 const token = 'AUTHORIZE_GOVERNED_MIGRATION_1052_TENANT_PLATFORM_PLUGIN_MANAGED_REPAIR_AUTHORITY';
 const migration = '1052_tenant_platform_plugin_managed_repair_authority.sql';
-const productionSha = '87811cb84352382329e5d60dcf3030f4bc21964f';
+const productionSha = '6957f56ead3f720767957dbb7b9b213cc54ed04e';
 
 assert.match(workflow, /github\.event\.issue\.number == 4451/);
 assert.ok(workflow.includes(token));
