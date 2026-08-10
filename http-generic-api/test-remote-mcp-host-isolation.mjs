@@ -17,6 +17,14 @@ function startServer(app) {
   });
 }
 
+function buildNoDbPool() {
+  return {
+    query() {
+      throw new Error("remote MCP host isolation test must not query the database");
+    },
+  };
+}
+
 async function postInitialize(baseUrl, forwardedHost, envHeaders = {}) {
   const response = await fetch(`${baseUrl}/mcp`, {
     method: "POST",
@@ -57,7 +65,7 @@ assert.equal(resolveRemoteMcpConfiguredHost({ REMOTE_MCP_RESOURCE_URL: "https://
 
   const app = express();
   app.use(express.json());
-  app.use(buildRemoteMcpConnectorRoutes({ env }));
+  app.use(buildRemoteMcpConnectorRoutes({ env, pool: buildNoDbPool() }));
   const { server, baseUrl } = await startServer(app);
   try {
     const canonical = await postInitialize(baseUrl, "mcp.example.test");
@@ -89,7 +97,7 @@ assert.equal(resolveRemoteMcpConfiguredHost({ REMOTE_MCP_RESOURCE_URL: "https://
   };
   const app = express();
   app.use(express.json());
-  app.use(buildRemoteMcpConnectorRoutes({ env }));
+  app.use(buildRemoteMcpConnectorRoutes({ env, pool: buildNoDbPool() }));
   const { server, baseUrl } = await startServer(app);
   try {
     const spoofedForwardedHost = await postInitialize(baseUrl, "mcp.example.test");
