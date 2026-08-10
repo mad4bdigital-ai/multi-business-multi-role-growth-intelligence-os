@@ -7,6 +7,8 @@ const activationSnapshot = readFileSync(new URL("./tenantActivationSnapshot.js",
 const cmsPlanner = readFileSync(new URL("./cmsAuthorityReconciliation.js", import.meta.url), "utf8");
 const cmsRunner = readFileSync(new URL("./scripts/cms-authority-reconciliation.mjs", import.meta.url), "utf8");
 const supportResolution = readFileSync(new URL("./supportTicketResolutionService.js", import.meta.url), "utf8");
+const supportReconciliation = readFileSync(new URL("./supportTicketResolutionReconciliation.js", import.meta.url), "utf8");
+const supportReconciliationRunner = readFileSync(new URL("./scripts/support-ticket-resolution-reconciliation.mjs", import.meta.url), "utf8");
 
 for (const marker of [
   "no_provider_call=true",
@@ -32,8 +34,6 @@ assert.match(migration, /platform_plugin_selector_allowed/);
 assert.match(migration, /invalid_adapter_alias_binding_count/);
 assert.match(migration, /adapter_action_incorrectly_promoted_to_platform_action/);
 
-// Adapter read operations remain app-local operations. Do not manufacture new
-// canonical action bindings that would bypass the existing wordpress_api group.
 for (const operation of [
   "wordpress_rest.validate_connection",
   "wordpress_rest.get_current_user",
@@ -76,5 +76,20 @@ assert.match(supportResolution, /support_ticket_escalated/);
 assert.match(supportResolution, /ON DUPLICATE KEY UPDATE/);
 assert.doesNotMatch(supportResolution, /operational_alert_notification_outbox/);
 assert.doesNotMatch(supportResolution, /fetch\s*\(/);
+
+assert.match(supportReconciliation, /APPLY_SUPPORT_TICKET_RESOLUTION_RECONCILIATION/);
+assert.match(supportReconciliation, /ensureSupportTicketResolutionCase/);
+assert.match(supportReconciliation, /resolution_case_missing/);
+assert.match(supportReconciliation, /escalation_alert_missing/);
+assert.match(supportReconciliationRunner, /WHERE status IN \('open','in_review','awaiting_approval'\)/);
+assert.match(supportReconciliationRunner, /FROM tenant_resolution_cases/);
+assert.match(supportReconciliationRunner, /FROM operational_alerts/);
+assert.match(supportReconciliationRunner, /beginTransaction\(\)/);
+assert.match(supportReconciliationRunner, /rollback\(\)/);
+for (const forbidden of ["encrypted_credentials", "credential_ref", "access_token", "refresh_token", "password", "secret"]) {
+  assert.doesNotMatch(supportReconciliationRunner, new RegExp(forbidden, "i"), `legacy support reconciliation must not read ${forbidden}`);
+}
+assert.doesNotMatch(supportReconciliationRunner, /DELETE\s+/i);
+assert.doesNotMatch(supportReconciliationRunner, /fetch\s*\(/);
 
 console.log("remaining tenant runtime/lifecycle gap closure tests passed");
