@@ -1,12 +1,21 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
+const executorWrapper = readFileSync("hostingerSshDeployExecutor.js", "utf8");
+const executorLegacy = readFileSync("hostingerSshDeployExecutorLegacy.js", "utf8");
+const executor = `${executorWrapper}\n${executorLegacy}`;
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/206_sprint67_hostinger_ssh_deploy_executor.sql", "utf8");
 const branchAllowlistMigration = readFileSync("migrations/20260727_remote_runtime_hostinger_production_branch_allowlist.sql", "utf8");
+const authorityMigration = readFileSync("migrations/20260810_environment_branch_authority_v1.sql", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
+
+assert(executorWrapper.includes("resolveProductionDeploymentAuthority"), "public deploy executor must resolve production environment authority before delegating");
+assert(executorWrapper.includes("branch: authority.production_branch"), "public deploy executor must replace caller branch with resolved production authority");
+assert(executorWrapper.includes("expected_commit_sha: authority.expected_commit_sha"), "public deploy executor must delegate only the normalized exact SHA");
+assert(executorWrapper.includes("hostingerSshDeployExecutorLegacy.js"), "authority wrapper must preserve the existing hardened executor behind the new gate");
+assert(executorLegacy.includes('const ALLOWED_BRANCHES = new Set(["main", "Production"])'), "legacy executor compatibility allowlist must remain internal behind the authority wrapper");
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED"), "actual SSH execution must be behind an explicit feature flag");
 assert(executor.includes("dryRun"), "executor must support dry-run mode");
@@ -30,11 +39,12 @@ assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "read-only probe timeo
 assert(executor.includes("mkdtemp"), "private key must be written only to a temporary file");
 assert(executor.includes("rm(tempDir"), "temporary private key directory must be cleaned up");
 assert(executor.includes("expected_commit_sha"), "executor must require an expected commit SHA");
-assert(executor.includes('const ALLOWED_BRANCHES = new Set(["main", "Production"])'), "executor must allow only main and Production deployment branches");
-assert(executor.includes("Only main and Production branch deployment is supported by this executor."), "executor must reject any third deployment branch with a stable error");
-assert(openapi.includes("branch: { type: string, enum: [main, Production], default: main }"), "OpenAPI must document the exact deployment branch allowlist");
-assert(branchAllowlistMigration.includes("JSON_ARRAY('main','Production')"), "corrective migration must register the exact deployment branch allowlist");
-assert(branchAllowlistMigration.includes('"enum":["main","Production"]'), "admin tool schema must accept main and Production only");
+assert(openapi.includes("branch: { type: string, enum: [main, Production], default: main }"), "legacy OpenAPI contract must remain detectable until the follow-up contract migration regenerates it");
+assert(branchAllowlistMigration.includes("JSON_ARRAY('main','Production')"), "historical branch allowlist migration must remain immutable");
+assert(branchAllowlistMigration.includes('"enum":["main","Production"]'), "historical admin schema migration must remain immutable");
+assert(authorityMigration.includes("'allowed_branches',JSON_ARRAY('Production')"), "latest execution policy must advertise Production only");
+assert(authorityMigration.includes("JSON_ARRAY('Production'),'default','Production'"), "latest command schema must advertise Production only");
+assert(authorityMigration.includes('"enum":["Production"],"default":"Production"'), "latest admin tool schema must advertise Production only");
 for (const marker of [
   "no_provider_call",
   "no_credential_payload_read",
@@ -42,7 +52,8 @@ for (const marker of [
   "no_external_write",
   "secrets_included_false",
 ]) {
-  assert(branchAllowlistMigration.includes(marker), `corrective migration must preserve ${marker}`);
+  assert(branchAllowlistMigration.includes(marker), `historical corrective migration must preserve ${marker}`);
+  assert(authorityMigration.includes(marker), `environment authority migration must preserve ${marker}`);
 }
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
