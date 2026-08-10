@@ -21,9 +21,13 @@ assert.match(workflow, /ref: main/);
 assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
 assert.match(workflow, /Upload sanitized read-only diagnostic evidence/);
 
-for (const value of [TRIGGER, MIGRATION, RESOURCE_URI]) {
+for (const value of [TRIGGER, MIGRATION]) {
   assert.ok(runner.includes(value), `Read-only diagnostic runner is missing pinned value ${value}`);
 }
+assert.ok(
+  runner.includes('const RESOURCE_URI = `db-migration://growth_intelligence_platform/${MIGRATION}`;'),
+  `Read-only diagnostic runner must derive pinned resource URI ${RESOURCE_URI} from MIGRATION`
+);
 
 assert.match(runner, /shellInvocation\('capability_resolution_dry_run'/);
 assert.equal((runner.match(/shellInvocation\('capability_resolution_dry_run'/g) || []).length, 1, 'Diagnostic must invoke exactly one read-only resolver shell alias');
