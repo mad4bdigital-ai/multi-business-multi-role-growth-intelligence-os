@@ -75,10 +75,6 @@
 - [ ] T206 Migrate additional external-write cohorts capability by capability.
 - [ ] T207 Preserve deployment, destructive, credential-touching, and local-device capabilities behind stricter independent cohorts.
 
-### T201 governance writer prerequisite
-
-Issue #6813 establishes the required source boundary for the internal registry-write cohort: ordinary runtime/database authority remains the reader, while canonical capability-envelope and governed-migration mutations use a dedicated, fail-closed Governance DB writer identity with table-scoped privileges. The source implementation, no-fallback contract, regression tests, and E2E phase are prerequisites for T201, but **T201 remains incomplete** until the dedicated Production principal is separately provisioned, bounded grants are verified, `GOVERNANCE_DB_*` secrets are configured without disclosure, Production parity is proven, and a no-secret privilege/readiness probe passes. Source merge alone must not mark T201 complete.
-
 ## Verification and closeout
 
 - [x] T220 Add deterministic unit, integration, property, security, and parity tests.
