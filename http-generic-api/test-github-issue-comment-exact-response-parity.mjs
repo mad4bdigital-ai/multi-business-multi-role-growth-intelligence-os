@@ -91,8 +91,10 @@ assert.match(executionResponse, /retry_allowed:\s*false/);
 assert.match(executionResponse, /reconciliation_required:\s*true/);
 assert.match(executionResponse, /upstream_success_confirmed:\s*true/);
 
-assert.doesNotMatch(migration, /\bPREPARE\b/i);
-assert.doesNotMatch(migration, /\bEXECUTE\b/i);
+// Dynamic SQL is forbidden as executable SQL. Match statement boundaries so
+// explanatory prose in SQL comments cannot create a false-positive regression.
+assert.doesNotMatch(migration, /(?:^|;)\s*PREPARE\b/mi);
+assert.doesNotMatch(migration, /(?:^|;)\s*EXECUTE\b/mi);
 assert.doesNotMatch(migration, /^\s*(DELETE FROM|DROP|TRUNCATE|ALTER)\b/mi);
 assert.doesNotMatch(migration, /fetch\s*\(/);
 assert.doesNotMatch(migration, /axios\s*\(/);
