@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
+const authority = readFileSync("productionDeploymentAuthority.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/206_sprint67_hostinger_ssh_deploy_executor.sql", "utf8");
-const branchAllowlistMigration = readFileSync("migrations/20260727_remote_runtime_hostinger_production_branch_allowlist.sql", "utf8");
-const openapi = readFileSync("openapi.yaml", "utf8");
+const authorityMigration = readFileSync("migrations/20260810_hostinger_production_deploy_authority_binding.sql", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED"), "actual SSH execution must be behind an explicit feature flag");
@@ -30,20 +30,37 @@ assert(executor.includes("MAX_PROBE_TIMEOUT_MS = 75000"), "read-only probe timeo
 assert(executor.includes("mkdtemp"), "private key must be written only to a temporary file");
 assert(executor.includes("rm(tempDir"), "temporary private key directory must be cleaned up");
 assert(executor.includes("expected_commit_sha"), "executor must require an expected commit SHA");
-assert(executor.includes('const ALLOWED_BRANCHES = new Set(["main", "Production"])'), "executor must allow only main and Production deployment branches");
-assert(executor.includes("Only main and Production branch deployment is supported by this executor."), "executor must reject any third deployment branch with a stable error");
-assert(openapi.includes("branch: { type: string, enum: [main, Production], default: main }"), "OpenAPI must document the exact deployment branch allowlist");
-assert(branchAllowlistMigration.includes("JSON_ARRAY('main','Production')"), "corrective migration must register the exact deployment branch allowlist");
-assert(branchAllowlistMigration.includes('"enum":["main","Production"]'), "admin tool schema must accept main and Production only");
+assert(executor.includes("resolveVerifiedProductionDeploymentAuthority"), "deploy executor must resolve the production branch from governed environment authority");
+assert(!executor.includes("ALLOWED_BRANCHES"), "deploy executor must not use a caller-selected static branch allowlist");
+assert(executor.includes('let branch = compact(input.branch || "", 64)'), "caller branch may only be captured as an optional compatibility assertion");
+assert(executor.includes("branch = deploymentAuthority.production_branch"), "effective deploy branch must come from production authority");
+assert(executor.includes("production_branch_head_sha"), "deploy evidence must carry same-cycle Production branch head readback");
+assert(executor.includes("expected_sha_matches_production_head"), "deploy evidence must prove the expected SHA equals current Production head");
+assert(!executor.includes('branch: branch || "main"'), "continuation evidence must not fall back to main for production deployment");
+
+assert(authority.includes("/git/ref/heads/"), "production authority must read the governed branch head from GitHub");
+assert(authority.includes("production_deployment_sha_stale"), "stale Production SHA must use a structured fail-closed error");
+assert(authority.includes("production_deployment_branch_authority_mismatch") || executor.includes("resolveVerifiedProductionDeploymentAuthority"), "unauthorized branch selection must fail through environment authority");
+assert(authority.includes("same_cycle_branch_readback"), "authority evidence must explicitly mark same-cycle branch readback");
+assert(!authority.includes("test-token-never-returned"), "runtime authority module must not contain test credential material");
+
+assert(authorityMigration.includes("branch selection is removed from governed caller schemas") || authorityMigration.includes("Remove caller-controlled branch selection"), "corrective migration must remove caller-controlled branch selection");
+assert(authorityMigration.includes("JSON_ARRAY('target_id','app_key','app_path','expected_commit_sha','approval_reason')"), "command schema must no longer require branch");
+assert(authorityMigration.includes('"required":["target_id","app_key","app_path","expected_commit_sha"]'), "admin tool schema must no longer require branch");
+assert(!authorityMigration.includes("'branch',JSON_OBJECT"), "command schema must not expose branch as a caller-selectable property");
+assert(authorityMigration.includes("same_cycle_branch_readback_required"), "execution policy must require same-cycle branch head readback");
+assert(authorityMigration.includes("caller_branch_selection_allowed', FALSE"), "execution policy must explicitly deny caller branch selection");
 for (const marker of [
-  "no_provider_call",
   "no_credential_payload_read",
   "no_external_send",
   "no_external_write",
+  "no_hostinger_runtime_mutation",
+  "migration_source_only",
   "secrets_included_false",
 ]) {
-  assert(branchAllowlistMigration.includes(marker), `corrective migration must preserve ${marker}`);
+  assert(authorityMigration.includes(marker), `authority-binding migration must preserve ${marker}`);
 }
+
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
 assert(executor.includes("approval_reason") || executor.includes("approvalReason"), "executor must require approval reason for execution");
@@ -70,8 +87,8 @@ assert(routes.includes("result.http_status"), "deploy route must honor 202 accep
 assert(routes.includes("/platform/remote-runtime/hosting/deploy-runs/:deploymentRunId"), "platform routes must expose deploy status readback");
 assert(routes.includes("remote_runtime_hosting_deploy_run_read_failed"), "readback route must use a structured error code");
 
-assert(migration.includes("remote_runtime_hostinger_deploy_release"), "migration must register admin tool row");
-assert(migration.includes("deploy_release"), "migration must register deploy_release command");
+assert(migration.includes("remote_runtime_hostinger_deploy_release"), "historical migration must still register admin tool row");
+assert(migration.includes("deploy_release"), "historical migration must still register deploy_release command");
 assert(migration.includes("is_enabled") && migration.includes(" 0,"), "admin tool row must remain disabled until deployed and certified");
 assert(migration.includes("approval_required"), "migration tags must record approval requirement");
 assert(migration.includes("no_secrets"), "migration tags must record no_secrets boundary");
