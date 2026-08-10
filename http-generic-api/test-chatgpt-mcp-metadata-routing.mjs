@@ -30,9 +30,10 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
-      CHATGPT_MCP_ENABLED: "true",
-      CHATGPT_MCP_RESOURCE_URL: "https://mcp.example.test",
-      CHATGPT_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
+      REMOTE_MCP_ENABLED: "true",
+      REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
+      REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
+      REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
     },
   }));
   const { server, baseUrl } = await startServer(app);
@@ -50,6 +51,16 @@ async function getProtectedResourceMetadata(baseUrl, host) {
     assert.equal(activation.body.resource, "https://activation.mad4b.com");
     assert(activation.body.scopes_supported.includes("https://auth.mad4b.com/scopes/tenant.links"));
     assert.notDeepEqual(activation.body.scopes_supported, mcp.body.scopes_supported);
+
+    const tenantCore = await getProtectedResourceMetadata(baseUrl, "auth.mad4b.com");
+    assert.equal(tenantCore.status, 200);
+    assert.equal(tenantCore.body.resource, "https://auth.mad4b.com");
+    assert(tenantCore.body.scopes_supported.includes("https://auth.mad4b.com/scopes/tenant.links"));
+
+    const unknown = await getProtectedResourceMetadata(baseUrl, "unknown.example.test");
+    assert.equal(unknown.status, 404);
+    assert.equal(unknown.body.error.code, "OAUTH_RESOURCE_NOT_FOUND");
+    assert.equal(unknown.body.secrets_included, false);
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
   }
@@ -59,9 +70,10 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
-      CHATGPT_MCP_ENABLED: "false",
-      CHATGPT_MCP_RESOURCE_URL: "https://mcp.example.test",
-      CHATGPT_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
+      REMOTE_MCP_ENABLED: "false",
+      REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
+      REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
+      REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
     },
   }));
   const { server, baseUrl } = await startServer(app);
@@ -148,7 +160,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
     env: {
       REMOTE_MCP_OAUTH_ENABLED: "true",
       REMOTE_MCP_OAUTH_DCR_ENABLED: "true",
-      REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://claude.ai",
+      REMOTE_MCP_OAUTH_ALLOWED_REDIRECT_ORIGINS: "https://chatgpt.com",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
     },
   }));
