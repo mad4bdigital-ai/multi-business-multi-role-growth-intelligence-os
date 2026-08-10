@@ -20,6 +20,8 @@
       "http-generic-api/hostingerSshDeployExecutor.js",
       "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
       "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+      "http-generic-api/openapi/production-deployment-authority.yaml",
+      "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
       "http-generic-api/test-environment-branch-authority.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
@@ -47,7 +49,8 @@
             "Read the current Production branch ref through the governed read-only GitHub authority path and compare it with expected_commit_sha.",
             "Reject main, arbitrary branches, invalid SHA, and stale SHA before deploy planning can become eligible.",
             "Verify the Hostinger deploy executor and caller schemas consume only the policy-derived branch while routine SSH mutation remains blocked by target policy.",
-            "Verify Spec 018 OpenAPI and completion evidence describe the same no-migration/no-production-mutation boundary."
+            "Verify the precise OpenAPI registry owns the deploy-release operation and its path-item contract exposes no caller-selectable branch.",
+            "Verify Spec 018 completion evidence describes the same no-migration/no-production-mutation boundary."
           ],
           "assertions": [
             "No governed caller schema exposes branch as a selectable production deployment input.",
@@ -55,6 +58,7 @@
             "expected_commit_sha must equal the current same-cycle Production branch head before dispatch.",
             "Caller branch main or any arbitrary work branch fails before GitHub readback or deploy dispatch.",
             "Stale expected_commit_sha fails with production_deployment_sha_stale.",
+            "The precise OpenAPI route contract removes caller branch selection and is registered for deterministic root OpenAPI synchronization.",
             "The candidate does not apply migrations, write main or Production, invoke Hostinger mutation, or return secrets."
           ],
           "tests": [
@@ -88,6 +92,8 @@
             "http-generic-api/productionDeploymentAuthority.js",
             "http-generic-api/hostingerSshDeployExecutor.js",
             "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+            "http-generic-api/openapi/production-deployment-authority.yaml",
+            "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
             "http-generic-api/test-production-deployment-authority.mjs",
             "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
           ]
