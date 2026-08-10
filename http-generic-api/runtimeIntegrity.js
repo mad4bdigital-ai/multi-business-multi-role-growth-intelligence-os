@@ -1,10 +1,11 @@
-import { spawnSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
 const GIT_TIMEOUT_MS = 5000;
+const GIT_MAX_BUFFER = 64 * 1024;
 
 function normalizeSha(value) {
   const sha = String(value || "").trim().toLowerCase();
@@ -16,6 +17,18 @@ function nonEmptyLines(value = "") {
     .split(/\r?\n/)
     .map((line) => line.trim())
     .filter(Boolean);
+}
+
+function runGit(execFileImpl, args, options) {
+  return new Promise((resolve) => {
+    try {
+      execFileImpl("git", args, options, (error, stdout = "") => {
+        resolve({ ok: !error, stdout: String(stdout || "") });
+      });
+    } catch {
+      resolve({ ok: false, stdout: "" });
+    }
+  });
 }
 
 export function classifyRuntimeIntegrity({
@@ -59,11 +72,11 @@ export function classifyRuntimeIntegrity({
   };
 }
 
-export function inspectRuntimeIntegrity({
+export async function inspectRuntimeIntegrity({
   repoRoot = REPO_ROOT,
   expectedCommitSha,
   checkoutCommitSha,
-  spawnSyncImpl = spawnSync,
+  execFileImpl = execFile,
   env = process.env,
 } = {}) {
   const safeOptions = {
@@ -72,23 +85,24 @@ export function inspectRuntimeIntegrity({
     shell: false,
     windowsHide: true,
     timeout: GIT_TIMEOUT_MS,
+    maxBuffer: GIT_MAX_BUFFER,
     env: { ...env, GIT_OPTIONAL_LOCKS: "0" },
   };
 
   let checkoutSha = normalizeSha(checkoutCommitSha);
   let checkoutDetected = Boolean(checkoutSha);
   if (!checkoutSha) {
-    const head = spawnSyncImpl("git", ["rev-parse", "--verify", "HEAD"], safeOptions);
-    checkoutSha = head?.status === 0 ? normalizeSha(head.stdout) : "";
+    const head = await runGit(execFileImpl, ["rev-parse", "--verify", "HEAD"], safeOptions);
+    checkoutSha = head.ok ? normalizeSha(head.stdout) : "";
     checkoutDetected = Boolean(checkoutSha);
   }
 
-  const status = spawnSyncImpl(
-    "git",
+  const status = await runGit(
+    execFileImpl,
     ["status", "--porcelain=v1", "--untracked-files=no", "--no-renames"],
     safeOptions,
   );
-  const statusReadbackAvailable = !status?.error && status?.status === 0;
+  const statusReadbackAvailable = status.ok;
   const dirtyTrackedFileCount = statusReadbackAvailable ? nonEmptyLines(status.stdout).length : 0;
 
   return classifyRuntimeIntegrity({
