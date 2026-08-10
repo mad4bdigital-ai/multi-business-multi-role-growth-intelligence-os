@@ -25,6 +25,7 @@
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
       "http-generic-api/test-environment-branch-authority.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
+      "http-generic-api/test-production-deployment-openapi-transition.mjs",
       "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
     ]
   },
@@ -72,6 +73,13 @@
               "args": []
             },
             {
+              "id": "spec-018-production-deployment-openapi-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-deployment-openapi-transition.mjs",
+              "args": []
+            },
+            {
               "id": "spec-018-hostinger-deploy-safety-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -98,6 +106,7 @@
             "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
             "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
             "http-generic-api/test-production-deployment-authority.mjs",
+            "http-generic-api/test-production-deployment-openapi-transition.mjs",
             "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
           ]
         }
