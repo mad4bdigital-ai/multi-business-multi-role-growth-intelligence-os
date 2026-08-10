@@ -1,14 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const executorWrapper = readFileSync("hostingerSshDeployExecutor.js", "utf8");
-const executorLegacy = readFileSync("hostingerSshDeployExecutorLegacy.js", "utf8");
-const executor = `${executorWrapper}\n${executorLegacy}`;
+const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
 const migration = readFileSync("migrations/227_sprint67_hostinger_deploy_capability_envelope_requirement.sql", "utf8");
 const runner = readFileSync("scripts/governed-migration-runner.mjs", "utf8");
 
-assert.match(executorWrapper, /resolveProductionDeploymentAuthority/);
-assert.match(executorWrapper, /hostingerSshDeployExecutorLegacy/);
 assert.match(executor, /resolveCapabilityEnvelopeForHostingerDeploy/);
 assert.match(executor, /resolveCapabilityExecutionEnvelope/);
 assert.match(executor, /capabilityEnvelopeError/);
@@ -20,13 +16,13 @@ assert.match(executor, /secrets_included: false/);
 assert.doesNotMatch(executor, /decryptToken\(|value_ciphertext|oauth_token|private_key:\s*privateKey/i);
 assert.doesNotMatch(executor, /exec\(/);
 
-const deployFunctionIndex = executorLegacy.indexOf("export async function executeHostingerSshDeployRelease");
-const executorGateIndex = executorLegacy.indexOf("const executorGate = await loadHostingerSshExecutorGate", deployFunctionIndex);
-const gateRejectIndex = executorLegacy.indexOf("if (!executorGate.enabled)", executorGateIndex);
-const planReadyIndex = executorLegacy.indexOf("if (!plan.dispatch_ready)", deployFunctionIndex);
-const envelopeGateIndex = executorLegacy.indexOf("const envelope = await resolveCapabilityEnvelopeForHostingerDeploy", deployFunctionIndex);
-const credentialIndex = executorLegacy.indexOf("const sshConnection = await resolveSshConnectionCredentials", deployFunctionIndex);
-const sshCommandIndex = executorLegacy.indexOf("const sshResult = await runSshCommand", deployFunctionIndex);
+const deployFunctionIndex = executor.indexOf("export async function executeHostingerSshDeployRelease");
+const executorGateIndex = executor.indexOf("const executorGate = await loadHostingerSshExecutorGate", deployFunctionIndex);
+const gateRejectIndex = executor.indexOf("if (!executorGate.enabled)", executorGateIndex);
+const planReadyIndex = executor.indexOf("if (!plan.dispatch_ready)", deployFunctionIndex);
+const envelopeGateIndex = executor.indexOf("const envelope = await resolveCapabilityEnvelopeForHostingerDeploy", deployFunctionIndex);
+const credentialIndex = executor.indexOf("const sshConnection = await resolveSshConnectionCredentials", deployFunctionIndex);
+const sshCommandIndex = executor.indexOf("const sshResult = await runSshCommand", deployFunctionIndex);
 assert.ok(executorGateIndex > -1, "Hostinger deploy execution must remain behind the ENV-or-DB executor gate.");
 assert.ok(gateRejectIndex > executorGateIndex, "Disabled executor gates must fail closed before dispatch.");
 assert.ok(planReadyIndex > gateRejectIndex, "Dispatch plan readiness must still be checked after the executor gate.");

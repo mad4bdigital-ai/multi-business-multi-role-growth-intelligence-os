@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const executorWrapper = readFileSync("hostingerSshDeployExecutor.js", "utf8");
-const executorLegacy = readFileSync("hostingerSshDeployExecutorLegacy.js", "utf8");
-const executor = `${executorWrapper}\n${executorLegacy}`;
+const executor = readFileSync("hostingerSshDeployExecutor.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/207_sprint67_hostinger_ssh_target_probe.sql", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
