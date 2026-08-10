@@ -8,10 +8,43 @@ export const CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS = runtime.CAPABILITY_ENVELOPE
 export const CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES = runtime.CAPABILITY_ENVELOPE_BATCH_EXPIRE_MODES;
 export const CAPABILITY_ENVELOPE_BATCH_EXPIRE_POLICY_VERSION = runtime.CAPABILITY_ENVELOPE_BATCH_EXPIRE_POLICY_VERSION;
 
-function resolveLifecycleMutationPool({ writerPool = null, transactionPool = null } = {}) {
+function isExplicitLifecycleTransaction(candidate) {
+  return Boolean(
+    candidate
+    && typeof candidate.query === "function"
+    && typeof candidate.beginTransaction === "function"
+    && typeof candidate.commit === "function"
+    && typeof candidate.rollback === "function"
+    && typeof candidate.getConnection !== "function"
+  );
+}
+
+function invalidTransactionPoolError() {
+  const error = new Error("Capability envelope lifecycle transactionPool must be an already-open SQL connection, not a general runtime pool.");
+  error.code = "CAPABILITY_ENVELOPE_LIFECYCLE_TRANSACTION_INVALID";
+  error.status = 500;
+  error.details = {
+    general_runtime_pool_allowed: false,
+    explicit_transaction_required: true,
+    governance_writer_default: true,
+    secrets_included: false,
+  };
+  return error;
+}
+
+function resolveLifecycleMutationPool({
+  writerPool = null,
+  transactionPool = null,
+  legacyPool = null,
+  governancePoolFactory = getGovernancePool,
+} = {}) {
   if (writerPool) return writerPool;
-  if (transactionPool) return transactionPool;
-  return getGovernancePool();
+  if (transactionPool) {
+    if (!isExplicitLifecycleTransaction(transactionPool)) throw invalidTransactionPoolError();
+    return transactionPool;
+  }
+  if (isExplicitLifecycleTransaction(legacyPool)) return legacyPool;
+  return governancePoolFactory();
 }
 
 /**
@@ -25,48 +58,43 @@ export async function resolveCapabilityExecutionEnvelope(options = {}) {
 
 /**
  * Marking an envelope referenced is a canonical governance mutation by
- * default. An already-open transaction may be supplied explicitly through
- * `pool`/`transactionPool` when the reference update must remain atomic with
- * the execution-side business mutation. This is a transaction object escape
- * hatch, not a credential fallback: absent an explicit transaction, the
- * dedicated Governance DB writer remains mandatory.
+ * default. An already-open SQL transaction connection may be supplied
+ * explicitly when the reference update must remain atomic with an execution-
+ * side business mutation. A general runtime pool is never accepted as the
+ * mutation authority: legacy `pool` is honored only when it structurally is a
+ * transaction connection; otherwise the dedicated Governance DB writer is
+ * selected.
  */
 export async function markCapabilityEnvelopeReferenced(options = {}) {
   const {
     writerPool = null,
     transactionPool = null,
-    pool: legacyTransactionPool = null,
+    pool: legacyPool = null,
     ...rest
   } = options || {};
   return runtime.markCapabilityEnvelopeReferenced({
     ...rest,
-    pool: resolveLifecycleMutationPool({
-      writerPool,
-      transactionPool: transactionPool || legacyTransactionPool,
-    }),
+    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
 /**
  * consume/cancel/expire are canonical lifecycle transitions. They default to
  * the dedicated Governance DB writer. Execution-side callers that already
- * hold the business transaction may pass that exact transaction explicitly so
- * envelope consumption stays in the same SQL transaction and cannot become a
- * post-commit side effect.
+ * hold an actual SQL transaction connection may pass that exact connection so
+ * lifecycle state and the business mutation stay transaction-bound. Passing a
+ * broad runtime pool cannot activate this exception.
  */
 export async function transitionCapabilityEnvelopeLifecycle(options = {}) {
   const {
     writerPool = null,
     transactionPool = null,
-    pool: legacyTransactionPool = null,
+    pool: legacyPool = null,
     ...rest
   } = options || {};
   return runtime.transitionCapabilityEnvelopeLifecycle({
     ...rest,
-    pool: resolveLifecycleMutationPool({
-      writerPool,
-      transactionPool: transactionPool || legacyTransactionPool,
-    }),
+    pool: resolveLifecycleMutationPool({ writerPool, transactionPool, legacyPool }),
   });
 }
 
@@ -88,10 +116,20 @@ export async function runCapabilityEnvelopeBatchExpire(options = {}) {
   if (normalizedMode !== "apply") {
     return runtime.runCapabilityEnvelopeBatchExpire(options);
   }
-  const { writerPool = null, pool: _legacyRuntimePool = null, transactionPool: _legacyTransactionPool = null, ...rest } = options || {};
+  const {
+    writerPool = null,
+    pool: _legacyRuntimePool = null,
+    transactionPool: _legacyTransactionPool = null,
+    ...rest
+  } = options || {};
   return runtime.runCapabilityEnvelopeBatchExpire({
     ...rest,
     mode: "apply",
     pool: writerPool || getGovernancePool(),
   });
 }
+
+export const _testingCapabilityResolutionEnvelopeGuardFacade = Object.freeze({
+  isExplicitLifecycleTransaction,
+  resolveLifecycleMutationPool,
+});
