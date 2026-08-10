@@ -45,7 +45,12 @@ async function loadRows(pool) {
     `SELECT binding_id, site_id, target_key, relationship_type, status
        FROM brand_site_bindings`
   );
-  return { claims, sites, grants, brandBindings };
+  const [connections] = await pool.query(
+    `SELECT connection_id, user_id, tenant_id, app_key, status, validation_status
+       FROM user_app_connections
+      ORDER BY connection_id ASC`
+  );
+  return { claims, sites, grants, brandBindings, connections };
 }
 
 async function applyOperation(conn, operation) {
@@ -87,7 +92,7 @@ async function applyOperation(conn, operation) {
        )
        SELECT ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, 0, 'active', ?, ?, NOW(), NOW()
         WHERE NOT EXISTS (
-          SELECT 1 FROM cms_site_access_grants WHERE claim_id = ? LIMIT 1
+          SELECT 1 FROM cms_site_access_grants WHERE claim_id = ? AND status = 'active' LIMIT 1
         )`,
       [
         grant.grant_id,
@@ -104,6 +109,20 @@ async function applyOperation(conn, operation) {
         grant.approved_at,
         grant.claim_id,
       ]
+    );
+    return;
+  }
+
+  if (operation.op === "revoke_stale_cms_site_access_grant") {
+    const grant = operation.grant;
+    await conn.query(
+      `UPDATE cms_site_access_grants
+          SET status = 'revoked', updated_at = UTC_TIMESTAMP()
+        WHERE grant_id = ?
+          AND tenant_id = ?
+          AND status = 'active'
+          AND connection_id <=> ?`,
+      [grant.grant_id, grant.tenant_id, grant.connection_id]
     );
     return;
   }
@@ -170,6 +189,12 @@ async function main() {
     required_confirmation: gate.allowed ? undefined : CMS_AUTHORITY_RECONCILIATION_CONFIRMATION,
     summary: plan.summary,
     operations: plan.operations,
+    safety: {
+      connection_inventory_secret_fields_selected: false,
+      deletes_allowed: false,
+      provider_calls_allowed: false,
+      external_writes_allowed: false,
+    },
     secrets_included: false,
   };
 
