@@ -10,8 +10,7 @@
       ".changes/e2e/governance-production-environment-authority-6813.json",
       "docs/governance-db-writer-authority.md",
       "http-generic-api/governanceProductionPreflight.js",
-      "http-generic-api/test-governance-production-preflight.mjs",
-      "http-generic-api/scripts/test-manifest.mjs"
+      "http-generic-api/test-governance-production-preflight.mjs"
     ]
   },
   "merge_contract": {
