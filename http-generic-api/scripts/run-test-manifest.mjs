@@ -69,7 +69,7 @@ const MAX_CAPTURE_BUFFER_BYTES = 16 * 1024 * 1024;
 // x-forwarded-host. Spec 017 makes that authority explicit, so preserve the
 // regression fixture as a trusted-proxy simulation without changing the
 // runtime default or any other test command's environment.
-const TEST_COMMAND_ENV_OVERRIDES = Object.freeze({
+export const TEST_COMMAND_ENV_OVERRIDES = Object.freeze({
   "node test-auth-oauth-routes.mjs": Object.freeze({
     REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
   }),
