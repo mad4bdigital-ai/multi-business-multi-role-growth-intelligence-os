@@ -11,6 +11,27 @@ function activeOwner(tenantId = "tenant-a", userId = "user-a") {
   return [{ user_id: userId, tenant_id: tenantId, role: "owner", status: "active", tenant_status: "active" }];
 }
 
+function existingLinkRows(existingTenantBrandRows = [], tenantId = "tenant-a") {
+  return existingTenantBrandRows.map((row) => ({
+    link_id: row.link_id,
+    tenant_id: row.tenant_id || tenantId,
+    brand_target_key: row.target_key,
+    status: row.link_status || "active",
+    link_source: row.link_source || "workspace_owner_brand_create",
+  }));
+}
+
+function existingBrandRows(existingTenantBrandRows = []) {
+  return existingTenantBrandRows.map((row) => ({
+    id: row.id,
+    brand_name: row.brand_name,
+    normalized_brand_name: row.normalized_brand_name,
+    target_key: row.target_key,
+    status: row.status,
+    brand_core_ready: row.brand_core_ready,
+  }));
+}
+
 function buildConnection({
   authorityRows = activeOwner(),
   existingTenantBrandRows = [],
@@ -28,7 +49,13 @@ function buildConnection({
     async query(sql, params) {
       queries.push({ sql, params });
       if (/FROM memberships m\s+JOIN tenants t/.test(sql)) return [authorityRows];
-      if (/FROM tenant_brand_links tbl\s+JOIN brands b/.test(sql)) return [existingTenantBrandRows];
+      if (/FROM tenant_brand_links\s+WHERE tenant_id=\? AND status='active'/.test(sql)) {
+        return [existingLinkRows(existingTenantBrandRows, params[0])];
+      }
+      if (/FROM brands\s+WHERE target_key IN \(/.test(sql)) {
+        const requested = new Set((params || []).map((value) => String(value)));
+        return [existingBrandRows(existingTenantBrandRows).filter((row) => requested.has(String(row.target_key)))];
+      }
       if (/FROM brands\s+WHERE target_key=\?/.test(sql)) {
         canonicalReads += 1;
         if (canonicalReads === 1) return [canonicalBrandRows];
@@ -163,6 +190,11 @@ assert.deepEqual(
   assert.equal(connection.queries.some((entry) => /INSERT INTO brands/.test(entry.sql)), false, "idempotent retry must not create another global brand row");
   assert.equal(connection.queries.some((entry) => /INSERT INTO workspace_registry/.test(entry.sql)), true, "existing tenant brand without a workspace must receive an explicit brand workspace binding");
   assert.equal(connection.queries.some((entry) => /INSERT INTO workspace_resource_grants/.test(entry.sql)), true, "idempotent retry must repair creator grant if needed");
+  const tenantLinkRead = connection.queries.find((entry) => /FROM tenant_brand_links\s+WHERE tenant_id=\? AND status='active'/.test(entry.sql));
+  const canonicalBrandRead = connection.queries.find((entry) => /FROM brands\s+WHERE target_key IN \(/.test(entry.sql));
+  assert.deepEqual(tenantLinkRead?.params, ["tenant-a"], "tenant Brand links must be resolved within their own collation domain");
+  assert.deepEqual(canonicalBrandRead?.params, [targetKey], "canonical Brand rows must be resolved separately by target key");
+  assert.equal(connection.queries.some((entry) => /JOIN brands/.test(entry.sql) && /tenant_brand_links/.test(entry.sql)), false, "idempotent Brand resolution must not reintroduce a cross-collation join");
 }
 
 {

@@ -44,7 +44,7 @@ assert.doesNotMatch(
 for (const undeclaredColumn of ["brand_name", "google_drive_link", "asset_type", "document_name", "validation_status", "active_status"]) {
   assert.doesNotMatch(brandCoreLookupSql, new RegExp(`\\b${undeclaredColumn}\\b`), `Brand Core SQL must not explicitly require optional legacy ${undeclaredColumn}`);
 }
-assert.doesNotMatch(materializationRuntimeSource, /information_schema/i, "Brand Core materialization must not introduce a parallel schema preflight authority");
+assert.doesNotMatch(materializationRuntimeSource, /information_schema/i, "Brand Core materialization must not introduce a parallel schema preflight query");
 
 const containerFoundationSql = readFileSync(
   new URL("./migrations/319_sprint69_dynamic_container_authority_foundation.sql", import.meta.url),
@@ -83,7 +83,7 @@ function ownerMembership() {
 }
 
 function brandRow() {
-  return [{ target_key: "brand-a", brand_name: "Brand A", normalized_brand_name: "brand a" }];
+  return [{ target_key: "brand-a", brand_name: "Brand A", normalized_brand_name: "brand a", brand_status: "active" }];
 }
 
 function brandWorkspaceRow(overrides = {}) {
@@ -193,7 +193,7 @@ function buildConnection({
       if (sql.includes("FROM memberships m") && sql.includes("FOR UPDATE")) return [memberships];
       if (sql.includes("FROM memberships m") && sql.includes("LIMIT 1")) return [memberships];
       if (sql.includes("FROM v_workspace_resource_grant_effective")) return [[{ grant_id: "grant-edit", permission: "edit" }]];
-      if (sql.includes("FROM brands") && sql.includes("WHERE target_key=?")) return [brands];
+      if (sql.includes("FROM brands")) return [brands];
       if (sql.includes("FROM workspace_registry") && sql.includes("workspace_type='brand'")) return [brandWorkspaces];
       if (sql.includes("FROM containers brand_container")) return [topology];
       if (sql.includes("FROM container_closure")) return [closure];

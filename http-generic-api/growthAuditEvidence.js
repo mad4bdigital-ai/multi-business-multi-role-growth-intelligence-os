@@ -4,8 +4,8 @@ import { resolveBrandCore } from "./resolvers/brandCoreResolver.js";
 import {
   brandHost,
   brandRowMatchesReference,
-  normalizeBrandReference,
 } from "./resolvers/brandReferenceResolver.js";
+import { resolveWorkspaceBrandReadAuthority } from "./workspaceBrandReadAuthority.js";
 import {
   buildAuditResourceReadPlan,
   normalizeAuditSiteUrl,
@@ -71,108 +71,13 @@ function brandCoreSummary(resolved = {}) {
 }
 
 async function loadTenantBrandAuthority(pool, scope, brand = {}) {
-  if (scope.admin) {
-    return {
-      authorized: true,
-      status: "admin_authorized",
-      membership: null,
-      workspace: null,
-      resource_grant_present: true,
-    };
-  }
-  if (!scope.tenant_id || !scope.user_id) {
-    return {
-      authorized: false,
-      status: "tenant_context_required",
-      membership: null,
-      workspace: null,
-      resource_grant_present: false,
-    };
-  }
-
-  const [[membership]] = await pool.query(
-    `SELECT user_id, tenant_id, role, status
-       FROM memberships
-      WHERE tenant_id = ? AND user_id = ? AND status = 'active'
-      LIMIT 1`,
-    [scope.tenant_id, scope.user_id]
-  );
-  if (!membership) {
-    return {
-      authorized: false,
-      status: "workspace_membership_required",
-      membership: null,
-      workspace: null,
-      resource_grant_present: false,
-    };
-  }
-
-  const [workspaces] = await pool.query(
-    `SELECT workspace_id, workspace_key, workspace_type, bootstrap_status, linked_brand_key
-       FROM workspace_registry
-      WHERE tenant_id = ? AND bootstrap_status = 'ready'
-      ORDER BY created_at ASC`,
-    [scope.tenant_id]
-  );
-  const workspace = (workspaces || []).find((row) =>
-    brandRowMatchesReference(brand, row.linked_brand_key)
-  ) || null;
-
-  const [assets] = await pool.query(
-    `SELECT asset_id, brand_ref, site_ref, visibility, lifecycle_status
-       FROM workspace_assets
-      WHERE tenant_id = ?
-        AND (brand_ref IS NOT NULL OR site_ref IS NOT NULL)
-        AND COALESCE(lifecycle_status, 'active') = 'active'
-      ORDER BY created_at ASC
-      LIMIT 100`,
-    [scope.tenant_id]
-  ).catch(() => [[]]);
-  const brandAsset = (assets || []).find((row) =>
-    brandRowMatchesReference(brand, row.brand_ref) ||
-    normalizeBrandReference(row.site_ref) === normalizeBrandReference(brand.brand_domain)
-  ) || null;
-
-  const refs = [
-    workspace?.workspace_id,
-    workspace?.workspace_key,
-    scope.tenant_id,
-    brand.target_key,
-    brand.brand_key,
-    brand.brand_domain,
-  ].filter(Boolean);
-  let grants = [];
-  if (refs.length) {
-    const placeholders = refs.map(() => "?").join(",");
-    [grants] = await pool.query(
-      `SELECT grant_id, resource_type, resource_ref, permission, grant_status
-         FROM v_workspace_resource_grant_effective
-        WHERE tenant_id = ?
-          AND grantee_user_id = ?
-          AND membership_status = 'active'
-          AND grant_status = 'active'
-          AND resource_ref IN (${placeholders})`,
-      [scope.tenant_id, scope.user_id, ...refs]
-    ).catch(() => [[]]);
-  }
-
-  const linked = Boolean(workspace || brandAsset);
-  return {
-    authorized: linked,
-    status: linked ? "tenant_brand_authorized" : "tenant_brand_authority_missing",
-    membership: {
-      role: membership.role,
-      status: membership.status,
-    },
-    workspace: workspace ? {
-      workspace_id: workspace.workspace_id,
-      workspace_key: workspace.workspace_key,
-      workspace_type: workspace.workspace_type,
-      bootstrap_status: workspace.bootstrap_status,
-    } : null,
-    workspace_asset_id: brandAsset?.asset_id || null,
-    resource_grant_present: Array.isArray(grants) && grants.length > 0,
-  };
+  const canonicalBrandRef = text(brand.target_key || brand.brand_key, 191);
+  return resolveWorkspaceBrandReadAuthority(pool, {
+    tenantId: scope.tenant_id,
+    userId: scope.user_id,
+    brandRef: canonicalBrandRef,
+    isAdmin: scope.admin,
+  });
 }
 
 async function loadRuntimeReadiness(pool) {
@@ -227,7 +132,7 @@ export const GROWTH_AUDIT_EVIDENCE_SYSTEM_TOOLS = Object.freeze([
   },
   {
     name: "growth_audit_evidence_readiness_smoke",
-    description: "Admin-only read-only readiness smoke for brand alias resolution, legacy Brand Core compatibility, browser inspection readiness, file-read binding, and descriptor wiring. No provider call, mutation, external send, or secret return.",
+    description: "Admin-only read-only readiness smoke for canonical Brand authority, brand alias resolution, legacy Brand Core compatibility, browser inspection readiness, file-read binding, and descriptor wiring. No provider call, mutation, external send, or secret return.",
     requires_admin: true,
     inputSchema: { type: "object", properties: {}, additionalProperties: false },
   },
@@ -252,7 +157,7 @@ export async function growthAuditEvidencePrepare(args = {}, { auth = {}, pool = 
 
   const authority = await loadTenantBrandAuthority(pool, scope, brand);
   if (!authority.authorized) {
-    return blockedResult("tenant_brand_authority_required", "The signed tenant principal is not authorized for this brand.", {
+    return blockedResult("tenant_brand_authority_required", "The signed tenant principal is not authorized for this Brand.", {
       authority_status: authority.status,
       brand_key: brand.target_key || brand.brand_key,
     });
@@ -274,7 +179,6 @@ export async function growthAuditEvidencePrepare(args = {}, { auth = {}, pool = 
   if (!core.strategyReady) degraded.push("brand_core_strategy_not_ready");
   if (!runtime.browser || runtime.browser.status !== "active") degraded.push("browser4_visual_inspection_not_ready");
   if (!runtime.file_read_bindings.length) degraded.push("files_object_read_provider_binding_missing");
-  if (!scope.admin && !authority.resource_grant_present) degraded.push("tenant_resource_grant_not_present_for_provider_execution");
 
   return {
     ok: true,
@@ -354,6 +258,8 @@ async function schemaObjects(pool) {
     "brand_core",
     "workspace_registry",
     "memberships",
+    "tenant_brand_links",
+    "v_workspace_resource_grant_effective",
     "platform_semantic_capabilities",
     "platform_capability_provider_bindings",
     "browser_runtime_registry",
@@ -380,9 +286,9 @@ export async function growthAuditEvidenceReadinessSmoke(_args = {}, { pool = get
   const checks = [
     {
       name: "required_schema_objects_present",
-      pass: present.size === 7,
+      pass: present.size === 9,
       present_count: present.size,
-      expected_count: 7,
+      expected_count: 9,
     },
     {
       name: "brand_domain_alias_resolves",
@@ -424,3 +330,8 @@ export async function growthAuditEvidenceReadinessSmoke(_args = {}, { pool = get
     secrets_included: false,
   };
 }
+
+export const _testingGrowthAuditEvidence = Object.freeze({
+  principalScope,
+  loadTenantBrandAuthority,
+});
