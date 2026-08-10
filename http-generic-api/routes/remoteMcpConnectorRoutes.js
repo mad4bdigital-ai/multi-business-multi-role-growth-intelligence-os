@@ -1,11 +1,27 @@
 import { Router } from "express";
 import { handleRemoteMcpConnectorRequest } from "../remoteMcpConnectorRuntime.js";
+import {
+  remoteMcpRequestUsesCanonicalHost,
+} from "../remoteMcpRequestHost.js";
 
 function applyResponseHeaders(res, headers = {}) {
   for (const [name, value] of Object.entries(headers)) {
     if (value == null) continue;
     res.setHeader(name, String(value));
   }
+}
+
+function enforceCanonicalRemoteMcpHost(req, res, env) {
+  if (remoteMcpRequestUsesCanonicalHost(req, env)) return true;
+  res.status(404).json({
+    ok: false,
+    error: {
+      code: "MCP_RESOURCE_NOT_FOUND",
+      message: "Not found.",
+    },
+    secrets_included: false,
+  });
+  return false;
 }
 
 export function buildRemoteMcpConnectorRoutes(deps = {}) {
@@ -15,7 +31,10 @@ export function buildRemoteMcpConnectorRoutes(deps = {}) {
   // Protected-resource metadata is served by the host-aware public metadata
   // router mounted before this router. Keeping one metadata owner prevents the
   // existing Activation resource contract from shadowing the remote MCP resource.
+  // The MCP transport itself independently enforces the exact configured
+  // resource host so another virtual host cannot accidentally expose /mcp.
   router.get("/mcp", async (req, res) => {
+    if (!enforceCanonicalRemoteMcpHost(req, res, env)) return;
     const result = await handleRemoteMcpConnectorRequest({
       method: "GET",
       headers: req.headers,
@@ -29,6 +48,7 @@ export function buildRemoteMcpConnectorRoutes(deps = {}) {
   });
 
   router.post("/mcp", async (req, res) => {
+    if (!enforceCanonicalRemoteMcpHost(req, res, env)) return;
     const result = await handleRemoteMcpConnectorRequest({
       body: req.body,
       method: "POST",
