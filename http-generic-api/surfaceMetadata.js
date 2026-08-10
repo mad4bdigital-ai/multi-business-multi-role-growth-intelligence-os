@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import { DATA_SOURCE_MODE } from "./dataSource.js";
+import { readTableDirect as sqlReadTableDirect } from "./sqlAdapter.js";
 
 export function toSheetCellValue(value) {
   if (value === undefined || value === null) return "";
@@ -48,12 +50,77 @@ export function normalizeExpectedColumnCount(value, fallbackColumns = []) {
   return Array.isArray(fallbackColumns) ? fallbackColumns.length : 0;
 }
 
-export async function getCanonicalSurfaceMetadata(surfaceId = "", fallback = {}, deps = {}) {
+function normalizeSurfaceCatalogRow(row = {}) {
+  if (!row || typeof row !== "object") return null;
+  return {
+    surface_id: String(row.surface_id || "").trim(),
+    surface_name: String(row.surface_name || "").trim(),
+    worksheet_name: String(row.worksheet_name || "").trim(),
+    worksheet_gid: String(row.worksheet_gid || "").trim(),
+    active_status: String(row.active_status || "").trim(),
+    authority_status: String(row.authority_status || "").trim(),
+    required_for_execution: String(row.required_for_execution || "").trim(),
+    schema_ref: String(row.schema_ref || "").trim(),
+    schema_version: String(row.schema_version || "").trim(),
+    header_signature: String(row.header_signature || "").trim(),
+    expected_column_count: String(row.expected_column_count ?? "").trim(),
+    binding_mode: String(row.binding_mode || "").trim(),
+    sheet_role: String(row.sheet_role || "").trim(),
+    audit_mode: String(row.audit_mode || "").trim(),
+    legacy_surface_containment_required: String(row.legacy_surface_containment_required || "").trim(),
+    repair_candidate_types: String(row.repair_candidate_types || "").trim(),
+    repair_priority: String(row.repair_priority || "").trim(),
+  };
+}
+
+async function getSqlSurfaceCatalogRow(surfaceId, deps = {}) {
+  const readTableDirect = deps.sqlReadTableDirect || sqlReadTableDirect;
+  const rows = await readTableDirect("Registry Surfaces Catalog");
+  const normalizedSurfaceId = String(surfaceId || "").trim();
+  const matches = (Array.isArray(rows) ? rows : []).filter(
+    (row) => String(row?.surface_id || "").trim() === normalizedSurfaceId
+  );
+  if (matches.length > 1) {
+    const err = new Error(`Registry Surfaces Catalog contains duplicate surface_id: ${normalizedSurfaceId}`);
+    err.code = "registry_surface_catalog_ambiguous";
+    err.status = 409;
+    throw err;
+  }
+  return matches.length === 1 ? normalizeSurfaceCatalogRow(matches[0]) : null;
+}
+
+async function resolveSurfaceCatalogRow(surfaceId, deps = {}) {
+  const mode = String(deps.dataSourceMode || DATA_SOURCE_MODE || "sql").trim().toLowerCase();
+  if (mode !== "sheets") {
+    try {
+      const sqlRow = await getSqlSurfaceCatalogRow(surfaceId, deps);
+      if (sqlRow || mode === "sql") return { row: sqlRow, source: "sql_registry_surface_catalog" };
+    } catch (error) {
+      if (mode === "sql") throw error;
+      if (typeof deps.onSqlSurfaceCatalogFallback === "function") {
+        deps.onSqlSurfaceCatalogFallback(error);
+      }
+    }
+  }
+
+  if (typeof deps.getRegistrySurfaceCatalogRowBySurfaceId !== "function") {
+    return { row: null, source: mode === "sheets" ? "sheet_registry_surface_catalog_unavailable" : "registry_surface_catalog_unavailable" };
+  }
   const row = await deps.getRegistrySurfaceCatalogRowBySurfaceId(surfaceId);
+  return {
+    row: row ? normalizeSurfaceCatalogRow(row) : null,
+    source: "sheet_registry_surface_catalog",
+  };
+}
+
+export async function getCanonicalSurfaceMetadata(surfaceId = "", fallback = {}, deps = {}) {
+  const resolved = await resolveSurfaceCatalogRow(surfaceId, deps);
+  const row = resolved.row;
 
   if (!row) {
     return {
       source: "fallback_constant",
+      authority_source: resolved.source,
       surface_id: surfaceId,
       schema_ref: fallback.schema_ref || "",
       schema_version: fallback.schema_version || "",
@@ -67,6 +134,7 @@ export async function getCanonicalSurfaceMetadata(surfaceId = "", fallback = {},
 
   return {
     source: "registry_surface_catalog",
+    authority_source: resolved.source,
     surface_id: row.surface_id,
     schema_ref: row.schema_ref,
     schema_version: row.schema_version,
@@ -143,3 +211,9 @@ export function assertExpectedColumnsPresent(header = [], required = [], sheetNa
     throw err;
   }
 }
+
+export const _testingSurfaceMetadata = Object.freeze({
+  normalizeSurfaceCatalogRow,
+  getSqlSurfaceCatalogRow,
+  resolveSurfaceCatalogRow,
+});

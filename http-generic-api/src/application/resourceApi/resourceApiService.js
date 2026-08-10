@@ -6,6 +6,7 @@ import {
   resourceError,
   wrapResource,
 } from "../../domain/resourceApi/resourceCatalog.js";
+import { requireWorkspaceAssetType } from "../../../workspaceAssetTypeContract.js";
 
 function tenantContext(tenantId, member, auth) {
   return { tenantId, member, auth };
@@ -36,6 +37,8 @@ function requireAssetInput(input = {}) {
       400
     );
   }
+  input.asset_type = requireWorkspaceAssetType(input.asset_type);
+  return input;
 }
 
 function ensureSessionAuthorized(auth, session) {

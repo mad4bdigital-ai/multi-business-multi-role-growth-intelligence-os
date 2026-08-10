@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "platform-runtime-registry-drift-reconciliation",
+  "title": "Platform runtime, authority, registry, and published-contract drift reconciliation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/platform-runtime-registry-drift-reconciliation.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/workspaceGrantResourceAuthority.js",
+      "http-generic-api/workspaceBrandLifecycle.js",
+      "http-generic-api/workspaceAssetTypeContract.js",
+      "http-generic-api/src/application/resourceApi/resourceApiService.js",
+      "http-generic-api/routes/localConnectorRoutes.js",
+      "http-generic-api/surfaceMetadata.js",
+      "http-generic-api/workspaceBrandReadAuthority.js",
+      "http-generic-api/growthAuditEvidence.js",
+      "http-generic-api/platformPluginConnectionOwnership.js",
+      "http-generic-api/migrations/20260810_platform_runtime_registry_drift_reconciliation.sql",
+      "http-generic-api/scripts/context-kernel-hardcoding-scan.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-context-kernel-hardcoding-scan.mjs",
+      "http-generic-api/test-workspace-asset-type-contract.mjs",
+      "http-generic-api/test-local-connector-tenant-identity-contract.mjs",
+      "http-generic-api/test-surface-metadata-sql-authority.mjs",
+      "http-generic-api/test-workspace-brand-read-authority.mjs",
+      "http-generic-api/test-platform-plugin-credential-scope-provenance.mjs",
+      "http-generic-api/test-brand-collation-boundary.mjs",
+      "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
+      "http-generic-api/test-tenant-published-request-contract-parity.mjs",
+      "http-generic-api/test-growth-audit-evidence-wiring.mjs",
+      "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/test-workspace-brand-create.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Eliminate tenant-specific runtime drift by making Brand identity comparisons collation-safe, validating Asset types before SQL, deriving tenant connector identity from auth, using SQL registry authority in SQL mode, converging Growth Audit and credential scope on canonical authority, linking semantic capabilities into the canonical capability graph, enforcing precise published request-contract parity, and preserving changed-line Context Kernel hardcoding ratchets during exact-head workflow dispatch verification.",
+      "e2e_journeys": [
+        {
+          "id": "generic-tenant-runtime-contracts-converge-on-canonical-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user or governed platform operator",
+          "entrypoint": "Tenant Resource API, Platform Plugin resolver, Local Connector routes, Growth Audit evidence preparation, SQL registry/capability reconciliation, and exact-head CI verification",
+          "terminal_outcome": "No tenant or Brand special case is required: unsupported Asset types fail before SQL, Brand authority avoids cross-collation column joins, tenant identity is auth-derived, SQL mode does not depend on Registry Sheets metadata, Brand reads require canonical authority, credential scopes carry classified ownership provenance, semantic capabilities have one canonical identity/source link, WordPress remains shadow-safe, published tenant request schemas match precise runtime-bound contracts, and workflow_dispatch verification scans only changed Context Kernel hardcoding lines relative to the default-branch merge base.",
+          "steps": [
+            "Resolve Brand identity and tenant Brand links in collation-local SQL reads rather than comparing differently collated columns in one join.",
+            "Reject Asset types outside the canonical workspace_assets domain before entering mutation persistence.",
+            "Derive Local Connector tenant/user identity from user JWT or API credential context and reject conflicting caller-supplied identity.",
+            "Resolve Registry Surfaces Catalog from SQL in sql mode; Sheets remain compatibility-only for sheets/dual fallback.",
+            "Require active tenant Brand link plus active membership and owner/admin or effective Brand grant for Growth Audit Brand authority.",
+            "Attach connection credential scope provenance from classified Context Kernel ownership and fail closed on any row/provenance mismatch.",
+            "Represent active semantic capability identities in platform_plugin_capabilities without granting dispatch/apply, and link them through platform_capability_source_links.",
+            "Reassert the existing WordPress action binding, bind the no-secret admin diagnostic, and retain the WordPress draft semantic provider binding/export descriptor in shadow state.",
+            "Compare every precise runtime-bound tenant request contract available in the generated Tenant schema with the root precise contract, including required fields, enums, defaults, composition, and additionalProperties behavior.",
+            "When exact-head CI is invoked by workflow_dispatch without pull_request.base.sha or push.before, derive the default-branch merge base from the checked-out repository and retain changed-line hardcoding-ratchet scope instead of falling back to repository-wide debt."
+          ],
+          "assertions": [
+            "No Brand or tenant name is hardcoded into runtime repair logic or tests.",
+            "No direct brands.target_key to tenant_brand_links.brand_target_key SQL join exists in repaired Brand authority/lifecycle paths.",
+            "asset_type=url fails with workspace_asset_type_invalid before Asset mutation transaction persistence.",
+            "DATA_SOURCE=sql surface metadata resolution performs no Google Sheets catalog call.",
+            "Workspace/Asset presence alone does not grant Growth Audit Brand authority.",
+            "Every successful Platform Plugin connection scope exposes classified no-secret credential scope provenance and mismatches fail closed.",
+            "platform_plugin_capabilities remains the canonical capability identity; semantic rows are linked sources and cannot grant dispatch/apply through this reconciliation.",
+            "WordPress draft semantic binding remains shadow and the reconciliation does not insert a live platform_endpoint_tool_exports mutation surface.",
+            "tenantPlatformPluginResolve.workspace_id is present and required in root and generated Tenant request contracts.",
+            "workflow_dispatch with only repository.default_branch available resolves a validated merge base and the Context Kernel scanner remains in changed_lines scope.",
+            "No Production migration Apply, provider call, credential payload read, external send, external write, deployment, or live tenant mutation occurs in CI."
+          ],
+          "tests": [
+            { "id": "context-kernel-hardcoding-scan", "runner": "node", "working_directory": "http-generic-api", "path": "test-context-kernel-hardcoding-scan.mjs", "args": [] },
+            { "id": "workspace-asset-type-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-workspace-asset-type-contract.mjs", "args": [] },
+            { "id": "local-connector-tenant-identity-contract", "runner": "node", "working_directory": "http-generic-api", "path": "test-local-connector-tenant-identity-contract.mjs", "args": [] },
+            { "id": "surface-metadata-sql-authority", "runner": "node", "working_directory": "http-generic-api", "path": "test-surface-metadata-sql-authority.mjs", "args": [] },
+            { "id": "workspace-brand-read-authority", "runner": "node", "working_directory": "http-generic-api", "path": "test-workspace-brand-read-authority.mjs", "args": [] },
+            { "id": "platform-plugin-credential-scope-provenance", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-plugin-credential-scope-provenance.mjs", "args": [] },
+            { "id": "brand-collation-boundary", "runner": "node", "working_directory": "http-generic-api", "path": "test-brand-collation-boundary.mjs", "args": [] },
+            { "id": "platform-runtime-registry-drift-reconciliation", "runner": "node", "working_directory": "http-generic-api", "path": "test-platform-runtime-registry-drift-reconciliation.mjs", "args": [] },
+            { "id": "tenant-published-request-contract-parity", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-published-request-contract-parity.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/platform-runtime-registry-drift-reconciliation.json",
+            "http-generic-api/migrations/20260810_platform_runtime_registry_drift_reconciliation.sql",
+            "http-generic-api/workspaceAssetTypeContract.js",
+            "http-generic-api/workspaceBrandReadAuthority.js",
+            "http-generic-api/platformPluginConnectionOwnership.js",
+            "http-generic-api/scripts/context-kernel-hardcoding-scan.mjs",
+            "http-generic-api/test-context-kernel-hardcoding-scan.mjs",
+            "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
+            "http-generic-api/test-tenant-published-request-contract-parity.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
