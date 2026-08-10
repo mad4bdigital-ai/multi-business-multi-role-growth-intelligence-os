@@ -24,11 +24,15 @@ function completeTablePrivileges() {
     userPrivileges: [{ PRIVILEGE_TYPE: "USAGE" }],
     schemaPrivileges: [],
     tablePrivileges: completeTablePrivileges(),
+    columnPrivileges: [],
+    applicableRoles: [],
   });
   assert.equal(result.ready, true);
   assert.equal(result.required_privilege_count, 14);
   assert.equal(result.observed_required_privilege_count, 14);
   assert.deepEqual(result.missing_required, []);
+  assert.equal(result.unexpected_column_privilege_count, 0);
+  assert.equal(result.applicable_role_count, 0);
   assert.equal(result.secrets_included, false);
 }
 
@@ -79,6 +83,33 @@ function completeTablePrivileges() {
   assert.equal(result.ready, false);
   assert.equal(result.unexpected_global_privilege_count, 1);
   assert.equal(result.unexpected_schema_privilege_count, 1);
+}
+
+{
+  const result = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: completeTablePrivileges(),
+    columnPrivileges: [{
+      TABLE_SCHEMA: database,
+      TABLE_NAME: "approval_holds",
+      COLUMN_NAME: "id",
+      PRIVILEGE_TYPE: "SELECT",
+    }],
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.unexpected_column_privilege_count, 1);
+  assert.equal(result.checks.no_column_level_privileges, false);
+}
+
+{
+  const result = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: completeTablePrivileges(),
+    applicableRoles: [{ ROLE_NAME: "governance_admin" }],
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.applicable_role_count, 1);
+  assert.equal(result.checks.no_applicable_roles, false);
 }
 
 {
