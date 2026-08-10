@@ -114,7 +114,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
 
     const mcpHost = resolveRemoteMcpConfiguredHost(env);
     if (mcpHost && requestHost === mcpHost) {
-      if (!remoteMcpEnabled(env)) return notFound(res, "MCP_DISABLED");
+      if (!remoteMcpEnabled(env) && !remoteMcpOAuthEnabled(env)) return notFound(res, "MCP_DISABLED");
       res.setHeader("Cache-Control", "public, max-age=300");
       return res.status(200).json(buildRemoteMcpProtectedResourceMetadata(env));
     }
