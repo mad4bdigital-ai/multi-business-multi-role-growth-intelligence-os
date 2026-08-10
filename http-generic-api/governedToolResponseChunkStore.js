@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
+import { getGovernancePool } from "./governanceDb.js";
 import {
   canAccessGovernedResponseChunk,
   governedResponseChunkOwnerFields,
@@ -39,6 +40,15 @@ function responseChunkError(code, message, status = 500, details = undefined) {
   return err;
 }
 
+function responseChunkPersistenceError(code, message, operation, cause) {
+  return responseChunkError(code, message, 503, {
+    cause_code: cause?.code || null,
+    table: GOVERNED_RESPONSE_CHUNK_TABLE,
+    required_operation: operation,
+    secrets_included: false,
+  });
+}
+
 function responseChunkNotFound() {
   return responseChunkError("response_chunk_not_found", "The response chunk was not found.", 404);
 }
@@ -56,13 +66,17 @@ function assertChunkId(chunkId) {
   return value;
 }
 
-function executor(deps = {}) {
-  return deps.pool || deps.connection || getPool();
+function readExecutor(deps = {}) {
+  return deps.readPool || deps.pool || deps.connection || getPool();
+}
+
+function writeExecutor(deps = {}) {
+  return deps.writerPool || deps.connection || getGovernancePool();
 }
 
 function schemaReadinessCacheKey(deps = {}) {
   try {
-    const target = executor(deps);
+    const target = readExecutor(deps);
     return target && (typeof target === "object" || typeof target === "function") ? target : null;
   } catch {
     return null;
@@ -77,7 +91,7 @@ export function invalidateGovernedResponseChunkSchemaReadiness(deps = {}) {
 export async function inspectGovernedResponseChunkSchema(deps = {}) {
   const operation = text(deps.operation || "response_chunk_schema_check") || "response_chunk_schema_check";
   try {
-    const [rows] = await executor(deps).query(
+    const [rows] = await readExecutor(deps).query(
       `SELECT column_name
          FROM information_schema.columns
         WHERE table_schema = DATABASE()
@@ -157,7 +171,7 @@ function principalFor(input = {}) {
 async function readChunkVerificationRow(chunkId, deps = {}) {
   await assertGovernedResponseChunkSchema(deps, "read_verification");
   try {
-    const [rows] = await executor(deps).query(
+    const [rows] = await writeExecutor(deps).query(
       `SELECT chunk_id, response_sha256, owner_tenant_id, owner_user_id, owner_workspace_id,
               owner_principal_type, owner_principal_id, source_surface
          FROM ${GOVERNED_RESPONSE_CHUNK_TABLE} WHERE chunk_id = ? LIMIT 1`,
@@ -166,7 +180,12 @@ async function readChunkVerificationRow(chunkId, deps = {}) {
     return rows?.[0] || null;
   } catch (cause) {
     invalidateGovernedResponseChunkSchemaReadiness(deps);
-    throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
+    throw responseChunkPersistenceError(
+      "response_chunk_persistence_unavailable",
+      "The durable response chunk store is unavailable.",
+      "select",
+      cause,
+    );
   }
 }
 
@@ -207,7 +226,7 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
   const writeAllowed = `(${sameOwner} OR (${existingOwnerless} AND ${incomingPrivileged}))`;
 
   try {
-    await executor(deps).query(
+    await writeExecutor(deps).query(
       `INSERT INTO ${GOVERNED_RESPONSE_CHUNK_TABLE} (
          chunk_id, source_tool_key, response_sha256, response_bytes, response_json,
          cursor_policy, redaction_status, secrets_included,
@@ -244,7 +263,12 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
     );
   } catch (cause) {
     invalidateGovernedResponseChunkSchemaReadiness(deps);
-    throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
+    throw responseChunkPersistenceError(
+      "response_chunk_persistence_unavailable",
+      "The durable response chunk store is unavailable.",
+      "insert_or_update",
+      cause,
+    );
   }
 
   const verification = await readChunkVerificationRow(chunkId, deps);
@@ -270,7 +294,7 @@ export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
 
   let rows;
   try {
-    [rows] = await executor(deps).query(
+    [rows] = await readExecutor(deps).query(
       `SELECT chunk_id, source_tool_key, response_sha256, response_bytes, response_json,
               cursor_policy, redaction_status, secrets_included,
               owner_tenant_id, owner_user_id, owner_workspace_id, owner_principal_type,
@@ -280,7 +304,12 @@ export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
     );
   } catch (cause) {
     invalidateGovernedResponseChunkSchemaReadiness(deps);
-    throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
+    throw responseChunkPersistenceError(
+      "response_chunk_persistence_unavailable",
+      "The durable response chunk store is unavailable.",
+      "select",
+      cause,
+    );
   }
 
   const row = rows?.[0];
@@ -338,7 +367,7 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
   const owner = governedResponseChunkOwnerFields(principal);
   const expiresAt = new Date(nowMs(deps) + ttlMs);
   try {
-    const [result] = await executor(deps).query(
+    const [result] = await writeExecutor(deps).query(
       `UPDATE ${GOVERNED_RESPONSE_CHUNK_TABLE}
           SET expires_at = CASE WHEN expires_at < ? THEN ? ELSE expires_at END
         WHERE chunk_id = ?
@@ -371,14 +400,20 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
     };
   } catch (cause) {
     invalidateGovernedResponseChunkSchemaReadiness(deps);
-    throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
+    throw responseChunkPersistenceError(
+      "response_chunk_persistence_unavailable",
+      "The durable response chunk store is unavailable.",
+      "update",
+      cause,
+    );
   }
 }
 
 export async function deleteExpiredGovernedToolResponseChunks(input = {}, deps = {}) {
+  await assertGovernedResponseChunkSchema(deps, "cleanup");
   const limit = Math.min(Math.max(positiveInteger(input.limit, 500), 1), 5000);
   try {
-    const [result] = await executor(deps).query(
+    const [result] = await writeExecutor(deps).query(
       `DELETE FROM ${GOVERNED_RESPONSE_CHUNK_TABLE}
         WHERE expires_at <= CURRENT_TIMESTAMP
         ORDER BY expires_at ASC
@@ -387,6 +422,11 @@ export async function deleteExpiredGovernedToolResponseChunks(input = {}, deps =
     return { deleted_count: Number(result?.affectedRows || 0), limit, secrets_included: false };
   } catch (cause) {
     invalidateGovernedResponseChunkSchemaReadiness(deps);
-    throw responseChunkError("response_chunk_cleanup_unavailable", "Expired response chunk cleanup is unavailable.", 503, { cause_code: cause?.code || null });
+    throw responseChunkPersistenceError(
+      "response_chunk_cleanup_unavailable",
+      "Expired response chunk cleanup is unavailable.",
+      "delete",
+      cause,
+    );
   }
 }
