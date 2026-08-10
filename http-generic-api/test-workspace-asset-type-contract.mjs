@@ -18,12 +18,23 @@ assert.deepEqual(WORKSPACE_ASSET_TYPES, [
 
 for (const assetType of WORKSPACE_ASSET_TYPES) {
   assert.equal(requireWorkspaceAssetType(assetType), assetType);
-  assert.doesNotThrow(() => _testingResourceApiService.requireAssetInput({
+  const input = {
     asset_type: assetType,
     asset_ref: `ref-${assetType}`,
     display_name: `Asset ${assetType}`,
-  }));
+  };
+  assert.doesNotThrow(() => _testingResourceApiService.requireAssetInput(input));
+  assert.equal(input.asset_type, assetType);
 }
+
+assert.equal(requireWorkspaceAssetType("document"), "doc");
+const legacyDocumentInput = {
+  asset_type: "document",
+  asset_ref: "legacy-document-ref",
+  display_name: "Legacy document",
+};
+assert.doesNotThrow(() => _testingResourceApiService.requireAssetInput(legacyDocumentInput));
+assert.equal(legacyDocumentInput.asset_type, "doc");
 
 assert.throws(
   () => requireWorkspaceAssetType("url"),
