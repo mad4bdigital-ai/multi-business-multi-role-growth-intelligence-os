@@ -9,13 +9,8 @@
     "include": [
       ".changes/e2e/environment-branch-authority-runtime-resolution.json",
       "http-generic-api/environmentBranchAuthority.js",
-      "http-generic-api/hostingerSshDeployExecutor.js",
-      "http-generic-api/hostingerSshDeployExecutorLegacy.js",
       "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
-      "http-generic-api/test-environment-branch-authority.mjs",
-      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
-      "http-generic-api/test-hostinger-ssh-target-probe.mjs",
-      "http-generic-api/test-hostinger-deploy-capability-envelope-requirement.mjs"
+      "http-generic-api/test-environment-branch-authority.mjs"
     ]
   },
   "merge_contract": {
@@ -25,34 +20,31 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Establish one fail-closed environment branch authority contract in SQL with repository-policy fallback, preserve main as staging/source-of-change, and enforce that authority before the existing hardened Hostinger deploy executor is reached.",
+      "objective": "Establish one fail-closed environment branch authority contract in SQL with repository-policy fallback, preserve main as staging/source-of-change, and make Production the only declared production deployment branch without changing the live deploy executor in this bounded foundation PR.",
       "e2e_journeys": [
         {
           "id": "sql-authority-to-production-only-deploy-contract",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Governed production deployment caller",
-          "entrypoint": "Hostinger production deploy request through the public executor module",
-          "terminal_outcome": "The authority layer resolves omitted branch input to Production, rejects main or any other caller-selected production branch before legacy deployment logic, requires an exact commit SHA, then delegates only normalized Production authority into the existing hardened SSH executor while registry/tool policies advertise Production only and routine SSH writes remain blocked.",
+          "actor": "Governed production deployment planner",
+          "entrypoint": "Environment authority resolution for a Hostinger production deployment request",
+          "terminal_outcome": "The resolver returns main as staging and Production as production authority, rejects a caller-requested main production deployment, requires an exact commit SHA, and registry/tool policies advertise Production only while routine SSH writes remain blocked.",
           "steps": [
             "Load environment branch authority from active platform_runtime_config when present.",
             "Fall back to deployment-branch-policy.json only when no SQL authority row is available.",
             "Fail closed when an existing SQL authority is disabled, malformed, or internally inconsistent.",
-            "Resolve an omitted production branch to Production and reject main or any other mismatched caller-selected branch before legacy executor dispatch.",
-            "Require and normalize an exact 40-character production commit SHA before delegation.",
-            "Delegate Production plus the normalized exact SHA to the unchanged hardened Hostinger SSH executor.",
-            "Verify migration contracts expose Production only and retain the production SSH target as non-routine/break-glass-only."
+            "Resolve an omitted or matching production branch to Production and reject main or any other caller-selected production branch.",
+            "Require an exact 40-character production commit SHA.",
+            "Verify migration contracts expose Production only and retain the Hostinger production SSH target as non-routine/break-glass-only."
           ],
           "assertions": [
             "main remains the staging/source-of-change branch.",
             "Production is distinct from main and is the production deployment authority.",
             "SQL authority takes precedence over the repository fallback.",
             "Invalid SQL authority never silently falls back to repository configuration.",
-            "Production branch mismatch produces a structured fail-closed error before legacy executor logic.",
-            "The public executor replaces caller branch input with the resolved Production authority before delegation.",
-            "The existing feature flag, target policy, capability envelope, credential boundary, bounded SSH transport, exact detached checkout, and readback controls remain present behind the authority wrapper.",
-            "Command, admin-tool, and execution-policy contracts do not advertise main as a production deployment branch.",
-            "Routine SSH production writes remain disabled and no provider call, credential read, external write, force push, or secret access is introduced by the migration itself."
+            "Production branch mismatch produces a structured fail-closed error.",
+            "Command, admin-tool, and execution-policy contracts do not advertise main as a production deployment branch after the migration is applied.",
+            "Routine SSH production writes remain disabled and no provider call, credential read, external write, force push, or secret access is introduced by this migration."
           ],
           "tests": [
             {
@@ -61,32 +53,13 @@
               "working_directory": "http-generic-api",
               "path": "test-environment-branch-authority.mjs",
               "args": []
-            },
-            {
-              "id": "hostinger-ssh-deploy-executor-safety",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-hostinger-ssh-deploy-executor.mjs",
-              "args": []
-            },
-            {
-              "id": "hostinger-deploy-capability-envelope",
-              "runner": "node",
-              "working_directory": "http-generic-api",
-              "path": "test-hostinger-deploy-capability-envelope-requirement.mjs",
-              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/environment-branch-authority-runtime-resolution.json",
             "http-generic-api/environmentBranchAuthority.js",
-            "http-generic-api/hostingerSshDeployExecutor.js",
-            "http-generic-api/hostingerSshDeployExecutorLegacy.js",
             "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
-            "http-generic-api/test-environment-branch-authority.mjs",
-            "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
-            "http-generic-api/test-hostinger-ssh-target-probe.mjs",
-            "http-generic-api/test-hostinger-deploy-capability-envelope-requirement.mjs"
+            "http-generic-api/test-environment-branch-authority.mjs"
           ]
         }
       ]
@@ -94,7 +67,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Add same-cycle proof that the exact requested commit is reachable from protected Production, update generated/public request contracts to remove the legacy main option, and retire the internal compatibility allowlist after parity evidence."
+      "objective": "Wire the live Hostinger deploy executor and public/generated request contracts to this authority resolver, remove caller-controlled production branch selection, and add same-cycle proof that the exact requested commit is reachable from protected Production before any deploy dispatch."
     }
   ],
   "secrets_included": false
