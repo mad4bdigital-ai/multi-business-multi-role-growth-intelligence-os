@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
 import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRoutes.js";
+import { buildTenantPlatformPluginEligibility } from "./tenantPlatformPluginEligibility.js";
 
 {
   assert.equal(_testingTenantPlatformPluginRoutes.boundedInt("20", 10, 1, 100), 20);
@@ -14,11 +15,24 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   const contract = _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
     plugin_key: "github",
     toolKey: "github.repo.read",
+    workspace_id: "workspace-1",
   });
   assert.equal(contract.pluginKey, "github");
+  assert.equal(contract.workspaceId, "workspace-1");
   assert.equal(contract.selector.toolKey, "github.repo.read");
   assert.equal(contract.compatibilityTelemetry.legacy_selector_alias_used, true);
   assert.deepEqual(contract.compatibilityTelemetry.legacy_fields, ["toolKey"]);
+  assert.equal(contract.compatibilityTelemetry.contract_version, "one-selector-workspace-v2");
+}
+
+{
+  const contract = _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+    plugin_key: "github",
+    action_key: "github.repo.read",
+    workspaceId: "workspace-legacy",
+  });
+  assert.equal(contract.workspaceId, "workspace-legacy");
+  assert.deepEqual(contract.compatibilityTelemetry.legacy_fields, ["workspaceId"]);
 }
 
 {
@@ -27,6 +41,7 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
       plugin_key: "github",
       action_key: "github.repo.read",
       tool_key: "github.repo.read",
+      workspace_id: "workspace-1",
     }),
     (err) => err?.code === "AMBIGUOUS_CAPABILITY_SELECTOR" && err?.status === 400,
   );
@@ -35,8 +50,18 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
       plugin_key: "github",
       tenant_id: "tenant-override",
       action_key: "github.repo.read",
+      workspace_id: "workspace-1",
     }),
     (err) => err?.code === "UNKNOWN_SECURITY_CONTRACT_FIELD" && err?.details?.fields?.includes("tenant_id"),
+  );
+  assert.throws(
+    () => _testingTenantPlatformPluginRoutes.parseTenantPlatformPluginResolveContract({
+      plugin_key: "github",
+      action_key: "github.repo.read",
+    }),
+    (err) => err?.code === "TENANT_WORKSPACE_CONTEXT_REQUIRED"
+      && err?.status === 400
+      && err?.details?.required_field === "workspace_id",
   );
 }
 
@@ -116,6 +141,84 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
 }
 
 {
+  const ready = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: true,
+    approval: { approval_required: false },
+    execution: { will_execute: true },
+    security_decision: { gates: [{ key: "binding_state", required: true, state: "pass", reason: "binding_active" }] },
+  });
+  assert.equal(ready.status, "ready");
+  assert.equal(ready.dispatch_ready, true);
+  assert.equal(ready.blocker_count, 0);
+  assert.equal(ready.secrets_included, false);
+
+  const missingBinding = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "binding_state", required: true, state: "deny", reason: "action_binding_not_found" }] },
+  });
+  assert.equal(missingBinding.status, "blocked");
+  assert.equal(missingBinding.blockers[0].blocker_code, "missing_action_binding");
+  assert.equal(missingBinding.blockers[0].repair_class, "platform_admin_required");
+  assert.equal(missingBinding.blockers[0].safe_action, "register_runtime_binding");
+
+  const missingCertification = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "smoke_certification", required: true, state: "deny", reason: "smoke_certification_required" }] },
+  });
+  assert.equal(missingCertification.status, "blocked");
+  assert.equal(missingCertification.blockers[0].blocker_code, "missing_smoke_certification");
+  assert.equal(missingCertification.blockers[0].repair_class, "platform_admin_required");
+  assert.equal(missingCertification.blockers[0].safe_action, "certify_platform_plugin_operation");
+
+  const credentialRequired = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "credential", required: true, state: "deny", reason: "credential_required" }] },
+  });
+  assert.equal(credentialRequired.blockers[0].repair_class, "user_action_required");
+  assert.equal(credentialRequired.blockers[0].safe_action, "credential_intake_or_oauth");
+
+  const ambiguity = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: false,
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "credential", required: true, state: "deny", reason: "connection_selection_ambiguous" }] },
+  });
+  assert.equal(ambiguity.blockers[0].repair_class, "tenant_admin_action_available");
+  assert.equal(ambiguity.blockers[0].safe_action, "resolve_connection_binding_ambiguity");
+
+  const approval = buildTenantPlatformPluginEligibility({
+    plugin: { status: "active" },
+    allowed: true,
+    approval: { approval_required: true },
+    execution: { will_execute: false },
+    security_decision: { gates: [{ key: "approval", required: true, state: "deny", reason: "action_grant_required" }] },
+  });
+  assert.equal(approval.status, "approval_required");
+  assert.equal(approval.blockers[0].repair_class, "platform_admin_required");
+
+  const unavailable = buildTenantPlatformPluginEligibility({
+    plugin: { status: "disabled" },
+    execution: { will_execute: false },
+    security_decision: { gates: [] },
+  });
+  assert.equal(unavailable.status, "unavailable");
+
+  const deprecated = buildTenantPlatformPluginEligibility({
+    plugin: { status: "deprecated" },
+    execution: { will_execute: false },
+    security_decision: { gates: [] },
+  });
+  assert.equal(deprecated.status, "deprecated");
+}
+
+{
   const routes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
   assert(routes.includes("/tenant/platform/plugins/catalog"), "tenant catalog route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/install"), "tenant install route must be mounted");
@@ -127,9 +230,13 @@ import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRo
   assert(routes.includes("createCredentialIntakeSessionRecord"), "tenant intake must use shared governed session helper");
   assert(routes.includes("admin_tool_invoked: false"), "tenant intake must not claim raw admin tool dispatch");
   assert(routes.includes("requireTenantUserJwt"), "tenant routes must require user JWT");
+  assert(routes.includes("TENANT_WORKSPACE_CONTEXT_REQUIRED"), "tenant resolver must require explicit workspace context");
+  assert(routes.includes("workspaceId: contract.workspaceId"), "tenant resolver must pass the validated workspace contract");
   assert(routes.includes("tenantId: req.auth.tenant_id"), "tenant install/resolve must derive tenant_id from auth");
   assert(routes.includes("userId: req.auth.user_id"), "tenant install/resolve must derive user_id from auth");
   assert(routes.includes("security_decision_trace_admin: _adminTrace"), "tenant resolve must strip admin decision trace projection");
+  assert(routes.includes("buildTenantPlatformPluginEligibility(result)"), "tenant resolve must derive normalized eligibility from the canonical resolver result");
+  assert(routes.includes("eligibility,"), "tenant resolve response must expose normalized eligibility");
   assert(!routes.includes("tenantId: input.tenant_id"), "tenant install must not trust body tenant_id");
   assert(!routes.includes("userId: input.user_id"), "tenant install must not trust body user_id");
 }

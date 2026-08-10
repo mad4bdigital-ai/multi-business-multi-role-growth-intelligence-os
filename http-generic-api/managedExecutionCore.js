@@ -29,6 +29,7 @@ export const REQUIRED_PERMISSION_BY_EFFECT = Object.freeze({
 });
 
 const SERVICE_MODES = new Set(["self_serve", "assisted", "managed"]);
+const EXECUTION_MODES = new Set(["live", "dry_run"]);
 const SENSITIVE_KEY = /(secret|token|password|passwd|credential|private[_-]?key|client[_-]?secret|api[_-]?key|authorization|cookie)/i;
 const SENSITIVE_VALUE = /(Bearer\s+[A-Za-z0-9._~+\-/]+=*|-----BEGIN [A-Z ]*PRIVATE KEY-----|(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|secret)=)/i;
 
@@ -115,6 +116,24 @@ export function normalizeManagedExecutionEnvelope(input = {}) {
   const effect_class = requiredString(input.effect_class, "effect_class", 64).toLowerCase();
   const policy = EFFECT_POLICIES[effect_class];
   if (!policy) throw managedError(400, "managed_execution_effect_class_invalid", `Unsupported effect_class '${effect_class}'.`);
+  const inputJson = input.input_json ?? null;
+  const nestedExecutionMode = inputJson && typeof inputJson === "object" && !Array.isArray(inputJson)
+    ? optionalString(inputJson.execution_mode, 32)?.toLowerCase() || null
+    : null;
+  const explicitExecutionMode = optionalString(input.execution_mode, 32)?.toLowerCase() || null;
+  if (explicitExecutionMode && nestedExecutionMode && explicitExecutionMode !== nestedExecutionMode) {
+    throw managedError(400, "managed_execution_execution_mode_conflict", "Top-level execution_mode conflicts with input_json.execution_mode.", {
+      execution_mode: explicitExecutionMode,
+      input_json_execution_mode: nestedExecutionMode,
+    });
+  }
+  const execution_mode = explicitExecutionMode || nestedExecutionMode || "live";
+  if (!EXECUTION_MODES.has(execution_mode)) {
+    throw managedError(400, "managed_execution_execution_mode_invalid", `Unsupported execution_mode '${execution_mode}'.`, {
+      execution_mode,
+      allowed_modes: [...EXECUTION_MODES],
+    });
+  }
   const envelope = {
     tenant_id: requiredString(input.tenant_id, "tenant_id", 64),
     user_id: requiredString(input.user_id || input.requester_id, "user_id", 64),
@@ -124,6 +143,7 @@ export function normalizeManagedExecutionEnvelope(input = {}) {
     resource_type: requiredString(input.resource_type, "resource_type", 128),
     resource_ref: requiredString(input.resource_ref, "resource_ref", 255),
     effect_class,
+    execution_mode,
     idempotency_key: requiredString(input.idempotency_key || input.request_id, "idempotency_key", 191),
     workspace_id: optionalString(input.workspace_id, 64),
     workspace_key: optionalString(input.workspace_key, 128),
@@ -136,7 +156,7 @@ export function normalizeManagedExecutionEnvelope(input = {}) {
     plan_id: optionalString(input.plan_id, 64),
     service_mode: optionalString(input.service_mode, 32) || "managed",
     task_title: optionalString(input.task_title, 512) || `Managed execution: ${input.capability_key || input.workflow_key}`,
-    input_json: input.input_json ?? null,
+    input_json: inputJson,
     policy,
   };
   if (!SERVICE_MODES.has(envelope.service_mode)) throw managedError(400, "managed_execution_service_mode_invalid", `Unsupported service_mode '${envelope.service_mode}'.`);
@@ -162,6 +182,7 @@ export function buildManagedAuthoritySnapshot({ envelope, access, gate, authorit
     capability_key: envelope.capability_key,
     resource: { type: envelope.resource_type, ref: envelope.resource_ref },
     effect_class: envelope.effect_class,
+    execution_mode: envelope.execution_mode || "live",
     idempotency_key: envelope.idempotency_key,
     access_decision: access.decision,
     access_reason: access.reason,
@@ -234,3 +255,4 @@ export function projectManagedExecutionState({ run = {}, holds = [], steps = [],
 }
 
 export const MANAGED_EXECUTION_EFFECT_CLASSES = Object.freeze(Object.keys(EFFECT_POLICIES));
+export const MANAGED_EXECUTION_MODES = Object.freeze([...EXECUTION_MODES]);

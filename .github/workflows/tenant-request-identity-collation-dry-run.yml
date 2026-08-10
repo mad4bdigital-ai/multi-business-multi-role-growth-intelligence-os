@@ -1,0 +1,62 @@
+name: Tenant Request Identity Collation Dry Run
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tenant-request-identity-collation-dry-run
+  cancel-in-progress: false
+
+jobs:
+  dry-run:
+    if: >-
+      github.event.issue.number == 4449 &&
+      !github.event.issue.pull_request &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association) &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      CONTROL_ISSUE: '4449'
+      EVIDENCE_DIR: .artifacts/tenant-request-identity-collation-dry-run
+    steps:
+      - name: Checkout trusted default branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify trusted trigger and source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event.issue.number }}" = "4449"
+          test "${{ github.event.comment.body }}" = "AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT"
+          test "$(git branch --show-current)" = "main"
+          node --check .github/ops/tenant-request-identity-collation-dry-run.mjs
+          test "$(git hash-object http-generic-api/migrations/20260808_tenant_request_identity_collation_alignment.sql)" = "5f68a02f351a4cf80fa89a826abe3c92412f7079"
+
+      - name: Execute checksum-bound Dry Run lifecycle only
+        run: node .github/ops/tenant-request-identity-collation-dry-run.mjs
+
+      - name: Upload Dry Run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-request-identity-collation-dry-run-${{ github.run_id }}
+          path: .artifacts/tenant-request-identity-collation-dry-run
+          if-no-files-found: error
+          retention-days: 30

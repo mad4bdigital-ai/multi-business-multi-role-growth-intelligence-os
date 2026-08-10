@@ -55,6 +55,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
           REPOSITORY: ${{ github.repository }}
+          GITHUB_TOKEN_FOR_REF_LOOKUP: ${{ github.token }}
         run: |
           node --input-type=module <<'NODE'
           import { execFileSync } from 'node:child_process';

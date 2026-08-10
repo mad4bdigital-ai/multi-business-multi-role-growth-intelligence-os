@@ -6,12 +6,15 @@ import {
   buildCapabilityEnvelopeTemplatePassthrough,
   computeCapabilityEnvelopeTemplateResolutionHash,
   createCapabilityEnvelopeFromTemplate,
+  deriveCapabilityEnvelopeTemplateAuthorityContext,
   normalizeCapabilityEnvelopeTemplateContext,
   resolveCapabilityEnvelopeTemplate,
 } from "./capabilityEnvelopeTemplateResolver.js";
+import { buildDryRunArgs } from "./scripts/capability-resolution-envelope-create.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templateHash = "a".repeat(64);
+const exactGithubResourceUri = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 const templateRow = {
   template_id: "11111111-1111-4111-8111-111111111111",
   template_key: "github_repo_patch_apply_v1",
@@ -68,7 +71,7 @@ const context = normalizeCapabilityEnvelopeTemplateContext(template, {
   user_id: "user-1",
   workspace_id: "workspace-1",
   expected_commit_sha: "b".repeat(40),
-  resource_uri: "repo://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+  resource_uri: exactGithubResourceUri,
   binding_sha256: "c".repeat(64),
   capability_sha256: "d".repeat(64),
 });
@@ -113,6 +116,50 @@ assert.deepEqual(passthrough.slice(-8), [
   "--requested-source-tier", "platform_managed_fallback",
 ]);
 
+const adminServiceContext = normalizeCapabilityEnvelopeTemplateContext(template, {
+  tenant_id: "tenant-1",
+  user_id: "platform_admin_service",
+  workspace_id: "workspace-1",
+  expected_commit_sha: "e".repeat(40),
+  resource_uri: exactGithubResourceUri,
+  binding_sha256: "f".repeat(64),
+  capability_sha256: "1".repeat(64),
+});
+const derivedAuthority = deriveCapabilityEnvelopeTemplateAuthorityContext(template, adminServiceContext);
+assert.deepEqual(derivedAuthority, {
+  principalId: "platform_admin_service",
+  resourceType: "github_repo",
+  resourceUri: exactGithubResourceUri,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+});
+const adminPassthrough = buildCapabilityEnvelopeTemplatePassthrough(template, adminServiceContext);
+const parsedAdminPassthrough = buildDryRunArgs(adminPassthrough);
+assert.equal(parsedAdminPassthrough.userId, "platform_admin_service");
+assert.equal(parsedAdminPassthrough.principalId, "platform_admin_service");
+assert.equal(parsedAdminPassthrough.principalType, "", "template must not infer service type from the principal name");
+assert.equal(parsedAdminPassthrough.resourceType, "github_repo");
+assert.equal(parsedAdminPassthrough.resourceUri, exactGithubResourceUri);
+assert.equal(parsedAdminPassthrough.recipeKey, "repo_patch_batch_apply");
+assert.equal(parsedAdminPassthrough.operationMode, "atomic_change_set");
+
+const explicitDirectArgs = buildDryRunArgs([
+  "--tenant-id", "tenant-1",
+  "--user-id", "platform_admin_service",
+  "--principal-type", "service",
+  "--principal-id", "platform_admin_service",
+  "--workspace-id", "workspace-1",
+  "--resource-type", "github_repo",
+  "--resource-uri", exactGithubResourceUri,
+  "--recipe-key", "repo_patch_batch_apply",
+  "--operation-mode", "atomic_change_set",
+]);
+assert.equal(explicitDirectArgs.principalType, "service");
+assert.equal(explicitDirectArgs.principalId, "platform_admin_service");
+assert.equal(explicitDirectArgs.resourceUri, exactGithubResourceUri);
+assert.equal(explicitDirectArgs.recipeKey, "repo_patch_batch_apply");
+assert.equal(explicitDirectArgs.operationMode, "atomic_change_set");
+
 const alignedDryRun = {
   ok: true,
   selected_source: { selected_source_tier: "platform_managed_fallback" },
@@ -139,6 +186,7 @@ assert.match(hashA, /^[0-9a-f]{64}$/);
 
 let storedResolution = null;
 let createCalls = 0;
+let envelopeCreateArgs = null;
 const queries = [];
 const pool = {
   async query(sql, params = []) {
@@ -183,6 +231,30 @@ const runAlignedDryRun = async (input) => ({
   capability: { app_key: input.appKey, capability_key: input.capabilityKey },
 });
 
+await assert.rejects(
+  () => resolveCapabilityEnvelopeTemplate({
+    template_key: template.template_key,
+    context: {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_id: "workspace-1",
+    },
+  }, { pool, runCapabilityResolutionDryRun: runAlignedDryRun }),
+  (error) => error.code === "capability_envelope_template_resource_uri_missing" && error.status === 400,
+);
+await assert.rejects(
+  () => resolveCapabilityEnvelopeTemplate({
+    template_key: template.template_key,
+    context: {
+      tenant_id: "tenant-1",
+      user_id: "user-1",
+      workspace_id: "workspace-1",
+      resource_uri: "repo://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
+    },
+  }, { pool, runCapabilityResolutionDryRun: runAlignedDryRun }),
+  (error) => error.code === "capability_envelope_template_resource_uri_invalid_for_runtime" && error.status === 400,
+);
+
 const preview = await resolveCapabilityEnvelopeTemplate({
   template_key: template.template_key,
   context,
@@ -195,6 +267,25 @@ assert.equal(preview.secrets_included, false);
 assert.equal(Object.prototype.propertyIsEnumerable.call(preview, "_passthrough"), false);
 assert.doesNotMatch(JSON.stringify(preview), /_passthrough/);
 assert.ok(preview.passthrough_argument_names.every((item) => item.startsWith("--")));
+
+let observedAdminDryRunInput = null;
+const adminPreview = await resolveCapabilityEnvelopeTemplate({
+  template_key: template.template_key,
+  context: adminServiceContext,
+  expected_template_hash: templateHash,
+}, {
+  pool,
+  runCapabilityResolutionDryRun: async (input) => {
+    observedAdminDryRunInput = input;
+    return runAlignedDryRun(input);
+  },
+});
+assert.equal(adminPreview.create_allowed, true);
+assert.equal(observedAdminDryRunInput.principalId, "platform_admin_service");
+assert.equal(observedAdminDryRunInput.resourceType, "github_repo");
+assert.equal(observedAdminDryRunInput.resourceUri, exactGithubResourceUri);
+assert.equal(observedAdminDryRunInput.recipeKey, "repo_patch_batch_apply");
+assert.equal(observedAdminDryRunInput.operationMode, "atomic_change_set");
 
 await assert.rejects(
   () => resolveCapabilityEnvelopeTemplate({
@@ -218,8 +309,9 @@ const sourceMismatch = await resolveCapabilityEnvelopeTemplate({
 assert.equal(sourceMismatch.source_tier_alignment, false);
 assert.equal(sourceMismatch.create_allowed, false);
 
-const createEnvelope = async () => {
+const createEnvelope = async (args) => {
   createCalls += 1;
+  envelopeCreateArgs = args;
   return {
     ok: true,
     envelope_id: "33333333-3333-4333-8333-333333333333",
@@ -235,7 +327,7 @@ const createEnvelope = async () => {
 
 const created = await createCapabilityEnvelopeFromTemplate({
   template_key: template.template_key,
-  context,
+  context: adminServiceContext,
   requested_by: "gpt_admin",
 }, {
   pool,
@@ -246,11 +338,18 @@ assert.equal(created.mode, "created");
 assert.equal(created.deduplicated, false);
 assert.equal(created.resolution.envelope_id, "33333333-3333-4333-8333-333333333333");
 assert.equal(createCalls, 1);
+const createdDryRunArgs = buildDryRunArgs(envelopeCreateArgs.passthrough);
+assert.equal(createdDryRunArgs.principalId, "platform_admin_service");
+assert.equal(createdDryRunArgs.principalType, "");
+assert.equal(createdDryRunArgs.resourceType, "github_repo");
+assert.equal(createdDryRunArgs.resourceUri, exactGithubResourceUri);
+assert.equal(createdDryRunArgs.recipeKey, "repo_patch_batch_apply");
+assert.equal(createdDryRunArgs.operationMode, "atomic_change_set");
 assert.ok(queries.some(({ sql }) => sql.startsWith("INSERT INTO capability_envelope_template_resolutions")));
 
 const retry = await createCapabilityEnvelopeFromTemplate({
   template_key: template.template_key,
-  context,
+  context: adminServiceContext,
   requested_by: "gpt_admin",
 }, {
   pool,

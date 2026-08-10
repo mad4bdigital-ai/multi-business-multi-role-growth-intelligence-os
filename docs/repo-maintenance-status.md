@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 614
+- Paths: 615
 - Operations: 566
 - Top-level tags: 36
 
@@ -73,6 +73,11 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-parity-refresh-dispatch.yml`
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/github-main-review-policy-live-activation.yml`
+- `.github/workflows/github-main-review-policy-readiness-publisher.yml`
+- `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -137,6 +142,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
 - `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
+- `.github/workflows/migration-1049-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
@@ -168,6 +174,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec014-wave1-apply.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness.yml`
+- `.github/workflows/spec017-fixture-context-readback.yml`
+- `.github/workflows/spec017-protected-managed-execution-canary.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
 - `.github/workflows/sprint69-1043-readback-certify.yml`
@@ -180,6 +188,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/tenant-request-identity-collation-dry-run.yml`
+- `.github/workflows/tenant-request-identity-collation-runtime-readiness.yml`
 - `.github/workflows/transport-response-schema-1048-governed-rollout.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
 - `.github/workflows/verify-runtime.yml`
@@ -233,6 +243,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
 - `http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs`
+- `http-generic-api/test-openapi-precise-inline-registry-transition.mjs`
 - `http-generic-api/test-openapi-precise-legacy-registry-transition.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
@@ -244,7 +255,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-authority.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
+- `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
 - `http-generic-api/test-platform-plugin-contribution.mjs`
 - `http-generic-api/test-platform-plugin-install.mjs`
@@ -274,14 +288,17 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-run-mode.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
 - `http-generic-api/test-tenant-tool-schema-strictness.mjs`
 - `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
 - `http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs`
-- `http-generic-api/test-work-map-schema-classification-contract.mjs`
-- `http-generic-api/test-work-map-schema-classification.mjs`
+- ...and 2 more
 
 ## Maintenance Contract
 

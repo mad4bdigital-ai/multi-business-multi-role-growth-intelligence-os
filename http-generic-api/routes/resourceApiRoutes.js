@@ -1,13 +1,16 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import {
   createResourceApiController,
   errorEnvelope,
 } from "../src/api/resourceApi/resourceApiController.js";
 import { createDefaultResourceApiService } from "../src/infrastructure/resourceApi/resourceApiComposition.js";
 import { createResourceApiContextShadowMiddleware } from "../contextKernel/integration/index.js";
+import { materializeWorkspaceBrandCoreAssetTransaction } from "../workspaceBrandCoreAssetMaterialization.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireUserJwt = createUserJwtMiddleware();
 
 function verifyJwt(header) {
   if (!header?.startsWith("Bearer ")) return null;
@@ -65,6 +68,35 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/admin/resource-coverage/audit", requireBackend, requireAdmin, controller.adminCoverageAudit);
   router.get("/admin/operations/:operationId", requireBackend, requireAdmin, controller.adminOperationGet);
 
+  // Keep canonical route/auth visible here; transaction orchestration stays outside transport.
+  router.post("/me/workspaces/:workspace_id/brands/:brand_key/assets/materialize-brand-core", requireUserJwt, async (req, res) => {
+    try {
+      const result = await materializeWorkspaceBrandCoreAssetTransaction({
+        workspaceId: req.params.workspace_id,
+        actorUserId: req.auth.user_id,
+        brandRef: req.params.brand_key,
+        sourceRef: req.body?.source_ref,
+      });
+      return res.status(201).json({
+        ok: true,
+        tenant_id: result.tenant_id,
+        workspace_id: result.workspace.workspace_id,
+        brand_key: result.workspace.brand_ref,
+        asset: result.asset,
+        source: result.source,
+        workspace: result.workspace,
+        readback: "same_cycle",
+        secrets_included: false,
+      });
+    } catch (error) {
+      return res.status(error?.status || 500).json({
+        ok: false,
+        error: { code: error?.code || "brand_core_asset_materialize_failed", message: error?.message || "Brand Core asset materialization failed.", ...(error?.details ? { details: error.details } : {}) },
+        secrets_included: false,
+      });
+    }
+  });
+
   router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", ...tenantReadHandlers(controller.tenantResourceGet));
@@ -89,4 +121,4 @@ export function buildResourceApiRoutes(deps = {}) {
   return router;
 }
 
-export const _testingResourceApiRoutes = { verifyJwt, requireUser };
+export const _testingResourceApiRoutes = { verifyJwt, requireUser, requireUserJwt };

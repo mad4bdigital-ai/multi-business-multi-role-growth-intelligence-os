@@ -2,13 +2,29 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "platform-plugin-connection-ambiguity",
-  "title": "Fail closed on ambiguous platform plugin connection selection",
+  "title": "Fail closed on ambiguous or mis-scoped platform plugin connection selection",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      "docs/platform-plugin-contract-migration-guide.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+      "http-generic-api/platformPluginConnectionOwnership.js",
       "http-generic-api/platformPluginResolver.js",
-      "http-generic-api/test-platform-plugin-resolver.mjs"
+      "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+      "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
+      "http-generic-api/test-platform-plugin-connection-ownership.mjs",
+      "http-generic-api/test-platform-plugin-resolver.mjs",
+      "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
+      "http-generic-api/test-tenant-platform-plugin-routes.mjs"
     ]
   },
   "merge_contract": {
@@ -18,44 +34,111 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Resolve platform-plugin credentials without silently selecting the first eligible connection when the active user or tenant scope contains more than one usable candidate.",
+      "objective": "Resolve tenant platform-plugin credentials from canonical Context Kernel workspace and Brand ownership authority, publish the same exact-scope rule through the governed precise OpenAPI source, preserve fail-closed ambiguity, and prevent caller-controlled user, workspace, or Brand scope expansion.",
       "e2e_journeys": [
         {
-          "id": "ambiguous-platform-plugin-connection-selection-fails-closed",
+          "id": "workspace-owned-platform-plugin-connections-fail-closed",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "Authenticated tenant user resolving a platform-plugin action",
-          "entrypoint": "resolvePlatformPluginExecution runtime resolver invocation for a tenant, user, plugin and action",
-          "terminal_outcome": "Multiple eligible connections in the selected scope produce a typed ambiguity denial before any connection is selected, while zero and exactly one eligible connection retain their existing outcomes.",
+          "actor": "Authenticated tenant user resolving a platform-plugin action in an exact personal, company, or Brand workspace",
+          "entrypoint": "POST /tenant/platform/plugins/resolve and resolvePlatformPluginExecution for an authenticated tenant/user/workspace",
+          "terminal_outcome": "Personal workspaces resolve only the authenticated owner's personal connection; company workspaces resolve only company-workspace connections; Brand workspaces derive their Brand from canonical workspace binding and resolve Brand-owned connections only for tenant owner/admin or an exact operate-or-stronger Brand grant; missing, mismatched, ambiguous, unclassified, cross-workspace, cross-Brand, or under-privileged ownership remains blocked without exposing candidate identifiers or secrets.",
           "steps": [
-            "Invoke the platform-plugin runtime resolver with authoritative plugin, policy, binding and connection rows for the requested tenant and user.",
-            "Collect all usable candidates for the active credential scope instead of selecting the first row.",
-            "Fail closed with AMBIGUOUS_CONNECTION_SELECTION when candidate cardinality exceeds one before exposing a selected connection identifier.",
-            "Repeat with reversed row order and with tenant fallback ambiguity, then exercise exactly-one and zero-candidate paths.",
-            "Assert the returned decision is deterministic and does not disclose candidate connection identifiers or secret-backed values."
+            "Require an explicit workspace_id on the tenant resolve contract and derive tenant_id/user_id only from authenticated context.",
+            "Read workspace ownership for the exact tenant and workspace, then query the Context Kernel compatibility view for classified active ownership in that same workspace.",
+            "Map personal_workspace ownership to user_connection only when the authenticated user is the personal workspace owner.",
+            "Map company_workspace ownership to tenant_connection without treating the user who originally connected the provider as the credential owner.",
+            "For a Brand workspace, derive the exact Brand from workspace_registry.linked_brand_key instead of accepting caller-supplied Brand authority.",
+            "Require exactly one active tenant membership; allow tenant owner/admin directly, otherwise require an exact effective Brand grant with operate, manage, admin, or owner permission.",
+            "Resolve Brand-owned credentials as tenant_connection while retaining owner_scope_type=brand and exact owner_scope_ref/brand_id filtering in the Context Kernel ownership view.",
+            "Reject view, comment, and edit Brand grants before credential lookup because Provider credential use is an operation-authority boundary, not a read/edit grant.",
+            "Apply the existing cardinality guard so multiple usable candidates fail closed before any connection identifier is selected.",
+            "Publish the workspace-aware request and sanitized ownership evidence from one precise OpenAPI path-item source using governed inline composition into openapi.yaml and the generated Tenant Core surface.",
+            "Assert scope mismatch, Brand authority denial, and ambiguity responses contain no credential payload, Brand identity leak, or candidate connection identifiers."
           ],
           "assertions": [
-            "Two eligible user-scoped connections return resolution_state=ambiguous and denial_code=AMBIGUOUS_CONNECTION_SELECTION.",
-            "Reversing ambiguous connection row order does not change the fail-closed result.",
-            "When no user-scoped candidate exists, two eligible tenant-scoped fallback connections fail closed as tenant_connection ambiguity.",
-            "Ambiguity responses expose candidate count and scope but no selected connection_id, candidate identifiers or mock secret values.",
-            "Exactly one eligible connection preserves the existing resolved and allowed behavior.",
-            "Zero eligible connections preserves the existing DEDICATED_CONNECTION_REQUIRED behavior where dedicated credentials are required.",
-            "The change performs no database migration, Production mutation, provider call, credential/secret mutation, generated-artifact edit or force push."
+            "Tenant plugin resolution requires an exact workspace_id before credential resolution.",
+            "Personal Workspace ownership resolves only to user_connection for the exact authenticated owner.",
+            "Company Workspace ownership resolves only to tenant_connection for the exact workspace, independent of the legacy connected user field.",
+            "A caller-requested user_connection cannot downgrade or widen a company-workspace connection and returns CONNECTION_OWNERSHIP_SCOPE_MISMATCH.",
+            "Unknown, ambiguous, unclassified, or personal-owner-mismatched workspace ownership fails closed before connection lookup.",
+            "Brand identity is derived from the exact workspace binding and cannot be widened by a caller-provided Brand selector.",
+            "Brand connections require an active tenant membership plus tenant owner/admin authority or an exact effective Brand grant at operate or stronger; view, comment, and edit grants remain denied.",
+            "Brand-owned connections use tenant_connection as the credential source while retaining owner_scope_type=brand and exact Brand filtering.",
+            "Missing Brand binding, missing membership, insufficient Brand grant, or cross-Brand ownership returns BRAND_CONNECTION_AUTHORITY_REQUIRED before connection lookup and without revealing the canonical Brand reference.",
+            "Two eligible connections in the resolved ownership scope return AMBIGUOUS_CONNECTION_SELECTION without a selected connection_id.",
+            "Reversing ambiguous connection row order does not change the fail-closed result covered by the existing ambiguity regression.",
+            "The precise tenant resolver contract requires plugin_key plus workspace_id, publishes one-selector-workspace-v2, and documents sanitized connection_ownership_resolution evidence.",
+            "The precise registry transition is opt-in with composition_mode=inline; default registry contracts remain ref-based and unrecognized occupied inline operations remain fail-closed.",
+            "Generated Tenant Core OpenAPI and root OpenAPI must retain workspace_id, one-selector-workspace-v2, explicit exact-Brand authority evidence, and stable ownership denial codes after the canonical writer runs.",
+            "No access token, refresh token, password, API key, encrypted credential, candidate connection identifier, unauthorized Brand identifier, or secret-backed value is exposed by ambiguity/scope/Brand-authority denials.",
+            "The Brand authority regression is registered in the canonical test manifest as well as this E2E journey.",
+            "The change performs no database migration, Production mutation, provider call, credential/secret mutation, manual generated-artifact edit or force push."
           ],
           "tests": [
+            {
+              "id": "platform-plugin-brand-connection-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-brand-connection-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-plugin-workspace-ownership-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-plugin-connection-ownership.mjs",
+              "args": []
+            },
             {
               "id": "platform-plugin-resolver-ambiguity-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-platform-plugin-resolver.mjs",
               "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-route-workspace-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-openapi-workspace-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-openapi.mjs",
+              "args": []
+            },
+            {
+              "id": "precise-inline-openapi-transition-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-openapi-precise-inline-registry-transition.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/platform-plugin-connection-ambiguity.json",
+            "docs/platform-plugin-contract-migration-guide.md",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi-route-contracts.d/platform-plugin-tenant-resolve.yaml",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
+            "http-generic-api/platformPluginConnectionOwnership.js",
             "http-generic-api/platformPluginResolver.js",
-            "http-generic-api/test-platform-plugin-resolver.mjs"
+            "http-generic-api/routes/tenantPlatformPluginRoutes.js",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-openapi-precise-inline-registry-transition.mjs",
+            "http-generic-api/test-platform-plugin-brand-connection-authority.mjs",
+            "http-generic-api/test-platform-plugin-connection-ownership.mjs",
+            "http-generic-api/test-platform-plugin-resolver.mjs",
+            "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
+            "http-generic-api/test-tenant-platform-plugin-routes.mjs"
           ]
         }
       ]

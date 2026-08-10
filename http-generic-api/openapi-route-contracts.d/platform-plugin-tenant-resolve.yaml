@@ -1,0 +1,9 @@
+version: 1
+contracts:
+  "POST /tenant/platform/plugins/resolve":
+    path_item_ref: ./openapi/platform-plugin-tenant-resolve.yaml#/tenantPlatformPluginResolvePath
+    route_file: routes/tenantPlatformPluginRoutes.js
+    composition_mode: inline
+    owner: platform_plugin_runtime
+    exposure: tenant_user
+    notes: Exact-workspace Context Kernel ownership contract; Brand connections require canonical exact-Brand operate-or-stronger authority and no secret payload fields are exposed.

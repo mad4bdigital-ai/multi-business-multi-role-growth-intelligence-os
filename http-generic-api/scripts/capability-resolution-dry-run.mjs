@@ -3,11 +3,17 @@ import { getPool } from "../db.js";
 
 const POLICY_KEY = "dynamic_capability_resolution_policy_v1";
 const SOURCE_TIER_POLICY_KEY = "dynamic_capability_source_tiers_v1";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SHA_RE = /^[0-9a-f]{40}$/i;
+const EXACT_GITHUB_RESOURCE_RE = /^github:\/\/[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+const PLATFORM_AUTHORITY_RECIPES = new Set(["repo_patch_apply", "repo_patch_batch_apply", "github_pr_create"]);
 
 function parseArgs(argv = process.argv.slice(2)) {
   const args = {
     tenantId: "",
     userId: "",
+    principalType: "",
+    principalId: "",
     workspaceId: "",
     workspaceKey: "",
     workspaceType: "",
@@ -17,6 +23,12 @@ function parseArgs(argv = process.argv.slice(2)) {
     appKey: "",
     capabilityKey: "",
     operationIntent: "read",
+    operationMode: "",
+    resourceType: "",
+    resourceUri: "",
+    resourceBranch: "",
+    expectedCommitSha: "",
+    recipeKey: "",
     runtimeSurface: "",
     requestedSourceTier: "",
     explain: false,
@@ -28,6 +40,8 @@ function parseArgs(argv = process.argv.slice(2)) {
     const consume = inlineValue === null;
     if (key === "--tenant-id") { args.tenantId = value || ""; if (consume) i += 1; }
     else if (key === "--user-id") { args.userId = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-type") { args.principalType = value || ""; if (consume) i += 1; }
+    else if (key === "--principal-id") { args.principalId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-id") { args.workspaceId = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-key") { args.workspaceKey = value || ""; if (consume) i += 1; }
     else if (key === "--workspace-type") { args.workspaceType = value || ""; if (consume) i += 1; }
@@ -37,6 +51,14 @@ function parseArgs(argv = process.argv.slice(2)) {
     else if (key === "--app-key") { args.appKey = value || ""; if (consume) i += 1; }
     else if (key === "--capability-key") { args.capabilityKey = value || ""; if (consume) i += 1; }
     else if (key === "--operation-intent") { args.operationIntent = value || "read"; if (consume) i += 1; }
+    else if (key === "--operation-mode") { args.operationMode = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-type") { args.resourceType = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-uri") { args.resourceUri = value || ""; if (consume) i += 1; }
+    else if (key === "--resource-branch" || key === "--branch") { args.resourceBranch = value || ""; if (consume) i += 1; }
+    else if (key === "--expected-commit-sha") { args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-branch-sha") { args.expectedCommitSha = String(value || args.expectedCommitSha).toLowerCase(); if (consume) i += 1; }
+    else if (key === "--expected-base-sha") { if (!args.expectedCommitSha) args.expectedCommitSha = String(value || "").toLowerCase(); if (consume) i += 1; }
+    else if (key === "--recipe-key") { args.recipeKey = value || ""; if (consume) i += 1; }
     else if (key === "--runtime-surface") { args.runtimeSurface = value || ""; if (consume) i += 1; }
     else if (key === "--requested-source-tier") { args.requestedSourceTier = value || ""; if (consume) i += 1; }
     else if (key === "--explain") args.explain = true;
@@ -61,6 +83,36 @@ function normalizeKey(value = "") {
 
 function unique(values = []) {
   return [...new Set(values.filter(Boolean))];
+}
+
+function normalizePrincipalContext(args = {}) {
+  const principalId = normalizeKey(args.principalId || args.userId);
+  const explicitType = normalizeKey(args.principalType).toLowerCase();
+  const principalType = explicitType || (UUID_RE.test(principalId) ? "user" : "");
+  return { principal_type: principalType, principal_id: principalId };
+}
+
+function canResolveServiceAuthority(principal = {}) {
+  const principalType = normalizeKey(principal?.principal_type).toLowerCase();
+  return Boolean(principal?.principal_id && (!principalType || principalType === "service"));
+}
+
+function inferResourceType(resourceUri = "") {
+  const uri = normalizeKey(resourceUri);
+  return EXACT_GITHUB_RESOURCE_RE.test(uri) ? "github_repo" : "";
+}
+
+function resourceAuthorityContext(args = {}) {
+  const resourceUri = normalizeKey(args.resourceUri);
+  const capabilityRecipe = PLATFORM_AUTHORITY_RECIPES.has(normalizeKey(args.capabilityKey)) ? normalizeKey(args.capabilityKey) : "";
+  return {
+    resource_type: normalizeKey(args.resourceType) || inferResourceType(resourceUri),
+    resource_uri: resourceUri,
+    resource_branch: normalizeKey(args.resourceBranch || args.branch),
+    expected_commit_sha: normalizeKey(args.expectedCommitSha || args.expectedBranchSha || args.expectedBaseSha).toLowerCase(),
+    recipe_key: normalizeKey(args.recipeKey) || capabilityRecipe,
+    operation_mode: normalizeKey(args.operationMode),
+  };
 }
 
 function riskForOperation(operationIntent = "read") {
@@ -213,8 +265,6 @@ export function isMissingWorkspaceGrantViewError(error) {
 
 export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId, workspaceKey, brandKey, appKey }) {
   if (!tenantId || !userId) return [];
-  // Legacy membership backfills used tenant_id as the workspace resource_ref.
-  // New grants use workspace_id; workspace_key remains a supported human-readable alias.
   const refs = unique([workspaceId, workspaceKey, tenantId, brandKey, appKey]);
   if (!refs.length) return [];
   const params = [tenantId, userId, ...refs];
@@ -260,6 +310,171 @@ export async function loadWorkspaceGrants(pool, { tenantId, userId, workspaceId,
     );
     return rows;
   }
+}
+
+function isMissingPlatformResourceAuthorityTableError(error) {
+  const code = String(error?.code || "");
+  const message = String(error?.message || "");
+  return code === "ER_NO_SUCH_TABLE" || /platform_resource_authority_bindings.*doesn't exist/i.test(message);
+}
+
+export async function loadPlatformResourceAuthorityBindings(pool, {
+  tenantId,
+  workspaceId,
+  principal,
+  resourceType,
+  resourceUri,
+  recipeKey,
+}) {
+  if (
+    !canResolveServiceAuthority(principal)
+    || !tenantId
+    || !workspaceId
+    || !resourceType
+    || !resourceUri
+    || !recipeKey
+  ) return [];
+  try {
+    const [rows] = await pool.query(
+      `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
+              recipe_key, permission_level, allowed_modes_json, authority_source, status, expires_at, created_at
+         FROM platform_resource_authority_bindings
+        WHERE status = 'active'
+          AND (expires_at IS NULL OR expires_at > UTC_TIMESTAMP())
+          AND tenant_id = ?
+          AND workspace_id = ?
+          AND user_id = ?
+          AND resource_type = ?
+          AND resource_uri = ?
+          AND recipe_key = ?
+        ORDER BY created_at DESC`,
+      [tenantId, workspaceId, principal.principal_id, resourceType, resourceUri, recipeKey]
+    );
+    return rows;
+  } catch (error) {
+    if (isMissingPlatformResourceAuthorityTableError(error)) return [];
+    throw error;
+  }
+}
+
+function parseAllowedModes(value) {
+  const parsed = safeJson(value, []);
+  return Array.isArray(parsed) ? parsed.map((item) => normalizeKey(item)).filter(Boolean) : [];
+}
+
+function storedPrincipal(binding = {}) {
+  const resourceRef = safeJson(binding.resource_ref_json, {});
+  const principal = resourceRef?.principal;
+  return principal && typeof principal === "object" && !Array.isArray(principal)
+    ? {
+        principal_type: normalizeKey(principal.principal_type).toLowerCase(),
+        principal_id: normalizeKey(principal.principal_id),
+      }
+    : { principal_type: "", principal_id: "" };
+}
+
+function storedExecutionScope(binding = {}) {
+  const resourceRef = safeJson(binding.resource_ref_json, {});
+  return {
+    branch: normalizeKey(resourceRef.branch),
+    expected_commit_sha: normalizeKey(resourceRef.expected_commit_sha || resourceRef.base_sha).toLowerCase(),
+  };
+}
+
+const PERMISSION_RANK = Object.freeze({
+  read_only: 1,
+  diagnostic: 1,
+  view: 1,
+  patch: 2,
+  edit: 2,
+  operate: 2,
+  manage: 2,
+  admin: 3,
+  owner: 3,
+});
+
+function requiredPermissionRank(operationMode = "") {
+  const mode = normalizeKey(operationMode);
+  if (["read_only", "diagnostic", "continue_read_only", "plan"].includes(mode)) return 1;
+  if (["write_file", "replace_block", "apply_unified_diff", "delete_file", "atomic_change_set"].includes(mode)) return 2;
+  if (["create_pull_request"].includes(mode)) return 3;
+  return Number.POSITIVE_INFINITY;
+}
+
+export function permissionSatisfiesResourceOperation(permissionLevel = "", operationMode = "") {
+  const rank = PERMISSION_RANK[normalizeKey(permissionLevel).toLowerCase()] || 0;
+  return rank >= requiredPermissionRank(operationMode);
+}
+
+export function resolveExactPlatformAuthorityExecutionScope({ bindings = [], resourceBranch = "", expectedCommitSha = "" } = {}) {
+  const expectedSha = normalizeKey(expectedCommitSha).toLowerCase();
+  const requestedBranch = normalizeKey(resourceBranch);
+  if (!SHA_RE.test(expectedSha)) return { ok: false, reason: "expected_commit_sha_missing_or_invalid" };
+  const shaMatches = bindings.map((binding) => ({ binding, ...storedExecutionScope(binding) }))
+    .filter((candidate) => candidate.branch && candidate.expected_commit_sha === expectedSha);
+  if (!shaMatches.length) return { ok: false, reason: "expected_commit_sha_mismatch" };
+  if (requestedBranch) {
+    const exact = shaMatches.find((candidate) => candidate.branch === requestedBranch);
+    return exact
+      ? { ok: true, binding: exact.binding, binding_id: exact.binding.binding_id, resource_branch: requestedBranch, expected_commit_sha: expectedSha }
+      : { ok: false, reason: "resource_branch_mismatch" };
+  }
+  const branches = unique(shaMatches.map((candidate) => candidate.branch));
+  if (branches.length !== 1) return { ok: false, reason: branches.length ? "resource_branch_ambiguous" : "resource_branch_missing" };
+  return {
+    ok: true,
+    binding: shaMatches[0].binding,
+    binding_id: shaMatches[0].binding.binding_id,
+    resource_branch: branches[0],
+    expected_commit_sha: expectedSha,
+  };
+}
+
+export function resolveExactAdminResourceAuthority({
+  principal,
+  bindings = [],
+  tenantId,
+  workspaceId,
+  resourceType,
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey,
+  operationMode,
+  now = new Date(),
+}) {
+  if (!canResolveServiceAuthority(principal)) return { matched: false, reason: "principal_not_service_authority_eligible" };
+  if (!tenantId || !workspaceId || !resourceType || !resourceUri || !recipeKey || !operationMode) return { matched: false, reason: "authority_context_incomplete" };
+  if (resourceUri.includes("*") || (resourceType === "github_repo" && !EXACT_GITHUB_RESOURCE_RE.test(resourceUri))) return { matched: false, reason: "resource_uri_not_exact" };
+  const nowMs = now instanceof Date ? now.getTime() : new Date(now).getTime();
+  const candidates = bindings.filter((binding) => {
+    if (normalizeKey(binding.status).toLowerCase() !== "active") return false;
+    if (binding.expires_at && new Date(binding.expires_at).getTime() <= nowMs) return false;
+    if (normalizeKey(binding.tenant_id) !== tenantId) return false;
+    if (normalizeKey(binding.workspace_id) !== workspaceId) return false;
+    if (normalizeKey(binding.user_id) !== principal.principal_id) return false;
+    if (normalizeKey(binding.resource_type) !== resourceType) return false;
+    if (normalizeKey(binding.resource_uri) !== resourceUri || normalizeKey(binding.resource_uri).includes("*")) return false;
+    if (normalizeKey(binding.recipe_key) !== recipeKey) return false;
+    const bindingPrincipal = storedPrincipal(binding);
+    if (bindingPrincipal.principal_type !== "service" || bindingPrincipal.principal_id !== principal.principal_id) return false;
+    const modes = parseAllowedModes(binding.allowed_modes_json);
+    if (modes.includes("*") || !modes.includes(operationMode)) return false;
+    return permissionSatisfiesResourceOperation(binding.permission_level, operationMode);
+  });
+  const scope = resolveExactPlatformAuthorityExecutionScope({ bindings: candidates, resourceBranch, expectedCommitSha });
+  if (!scope.ok) return { matched: false, reason: scope.reason };
+  return {
+    matched: true,
+    binding_id: scope.binding_id,
+    resource_branch: scope.resource_branch,
+    expected_commit_sha: scope.expected_commit_sha,
+    secrets_included: false,
+  };
+}
+
+export function hasExactAdminResourceAuthority(args = {}) {
+  return resolveExactAdminResourceAuthority(args).matched === true;
 }
 
 async function loadConnections(pool, { tenantId, userId, appKey }) {
@@ -392,15 +607,50 @@ function deriveSourceTiers({ appMap = [], connections = [], credentialBindings =
   };
 }
 
-function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity, risk, certifications = [], sourceTiers }) {
+export function authorityStatus({
+  workspace,
+  grants = [],
+  platformResourceAuthorityBindings = [],
+  principal,
+  resourceType,
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey,
+  operationMode,
+  tenantId,
+  workspaceId,
+  brandKey,
+  brandCore,
+  activity,
+  risk,
+  certifications = [],
+  sourceTiers,
+}) {
   const missing = [];
   const passed = [];
   const grantPermissions = new Set(grants.map((grant) => grant.permission));
-  const strongGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
+  const strongWorkspaceGrant = ["owner", "admin", "manage", "operate", "edit"].some((permission) => grantPermissions.has(permission));
+  const platformAuthorityScope = resolveExactAdminResourceAuthority({
+    principal,
+    bindings: platformResourceAuthorityBindings,
+    tenantId,
+    workspaceId,
+    resourceType,
+    resourceUri,
+    resourceBranch,
+    expectedCommitSha,
+    recipeKey,
+    operationMode,
+  });
+  const exactPlatformAuthority = platformAuthorityScope.matched === true;
+  const strongAuthority = strongWorkspaceGrant || exactPlatformAuthority;
+
   if (workspace) passed.push("workspace_resolved");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_context_missing_or_unresolved");
 
   if (grants.length) passed.push("workspace_resource_grant_present");
+  else if (exactPlatformAuthority) passed.push("exact_platform_resource_authority_present");
   else if (["high", "critical"].includes(risk)) missing.push("workspace_resource_grant_missing_for_high_risk_operation");
 
   if (brandKey) {
@@ -415,12 +665,18 @@ function authorityStatus({ workspace, grants = [], brandKey, brandCore, activity
   if (dispatchRows.length) passed.push("dispatch_certification_present");
   else if (["high", "critical"].includes(risk)) missing.push("dispatch_certification_missing_or_not_allowed");
 
-  if (["high", "critical"].includes(risk) && !strongGrant) missing.push("elevated_permission_missing");
+  if (["high", "critical"].includes(risk) && !strongAuthority) missing.push("elevated_permission_missing");
 
   if (sourceTiers.selected_source_tier === "platform_managed_fallback") {
     passed.push("platform_fallback_requires_quota_audit_disclosure");
   }
-  return { passed, missing, status: missing.length ? "incomplete" : "passed" };
+  return {
+    passed,
+    missing,
+    status: missing.length ? "incomplete" : "passed",
+    exact_platform_resource_authority: exactPlatformAuthority,
+    exact_platform_resource_authority_scope: platformAuthorityScope,
+  };
 }
 
 export async function runCapabilityResolutionDryRun(args = parseArgs()) {
@@ -433,12 +689,24 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const workspaceId = normalizeKey(args.workspaceId || workspace?.workspace_id || "");
   const workspaceType = normalizeKey(args.workspaceType || workspace?.workspace_type || "unknown");
   const brandKey = normalizeKey(args.brandKey || workspace?.linked_brand_key || "");
+  const principal = normalizePrincipalContext(args);
+  const requestedAuthority = resourceAuthorityContext(args);
   const activity = await loadActivity(pool, args.businessActivityType);
   const app = await loadApp(pool, args.appKey);
   const appMap = await loadAppMap(pool, args.appKey);
   const brandCore = await loadBrandCore(pool, brandKey);
-  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: args.userId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
-  const connections = await loadConnections(pool, { tenantId, userId: args.userId, appKey: args.appKey });
+  const workspaceGrantPrincipalId = principal.principal_id;
+  const userPrincipalId = principal.principal_type === "user" ? principal.principal_id : "";
+  const grants = await loadWorkspaceGrants(pool, { tenantId, userId: workspaceGrantPrincipalId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
+  const platformResourceAuthorityBindings = await loadPlatformResourceAuthorityBindings(pool, {
+    tenantId,
+    workspaceId,
+    principal,
+    resourceType: requestedAuthority.resource_type,
+    resourceUri: requestedAuthority.resource_uri,
+    recipeKey: requestedAuthority.recipe_key,
+  });
+  const connections = await loadConnections(pool, { tenantId, userId: userPrincipalId, appKey: args.appKey });
   const credentialBindings = await loadCredentialBindings(pool, { tenantId, appKey: args.appKey, capabilityKey: args.capabilityKey });
   const certificationCandidates = unique([
     args.capabilityKey,
@@ -450,7 +718,26 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const certifications = await loadDispatchCertification(pool, certificationCandidates);
   const risk = riskForOperation(args.operationIntent);
   const sourceTiers = deriveSourceTiers({ appMap, connections, credentialBindings, operationRisk: risk, policy });
-  const authority = authorityStatus({ workspace, grants, brandKey, brandCore, activity, risk, certifications, sourceTiers });
+  const authority = authorityStatus({
+    workspace,
+    grants,
+    platformResourceAuthorityBindings,
+    principal,
+    resourceType: requestedAuthority.resource_type,
+    resourceUri: requestedAuthority.resource_uri,
+    resourceBranch: requestedAuthority.resource_branch,
+    expectedCommitSha: requestedAuthority.expected_commit_sha,
+    recipeKey: requestedAuthority.recipe_key,
+    operationMode: requestedAuthority.operation_mode,
+    tenantId,
+    workspaceId,
+    brandKey,
+    brandCore,
+    activity,
+    risk,
+    certifications,
+    sourceTiers,
+  });
   const availableRuntimeSurfaces = unique([
     ...appMap.map((row) => row.runtime_capability_class).filter(Boolean),
     ...appMap.map((row) => row.connector_family).filter(Boolean),
@@ -459,7 +746,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const blockingGaps = [];
   if (!app) blockingGaps.push("app_integration_missing_or_unresolved");
   if (!tenantId) blockingGaps.push("tenant_id_missing");
-  if (!args.userId) blockingGaps.push("user_id_missing");
+  if (!principal.principal_id) blockingGaps.push("user_id_missing");
   if (!args.appKey && !args.capabilityKey) blockingGaps.push("app_key_or_capability_key_required");
   if (!connections.length && !credentialBindings.length && !appMap.some((row) => row.credential_source === "platform_managed" || row.credential_source === "none")) blockingGaps.push("no_active_connection_or_credential_binding_found");
   blockingGaps.push(...authority.missing);
@@ -480,7 +767,8 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
     source_tier_policy_key: SOURCE_TIER_POLICY_KEY,
     request_context: {
       tenant_id: tenantId || null,
-      user_id: args.userId || null,
+      user_id: principal.principal_type === "user" ? principal.principal_id || null : null,
+      principal: principal.principal_id ? principal : null,
       workspace_id: workspaceId || null,
       workspace_key: workspace?.workspace_key || args.workspaceKey || null,
       workspace_type: workspaceType,
@@ -488,6 +776,12 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       brand_key: brandKey || null,
       business_activity_type: args.businessActivityType || null,
       operation_intent: args.operationIntent,
+      operation_mode: requestedAuthority.operation_mode || null,
+      resource_type: requestedAuthority.resource_type || null,
+      resource_uri: requestedAuthority.resource_uri || null,
+      resource_branch: authority.exact_platform_resource_authority_scope?.matched ? authority.exact_platform_resource_authority_scope.resource_branch : requestedAuthority.resource_branch || null,
+      expected_commit_sha: requestedAuthority.expected_commit_sha || null,
+      recipe_key: requestedAuthority.recipe_key || null,
     },
     capability: {
       app_key: args.appKey || null,
@@ -511,6 +805,17 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       passed: authority.passed,
       missing: authority.missing,
       grants: grants.map((grant) => ({ resource_type: grant.resource_type, resource_ref: grant.resource_ref, permission: grant.permission })),
+      exact_platform_resource_authority: authority.exact_platform_resource_authority,
+      exact_platform_resource_authority_scope: authority.exact_platform_resource_authority_scope,
+      platform_resource_authority_bindings: platformResourceAuthorityBindings.map((binding) => ({
+        binding_id: binding.binding_id,
+        resource_type: binding.resource_type,
+        resource_uri: binding.resource_uri,
+        recipe_key: binding.recipe_key,
+        permission_level: binding.permission_level,
+        allowed_modes: parseAllowedModes(binding.allowed_modes_json),
+        expires_at: binding.expires_at || null,
+      })),
       brand_core_present: Boolean(brandCore),
       dispatch_certifications: certifications.map((row) => ({ certification_key: row.certification_key, surface_key: row.surface_key || null, tool_or_action_key: row.tool_or_action_key || null, dispatch_allowed: Boolean(row.dispatch_allowed), apply_allowed: Boolean(row.apply_allowed), status: row.certification_status })),
     },
@@ -535,6 +840,9 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
       notes: [
         "This is a dry-run envelope only; no tool/app/runtime was executed.",
         "Workspace_type values are read from the current workspace_registry enum; extended archetypes are policy-level context until a separate schema migration is approved.",
+        "Exact platform resource authority may satisfy high-risk resource authority for typed service principals only; a legacy untyped principal id qualifies only when the exact persisted binding proves principal_type=service for the same principal id.",
+        "Exact platform resource authority is bound to its stored repository branch and expected commit SHA; ambiguous or mismatched execution scope fails closed.",
+        "Resource authority never satisfies dispatch certification, approval, readback, protected-branch, or mutation-policy gates.",
         "No credential values are read or returned; only counts and metadata are exposed.",
       ],
       source_tier_policy: sourceTierConfig?.json || null,

@@ -6,10 +6,12 @@ import { COMMENT_MARKER, upsertEvidenceComment } from "./ci-evidence-pr-comment.
 
 const READ_ONLY_CONTRACT = "mad4b.pr-generated-artifact-refresh-summary.v1";
 const GOVERNED_APPLY_CONTRACT = "mad4b.governed-generated-artifact-refresh.v1";
+const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
+const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
 const SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const CONCLUSIONS = new Set(["success", "failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale", "skipped", "neutral"]);
-const ALLOWED_GENERATED_PATHS = new Set([
+const FRONTEND_OPENAPI_ALLOWED_GENERATED_PATHS = new Set([
   "http-generic-api/openapi.yaml",
   "http-generic-api/openapi/support-tickets.yaml",
   "http-generic-api/frontend-operation-governance.generated.json",
@@ -21,6 +23,31 @@ const ALLOWED_GENERATED_PATHS = new Set([
   "http-generic-api/openapi/openapi.tenant-gpt.activation.yaml",
   "http-generic-api/openapi.gpt-action.local-connector.yaml",
 ]);
+const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
+  "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+  "specs/014-governed-hostinger-storage-orchestration/tasks.md",
+  "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+]);
+const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
+  ".github/workflows/spec-kit-work-map-autofix.yml",
+  "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+]);
+const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
+  /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
+  /^\.github\/repository-maintenance-tool-governance\.json$/u,
+  /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
+  /^docs\/ci-evidence-routing\.md$/u,
+  /^docs\/runbooks\/supervisor-runtime-assurance\.md$/u,
+  /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
+  /^http-generic-api\/scripts\/platform-work-map-generator\.mjs$/u,
+  /^http-generic-api\/scripts\/taxonomy\/automation-overlap-policy\.json$/u,
+  /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
+  /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
+  /^http-generic-api\/test-spec014-refresh-final-work-map-binding\.mjs$/u,
+  /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
+  /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
+];
 
 function parseArgs(argv) {
   const options = { repository: null, prNumber: null, headBranch: null, workflowConclusion: null, reportFile: null, workflowRunId: null, sourceHeadSha: null, token: process.env.GITHUB_TOKEN || null };
@@ -76,6 +103,36 @@ async function request(url, { token, method = "GET", body } = {}) {
 
 function isMerged(pr) {
   return pr?.merged === true || Boolean(pr?.merged_at);
+}
+
+function isWorkMapBootstrapOutput(file) {
+  return file.startsWith("docs/work-maps/") || WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS.has(file);
+}
+
+function isAllowedWorkMapSelfHostingSource(file) {
+  return isWorkMapBootstrapOutput(file) || WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS.some((pattern) => pattern.test(file));
+}
+
+function assertGovernedRecipeScope(report) {
+  const recipe = report?.recipe || FRONTEND_OPENAPI_RECIPE;
+  if (recipe === FRONTEND_OPENAPI_RECIPE) {
+    if (report.changed_files.some((file) => !FRONTEND_OPENAPI_ALLOWED_GENERATED_PATHS.has(file))) {
+      throw new Error("Governed apply report changed_files exceed the frontend/OpenAPI recipe allowlist.");
+    }
+    return recipe;
+  }
+  if (recipe !== WORK_MAP_BOOTSTRAP_RECIPE) throw new Error("Governed apply report recipe is not registered.");
+  if (!Array.isArray(report?.candidate_source_files)) throw new Error("Work Map bootstrap report requires candidate_source_files.");
+  if (!report.candidate_source_files.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file))) {
+    throw new Error("Work Map bootstrap report requires a registered self-hosting trigger.");
+  }
+  if (report.candidate_source_files.some((file) => !isAllowedWorkMapSelfHostingSource(file))) {
+    throw new Error("Work Map bootstrap report candidate_source_files exceed the registered self-hosting scope.");
+  }
+  if (report.changed_files.some((file) => !isWorkMapBootstrapOutput(file))) {
+    throw new Error("Governed apply report changed_files exceed the Work Map bootstrap recipe allowlist.");
+  }
+  return recipe;
 }
 
 async function resolvePullRequest(options, api, { headBranch = options.headBranch, candidateSha = options.sourceHeadSha } = {}) {
@@ -147,9 +204,8 @@ export function normalizeGovernedGeneratedArtifactEvidence({ report, workflowCon
   }
   if (!SHA_PATTERN.test(report?.expected_head_sha || "")) throw new Error("Governed apply report requires an exact expected_head_sha.");
   if (report?.commit_sha !== null && !SHA_PATTERN.test(report.commit_sha || "")) throw new Error("Governed apply report commit_sha is invalid.");
-  if (!Array.isArray(report?.changed_files) || report.changed_files.some((file) => !ALLOWED_GENERATED_PATHS.has(file))) {
-    throw new Error("Governed apply report changed_files exceed the registered allowlist.");
-  }
+  if (!Array.isArray(report?.changed_files)) throw new Error("Governed apply report changed_files must be an array.");
+  const recipe = assertGovernedRecipeScope(report);
   if (report?.routing?.source_of_truth !== "canonical_report" || report?.routing?.consult_job_logs !== false) {
     throw new Error("Governed apply report must remain canonical and Job-log independent.");
   }
@@ -174,6 +230,7 @@ export function normalizeGovernedGeneratedArtifactEvidence({ report, workflowCon
     outcome: report.outcome,
     detail: report.first_failure?.code || (report.commit_sha ? `generated commit ${report.commit_sha}` : "generated artifacts already current"),
     artifactContract: report.contract,
+    recipe,
     targetRef: report.target_ref,
     expectedHeadSha: report.expected_head_sha,
     commitSha: report.commit_sha,
