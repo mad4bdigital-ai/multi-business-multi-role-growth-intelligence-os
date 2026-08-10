@@ -16,11 +16,22 @@ The tool:
 - reads only a repository migration file under `http-generic-api/migrations`;
 - requires the normal migration preflight to pass with zero risk findings;
 - rejects destructive SQL including drop, truncate, delete, destructive alter, table rename, or disabled foreign-key checks;
-- creates only one checksum-bound authorization-registry row;
+- defaults to `executor_readiness_mode=ensure`, preserving the existing behavior that ensures the exact governed migration apply policy and runtime dispatch certification before completing authorization;
+- supports `executor_readiness_mode=require_existing` for readiness-only callers that must verify those exact executor controls without creating or updating either;
+- in `require_existing` mode, fails closed before authorization-registry mutation if either executor control is missing or mismatched;
+- creates or updates only the checksum-bound authorization-registry row after the selected executor-readiness contract is satisfied;
 - sets `risk_tier=medium`, `requires_preflight=1`, `requires_confirmation=1`, `allow_record_only=0`, and `allow_apply=1`;
 - performs same-cycle authorization readback;
 - marks the Capability Resolution Envelope referenced only after a successful or idempotent readback;
 - never executes the target migration, calls a provider, sends externally, reads credentials, or returns secrets.
+
+## Executor readiness modes
+
+`ensure` is the default and is backward compatible. It may create or update the exact governed migration apply policy and runtime dispatch certification required by the migration executor, then verifies both through same-cycle readback.
+
+`require_existing` is read-only with respect to those two executor-readiness registries. It verifies the exact existing apply policy and runtime dispatch certification and fails closed if either is missing or mismatched. It does not issue, refresh, or modify the certification or apply policy.
+
+Neither mode executes migration SQL. Selecting `require_existing` changes only executor-readiness handling; it does not relax migration checksum, preflight, authorization, confirmation, envelope, ledger, or readback requirements.
 
 ## Typed confirmation
 
@@ -41,7 +52,7 @@ AUTHORIZE_GOVERNED_MIGRATION_1020_SPRINT69_MULTI_SURFACE_TENANT_AGENT_RUNTIME
 1. Merge the reviewed migration and bootstrap-tool code through a governed PR with passing CI.
 2. Verify production Git HEAD matches the merged `main` commit.
 3. Create and approve a short-lived Capability Resolution Envelope for `governed_migration_authorization_bootstrap`.
-4. Call the bootstrap tool with checksum, statement count, PR, merge SHA, typed confirmation, and envelope ID.
+4. Call the bootstrap tool with checksum, statement count, PR, merge SHA, typed confirmation, envelope ID, and the intended executor-readiness mode. Use `require_existing` when a readiness-only bridge must not issue or refresh executor apply-policy or runtime-dispatch-certification state.
 5. Read back the authorization row in the same cycle.
 6. Call the Admin virtual tool `governed_migration_execute` with `mode=dry_run`, the exact merged checksum, and exact statement count.
 7. Apply through the same tool only when dry-run passes, using a ready `platform_orchestration` Capability Resolution Envelope and the deterministic `APPLY_<MIGRATION>` confirmation. Do not invoke the generic `admin_control` shell alias directly.
