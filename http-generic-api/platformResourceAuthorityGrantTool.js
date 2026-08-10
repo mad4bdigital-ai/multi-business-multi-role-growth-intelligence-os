@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getPool } from "./db.js";
+import { getGovernancePool } from "./governanceDb.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -44,6 +45,30 @@ function badRequest(code, message, details = undefined) {
   err.code = code;
   err.statusCode = 400;
   if (details) err.details = details;
+  return err;
+}
+
+function persistenceUnavailable(operation, cause) {
+  const err = new Error("The governed resource authority store is not writable or readable for the required operation.");
+  err.code = "platform_resource_authority_persistence_unavailable";
+  err.statusCode = 503;
+  err.details = {
+    cause_code: cause?.code || null,
+    table: "platform_resource_authority_bindings",
+    required_operation: operation,
+    secrets_included: false,
+  };
+  return err;
+}
+
+function readbackFailed(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  err.statusCode = 500;
+  err.details = {
+    table: "platform_resource_authority_bindings",
+    secrets_included: false,
+  };
   return err;
 }
 
@@ -321,51 +346,60 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
   return plan;
 }
 
-export async function applyPlatformResourceAuthorityGrant(args = {}) {
-  const plan = buildPlatformResourceAuthorityGrantPlan(args);
-  if (plan.mode === "dry_run") {
-    return { ...plan, readback_verified: false };
-  }
-
-  const pool = getPool();
-  const bindingId = crypto.randomUUID();
-  await pool.query(
-    `INSERT INTO platform_resource_authority_bindings
-      (binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
-       recipe_key, permission_level, allowed_modes_json, authority_source, expires_at, status, notes, created_by)
-     VALUES
-      (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), 'active', ?, ?)`,
-    [
-      bindingId,
-      plan.tenant_id,
-      plan.workspace_id,
-      plan.user_id,
-      plan.resource_type,
-      plan.resource_uri,
-      JSON.stringify(plan.resource_ref),
-      plan.recipe_key,
-      plan.permission_level,
-      JSON.stringify(plan.allowed_modes),
-      plan.authority_source,
-      plan.ttl_minutes,
-      plan.notes,
-      plan.created_by,
-    ]
-  );
-
-  const [[row]] = await pool.query(
-    `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, recipe_key,
+const RESOURCE_AUTHORITY_READBACK_SQL = `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, recipe_key,
             permission_level, allowed_modes_json, authority_source, resource_ref_json, expires_at, status, created_at
        FROM platform_resource_authority_bindings
       WHERE binding_id = ?
-      LIMIT 1`,
-    [bindingId]
-  );
+      LIMIT 1`;
+
+export async function applyPlatformResourceAuthorityGrant(args = {}, deps = {}) {
+  const plan = buildPlatformResourceAuthorityGrantPlan(args);
+  if (plan.mode === "dry_run") {
+    return { ...plan, readback_verified: false, runtime_readback_verified: false };
+  }
+
+  const writerPool = deps.writerPool || getGovernancePool();
+  const readPool = deps.readPool || getPool();
+  const bindingId = crypto.randomUUID();
+  try {
+    await writerPool.query(
+      `INSERT INTO platform_resource_authority_bindings
+        (binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
+         recipe_key, permission_level, allowed_modes_json, authority_source, expires_at, status, notes, created_by)
+       VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(UTC_TIMESTAMP(), INTERVAL ? MINUTE), 'active', ?, ?)`,
+      [
+        bindingId,
+        plan.tenant_id,
+        plan.workspace_id,
+        plan.user_id,
+        plan.resource_type,
+        plan.resource_uri,
+        JSON.stringify(plan.resource_ref),
+        plan.recipe_key,
+        plan.permission_level,
+        JSON.stringify(plan.allowed_modes),
+        plan.authority_source,
+        plan.ttl_minutes,
+        plan.notes,
+        plan.created_by,
+      ]
+    );
+  } catch (cause) {
+    throw persistenceUnavailable("insert", cause);
+  }
+
+  let row;
+  try {
+    [[row]] = await writerPool.query(RESOURCE_AUTHORITY_READBACK_SQL, [bindingId]);
+  } catch (cause) {
+    throw persistenceUnavailable("select", cause);
+  }
   if (!row || row.status !== "active") {
-    const err = new Error("Resource authority grant readback failed after insert.");
-    err.code = "platform_resource_authority_grant_readback_failed";
-    err.statusCode = 500;
-    throw err;
+    throw readbackFailed(
+      "platform_resource_authority_grant_readback_failed",
+      "Resource authority grant readback failed after insert.",
+    );
   }
 
   let storedResourceRef;
@@ -379,11 +413,25 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
     storedPrincipal?.principal_type !== plan.principal.principal_type ||
     storedPrincipal?.principal_id !== plan.principal.principal_id
   ) {
-    const err = new Error("Resource authority principal readback failed after insert.");
-    err.code = "platform_resource_authority_grant_principal_readback_failed";
-    err.statusCode = 500;
-    throw err;
+    throw readbackFailed(
+      "platform_resource_authority_grant_principal_readback_failed",
+      "Resource authority principal readback failed after insert.",
+    );
   }
+
+  let runtimeRow;
+  try {
+    [[runtimeRow]] = await readPool.query(RESOURCE_AUTHORITY_READBACK_SQL, [bindingId]);
+  } catch (cause) {
+    throw persistenceUnavailable("runtime_select", cause);
+  }
+  if (!runtimeRow || runtimeRow.status !== "active") {
+    throw readbackFailed(
+      "platform_resource_authority_grant_runtime_readback_failed",
+      "Resource authority grant is not visible through the ordinary runtime read plane.",
+    );
+  }
+
   const binding = { ...row, principal: storedPrincipal };
   delete binding.resource_ref_json;
 
@@ -392,6 +440,7 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
     mode: "apply",
     binding,
     readback_verified: true,
+    runtime_readback_verified: true,
     expected_confirm: plan.expected_confirm,
     secrets_included: false,
   };
