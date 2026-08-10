@@ -38,6 +38,8 @@ export function evaluateGovernanceDbPrivilegeReadiness({
   userPrivileges = [],
   schemaPrivileges = [],
   tablePrivileges = [],
+  columnPrivileges = [],
+  applicableRoles = [],
 } = {}) {
   const targetDatabase = schemaName(database);
   if (!targetDatabase) {
@@ -52,6 +54,8 @@ export function evaluateGovernanceDbPrivilegeReadiness({
   let unexpectedSchemaPrivilegeCount = 0;
   let unexpectedTableScopeCount = 0;
   let unexpectedTablePrivilegeCount = 0;
+  let unexpectedColumnPrivilegeCount = 0;
+  let applicableRoleCount = 0;
 
   for (const row of Array.isArray(userPrivileges) ? userPrivileges : []) {
     const observed = privilege(row?.PRIVILEGE_TYPE ?? row?.privilege_type);
@@ -85,6 +89,16 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     observedRequired.add(`${observedTable}:${observedPrivilege}`);
   }
 
+  for (const row of Array.isArray(columnPrivileges) ? columnPrivileges : []) {
+    const observedPrivilege = privilege(row?.PRIVILEGE_TYPE ?? row?.privilege_type);
+    if (observedPrivilege) unexpectedColumnPrivilegeCount += 1;
+  }
+
+  for (const row of Array.isArray(applicableRoles) ? applicableRoles : []) {
+    const observedRole = text(row?.ROLE_NAME ?? row?.role_name ?? row?.ROLE ?? row?.role);
+    if (observedRole || Object.keys(row ?? {}).length > 0) applicableRoleCount += 1;
+  }
+
   const missingRequired = requiredPrivilegeKeys().filter((key) => !observedRequired.has(key));
   const checks = {
     required_table_privileges_complete: missingRequired.length === 0,
@@ -92,6 +106,8 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     no_schema_wide_privileges: unexpectedSchemaPrivilegeCount === 0,
     no_unexpected_table_scopes: unexpectedTableScopeCount === 0,
     no_extra_table_privileges: unexpectedTablePrivilegeCount === 0,
+    no_column_level_privileges: unexpectedColumnPrivilegeCount === 0,
+    no_applicable_roles: applicableRoleCount === 0,
   };
 
   return {
@@ -105,6 +121,8 @@ export function evaluateGovernanceDbPrivilegeReadiness({
     unexpected_schema_privilege_count: unexpectedSchemaPrivilegeCount,
     unexpected_table_scope_count: unexpectedTableScopeCount,
     unexpected_table_privilege_count: unexpectedTablePrivilegeCount,
+    unexpected_column_privilege_count: unexpectedColumnPrivilegeCount,
+    applicable_role_count: applicableRoleCount,
     secrets_included: false,
   };
 }
