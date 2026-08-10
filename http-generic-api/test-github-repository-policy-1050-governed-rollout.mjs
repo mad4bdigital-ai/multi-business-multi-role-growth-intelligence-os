@@ -5,6 +5,7 @@ const read = (path) => fs.readFileSync(new URL(path, import.meta.url), 'utf8');
 
 const workflow = read('../.github/workflows/github-repository-policy-1050-governed-rollout.yml');
 const runner = read('../.github/ops/github-repository-policy-1050-governed-rollout.mjs');
+const readinessDiagnosticWrapper = read('../.github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs');
 const migration = read('./migrations/1050_github_repository_policy_controller_bootstrap_repair.sql');
 
 assert.match(workflow, /^name: Governed Migration 1050 GitHub Repository Policy Bootstrap Repair Rollout/m);
@@ -17,6 +18,26 @@ assert.match(workflow, /APPLY_1050_GITHUB_REPOSITORY_POLICY_CONTROLLER_BOOTSTRAP
 assert.match(workflow, /VERIFY_GOVERNED_MIGRATION_1050_GITHUB_REPOSITORY_POLICY_CONTROLLER_BOOTSTRAP_REPAIR/);
 assert.match(workflow, /persist-credentials: false/g);
 assert.doesNotMatch(workflow, /APPLY_GITHUB_MAIN_REVIEW_POLICY/);
+assert.equal((workflow.match(/node \.github\/ops\/github-repository-policy-1050-readiness-diagnostic-wrapper\.mjs/g) || []).length, 1, 'Only readiness may use the bounded diagnostic wrapper');
+assert.equal((workflow.match(/node \.github\/ops\/github-repository-policy-1050-governed-rollout\.mjs/g) || []).length, 2, 'Apply and Verify must continue to call the canonical rollout runner directly');
+
+assert.match(readinessDiagnosticWrapper, /const originalFetch = globalThis\.fetch;/);
+assert.equal((readinessDiagnosticWrapper.match(/await originalFetch\(input, init\)/g) || []).length, 1, 'Diagnostic wrapper must execute each governed request exactly once');
+assert.match(readinessDiagnosticWrapper, /response\.clone\(\)\.json\(\)/);
+assert.match(readinessDiagnosticWrapper, /PHASE !== 'readiness' \|\| response\.ok/);
+assert.match(readinessDiagnosticWrapper, /child_error_code: child\.code/);
+assert.match(readinessDiagnosticWrapper, /raw_stdout_included: false/);
+assert.match(readinessDiagnosticWrapper, /raw_stderr_included: false/);
+assert.match(readinessDiagnosticWrapper, /error_message_included: false/);
+assert.match(readinessDiagnosticWrapper, /request_body_included: false/);
+assert.match(readinessDiagnosticWrapper, /response_headers_included: false/);
+assert.match(readinessDiagnosticWrapper, /request_headers_included: false/);
+assert.match(readinessDiagnosticWrapper, /request_retried: false/);
+assert.match(readinessDiagnosticWrapper, /secrets_included: false/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /parsed\?\.error\?\.message/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /adminError\?\.message/);
+assert.doesNotMatch(readinessDiagnosticWrapper, /JSON\.stringify\(payload/);
+assert.match(readinessDiagnosticWrapper, /await import\('\.\/github-repository-policy-1050-governed-rollout\.mjs'\);/);
 
 assert.match(runner, /const SOURCE_PR = Number\(process\.env\.SOURCE_PR \|\| 6746\);/);
 assert.match(runner, /const UPSTREAM_REPAIR_PR = 6629;/);
