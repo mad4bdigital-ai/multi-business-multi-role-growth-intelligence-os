@@ -21,7 +21,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Execute the reviewed tenant-request identity collation migration through the governed authorization bootstrap and checksum-bound Dry Run lifecycle without making migration SQL Apply available in this workflow.",
+      "objective": "Execute the reviewed tenant-request identity collation migration through the governed authorization bootstrap and checksum-bound Dry Run lifecycle without making migration SQL Apply available, while preserving exact failure provenance and reconciling ambiguous envelope-create outcomes with a bounded SELECT-only ledger readback.",
       "e2e_journeys": [
         {
           "id": "tenant-request-identity-collation-governed-dry-run",
@@ -29,16 +29,22 @@
           "level": "synthetic_runtime",
           "actor": "repository owner operating through Issue #4449",
           "entrypoint": "Issue comment AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT",
-          "terminal_outcome": "Trusted-main tooling records or reads back the checksum-bound authorization and verifies governed_migration_execute mode=dry_run with applies_sql=false; no Apply request, provider call, credential payload access, or external business write occurs.",
+          "terminal_outcome": "Trusted-main tooling records or reads back the checksum-bound authorization and verifies governed_migration_execute mode=dry_run with applies_sql=false; if envelope creation fails, the runner preserves sanitized nested failure evidence, classifies write outcome without false negatives, performs only an exact-run SELECT-only ledger reconciliation, and stops before approval/bootstrap/Dry Run continuation.",
           "steps": [
             "Verify current main and Production refs contain source merge 894f112c452887e9c8f3f58fe55af598cb04af31 and Production exposes the reviewed migration blob.",
-            "Create and, only when required, approve a short-lived Capability Resolution Envelope for governed_migration_authorization_bootstrap, bound to the current Production SHA and migration checksum.",
-            "Call governed_migration_authorization_bootstrap with the exact migration filename, checksum, statement count, source PR, source merge SHA, typed authorization confirmation, and envelope ID; require migration_sql_executed=false.",
+            "Create a per-run requested_by correlation key from the GitHub run ID and attempt, mark the managed control-plane create outcome attempted_unknown before the request, and only mark it confirmed after a successful response.",
+            "If envelope creation fails, preserve sanitized HTTP status, payload, child stdout/stderr and transport evidence, then query capability_resolution_envelope_ledger through the shared read-only admin DB builder using only the exact per-run requested_by key.",
+            "Classify create failure as no_matching_row_after_failure, matching_row_persisted_response_failed, or reconciliation_unavailable and stop without envelope approval, authorization bootstrap, or governed migration execution.",
+            "On a successful create path, approve only when required, call governed_migration_authorization_bootstrap with the exact migration filename, checksum, statement count, source PR, source merge SHA, typed authorization confirmation, and envelope ID; require migration_sql_executed=false.",
             "Call governed_migration_execute exactly once with mode=dry_run and the exact checksum and statement count.",
             "Require mode=dry_run and applies_sql=false, persist sanitized evidence, and terminate without any Apply stage."
           ],
           "assertions": [
             "The workflow only accepts the exact Issue #4449 authorization token from OWNER, MEMBER, or COLLABORATOR and checks out trusted main.",
+            "A control-plane create attempt is never reported as confirmed false merely because its HTTP response failed: the evidence exposes not_attempted, attempted_unknown, or confirmed outcome semantics.",
+            "Envelope-create failures retain sanitized nested response payload, stdout, stderr, transport and HTTP status evidence.",
+            "Failure reconciliation is SELECT-only, uses the shared governed admin DB read request builder, and is correlated to an exact GitHub run ID plus run attempt through requested_by.",
+            "A failed envelope-create response cannot proceed to envelope approval, authorization bootstrap, or governed_migration_execute.",
             "The authorization bootstrap may persist authorization evidence but never executes target migration SQL.",
             "The runner contains exactly one governed migration execution request and it is mode=dry_run.",
             "No mode=apply or APPLY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT confirmation exists in the runner or workflow.",
