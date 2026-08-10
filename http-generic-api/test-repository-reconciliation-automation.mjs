@@ -38,10 +38,7 @@ class Pool {
     ];
   }
 
-  async getConnection() {
-    return this;
-  }
-
+  async getConnection() { return this; }
   async beginTransaction() {}
   async commit() {}
   async rollback() {}
@@ -61,71 +58,41 @@ class Pool {
     if (q.startsWith("UPDATE repository_operation_leases") && q.includes("resource_key=?") && q.includes("expires_at<=CURRENT_TIMESTAMP")) {
       return [{ affectedRows: 0 }];
     }
-
     if (q.startsWith("UPDATE repository_operation_leases") && q.includes("lease_id=?") && q.includes("expires_at<=CURRENT_TIMESTAMP")) {
       return [{ affectedRows: 0 }];
     }
-
     if (q.startsWith("SELECT lease_id") && q.includes("FROM repository_operation_leases") && q.includes("WHERE resource_key=?")) {
       return [[this.activeLeaseByResource(params[0])].filter(Boolean)];
     }
-
     if (q.startsWith("INSERT INTO repository_operation_leases")) {
-      const [
-        lease_id,
-        repository_owner,
-        repository_name,
-        branch_name,
-        resource_key,
-        operation_key,
-        operation_fingerprint,
-        resource_fingerprint,
-        holder_run_id,
-        holder_actor_type,
-        holder_actor_id,
-        lease_mode,
-        ttl_seconds,
-      ] = params;
+      const [lease_id, repository_owner, repository_name, branch_name, resource_key, operation_key,
+        operation_fingerprint, resource_fingerprint, holder_run_id, holder_actor_type, holder_actor_id,
+        lease_mode, ttl_seconds] = params;
       if (this.activeLeaseByResource(resource_key)) {
         const error = new Error("duplicate lease");
         error.code = "ER_DUP_ENTRY";
         throw error;
       }
       this.leases.push({
-        lease_id,
-        repository_owner,
-        repository_name,
-        branch_name,
-        resource_key,
-        operation_key,
-        operation_fingerprint,
-        resource_fingerprint,
-        holder_run_id,
-        holder_actor_type,
-        holder_actor_id,
-        lease_mode,
-        status: "active",
-        acquired_at: "2026-06-30T12:00:00Z",
+        lease_id, repository_owner, repository_name, branch_name, resource_key, operation_key,
+        operation_fingerprint, resource_fingerprint, holder_run_id, holder_actor_type, holder_actor_id,
+        lease_mode, status: "active", acquired_at: "2026-06-30T12:00:00Z",
         renewed_at: "2026-06-30T12:00:00Z",
         expires_at: new Date(Date.now() + Number(ttl_seconds || 900) * 1000).toISOString(),
-        released_at: null,
-        release_reason: null,
+        released_at: null, release_reason: null,
       });
       return [{ affectedRows: 1 }];
     }
-
     if (q.startsWith("SELECT lease_id") && q.includes("FROM repository_operation_leases") && q.includes("WHERE lease_id=?")) {
       const row = this.findLeaseById(params[0]);
       if (q.includes("status='active'") && (!row || row.status !== "active")) return [[]];
       return [[row].filter(Boolean)];
     }
-
     if (q.startsWith("UPDATE repository_operation_leases") && q.includes("renewed_at=CURRENT_TIMESTAMP")) {
       const row = this.findLeaseById(params[1]);
       if (row && row.status === "active") row.renewed_at = "2026-06-30T12:00:01Z";
       return [{ affectedRows: row ? 1 : 0 }];
     }
-
     if (q.startsWith("UPDATE repository_operation_leases") && q.includes("status='released'")) {
       const row = this.findLeaseById(params[1]);
       if (row && row.status === "active") {
@@ -135,10 +102,8 @@ class Pool {
       }
       return [{ affectedRows: row ? 1 : 0 }];
     }
-
     if (q.includes("FROM platform_resource_recipes")) return [[this.recipe]];
     if (q.includes("FROM platform_resource_recipe_steps")) return [this.steps];
-
     throw new Error(`Unexpected SQL in test fake pool: ${q.slice(0, 180)}`);
   }
 }
@@ -153,11 +118,7 @@ const lease = {
   holder_run_id: "run-1",
 };
 
-assert.equal(
-  repositoryOperationLeaseResourceKey(lease),
-  "github://o/r/branch/gpt/test",
-);
-
+assert.equal(repositoryOperationLeaseResourceKey(lease), "github://o/r/branch/gpt/test");
 await assert.rejects(
   () => acquireRepositoryOperationLease({ ...lease, branch_name: "main" }, { pool }),
   (error) => error.code === "repository_operation_lease_protected_branch",
@@ -166,21 +127,17 @@ await assert.rejects(
 const acquired = await acquireRepositoryOperationLease(lease, { pool, uuid: () => "lease-1" });
 assert.equal(acquired.lease.lease_id, "lease-1");
 assert.equal(acquired.reused, false);
-
 const reused = await acquireRepositoryOperationLease(lease, { pool, uuid: () => "lease-2" });
 assert.equal(reused.reused, true);
-
 const verified = await assertRepositoryOperationLeaseHolder(
   { lease_id: "lease-1", holder_run_id: "run-1", resource_fingerprint: acquired.lease.resource_fingerprint },
   { pool },
 );
 assert.equal(verified.lease.holder_run_id, "run-1");
-
 await assert.rejects(
   () => acquireRepositoryOperationLease({ ...lease, holder_run_id: "run-2" }, { pool, uuid: () => "lease-3" }),
   (error) => error.code === "repository_operation_lease_conflict",
 );
-
 const released = await releaseRepositoryOperationLease(
   { lease_id: "lease-1", holder_run_id: "run-1", resource_fingerprint: acquired.lease.resource_fingerprint },
   { pool },
@@ -197,33 +154,33 @@ const args = {
   mode: "dry_run",
   operation_id: "operation-1",
 };
-const result = await runRepositoryReconciliationOrchestrator(args, {
-  pool,
-  reconcileBranch: async () => ({
-    classification: {
-      classification: "diverged_same_files",
-      ahead_by: 1,
-      behind_by: 2,
-      overlapping_files: ["a.js"],
-    },
-    evidence: {
-      base_ref_sha: "b".repeat(40),
-      branch_ref_sha: "c".repeat(40),
-    },
-  }),
+const reconcileBranch = async () => ({
+  classification: {
+    classification: "diverged_same_files",
+    ahead_by: 1,
+    behind_by: 2,
+    overlapping_files: ["a.js"],
+  },
+  evidence: {
+    base_ref_sha: "b".repeat(40),
+    branch_ref_sha: "c".repeat(40),
+  },
 });
+const result = await runRepositoryReconciliationOrchestrator(args, { pool, reconcileBranch });
 assert.equal(result.ok, true);
 assert.equal(result.apply_allowed, false);
 assert.equal(result.plan.plan.force_push_allowed, false);
 assert.equal(result.plan.plan.migration_apply_allowed, false);
 
 await assert.rejects(
-  () => runRepositoryReconciliationOrchestrator({ ...args, mode: "apply", capability_envelope_id: "e", approval_hold_id: "h" }, {
-    pool,
-    reconcileBranch: async () => ({
-      evidence: { base_ref_sha: "b".repeat(40), branch_ref_sha: "c".repeat(40) },
-    }),
-  }),
+  () => runRepositoryReconciliationOrchestrator({
+    ...args,
+    mode: "apply",
+    plan_id: result.plan.plan_id,
+    plan_sha256: result.plan.plan_sha256,
+    capability_envelope_id: "e",
+    approval_hold_id: "h",
+  }, { pool, reconcileBranch }),
   (error) => error.code === "repository_reconciliation_recipe_not_active",
 );
 

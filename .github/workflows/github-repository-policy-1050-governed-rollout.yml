@@ -40,7 +40,7 @@ jobs:
         with:
           node-version: '22'
       - name: Execute Production-bound authorization and dry-run
-        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+        run: node .github/ops/github-repository-policy-1050-readiness-diagnostic-wrapper.mjs
       - name: Upload no-secret readiness evidence
         if: always()
         uses: actions/upload-artifact@v4
