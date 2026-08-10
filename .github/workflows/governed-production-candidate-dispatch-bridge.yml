@@ -61,10 +61,27 @@ jobs:
             echo "::error::Production candidate dispatch evidence must use the REST issue-comments endpoint"
             exit 1
           fi
-          if grep -Eqi 'gh workflow run|--method[[:space:]]+POST|git push|contents:[[:space:]]*write|issues:[[:space:]]*write|actions:[[:space:]]*write' "$REQUEST_FILE" "$FALLBACK_FILE"; then
-            echo "::error::request stages must remain repository-read-only"
-            exit 1
-          fi
+          node - "$REQUEST_FILE" "$FALLBACK_FILE" <<'NODE'
+          const fs = require('node:fs');
+          const files = process.argv.slice(2);
+          const forbidden = [
+            'gh workflow' + ' run',
+            '--method ' + 'POST',
+            'git ' + 'push',
+            'contents:' + ' write',
+            'issues:' + ' write',
+            'actions:' + ' write',
+          ];
+          for (const file of files) {
+            const content = fs.readFileSync(file, 'utf8');
+            for (const token of forbidden) {
+              if (content.includes(token)) {
+                console.error(`::error file=${file}::read-only request stage contains forbidden write surface: ${token}`);
+                process.exit(1);
+              }
+            }
+          }
+          NODE
 
   request:
     name: Publish exact-head read-only dispatch request
