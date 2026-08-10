@@ -118,6 +118,7 @@ async function main() {
     chunk_ttl_minutes: 5,
   }, {
     pool,
+    writerPool: pool,
     now: Date.parse("2026-06-20T01:00:00.000Z"),
     maybeChunkToolResponseBody,
     evictToolResponseChunkMemoryCache,
