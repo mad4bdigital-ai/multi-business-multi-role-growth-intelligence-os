@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "./db.js";
+import { getGovernanceDbWriteReadiness } from "./governanceDbWriteReadiness.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -263,9 +264,59 @@ export async function listRuntimeVerificationEvidence(runId, options = {}) {
   return stripSensitive({ items: pageRows, page: { hasMore, nextCursor: hasMore ? String(offset + limit) : null }, secrets_included: false });
 }
 
+export function classifyRuntimeParityWithGovernance(row = {}, governanceReadiness = {}) {
+  const recordedProductionParity = String(row.production_parity || "unknown");
+  const recordedBlockingGapCount = Number(row.blocking_gap_count || 0);
+  const governanceReady = governanceReadiness?.status === "ready";
+  const governanceBlockerCount = governanceReady ? 0 : 1;
+  const blockingGapCount = recordedBlockingGapCount + governanceBlockerCount;
+  const productionParity = recordedProductionParity === "verified" && recordedBlockingGapCount === 0 && governanceReady
+    ? "verified"
+    : (recordedProductionParity === "unknown" ? "unknown" : "degraded");
+
+  return {
+    ...row,
+    recorded_production_parity: recordedProductionParity,
+    recorded_blocking_gap_count: recordedBlockingGapCount,
+    production_parity: productionParity,
+    blocking_gap_count: blockingGapCount,
+    readiness_classification: productionParity === "verified" && blockingGapCount === 0 ? "ready" : "blocked",
+    governance_db_write_authority_blocks_production_parity: !governanceReady,
+    governance_db_write_authority: {
+      status: governanceReadiness?.status || "degraded",
+      error_code: governanceReady ? null : (governanceReadiness?.error_code || "runtime_db_write_authority_degraded"),
+      configured: governanceReadiness?.configured === true,
+      connection_ready: governanceReadiness?.connection_ready === true,
+      principal: governanceReadiness?.principal || null,
+      database: governanceReadiness?.database || null,
+      required_surfaces: governanceReadiness?.required_surfaces || {},
+      missing_privileges: governanceReadiness?.missing_privileges || [],
+      missing_count: governanceReadiness?.missing_count ?? null,
+      prohibited_privileges: governanceReadiness?.prohibited_privileges || [],
+      prohibited_grant_count: governanceReadiness?.prohibited_grant_count ?? null,
+      raw_grants_included: false,
+      secrets_included: false,
+    },
+    secrets_included: false,
+  };
+}
+
 export async function getRuntimeParity(environmentKey = "production") {
-  const rows = await query("SELECT environment_key, expected_commit_sha, deployed_commit_sha, production_parity, latest_run_id, ci_gate_status, release_readiness_status, runtime_health_status, activation_summary_status, migration_status, blocking_gap_count, verified_at, status_json, updated_at FROM runtime_deployment_parity_status WHERE environment_key = ? LIMIT 1", [environmentKey]);
-  if (!rows.length) return { environment_key: environmentKey, production_parity: "unknown", blocking_gap_count: 0, secrets_included: false };
+  const [rows, governanceReadiness] = await Promise.all([
+    query("SELECT environment_key, expected_commit_sha, deployed_commit_sha, production_parity, latest_run_id, ci_gate_status, release_readiness_status, runtime_health_status, activation_summary_status, migration_status, blocking_gap_count, verified_at, status_json, updated_at FROM runtime_deployment_parity_status WHERE environment_key = ? LIMIT 1", [environmentKey]),
+    getGovernanceDbWriteReadiness(),
+  ]);
+  if (!rows.length) {
+    return stripSensitive(classifyRuntimeParityWithGovernance({
+      environment_key: environmentKey,
+      production_parity: "unknown",
+      blocking_gap_count: 0,
+      status: {},
+    }, governanceReadiness));
+  }
   const row = rows[0];
-  return stripSensitive({ ...row, status: parseJson(row.status_json, {}), readiness_classification: row.production_parity === "verified" && Number(row.blocking_gap_count || 0) === 0 ? "ready" : "blocked", secrets_included: false });
+  return stripSensitive(classifyRuntimeParityWithGovernance({
+    ...row,
+    status: parseJson(row.status_json, {}),
+  }, governanceReadiness));
 }
