@@ -189,6 +189,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
 - `.github/workflows/tenant-request-identity-collation-dry-run.yml`
+- `.github/workflows/tenant-request-identity-collation-readonly-diagnostic.yml`
 - `.github/workflows/tenant-request-identity-collation-runtime-readiness.yml`
 - `.github/workflows/transport-response-schema-1048-governed-rollout.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
