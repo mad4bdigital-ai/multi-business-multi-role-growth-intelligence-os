@@ -90,6 +90,7 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
   );
 
   const pool = deps.pool;
+  const writerPool = deps.writerPool;
   const maybeChunk = deps.maybeChunkToolResponseBody;
   const evictMemory = deps.evictToolResponseChunkMemoryCache;
   const readChunk = deps.readCachedToolResponseChunk;
@@ -122,7 +123,7 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
     },
     source_tool_key: GOVERNED_RESPONSE_CHUNK_DURABLE_RECOVERY_SOURCE_TOOL,
     ...smokePrincipal,
-  }, { pool, now: createdNow });
+  }, { pool, writerPool, now: createdNow });
 
   assertSmoke(firstPage?.response_chunked === true, "response_chunk_smoke_not_chunked", "The smoke response was not chunked.");
   assertSmoke(firstPage?.cache?.durable === true, "response_chunk_smoke_not_durable", "The smoke response was not marked durable.");
@@ -157,6 +158,7 @@ export async function runGovernedResponseChunkDurableRecoverySmoke(args = {}, de
       ...smokePrincipal,
     }, {
       pool,
+      writerPool,
       now: createdNow + 1000 + pageCount,
     });
     if (pageCount === 0) recoverySource = page.source || null;
