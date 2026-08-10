@@ -9,6 +9,8 @@
   "scope": {
     "include": [
       ".changes/e2e/github-issue-comment-exact-response-parity.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/migrations/20260810_github_issue_comment_exact_response_parity.sql",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-github-issue-comment-exact-response-parity.mjs"
