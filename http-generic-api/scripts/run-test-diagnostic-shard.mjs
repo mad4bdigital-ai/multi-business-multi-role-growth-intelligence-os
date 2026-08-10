@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { testCommands } from "./run-test-manifest.mjs";
+import { TEST_COMMAND_ENV_OVERRIDES, testCommands } from "./run-test-manifest.mjs";
 
 const MAX_PARTITIONS = 64;
 const MAX_MATRIX_JOBS = 64;
@@ -258,10 +258,11 @@ function selectCommands(options) {
 
 function runCommand(command) {
   const [program, ...args] = splitCommand(command);
+  const envOverrides = TEST_COMMAND_ENV_OVERRIDES[command] || {};
   const startedAt = Date.now();
   const result = spawnSync(program === "node" ? process.execPath : program, args, {
     cwd: process.cwd(),
-    env: process.env,
+    env: { ...process.env, ...envOverrides },
     shell: false,
     stdio: "inherit",
   });
