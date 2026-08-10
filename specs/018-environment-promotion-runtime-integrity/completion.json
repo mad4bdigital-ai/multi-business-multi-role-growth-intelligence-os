@@ -29,6 +29,12 @@
         "number": 6852,
         "branch": "gpt/018-production-deploy-authority-20260810",
         "role": "production_deploy_authority_binding",
+        "status": "merged"
+      },
+      {
+        "number": 6876,
+        "branch": "gpt/018-runtime-immutability-20260810",
+        "role": "runtime_immutability_c01_c06",
         "status": "current_pr"
       }
     ],
@@ -41,11 +47,16 @@
   },
   "evidence": {
     "implementation": {
-      "status": "environment_authority_foundation_merged_b04_b09_candidate",
+      "status": "environment_and_deploy_authority_merged_runtime_immutability_candidate",
       "runtime_authority_foundation_merged": true,
-      "production_deploy_binding_candidate": true,
-      "caller_branch_selection_removed_from_candidate_schemas": true,
-      "same_cycle_production_head_readback_candidate": true,
+      "production_deploy_binding_merged": true,
+      "caller_branch_selection_removed_from_governed_schemas": true,
+      "same_cycle_production_head_readback_merged": true,
+      "routine_ssh_application_code_mutation_default_denied": true,
+      "runtime_integrity_readback_candidate": true,
+      "tracked_dirty_runtime_detection_candidate": true,
+      "service_health_separate_from_runtime_integrity_candidate": true,
+      "break_glass_lifecycle_implemented": false,
       "migration_applied": false,
       "production_deployed": false,
       "hostinger_mutated": false,
