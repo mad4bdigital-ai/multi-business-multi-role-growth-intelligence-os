@@ -89,6 +89,7 @@ const staticDiscoveryCommands = [
   "node test-production-promotion-convergence-workflows.mjs",
   "node test-registry-data-management-service.mjs",
   "node test-remaining-resource-capability-completion-gates.mjs",
+  "node test-remaining-tenant-runtime-migration-governed-readiness.mjs",
   "node test-remaining-tenant-runtime-lifecycle-gap-closure.mjs",
   "node test-repository-close-superseded-positive-smoke.mjs",
   "node test-repository-main-moved-trigger-coordinator.mjs",
