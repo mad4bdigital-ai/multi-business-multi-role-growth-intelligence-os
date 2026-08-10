@@ -39,6 +39,12 @@ assert.doesNotMatch(runner, /mode:\s*['"](?:dry_run|apply)['"]/);
 assert.doesNotMatch(runner, /APPLY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT/);
 assert.doesNotMatch(runner, /AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT/);
 
+assert.match(runner, /import \{ buildAdminControlDbReadRequest \} from '\.\/lib\/admin-control-db-request\.mjs';/);
+assert.match(runner, /return buildAdminControlDbReadRequest\(\{/);
+assert.doesNotMatch(runner, /tool:\s*['"]db['"]/);
+assert.match(runner, /resource_type:\s*['"]database_query['"]/);
+assert.match(runner, /operation_mode:\s*['"]read_only['"]/);
+assert.match(runner, /tenant_request_identity_collation_readonly_diagnostic\/\$\{resourceSuffix\}/);
 assert.match(runner, /assert\.match\(sql\.trim\(\), \/\^SELECT\\b\/i/);
 assert.match(runner, /Diagnostic DB query contains a mutating keyword/);
 assert.equal((runner.match(/dbReadInvocation\(/g) || []).length, 5, 'Expected one helper definition and four fixed SELECT readbacks');
@@ -71,6 +77,7 @@ console.log(JSON.stringify({
   trusted_main_only: true,
   resolver_alias: 'capability_resolution_dry_run',
   fixed_select_readbacks: 4,
+  governed_db_read_builder: true,
   envelope_write_available: false,
   migration_execution_available: false,
   apply_available: false,
