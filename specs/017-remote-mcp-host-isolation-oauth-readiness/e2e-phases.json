@@ -17,8 +17,10 @@
       "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
-      "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs"
     ]
   },
   "merge_contract": {
@@ -53,13 +55,23 @@
             "Rollback never requires dropping OAuth evidence tables.",
             "No secret value or account-specific OAuth callback is committed."
           ],
-          "tests": [],
+          "tests": [
+            {
+              "id": "spec-017-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/017-remote-mcp-host-isolation-oauth-readiness",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
           "evidence_paths": [
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
           ]
         }
