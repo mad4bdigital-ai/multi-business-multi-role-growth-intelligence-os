@@ -630,11 +630,11 @@ export async function inspectGovernedMigrationAuthorizationCandidate(input = {},
 }
 
 export async function bootstrapGovernedMigrationAuthorization(input = {}, deps = {}) {
+  const executorReadinessMode = normalizeExecutorReadinessMode(input.executor_readiness_mode);
   const pool = deps.pool || getPool();
   const auth = deps.auth || {};
   const resolveEnvelope = deps.resolveEnvelope || resolveCapabilityExecutionEnvelope;
   const markReferenced = deps.markReferenced || markCapabilityEnvelopeReferenced;
-  const executorReadinessMode = normalizeExecutorReadinessMode(input.executor_readiness_mode);
   const candidate = await inspectGovernedMigrationAuthorizationCandidate(input, deps);
   const envelope = await resolveBootstrapEnvelope({ pool, input, auth, resolveEnvelope });
 
