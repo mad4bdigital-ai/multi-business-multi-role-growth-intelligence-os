@@ -1,0 +1,82 @@
+name: Governance DB Privilege Readiness
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_production_sha:
+        description: Exact 40-character SHA currently at Production
+        required: true
+        type: string
+      confirm:
+        description: Type PROBE_GOVERNANCE_DB_PRIVILEGES
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: governance-db-privilege-readiness-production
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Governance DB Privilege Readiness
+    runs-on: ubuntu-24.04
+    environment: Production
+    steps:
+      - name: Validate authorization and exact Production head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: |
+          set -euo pipefail
+          if [[ "$CONFIRM" != "PROBE_GOVERNANCE_DB_PRIVILEGES" ]]; then
+            echo "::error::Exact confirmation token is required."
+            exit 1
+          fi
+          if [[ ! "$EXPECTED_PRODUCTION_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            echo "::error::expected_production_sha must be an exact 40-character SHA."
+            exit 1
+          fi
+          actual_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          if [[ "${actual_sha,,}" != "${EXPECTED_PRODUCTION_SHA,,}" ]]; then
+            echo "::error::Production head does not match the authorized exact SHA."
+            exit 1
+          fi
+          echo "Production exact-head authorization: ok"
+
+      - name: Checkout exact Production candidate
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.expected_production_sha }}
+          fetch-depth: 1
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Install connector dependencies
+        working-directory: http-generic-api
+        run: npm ci --ignore-scripts
+
+      - name: Run no-database privilege contract regression
+        working-directory: http-generic-api
+        run: node test-governance-db-privilege-readiness.mjs
+
+      - name: Run bounded no-secret Production privilege probe
+        working-directory: http-generic-api
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GOVERNANCE_DB_HOST: ${{ secrets.GOVERNANCE_DB_HOST }}
+          GOVERNANCE_DB_PORT: ${{ secrets.GOVERNANCE_DB_PORT }}
+          GOVERNANCE_DB_NAME: ${{ secrets.GOVERNANCE_DB_NAME }}
+          GOVERNANCE_DB_USER: ${{ secrets.GOVERNANCE_DB_USER }}
+          GOVERNANCE_DB_PASSWORD: ${{ secrets.GOVERNANCE_DB_PASSWORD }}
+        run: node scripts/governance-db-privilege-readiness.mjs

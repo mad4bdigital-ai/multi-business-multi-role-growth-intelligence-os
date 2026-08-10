@@ -1,0 +1,108 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governance-db-privilege-readiness-6813",
+  "title": "Governance DB Privilege Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governance-db-privilege-readiness-6813.json",
+      ".github/workflows/governance-db-privilege-readiness.yml",
+      "docs/runbooks/governance-db-privilege-readiness.md",
+      "http-generic-api/governanceDbPrivilegeContract.js",
+      "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
+      "http-generic-api/test-governance-db-privilege-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add a fail-closed, no-secret, read-only Production privilege verification path for the dedicated Governance DB writer without provisioning accounts, grants, secrets, deployment, or migration apply authority.",
+      "e2e_journeys": [
+        {
+          "id": "governance-db-least-privilege-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production governance operator",
+          "entrypoint": "Repository privilege matrix evaluator and exact-head manual readiness workflow",
+          "terminal_outcome": "The repository can prove the exact required direct table privilege matrix and fail closed on missing, broader, role-derived, or column-level privileges; the live workflow remains manual, exact-Production-SHA-bound, secret-safe, and read-only.",
+          "steps": [
+            "Load the repository-defined Governance DB privilege matrix.",
+            "Accept normalized information_schema privilege rows without a database connection in synthetic regression coverage.",
+            "Prove the exact required direct table privileges are accepted.",
+            "Reject missing required privileges, schema-wide privileges, unexpected global privileges, unrelated table scopes, extra operations on allowed tables, column-level grants, and applicable MariaDB roles.",
+            "Keep failure evidence bounded and secret-free.",
+            "Require an exact Production branch SHA and explicit confirmation token before the live workflow reaches the secret-bearing probe step.",
+            "Require the merged Governance Production Environment Authority preflight before live privilege readback.",
+            "Use only connection ping, CURRENT_USER/DATABASE consistency readback, and information_schema user/schema/table/column/role privilege metadata in the live probe.",
+            "Do not create users, execute GRANT, mutate application rows, deploy, restart, or run migration SQL in this source slice."
+          ],
+          "assertions": [
+            "The required privilege matrix is identical to the reviewed #6813 Production contract.",
+            "The synthetic evaluator fails closed when any required privilege is missing.",
+            "The synthetic evaluator fails closed on any schema-wide privilege or unexpected global privilege.",
+            "The synthetic evaluator fails closed on unrelated table/schema grants and extra privileges on allowed tables.",
+            "The synthetic evaluator fails closed on column-level privilege paths and applicable MariaDB roles.",
+            "The live workflow requires the exact current Production SHA before the database probe step.",
+            "The live probe composes with resolveGovernanceProductionPreflight() and therefore cannot treat main as Production authority or reuse runtime DB credentials as Governance credentials.",
+            "Probe output contains no MariaDB username, password, host, database name, raw privilege rows, role names, or secret values.",
+            "No Production SQL mutation, CREATE USER, GRANT, provider mutation, deployment, restart, or Migration 1050 readiness/apply is performed by CI for this PR."
+          ],
+          "tests": [
+            {
+              "id": "governance-db-privilege-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-privilege-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/runbooks/governance-db-privilege-readiness.md",
+            "http-generic-api/governanceDbPrivilegeContract.js",
+            "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
+            "http-generic-api/test-governance-db-privilege-readiness.mjs",
+            ".github/workflows/governance-db-privilege-readiness.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Run the read-only privilege probe against the separately provisioned dedicated Governance DB writer on the exact Production source.",
+      "blockers": [
+        "Dedicated MariaDB Governance writer principal and reviewed direct table-scoped grants must be provisioned through separate Production administrative authority without role or column-grant paths.",
+        "Production GOVERNANCE_DB_* secrets must be configured through the governed secret path.",
+        "The repaired source and this readiness tooling must be promoted through the normal main to Production lifecycle.",
+        "The manual Governance DB Privilege Readiness workflow has not yet passed on the exact Production SHA."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise live insufficient-grant and stale-identity failure cases only when a separately authorized safe Production test procedure exists."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No write canary is appropriate for a privilege metadata readiness probe."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Close #6813 only after principal/grant provisioning, Production secret wiring and promotion, a green exact-head privilege probe, and a fresh Migration 1050 readiness/dry-run lifecycle.",
+      "blockers": [
+        "Production principal/grant provisioning remains separately authorized and incomplete.",
+        "Production secret wiring and runtime parity are not yet proven.",
+        "A successful exact-head privilege readiness workflow run is not yet available.",
+        "Fresh Migration 1050 readiness authorization and dry-run evidence are not yet available."
+      ]
+    }
+  ]
+}
