@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
+  "title": "Remote MCP host isolation and OAuth live readiness",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/README.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tasks.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/operation-paths.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/concerns.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define a reviewable fail-closed contract for canonical Remote MCP host admission, explicit OAuth resource routing, trusted proxy boundaries, no-secret readiness diagnostics, source validation, and separately governed live activation without granting runtime or provider mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "remote-mcp-host-isolation-spec-to-implementation-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform specification reviewer",
+          "entrypoint": "Spec 017 manifest, requirements, E2E contract, and implementation handoff",
+          "terminal_outcome": "The reviewer receives one canonical topology and an implementation-ready correction plan that explicitly separates source changes from DNS, TLS, migration, secret, DCR, client-registration, deployment, and Production authorities.",
+          "steps": [
+            "Load the Spec 017 manifest and canonical topology.",
+            "Verify that only mcp.mad4b.com is the declared Remote MCP resource host while auth.mad4b.com remains the OAuth issuer and Tenant GPT core resource.",
+            "Verify that wrong-host MCP requests and unknown protected-resource metadata hosts are required to fail closed.",
+            "Verify that forwarded host headers are not authority unless a trusted deployment boundary explicitly enables them.",
+            "Verify that readiness output is administrative, bounded, and contains no secret values.",
+            "Verify that migration apply, signing-secret provisioning, DNS/TLS/proxy mutation, DCR registration, canary activation, real client acceptance, and Production promotion remain separately authorized live phases."
+          ],
+          "assertions": [
+            "The canonical MCP endpoint remains https://mcp.mad4b.com/mcp.",
+            "The canonical OAuth issuer remains https://auth.mad4b.com/auth/mcp.",
+            "auth.mad4b.com/mcp is not accepted as a substitute canonical MCP endpoint.",
+            "No source-only specification artifact authorizes live migration, secret, provider, feature-flag, client-registration, deployment, or Production mutation.",
+            "Rollback never requires dropping OAuth evidence tables.",
+            "No secret value or account-specific OAuth callback is committed."
+          ],
+          "tests": [
+            {
+              "id": "spec-017-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/017-remote-mcp-host-isolation-oauth-readiness",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Implement and prove canonical host isolation, explicit resource metadata routing, bounded proxy trust, DCR advertisement readiness, no-secret runtime readiness diagnostics, and exact-head source tests while all live feature flags remain unchanged."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove malformed and spoofed host denial, compatibility isolation for Tenant GPT and Activation resources, database-readiness failure behavior, DCR disable behavior, revocation, expiry, and rollback-safe observability."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Under separate live authorization, verify exact deployed SHA, DNS/TLS/reverse-proxy host preservation, OAuth persistence migration, signing-secret readiness, bounded DCR, MCP Inspector, and one approved ChatGPT canary connection."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Under separate Production authorization, prove public routing, metadata parity, ChatGPT reconnect/refresh, revocation, tenant isolation, monitoring, rollback, and exact deployed-source parity."
+    }
+  ]
+}
