@@ -22,8 +22,13 @@ assert.ok(!workflow.includes('ROLLOUT_PHASE: apply'), 'Migration 1052 readiness 
 assert.ok(script.includes(migration));
 assert.ok(script.includes(productionSha));
 assert.ok(script.includes("name: 'governed_migration_authorization_bootstrap'"));
+assert.ok(script.includes("executor_readiness_mode: 'require_existing'"));
 assert.ok(script.includes("name: 'governed_migration_execute'"));
 assert.ok(script.includes("mode: 'dry_run'"));
+assert.ok(script.includes("stage = 'production_ref_repin'"));
+assert.ok(script.includes('Production ref moved after runtime parity and before authorization mutation'));
+assert.ok(script.includes('--decision-note=Approve checksum-bound Migration 1052 authorization bootstrap and dry-run readiness only. No Migration Apply'));
+assert.ok(!script.includes('readiness only; no Migration Apply'), 'Shell approval note must not contain a semicolon');
 assert.ok(script.includes('migration_apply_performed: false'));
 assert.ok(script.includes('runtime_dispatch_certification_issued: false'));
 assert.ok(script.includes('managed_execution_run_created: false'));

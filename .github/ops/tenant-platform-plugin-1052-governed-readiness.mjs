@@ -259,6 +259,19 @@ async function verifyRuntimeParity() {
     connector_agent_ok: connector.payload?.ok ?? null,
   };
 }
+async function repinProductionAfterRuntimeParity() {
+  const production = await githubJson(`/repos/${REPO}/git/ref/heads/Production`);
+  const productionSha = String(production?.object?.sha || '').toLowerCase();
+  assert.equal(
+    productionSha,
+    EXPECTED_PRODUCTION_SHA,
+    'Production ref moved after runtime parity and before authorization mutation'
+  );
+  return {
+    production_sha: productionSha,
+    unchanged_after_runtime_parity: true,
+  };
+}
 async function createBootstrapEnvelope() {
   const created = await adminShell('capability_resolution_envelope_create', [
     `--tenant-id=${TENANT}`,
@@ -285,7 +298,7 @@ async function createBootstrapEnvelope() {
     const approved = await adminShell('capability_resolution_envelope_approve', [
       `--envelope-id=${envelope.envelope_id}`,
       '--approved-by=github_actions',
-      '--decision-note=Approve checksum-bound Migration 1052 authorization bootstrap and dry-run readiness only; no Migration Apply, runtime certification issuance, managed execution run, provider call, or external write.',
+      '--decision-note=Approve checksum-bound Migration 1052 authorization bootstrap and dry-run readiness only. No Migration Apply, runtime certification issuance, managed execution run, provider call, or external write.',
       '--ttl-minutes=45',
     ], 'migration_1052_envelope_approve');
     envelope = { ...envelope, ...(keyed(approved, 'envelope_id') || {}), approval_required: false, dispatch_allowed: true };
@@ -310,6 +323,7 @@ async function bootstrapAuthorization() {
     merge_sha: SOURCE_MERGE_SHA,
     confirm: AUTH_CONFIRM,
     capability_envelope_id: envelopeId,
+    executor_readiness_mode: 'require_existing',
     decision_note: 'Authorize checksum-bound Migration 1052 staged managed-repair authority only. Readiness includes dry-run; Migration Apply and Runtime Dispatch Certification remain separate.',
   };
 
@@ -416,6 +430,10 @@ try {
   stage = 'runtime_parity';
   const parity = await verifyRuntimeParity();
   await writeJson('runtime-parity.json', parity);
+
+  stage = 'production_ref_repin';
+  const productionRepin = await repinProductionAfterRuntimeParity();
+  await writeJson('production-ref-repin.json', productionRepin);
 
   stage = 'authorization_envelope';
   const envelope = await createBootstrapEnvelope();
