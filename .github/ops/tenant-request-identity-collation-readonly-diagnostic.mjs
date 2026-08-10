@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { promises as fs } from 'node:fs';
+import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
 const KEY = String(process.env.BACKEND_API_KEY || '').trim();
@@ -123,15 +124,20 @@ function shellInvocation(alias, extraArgs) {
   };
 }
 
-function dbReadInvocation(sql, params = []) {
+function dbReadInvocation(sql, params = [], maxRows = 100, resourceSuffix = 'readback') {
   assert.match(sql.trim(), /^SELECT\b/i, 'Diagnostic DB query must be SELECT-only');
   assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE)\b/i, 'Diagnostic DB query contains a mutating keyword');
-  return {
-    tool: 'db',
-    action: 'run',
+  return buildAdminControlDbReadRequest({
     sql,
     params,
-  };
+    maxRows,
+    authorityContext: {
+      resource_type: 'database_query',
+      resource_uri: `db://growth_intelligence_platform/tenant_request_identity_collation_readonly_diagnostic/${resourceSuffix}`,
+      operation_mode: 'read_only',
+      required: true,
+    },
+  });
 }
 
 function commandEvidence(result) {
@@ -186,21 +192,30 @@ async function main() {
        FROM information_schema.COLUMNS
       WHERE TABLE_SCHEMA = DATABASE()
         AND TABLE_NAME = 'capability_resolution_envelope_ledger'
-      ORDER BY ORDINAL_POSITION`
+      ORDER BY ORDINAL_POSITION`,
+    [],
+    100,
+    'capability_resolution_envelope_ledger_schema'
   ));
 
   const registryResult = await requestRaw('/admin/control', dbReadInvocation(
     `SELECT tool_key, http_method, http_path, is_enabled
        FROM admin_platform_endpoint_tools
       WHERE tool_key IN ('capability_resolution_envelope_create','capability_resolution_dry_run')
-      ORDER BY tool_key`
+      ORDER BY tool_key`,
+    [],
+    10,
+    'capability_tool_registry'
   ));
 
   const policyResult = await requestRaw('/admin/control', dbReadInvocation(
     `SELECT config_key, status
        FROM platform_runtime_config
       WHERE config_key IN ('capability_resolution_envelope_ledger_policy_v1','dynamic_capability_resolution_policy_v1','dynamic_capability_source_tiers_v1')
-      ORDER BY config_key`
+      ORDER BY config_key`,
+    [],
+    10,
+    'capability_runtime_policy'
   ));
 
   const recentLedgerResult = await requestRaw('/admin/control', dbReadInvocation(
@@ -211,7 +226,10 @@ async function main() {
       WHERE app_key = 'platform_orchestration'
         AND capability_key = 'governed_migration_authorization_bootstrap'
       ORDER BY id DESC
-      LIMIT 5`
+      LIMIT 5`,
+    [],
+    5,
+    'recent_matching_envelopes'
   ));
 
   const evidence = {
