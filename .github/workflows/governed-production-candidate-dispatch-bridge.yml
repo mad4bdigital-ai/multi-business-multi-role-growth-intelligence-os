@@ -55,7 +55,8 @@ jobs:
           grep -Fq "expected_head_sha" "$DISPATCHER_FILE"
           grep -Fq "expected_main_sha" "$DISPATCHER_FILE"
           grep -Fq "expected_production_sha" "$DISPATCHER_FILE"
-          grep -Fq 'gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments"' "$DISPATCHER_FILE"
+          POST_METHOD='--method '"POST"
+          grep -Fq "gh api ${POST_METHOD}" "$DISPATCHER_FILE"
           if grep -Eq '^[[:space:]]+gh pr comment[[:space:]]' "$REQUEST_FILE" "$FALLBACK_FILE" "$DISPATCHER_FILE"; then
             echo "::error::Production candidate dispatch evidence must use the REST issue-comments endpoint"
             exit 1
@@ -108,19 +109,24 @@ jobs:
             reason="invalid_manual_expected_head_sha"
           fi
 
-          pr="$(gh api \
-            -H 'Accept: application/vnd.github+json' \
-            -H 'X-GitHub-Api-Version: 2022-11-28' \
-            "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
-          title="$(jq -r '.title' <<<"${pr}")"
-          state="$(jq -r '.state' <<<"${pr}")"
-          draft="$(jq -r '.draft' <<<"${pr}")"
-          base_ref="$(jq -r '.base.ref' <<<"${pr}")"
-          target_ref="$(jq -r '.head.ref' <<<"${pr}")"
-          head_repository="$(jq -r '.head.repo.full_name' <<<"${pr}")"
-          current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+          target_ref=""
+          expected_head_sha=""
+          main_sha=""
+          production_sha=""
 
           if [[ "${outcome}" == "eligible" ]]; then
+            pr="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
+            title="$(jq -r '.title' <<<"${pr}")"
+            state="$(jq -r '.state' <<<"${pr}")"
+            draft="$(jq -r '.draft' <<<"${pr}")"
+            base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+            target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+            head_repository="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+            expected_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+
             if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
               outcome="blocked"; reason="unexpected_request_title"
             elif [[ "${state}" != "open" ]]; then
@@ -135,17 +141,16 @@ jobs:
               outcome="blocked"; reason="invalid_governed_request_branch"
             elif [[ "${target_ref}" == "main" || "${target_ref}" == "Production" ]]; then
               outcome="blocked"; reason="protected_request_branch_forbidden"
-            elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${current_head_sha}" != "${MANUAL_EXPECTED_HEAD_SHA}" ]]; then
+            elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${expected_head_sha}" != "${MANUAL_EXPECTED_HEAD_SHA}" ]]; then
               outcome="blocked"; reason="request_head_mismatch"
             fi
-          fi
 
-          expected_head_sha="${current_head_sha}"
-          main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${main_sha}" =~ ^[0-9a-f]{40}$ ]]
-          [[ "${production_sha}" =~ ^[0-9a-f]{40}$ ]]
+            main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+            [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${main_sha}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${production_sha}" =~ ^[0-9a-f]{40}$ ]]
+          fi
 
           jq -n \
             --arg contract "mad4b.governed-production-candidate-dispatch-request.v1" \
@@ -158,7 +163,7 @@ jobs:
             --arg source_event "${GITHUB_EVENT_NAME}" \
             --argjson request_pr "${REQUEST_PR}" \
             --argjson source_run_id "${GITHUB_RUN_ID}" \
-            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,source_run_id:$source_run_id,source_event:$source_event,candidate_code_checkout:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,target_ref:(if ($target_ref|length)>0 then $target_ref else null end),expected_head_sha:(if ($expected_head_sha|length)>0 then $expected_head_sha else null end),expected_main_sha:(if ($expected_main_sha|length)>0 then $expected_main_sha else null end),expected_production_sha:(if ($expected_production_sha|length)>0 then $expected_production_sha else null end),source_run_id:$source_run_id,source_event:$source_event,candidate_code_checkout:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
             > "${REPORT_DIR}/request.json"
 
       - name: Upload exact-head dispatch request
