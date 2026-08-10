@@ -31,6 +31,32 @@ for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest]) 
   assert.ok(workflow.includes(governedPath), `writer allowlist/staging must include ${governedPath}`);
 }
 
+assert.match(
+  workflow,
+  /pulls\/\$\{actual_pr_number\}\/files\?per_page=100/u,
+  "target binding discovery must come from the exact resolved pull request",
+);
+assert.match(
+  workflow,
+  /\^specs\/\[0-9\]\{3\}-\[A-Za-z0-9\._-\]\+\/work-map-integration\\\.json\$/u,
+  "target binding discovery must remain restricted to safe Spec feature integration manifests",
+);
+assert.match(workflow, /TARGET_BINDING_FILE/u);
+assert.match(workflow, /feature_key="\$\{BASH_REMATCH\[1\]\}"/u);
+assert.match(
+  workflow,
+  /spec014-refresh-final-work-map-binding\.mjs --feature-key "\$\{feature_key\}"/u,
+  "the canonical binding producer must refresh every target-derived feature key",
+);
+assert.match(
+  workflow,
+  /grep -Fxq "\$\{changed_file\}" "\$\{TARGET_BINDING_FILE\}"/u,
+  "dynamic write authority must be bounded by the discovered target manifest set",
+);
+assert.match(workflow, /target_binding_paths=\(\)/u);
+assert.match(workflow, /git add -- "\$\{target_binding_paths\[@\]\}"/u);
+assert.doesNotMatch(workflow, /inputs\.(?:feature_key|binding_path|work_map_manifest)/u);
+
 assert.match(workflow, /first_diff_hash=/u);
 assert.match(workflow, /second_diff_hash=/u);
 assert.match(workflow, /test "\$\{first_diff_hash\}" = "\$\{second_diff_hash\}"/u);
@@ -54,6 +80,8 @@ console.log(JSON.stringify({
   contract: "mad4b.work-map-autofix-spec014-binding-convergence-test.v1",
   ok: true,
   combined_idempotency: true,
+  target_pr_binding_discovery: true,
+  target_pr_binding_write_set_bounded: true,
   exact_head_push: true,
   force_push: false,
   protected_branch_mutation: false,
