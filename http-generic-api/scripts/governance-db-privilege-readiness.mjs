@@ -4,6 +4,10 @@ import { assertGovernanceDbPrivilegeReadiness } from "../governanceDbPrivilegeCo
 import { resolveGovernanceProductionPreflight } from "../governanceProductionPreflight.js";
 
 const CONTRACT = "mad4b.governance-db-privilege-readiness-probe.v1";
+const telemetry = {
+  database_connection_performed: false,
+  sql_readback_performed: false,
+};
 
 function text(value = "") {
   return String(value ?? "").trim();
@@ -32,8 +36,8 @@ function safeFailure(error) {
     ready: false,
     code: text(error?.code).slice(0, 100) || "GOVERNANCE_DB_PRIVILEGE_PROBE_FAILED",
     details,
-    database_connection_performed: false,
-    sql_readback_performed: false,
+    database_connection_performed: telemetry.database_connection_performed,
+    sql_readback_performed: telemetry.sql_readback_performed,
     sql_mutation_performed: false,
     secret_value_returned: false,
     secrets_included: false,
@@ -43,8 +47,6 @@ function safeFailure(error) {
 async function main() {
   const runtimePool = getPool();
   let governanceConnection = null;
-  let databaseConnectionPerformed = false;
-  let sqlReadbackPerformed = false;
 
   try {
     const preflight = await resolveGovernanceProductionPreflight(
@@ -54,13 +56,13 @@ async function main() {
     const governanceConfig = resolveGovernanceDbConfig(process.env);
     const governancePool = getGovernancePool();
     governanceConnection = await governancePool.getConnection();
-    databaseConnectionPerformed = true;
+    telemetry.database_connection_performed = true;
     await governanceConnection.ping();
 
     const [identityRows] = await governanceConnection.query(
       "SELECT CURRENT_USER() AS current_account, DATABASE() AS current_database",
     );
-    sqlReadbackPerformed = true;
+    telemetry.sql_readback_performed = true;
     const currentAccount = text(identityRows?.[0]?.current_account);
     const currentDatabase = text(identityRows?.[0]?.current_database);
     if (!currentDatabase || currentDatabase !== governanceConfig.database) {
@@ -88,13 +90,23 @@ async function main() {
       "SELECT TABLE_SCHEMA, TABLE_NAME, PRIVILEGE_TYPE FROM information_schema.TABLE_PRIVILEGES WHERE GRANTEE = ?",
       [grantee],
     );
-    sqlReadbackPerformed = true;
+    const [columnPrivileges] = await governanceConnection.query(
+      "SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, PRIVILEGE_TYPE FROM information_schema.COLUMN_PRIVILEGES WHERE GRANTEE = ?",
+      [grantee],
+    );
+    const [applicableRoles] = await governanceConnection.query(
+      "SELECT ROLE_NAME FROM information_schema.APPLICABLE_ROLES WHERE GRANTEE = ?",
+      [grantee],
+    );
+    telemetry.sql_readback_performed = true;
 
     const privilegeReadiness = assertGovernanceDbPrivilegeReadiness({
       database: governanceConfig.database,
       userPrivileges,
       schemaPrivileges,
       tablePrivileges,
+      columnPrivileges,
+      applicableRoles,
     });
 
     console.log(JSON.stringify({
@@ -106,8 +118,8 @@ async function main() {
       promotion_target_branch_exact: preflight.environment_authority?.promotion_target_branch === "Production",
       governance_identity_configured: preflight.governance_db?.identity_configured === true,
       privilege_readiness: privilegeReadiness,
-      database_connection_performed: databaseConnectionPerformed,
-      sql_readback_performed: sqlReadbackPerformed,
+      database_connection_performed: telemetry.database_connection_performed,
+      sql_readback_performed: telemetry.sql_readback_performed,
       sql_mutation_performed: false,
       migration_apply_performed: false,
       provider_mutation_performed: false,
