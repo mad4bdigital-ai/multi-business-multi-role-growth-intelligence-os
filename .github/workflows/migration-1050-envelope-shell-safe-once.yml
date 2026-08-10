@@ -1,0 +1,102 @@
+name: Migration 1050 Envelope Shell-Safe One-Shot
+
+on:
+  push:
+    branches:
+      - fix/migration-1050-envelope-shell-safe-20260810
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact writer branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Guard exact source-only setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          EXPECTED_MAIN='799a58366cdd0dd8eb06052e4fe2e3e16e7d4c5d'
+          EXPECTED_BRANCH='fix/migration-1050-envelope-shell-safe-20260810'
+          WRITER='.github/workflows/migration-1050-envelope-shell-safe-once.yml'
+          test "${GITHUB_REF_NAME}" = "${EXPECTED_BRANCH}"
+          git fetch --no-tags origin main "${EXPECTED_BRANCH}"
+          test "$(git rev-parse HEAD^)" = "${EXPECTED_MAIN}"
+          test "$(git rev-parse origin/main)" = "${EXPECTED_MAIN}"
+          mapfile -t changed < <(git diff --name-only "${EXPECTED_MAIN}"...HEAD)
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "${WRITER}"
+
+      - name: Patch caller and regression only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          runner_path = Path('.github/ops/github-repository-policy-1050-governed-rollout.mjs')
+          test_path = Path('http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs')
+
+          runner = runner_path.read_text()
+          replacements = {
+              "Approve checksum-bound Migration 1050 readiness authorization bootstrap only; no SQL, Migration 1049 retry, Production mutation, provider mutation, deployment, restart, or external business write.":
+              "Approve checksum-bound Migration 1050 readiness authorization bootstrap only, with no SQL, Migration 1049 retry, Production mutation, provider mutation, deployment, restart, or external business write.",
+              "Approve Migration 1050 Apply runner control-plane gate; actual SQL remains blocked until same-cycle ledger/readiness/dry-run gates pass.":
+              "Approve Migration 1050 Apply runner control-plane gate. Actual SQL remains blocked until same-cycle ledger/readiness/dry-run gates pass.",
+          }
+          for old, new in replacements.items():
+              count = runner.count(old)
+              if count != 1:
+                  raise SystemExit(f'expected exactly one caller literal to replace, found {count}: {old}')
+              runner = runner.replace(old, new, 1)
+          runner_path.write_text(runner)
+
+          test = test_path.read_text()
+          anchor = "assert.match(runner, /capability_resolution_envelope_apply_authorize/);\n"
+          if test.count(anchor) != 1:
+              raise SystemExit('regression insertion anchor is not unique')
+          regression = """const migration1050EnvelopeDecisionNotes = [
+            'Approve checksum-bound Migration 1050 readiness authorization bootstrap only, with no SQL, Migration 1049 retry, Production mutation, provider mutation, deployment, restart, or external business write.',
+            'Approve Migration 1050 Apply runner control-plane gate. Actual SQL remains blocked until same-cycle ledger/readiness/dry-run gates pass.',
+          ];
+          for (const note of migration1050EnvelopeDecisionNotes) {
+            assert.ok(runner.includes(note), `Migration 1050 runner is missing shell-safe envelope note: ${note}`);
+            assert.equal(/[;&|`$<>]/.test(note), false, `Migration 1050 envelope note contains a forbidden shell metacharacter: ${note}`);
+          }
+          """
+          test = test.replace(anchor, anchor + regression, 1)
+          test_path.write_text(test)
+          PY
+
+      - name: Run focused source-only verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check .github/ops/github-repository-policy-1050-governed-rollout.mjs
+          node http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs
+
+      - name: Commit bounded repair and self-retire
+        shell: bash
+        run: |
+          set -euo pipefail
+          WRITER='.github/workflows/migration-1050-envelope-shell-safe-once.yml'
+          git rm "${WRITER}"
+          git add .github/ops/github-repository-policy-1050-governed-rollout.mjs \
+                  http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs
+          mapfile -t staged < <(git diff --cached --name-only)
+          test "${#staged[@]}" -eq 3
+          printf '%s\n' "${staged[@]}" | sort > /tmp/staged.txt
+          printf '%s\n' \
+            '.github/ops/github-repository-policy-1050-governed-rollout.mjs' \
+            '.github/workflows/migration-1050-envelope-shell-safe-once.yml' \
+            'http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs' | sort > /tmp/allowed.txt
+          diff -u /tmp/allowed.txt /tmp/staged.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(migration-1050): keep envelope decision notes shell-safe'
+          git push origin HEAD:fix/migration-1050-envelope-shell-safe-20260810
