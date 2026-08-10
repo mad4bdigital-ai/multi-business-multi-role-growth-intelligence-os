@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
+import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
 const KEY = String(process.env.BACKEND_API_KEY || '').trim();
@@ -20,12 +21,15 @@ const AUTH_CONFIRM = 'AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENT
 const RESOURCE_URI = `db-migration://growth_intelligence_platform/${MIGRATION}`;
 const PLATFORM_TENANT_ID = '00000000-0000-0000-0000-000000000000';
 const PLATFORM_ADMIN_USER_ID = '00000000-0000-4000-a000-000000000002';
+const GITHUB_RUN_ID = String(process.env.GITHUB_RUN_ID || 'unknown').trim() || 'unknown';
+const GITHUB_RUN_ATTEMPT = String(process.env.GITHUB_RUN_ATTEMPT || '1').trim() || '1';
+const REQUESTED_BY = `github_actions_tenant_request_identity_collation_dry_run:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}`.slice(0, 191);
 
 let mainSha = null;
 let productionSha = null;
 let authorizationEnvelopeId = null;
 let authorizationCreated = false;
-let managedControlPlaneWriteExecuted = false;
+let managedControlPlaneWriteOutcome = 'not_attempted';
 let dryRunVerified = false;
 let stage = 'program_start';
 
@@ -33,20 +37,33 @@ const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|cr
 const SAFE_EVIDENCE_KEYS = new Set([
   'authorization_created',
   'authorization_idempotent',
+  'authorization_envelope_id',
+  'authorization_envelope_create_attempted',
   'apply_authorized',
   'apply_sent',
   'dry_run_verified',
   'migration_apply_executed',
+  'managed_control_plane_write_attempted',
   'managed_control_plane_write_executed',
   'provider_call_executed',
   'credential_payload_accessed',
   'external_business_write_executed',
   'secrets_included',
 ]);
+const SECRET_TEXT_PATTERNS = [
+  /Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
+  /(?:api[_-]?key|token|secret|password|credential(?:_value)?)\s*[:=]\s*[^\s,;]+/gi,
+];
+
+function sanitizeText(value = '') {
+  let text = String(value || '').slice(0, 16000);
+  for (const pattern of SECRET_TEXT_PATTERNS) text = text.replace(pattern, '[redacted]');
+  return text;
+}
 
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
-  if (!value || typeof value !== 'object') return value;
+  if (!value || typeof value !== 'object') return typeof value === 'string' ? sanitizeText(value) : value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
     key,
     sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child),
@@ -56,8 +73,8 @@ function sanitize(value) {
 function parsedValue(value) {
   if (typeof value !== 'string') return value;
   const text = value.trim();
-  if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
-  try { return JSON.parse(text); } catch { return value; }
+  if (!text || (!text.startsWith('{') && !text.startsWith('['))) return sanitizeText(value);
+  try { return JSON.parse(text); } catch { return sanitizeText(value); }
 }
 
 function findObject(value, predicate, seen = new Set()) {
@@ -87,6 +104,16 @@ function collectShas(value, output = new Set()) {
   return output;
 }
 
+function managedControlPlaneWriteAttempted() {
+  return managedControlPlaneWriteOutcome !== 'not_attempted';
+}
+
+function managedControlPlaneWriteExecuted() {
+  if (managedControlPlaneWriteOutcome === 'confirmed') return true;
+  if (managedControlPlaneWriteOutcome === 'not_attempted') return false;
+  return null;
+}
+
 async function writeJson(name, value) {
   await fs.mkdir(EVIDENCE_DIR, { recursive: true });
   await fs.writeFile(`${EVIDENCE_DIR}/${name}`, `${JSON.stringify(sanitize(value), null, 2)}\n`, 'utf8');
@@ -102,9 +129,15 @@ async function writeState(extra = {}) {
     migration_blob_sha: MIGRATION_BLOB_SHA,
     migration_checksum_sha256: CHECKSUM,
     statement_count: STATEMENT_COUNT,
+    github_run_id: GITHUB_RUN_ID,
+    github_run_attempt: GITHUB_RUN_ATTEMPT,
+    requested_by: REQUESTED_BY,
     authorization_envelope_id: authorizationEnvelopeId,
     authorization_created: authorizationCreated,
-    managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
+    authorization_envelope_create_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+    managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
     dry_run_verified: dryRunVerified,
     apply_authorized: false,
     apply_sent: false,
@@ -149,20 +182,43 @@ async function requestRaw(pathname, body, timeoutMs = 300000) {
     const text = await response.text();
     let payload;
     try { payload = text ? JSON.parse(text) : null; }
-    catch { payload = { non_json_response: true, raw_preview: text.slice(0, 300) }; }
+    catch { payload = { non_json_response: true, raw_preview: sanitizeText(text.slice(0, 3000)) }; }
     return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
   } catch (error) {
     return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || 'Error') };
   }
 }
 
+function commandEvidence(result) {
+  const error = result?.payload?.error || null;
+  return sanitize({
+    transport_ok: result?.transport_ok === true,
+    http_status: result?.status ?? null,
+    http_ok: result?.http_ok === true,
+    response_ok: result?.payload?.ok ?? null,
+    transport_error: result?.transport_error || null,
+    error_code: error?.code || result?.payload?.error_code || null,
+    error_message: error?.message || result?.payload?.message || null,
+    exit_code: error?.exit_code ?? error?.exitCode ?? null,
+    stdout: parsedValue(error?.stdout ?? result?.payload?.stdout ?? null),
+    stderr: parsedValue(error?.stderr ?? result?.payload?.stderr ?? null),
+    payload: result?.payload || null,
+  });
+}
+
+function buildFailureError(result, label) {
+  const evidence = commandEvidence(result);
+  const errorObject = findObjectWithKey(result?.payload, 'code') || result?.payload?.error || {};
+  const error = new Error(`${label} failed with HTTP ${result?.status ?? 'transport_error'}`);
+  error.code = String(errorObject?.code || result?.payload?.error_code || `${label}_failed`);
+  error.details = errorObject?.details || result?.payload?.error?.details || null;
+  error.provenance = evidence;
+  return error;
+}
+
 function requireSuccess(result, label) {
-  if (!result.transport_ok || !result.http_ok || result.payload?.ok === false) {
-    const errorObject = findObjectWithKey(result.payload, 'code') || result.payload?.error || {};
-    const error = new Error(`${label} failed with HTTP ${result.status ?? 'transport_error'}`);
-    error.code = String(errorObject?.code || result.payload?.error_code || `${label}_failed`);
-    error.details = errorObject?.details || result.payload?.error?.details || null;
-    throw error;
+  if (!result?.transport_ok || !result?.http_ok || result?.payload?.ok === false) {
+    throw buildFailureError(result, label);
   }
   return result.payload;
 }
@@ -248,8 +304,73 @@ function shellInvocation(alias, extraArgs) {
   };
 }
 
+function dbReadInvocation(sql, params = [], maxRows = 5, resourceSuffix = 'readback') {
+  assert.match(sql.trim(), /^SELECT\b/i, 'Dry Run reconciliation DB query must be SELECT-only');
+  assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE)\b/i, 'Dry Run reconciliation DB query contains a mutating keyword');
+  return buildAdminControlDbReadRequest({
+    sql,
+    params,
+    maxRows,
+    authorityContext: {
+      resource_type: 'database_query',
+      resource_uri: `db://growth_intelligence_platform/tenant_request_identity_collation_dry_run/${resourceSuffix}`,
+      operation_mode: 'read_only',
+      required: true,
+    },
+  });
+}
+
 async function adminShell(alias, extraArgs, label) {
   return requireSuccess(await requestRaw('/admin/control', shellInvocation(alias, extraArgs)), label);
+}
+
+async function reconcileEnvelopeCreateFailure() {
+  const result = await requestRaw('/admin/control', dbReadInvocation(
+    `SELECT envelope_id, envelope_status, dispatch_allowed, apply_allowed,
+            approval_required, blocking_gap_count, execution_status,
+            requested_by, created_at
+       FROM capability_resolution_envelope_ledger
+      WHERE requested_by = ?
+        AND app_key = 'platform_orchestration'
+        AND capability_key = 'governed_migration_authorization_bootstrap'
+        AND operation_intent = 'governed_migration_authorization_bootstrap'
+      ORDER BY id DESC
+      LIMIT 3`,
+    [REQUESTED_BY],
+    3,
+    'authorization_envelope_create_failure_reconciliation'
+  ));
+
+  const evidence = commandEvidence(result);
+  if (!result.transport_ok || !result.http_ok || result.payload?.ok === false) {
+    return {
+      classification: 'reconciliation_unavailable',
+      requested_by: REQUESTED_BY,
+      command: evidence,
+      secrets_included: false,
+    };
+  }
+
+  const rowsObject = findObjectWithKey(result.payload, 'rows');
+  const rows = Array.isArray(rowsObject?.rows) ? rowsObject.rows : [];
+  if (rows.length === 0) {
+    return {
+      classification: 'no_matching_row_after_failure',
+      requested_by: REQUESTED_BY,
+      matching_row_count: 0,
+      command: evidence,
+      secrets_included: false,
+    };
+  }
+
+  return {
+    classification: 'matching_row_persisted_response_failed',
+    requested_by: REQUESTED_BY,
+    matching_row_count: rows.length,
+    matching_rows: rows,
+    command: evidence,
+    secrets_included: false,
+  };
 }
 
 function envelopeBindingSha(capabilityKey, operationIntent) {
@@ -270,7 +391,7 @@ async function createReadyAuthorizationEnvelope() {
   const capabilityKey = 'governed_migration_authorization_bootstrap';
   const operationIntent = 'governed_migration_authorization_bootstrap';
   const bindingSha = envelopeBindingSha(capabilityKey, operationIntent);
-  const createdPayload = await adminShell('capability_resolution_envelope_create', [
+  const extraArgs = [
     `--tenant-id=${PLATFORM_TENANT_ID}`,
     `--user-id=${PLATFORM_ADMIN_USER_ID}`,
     '--user-role=Admin',
@@ -279,14 +400,46 @@ async function createReadyAuthorizationEnvelope() {
     `--operation-intent=${operationIntent}`,
     '--runtime-surface=auth_host',
     '--requested-source-tier=platform_managed_fallback',
-    '--requested-by=github_actions_tenant_request_identity_collation_dry_run',
+    `--requested-by=${REQUESTED_BY}`,
     '--ttl-minutes=45',
     '--explain',
     `--resource-uri=${RESOURCE_URI}`,
     `--expected-commit-sha=${productionSha}`,
     `--binding-sha256=${bindingSha}`,
-  ], 'tenant_request_identity_collation_authorization_envelope_create');
-  managedControlPlaneWriteExecuted = true;
+  ];
+
+  managedControlPlaneWriteOutcome = 'attempted_unknown';
+  const createResult = await requestRaw('/admin/control', shellInvocation('capability_resolution_envelope_create', extraArgs));
+
+  let createdPayload;
+  try {
+    createdPayload = requireSuccess(createResult, 'tenant_request_identity_collation_authorization_envelope_create');
+  } catch (error) {
+    const reconciliation = await reconcileEnvelopeCreateFailure();
+    error.reconciliation = reconciliation;
+    error.provenance = {
+      ...(error.provenance || {}),
+      reconciliation,
+    };
+    await writeJson('authorization-envelope-create-failure.json', {
+      contract: 'tenant_request_identity_collation_envelope_create_failure.v1',
+      stage,
+      requested_by: REQUESTED_BY,
+      managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+      create_attempt: commandEvidence(createResult),
+      reconciliation,
+      apply_authorized: false,
+      apply_sent: false,
+      migration_apply_executed: false,
+      provider_call_executed: false,
+      credential_payload_accessed: false,
+      external_business_write_executed: false,
+      secrets_included: false,
+    });
+    throw error;
+  }
+
+  managedControlPlaneWriteOutcome = 'confirmed';
 
   let envelope = findObjectWithKey(createdPayload, 'envelope_id');
   assert.ok(envelope?.envelope_id, 'Authorization envelope creation returned no envelope_id');
@@ -307,7 +460,7 @@ async function createReadyAuthorizationEnvelope() {
   assert.equal(envelope.envelope_status, 'ready_for_dispatch', 'Authorization envelope is not ready_for_dispatch');
   assert.equal(envelope.dispatch_allowed, true, 'Authorization envelope dispatch_allowed is not true');
   authorizationEnvelopeId = envelope.envelope_id;
-  return { envelope, binding_sha256: bindingSha, secrets_included: false };
+  return { envelope, binding_sha256: bindingSha, requested_by: REQUESTED_BY, secrets_included: false };
 }
 
 async function bootstrapAuthorization() {
@@ -382,7 +535,9 @@ async function main() {
       apply_authorized: false,
       apply_sent: false,
       migration_apply_executed: false,
-      managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
+      managed_control_plane_write_attempted: managedControlPlaneWriteAttempted(),
+      managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+      managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
       provider_call_executed: false,
       credential_payload_accessed: false,
       external_business_write_executed: false,
@@ -396,9 +551,15 @@ async function main() {
       migration: MIGRATION,
       migration_checksum_sha256: CHECKSUM,
       statement_count: STATEMENT_COUNT,
+      github_run_id: GITHUB_RUN_ID,
+      github_run_attempt: GITHUB_RUN_ATTEMPT,
+      requested_by: REQUESTED_BY,
       authorization_created: authorizationCreated,
       authorization_idempotent: authorization?.idempotent === true,
-      managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
+      authorization_envelope_create_attempted: managedControlPlaneWriteAttempted(),
+      managed_control_plane_write_attempted: managedControlPlaneWriteAttempted(),
+      managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+      managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
       dry_run_verified: true,
       applies_sql: false,
       apply_authorized: false,
@@ -415,6 +576,8 @@ async function main() {
       failed: true,
       error_code: String(error?.code || error?.name || 'dry_run_failed'),
       error_message: String(error?.message || error),
+      error_provenance: error?.provenance || null,
+      failure_reconciliation: error?.reconciliation || null,
     });
     throw error;
   }
