@@ -16,9 +16,22 @@
       "number": 6618,
       "branch": "gpt/018-environment-promotion-runtime-integrity-20260807",
       "role": "specification",
-      "status": "current_pr"
+      "status": "merged"
     },
-    "implementation_prs": [],
+    "implementation_prs": [
+      {
+        "number": 6819,
+        "branch": "gpt/018-environment-authority-20260810",
+        "role": "environment_authority_foundation",
+        "status": "merged"
+      },
+      {
+        "number": 6852,
+        "branch": "gpt/018-production-deploy-authority-20260810",
+        "role": "production_deploy_authority_binding",
+        "status": "current_pr"
+      }
+    ],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -28,8 +41,11 @@
   },
   "evidence": {
     "implementation": {
-      "status": "specification_only",
-      "runtime_authority": false,
+      "status": "environment_authority_foundation_merged_b04_b09_candidate",
+      "runtime_authority_foundation_merged": true,
+      "production_deploy_binding_candidate": true,
+      "caller_branch_selection_removed_from_candidate_schemas": true,
+      "same_cycle_production_head_readback_candidate": true,
       "migration_applied": false,
       "production_deployed": false,
       "hostinger_mutated": false,
@@ -43,8 +59,11 @@
       "status": "pending"
     },
     "migration": {
-      "status": "planned_not_applied",
-      "path": null
+      "status": "source_present_not_applied",
+      "paths": [
+        "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
+        "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql"
+      ]
     },
     "production_verification": {
       "status": "pending"

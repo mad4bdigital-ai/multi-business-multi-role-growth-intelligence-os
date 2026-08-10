@@ -21,6 +21,7 @@ import {
 } from "./hostingerSshProbeRunnerModes.js";
 import { createContinuationCheckpoint, planContinuationResume } from "./sharedReconciliationEngine.js";
 import { getRuntimeParity } from "./runtimeVerificationService.js";
+import { resolveVerifiedProductionDeploymentAuthority } from "./productionDeploymentAuthority.js";
 
 const DEFAULT_TIMEOUT_MS = 120000;
 const DEFAULT_PROBE_TIMEOUT_MS = 45000;
@@ -34,7 +35,6 @@ const EXECUTOR_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED";
 const EXECUTOR_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_executor_enabled";
 const PROBE_FLAG = "REMOTE_RUNTIME_HOSTINGER_SSH_PROBE_ENABLED";
 const PROBE_DB_FLAG_KEY = "remote_runtime_hostinger_ssh_probe_enabled";
-const ALLOWED_BRANCHES = new Set(["main", "Production"]);
 const DEFAULT_AUTH_APP_PATH = "/home/u338416126/domains/auth.mad4b.com/nodejs";
 const SSH_COMMON_ROLES = ["ssh_host", "ssh_port", "ssh_user"];
 const SSH_KEY_ROLE = "ssh_private_key";
@@ -759,7 +759,7 @@ function buildHostingerDeployContinuationEvidence({
     resource_state: {
       target_id: targetId || null,
       app_path: appPath || null,
-      branch: branch || "main",
+      branch: branch || null,
       expected_commit_sha: expectedCommitSha || null,
       parsed_deploy: parsed,
       reload_verification: reloadVerification,
@@ -777,7 +777,7 @@ function buildHostingerDeployContinuationEvidence({
   const currentResourceState = {
     target_id: targetId || null,
     app_path: appPath || null,
-    branch: branch || "main",
+    branch: branch || null,
     expected_commit_sha: expectedCommitSha || null,
     parsed_deploy: parsed,
     reload_verification: reloadVerification,
@@ -1090,7 +1090,7 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
   const pool = deps.pool || getPool();
   const env = deps.env || process.env;
   const targetId = compact(input.target_id || input.targetId, 64);
-  const branch = compact(input.branch || "main", 64);
+  let branch = compact(input.branch || "", 64);
   const expectedCommitSha = compact(input.expected_commit_sha || input.expectedCommitSha || input.commit_sha || input.commitSha, 64).toLowerCase();
   const appKey = compact(input.app_key || input.appKey || "auth.mad4b.com", 191);
   const appPath = assertSafeRemotePath(input.app_path || input.appPath || (appKey === "auth.mad4b.com" ? DEFAULT_AUTH_APP_PATH : ""));
@@ -1109,12 +1109,6 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     const err = new Error("target_id is required.");
     err.status = 400;
     err.code = "remote_runtime_hosting_deploy_target_required";
-    throw err;
-  }
-  if (!ALLOWED_BRANCHES.has(branch)) {
-    const err = new Error("Only main and Production branch deployment is supported by this executor.");
-    err.status = 400;
-    err.code = "remote_runtime_hosting_deploy_branch_not_allowed";
     throw err;
   }
   if (!/^[0-9a-f]{40}$/.test(expectedCommitSha)) {
@@ -1156,6 +1150,13 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     err.details = { app_path: appPath, path_allowlist: target.path_allowlist };
     throw err;
   }
+
+  const deploymentAuthority = await resolveVerifiedProductionDeploymentAuthority(
+    { branch: branch || null, expectedCommitSha },
+    { ...deps, pool }
+  );
+  branch = deploymentAuthority.production_branch;
+
   const sshAuthMode = preferredSshAuthMode(input, target);
   const sshPasswordTransport = normalizeSshPasswordTransport(input.ssh_transport_mode || input.sshTransportMode || input.ssh_password_transport || input.sshPasswordTransport || "auto");
 
@@ -1176,6 +1177,15 @@ export async function executeHostingerSshDeployRelease(input = {}, deps = {}) {
     app_path: appPath,
     branch,
     expected_commit_sha: expectedCommitSha,
+    production_authority: {
+      source: deploymentAuthority.source || null,
+      config_key: deploymentAuthority.config_key || null,
+      production_branch: deploymentAuthority.production_branch,
+      production_branch_head_sha: deploymentAuthority.production_branch_head_sha,
+      same_cycle_branch_readback: deploymentAuthority.same_cycle_branch_readback === true,
+      expected_sha_matches_production_head: deploymentAuthority.expected_sha_matches_production_head === true,
+      secrets_included: false,
+    },
     force_clean: forceClean,
     restart,
     ssh_auth_mode: sshAuthMode,
