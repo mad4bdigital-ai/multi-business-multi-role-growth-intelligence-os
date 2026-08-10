@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const workflowPath = '.github/workflows/tenant-platform-plugin-1052-governed-readiness.yml';
-const scriptPath = '.github/ops/tenant-platform-plugin-1052-governed-readiness.mjs';
+const workflowPath = '../.github/workflows/tenant-platform-plugin-1052-governed-readiness.yml';
+const scriptPath = '../.github/ops/tenant-platform-plugin-1052-governed-readiness.mjs';
 
 const [workflow, script] = await Promise.all([
   readFile(workflowPath, 'utf8'),
