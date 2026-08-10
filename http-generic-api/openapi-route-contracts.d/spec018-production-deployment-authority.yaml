@@ -1,0 +1,5 @@
+version: 1
+contracts:
+  "POST /platform/remote-runtime/hosting/deploy-release":
+    path_item_ref: ./openapi/production-deployment-authority.yaml#/productionDeploymentAuthorityPath
+    route_file: routes/platformPluginRoutes.js
