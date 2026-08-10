@@ -25,6 +25,7 @@ let mainSha = null;
 let productionSha = null;
 let authorizationEnvelopeId = null;
 let authorizationCreated = false;
+let managedControlPlaneWriteExecuted = false;
 let dryRunVerified = false;
 let stage = 'program_start';
 
@@ -103,6 +104,7 @@ async function writeState(extra = {}) {
     statement_count: STATEMENT_COUNT,
     authorization_envelope_id: authorizationEnvelopeId,
     authorization_created: authorizationCreated,
+    managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
     dry_run_verified: dryRunVerified,
     apply_authorized: false,
     apply_sent: false,
@@ -284,6 +286,7 @@ async function createReadyAuthorizationEnvelope() {
     `--expected-commit-sha=${productionSha}`,
     `--binding-sha256=${bindingSha}`,
   ], 'tenant_request_identity_collation_authorization_envelope_create');
+  managedControlPlaneWriteExecuted = true;
 
   let envelope = findObjectWithKey(createdPayload, 'envelope_id');
   assert.ok(envelope?.envelope_id, 'Authorization envelope creation returned no envelope_id');
@@ -379,7 +382,7 @@ async function main() {
       apply_authorized: false,
       apply_sent: false,
       migration_apply_executed: false,
-      managed_control_plane_write_executed: authorizationCreated,
+      managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
       provider_call_executed: false,
       credential_payload_accessed: false,
       external_business_write_executed: false,
@@ -395,6 +398,7 @@ async function main() {
       statement_count: STATEMENT_COUNT,
       authorization_created: authorizationCreated,
       authorization_idempotent: authorization?.idempotent === true,
+      managed_control_plane_write_executed: managedControlPlaneWriteExecuted,
       dry_run_verified: true,
       applies_sql: false,
       apply_authorized: false,
