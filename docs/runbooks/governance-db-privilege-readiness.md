@@ -4,7 +4,7 @@
 
 This runbook is the Production verification companion to Issue #6813 and the Governance DB writer authority source repair.
 
-It verifies that an already-provisioned dedicated Governance DB writer has the exact reviewed table-scoped privilege matrix and no broader global, schema-wide, unrelated-table, or extra-table privileges.
+It verifies that an already-provisioned dedicated Governance DB writer has the exact reviewed table-scoped privilege matrix and no broader global, schema-wide, unrelated-table, extra-table, column-level, or role-derived privileges.
 
 This runbook and its workflow do **not** create MariaDB accounts, execute `GRANT`, write secrets, deploy Production, mutate application data, or authorize Migration 1050 Apply.
 
@@ -19,16 +19,16 @@ This runbook and its workflow do **not** create MariaDB accounts, execute `GRANT
 | `runtime_dispatch_certification_registry` | `SELECT, INSERT, UPDATE` |
 | `governed_migration_ledger` | `SELECT` |
 
-The dedicated principal must not carry schema-wide privileges, unrelated table privileges, `GRANT ALL`, `DROP`, `ALTER`, `CREATE`, `DELETE`, `FILE`, `PROCESS`, `SUPER`, account-management authority, or equivalent broad administrative authority.
+The dedicated principal must not carry schema-wide privileges, unrelated table privileges, column-level grants, applicable roles, `GRANT ALL`, `DROP`, `ALTER`, `CREATE`, `DELETE`, `FILE`, `PROCESS`, `SUPER`, account-management authority, or equivalent broad administrative authority.
 
-The readiness probe expects direct table grants for the dedicated principal. Do not substitute a broad role or schema-level grant merely to make the probe pass.
+The readiness probe expects direct table grants for the dedicated principal. Do not substitute a role, column-level grant, broad role, or schema-level grant merely to make the probe pass.
 
 ## Preconditions
 
 Before the live probe can be run, all of the following must already be true through separately governed operations:
 
 1. The dedicated MariaDB Governance writer principal has been created outside the application runtime.
-2. Only the reviewed table/operation matrix has been granted.
+2. Only the reviewed table/operation matrix has been granted directly to that principal, with no role or column-grant path.
 3. The repaired source has been promoted through the normal `main -> Production` lifecycle.
 4. The GitHub `Production` environment contains the runtime DB secrets needed to resolve Environment Authority and the dedicated Governance DB credentials.
 5. The exact current `Production` branch SHA is known.
@@ -62,11 +62,13 @@ After preflight, it opens the dedicated Governance DB connection and performs on
 - `CURRENT_USER()` and `DATABASE()` identity/database consistency readback;
 - `information_schema.USER_PRIVILEGES` readback for the current principal;
 - `information_schema.SCHEMA_PRIVILEGES` readback for the current principal;
-- `information_schema.TABLE_PRIVILEGES` readback for the current principal.
+- `information_schema.TABLE_PRIVILEGES` readback for the current principal;
+- `information_schema.COLUMN_PRIVILEGES` readback for the current principal;
+- `information_schema.APPLICABLE_ROLES` readback for the current principal.
 
 It performs no `INSERT`, `UPDATE`, `DELETE`, DDL, `CREATE USER`, `GRANT`, migration SQL, provider mutation, deployment, or restart.
 
-The output intentionally excludes the MariaDB username, password, host, database name, raw grant rows, and secret values. It reports only bounded readiness booleans, counts, and missing privileges from the repository-defined expected matrix.
+The output intentionally excludes the MariaDB username, password, host, database name, raw privilege rows, role names, and secret values. It reports only bounded readiness booleans, counts, and missing privileges from the repository-defined expected matrix.
 
 ## Success contract
 
@@ -77,6 +79,8 @@ A successful probe requires all of these conditions:
 - no schema-wide privilege exists;
 - no privilege exists on an unrelated table or schema;
 - no extra privilege exists on one of the allowed tables;
+- no column-level privilege exists;
+- no applicable MariaDB role exists for the principal;
 - the connected database matches the configured Governance DB target;
 - the Production Environment Authority preflight is valid.
 
