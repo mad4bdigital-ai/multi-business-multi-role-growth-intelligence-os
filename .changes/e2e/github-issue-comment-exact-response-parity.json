@@ -1,0 +1,74 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-issue-comment-exact-response-parity",
+  "title": "Enforce exact GitHub issue-comment response status parity and runtime schema coverage",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".changes/e2e/github-issue-comment-exact-response-parity.json",
+      "http-generic-api/migrations/20260810_github_issue_comment_exact_response_parity.sql",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-github-issue-comment-exact-response-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Complete the bounded follow-up to PR #6645 by removing the stale 200 success contract from the existing github_create_issue_comment runtime row, preserving canonical 201 Created, synchronizing active exports, and making non-exported runtime-callable endpoints visible in schema coverage without weakening the existing unknown-outcome mutation guard.",
+      "e2e_journeys": [
+        {
+          "id": "github-issue-comment-exact-201-runtime-parity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform operator certifying a registry-driven GitHub create-comment endpoint before governed migration rollout",
+          "entrypoint": "canonical github_rest.yaml createIssueComment -> migration source -> endpoints.schema_json -> optional platform_endpoint_tool_exports -> runtime_endpoint_call",
+          "terminal_outcome": "The exact active/ready GitHub create-comment endpoint advertises 201 Created and no stale 200 success response, any active export is byte-aligned with the endpoint row, non-exported runtime-callable endpoints remain visible in runtime schema coverage, and post-side-effect schema drift remains non-retryable and reconciliation-required.",
+          "steps": [
+            "Verify the repository canonical GitHub createIssueComment operation declares 201 Created with the Comment schema.",
+            "Require exactly one active/ready http_generic_api github_create_issue_comment endpoint row before registry mutation.",
+            "Remove only responses.200 from that exact endpoint schema and reassert responses.201 as a tolerant JSON object response contract.",
+            "Synchronize active endpoint exports sourced from the same endpoint row after exact response repair.",
+            "Expose a dedicated exact-response parity view that blocks when 200 remains or 201 is absent.",
+            "Expose runtime endpoint schema coverage beginning from active/ready http_generic_api endpoints rather than export rows so non-exported callable endpoints cannot disappear from inventory.",
+            "Retain UNKNOWN_OUTCOME_RECONCILIATION_REQUIRED with retry_allowed=false for successful mutating provider responses that later fail local schema validation."
+          ],
+          "assertions": [
+            "The historical 20260808 migration is not edited, preserving its merged checksum and rollout provenance.",
+            "No new endpoint row is inserted and no method, path, authorization material, provider URL, or credential is supplied by callers.",
+            "Exact response repair removes the legacy 200 key and preserves 201 Created for the existing canonical endpoint only.",
+            "Active exports are synchronized from endpoints.schema_json but export presence is not treated as runtime-callability authority.",
+            "v_github_issue_comment_exact_response_parity is ready only when the endpoint has 201, has no 200, and every active export sourced from it is exact and contains no 200.",
+            "v_runtime_endpoint_schema_coverage starts from endpoints and explicitly classifies covered_runtime_not_exported instead of dropping those rows.",
+            "The coverage view is diagnostic and does not falsely claim provider-canonical equality without higher-level certification evidence.",
+            "The existing post-mutation unknown-outcome guard remains unchanged and no automatic retry is introduced.",
+            "The source change performs no provider call, credential read, external send/write, runtime dispatch, database apply, Production mutation, force push, PREPARE, or EXECUTE."
+          ],
+          "tests": [
+            {
+              "id": "github-issue-comment-exact-response-parity-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-issue-comment-exact-response-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/github-issue-comment-exact-response-parity.json",
+            "http-generic-api/migrations/20260810_github_issue_comment_exact_response_parity.sql",
+            "http-generic-api/test-github-issue-comment-exact-response-parity.mjs",
+            "http-generic-api/schemas/github/github_rest.yaml",
+            "http-generic-api/executionResponse.js",
+            "http-generic-api/migrations/20260808_github_issue_comment_dispatch_parity.sql"
+          ]
+        }
+      ]
+    }
+  ]
+}
