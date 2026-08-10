@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 7
+- Total queue items: 8
 - Critical review: 3
 - High review: 0
-- Medium review: 4
+- Medium review: 5
 - Low review: 0
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -16,7 +16,7 @@
 ### 1. `20260808_github_issue_comment_dispatch_parity.sql`
 
 - Queue class: critical_review
-- Score: 910
+- Score: 909
 - Gap severity: high
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: `/repos/{owner}/{repo}/issues/{issue_number}/comments`
@@ -57,7 +57,21 @@
 - `verify_tool_registry_binding` → runtime-registry-review; targets: `github_repository_policy_controller`, `repository_automation_policy_controller`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 4. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 4. `20260810_platform_runtime_registry_drift_reconciliation.sql`
+
+- Queue class: medium_review
+- Score: 390
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+- Surface counts: plugins=0, tools=0, views=2, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_semantic_capability_canonical_reconciliation`, `v_wordpress_registry_runtime_reconciliation`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
+
+### 5. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -71,10 +85,10 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 5. `1052_tenant_platform_plugin_managed_repair_authority.sql`
+### 6. `1052_tenant_platform_plugin_managed_repair_authority.sql`
 
 - Queue class: medium_review
-- Score: 348
+- Score: 347
 - Gap severity: low
 - Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - Missing OpenAPI routes: none
@@ -85,7 +99,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_capabilities_effective_evidence`, `v_tenant_platform_plugin_managed_repair_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 6. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 7. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 335
@@ -99,7 +113,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 7. `20260728_governed_response_chunk_ownership.sql`
+### 8. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 318
