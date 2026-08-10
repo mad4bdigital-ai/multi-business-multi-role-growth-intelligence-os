@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "spec_key": "017-remote-mcp-host-isolation-oauth-readiness",
+  "base_specification_sha": "a722609b45ab3ac4617096963380ab4e1434f17d",
+  "phases": [
+    {
+      "phase": 1,
+      "key": "source_host_isolation",
+      "authorization_class": "source_change",
+      "required": true,
+      "checks": [
+        "effective_host_resolver_is_centralized",
+        "canonical_mcp_host_accepted",
+        "issuer_host_mcp_rejected",
+        "activation_host_mcp_rejected",
+        "unknown_host_mcp_rejected",
+        "wrong_host_rejected_before_mcp_execution"
+      ],
+      "external_mutation_allowed": false
+    },
+    {
+      "phase": 2,
+      "key": "metadata_and_readiness_isolation",
+      "authorization_class": "source_change",
+      "required": true,
+      "checks": [
+        "protected_resource_hosts_are_explicit",
+        "unknown_metadata_host_fails_closed",
+        "tenant_scopes_do_not_leak_to_remote_mcp",
+        "remote_mcp_scopes_do_not_leak_to_tenant_resources",
+        "admin_readiness_is_no_secret",
+        "env_example_covers_remote_mcp_contract"
+      ],
+      "external_mutation_allowed": false
+    },
+    {
+      "phase": 3,
+      "key": "exact_head_source_validation",
+      "authorization_class": "ci_validation",
+      "required": true,
+      "checks": [
+        "targeted_remote_mcp_tests_pass",
+        "oauth_profile_tests_pass",
+        "oauth_route_tests_pass",
+        "token_verifier_tests_pass",
+        "metadata_routing_tests_pass",
+        "disabled_boundary_tests_pass",
+        "full_ci_passes",
+        "architecture_and_governance_checks_pass"
+      ],
+      "external_mutation_allowed": false
+    },
+    {
+      "phase": 4,
+      "key": "nonproduction_infrastructure_and_schema_readiness",
+      "authorization_class": "separate_governed_live_authorization",
+      "required": true,
+      "checks": [
+        "exact_source_sha_deployed_to_controlled_nonproduction",
+        "mcp_dns_verified",
+        "mcp_tls_verified",
+        "reverse_proxy_host_contract_verified",
+        "oauth_migration_applied_through_governed_tooling",
+        "three_oauth_tables_and_indexes_read_back",
+        "dedicated_signing_secret_ready_without_disclosure"
+      ],
+      "external_mutation_allowed": true,
+      "must_not_be_inferred_from_source_merge": true
+    },
+    {
+      "phase": 5,
+      "key": "oauth_dcr_and_client_canary",
+      "authorization_class": "separate_governed_live_authorization",
+      "required": true,
+      "checks": [
+        "oauth_enabled_while_mcp_initially_disabled",
+        "resource_metadata_verified",
+        "authorization_server_metadata_verified",
+        "bounded_dcr_window_verified_when_authorized",
+        "one_approved_test_client_registered",
+        "pkce_flow_verified",
+        "refresh_rotation_and_replay_denial_verified",
+        "revocation_verified",
+        "mcp_canary_enabled",
+        "wrong_host_public_denial_verified"
+      ],
+      "external_mutation_allowed": true,
+      "must_not_be_inferred_from_source_merge": true
+    },
+    {
+      "phase": 6,
+      "key": "cross_client_acceptance_and_rollback",
+      "authorization_class": "separate_governed_live_authorization",
+      "required": true,
+      "checks": [
+        "mcp_inspector_acceptance",
+        "chatgpt_developer_mode_acceptance",
+        "claude_acceptance_if_in_scope",
+        "neutral_client_acceptance",
+        "tenant_workspace_brand_isolation_verified",
+        "token_expiry_reconnect_verified",
+        "dcr_disable_verified",
+        "grant_revocation_verified",
+        "mcp_oauth_disable_order_verified",
+        "runtime_rollback_rehearsed",
+        "exact_deployed_sha_recorded"
+      ],
+      "external_mutation_allowed": true,
+      "must_not_be_inferred_from_source_merge": true
+    }
+  ],
+  "global_invariants": {
+    "force_push": false,
+    "secrets_in_evidence": false,
+    "drop_oauth_tables_on_rollback": false,
+    "production_promotion_implicit": false,
+    "migration_apply_implicit": false,
+    "provider_mutation_implicit": false
+  }
+}
