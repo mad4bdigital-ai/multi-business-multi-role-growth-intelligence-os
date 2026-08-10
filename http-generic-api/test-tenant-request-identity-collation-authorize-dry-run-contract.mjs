@@ -48,7 +48,8 @@ assert.ok(!runner.includes("mode: 'apply'"));
 assert.ok(!runner.includes('APPLY_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT'));
 assert.ok(!runner.includes('governed_migration_execute_apply'));
 assert.ok(!runner.includes('capability_resolution_envelope_apply_authorize'));
-assert.ok(!runner.includes('provider_call'));
+assert.ok(!runner.includes("name: 'github_repository_policy_controller'"));
+assert.ok(!runner.includes('/rulesets'));
 assert.ok(!runner.includes('mysql'));
 assert.ok(!runner.includes('db.query'));
 assert.ok(!runner.includes('1043'));
@@ -70,6 +71,7 @@ process.stdout.write(JSON.stringify({
   statement_count: 3,
   apply_surface_present: false,
   direct_sql_surface_present: false,
+  provider_dispatch_surface_present: false,
   migration_1043_touched: false,
   secrets_included: false,
 }) + '\n');
