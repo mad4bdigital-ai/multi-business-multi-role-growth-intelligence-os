@@ -11,7 +11,7 @@ const [workflow, script] = await Promise.all([
 
 const token = 'AUTHORIZE_GOVERNED_MIGRATION_20260810_GITHUB_ISSUE_COMMENT_EXACT_RESPONSE_PARITY';
 const migration = '20260810_github_issue_comment_exact_response_parity.sql';
-const productionSha = '2a83e9593b2030a5e6f69d13984b6b0155ed45cd';
+const productionSha = '6957f56ead3f720767957dbb7b9b213cc54ed04e';
 const checksum = 'a2322903e061c7084370aa32f8426082f10fecd58679d4743122fbe43a2d9c42';
 
 assert.match(workflow, /github\.event\.issue\.number == 4451/);
