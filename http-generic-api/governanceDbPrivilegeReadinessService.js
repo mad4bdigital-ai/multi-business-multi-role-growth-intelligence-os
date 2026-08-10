@@ -50,19 +50,19 @@ export async function runGovernanceDbPrivilegeReadiness(options = {}, deps = {})
     database_connection_performed: false,
     sql_readback_performed: false,
   };
-  const runtimePool = deps.runtimePool || getPool();
   const preflightFn = deps.resolveGovernanceProductionPreflight || resolveGovernanceProductionPreflight;
   const resolveConfigFn = deps.resolveGovernanceDbConfig || resolveGovernanceDbConfig;
-  const governancePool = deps.governancePool || getGovernancePool();
   const assertPrivilegeFn = deps.assertGovernanceDbPrivilegeReadiness || assertGovernanceDbPrivilegeReadiness;
   let governanceConnection = null;
 
   try {
+    const runtimePool = deps.runtimePool || getPool();
     const preflight = await preflightFn(
       { env },
       { environmentAuthorityDeps: { pool: runtimePool } },
     );
     const governanceConfig = resolveConfigFn(env);
+    const governancePool = deps.governancePool || getGovernancePool();
     governanceConnection = await governancePool.getConnection();
     telemetry.database_connection_performed = true;
     await governanceConnection.ping();
