@@ -84,12 +84,13 @@ function evidence(result = {}) {
   };
 }
 export function buildRepositoryReconciliationPlan({ input, recipe, reconciliation, operationId } = {}) {
+  const planId = value(input.raw?.plan_id, 64) || operationId;
   const steps = (recipe.steps || []).filter((step) => step.status !== "disabled").map((step) => ({
     ...step,
     plan_item_id: hash([operationId, step.step_order, step.step_key]).slice(0, 36),
   }));
   const plan = {
-    version: "repository-reconciliation-orchestrator-v1", operation_id: operationId,
+    version: "repository-reconciliation-orchestrator-v1", plan_id: planId, operation_id: operationId,
     recipe_key: recipe.recipe_key, recipe_status: recipe.status,
     resource: { owner: input.owner, repo: input.repo, branch: input.branch,
       default_branch: input.defaultBranch, pull_number: input.pullNumber,
@@ -97,9 +98,30 @@ export function buildRepositoryReconciliationPlan({ input, recipe, reconciliatio
     reconciliation, policy: recipe.policy || {}, steps,
     force_push_allowed: false, migration_apply_allowed: false, secrets_included: false,
   };
-  return { plan_id: value(input.raw?.plan_id, 64) || operationId,
+  return { plan_id: planId,
     report_sha256: hash([reconciliation, recipe.policy || {}]), plan_sha256: hash(plan),
     plan, steps, secrets_included: false };
+}
+export function assertRepositoryReconciliationPlanBinding({ input, plan } = {}) {
+  if (input?.mode !== "apply") return { ok: true, required: false, secrets_included: false };
+  const suppliedPlanId = value(input?.raw?.plan_id, 64);
+  const suppliedPlanSha256 = value(input?.raw?.plan_sha256, 64)?.toLowerCase();
+  if (!suppliedPlanId || !/^[0-9a-f]{64}$/.test(suppliedPlanSha256 || "")) {
+    throw fail(
+      "repository_reconciliation_plan_binding_required",
+      "Apply requires the exact plan_id and plan_sha256 returned by the authorized dry-run plan.",
+      400,
+    );
+  }
+  if (suppliedPlanId !== plan?.plan_id || suppliedPlanSha256 !== plan?.plan_sha256) {
+    throw fail(
+      "repository_reconciliation_plan_hash_mismatch",
+      "The supplied repository reconciliation plan binding does not match the same-cycle rebuilt plan.",
+      409,
+      { plan_id: suppliedPlanId },
+    );
+  }
+  return { ok: true, required: true, plan_id: suppliedPlanId, plan_sha256: suppliedPlanSha256, secrets_included: false };
 }
 function stepAuthorization(input, step) {
   if (step.step_kind !== "installed_tool_call" || !MUTATIONS.has(step.tool_key)) return null;
@@ -181,6 +203,7 @@ export async function runRepositoryReconciliationOrchestrator(args = {}, deps = 
     plan,
     secrets_included: false,
   };
+  assertRepositoryReconciliationPlanBinding({ input, plan });
   if (recipe.status !== "active") throw fail("repository_reconciliation_recipe_not_active", "The recipe is not active for mutation.");
   if (!input.capabilityEnvelopeId || !input.approvalHoldId || !deps.authorizePlan || !deps.executeStep) {
     throw fail("repository_reconciliation_authority_required", "Plan authority and a governed step executor are required.", 403);
