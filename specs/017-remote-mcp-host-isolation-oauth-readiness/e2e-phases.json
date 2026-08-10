@@ -17,15 +17,21 @@
       "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
       "http-generic-api/.env.example",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/remoteMcpOAuthProfile.js",
       "http-generic-api/remoteMcpReadiness.js",
       "http-generic-api/remoteMcpRequestHost.js",
       "http-generic-api/routes/remoteMcpConnectorRoutes.js",
       "http-generic-api/routes/runtimeVerificationRoutes.js",
       "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/scripts/run-test-manifest.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
       "http-generic-api/test-remote-mcp-host-isolation.mjs",
@@ -47,23 +53,40 @@
           "level": "synthetic_runtime",
           "actor": "Platform specification reviewer",
           "entrypoint": "Spec 017 manifest, requirements, E2E contract, and implementation handoff",
-          "terminal_outcome": "The reviewer receives one canonical topology and an implementation-ready correction plan that separates source changes from all live mutation authorities.",
+          "terminal_outcome": "The reviewer receives one canonical topology and an implementation-ready correction plan that explicitly separates source changes from DNS, TLS, migration, secret, DCR, client-registration, deployment, and Production authorities.",
           "steps": [
-            "Load the Spec 017 canonical topology.",
-            "Verify the Remote MCP resource host and OAuth issuer remain distinct authorities.",
-            "Verify wrong-host transport and metadata requests are required to fail closed.",
-            "Verify proxy host trust is explicit rather than implicit.",
-            "Verify no-secret readiness requirements and separately governed live phases."
+            "Load the Spec 017 manifest and canonical topology.",
+            "Verify that only mcp.mad4b.com is the declared Remote MCP resource host while auth.mad4b.com remains the OAuth issuer and Tenant GPT core resource.",
+            "Verify that wrong-host MCP requests and unknown protected-resource metadata hosts are required to fail closed.",
+            "Verify that forwarded host headers are not authority unless a trusted deployment boundary explicitly enables them.",
+            "Verify that readiness output is administrative, bounded, and contains no secret values.",
+            "Verify that migration apply, signing-secret provisioning, DNS/TLS/proxy mutation, DCR registration, canary activation, real client acceptance, and Production promotion remain separately authorized live phases."
           ],
           "assertions": [
-            "The canonical MCP endpoint is https://mcp.mad4b.com/mcp.",
-            "The canonical OAuth issuer is https://auth.mad4b.com/auth/mcp.",
-            "No specification-only artifact authorizes deployment, migration, secrets, provider mutation, client registration, or Production mutation."
+            "The canonical MCP endpoint remains https://mcp.mad4b.com/mcp.",
+            "The canonical OAuth issuer remains https://auth.mad4b.com/auth/mcp.",
+            "auth.mad4b.com/mcp is not accepted as a substitute canonical MCP endpoint.",
+            "No source-only specification artifact authorizes live migration, secret, provider, feature-flag, client-registration, deployment, or Production mutation.",
+            "Rollback never requires dropping OAuth evidence tables.",
+            "No secret value or account-specific OAuth callback is committed."
           ],
-          "tests": [],
+          "tests": [
+            {
+              "id": "spec-017-contract-validator",
+              "runner": "node",
+              "working_directory": "specs/017-remote-mcp-host-isolation-oauth-readiness",
+              "path": "tools/validate-spec.mjs",
+              "args": []
+            }
+          ],
           "evidence_paths": [
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
           ]
         }
@@ -154,13 +177,18 @@
           "evidence_paths": [
             "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "http-generic-api/.env.example",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/remoteMcpRequestHost.js",
             "http-generic-api/remoteMcpReadiness.js",
             "http-generic-api/remoteMcpOAuthProfile.js",
             "http-generic-api/routes/remoteMcpConnectorRoutes.js",
             "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
             "http-generic-api/routes/runtimeVerificationRoutes.js",
-            "http-generic-api/.env.example",
+            "http-generic-api/scripts/run-test-manifest.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-remote-mcp-host-isolation.mjs",
             "http-generic-api/test-remote-mcp-readiness.mjs",
             "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs"
