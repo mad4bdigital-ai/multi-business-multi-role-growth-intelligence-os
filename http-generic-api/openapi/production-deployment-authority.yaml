@@ -10,7 +10,7 @@ productionDeploymentAuthorityPath:
       mutation remains separately blocked by target policy unless independently authorized.
     x-runtime-contract-source: routes/platformPluginRoutes.js
     x-runtime-auth-profile: admin_backend
-    x-contract-completeness: precise-runtime-operation
+    x-contract-completeness: precise-runtime-contract
     x-custom-gpt-exclude: true
     x-gpt-action-exclude: true
     x-openai-isConsequential: true
