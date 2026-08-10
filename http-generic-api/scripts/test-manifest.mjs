@@ -62,6 +62,7 @@ const staticDiscoveryCommands = [
   "node scripts/test-generated-artifact-refresh-pr-publisher.mjs",
   "node test-github-file-patch-plan-runtime.mjs",
   "node test-github-list-issue-comments-endpoint.mjs",
+  "node test-github-issue-comment-exact-response-parity.mjs",
   "node test-github-pr-create-rest-fallback.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-governed-migration-dependency-gate.mjs",
