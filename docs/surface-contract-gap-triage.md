@@ -4,18 +4,17 @@
 
 ## Summary
 
-- Triaged items: 6
-- Gate candidates: 2
+- Triaged items: 4
+- Gate candidates: 1
 - New-gap gate: fail
-- Blocking new items: 4
+- Blocking new items: 2
 
 ## Class counts
 
-- new_surface_immediate_review: 2
-- safety_marker_review: 3
+- new_surface_immediate_review: 1
+- safety_marker_review: 2
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
 - `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 910; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1050_github_repository_policy_controller_bootstrap_repair.sql` — critical_review, score 713; next: add targeted patch-index, parity, and governance documentation
