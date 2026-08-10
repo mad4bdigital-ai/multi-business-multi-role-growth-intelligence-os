@@ -4,7 +4,7 @@
 
 Canonical capability-envelope **control-plane**, governed-migration authorization, bounded resource-authority persistence, and governed response-chunk mutations must not execute with the ordinary runtime database identity. The application therefore uses a dedicated Governance DB writer pool for those reviewed tables while preserving the ordinary `DB_*` pool for normal runtime/authority reads and preserving an already-open execution transaction when envelope consumption must be atomic with a business mutation.
 
-This source contract addresses the DB write-authority incident tracked by Issue #6813 and the related runtime privilege-regression findings. It does **not** provision a Production principal, grant privileges, configure secrets, deploy Production, execute a migration, or prove Production readiness by itself.
+This source contract addresses the DB write-authority incident tracked by Issue #6813, the related runtime privilege-regression findings, and the Production Environment Authority boundary added by Spec 018. It does **not** provision a Production principal, grant privileges, configure secrets, deploy Production, execute a migration, or prove Production readiness by itself.
 
 ## Environment contract
 
@@ -35,6 +35,21 @@ Missing governance user/password fails closed with `GOVERNANCE_DB_CONFIG_MISSING
 - Batch-expire dry-run remains read-only; batch-expire apply is a standalone governance mutation and stays on the Governance writer.
 
 The execution transaction exception exists only to prevent a separate-principal post-commit lifecycle write from breaking an already-open execution transaction. It must not be used to bypass control-plane writer selection or to reinterpret `DB_USER`/`DB_PASSWORD` as Governance DB credentials.
+
+## Production environment authority preflight
+
+Database mutation authority and environment/deployment authority remain separate domains. Before any Production Governance DB principal provisioning, privilege-readiness check, or governed-migration lifecycle that depends on the dedicated writer, the caller must pass `resolveGovernanceProductionPreflight()`.
+
+The preflight composes the #6813 writer contract with the Spec 018 Environment Authority resolver without moving database authority into Spec 018. It requires:
+
+- valid dedicated `GOVERNANCE_DB_USER` and `GOVERNANCE_DB_PASSWORD` configuration with no runtime-credential fallback;
+- canonical Environment Authority resolution;
+- exact `production_branch = Production`;
+- exact `promotion_target_branch = Production`.
+
+A mismatch fails closed with `GOVERNANCE_PRODUCTION_ENVIRONMENT_AUTHORITY_MISMATCH`. The returned evidence contains no usernames or password values and performs no database connection, SQL execution, Migration Apply, provider mutation, deployment, or restart.
+
+Environment Authority therefore answers **where Production authority lives**. The Governance DB writer contract answers **which isolated database identity may perform bounded governance mutations**. Passing one never grants or substitutes for the other.
 
 ## Minimum Production privilege matrix
 
@@ -81,14 +96,15 @@ This makes the original privilege regression observable before the first durable
 
 Source merge is only a prerequisite. Issue #6813 remains open until all of the following are performed through separately authorized Production governance:
 
-1. Create a dedicated MariaDB Governance writer principal outside the application runtime.
-2. Apply only the reviewed table/operation matrix above.
-3. Configure `GOVERNANCE_DB_*` Production secrets without exposing values.
-4. Promote the merged source through the normal `main -> Production` lifecycle and prove runtime parity.
-5. Run the bounded no-secret Governance DB readiness probe and prove all required operations are present and prohibited broad privileges are absent.
-6. Prove envelope create/approval, resource-authority binding persistence with runtime readback, and governed response-chunk persist/load/expiry operations without a Provider/GitHub mutation.
-7. Re-read the governed migration ledger/state.
-8. Obtain a **fresh** Migration 1050 readiness authorization; do not reuse the authorization consumed by run `31379417191`.
+1. Pass the no-secret Governance Production environment-authority preflight.
+2. Create a dedicated MariaDB Governance writer principal outside the application runtime.
+3. Apply only the reviewed table/operation matrix above.
+4. Configure `GOVERNANCE_DB_*` Production secrets without exposing values.
+5. Promote the merged source through the normal `main -> Production` lifecycle and prove runtime parity.
+6. Run the bounded no-secret Governance DB readiness probe and prove all required operations are present and prohibited broad privileges are absent.
+7. Prove envelope create/approval, resource-authority binding persistence with runtime readback, and governed response-chunk persist/load/expiry operations without a Provider/GitHub mutation.
+8. Re-read the governed migration ledger/state.
+9. Obtain a **fresh** Migration 1050 readiness authorization; do not reuse the authorization consumed by run `31379417191`.
 
 Migration Apply, live GitHub Ruleset apply, Production ref mutation, database grants, provider mutation, deployment/restart, and secret writes are independent governed operations and are not authorized by this source PR.
 
@@ -98,6 +114,8 @@ Repository CI must prove at minimum:
 
 - runtime-only `DB_USER`/`DB_PASSWORD` cannot satisfy governance configuration;
 - governance credential errors contain no secret values;
+- Production preflight rejects any Environment Authority whose production branch or promotion target is not exactly `Production`;
+- Production preflight returns no usernames or password values and performs no database connection or mutation;
 - canonical envelope creation writes through `writerPool` while repository authority reads remain on `readPool`;
 - approval/apply-authorization and migration bootstrap select the dedicated writer by default;
 - platform resource-authority binding creation writes through the Governance writer and is independently visible through the runtime reader;
