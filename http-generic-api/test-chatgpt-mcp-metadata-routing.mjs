@@ -95,6 +95,30 @@ async function getProtectedResourceMetadata(baseUrl, host) {
   const app = express();
   app.use(buildTenantGptOAuthMetadataRoutes({
     env: {
+      REMOTE_MCP_ENABLED: "false",
+      REMOTE_MCP_OAUTH_ENABLED: "true",
+      REMOTE_MCP_RESOURCE_URL: "https://mcp.example.test",
+      REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test",
+      REMOTE_MCP_TRUST_PROXY_HOST_HEADERS: "true",
+    },
+  }));
+  const { server, baseUrl } = await startServer(app);
+  try {
+    const oauthOnly = await getProtectedResourceMetadata(baseUrl, "mcp.example.test");
+    assert.equal(oauthOnly.status, 200);
+    assert.equal(oauthOnly.body.resource, "https://mcp.example.test");
+    assert.deepEqual(oauthOnly.body.authorization_servers, ["https://auth.example.test"]);
+    assert.deepEqual(oauthOnly.body.scopes_supported, ["workspaces.read", "brands.read"]);
+    assert(oauthOnly.cacheControl.includes("max-age=300"));
+  } finally {
+    await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  }
+}
+
+{
+  const app = express();
+  app.use(buildTenantGptOAuthMetadataRoutes({
+    env: {
       REMOTE_MCP_OAUTH_ENABLED: "false",
       REMOTE_MCP_AUTHORIZATION_SERVER_URL: "https://auth.example.test/auth/mcp",
     },
