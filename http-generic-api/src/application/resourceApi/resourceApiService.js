@@ -37,7 +37,8 @@ function requireAssetInput(input = {}) {
       400
     );
   }
-  requireWorkspaceAssetType(input.asset_type);
+  input.asset_type = requireWorkspaceAssetType(input.asset_type);
+  return input;
 }
 
 function ensureSessionAuthorized(auth, session) {
