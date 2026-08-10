@@ -15,6 +15,27 @@ function assertSnapshotFingerprint(authoritySnapshot) {
   return authoritySnapshot;
 }
 
+function assertGenericManagedExecutionCompletionMode({ context = {}, nextStatus }) {
+  if (nextStatus !== "completed") return true;
+  const authoritySnapshot = context?.authority_snapshot && typeof context.authority_snapshot === "object"
+    ? context.authority_snapshot
+    : {};
+  const executionMode = String(authoritySnapshot.execution_mode || context.execution_mode || "live").trim().toLowerCase();
+  if (executionMode === "dry_run") {
+    throw managedError(
+      409,
+      "managed_execution_dry_run_completion_executor_required",
+      "Dry-run managed executions cannot be completed through generic run-status updates; a dedicated dry-run executor with readback evidence is required.",
+    );
+  }
+  if (executionMode !== "live") {
+    throw managedError(409, "managed_execution_existing_execution_mode_invalid", "Managed execution authority snapshot contains an invalid execution mode.", {
+      execution_mode: executionMode || null,
+    });
+  }
+  return true;
+}
+
 export async function decideManagedExecutionApproval({ pool, connection: suppliedConnection = null, holdId, decision, decisionBy, decisionNote = null }) {
   const operation = async (connection) => {
     const [holdRows] = await connection.query("SELECT * FROM approval_holds WHERE hold_id = ? LIMIT 2 FOR UPDATE", [holdId]);
@@ -41,7 +62,11 @@ export async function decideManagedExecutionApproval({ pool, connection: supplie
       const [runRows] = await connection.query("SELECT execution_context_json FROM workflow_runs WHERE run_id = ? LIMIT 2 FOR UPDATE", [hold.run_id]);
       if (runRows.length !== 1) throw managedError(409, "managed_execution_run_missing", "Managed execution run is missing or ambiguous.");
       const authoritySnapshot = assertSnapshotFingerprint(parseJson(runRows[0].execution_context_json, {}).authority_snapshot || {});
-      await assertManagedExecutionAuthorityStillEffective({ connection, authoritySnapshot });
+      await assertManagedExecutionAuthorityStillEffective({
+        connection,
+        authoritySnapshot,
+        allowDryRunRevalidation: true,
+      });
     }
 
     const actor = String(decisionBy || "system").slice(0, 36);
@@ -94,6 +119,7 @@ export async function syncManagedExecutionRunStatus({ pool, runId, nextStatus, a
     const context = parseJson(run.execution_context_json, {});
     if (context.contract !== "tenant-managed-execution-v1") throw managedError(409, "managed_execution_run_contract_mismatch", "Run is not owned by managed execution lifecycle.");
     assertManagedExecutionTransition({ current_status: run.status, next_status: nextStatus });
+    assertGenericManagedExecutionCompletionMode({ context, nextStatus });
     const [bindingRows] = await connection.query("SELECT * FROM managed_execution_bindings WHERE run_id = ? LIMIT 2 FOR UPDATE", [runId]);
     if (bindingRows.length !== 1) throw managedError(409, "managed_execution_binding_missing", "Managed execution binding is missing or ambiguous.");
     const binding = bindingRows[0];

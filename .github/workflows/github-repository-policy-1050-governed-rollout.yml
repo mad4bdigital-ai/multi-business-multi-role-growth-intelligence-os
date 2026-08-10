@@ -1,0 +1,135 @@
+name: Governed Migration 1050 GitHub Repository Policy Bootstrap Repair Rollout
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    name: Authorize and dry-run Migration 1050
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1050_GITHUB_REPOSITORY_POLICY_CONTROLLER_BOOTSTRAP_REPAIR' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: github-repository-policy-1050-readiness
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: readiness
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6628'
+      SOURCE_PR: '6746'
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-readiness
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Execute Production-bound authorization and dry-run
+        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+      - name: Upload no-secret readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-repository-policy-1050-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  apply:
+    name: Apply Migration 1050 exactly once and certify
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'APPLY_1050_GITHUB_REPOSITORY_POLICY_CONTROLLER_BOOTSTRAP_REPAIR' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 40
+    concurrency:
+      group: github-repository-policy-1050-apply
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: apply
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6628'
+      SOURCE_PR: '6746'
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-apply
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Execute exactly-once bootstrap-repair Apply and same-cycle certification
+        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+      - name: Upload no-secret Apply evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-repository-policy-1050-apply-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
+
+  verify:
+    name: Verify Migration 1050 ledger and repaired metadata
+    if: >-
+      github.event.issue.number == 6628 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'VERIFY_GOVERNED_MIGRATION_1050_GITHUB_REPOSITORY_POLICY_CONTROLLER_BOOTSTRAP_REPAIR' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: github-repository-policy-1050-verify
+      cancel-in-progress: false
+    env:
+      ROLLOUT_PHASE: verify
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6628'
+      SOURCE_PR: '6746'
+      EVIDENCE_DIR: .artifacts/github-repository-policy-1050-verify
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Verify exact ledger and repaired metadata without Apply
+        run: node .github/ops/github-repository-policy-1050-governed-rollout.mjs
+      - name: Upload no-secret verification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-repository-policy-1050-verify-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30

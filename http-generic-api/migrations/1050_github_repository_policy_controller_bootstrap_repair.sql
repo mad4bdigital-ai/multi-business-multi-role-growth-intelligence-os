@@ -218,4 +218,6 @@ ON DUPLICATE KEY UPDATE
   authorization_status=VALUES(authorization_status),authorization_source=VALUES(authorization_source),
   policy_key=VALUES(policy_key),risk_tier=VALUES(risk_tier),requires_preflight=VALUES(requires_preflight),
   requires_confirmation=VALUES(requires_confirmation),allow_record_only=VALUES(allow_record_only),
-  allow_apply=VALUES(allow_apply),notes=VALUES(notes),metadata_json=VALUES(metadata_json),updated_at=CURRENT_TIMESTAMP;
+  allow_apply=VALUES(allow_apply),notes=VALUES(notes),
+  metadata_json=JSON_MERGE_PATCH(CASE WHEN JSON_VALID(metadata_json) THEN metadata_json ELSE JSON_OBJECT() END, VALUES(metadata_json)),
+  updated_at=CURRENT_TIMESTAMP;
