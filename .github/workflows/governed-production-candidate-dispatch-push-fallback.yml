@@ -1,4 +1,5 @@
-name: Governed Production Candidate Dispatch Push Fallback
+name: Governed Production Candidate Dispatch Push Request
+run-name: Governed Production Candidate Dispatch Push Request · ${{ github.sha }}
 
 on:
   push:
@@ -7,31 +8,31 @@ on:
       - ".github/production-promotion-requests/dispatch-4241.txt"
 
 permissions:
-  actions: write
   contents: read
-  issues: write
   pull-requests: read
 
 jobs:
-  dispatch-exact-candidate-builder:
-    name: Dispatch exact current-ref candidate builder from marker
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+  request:
+    name: Publish marker-bound read-only dispatch request
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     env:
       GH_TOKEN: ${{ github.token }}
       REPOSITORY: ${{ github.repository }}
       REQUEST_PR: "4241"
       MARKER: .github/production-promotion-requests/dispatch-4241.txt
+      REPORT_DIR: /tmp/governed-production-candidate-dispatch-request
     steps:
       - uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
+          persist-credentials: false
 
-      - name: Validate exact marker-only execution contract
+      - name: Validate exact marker-only request contract
         shell: bash
         run: |
-          set -Eeuo pipefail
+          set -euo pipefail
           test -f "$MARKER"
           grep -Fxq 'request_pr=4241' "$MARKER"
           grep -Fxq 'trigger_revision=push-v1-marker-only' "$MARKER"
@@ -43,132 +44,71 @@ jobs:
           grep -Fxq 'migration_authorized=false' "$MARKER"
           grep -Fxq 'provider_call_authorized=false' "$MARKER"
           grep -Fxq 'credential_payload_read_authorized=false' "$MARKER"
-          mapfile -t CHANGED < <(git diff --name-only "${GITHUB_SHA}^1" "$GITHUB_SHA")
-          test "${#CHANGED[@]}" -eq 1
-          test "${CHANGED[0]}" = "$MARKER"
+          mapfile -t changed < <(git diff --name-only "${GITHUB_SHA}^1" "$GITHUB_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = "$MARKER"
 
-      - name: Validate request and pin protected refs
-        id: refs
+      - name: Evaluate exact request without repository mutation
         shell: bash
         run: |
-          set -Eeuo pipefail
-          REQUEST_JSON="$(gh pr view "$REQUEST_PR" --repo "$REPOSITORY" --json title,state,baseRefName,headRefName,isCrossRepository,headRepository)"
-          test "$(jq -r '.title' <<<"$REQUEST_JSON")" = 'ops: request governed Production synchronization'
-          test "$(jq -r '.state' <<<"$REQUEST_JSON")" = 'OPEN'
-          test "$(jq -r '.baseRefName' <<<"$REQUEST_JSON")" = 'main'
-          test "$(jq -r '.isCrossRepository' <<<"$REQUEST_JSON")" = 'false'
-          test "$(jq -r '.headRepository.nameWithOwner' <<<"$REQUEST_JSON")" = "$REPOSITORY"
-          HEAD_REF="$(jq -r '.headRefName' <<<"$REQUEST_JSON")"
-          [[ "$HEAD_REF" == gpt/request-production-promotion-* ]]
+          set -euo pipefail
+          rm -rf "${REPORT_DIR}"
+          mkdir -p "${REPORT_DIR}"
 
-          MAIN_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
-          [[ "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$PRODUCTION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          pr="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${REPOSITORY}/pulls/${REQUEST_PR}")"
+          title="$(jq -r '.title' <<<"${pr}")"
+          state="$(jq -r '.state' <<<"${pr}")"
+          draft="$(jq -r '.draft' <<<"${pr}")"
+          base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+          target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+          head_repository="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+          expected_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
 
-          EXISTING_BODY="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100" \
-            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\"))] | last.body // empty")"
-          DISPATCH_REQUIRED=true
-          if [[ -n "$EXISTING_BODY" ]]; then
-            EXISTING_RUN_ID="$(sed -n 's/.*builder_run_id=\([0-9][0-9]*\).*/\1/p' <<<"$EXISTING_BODY")"
-            if [[ -z "$EXISTING_RUN_ID" ]]; then
-              DISPATCH_REQUIRED=false
-            else
-              RUN_JSON="$(gh run view "$EXISTING_RUN_ID" --repo "$REPOSITORY" --json status,conclusion 2>/dev/null || true)"
-              if [[ -z "$RUN_JSON" ]]; then
-                DISPATCH_REQUIRED=false
-              else
-                RUN_STATUS="$(jq -r '.status // ""' <<<"$RUN_JSON")"
-                RUN_CONCLUSION="$(jq -r '.conclusion // ""' <<<"$RUN_JSON")"
-                if [[ "$RUN_STATUS" != 'completed' || "$RUN_CONCLUSION" == 'success' ]]; then
-                  DISPATCH_REQUIRED=false
-                fi
-              fi
-            fi
+          outcome="eligible"
+          reason=""
+          if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
+            outcome="blocked"; reason="unexpected_request_title"
+          elif [[ "${state}" != "open" ]]; then
+            outcome="blocked"; reason="request_pull_request_not_open"
+          elif [[ "${draft}" == "true" ]]; then
+            outcome="blocked"; reason="request_pull_request_is_draft"
+          elif [[ "${base_ref}" != "main" ]]; then
+            outcome="blocked"; reason="unexpected_base_branch"
+          elif [[ "${head_repository}" != "${REPOSITORY}" ]]; then
+            outcome="blocked"; reason="cross_repository_request_forbidden"
+          elif [[ ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+            outcome="blocked"; reason="invalid_governed_request_branch"
+          elif [[ "${target_ref}" == "main" || "${target_ref}" == "Production" ]]; then
+            outcome="blocked"; reason="protected_request_branch_forbidden"
           fi
 
-          if [[ "$DISPATCH_REQUIRED" != 'true' ]]; then
-            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} trigger=push-v1-marker-only merge_executed=false deployment_executed=false"
-            gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
-          fi
+          main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          [[ "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${main_sha}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${production_sha}" =~ ^[0-9a-f]{40}$ ]]
 
-          MAIN_SHORT="${MAIN_SHA:0:12}"
-          PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
-          SUFFIX="push-${GITHUB_RUN_ID}"
-          RELEASE_BRANCH="release/production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
-          VALIDATION_BRANCH="gpt/validate-production-candidate-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
-          VALIDATION_BASE_BRANCH="gpt/validate-production-base-${MAIN_SHORT}-${PRODUCTION_SHORT}-${SUFFIX}"
-          BEFORE_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" --jq '[.workflow_runs[].id] | max // 0')"
+          jq -n \
+            --arg contract "mad4b.governed-production-candidate-dispatch-request.v1" \
+            --arg outcome "${outcome}" \
+            --arg reason "${reason}" \
+            --arg target_ref "${target_ref}" \
+            --arg expected_head_sha "${expected_head_sha}" \
+            --arg expected_main_sha "${main_sha}" \
+            --arg expected_production_sha "${production_sha}" \
+            --arg source_event "${GITHUB_EVENT_NAME}" \
+            --argjson request_pr "${REQUEST_PR}" \
+            --argjson source_run_id "${GITHUB_RUN_ID}" \
+            '{contract:$contract,outcome:$outcome,reason:(if ($reason|length)>0 then $reason else null end),request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,source_run_id:$source_run_id,source_event:$source_event,candidate_code_checkout:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "${REPORT_DIR}/request.json"
 
-          {
-            echo "dispatch_required=$DISPATCH_REQUIRED"
-            echo "main_sha=$MAIN_SHA"
-            echo "production_sha=$PRODUCTION_SHA"
-            echo "release_branch=$RELEASE_BRANCH"
-            echo "validation_branch=$VALIDATION_BRANCH"
-            echo "validation_base_branch=$VALIDATION_BASE_BRANCH"
-            echo "before_run_id=$BEFORE_RUN_ID"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Dispatch canonical exact-tree builder
-        if: steps.refs.outputs.dispatch_required == 'true'
-        shell: bash
-        env:
-          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
-          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
-          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
-          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
-          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
-        run: |
-          set -Eeuo pipefail
-          gh workflow run production-promotion-candidate.yml \
-            --repo "$REPOSITORY" \
-            --ref main \
-            --field expected_main_sha="$MAIN_SHA" \
-            --field expected_production_sha="$PRODUCTION_SHA" \
-            --field release_branch="$RELEASE_BRANCH" \
-            --field validation_branch="$VALIDATION_BRANCH" \
-            --field validation_base_branch="$VALIDATION_BASE_BRANCH" \
-            --field create_pull_requests=true
-
-      - name: Resolve dispatched builder and record evidence
-        if: steps.refs.outputs.dispatch_required == 'true'
-        shell: bash
-        env:
-          BEFORE_RUN_ID: ${{ steps.refs.outputs.before_run_id }}
-          MAIN_SHA: ${{ steps.refs.outputs.main_sha }}
-          PRODUCTION_SHA: ${{ steps.refs.outputs.production_sha }}
-          RELEASE_BRANCH: ${{ steps.refs.outputs.release_branch }}
-          VALIDATION_BRANCH: ${{ steps.refs.outputs.validation_branch }}
-          VALIDATION_BASE_BRANCH: ${{ steps.refs.outputs.validation_base_branch }}
-        run: |
-          set -Eeuo pipefail
-          BUILDER_RUN_ID=""
-          for _ in $(seq 1 60); do
-            BUILDER_RUN_ID="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
-              --jq ".workflow_runs | map(select(.id > ${BEFORE_RUN_ID})) | sort_by(.id) | .[0].id // empty")"
-            if [[ -n "$BUILDER_RUN_ID" ]]; then break; fi
-            sleep 5
-          done
-          test -n "$BUILDER_RUN_ID"
-
-          BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} trigger=push-v1-marker-only fallback_run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${RELEASE_BRANCH} validation_branch=${VALIDATION_BRANCH} validation_base_branch=${VALIDATION_BASE_BRANCH} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
-          gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
-
-      - name: Publish summary
-        if: always()
-        shell: bash
-        run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## Governed Production candidate push fallback
-
-          - request PR: \`${REQUEST_PR}\`
-          - dispatch required: \`${{ steps.refs.outputs.dispatch_required }}\`
-          - main: \`${{ steps.refs.outputs.main_sha }}\`
-          - Production: \`${{ steps.refs.outputs.production_sha }}\`
-          - release branch: \`${{ steps.refs.outputs.release_branch }}\`
-          - validation branch: \`${{ steps.refs.outputs.validation_branch }}\`
-          - merge executed: false
-          - deployment executed: false
-          - migration executed: false
-          EOF
+      - name: Upload marker-bound dispatch request
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-production-candidate-dispatch-request-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/request.json
+          if-no-files-found: error
+          retention-days: 14
