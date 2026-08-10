@@ -121,7 +121,23 @@ jobs:
           test "$(jq -r '.[0].head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
+
+          target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
+          : > "${target_binding_file}"
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100" --jq '.[].filename' \
+            | grep -E '^specs/[0-9]{3}-[A-Za-z0-9._-]+/work-map-integration\.json$' \
+            | sort -u > "${target_binding_file}" || true
+
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+            test -f "${binding_path}"
+          done < "${target_binding_file}"
+
+          target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
+          echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
           echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
+          echo "target_binding_count=${target_binding_count}" >> "$GITHUB_OUTPUT"
 
       - name: Verify and consume Recovery-issued writer delegation
         id: delegation
@@ -227,7 +243,7 @@ jobs:
           run_contract "schema-classification-regression" \
             node http-generic-api/test-work-map-schema-classification.mjs
           run_contract "schema-classification-contract-regression" \
-            node http-generic-api/test-work-map-schema-classification-contract.mjs
+            node http-generic-api/scripts/work-map-schema-classification-contract.mjs
 
           {
             echo "## Validation outcomes"
@@ -271,30 +287,74 @@ jobs:
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           )
 
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            case "${binding_path}" in
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json) ;;
+              *) governed_paths+=("${binding_path}") ;;
+            esac
+          done < "${TARGET_BINDING_FILE}"
+
+          refresh_target_bindings() {
+            while IFS= read -r binding_path; do
+              [[ -z "${binding_path}" ]] && continue
+              [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+              feature_key="${BASH_REMATCH[1]}"
+              case "${feature_key}" in
+                014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os) continue ;;
+              esac
+              node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}"
+            done < "${TARGET_BINDING_FILE}"
+          }
+
+          assert_bounded_write_set() {
+            unexpected_files=()
+            while IFS= read -r changed_file; do
+              [[ -z "${changed_file}" ]] && continue
+              case "${changed_file}" in
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json) continue ;;
+              esac
+              if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              unexpected_files+=("${changed_file}")
+            done < <(git diff --name-only)
+            if [[ "${#unexpected_files[@]}" -ne 0 ]]; then
+              echo "Governed convergence modified files outside the bounded write set:"
+              printf '%s\n' "${unexpected_files[@]}"
+              exit 1
+            fi
+          }
+
           run_convergence() {
             node http-generic-api/scripts/platform-work-map-generator.mjs --write
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+            refresh_target_bindings
           }
 
           run_convergence
-          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$)' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Governed convergence modified files outside the bounded write set:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
-
+          assert_bounded_write_set
           first_diff_hash="$(git diff --binary -- "${governed_paths[@]}" | sha256sum | awk '{print $1}')"
           run_convergence
+          assert_bounded_write_set
           second_diff_hash="$(git diff --binary -- "${governed_paths[@]}" | sha256sum | awk '{print $1}')"
           test "${first_diff_hash}" = "${second_diff_hash}"
 
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+            feature_key="${BASH_REMATCH[1]}"
+            case "${feature_key}" in
+              014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os) continue ;;
+            esac
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}" --check
+          done < "${TARGET_BINDING_FILE}"
 
-      - name: Commit and push governed Work Maps and Spec014 bindings
+      - name: Commit and push governed Work Maps and target bindings
         id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -308,12 +368,33 @@ jobs:
             specs/014-governed-hostinger-storage-orchestration/tasks.md
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
           )
+          target_binding_paths=()
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            case "${binding_path}" in
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json) ;;
+              *)
+                governed_paths+=("${binding_path}")
+                target_binding_paths+=("${binding_path}")
+                ;;
+            esac
+          done < "${TARGET_BINDING_FILE}"
 
           if ! git diff --quiet -- "${governed_paths[@]}"; then
-            unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$)' || true)"
-            if [[ -n "${unexpected_files}" ]]; then
+            unexpected_files=()
+            while IFS= read -r changed_file; do
+              [[ -z "${changed_file}" ]] && continue
+              case "${changed_file}" in
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json) continue ;;
+              esac
+              if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              unexpected_files+=("${changed_file}")
+            done < <(git diff --name-only)
+            if [[ "${#unexpected_files[@]}" -ne 0 ]]; then
               echo "Refusing publish because changed files exceed the bounded write set:"
-              printf '%s\n' "${unexpected_files}"
+              printf '%s\n' "${unexpected_files[@]}"
               exit 1
             fi
 
@@ -323,7 +404,10 @@ jobs:
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
               specs/014-governed-hostinger-storage-orchestration/tasks.md \
               specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-            git commit -m "docs(work-maps): regenerate governed maps and Spec014 bindings"
+            if [[ "${#target_binding_paths[@]}" -ne 0 ]]; then
+              git add -- "${target_binding_paths[@]}"
+            fi
+            git commit -m "docs(work-maps): regenerate governed maps and target bindings"
 
             remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
             test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
