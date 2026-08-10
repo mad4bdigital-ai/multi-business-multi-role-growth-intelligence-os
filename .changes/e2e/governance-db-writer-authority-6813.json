@@ -1,0 +1,131 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governance-db-writer-authority-6813",
+  "title": "Governance DB Writer Authority Isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governance-db-writer-authority-6813.json",
+      "http-generic-api/.env.example",
+      "http-generic-api/governanceDb.js",
+      "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+      "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
+      "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+      "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+      "http-generic-api/scripts/capability-resolution-envelope-approve.mjs",
+      "http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-capability-envelope-batch-expire.mjs",
+      "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
+      "http-generic-api/test-governance-db-writer-authority.mjs",
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Separate canonical governance database writes from the ordinary runtime DB identity without weakening envelope or migration authorization semantics, while keeping this PR source-only and fail-closed when Governance DB writer credentials are absent.",
+      "e2e_journeys": [
+        {
+          "id": "runtime-reader-to-dedicated-governance-writer",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed execution runtime",
+          "entrypoint": "Capability envelope creation, approval, apply authorization, and governed migration authorization bootstrap",
+          "terminal_outcome": "Runtime authority reads remain on the ordinary read pool while canonical envelope, approval, authorization-policy, certification, and migration-authorization mutations are routed through an explicit Governance DB writer pool; missing Governance writer identity fails closed and no live database or provider action occurs in this PR.",
+          "steps": [
+            "Resolve ordinary runtime authority and envelope lookup through the runtime read pool.",
+            "Resolve the Governance DB writer pool from dedicated GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD configuration without falling back to DB_USER or DB_PASSWORD.",
+            "Create, approve, and apply-authorize capability envelopes using the Governance writer for canonical mutations and transaction boundaries.",
+            "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and lifecycle mutation bound to the Governance writer pool.",
+            "Preserve legacy runtime implementations behind narrow facades so dependency injection cannot silently promote a runtime pool into writer authority.",
+            "Run synthetic regressions with fake pools only; do not connect to a live database, provision grants, promote Production, run Migration 1050 readiness, dry-run, Apply, SQL, Hostinger, or provider mutation."
+          ],
+          "assertions": [
+            "Governance username and password are mandatory for writer-pool construction and have no runtime identity fallback.",
+            "Capability-envelope canonical INSERT/UPDATE and approval-hold mutation paths use the explicit Governance writer pool.",
+            "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit writer authority.",
+            "Runtime read paths remain independently injectable and do not require Governance write privileges.",
+            "Regression fixtures prove read/write pool separation and fail-closed Governance DB configuration without a live DB connection.",
+            "No secret value is emitted and no Production, database, migration, Hostinger, provider, or protected-ref mutation is performed by this source slice."
+          ],
+          "tests": [
+            {
+              "id": "governance-db-writer-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "capability-envelope-lifecycle-writer-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-envelope-lifecycle-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "capability-envelope-batch-expire-writer-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-capability-envelope-batch-expire.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-migration-authorization-bootstrap-pool-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-migration-authorization-bootstrap.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/governanceDb.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+            "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+            "http-generic-api/scripts/capability-resolution-envelope-approve.mjs",
+            "http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
+            "http-generic-api/test-capability-envelope-batch-expire.mjs",
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Provision and verify the least-privilege Governance DB principal and Production secret wiring after this source repair is merged and promoted.",
+      "blockers": [
+        "Dedicated MariaDB Governance writer principal has not been provisioned or granted table-scoped privileges.",
+        "Production GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD have not been configured and read back through a governed secret/configuration path.",
+        "Production promotion and runtime parity for this source repair have not been completed.",
+        "A bounded privilege/readback probe has not demonstrated allowed governance-table operations and denied unrelated writes."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove missing credentials, insufficient grants, stale writer identity, transaction rollback, and read/write pool misbinding fail closed without runtime identity fallback."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No live DB canary is executed by this source-only PR."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production remains blocked until least-privilege DB authority, secret configuration, normal promotion/runtime parity, privilege readback, and a fresh Migration 1050 readiness authorization are completed independently."
+    }
+  ]
+}
