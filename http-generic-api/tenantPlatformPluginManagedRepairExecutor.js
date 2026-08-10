@@ -153,6 +153,7 @@ function buildManagedExecutionBinding({
     resource_type: TenantPlatformPluginManagedRepairContract.resource_type,
     resource_ref: resourceRef,
     effect_class: TenantPlatformPluginManagedRepairContract.effect_class,
+    execution_mode: "dry_run",
     idempotency_key: idempotencyKey,
     workspace_id: principal.workspace_id,
     request_id: idempotencyKey,
@@ -178,7 +179,7 @@ function buildManagedExecutionBinding({
   });
   return Object.freeze({
     schema_version: "tenant_platform_plugin_managed_repair_managed_execution_binding.v1",
-    internal_service: "createManagedExecutionRun",
+    internal_service: "createTenantPlatformPluginManagedRepairDryRun",
     direct_http_route_allowed: false,
     execution_mode: "dry_run",
     run_creation_allowed: false,
@@ -186,8 +187,7 @@ function buildManagedExecutionBinding({
     activation_requirements: Object.freeze([
       "migration_1052_applied_and_read_back",
       "dedicated_executor_registered",
-      "capability_runtime_certified",
-      "capability_dispatch_allowed",
+      "exact_runtime_dispatch_certification_issued",
       "capability_specific_dry_run_enforcement",
       "managed_execution_dry_run_authority_contract_certified",
     ]),
@@ -240,7 +240,7 @@ export function previewTenantPlatformPluginManagedRepair({
     request_id: String(requestId || "").trim() || null,
     correlation_id: String(correlationId || requestId || "").trim() || null,
     managed_execution: Object.freeze({
-      internal_service: "createManagedExecutionRun",
+      internal_service: "createTenantPlatformPluginManagedRepairDryRun",
       run_created: false,
       reason: "migration_1052_application_and_capability_certification_required",
     }),
