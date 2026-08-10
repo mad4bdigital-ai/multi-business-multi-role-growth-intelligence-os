@@ -6,6 +6,8 @@ const authority = readFileSync("productionDeploymentAuthority.js", "utf8");
 const routes = readFileSync("routes/platformPluginRoutes.js", "utf8");
 const migration = readFileSync("migrations/206_sprint67_hostinger_ssh_deploy_executor.sql", "utf8");
 const authorityMigration = readFileSync("migrations/20260810_hostinger_production_deploy_authority_binding.sql", "utf8");
+const preciseOpenApi = readFileSync("openapi/production-deployment-authority.yaml", "utf8");
+const preciseRegistry = readFileSync("openapi-route-contracts.d/spec018-production-deployment-authority.yaml", "utf8");
 const allowlist = readFileSync("openapi-route-coverage.allowlist.json", "utf8");
 
 assert(executor.includes("REMOTE_RUNTIME_HOSTINGER_SSH_EXECUTOR_ENABLED"), "actual SSH execution must be behind an explicit feature flag");
@@ -60,6 +62,17 @@ for (const marker of [
 ]) {
   assert(authorityMigration.includes(marker), `authority-binding migration must preserve ${marker}`);
 }
+
+assert(preciseRegistry.includes('"POST /platform/remote-runtime/hosting/deploy-release"'), "precise registry must own the deploy-release OpenAPI operation");
+assert(preciseRegistry.includes("./openapi/production-deployment-authority.yaml#/productionDeploymentAuthorityPath"), "precise registry must point to the bounded Spec018 path-item source");
+assert(preciseRegistry.includes("routes/platformPluginRoutes.js"), "precise registry must bind the operation to the real platform route file");
+assert(preciseOpenApi.includes("productionDeploymentAuthorityPath:"), "precise OpenAPI source must define the governed deploy path item");
+assert(preciseOpenApi.includes("environment_branch_authority_v1"), "OpenAPI contract must describe policy-derived branch authority");
+assert(preciseOpenApi.includes("same-cycle GitHub ref readback"), "OpenAPI contract must describe same-cycle Production head verification");
+assert(preciseOpenApi.includes("production_deployment_branch_authority_mismatch"), "OpenAPI conflict contract must name branch-authority mismatch");
+assert(preciseOpenApi.includes("production_deployment_sha_stale"), "OpenAPI conflict contract must name stale SHA rejection");
+assert(!/^\s+branch:\s/m.test(preciseOpenApi), "precise deploy request contract must not expose branch as a caller-selectable property");
+assert(preciseOpenApi.includes("enum: [Production]"), "precise response evidence must constrain the governed production branch to Production");
 
 assert(executor.includes("git checkout --detach"), "deploy must checkout a fixed SHA, not a mutable branch head");
 assert(executor.includes("pathAllowedByTarget"), "executor must enforce target path allowlists");
