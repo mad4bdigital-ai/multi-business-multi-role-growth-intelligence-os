@@ -84,8 +84,8 @@ const METRICS = Object.freeze([
   { key: "workspace_vaults_active", table: "workspace_vaults", configure: statusFilter() },
   { key: "cms_sites_accessible", table: "cms_site_access_grants", userScoped: true, distinct: "site_id", configure: statusFilter() },
   { key: "sessions_active", table: "customer_sessions", userScoped: true, configure: statusFilter(["completed", "closed"], "session_status", true) },
-  { key: "pending_tasks_open", table: "platform_pending_tasks", userScoped: true, configure: statusFilter(["closed", "completed", "resolved", "cancelled", "canceled"], "status", true) },
-  { key: "pending_tasks_blocked", table: "platform_pending_tasks", userScoped: true, configure: statusFilter(["blocked"]) },
+  { key: "pending_tasks_open", table: "platform_pending_tasks", scopeMode: "activation_pending_tasks", configure: statusFilter(["pending", "in_progress", "blocked"]) },
+  { key: "pending_tasks_blocked", table: "platform_pending_tasks", scopeMode: "activation_pending_tasks", configure: statusFilter(["blocked"]) },
   { key: "execution_plans", table: "execution_plans" },
   { key: "execution_plans_actionable", table: "execution_plans", configure: statusFilter(["validated", "approved", "in_progress", "running"], "plan_status") },
   { key: "workflow_runs", table: "workflow_runs" },
@@ -97,6 +97,43 @@ const METRICS = Object.freeze([
   { key: "skills_available", table: "agent_skill_grants", includeGlobal: true, distinct: "skill_id", configure: statusFilter() },
   { key: "agents_with_skills", table: "agent_skill_grants", includeGlobal: true, distinct: "agent_id", configure: statusFilter() },
 ]);
+
+function applyActivationPendingTaskScope({ definition, context, shape, clauses, params, warnings }) {
+  const { key, table } = definition;
+  if (!context.tenantId || !shape.columns.has("tenant_id")) {
+    return metricResult({ key, state: "unscoped", table, scope: "tenant_required", warning: "tenant_scope_required" });
+  }
+
+  clauses.push("tenant_id = ?");
+  params.push(context.tenantId);
+  let scope = "tenant_activation";
+
+  if (shape.columns.has("activation_visibility")) {
+    clauses.push("activation_visibility = 1");
+  } else {
+    warnings.push("activation_visibility_filter_column_missing");
+  }
+
+  const ownerVisible = context.profile === "admin"
+    || ["owner", "admin"].includes(String(context.role || "").toLowerCase());
+  if (shape.columns.has("owner_scope")) {
+    if (ownerVisible) {
+      clauses.push("LOWER(COALESCE(owner_scope, '')) IN ('tenant','user')");
+      scope = "tenant_owner_visible";
+    } else if (context.userId && shape.columns.has("user_id")) {
+      clauses.push("(LOWER(COALESCE(owner_scope, '')) = 'tenant' OR (LOWER(COALESCE(owner_scope, '')) = 'user' AND user_id = ?))");
+      params.push(context.userId);
+      scope = "tenant_user_visible";
+    } else {
+      clauses.push("LOWER(COALESCE(owner_scope, '')) = 'tenant'");
+      scope = "tenant_visible";
+    }
+  } else {
+    warnings.push("owner_scope_filter_column_missing");
+  }
+
+  return { scope };
+}
 
 async function countMetric(pool, definition, context) {
   const { key, table } = definition;
@@ -110,8 +147,14 @@ async function countMetric(pool, definition, context) {
 
   const clauses = [];
   const params = [];
+  const warnings = [];
   let scope = null;
-  if (context.tenantId && shape.columns.has("tenant_id")) {
+
+  if (definition.scopeMode === "activation_pending_tasks") {
+    const pendingScope = applyActivationPendingTaskScope({ definition, context, shape, clauses, params, warnings });
+    if (pendingScope?.state) return pendingScope;
+    scope = pendingScope.scope;
+  } else if (context.tenantId && shape.columns.has("tenant_id")) {
     clauses.push(definition.includeGlobal ? "(tenant_id = ? OR tenant_id IS NULL)" : "tenant_id = ?");
     params.push(context.tenantId);
     scope = definition.includeGlobal ? "tenant_plus_global" : "tenant";
@@ -133,7 +176,6 @@ async function countMetric(pool, definition, context) {
     return metricResult({ key, state: "unscoped", table, scope: "scope_column_missing", warning: "global_count_forbidden" });
   }
 
-  const warnings = [];
   if (typeof definition.configure === "function") definition.configure({ columns: shape.columns, clauses, params, warnings });
   const countExpression = definition.distinct && shape.columns.has(String(definition.distinct).toLowerCase())
     ? `COUNT(DISTINCT ${sqlIdentifier(definition.distinct)})`
@@ -254,3 +296,9 @@ export async function buildTenantActivationSnapshot({ profile = "tenant", tenant
     secrets_included: false,
   };
 }
+
+export const _testingTenantActivationSnapshot = {
+  METRICS,
+  countMetric,
+  applyActivationPendingTaskScope,
+};
