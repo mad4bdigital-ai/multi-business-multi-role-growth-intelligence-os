@@ -11,6 +11,9 @@
       ".github/workflows/governance-db-privilege-readiness.yml",
       "docs/runbooks/governance-db-privilege-readiness.md",
       "http-generic-api/governanceDbPrivilegeContract.js",
+      "http-generic-api/governanceDbPrivilegeReadinessService.js",
+      "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
       "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
       "http-generic-api/test-governance-db-privilege-readiness.mjs"
     ]
@@ -22,24 +25,26 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add a fail-closed, no-secret, read-only Production privilege verification path for the dedicated Governance DB writer without provisioning accounts, grants, secrets, deployment, or migration apply authority.",
+      "objective": "Add a fail-closed, no-secret, read-only Production privilege verification path for the dedicated Governance DB writer without duplicating Production DB credentials into GitHub Actions and without provisioning accounts, grants, secrets, deployment, or migration apply authority.",
       "e2e_journeys": [
         {
           "id": "governance-db-least-privilege-readiness",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Production governance operator",
-          "entrypoint": "Repository privilege matrix evaluator and exact-head manual readiness workflow",
-          "terminal_outcome": "The repository can prove the exact required direct table privilege matrix and fail closed on missing, broader, role-derived, or column-level privileges; the live workflow remains manual, exact-Production-SHA-bound, secret-safe, and read-only.",
+          "entrypoint": "Repository privilege matrix evaluator, opt-in Hostinger runtime deployment-info readiness projection, and exact-head manual readiness workflow",
+          "terminal_outcome": "The exact Production runtime can prove the required direct table privilege matrix using Hostinger-local DB configuration while the GitHub workflow receives only bounded no-secret evidence, rejects runtime/ref drift, and never receives database credentials.",
           "steps": [
             "Load the repository-defined Governance DB privilege matrix.",
             "Accept normalized information_schema privilege rows without a database connection in synthetic regression coverage.",
             "Prove the exact required direct table privileges are accepted.",
             "Reject missing required privileges, schema-wide privileges, unexpected global privileges, unrelated table scopes, extra operations on allowed tables, column-level grants, and applicable MariaDB roles.",
-            "Keep failure evidence bounded and secret-free.",
-            "Require an exact Production branch SHA and explicit confirmation token before the live workflow reaches the secret-bearing probe step.",
-            "Require the merged Governance Production Environment Authority preflight before live privilege readback.",
-            "Use only connection ping, CURRENT_USER/DATABASE consistency readback, and information_schema user/schema/table/column/role privilege metadata in the live probe.",
+            "Reuse one live probe service for CLI and Hostinger runtime execution so the privilege contract cannot drift between paths.",
+            "Expose only an opt-in cached bounded readiness projection through deployment-info; do not expose usernames, database names, raw privilege rows, role names, or missing-grant details.",
+            "Require an exact Production branch SHA and explicit confirmation token before the GitHub workflow collects runtime evidence.",
+            "Require the running deployment SHA and branch to match the authorized exact Production state.",
+            "Re-read the protected Production ref after runtime evidence and fail closed on movement.",
+            "Do not supply DB_* or GOVERNANCE_DB_* values to the GitHub runner.",
             "Do not create users, execute GRANT, mutate application rows, deploy, restart, or run migration SQL in this source slice."
           ],
           "assertions": [
@@ -48,9 +53,10 @@
             "The synthetic evaluator fails closed on any schema-wide privilege or unexpected global privilege.",
             "The synthetic evaluator fails closed on unrelated table/schema grants and extra privileges on allowed tables.",
             "The synthetic evaluator fails closed on column-level privilege paths and applicable MariaDB roles.",
-            "The live workflow requires the exact current Production SHA before the database probe step.",
-            "The live probe composes with resolveGovernanceProductionPreflight() and therefore cannot treat main as Production authority or reuse runtime DB credentials as Governance credentials.",
-            "Probe output contains no MariaDB username, password, host, database name, raw privilege rows, role names, or secret values.",
+            "The runtime probe composes with resolveGovernanceProductionPreflight() and therefore cannot treat main as Production authority or reuse runtime DB credentials as Governance credentials.",
+            "The public runtime projection omits raw privilege details and credential-bearing identity/target values.",
+            "The GitHub workflow contains no DB_* or GOVERNANCE_DB_* secret bindings and performs no database connection itself.",
+            "The workflow proves exact runtime SHA and branch before accepting the privilege verdict and re-reads Production afterward.",
             "No Production SQL mutation, CREATE USER, GRANT, provider mutation, deployment, restart, or Migration 1050 readiness/apply is performed by CI for this PR."
           ],
           "tests": [
@@ -65,6 +71,9 @@
           "evidence_paths": [
             "docs/runbooks/governance-db-privilege-readiness.md",
             "http-generic-api/governanceDbPrivilegeContract.js",
+            "http-generic-api/governanceDbPrivilegeReadinessService.js",
+            "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
             "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
             "http-generic-api/test-governance-db-privilege-readiness.mjs",
             ".github/workflows/governance-db-privilege-readiness.yml"
@@ -75,12 +84,12 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Run the read-only privilege probe against the separately provisioned dedicated Governance DB writer on the exact Production source.",
+      "objective": "Run the read-only privilege probe inside the exact Production runtime against the separately provisioned dedicated Governance DB writer.",
       "blockers": [
         "Dedicated MariaDB Governance writer principal and reviewed direct table-scoped grants must be provisioned through separate Production administrative authority without role or column-grant paths.",
-        "Production GOVERNANCE_DB_* secrets must be configured through the governed secret path.",
-        "The repaired source and this readiness tooling must be promoted through the normal main to Production lifecycle.",
-        "The manual Governance DB Privilege Readiness workflow has not yet passed on the exact Production SHA."
+        "Hostinger Production GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD must be configured through the governed hPanel secret path without disclosure.",
+        "This runtime-readback readiness repair must be promoted through the normal main to Production lifecycle.",
+        "A fresh exact-head Governance DB Privilege Readiness workflow has not yet passed after runtime-readback tooling promotion."
       ]
     },
     {
@@ -96,11 +105,12 @@
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Close #6813 only after principal/grant provisioning, Production secret wiring and promotion, a green exact-head privilege probe, and a fresh Migration 1050 readiness/dry-run lifecycle.",
+      "objective": "Close #6813 only after principal/grant provisioning, Hostinger runtime secret wiring and promotion, a green exact-head runtime privilege probe, and a fresh Migration 1050 readiness/dry-run lifecycle.",
       "blockers": [
         "Production principal/grant provisioning remains separately authorized and incomplete.",
-        "Production secret wiring and runtime parity are not yet proven.",
-        "A successful exact-head privilege readiness workflow run is not yet available.",
+        "Dedicated Governance writer runtime secret wiring is not yet proven.",
+        "The runtime-readback readiness repair is not yet promoted to Production.",
+        "A successful exact-head privilege readiness workflow run using runtime evidence is not yet available.",
         "Fresh Migration 1050 readiness authorization and dry-run evidence are not yet available."
       ]
     }
