@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   ENVIRONMENT_BRANCH_AUTHORITY_CONFIG_KEY,
@@ -97,6 +98,19 @@ function poolWith(rows) {
   assert.equal(resolved.production_branch, "Production");
   assert.equal(resolved.expected_commit_sha, sha);
   assert.equal(resolved.secrets_included, false);
+}
+
+{
+  const migration = readFileSync("migrations/20260810_environment_branch_authority_v1.sql", "utf8");
+  assert(migration.includes("'staging_branch', 'main'"), "migration must preserve main as staging/source-of-change");
+  assert(migration.includes("'production_branch', 'Production'"), "migration must register Production as production authority");
+  assert(migration.includes("'allowed_branches',JSON_ARRAY('Production')"), "execution policy must allow Production only");
+  assert(migration.includes("JSON_ARRAY('Production'),'default','Production'"), "command schema must expose Production only");
+  assert(migration.includes('"enum":["Production"],"default":"Production"'), "admin tool schema must expose Production only");
+  assert(migration.includes("'$.deployment_allowed', FALSE"), "routine SSH deployment must remain disabled on the production target");
+  assert(migration.includes("'$.ssh_normal_updates_allowed', FALSE"), "normal SSH updates must remain disabled on the production target");
+  assert(migration.includes("'$.ssh_break_glass_only', TRUE"), "SSH must remain break-glass-only on the production target");
+  assert(!migration.includes("'allowed_branches',JSON_ARRAY('main','Production')"), "new authority migration must not retain main as production deploy authority");
 }
 
 console.log("Environment branch authority tests passed");
