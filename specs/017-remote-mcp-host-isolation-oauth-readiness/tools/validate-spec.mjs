@@ -77,7 +77,7 @@ assert.equal(completion.feature_key, manifest.spec_key);
 assert.equal(completion.delivery_mode, "multi_pr");
 assert.equal(completion.status, "in_progress");
 assert.equal(completion.specification.complete, true);
-assert.equal(completion.specification.review_state, "pending");
+assert.equal(completion.specification.review_state, "merged");
 assert.equal(completion.boundaries.this_spec_branch_authorizes_runtime_mutation, false);
 assert.equal(completion.boundaries.this_spec_branch_authorizes_migration_apply, false);
 assert.equal(completion.boundaries.this_spec_branch_authorizes_secret_access, false);
@@ -88,14 +88,15 @@ assert.equal(completion.boundaries.this_spec_branch_authorizes_production_promot
 assert.equal(completion.boundaries.force_push, false);
 
 assert.equal(workMap.feature_key, manifest.spec_key);
-assert.equal(workMap.review_state, "draft");
+assert.equal(workMap.review_state, "ready_for_implementation");
 assert.equal(workMap.registry.map_count, 19);
 assert.equal(workMap.registry.domain_count, 16);
 assert.equal(workMap.registry.uncategorized_count, 0);
 assert.equal(workMap.registry.taxonomy_gap_cluster_count, 0);
 assert.deepEqual(workMap.dimension_discovery.unresolved, []);
-assert.equal(workMap.implementation_readiness.status, "blocked");
-assert(workMap.implementation_readiness.blocking_reasons.includes("formal_spec_review_pending"));
+assert.equal(workMap.implementation_readiness.status, "ready");
+assert.deepEqual(workMap.implementation_readiness.blocking_dimensions, []);
+assert.equal(workMap.implementation_readiness.reviewed_by, "platform-team");
 assert.equal(workMap.secrets_included, false);
 
 assert.equal(e2e.$schema, "../../.specify/schemas/e2e-phases.schema.json");
