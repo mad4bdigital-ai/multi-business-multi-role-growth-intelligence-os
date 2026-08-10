@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "governance-db-writer-authority-6813",
-  "title": "Governance DB Writer Authority Isolation",
+  "title": "Governance DB Writer Authority Isolation and Readiness",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -11,10 +11,14 @@
       "docs/governance-db-writer-authority.md",
       "http-generic-api/.env.example",
       "http-generic-api/governanceDb.js",
+      "http-generic-api/governanceDbWriteReadiness.js",
       "http-generic-api/capabilityResolutionEnvelopeGuard.js",
       "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
       "http-generic-api/governedMigrationAuthorizationBootstrap.js",
       "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+      "http-generic-api/platformResourceAuthorityGrantTool.js",
+      "http-generic-api/governedToolResponseChunkStore.js",
+      "http-generic-api/releaseReadiness.js",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
@@ -26,6 +30,7 @@
       "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
       "http-generic-api/test-governance-db-writer-authority.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+      "http-generic-api/test-governed-tool-response-chunk-store.mjs",
       "http-generic-api/wordpressBlogPublishOrchestrator.js",
       "http-generic-api/test-wordpress-blog-publish-orchestrator.mjs"
     ]
@@ -37,40 +42,37 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Separate canonical governance control-plane database writes from the ordinary runtime DB identity without weakening envelope or migration authorization semantics, while preserving an already-open execution transaction when lifecycle consumption must remain atomic with a business mutation.",
+      "objective": "Separate every reviewed Governance persistence mutation discovered by the DB privilege incident from the ordinary runtime DB identity, and expose bounded effective-grant readiness before the first mutation without live Production changes.",
       "e2e_journeys": [
         {
           "id": "runtime-reader-to-dedicated-governance-writer",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Governed execution runtime",
-          "entrypoint": "Capability envelope creation, approval, apply authorization, lifecycle/reference transition, governed migration authorization bootstrap, and WordPress governed publish orchestration",
-          "terminal_outcome": "Runtime authority reads remain on the ordinary read pool; control-plane envelope and governed-migration authorization mutations default to an explicit Governance DB writer pool; execution-side lifecycle/reference updates may reuse an explicitly supplied existing transaction to preserve atomicity; WordPress publish orchestration keeps reader and lifecycle-writer dependencies distinct; missing Governance writer identity fails closed whenever no transaction override or explicit writer exists; no live database or provider action occurs in this PR.",
+          "entrypoint": "Capability envelopes, governed migration authorization, platform resource-authority grants, governed response chunks, and release readiness",
+          "terminal_outcome": "Runtime reads remain on the ordinary DB pool; reviewed governance mutations default to GOVERNANCE_DB_*; broad runtime pool injection cannot become write authority; effective privileges are evaluated against the exact table-scoped matrix with no raw grant or secret exposure; no Production DB, provider, migration, deployment, or protected-ref mutation occurs in this source slice.",
           "steps": [
-            "Resolve ordinary runtime authority and envelope lookup through the runtime read pool.",
-            "Resolve the Governance DB writer pool from dedicated GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD configuration without falling back to DB_USER or DB_PASSWORD.",
-            "Create, approve, and apply-authorize capability envelopes using the Governance writer for control-plane mutations and transaction/readback boundaries.",
-            "Bootstrap governed migration authorization with envelope resolution bound to the read pool and registry, policy, certification, ledger readback, and bootstrap lifecycle mutation bound to the Governance writer pool.",
-            "Default standalone lifecycle/reference mutations to the Governance writer while preserving an explicitly supplied existing execution transaction so envelope consumption cannot become a separate post-commit side effect.",
-            "Keep WordPress authority and credential lookups on the runtime reader while requiring a distinct lifecycleWriterPool/writerPool for the envelope reference mutation before provider dispatch.",
-            "Keep batch-expire dry-run read-only and force batch-expire apply onto the Governance writer.",
-            "Keep shared envelope resolution assertions bound to the runtime implementation while exercising the public facade functionally.",
-            "Refresh generated frontend governance and dispatch artifacts through the registered governed generated-artifact workflow so committed source digests match the exact candidate tree.",
-            "Publish the least-privilege Production privilege matrix without provisioning it in this source-only PR.",
-            "Run synthetic regressions with fake pools only; do not connect to a live database, provision grants, promote Production, run Migration 1050 readiness, dry-run, Apply, SQL, Hostinger, or provider mutation."
+            "Resolve ordinary runtime authority and envelope lookups through the runtime read pool.",
+            "Resolve the Governance DB writer from mandatory GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD without DB_USER or DB_PASSWORD fallback.",
+            "Create, approve, and apply-authorize capability envelopes using the Governance writer.",
+            "Bootstrap governed migration authorization with separate readPool and writerPool roles.",
+            "Persist platform_resource_authority_bindings through the Governance writer, verify the inserted row on the writer, then verify visibility through the runtime reader.",
+            "Inspect and load governed response chunks through the runtime reader while persisting, extending TTL, deleting expired chunks, and performing immediate post-write verification through the Governance writer.",
+            "Probe CURRENT_USER(), DATABASE(), and SHOW GRANTS only through the Governance connection; normalize the result into the reviewed table/operation matrix without returning raw grants.",
+            "Fail readiness with runtime_db_write_authority_degraded when a required operation is absent, a broad/admin/DDL privilege is present, Governance configuration is missing, or the effective-grant probe fails.",
+            "Publish the expanded least-privilege matrix including platform resource authority and governed response chunks.",
+            "Run synthetic regressions only; do not provision grants, secrets, Production, Migration 1050, Hostinger, provider, deployment, or restart mutations."
           ],
           "assertions": [
-            "Governance username and password are mandatory for Governance pool construction and have no runtime credential fallback.",
-            "Envelope creation/approval/apply-authorization and governed migration bootstrap use the dedicated Governance writer by default.",
-            "Governed migration authorization bootstrap uses separate readPool and writerPool roles and cannot use legacy deps.pool as implicit bootstrap writer authority.",
-            "An explicitly supplied existing lifecycle/reference transaction is preserved for same-cycle execution atomicity and is not interpreted as GOVERNANCE_DB credential fallback.",
-            "WordPress publish execution does not reinterpret its generic runtime reader pool as lifecycle writer authority and its regression injects lifecycleWriterPool explicitly.",
-            "Shared envelope implementation assertions target the runtime module after the facade/runtime split while functional resolution continues through the public facade.",
-            "Runtime read paths remain independently injectable and do not require Governance write privileges.",
-            "Regression fixtures prove read/write pool separation, explicit transaction preservation, explicit WordPress lifecycle writer injection, and fail-closed Governance DB configuration without a live DB connection.",
-            "Generated frontend operation-governance and surface-dispatch artifacts are source-digest bound to the exact post-merge candidate tree.",
-            "The documented Production privilege matrix remains table-scoped and explicitly excludes broad schema/admin privileges.",
-            "No secret value is emitted and no Production, database, migration, Hostinger, provider, or protected-ref mutation is performed by this source slice."
+            "Governance username and password are mandatory and never fall back to runtime DB credentials.",
+            "A generic runtime pool cannot become lifecycle, resource-authority, or response-chunk mutation authority.",
+            "Resource-authority INSERT and first readback use the Governance writer; an independent runtime readback is also required.",
+            "Response-chunk schema/load reads use the read plane while INSERT/UPDATE/DELETE and immediate integrity readback use the Governance writer.",
+            "The reviewed privilege matrix covers capability_resolution_envelope_ledger, approval_holds, governed migration registries/ledger, platform_resource_authority_bindings, and governed_tool_response_chunks.",
+            "DELETE is accepted only as the reviewed governed_tool_response_chunks cleanup operation, not as schema-wide authority.",
+            "Broad schema/global writes, ALL PRIVILEGES, GRANT OPTION, DDL, FILE, PROCESS, SUPER, and unreviewed table operations make readiness degraded.",
+            "Readiness exposes no raw SHOW GRANTS strings, password values, hashes, or credential fragments.",
+            "No provider call or external business write is introduced by this boundary."
           ],
           "tests": [
             {
@@ -78,6 +80,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-response-chunk-writer-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
               "args": []
             },
             {
@@ -119,21 +128,12 @@
           "evidence_paths": [
             "docs/governance-db-writer-authority.md",
             "http-generic-api/governanceDb.js",
-            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
-            "http-generic-api/capabilityResolutionEnvelopeGuardRuntime.js",
-            "http-generic-api/governedMigrationAuthorizationBootstrap.js",
-            "http-generic-api/frontend-operation-governance.generated.json",
-            "http-generic-api/frontend-surface-dispatch.generated.json",
-            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
-            "http-generic-api/scripts/capability-resolution-envelope-approve.mjs",
-            "http-generic-api/scripts/capability-resolution-envelope-apply-authorize.mjs",
-            "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
+            "http-generic-api/governanceDbWriteReadiness.js",
+            "http-generic-api/platformResourceAuthorityGrantTool.js",
+            "http-generic-api/governedToolResponseChunkStore.js",
+            "http-generic-api/releaseReadiness.js",
             "http-generic-api/test-governance-db-writer-authority.mjs",
-            "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
-            "http-generic-api/test-capability-envelope-batch-expire.mjs",
-            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
-            "http-generic-api/wordpressBlogPublishOrchestrator.js",
-            "http-generic-api/test-wordpress-blog-publish-orchestrator.mjs"
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs"
           ]
         }
       ]
@@ -141,18 +141,18 @@
     {
       "id": "operational",
       "status": "blocked",
-      "objective": "Provision and verify the least-privilege Governance DB principal and Production secret wiring after this source repair is merged and promoted.",
+      "objective": "Provision and verify the least-privilege Governance DB principal and Production secret wiring after the expanded source repair is merged and promoted.",
       "blockers": [
-        "Dedicated MariaDB Governance writer principal has not been provisioned or granted table-scoped privileges.",
+        "Dedicated MariaDB Governance writer principal has not been provisioned with the expanded table-scoped matrix.",
         "Production GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD have not been configured and read back through a governed secret/configuration path.",
         "Production promotion and runtime parity for this source repair have not been completed.",
-        "A bounded privilege/readback probe has not demonstrated allowed governance-table operations and denied unrelated writes."
+        "The bounded effective-grant readiness probe has not run against Production."
       ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove missing credentials, insufficient grants, stale writer identity, transaction rollback, and read/write pool misbinding fail closed without runtime credential fallback."
+      "objective": "Prove missing credentials, insufficient grants, stale writer identity, transaction rollback, read/write pool misbinding, and broad privilege drift fail closed without runtime credential fallback."
     },
     {
       "id": "canary",
@@ -162,12 +162,12 @@
     {
       "id": "production",
       "status": "blocked",
-      "objective": "Production remains blocked until least-privilege DB authority, secret configuration, normal promotion/runtime parity, privilege readback, and a fresh Migration 1050 readiness authorization are completed independently.",
+      "objective": "Production remains blocked until exact-current-main promotion, least-privilege DB authority, secret configuration, runtime parity, effective-grant readiness, smoke persistence/readback, and a fresh Migration 1050 readiness authorization are completed independently.",
       "blockers": [
-        "Source repair has not been merged and promoted through the normal main to Production lifecycle.",
+        "Expanded source repair has not been merged and promoted through the normal main to Production lifecycle.",
         "Dedicated Governance DB writer principal and bounded grants are not yet provisioned.",
         "Production Governance DB credentials are not yet configured or read back through a governed no-secret path.",
-        "Production runtime parity and bounded privilege/readiness proof have not been completed.",
+        "Production runtime parity and effective privilege/readiness proof have not been completed.",
         "Fresh Migration 1050 readiness authorization and same-cycle dry-run have not been performed."
       ]
     }
