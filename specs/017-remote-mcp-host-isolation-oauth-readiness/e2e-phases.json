@@ -1,120 +1,89 @@
 {
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
-  "spec_key": "017-remote-mcp-host-isolation-oauth-readiness",
-  "base_specification_sha": "a722609b45ab3ac4617096963380ab4e1434f17d",
+  "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
+  "title": "Remote MCP host isolation and OAuth live readiness",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/README.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tasks.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/operation-paths.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/concerns.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
   "phases": [
     {
-      "phase": 1,
-      "key": "source_host_isolation",
-      "authorization_class": "source_change",
-      "required": true,
-      "checks": [
-        "effective_host_resolver_is_centralized",
-        "canonical_mcp_host_accepted",
-        "issuer_host_mcp_rejected",
-        "activation_host_mcp_rejected",
-        "unknown_host_mcp_rejected",
-        "wrong_host_rejected_before_mcp_execution"
-      ],
-      "external_mutation_allowed": false
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define a reviewable fail-closed contract for canonical Remote MCP host admission, explicit OAuth resource routing, trusted proxy boundaries, no-secret readiness diagnostics, source validation, and separately governed live activation without granting runtime or provider mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "remote-mcp-host-isolation-spec-to-implementation-handoff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform specification reviewer",
+          "entrypoint": "Spec 017 manifest, requirements, E2E contract, and implementation handoff",
+          "terminal_outcome": "The reviewer receives one canonical topology and an implementation-ready correction plan that explicitly separates source changes from DNS, TLS, migration, secret, DCR, client-registration, deployment, and Production authorities.",
+          "steps": [
+            "Load the Spec 017 manifest and canonical topology.",
+            "Verify that only mcp.mad4b.com is the declared Remote MCP resource host while auth.mad4b.com remains the OAuth issuer and Tenant GPT core resource.",
+            "Verify that wrong-host MCP requests and unknown protected-resource metadata hosts are required to fail closed.",
+            "Verify that forwarded host headers are not authority unless a trusted deployment boundary explicitly enables them.",
+            "Verify that readiness output is administrative, bounded, and contains no secret values.",
+            "Verify that migration apply, signing-secret provisioning, DNS/TLS/proxy mutation, DCR registration, canary activation, real client acceptance, and Production promotion remain separately authorized live phases."
+          ],
+          "assertions": [
+            "The canonical MCP endpoint remains https://mcp.mad4b.com/mcp.",
+            "The canonical OAuth issuer remains https://auth.mad4b.com/auth/mcp.",
+            "auth.mad4b.com/mcp is not accepted as a substitute canonical MCP endpoint.",
+            "No source-only specification artifact authorizes live migration, secret, provider, feature-flag, client-registration, deployment, or Production mutation.",
+            "Rollback never requires dropping OAuth evidence tables.",
+            "No secret value or account-specific OAuth callback is committed."
+          ],
+          "tests": [],
+          "evidence_paths": [
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/manifest.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/testing-strategy.md",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md"
+          ]
+        }
+      ]
     },
     {
-      "phase": 2,
-      "key": "metadata_and_readiness_isolation",
-      "authorization_class": "source_change",
-      "required": true,
-      "checks": [
-        "protected_resource_hosts_are_explicit",
-        "unknown_metadata_host_fails_closed",
-        "tenant_scopes_do_not_leak_to_remote_mcp",
-        "remote_mcp_scopes_do_not_leak_to_tenant_resources",
-        "admin_readiness_is_no_secret",
-        "env_example_covers_remote_mcp_contract"
-      ],
-      "external_mutation_allowed": false
+      "id": "operational",
+      "status": "planned",
+      "objective": "Implement and prove canonical host isolation, explicit resource metadata routing, bounded proxy trust, DCR advertisement readiness, no-secret runtime readiness diagnostics, and exact-head source tests while all live feature flags remain unchanged."
     },
     {
-      "phase": 3,
-      "key": "exact_head_source_validation",
-      "authorization_class": "ci_validation",
-      "required": true,
-      "checks": [
-        "targeted_remote_mcp_tests_pass",
-        "oauth_profile_tests_pass",
-        "oauth_route_tests_pass",
-        "token_verifier_tests_pass",
-        "metadata_routing_tests_pass",
-        "disabled_boundary_tests_pass",
-        "full_ci_passes",
-        "architecture_and_governance_checks_pass"
-      ],
-      "external_mutation_allowed": false
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove malformed and spoofed host denial, compatibility isolation for Tenant GPT and Activation resources, database-readiness failure behavior, DCR disable behavior, revocation, expiry, and rollback-safe observability."
     },
     {
-      "phase": 4,
-      "key": "nonproduction_infrastructure_and_schema_readiness",
-      "authorization_class": "separate_governed_live_authorization",
-      "required": true,
-      "checks": [
-        "exact_source_sha_deployed_to_controlled_nonproduction",
-        "mcp_dns_verified",
-        "mcp_tls_verified",
-        "reverse_proxy_host_contract_verified",
-        "oauth_migration_applied_through_governed_tooling",
-        "three_oauth_tables_and_indexes_read_back",
-        "dedicated_signing_secret_ready_without_disclosure"
-      ],
-      "external_mutation_allowed": true,
-      "must_not_be_inferred_from_source_merge": true
+      "id": "canary",
+      "status": "planned",
+      "objective": "Under separate live authorization, verify exact deployed SHA, DNS/TLS/reverse-proxy host preservation, OAuth persistence migration, signing-secret readiness, bounded DCR, MCP Inspector, and one approved ChatGPT canary connection."
     },
     {
-      "phase": 5,
-      "key": "oauth_dcr_and_client_canary",
-      "authorization_class": "separate_governed_live_authorization",
-      "required": true,
-      "checks": [
-        "oauth_enabled_while_mcp_initially_disabled",
-        "resource_metadata_verified",
-        "authorization_server_metadata_verified",
-        "bounded_dcr_window_verified_when_authorized",
-        "one_approved_test_client_registered",
-        "pkce_flow_verified",
-        "refresh_rotation_and_replay_denial_verified",
-        "revocation_verified",
-        "mcp_canary_enabled",
-        "wrong_host_public_denial_verified"
-      ],
-      "external_mutation_allowed": true,
-      "must_not_be_inferred_from_source_merge": true
-    },
-    {
-      "phase": 6,
-      "key": "cross_client_acceptance_and_rollback",
-      "authorization_class": "separate_governed_live_authorization",
-      "required": true,
-      "checks": [
-        "mcp_inspector_acceptance",
-        "chatgpt_developer_mode_acceptance",
-        "claude_acceptance_if_in_scope",
-        "neutral_client_acceptance",
-        "tenant_workspace_brand_isolation_verified",
-        "token_expiry_reconnect_verified",
-        "dcr_disable_verified",
-        "grant_revocation_verified",
-        "mcp_oauth_disable_order_verified",
-        "runtime_rollback_rehearsed",
-        "exact_deployed_sha_recorded"
-      ],
-      "external_mutation_allowed": true,
-      "must_not_be_inferred_from_source_merge": true
+      "id": "production",
+      "status": "planned",
+      "objective": "Under separate Production authorization, prove public routing, metadata parity, ChatGPT reconnect/refresh, revocation, tenant isolation, monitoring, rollback, and exact deployed-source parity."
     }
-  ],
-  "global_invariants": {
-    "force_push": false,
-    "secrets_in_evidence": false,
-    "drop_oauth_tables_on_rollback": false,
-    "production_promotion_implicit": false,
-    "migration_apply_implicit": false,
-    "provider_mutation_implicit": false
-  }
+  ]
 }
