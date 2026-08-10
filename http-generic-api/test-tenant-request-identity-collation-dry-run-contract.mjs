@@ -44,6 +44,13 @@ assert.match(runner, /credential_payload_accessed: false/);
 assert.match(runner, /external_business_write_executed: false/);
 assert.match(runner, /secrets_included: false/);
 
+assert.match(runner, /let managedControlPlaneWriteExecuted = false;/);
+const envelopeBody = runner.slice(runner.indexOf('async function createReadyAuthorizationEnvelope()'), runner.indexOf('async function bootstrapAuthorization()'));
+assert.match(envelopeBody, /const createdPayload = await adminShell[\s\S]*managedControlPlaneWriteExecuted = true;/);
+assert.match(runner, /managed_control_plane_write_executed: managedControlPlaneWriteExecuted/);
+assert.equal((runner.match(/managed_control_plane_write_executed: managedControlPlaneWriteExecuted/g) || []).length, 3, 'State, final state, and summary must all report actual lifecycle writes');
+assert.doesNotMatch(runner, /managed_control_plane_write_executed: authorizationCreated/);
+
 const mainBody = runner.slice(runner.indexOf('async function main()'));
 const stages = [
   "stage = 'repository_and_runtime_parity'",
@@ -63,6 +70,7 @@ console.log(JSON.stringify({
   issue: 4449,
   exact_trigger: AUTH_CONFIRM,
   checksum_bound_authorization_bootstrap: true,
+  idempotent_rerun_managed_write_reporting: true,
   dry_run_only: true,
   apply_available: false,
   source_merge_sha: SOURCE_MERGE_SHA,
