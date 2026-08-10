@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
-  "review_state": "draft",
+  "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "a81ee9b600874ff6b2b6065e9eb3c682985d0c8af878cca7fe0b3cb2ea7077af",
-    "index_source_hash": "d88bed6fc713fedb9aa67f6c251543f0660a057d6a61a35bcce39c0efe9bea55",
-    "coverage_source_hash": "049247ffa881f5d4d500c8c2c15f825f1d2b427a347d59c3af9eef2ce36e25d1",
+    "fingerprint": "df40ebc5c7e75f4b8e5fce2c8371b318901886f9d7dd855820b8e89590461591",
+    "index_source_hash": "10fba6e1d0220e48414d72ffda239baafecfc858ff0a21b840de8b610341797d",
+    "coverage_source_hash": "14d840859ee6838f980773d36c575223e4be7b286914f9600c2079c4dd64d766",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -388,10 +388,9 @@
     "no_new_dimensions_rationale": "Current generated Work Maps and classified schema domains cover the Remote MCP host-isolation and OAuth-readiness scope; no additional platform dimension is required by this specification."
   },
   "implementation_readiness": {
-    "status": "blocked",
+    "status": "ready",
     "blocking_dimensions": [],
-    "blocking_reasons": ["formal_spec_review_pending"],
-    "reviewed_by": "pending-formal-review",
+    "reviewed_by": "platform-team",
     "evidence_refs": [
       "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",
