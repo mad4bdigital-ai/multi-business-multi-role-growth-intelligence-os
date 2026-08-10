@@ -50,6 +50,7 @@
             "SHA-256 is computed from decoded raw GitHub bytes and those bytes must reproduce the pinned Git blob SHA.",
             "Migration 1049 is never invoked or retried by this lifecycle.",
             "Readiness performs no migration Apply.",
+            "The readiness authorization-envelope decision note remains canonical and shell-safe under capability alias validation, and the global shell metacharacter guard is not weakened.",
             "Apply contains exactly one governed_migration_execute Apply transport call and records apply_retried=false.",
             "The Migration 1050 authorization seed merges into existing metadata instead of replacing checksum/source binding fields.",
             "Post-Apply and standalone verification re-read and assert migration_checksum_sha256, expected_statement_count, pull_request, and merge_sha.",

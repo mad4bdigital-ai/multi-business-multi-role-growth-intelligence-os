@@ -521,7 +521,7 @@ async function readiness() {
     'governed_migration_authorization_bootstrap',
     'governed_migration_authorization_bootstrap',
     'github_actions_repository_policy_1050_readiness',
-    'Approve checksum-bound Migration 1050 authorization only; no SQL, Migration 1049 retry, or GitHub provider mutation executes in readiness.'
+    'Approve checksum-bound Migration 1050 authorization only, with no SQL, Migration 1049 retry, or GitHub provider mutation executing in readiness.'
   );
 
   stage = 'authorization_bootstrap';
