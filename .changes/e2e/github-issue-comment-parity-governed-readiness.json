@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-issue-comment-parity-governed-readiness",
+  "title": "GitHub issue-comment exact response parity governed migration readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-issue-comment-parity-governed-readiness.json",
+      ".github/ops/github-issue-comment-parity-governed-readiness.mjs",
+      ".github/workflows/github-issue-comment-parity-governed-readiness.yml",
+      "http-generic-api/test-github-issue-comment-parity-governed-readiness.mjs"
+    ]
+  },
+  "merge_contract": { "minimum_phase": "mvp" },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one exact-token, Production-bound, checksum-bound readiness bridge for the GitHub issue-comment exact-response parity migration that records governed authorization and performs dry-run only, while keeping Migration Apply, provider calls, external writes, credential payload access, and protected-ref mutation outside this PR.",
+      "e2e_journeys": [
+        {
+          "id": "github-issue-comment-parity-authorization-and-dry-run-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 4451 exact migration authorization comment on the trusted default-branch workflow",
+          "terminal_outcome": "The workflow proves source migration identity and exact Production/runtime parity, creates a short-lived capability envelope, records checksum-bound authorization, and completes governed_migration_execute in dry_run mode with applies_sql=false without Migration Apply or provider execution.",
+          "steps": [
+            "Require issue 4451, the exact authorization token, and OWNER, MEMBER, or COLLABORATOR author association.",
+            "Require source PR 6814 merge identity, migration Git blob SHA, raw-byte SHA-256 checksum, and executable statement count to remain pinned.",
+            "Require protected Production and public runtime readbacks to equal 25ca4dbff6bb6bef18b0da24a349348e66200639 before authorization mutation.",
+            "Re-read protected Production after runtime parity and fail closed if the ref moved.",
+            "Create or approve a short-lived capability resolution envelope scoped to governed_migration_authorization_bootstrap and the exact migration resource binding.",
+            "Call governed_migration_authorization_bootstrap using the exact filename, checksum, statement count, source PR, source merge SHA, typed confirmation, and envelope ID.",
+            "Invoke governed_migration_execute only in dry_run mode and require applies_sql=false with exact checksum and statement count.",
+            "Upload sanitized evidence recording Migration Apply, provider call, external write, credential payload access, protected-ref mutation, and force push as false."
+          ],
+          "assertions": [
+            "The workflow exposes no Apply trigger, phase, or job.",
+            "The wrapper contains no governed_migration_execute call with mode apply and no Apply confirmation token.",
+            "The wrapper never requests capability_resolution_envelope_apply_authorize.",
+            "Production drift, runtime drift, source identity drift, migration checksum drift, statement-count drift, authorization failure, or dry-run contract failure fails closed.",
+            "The bridge never dispatches github_create_issue_comment and performs no provider call or protected-ref mutation."
+          ],
+          "tests": [
+            {
+              "id": "github-issue-comment-parity-governed-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-issue-comment-parity-governed-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/github-issue-comment-parity-governed-readiness.mjs",
+            ".github/workflows/github-issue-comment-parity-governed-readiness.yml",
+            "http-generic-api/test-github-issue-comment-parity-governed-readiness.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
