@@ -73,6 +73,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-parity-refresh-dispatch.yml`
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/github-issue-comment-parity-governed-readiness.yml`
 - `.github/workflows/github-main-review-policy-live-activation.yml`
 - `.github/workflows/github-main-review-policy-readiness-publisher.yml`
 - `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
