@@ -24,13 +24,15 @@ Missing governance user/password fails closed with `GOVERNANCE_DB_CONFIG_MISSING
 
 - Runtime reader (`getPool()`): repository/resource authority resolution and other non-mutating runtime reads.
 - Governance writer (`getGovernancePool()`): envelope creation/approval/apply-authorization, governed migration authorization/policy/certification writes, standalone lifecycle mutations, and same-cycle governance readback.
-- Execution transaction exception: when a business mutation already holds a SQL transaction, lifecycle/reference consumption may reuse that **explicit transaction object** so envelope state and the business mutation remain atomic. This is not a credential fallback and does not cause `GOVERNANCE_DB_USER`/`GOVERNANCE_DB_PASSWORD` to inherit `DB_USER`/`DB_PASSWORD`.
+- Execution transaction exception: when a business mutation already holds an **actual SQL connection with transaction primitives** (`beginTransaction`, `commit`, and `rollback`), lifecycle/reference consumption may reuse that explicit connection so envelope state and the business mutation remain atomic. A general pool exposing `getConnection()` does not qualify and is never promoted into mutation authority.
+- Legacy `pool` compatibility is therefore structural and narrow: it is honored only for an already-open transaction connection. A broad runtime pool is ignored for lifecycle-writer selection and the dedicated Governance writer is used instead.
+- An explicitly supplied `transactionPool` that is not an actual transaction connection fails closed with `CAPABILITY_ENVELOPE_LIFECYCLE_TRANSACTION_INVALID` and no secret-bearing details.
 - Capability envelope creation performs authority/dry-run resolution with the runtime reader, then resolves the governance writer only at the canonical ledger INSERT boundary.
 - Envelope approval and apply-authorization use a single Governance writer transaction for current-state read, mutation, conditional update, and same-cycle readback.
 - Governed migration authorization resolves the capability envelope with the runtime reader, then performs authorization/policy/certification registry reads and writes with the Governance writer.
 - Batch-expire dry-run remains read-only; batch-expire apply is a standalone governance mutation and stays on the Governance writer.
 
-The execution transaction exception exists to prevent a separate-principal post-commit lifecycle write from breaking atomicity. It must not be used to bypass control-plane writer selection.
+The execution transaction exception exists only to prevent a separate-principal post-commit lifecycle write from breaking an already-open execution transaction. It must not be used to bypass control-plane writer selection or to reinterpret `DB_USER`/`DB_PASSWORD` as Governance DB credentials.
 
 ## Minimum Production privilege matrix
 
@@ -71,7 +73,8 @@ Repository CI must prove at minimum:
 - governance credential errors contain no secret values;
 - canonical envelope creation writes through `writerPool` while repository authority reads remain on `readPool`;
 - approval/apply-authorization and migration bootstrap select the dedicated writer by default;
-- an explicit existing execution transaction can preserve envelope lifecycle/reference atomicity without turning runtime credentials into Governance DB credential fallback;
+- a general runtime pool cannot become lifecycle mutation authority merely because a caller supplied it as `pool`;
+- only an already-open SQL transaction connection may preserve envelope lifecycle/reference atomicity, and an invalid explicit `transactionPool` fails closed;
 - migration bootstrap uses separate reader and writer pools;
 - batch apply preserves Governance writer transaction and same-cycle readback semantics;
 - no provider call or external business write is introduced by this boundary.
