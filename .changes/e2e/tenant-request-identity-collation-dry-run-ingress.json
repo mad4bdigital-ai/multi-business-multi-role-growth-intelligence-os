@@ -1,0 +1,66 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-request-identity-collation-dry-run-ingress",
+  "title": "Tenant request identity collation governed Dry Run ingress",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/ops/tenant-request-identity-collation-authorize-dry-run.mjs",
+      ".github/workflows/tenant-request-identity-collation-authorize-dry-run.yml",
+      "http-generic-api/test-tenant-request-identity-collation-authorize-dry-run-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide the missing trusted-main GitHub ingress that consumes the exact owner authorization for Migration 20260808 tenant-request identity collation and performs authorization bootstrap plus a zero-risk Dry Run without exposing any Apply path.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-identity-collation-authorize-dry-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner operating through Issue #4449",
+          "entrypoint": "Issue comment AUTHORIZE_GOVERNED_MIGRATION_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT",
+          "terminal_outcome": "Trusted-main tooling re-verifies runtime readiness, creates one checksum-bound bootstrap authorization, executes governed_migration_execute in dry_run mode with zero risk, uploads no-secret evidence, and exposes no Apply trigger.",
+          "steps": [
+            "Require the exact Issue #4449 authorization token from OWNER, MEMBER, or COLLABORATOR association.",
+            "Checkout the exact issue-comment event head and rerun the existing read-only readiness lifecycle before any authorization mutation.",
+            "Re-pin the reviewed migration checksum, statement count, source PR #6662, source merge SHA, Production migration blob, and exact runtime parity.",
+            "Create and approve a short-lived capability envelope scoped only to governed_migration_authorization_bootstrap.",
+            "Bootstrap the checksum-bound authorization once and fail closed if an exact durable authorization already exists.",
+            "Execute governed_migration_execute with mode=dry_run and assert applies_sql=false plus preflight_risk_count=0.",
+            "Upload sanitized evidence without exposing a Migration Apply job, Apply confirmation, provider dispatch, direct SQL surface, credential payload, force push, or Migration 1043 mutation."
+          ],
+          "assertions": [
+            "The workflow has contents: read permission and contains no Apply token or Apply execution mode.",
+            "The runner calls only the governed authorization bootstrap and governed migration Dry Run surfaces for migration execution.",
+            "The migration blob, checksum, statement count, source PR, and source merge are pinned to reviewed values.",
+            "A pre-existing durable authorization causes a fail-closed stop rather than replaying the one-shot owner authorization.",
+            "No direct SQL or provider dispatch surface is introduced and Migration 1043 is not referenced."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-identity-collation-authorize-dry-run-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-identity-collation-authorize-dry-run-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/tenant-request-identity-collation-authorize-dry-run.mjs",
+            ".github/workflows/tenant-request-identity-collation-authorize-dry-run.yml",
+            "http-generic-api/test-tenant-request-identity-collation-authorize-dry-run-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
