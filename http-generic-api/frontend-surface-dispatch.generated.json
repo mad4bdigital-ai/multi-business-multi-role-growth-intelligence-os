@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "fed4d808d734abac818678b479e7aa7fe3af86f33c7487748e7e5a4ae17a1d6a",
+    "source_digest": "f5785b33da59d1d6151be4b78526f0356702c79928d0ed4aa77b1d59f663487f",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -526,7 +526,7 @@
       },
       {
         "file": "routes/deploymentInfoRoutes.js",
-        "sha256": "cdc521d505a952b6423ba773259ad5ec27c6400643e1531c3c6effac79638c62",
+        "sha256": "f1085790eea1e0b6569c0d02db60dffb814fe72f5ffce43528985d8452fff922",
         "present": true
       },
       {
@@ -1762,7 +1762,7 @@
       "family_key": "deployment-info",
       "label": "deployment info",
       "source_file": "routes/deploymentInfoRoutes.js",
-      "source_digest": "cdc521d505a952b6423ba773259ad5ec27c6400643e1531c3c6effac79638c62",
+      "source_digest": "f1085790eea1e0b6569c0d02db60dffb814fe72f5ffce43528985d8452fff922",
       "mount_prefix": "/",
       "mount_order": 12268,
       "split_from_mixed_scope_file": false,
