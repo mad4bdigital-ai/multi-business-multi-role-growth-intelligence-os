@@ -41,6 +41,12 @@ assert.match(runner, /external_write_executed: false/g);
 assert.match(runner, /Exact Migration 1050 apply ledger was not proven; Apply was not retried/);
 assert.match(runner, /governed_migration_authorization_bootstrap/);
 assert.match(runner, /capability_resolution_envelope_apply_authorize/);
+const migration1050ReadinessEnvelopeDecisionNote = 'Approve checksum-bound Migration 1050 authorization only, with no SQL, Migration 1049 retry, or GitHub provider mutation executing in readiness.';
+assert.ok(runner.includes(migration1050ReadinessEnvelopeDecisionNote), 'Migration 1050 readiness envelope must use the canonical shell-safe decision note');
+for (const forbidden of [';', '&', '|', '`', '$', '<', '>']) {
+  assert.equal(migration1050ReadinessEnvelopeDecisionNote.includes(forbidden), false, `Migration 1050 readiness envelope decision note contains forbidden shell metacharacter: ${forbidden}`);
+}
+assert.doesNotMatch(runner, /Approve checksum-bound Migration 1050 authorization only; no SQL/);
 assert.match(runner, /buildAdminControlDbReadRequest/);
 assert.match(runner, /metadata\.migration_checksum_sha256/);
 assert.match(runner, /metadata\.expected_statement_count/);
