@@ -4,14 +4,14 @@
 
 ## Summary
 
-- Triaged items: 8
-- Gate candidates: 3
+- Triaged items: 7
+- Gate candidates: 2
 - New-gap gate: fail
-- Blocking new items: 6
+- Blocking new items: 5
 
 ## Class counts
 
-- new_surface_immediate_review: 3
+- new_surface_immediate_review: 2
 - safety_marker_review: 4
 - standard_backlog_review: 1
 
@@ -19,4 +19,3 @@
 
 - `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 909; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
 - `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 908; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `1050_github_repository_policy_controller_bootstrap_repair.sql` — critical_review, score 713; next: add targeted patch-index, parity, and governance documentation

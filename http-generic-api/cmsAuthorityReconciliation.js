@@ -22,6 +22,10 @@ function parseJsonArray(value) {
   }
 }
 
+function normalize(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
 function hasAdminLikeRole(roles) {
   return asArray(roles).some((role) => ["administrator", "editor", "shop_manager"].includes(String(role).toLowerCase()));
 }
@@ -56,22 +60,80 @@ function latestClaimBySiteKey(claims) {
   return byKey;
 }
 
+function staleGrantReason(grant, connectionById, siteById) {
+  if (normalize(grant?.status) !== "active" || !grant?.connection_id) return null;
+  const connection = connectionById.get(String(grant.connection_id));
+  if (!connection) return "connection_missing";
+  if (normalize(connection.status) !== "active") return "connection_inactive";
+  if (String(connection.tenant_id || "") !== String(grant.tenant_id || "")) return "connection_tenant_mismatch";
+  if (grant.user_id && connection.user_id && String(connection.user_id) !== String(grant.user_id)) return "connection_user_mismatch";
+  const site = siteById.get(String(grant.site_id || ""));
+  if (site?.app_key && connection.app_key && String(site.app_key) !== String(connection.app_key)) return "connection_app_mismatch";
+  return null;
+}
+
+function unusableClaimConnectionReason(claim, connectionById, site = null) {
+  if (!claim?.connection_id) return null;
+  const connection = connectionById.get(String(claim.connection_id));
+  if (!connection) return "approved_claim_connection_missing";
+  if (normalize(connection.status) !== "active") return "approved_claim_connection_inactive";
+  if (String(connection.tenant_id || "") !== String(claim.tenant_id || "")) return "approved_claim_connection_tenant_mismatch";
+  if (claim.user_id && connection.user_id && String(connection.user_id) !== String(claim.user_id)) return "approved_claim_connection_user_mismatch";
+  if (site?.app_key && connection.app_key && String(site.app_key) !== String(connection.app_key)) return "approved_claim_connection_app_mismatch";
+  return null;
+}
+
 export function buildCmsAuthorityReconciliationPlan({
   claims = [],
   sites = [],
   grants = [],
   brandBindings = [],
+  connections = null,
   idFactory = randomId,
 } = {}) {
   const approvedClaims = asArray(claims).filter((claim) => {
     return claim?.verification_status === "approved" && claim?.approved_at && claim?.normalized_domain;
   });
+  const connectionInventoryLoaded = Array.isArray(connections);
+  const connectionById = new Map(asArray(connections).filter((row) => row?.connection_id).map((row) => [String(row.connection_id), row]));
   const sitesByKey = new Map(asArray(sites).map((site) => [siteKey(site), site]));
-  const grantsByClaimId = new Map(asArray(grants).filter((grant) => grant.claim_id).map((grant) => [grant.claim_id, grant]));
+  const sitesById = new Map(asArray(sites).filter((site) => site?.site_id).map((site) => [String(site.site_id), site]));
   const bindingKeys = new Set(asArray(brandBindings).map(bindingKey));
   const latestClaims = latestClaimBySiteKey(approvedClaims);
   const plannedSitesByKey = new Map();
   const operations = [];
+  const staleGrantIds = new Set();
+
+  if (connectionInventoryLoaded) {
+    for (const grant of asArray(grants)) {
+      const reason = staleGrantReason(grant, connectionById, sitesById);
+      if (!reason) continue;
+      staleGrantIds.add(String(grant.grant_id));
+      operations.push({
+        op: "revoke_stale_cms_site_access_grant",
+        risk_level: "medium",
+        idempotency_key: `revoke:${grant.grant_id}:${grant.connection_id}`,
+        reason,
+        grant: {
+          grant_id: grant.grant_id,
+          site_id: grant.site_id,
+          tenant_id: grant.tenant_id,
+          user_id: grant.user_id || null,
+          connection_id: grant.connection_id,
+          claim_id: grant.claim_id || null,
+          scope: grant.scope || null,
+          status: grant.status,
+        },
+      });
+    }
+  }
+
+  const grantsByClaimId = new Map(
+    asArray(grants)
+      .filter((grant) => grant.claim_id && normalize(grant.status || "active") === "active")
+      .filter((grant) => !staleGrantIds.has(String(grant.grant_id)))
+      .map((grant) => [grant.claim_id, grant])
+  );
 
   for (const [key, claim] of latestClaims.entries()) {
     if (sitesByKey.has(key)) continue;
@@ -108,6 +170,21 @@ export function buildCmsAuthorityReconciliationPlan({
         normalized_domain: claim.normalized_domain,
       });
       continue;
+    }
+    if (connectionInventoryLoaded) {
+      const connectionReason = unusableClaimConnectionReason(claim, connectionById, site);
+      if (connectionReason) {
+        operations.push({
+          op: "manual_review",
+          risk_level: "high",
+          reason: connectionReason,
+          claim_id: claim.claim_id,
+          app_key: claim.app_key,
+          connection_id: claim.connection_id || null,
+          normalized_domain: claim.normalized_domain,
+        });
+        continue;
+      }
     }
     const capabilities = deriveCmsCapabilitiesFromClaim(claim);
     operations.push({
@@ -166,12 +243,15 @@ export function buildCmsAuthorityReconciliationPlan({
       existing_sites: sites.length,
       existing_grants: grants.length,
       existing_brand_bindings: brandBindings.length,
+      connection_inventory_loaded: connectionInventoryLoaded,
+      observed_connections: asArray(connections).length,
       operations: operations.length,
       actionable_operations: actionable.length,
       manual_review_operations: manualReview.length,
       create_cms_site: operations.filter((operation) => operation.op === "create_cms_site").length,
       create_cms_site_access_grant: operations.filter((operation) => operation.op === "create_cms_site_access_grant").length,
       create_brand_site_binding: operations.filter((operation) => operation.op === "create_brand_site_binding").length,
+      revoke_stale_cms_site_access_grant: operations.filter((operation) => operation.op === "revoke_stale_cms_site_access_grant").length,
     },
     operations,
     secrets_included: false,
@@ -193,3 +273,8 @@ export function assertCmsAuthorityApplyAllowed({ apply = false, confirm } = {}) 
   }
   return { allowed: true, mode: "apply" };
 }
+
+export const _testingCmsAuthorityReconciliation = {
+  staleGrantReason,
+  unusableClaimConnectionReason,
+};
