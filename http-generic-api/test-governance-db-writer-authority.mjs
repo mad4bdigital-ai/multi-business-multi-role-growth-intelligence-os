@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolveGovernanceDbConfig } from "./governanceDb.js";
+import { _testingCapabilityResolutionEnvelopeGuardFacade } from "./capabilityResolutionEnvelopeGuard.js";
 
 const runtimeOnly = {
   DB_HOST: "db.internal",
@@ -55,6 +56,48 @@ assert.equal(dedicatedEndpoint.port, 3307);
 assert.equal(dedicatedEndpoint.database, "governance_platform");
 assert.equal(dedicatedEndpoint.connectionLimit, 1);
 
+const runtimePool = {
+  query: async () => [],
+  getConnection: async () => null,
+};
+const transactionConnection = {
+  query: async () => [],
+  beginTransaction: async () => {},
+  commit: async () => {},
+  rollback: async () => {},
+  release: () => {},
+};
+const writerSentinel = { query: async () => [] };
+const {
+  isExplicitLifecycleTransaction,
+  resolveLifecycleMutationPool,
+} = _testingCapabilityResolutionEnvelopeGuardFacade;
+
+assert.equal(isExplicitLifecycleTransaction(runtimePool), false, "a general runtime pool must never qualify as a lifecycle transaction");
+assert.equal(isExplicitLifecycleTransaction(transactionConnection), true, "an already-open SQL connection may qualify for transaction-bound lifecycle work");
+assert.equal(
+  resolveLifecycleMutationPool({ legacyPool: runtimePool, governancePoolFactory: () => writerSentinel }),
+  writerSentinel,
+  "legacy general runtime pool injection must resolve to the dedicated Governance writer",
+);
+assert.equal(
+  resolveLifecycleMutationPool({ legacyPool: transactionConnection, governancePoolFactory: () => writerSentinel }),
+  transactionConnection,
+  "legacy compatibility is bounded to an actual transaction connection only",
+);
+assert.equal(
+  resolveLifecycleMutationPool({ transactionPool: transactionConnection, governancePoolFactory: () => writerSentinel }),
+  transactionConnection,
+  "explicit transactionPool must preserve same-cycle execution transaction semantics",
+);
+assert.throws(
+  () => resolveLifecycleMutationPool({ transactionPool: runtimePool, governancePoolFactory: () => writerSentinel }),
+  (error) => error?.code === "CAPABILITY_ENVELOPE_LIFECYCLE_TRANSACTION_INVALID"
+    && error?.details?.general_runtime_pool_allowed === false
+    && error?.details?.secrets_included === false,
+  "explicit transactionPool must fail closed when a broad pool is supplied",
+);
+
 const governanceDbSource = readFileSync(new URL("./governanceDb.js", import.meta.url), "utf8");
 assert.match(governanceDbSource, /GOVERNANCE_DB_USER/);
 assert.match(governanceDbSource, /GOVERNANCE_DB_PASSWORD/);
@@ -78,9 +121,11 @@ assert.match(applySource, /same-cycle readback/i);
 assert.doesNotMatch(applySource, /from "\.\.\/db\.js"/);
 
 const guardSource = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
-assert.match(guardSource, /resolveLifecycleMutationPool/);
-assert.match(guardSource, /transactionPool: transactionPool \|\| legacyTransactionPool/);
-assert.match(guardSource, /return getGovernancePool\(\)/);
+assert.match(guardSource, /isExplicitLifecycleTransaction/);
+assert.match(guardSource, /typeof candidate\.getConnection !== "function"/);
+assert.match(guardSource, /legacyPool/);
+assert.match(guardSource, /return governancePoolFactory\(\)/);
+assert.match(guardSource, /CAPABILITY_ENVELOPE_LIFECYCLE_TRANSACTION_INVALID/);
 assert.match(guardSource, /normalizedMode !== "apply"/);
 assert.match(guardSource, /pool: writerPool \|\| getGovernancePool\(\)/);
 
