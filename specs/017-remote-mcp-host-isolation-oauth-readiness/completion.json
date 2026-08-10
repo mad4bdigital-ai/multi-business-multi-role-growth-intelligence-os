@@ -8,7 +8,7 @@
     "branch": "gpt/spec-017-remote-mcp-host-isolation-oauth-readiness-20260810",
     "base_main_sha": "a722609b45ab3ac4617096963380ab4e1434f17d",
     "complete": true,
-    "review_state": "pending",
+    "review_state": "merged",
     "secrets_included": false
   },
   "implementation": {
@@ -80,7 +80,6 @@
     "rollback_rehearsal"
   ],
   "blocking_reasons": [
-    "spec_review_pending",
     "exact_head_ci_pending",
     "live_dns_tls_proxy_not_verified",
     "governed_oauth_migration_not_applied",
