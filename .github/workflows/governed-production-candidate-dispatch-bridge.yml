@@ -49,7 +49,7 @@ jobs:
             echo "::error::dispatch bridge must not use a job-level event condition"
             exit 1
           fi
-          if grep -Fq 'gh pr comment "$REQUEST_PR"' "$FILE" || grep -Fq 'gh pr comment "$REQUEST_PR"' "$FALLBACK_FILE"; then
+          if grep -Eq '^[[:space:]]+gh pr comment[[:space:]]+"\$REQUEST_PR"' "$FILE" || grep -Eq '^[[:space:]]+gh pr comment[[:space:]]+"\$REQUEST_PR"' "$FALLBACK_FILE"; then
             echo "::error::Production candidate dispatch evidence must use the REST issue-comments endpoint"
             exit 1
           fi
