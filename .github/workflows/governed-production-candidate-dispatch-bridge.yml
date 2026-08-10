@@ -28,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           FILE=.github/workflows/governed-production-candidate-dispatch-bridge.yml
+          FALLBACK_FILE=.github/workflows/governed-production-candidate-dispatch-push-fallback.yml
           grep -Fq "DISPATCH_GOVERNED_PRODUCTION_CANDIDATE_BUILDER" "$FILE"
           grep -Fq "production-promotion-candidate.yml" "$FILE"
           grep -Fq "expected_main_sha" "$FILE"
@@ -41,9 +42,15 @@ jobs:
           grep -Fq "steps.trigger.outputs.eligible == 'true'" "$FILE"
           grep -Fq "merge_executed=false" "$FILE"
           grep -Fq "deployment_executed=false" "$FILE"
+          grep -Fq 'gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments"' "$FILE"
+          grep -Fq 'gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments"' "$FALLBACK_FILE"
           JOB_HEADER="$(sed -n '/^  dispatch-exact-candidate-builder:/,/^    permissions:/p' "$FILE")"
           if grep -Eq '^    if:' <<<"$JOB_HEADER"; then
             echo "::error::dispatch bridge must not use a job-level event condition"
+            exit 1
+          fi
+          if grep -Fq 'gh pr comment "$REQUEST_PR"' "$FILE" || grep -Fq 'gh pr comment "$REQUEST_PR"' "$FALLBACK_FILE"; then
+            echo "::error::Production candidate dispatch evidence must use the REST issue-comments endpoint"
             exit 1
           fi
           if grep -Eqi 'gh pr merge|git push[[:space:]]+--force|force-with-lease' "$FILE"; then
@@ -130,7 +137,8 @@ jobs:
           fi
 
           if [[ "$DISPATCH_REQUIRED" != 'true' ]]; then
-            gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+            gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
           fi
 
           MAIN_SHORT="${MAIN_SHA:0:12}"
@@ -194,7 +202,7 @@ jobs:
           test -n "$BUILDER_RUN_ID"
 
           BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} bridge_run_id=${GITHUB_RUN_ID} builder_run_id=${BUILDER_RUN_ID} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${RELEASE_BRANCH} validation_branch=${VALIDATION_BRANCH} validation_base_branch=${VALIDATION_BASE_BRANCH} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
-          gh pr comment "$REQUEST_PR" --repo "$REPOSITORY" --body "$BODY"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="$BODY" >/dev/null
 
       - name: Publish summary
         if: always()
