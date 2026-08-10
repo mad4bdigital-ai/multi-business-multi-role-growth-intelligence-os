@@ -48,6 +48,8 @@ assert.match(runner, /metadata\.pull_request/);
 assert.match(runner, /metadata\.merge_sha/);
 assert.match(runner, /const authorization = await durableAuthorizationReadback\(\);/g);
 assert.match(runner, /authorization: reconciled\.authorization/);
+assert.match(runner, /SAFE_EVIDENCE_KEYS = new Set\(\['authorization',/);
+assert.match(runner, /sensitiveKey\.test\(key\) && !SAFE_EVIDENCE_KEYS\.has\(key\) \? '\[redacted\]' : sanitize\(child\)/);
 assert.doesNotMatch(runner, /1049_github_repository_policy_single_owner_mode\.sql['"]\s*,\s*mode:\s*['"]apply/);
 assert.doesNotMatch(runner, /APPLY_GITHUB_MAIN_REVIEW_POLICY/);
 

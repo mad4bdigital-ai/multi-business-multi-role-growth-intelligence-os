@@ -67,7 +67,7 @@ let exactLedgerVerified = false;
 let metadataReadbackVerified = false;
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
-const SAFE_EVIDENCE_KEYS = new Set(['authorization_status','apply_authorized','apply_sent','credential_payload_accessed','external_write_executed','live_github_policy_apply','provider_call_executed','secrets_included']);
+const SAFE_EVIDENCE_KEYS = new Set(['authorization', 'authorization_status','apply_authorized','apply_sent','credential_payload_accessed','external_write_executed','live_github_policy_apply','provider_call_executed','secrets_included']);
 const sha256Bytes = (value) => createHash('sha256').update(value).digest('hex');
 
 function gitBlobSha(bytes) {
