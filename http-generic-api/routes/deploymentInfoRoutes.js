@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
+import { getGovernanceDbPrivilegeReadinessSnapshot } from "../governanceDbPrivilegeReadinessRuntime.js";
 
 async function fileMtimeIso(file) {
   try {
@@ -191,6 +192,10 @@ export function buildDeploymentInfoRoutes() {
       git?.head_mtime
     );
     const generatedAt = new Date().toISOString();
+    const includeGovernanceDbReadiness = String(req.query?.include_governance_db_readiness || "").trim() === "1";
+    const governanceDbPrivilegeReadiness = includeGovernanceDbReadiness
+      ? await getGovernanceDbPrivilegeReadinessSnapshot()
+      : undefined;
 
     res.status(200).json({
       ok: true,
@@ -246,6 +251,9 @@ export function buildDeploymentInfoRoutes() {
         manifest_error: manifestResult.ok ? null : manifestResult.error,
         secrets_included: false,
       },
+      ...(includeGovernanceDbReadiness ? {
+        governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
+      } : {}),
       app_env: process.env.APP_ENV || process.env.NODE_ENV || null,
       expected_dev_branch: expectedDevBranch,
       is_dev_hostname: isDevHostname,
