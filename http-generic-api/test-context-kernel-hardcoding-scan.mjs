@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -185,6 +186,47 @@ export const tenantFixture = "99999999-8888-4777-8666-555555555555";
   assert.match(formatReport(failingChangedReport, "github"), /::warning/);
   assert.match(formatReport(failingChangedReport, "github"), /changed_files/);
   assert.match(formatReport(changedLineReport, "github"), /changed_lines/);
+
+  const git = (...args) => execFileSync("git", args, {
+    cwd: temporaryRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  }).trim();
+  git("init", "-b", "main");
+  git("config", "user.email", "context-kernel-test@example.invalid");
+  git("config", "user.name", "Context Kernel Test");
+  git("add", ".");
+  git("commit", "-m", "base");
+  const defaultBranchBase = git("rev-parse", "HEAD");
+  git("update-ref", "refs/remotes/origin/main", defaultBranchBase);
+  git("checkout", "-b", "feature");
+  fs.appendFileSync(
+    path.join(temporaryRoot, "src", "clean.js"),
+    '\nconst tenantId = "22222222-3333-4444-8555-666666666666";\n',
+    "utf8",
+  );
+  git("add", "src/clean.js");
+  git("commit", "-m", "feature change");
+
+  const eventPath = path.join(temporaryRoot, "workflow-dispatch-event.json");
+  fs.writeFileSync(eventPath, JSON.stringify({ repository: { default_branch: "main" } }), "utf8");
+  const previousEventPath = process.env.GITHUB_EVENT_PATH;
+  process.env.GITHUB_EVENT_PATH = eventPath;
+  try {
+    const dispatchReport = scanRepository({
+      repositoryRoot: temporaryRoot,
+      config,
+      changedFiles: ["src/clean.js"],
+    });
+    assert.equal(dispatchReport.scan_scope, "changed_lines");
+    assert.deepEqual(
+      dispatchReport.findings.filter((item) => !item.suppressed).map((item) => item.rule_id),
+      ["fixed_customer_identifier"],
+    );
+  } finally {
+    if (previousEventPath === undefined) delete process.env.GITHUB_EVENT_PATH;
+    else process.env.GITHUB_EVENT_PATH = previousEventPath;
+  }
 
   console.log("context-kernel hardcoding scanner tests passed");
 } finally {
