@@ -1,0 +1,69 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-request-identity-collation-readonly-diagnostic",
+  "title": "Tenant request identity collation read-only diagnostic",
+  "delivery_mode": "single_pr",
+  "secrets_included": false,
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".github/ops/tenant-request-identity-collation-readonly-diagnostic.mjs",
+      ".github/workflows/tenant-request-identity-collation-readonly-diagnostic.yml",
+      ".changes/e2e/tenant-request-identity-collation-readonly-diagnostic.json",
+      "http-generic-api/test-tenant-request-identity-collation-readonly-diagnostic-contract.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Capture the exact runtime cause of the tenant-request identity collation Envelope-create failure using only the existing capability_resolution_dry_run alias and fixed SELECT readbacks, with no managed lifecycle write or migration execution.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-request-identity-collation-readonly-diagnostic",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository owner operating through Issue #4449",
+          "entrypoint": "Issue comment RUN_READ_ONLY_DIAGNOSTIC_20260808_TENANT_REQUEST_IDENTITY_COLLATION_ALIGNMENT",
+          "terminal_outcome": "Trusted-main tooling captures sanitized resolver stdout/stderr plus schema, tool-registry, policy, and recent-ledger readbacks without creating or approving an Envelope, bootstrapping authorization, invoking governed migration execution, or executing SQL mutation.",
+          "steps": [
+            "Checkout trusted main and pin current main and Production refs plus the reviewed migration blob.",
+            "Read health, version, and deployment-info; fail closed before resolver execution if the deployed runtime commit is absent, invalid, or different from the current Production ref, while preserving sanitized classification evidence.",
+            "Invoke the built-in capability_resolution_dry_run shell alias with the same tenant, admin user, app, capability, operation intent, runtime surface, source tier, resource URI, and verified deployed runtime SHA used as the expected commit.",
+            "Capture the complete sanitized Admin control response, including child stdout/stderr when the resolver fails.",
+            "Run four hard-coded SELECT-only readbacks for the Envelope ledger schema, endpoint-tool registry, runtime policies, and recent matching ledger rows.",
+            "Upload sanitized evidence that preserves explicit false safety assertions for zero mutation, zero migration execution, zero Apply, zero provider calls, zero credential payload access, and no included secrets."
+          ],
+          "assertions": [
+            "The workflow is issue_comment-only, requires Issue #4449 plus the exact read-only diagnostic trigger from OWNER, MEMBER, or COLLABORATOR, and checks out trusted main.",
+            "The resolver is not invoked until deployment-info exposes a full deployed commit SHA equal to the current Production ref, and that verified runtime SHA is passed as expected_commit_sha.",
+            "The only shell alias invoked is capability_resolution_dry_run.",
+            "All database diagnostics are hard-coded SELECT statements guarded against mutation keywords.",
+            "Sanitization preserves only allowlisted false safety-evidence booleans even when their key names contain sensitive words; non-false sensitive values remain redacted.",
+            "No capability_resolution_envelope_create or capability_resolution_envelope_approve shell invocation exists.",
+            "No governed_migration_authorization_bootstrap or governed_migration_execute tool invocation exists.",
+            "No Apply confirmation or migration SQL execution is available in the diagnostic path."
+          ],
+          "tests": [
+            {
+              "id": "tenant-request-identity-collation-readonly-diagnostic-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-request-identity-collation-readonly-diagnostic-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/tenant-request-identity-collation-readonly-diagnostic.mjs",
+            ".github/workflows/tenant-request-identity-collation-readonly-diagnostic.yml",
+            "http-generic-api/test-tenant-request-identity-collation-readonly-diagnostic-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
