@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import crypto, { randomUUID } from "node:crypto";
 import { getPool } from "../db.js";
+import { closeGovernancePool, getGovernancePool } from "../governanceDb.js";
 import { SAFE_FALSE_SECRET_METADATA_KEYS } from "../capabilityEnvelopeSecretPolicy.js";
 import { resolveRepositoryCapabilityAuthority } from "../repositoryAuthorityContextResolver.js";
 import { buildGithubRepositoryPolicyCapabilityBinding } from "../githubRepositoryPolicyController.js";
@@ -264,12 +265,13 @@ export async function buildRepositoryPolicyEnvelopeDryRun({ dryRunArgs = {}, bin
   };
 }
 
-export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs()) {
+export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(), deps = {}) {
   const dryRunArgs = buildDryRunArgs(args.passthrough);
   const bindingContext = buildBindingContext(args.passthrough);
-  const pool = getPool();
-  const repositoryPolicyDryRun = await buildRepositoryPolicyEnvelopeDryRun({ dryRunArgs, bindingContext, pool });
-  const dryRun = repositoryPolicyDryRun || await runCapabilityResolutionDryRun(dryRunArgs);
+  const readPool = deps.readPool || getPool();
+  const repositoryPolicyDryRun = await buildRepositoryPolicyEnvelopeDryRun({ dryRunArgs, bindingContext, pool: readPool });
+  const runDryRun = deps.runDryRun || runCapabilityResolutionDryRun;
+  const dryRun = repositoryPolicyDryRun || await runDryRun(dryRunArgs);
   const envelope = redactDangerousKeys({
     ...dryRun,
     request_context: { ...(dryRun.request_context || {}), ...bindingContext },
@@ -287,7 +289,8 @@ export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(
   const selected = envelope.selected_source || {};
   const gates = envelope.gates || {};
   const authority = envelope.authority || {};
-  await pool.query(`INSERT INTO capability_resolution_envelope_ledger
+  const writerPool = deps.writerPool || getGovernancePool();
+  await writerPool.query(`INSERT INTO capability_resolution_envelope_ledger
       (envelope_id, tenant_id, user_id, workspace_id, workspace_key, brand_key, app_key, capability_key, operation_intent, risk_class, selected_source_tier, selected_runtime_surface, authority_status, decision, envelope_status, dispatch_allowed, apply_allowed, approval_required, quota_required, audit_required, readback_required, blocking_gap_count, envelope_sha256, envelope_json, requested_by, expires_at, secrets_included)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), 0)`, [
       envelopeId, safeText(ctx.tenant_id,64)||null, ledgerPrincipalId(ctx), safeText(ctx.workspace_id,64)||null, safeText(ctx.workspace_key,191)||null, safeText(ctx.brand_key,191)||null, safeText(cap.app_key,128)||null, safeText(cap.capability_key,191)||null, safeText(ctx.operation_intent || dryRunArgs.operationIntent,128)||null, safeText(cap.risk_class,64)||null, safeText(selected.selected_source_tier,96)||null, safeText(selected.selected_runtime_surface,128)||null, safeText(authority.status,64)||null, safeText(envelope.decision,96)||null, status, gates.dispatch_allowed===true?1:0, gates.apply_allowed===true?1:0, gates.approval_required===true?1:0, gates.quota_required===true?1:0, gates.audit_required!==false?1:0, gates.readback_required===true?1:0, Array.isArray(envelope.blocking_gaps)?envelope.blocking_gaps.length:0, envelopeHash, JSON.stringify(envelope), safeText(args.requestedBy,191)||"gpt_admin", ttl
@@ -313,4 +316,9 @@ export async function createCapabilityResolutionEnvelopeLedger(args = parseArgs(
   };
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) createCapabilityResolutionEnvelopeLedger(parseArgs()).then(async result => { process.stdout.write(`${JSON.stringify(result,null,2)}\n`); await getPool().end().catch(()=>{}); }).catch(async err => { process.stdout.write(`${JSON.stringify({ok:false,error:{code:err.code||"capability_resolution_envelope_create_failed",message:err.message},secrets_included:false},null,2)}\n`); await getPool().end().catch(()=>{}); process.exitCode=1; });
+async function closePools() {
+  await closeGovernancePool().catch(() => {});
+  try { await getPool().end(); } catch { }
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) createCapabilityResolutionEnvelopeLedger(parseArgs()).then(async result => { process.stdout.write(`${JSON.stringify(result,null,2)}\n`); await closePools(); }).catch(async err => { process.stdout.write(`${JSON.stringify({ok:false,error:{code:err.code||"capability_resolution_envelope_create_failed",message:err.message,details:err.details||undefined},secrets_included:false},null,2)}\n`); await closePools(); process.exitCode=1; });

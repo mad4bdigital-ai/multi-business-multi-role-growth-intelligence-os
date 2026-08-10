@@ -228,9 +228,15 @@ async function main() {
   assert.equal(candidate.secrets_included, false);
 
   const pool = createFakePool();
+  const readPool = {
+    async query() {
+      throw new Error("Unexpected direct governance query on runtime readPool");
+    },
+  };
   const referenced = [];
   const deps = {
-    pool,
+    readPool,
+    writerPool: pool,
     auth: { tenant_id: "00000000-0000-0000-0000-000000000000", user_id: "0e76b224-7671-47dd-ad68-014fb042df80" },
     resolveEnvelope: resolvedEnvelope,
     markReferenced: async (value) => { referenced.push(value); return { ok: true }; },
@@ -264,6 +270,8 @@ async function main() {
   assert.equal(pool.applyPolicies.size, 1);
   assert.equal(pool.certifications.size, 1);
   assert.equal(referenced.length, 1);
+  assert.equal(referenced[0].writerPool, pool);
+  assert.equal(referenced[0].pool, undefined);
   const metadata = typeof created.authorization.metadata_json === "string"
     ? JSON.parse(created.authorization.metadata_json)
     : created.authorization.metadata_json;
@@ -304,7 +312,7 @@ async function main() {
     decision_note: "Rotate the unapplied authorization after a reviewed migration repair and checksum change.",
   }, {
     ...deps,
-    pool: rotationPool,
+    writerPool: rotationPool,
     markReferenced: async (value) => { rotationReferenced.push(value); return { ok: true }; },
   });
   assert.equal(rotated.authorization_created, false);
@@ -329,7 +337,7 @@ async function main() {
   await assert.rejects(
     () => bootstrapGovernedMigrationAuthorization(baseInput(), {
       ...deps,
-      pool: missingPreviousPool,
+      writerPool: missingPreviousPool,
     }),
     (error) => error?.code === "governed_migration_authorization_previous_checksum_required"
   );
@@ -342,7 +350,7 @@ async function main() {
       previous_checksum_sha256: "b".repeat(64),
     }, {
       ...deps,
-      pool: mismatchedPreviousPool,
+      writerPool: mismatchedPreviousPool,
     }),
     (error) => error?.code === "governed_migration_authorization_previous_checksum_mismatch"
   );
@@ -361,14 +369,15 @@ async function main() {
       previous_checksum_sha256: PREVIOUS_CHECKSUM,
     }, {
       ...deps,
-      pool: appliedPool,
+      writerPool: appliedPool,
     }),
     (error) => error?.code === "governed_migration_authorization_already_recorded"
   );
 
+  const dispatchPool = createFakePool();
   const dispatchOnly = await bootstrapGovernedMigrationAuthorization(baseInput(), {
     ...deps,
-    pool: createFakePool(),
+    writerPool: dispatchPool,
     resolveEnvelope: async () => ({
       ok: true,
       envelope_id: ENVELOPE_ID,
@@ -386,7 +395,7 @@ async function main() {
   await assert.rejects(
     () => bootstrapGovernedMigrationAuthorization(baseInput(), {
       ...deps,
-      pool: createFakePool(),
+      writerPool: createFakePool(),
       resolveEnvelope: async () => ({
         ok: false,
         status: "capability_resolution_envelope_not_dispatch_ready",
@@ -398,10 +407,15 @@ async function main() {
 
   const routeSource = readFileSync("routes/gptToolsRoutes.js", "utf8");
   const manifestSource = readFileSync("scripts/test-manifest.mjs", "utf8");
+  const wrapperSource = readFileSync("governedMigrationAuthorizationBootstrap.js", "utf8");
   assert.ok(routeSource.includes("governed_migration_authorization_bootstrap"));
   assert.ok(routeSource.includes("bootstrapGovernedMigrationAuthorization"));
   assert.ok(routeSource.includes("previous_checksum_sha256"));
   assert.ok(manifestSource.includes("test-governed-migration-authorization-bootstrap.mjs"));
+  assert.match(wrapperSource, /readPool/);
+  assert.match(wrapperSource, /writerPool/);
+  assert.match(wrapperSource, /pool: writerPool/);
+  assert.match(wrapperSource, /pool: readPool/);
 
   console.log("governed migration authorization bootstrap tests passed");
 }
