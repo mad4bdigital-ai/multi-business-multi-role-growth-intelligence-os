@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "remaining-tenant-runtime-lifecycle-gap-closure",
+  "title": "Remaining tenant runtime and lifecycle gap closure",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/remaining-tenant-runtime-lifecycle-gap-closure.json",
+      "http-generic-api/tenantActivationSnapshot.js",
+      "http-generic-api/cmsAuthorityReconciliation.js",
+      "http-generic-api/scripts/cms-authority-reconciliation.mjs",
+      "http-generic-api/supportTicketResolutionService.js",
+      "http-generic-api/migrations/20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql",
+      "http-generic-api/test-tenant-activation-pending-task-summary.mjs",
+      "http-generic-api/test-cms-authority-reconciliation.mjs",
+      "http-generic-api/test-support-ticket-resolution-service.mjs",
+      "http-generic-api/test-remaining-tenant-runtime-lifecycle-gap-closure.mjs",
+      "http-generic-api/scripts/test-manifest.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Close the remaining source-level tenant runtime gaps without Production mutation: make activation pending-task summary semantics match the authorized detail surface, add governed stale CMS grant reconciliation, bridge escalated support Resolution Cases to Operational Alerts, and make WordPress app-local action namespace separation explicit without creating duplicate canonical Platform Plugin actions.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-runtime-lifecycle-authorities-converge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user or governed platform operator",
+          "entrypoint": "Tenant activation snapshot, CMS authority reconciliation, Support Ticket resolution routing, and WordPress registry reconciliation",
+          "terminal_outcome": "Tenant-visible summary/detail counts use the same pending-task visibility contract; stale CMS grants can be detected safely and revoked only behind explicit apply confirmation; escalated tickets have a real Resolution Case plus idempotent Operational Alert evidence; and WordPress adapter read operations remain on the app-connection surface while wordpress_api remains the single canonical Platform Plugin action group.",
+          "steps": [
+            "Scope pending task metrics to activation-visible tenant tasks and authorized user tasks using the canonical active status set pending, in_progress, blocked.",
+            "Load a bounded no-secret user_app_connections inventory during CMS authority reconciliation and plan revocation for active grants whose referenced connection is missing, inactive, cross-tenant, cross-user, or app-mismatched.",
+            "Require explicit APPLY_CMS_AUTHORITY_RECONCILIATION confirmation before any stale grant status mutation; never DELETE grants.",
+            "When a Support Ticket Resolution Case is ensured and escalation evidence is present, insert or refresh one deterministic support_ticket Operational Alert without notification delivery side effects.",
+            "Expose a WordPress action surface contract that maps adapter read operations to app_connection_action and marks them invalid as Platform Plugin selectors, while requiring exactly one canonical wordpress_rest to wordpress_api binding."
+          ],
+          "assertions": [
+            "Tenant-owned pending tasks with user_id NULL are not hidden from activation summary solely because a signed-in user exists.",
+            "Pending task summary does not count terminal/deferred rows as active by using a stale exclusion list.",
+            "CMS reconciliation reads no encrypted credential payload, token, password, or secret fields when classifying stale grants.",
+            "CMS stale grant repair is revoke-only, idempotent, dry-run by default, and confirmation-gated for apply.",
+            "Escalated support tickets produce a deterministic Operational Alert tied to the Resolution Case without provider calls, external sends, or outbox writes.",
+            "wordpress_rest.validate_connection, wordpress_rest.get_current_user, and wordpress_rest.read_users are not inserted as duplicate canonical app_integration_action_bindings.",
+            "No Production migration Apply, provider call, credential payload read, external send, external write, deployment, or live tenant mutation occurs in CI."
+          ],
+          "tests": [
+            { "id": "tenant-activation-pending-task-summary", "runner": "node", "working_directory": "http-generic-api", "path": "test-tenant-activation-pending-task-summary.mjs", "args": [] },
+            { "id": "cms-authority-reconciliation", "runner": "node", "working_directory": "http-generic-api", "path": "test-cms-authority-reconciliation.mjs", "args": [] },
+            { "id": "support-ticket-resolution-service", "runner": "node", "working_directory": "http-generic-api", "path": "test-support-ticket-resolution-service.mjs", "args": [] },
+            { "id": "remaining-tenant-runtime-lifecycle-gap-closure", "runner": "node", "working_directory": "http-generic-api", "path": "test-remaining-tenant-runtime-lifecycle-gap-closure.mjs", "args": [] }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/remaining-tenant-runtime-lifecycle-gap-closure.json",
+            "http-generic-api/migrations/20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql",
+            "http-generic-api/tenantActivationSnapshot.js",
+            "http-generic-api/cmsAuthorityReconciliation.js",
+            "http-generic-api/supportTicketResolutionService.js",
+            "http-generic-api/test-remaining-tenant-runtime-lifecycle-gap-closure.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}
