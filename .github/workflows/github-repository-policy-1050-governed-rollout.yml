@@ -27,7 +27,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6628'
-      SOURCE_PR: '6629'
+      SOURCE_PR: '6746'
       EVIDENCE_DIR: .artifacts/github-repository-policy-1050-readiness
     steps:
       - name: Checkout exact issue-comment event head
@@ -69,7 +69,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6628'
-      SOURCE_PR: '6629'
+      SOURCE_PR: '6746'
       EVIDENCE_DIR: .artifacts/github-repository-policy-1050-apply
     steps:
       - name: Checkout exact issue-comment event head
@@ -111,7 +111,7 @@ jobs:
       GH_READ_TOKEN: ${{ github.token }}
       REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
       CONTROL_ISSUE: '6628'
-      SOURCE_PR: '6629'
+      SOURCE_PR: '6746'
       EVIDENCE_DIR: .artifacts/github-repository-policy-1050-verify
     steps:
       - name: Checkout exact issue-comment event head

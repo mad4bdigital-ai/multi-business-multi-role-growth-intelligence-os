@@ -76,7 +76,7 @@ for (const marker of [
   "work-map-autofix-diagnostics-",
   "actions/upload-artifact@v4",
   "git check-ref-format --branch",
-  "git add docs/work-maps",
+  "git add -- docs/work-maps",
   "git push origin",
   "git rev-parse HEAD",
   "gh api --method PATCH",

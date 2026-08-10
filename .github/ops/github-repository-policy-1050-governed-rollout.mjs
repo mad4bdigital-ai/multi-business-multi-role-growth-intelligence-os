@@ -10,13 +10,14 @@ const KEY = String(process.env.BACKEND_API_KEY || '').trim();
 const GH = String(process.env.GH_READ_TOKEN || '').trim();
 const REPO = String(process.env.REPOSITORY || 'mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os').trim();
 const ISSUE = Number(process.env.CONTROL_ISSUE || 6628);
-const SOURCE_PR = Number(process.env.SOURCE_PR || 6629);
+const SOURCE_PR = Number(process.env.SOURCE_PR || 6746);
+const UPSTREAM_REPAIR_PR = 6629;
+const UPSTREAM_REPAIR_MERGE_SHA = '5505adde1bf29125c56d8588cf8de3ee956c819c';
 const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-repository-policy-1050`).trim();
 
 const MIGRATION = '1050_github_repository_policy_controller_bootstrap_repair.sql';
 const MIGRATION_PATH = `http-generic-api/migrations/${MIGRATION}`;
-const MIGRATION_BLOB_SHA = '571fab72a305a209fa19e7b0711d87cd4eae483c';
-const SOURCE_MERGE_SHA = '5505adde1bf29125c56d8588cf8de3ee956c819c';
+const MIGRATION_BLOB_SHA = '06a2ddde04f6feafefae1cc1cef69dbc6fdadd3f';
 const EXPECTED_STATEMENT_COUNT = 7;
 const CONFIRMATION_KEY = MIGRATION.replace(/\.sql$/i, '').replace(/[^A-Za-z0-9]+/g, '_').toUpperCase();
 const AUTH_CONFIRM = `AUTHORIZE_GOVERNED_MIGRATION_${CONFIRMATION_KEY}`;
@@ -59,6 +60,7 @@ let stage = 'start';
 let checksum = null;
 let statementCount = null;
 let productionSha = null;
+let sourceMergeSha = null;
 let applySent = false;
 let applyResponse = null;
 let exactLedgerVerified = false;
@@ -115,7 +117,7 @@ async function writeJson(name, value) {
 }
 async function writeState(extra = {}) {
   await writeJson('state.json', {
-    contract: 'github_repository_policy_1050_governed_rollout.v1',
+    contract: 'github_repository_policy_1050_governed_rollout.v2',
     phase: PHASE,
     stage,
     migration: MIGRATION,
@@ -123,7 +125,9 @@ async function writeState(extra = {}) {
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
     source_pr: SOURCE_PR,
-    source_merge_sha: SOURCE_MERGE_SHA,
+    source_merge_sha: sourceMergeSha,
+    upstream_repair_pr: UPSTREAM_REPAIR_PR,
+    upstream_repair_merge_sha: UPSTREAM_REPAIR_MERGE_SHA,
     production_sha: productionSha,
     apply_sent: applySent,
     apply_retried: false,
@@ -244,21 +248,30 @@ async function createEnvelope(capabilityKey, operationIntent, requestedBy, note,
   return envelope.envelope_id;
 }
 async function sourceMerge() {
-  assert.equal(SOURCE_PR, 6629, 'Migration 1050 rollout must remain bound to source PR #6629');
+  assert.equal(SOURCE_PR, 6746, 'Migration 1050 rollout must remain bound to rollout PR #6746');
+
+  const upstream = await githubJson(`/repos/${REPO}/pulls/${UPSTREAM_REPAIR_PR}`);
+  assert.ok(upstream?.merged_at, `Upstream repair PR #${UPSTREAM_REPAIR_PR} is not merged`);
+  assert.equal(String(upstream?.merge_commit_sha || '').toLowerCase(), UPSTREAM_REPAIR_MERGE_SHA, 'Upstream repair merge SHA changed');
+
   const pr = await githubJson(`/repos/${REPO}/pulls/${SOURCE_PR}`);
-  assert.ok(pr?.merged_at, `Source PR #${SOURCE_PR} is not merged`);
+  assert.ok(pr?.merged_at, `Rollout source PR #${SOURCE_PR} is not merged`);
   const actual = String(pr?.merge_commit_sha || '').toLowerCase();
-  assert.equal(actual, SOURCE_MERGE_SHA, 'Source PR merge SHA differs from canonical Migration 1050 merge SHA');
+  assert.match(actual, /^[0-9a-f]{40}$/, 'Rollout source PR merge SHA is invalid');
+
+  const lineage = await githubJson(`/repos/${REPO}/compare/${UPSTREAM_REPAIR_MERGE_SHA}...${actual}`);
+  assert.ok(['ahead', 'identical'].includes(lineage.status), `Rollout source merge does not contain upstream repair lineage; status=${lineage.status}`);
+  sourceMergeSha = actual;
   return actual;
 }
 async function verifyProductionMigration() {
-  await sourceMerge();
+  const rolloutMergeSha = await sourceMerge();
   const ref = await githubJson(`/repos/${REPO}/git/ref/heads/Production`);
   productionSha = String(ref?.object?.sha || '').toLowerCase();
   assert.match(productionSha, /^[0-9a-f]{40}$/);
 
-  const compare = await githubJson(`/repos/${REPO}/compare/${SOURCE_MERGE_SHA}...${productionSha}`);
-  assert.ok(['ahead', 'identical'].includes(compare.status), `Production does not contain canonical Migration 1050 source merge ${SOURCE_MERGE_SHA}; status=${compare.status}`);
+  const compare = await githubJson(`/repos/${REPO}/compare/${rolloutMergeSha}...${productionSha}`);
+  assert.ok(['ahead', 'identical'].includes(compare.status), `Production does not contain canonical Migration 1050 rollout merge ${rolloutMergeSha}; status=${compare.status}`);
 
   const file = await githubJson(`/repos/${REPO}/contents/${MIGRATION_PATH}?ref=${productionSha}`);
   assert.equal(String(file?.sha || '').toLowerCase(), MIGRATION_BLOB_SHA, 'Production Migration 1050 blob mismatch');
@@ -277,7 +290,9 @@ async function verifyProductionMigration() {
     migration_checksum_sha256: checksum,
     statement_count: statementCount,
     source_pr: SOURCE_PR,
-    source_merge_sha: SOURCE_MERGE_SHA,
+    source_merge_sha: rolloutMergeSha,
+    upstream_repair_pr: UPSTREAM_REPAIR_PR,
+    upstream_repair_merge_sha: UPSTREAM_REPAIR_MERGE_SHA,
     source_merge_status: compare.status,
     raw_bytes_checksum: true,
     secrets_included: false,
@@ -320,12 +335,13 @@ async function dryRun() {
   return result;
 }
 async function bootstrapAuthorization(envelopeId) {
+  assert.match(sourceMergeSha || '', /^[0-9a-f]{40}$/, 'Rollout source merge must be resolved before authorization bootstrap');
   const args = {
     migration: MIGRATION,
     expected_checksum_sha256: checksum,
     expected_statement_count: statementCount,
     pull_request: SOURCE_PR,
-    merge_sha: SOURCE_MERGE_SHA,
+    merge_sha: sourceMergeSha,
     confirm: AUTH_CONFIRM,
     capability_envelope_id: envelopeId,
     decision_note: 'Authorize checksum-bound Migration 1050 bootstrap repair only. Migration 1049 must not be retried and GitHub Ruleset Apply remains separate.',
@@ -431,7 +447,7 @@ async function durableAuthorizationReadback() {
     },
   }), 120000), 'migration_1050_authorization_readback');
   const rows = findObject(payload, (candidate) => Array.isArray(candidate.rows))?.rows || [];
-  assert.equal(rows.length, 1, 'Migration 1050 requires one durable authorization row before Apply');
+  assert.equal(rows.length, 1, 'Migration 1050 requires exactly one durable authorization row');
   const row = rows[0];
   assert.equal(row.authorization_status, 'authorized');
   assert.equal(Number(row.requires_preflight || 0), 1);
@@ -441,11 +457,15 @@ async function durableAuthorizationReadback() {
   assert.equal(String(metadata.migration_checksum_sha256 || '').toLowerCase(), checksum);
   assert.equal(Number(metadata.expected_statement_count || 0), statementCount);
   assert.equal(Number(metadata.pull_request || 0), SOURCE_PR);
-  assert.equal(String(metadata.merge_sha || '').toLowerCase(), SOURCE_MERGE_SHA);
+  assert.equal(String(metadata.merge_sha || '').toLowerCase(), sourceMergeSha);
   assert.equal(metadata.secrets_included, false);
   return {
     authorization_status: row.authorization_status,
     policy_key: row.policy_key,
+    migration_checksum_sha256: String(metadata.migration_checksum_sha256 || '').toLowerCase(),
+    expected_statement_count: Number(metadata.expected_statement_count || 0),
+    pull_request: Number(metadata.pull_request || 0),
+    merge_sha: String(metadata.merge_sha || '').toLowerCase(),
     checksum_bound: true,
     source_bound: true,
     migration_1049_retry_authorized: false,
@@ -459,7 +479,8 @@ async function reconcileAfterApply() {
     if (result.transport_ok && ledgerPass(readback)) {
       exactLedgerVerified = true;
       const metadata = await metadataReadback();
-      return { attempt, readback, metadata };
+      const authorization = await durableAuthorizationReadback();
+      return { attempt, readback, metadata, authorization };
     }
     if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 5000));
   }
@@ -478,12 +499,14 @@ async function readiness() {
   if (existing.result.transport_ok && ledgerPass(existing.readback)) {
     exactLedgerVerified = true;
     const metadata = await metadataReadback();
+    const authorization = await durableAuthorizationReadback();
     await writeJson('summary.json', {
       result: 'already_applied',
       ...identity,
       exact_apply_ledger_verified: true,
       metadata_readback_verified: true,
       metadata,
+      authorization,
       apply_sent_by_this_run: false,
       migration_1049_retry_executed: false,
       live_github_policy_apply: false,
@@ -533,12 +556,14 @@ async function apply() {
   if (existing.result.transport_ok && ledgerPass(existing.readback)) {
     exactLedgerVerified = true;
     const metadata = await metadataReadback();
+    const authorization = await durableAuthorizationReadback();
     await writeJson('summary.json', {
       result: 'already_applied',
       ...identity,
       exact_apply_ledger_verified: true,
       metadata_readback_verified: true,
       metadata,
+      authorization,
       apply_sent_by_this_run: false,
       apply_retried: false,
       migration_1049_retry_executed: false,
@@ -592,6 +617,7 @@ async function apply() {
     exact_apply_ledger_verified: true,
     metadata_readback_verified: true,
     metadata: reconciled.metadata,
+    authorization: reconciled.authorization,
     migration_1049_retry_executed: false,
     live_github_policy_apply: false,
     secrets_included: false,
@@ -614,12 +640,16 @@ async function verify() {
   stage = 'metadata_readback';
   const metadata = await metadataReadback();
 
+  stage = 'durable_authorization_readback';
+  const authorization = await durableAuthorizationReadback();
+
   await writeJson('summary.json', {
     result: 'verified',
     ...identity,
     exact_apply_ledger_verified: true,
     metadata_readback_verified: true,
     metadata,
+    authorization,
     apply_sent_by_this_run: false,
     apply_retried: false,
     migration_1049_retry_executed: false,
@@ -633,7 +663,7 @@ try {
   assert.ok(KEY, 'BACKEND_API_KEY is required');
   assert.ok(GH, 'GH_READ_TOKEN is required');
   assert.equal(ISSUE, 6628, 'Migration 1050 rollout is bound to control issue #6628');
-  assert.equal(SOURCE_PR, 6629, 'Migration 1050 rollout is bound to source PR #6629');
+  assert.equal(SOURCE_PR, 6746, 'Migration 1050 rollout is bound to rollout PR #6746');
   await writeState();
   if (PHASE === 'readiness') await readiness();
   else if (PHASE === 'apply') await apply();
@@ -645,7 +675,9 @@ try {
     stage,
     production_sha: productionSha,
     source_pr: SOURCE_PR,
-    source_merge_sha: SOURCE_MERGE_SHA,
+    source_merge_sha: sourceMergeSha,
+    upstream_repair_pr: UPSTREAM_REPAIR_PR,
+    upstream_repair_merge_sha: UPSTREAM_REPAIR_MERGE_SHA,
     migration: MIGRATION,
     migration_blob_sha: MIGRATION_BLOB_SHA,
     migration_checksum_sha256: checksum,

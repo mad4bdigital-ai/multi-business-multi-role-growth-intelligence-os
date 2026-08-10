@@ -1,0 +1,61 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-generated-artifact-refresh-eligible-request-json-6704",
+  "title": "Preserve eligible generated-artifact refresh request JSON",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-generated-artifact-refresh-eligible-request-json-6704.json",
+      ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+      "http-generic-api/test-governed-generated-artifact-refresh-eligible-request-json.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep the read-only generated-artifact PR request bridge structurally identical while ensuring the valid eligible path emits one parseable request object with reason=null instead of suppressing the entire jq result when the diagnostic reason is empty.",
+      "e2e_journeys": [
+        {
+          "id": "eligible-generated-artifact-request-emits-structured-json",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted default-branch generated-artifact PR request bridge",
+          "entrypoint": "Eligible open same-repository ready-for-review PR targeting main with exact head, governed work branch and generated-artifact-refresh label",
+          "terminal_outcome": "The request evaluator emits a non-empty mad4b.governed-generated-artifact-refresh-request.v1 JSON object with outcome=eligible and reason=null, allowing artifact upload and the independent dispatcher lifecycle to continue.",
+          "steps": [
+            "Read the permanent request workflow and verify the eligible reason expression is null-safe rather than filter-based.",
+            "Execute the exact jq reason expression with an empty reason and representative exact-head request fields.",
+            "Parse the emitted JSON and verify contract, eligible outcome, null reason, exact head/ref identity and all no-mutation/no-secret flags."
+          ],
+          "assertions": [
+            "An empty eligible reason never suppresses the complete request object.",
+            "Eligible requests encode reason as null and remain valid JSON.",
+            "The request contract remains mad4b.governed-generated-artifact-refresh-request.v1.",
+            "Candidate checkout, repository mutation, protected-branch mutation, force push, job-log authority and secrets remain false.",
+            "No writer dispatch, repository content mutation, Production operation, SQL/Migration Apply, provider call or secret access is performed by this regression."
+          ],
+          "tests": [
+            {
+              "id": "eligible-generated-artifact-request-json-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-eligible-request-json.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
+            "http-generic-api/test-governed-generated-artifact-refresh-eligible-request-json.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
