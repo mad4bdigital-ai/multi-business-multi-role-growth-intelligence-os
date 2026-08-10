@@ -53,7 +53,10 @@ jobs:
             echo "::error::Production candidate dispatch evidence must use the REST issue-comments endpoint"
             exit 1
           fi
-          if grep -Eqi 'gh pr merge|git push[[:space:]]+--force|force-with-lease' "$FILE"; then
+          PR_MERGE_PATTERN='gh pr '"merge"
+          FORCE_PUSH_PATTERN='git push[[:space:]]+--'"force"
+          FORCE_LEASE_PATTERN='force-with-'"lease"
+          if grep -Eqi "${PR_MERGE_PATTERN}|${FORCE_PUSH_PATTERN}|${FORCE_LEASE_PATTERN}" "$FILE"; then
             echo "::error::bridge must not merge or force-update refs"
             exit 1
           fi
