@@ -80,22 +80,44 @@ async function requireOwnerAuthority(connection, tenantId, actorUserId) {
 }
 
 async function findExistingTenantBrand(connection, tenantId, normalizedName, targetKey) {
-  const [rows] = await connection.query(
-    `SELECT tbl.link_id, tbl.status AS link_status, tbl.link_source,
-            b.id, b.brand_name, b.normalized_brand_name, b.target_key, b.status, b.brand_core_ready
-       FROM tenant_brand_links tbl
-       JOIN brands b ON b.target_key = tbl.brand_target_key
-      WHERE tbl.tenant_id=?
-        AND tbl.status='active'
-        AND (LOWER(COALESCE(b.normalized_brand_name,''))=LOWER(?) OR b.target_key=?)
-      LIMIT 3 FOR UPDATE`,
-    [tenantId, normalizedName, targetKey]
+  const [linkRowsRaw] = await connection.query(
+    `SELECT link_id, tenant_id, brand_target_key, status, link_source
+       FROM tenant_brand_links
+      WHERE tenant_id=? AND status='active'
+      ORDER BY updated_at DESC, link_id ASC
+      LIMIT 101 FOR UPDATE`,
+    [tenantId]
   );
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  if (rows.length !== 1) {
-    throw lifecycleError(409, "workspace_brand_identity_ambiguous", "Brand identity resolves to multiple active workspace links.", [{ count: rows.length }]);
+  const linkRows = Array.isArray(linkRowsRaw) ? linkRowsRaw : [];
+  if (linkRows.length === 0) return null;
+  if (linkRows.length > 100) {
+    throw lifecycleError(409, "workspace_brand_identity_ambiguous", "Workspace has too many active Brand links to resolve creation identity safely.", [{ count: linkRows.length }]);
   }
-  const [brand] = rows;
+
+  const targetRefs = [...new Set(linkRows.map((row) => String(row.brand_target_key || "").trim()).filter(Boolean))];
+  if (!targetRefs.length) return null;
+  const [brandRowsRaw] = await connection.query(
+    `SELECT id, brand_name, normalized_brand_name, target_key, status, brand_core_ready
+       FROM brands
+      WHERE target_key IN (${targetRefs.map(() => "?").join(",")})
+      LIMIT 101 FOR UPDATE`,
+    targetRefs
+  );
+  const brandRows = Array.isArray(brandRowsRaw) ? brandRowsRaw : [];
+  const activeLinkByTarget = new Map(linkRows.map((row) => [String(row.brand_target_key || "").trim(), row]));
+  const matches = brandRows
+    .filter((brand) => activeLinkByTarget.has(String(brand.target_key || "").trim()))
+    .filter((brand) => (
+      String(brand.target_key || "").trim() === String(targetKey || "").trim() ||
+      normalizeWorkspaceBrandName(brand.normalized_brand_name || brand.brand_name) === normalizedName
+    ))
+    .map((brand) => ({ ...activeLinkByTarget.get(String(brand.target_key || "").trim()), ...brand }));
+
+  if (matches.length === 0) return null;
+  if (matches.length !== 1) {
+    throw lifecycleError(409, "workspace_brand_identity_ambiguous", "Brand identity resolves to multiple active workspace links.", [{ count: matches.length }]);
+  }
+  const [brand] = matches;
   if (String(brand.status || "").toLowerCase() !== "active") {
     throw lifecycleError(409, "workspace_brand_inactive", "Existing workspace brand is not active.");
   }
@@ -335,4 +357,5 @@ export const _testingWorkspaceBrandLifecycle = {
   requireDisplayName,
   isBrandCoreReady,
   validateBrandWorkspaceRow,
+  findExistingTenantBrand,
 };

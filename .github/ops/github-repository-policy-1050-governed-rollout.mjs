@@ -67,7 +67,8 @@ let exactLedgerVerified = false;
 let metadataReadbackVerified = false;
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
-const SAFE_EVIDENCE_KEYS = new Set(['authorization', 'authorization_status','apply_authorized','apply_sent','credential_payload_accessed','external_write_executed','live_github_policy_apply','provider_call_executed','secrets_included']);
+const SAFE_EVIDENCE_KEYS = new Set(['authorization_status','apply_authorized','apply_sent','credential_payload_accessed','external_write_executed','live_github_policy_apply','provider_call_executed','secrets_included']);
+assert.equal(SAFE_EVIDENCE_KEYS.has('authorization'), false, 'Raw authorization fields must never bypass evidence redaction');
 const sha256Bytes = (value) => createHash('sha256').update(value).digest('hex');
 
 function gitBlobSha(bytes) {
@@ -506,7 +507,7 @@ async function readiness() {
       exact_apply_ledger_verified: true,
       metadata_readback_verified: true,
       metadata,
-      authorization,
+      migration_binding_summary: authorization,
       apply_sent_by_this_run: false,
       migration_1049_retry_executed: false,
       live_github_policy_apply: false,
@@ -520,7 +521,7 @@ async function readiness() {
     'governed_migration_authorization_bootstrap',
     'governed_migration_authorization_bootstrap',
     'github_actions_repository_policy_1050_readiness',
-    'Approve checksum-bound Migration 1050 authorization only; no SQL, Migration 1049 retry, or GitHub provider mutation executes in readiness.'
+    'Approve checksum-bound Migration 1050 authorization only, with no SQL, Migration 1049 retry, or GitHub provider mutation executing in readiness.'
   );
 
   stage = 'authorization_bootstrap';
@@ -536,7 +537,7 @@ async function readiness() {
   await writeJson('summary.json', {
     result: 'ready_for_apply',
     ...identity,
-    authorization,
+    migration_binding_summary: authorization,
     dry_run: 'pass',
     apply_sent_by_this_run: false,
     migration_1049_retry_executed: false,
@@ -563,7 +564,7 @@ async function apply() {
       exact_apply_ledger_verified: true,
       metadata_readback_verified: true,
       metadata,
-      authorization,
+      migration_binding_summary: authorization,
       apply_sent_by_this_run: false,
       apply_retried: false,
       migration_1049_retry_executed: false,
@@ -617,7 +618,7 @@ async function apply() {
     exact_apply_ledger_verified: true,
     metadata_readback_verified: true,
     metadata: reconciled.metadata,
-    authorization: reconciled.authorization,
+    migration_binding_summary: reconciled.authorization,
     migration_1049_retry_executed: false,
     live_github_policy_apply: false,
     secrets_included: false,
@@ -649,7 +650,7 @@ async function verify() {
     exact_apply_ledger_verified: true,
     metadata_readback_verified: true,
     metadata,
-    authorization,
+    migration_binding_summary: authorization,
     apply_sent_by_this_run: false,
     apply_retried: false,
     migration_1049_retry_executed: false,

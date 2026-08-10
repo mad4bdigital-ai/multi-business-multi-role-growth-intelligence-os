@@ -8,6 +8,7 @@ function denied(reason, denialCode, details = {}) {
     reason,
     denial_code: denialCode,
     credential_scope: null,
+    credential_scope_provenance: null,
     workspace_ownership_type: null,
     owner_scope_type: null,
     owner_scope_ref: null,
@@ -136,29 +137,85 @@ export const PlatformPluginConnectionOwnershipDenialCode = Object.freeze({
   SCOPE_DENIED: "CONNECTION_OWNERSHIP_SCOPE_DENIED",
   SCOPE_MISMATCH: "CONNECTION_OWNERSHIP_SCOPE_MISMATCH",
   BRAND_AUTHORITY_REQUIRED: "BRAND_CONNECTION_AUTHORITY_REQUIRED",
+  PROVENANCE_INVALID: "CONNECTION_CREDENTIAL_SCOPE_PROVENANCE_INVALID",
 });
 
 async function resolveBrandConnectionUseAuthority({ pool, tenant, user, brandRef }) {
   const [membershipRowsRaw] = await pool.query(BRAND_TENANT_MEMBERSHIP_SQL, [tenant, user]);
   const membershipRows = Array.isArray(membershipRowsRaw) ? membershipRowsRaw : [];
   if (membershipRows.length !== 1) {
-    return Object.freeze({ allowed: false, source: "membership", secrets_included: false });
+    return Object.freeze({ allowed: false, source: "membership", grant_id: null, permission: null, secrets_included: false });
   }
   const membershipRole = compact(membershipRows[0]?.role, 32).toLowerCase();
   if (BRAND_OWNER_ROLES.has(membershipRole)) {
-    return Object.freeze({ allowed: true, source: "tenant_owner_membership", secrets_included: false });
+    return Object.freeze({
+      allowed: true,
+      source: "tenant_owner_membership",
+      grant_id: null,
+      permission: membershipRole,
+      secrets_included: false,
+    });
   }
 
   const [grantRowsRaw] = await pool.query(BRAND_RESOURCE_GRANT_SQL, [tenant, user, brandRef]);
   const grantRows = Array.isArray(grantRowsRaw) ? grantRowsRaw : [];
-  const useAllowed = grantRows.some((row) => BRAND_CONNECTION_USE_PERMISSIONS.has(
+  const grant = grantRows.find((row) => BRAND_CONNECTION_USE_PERMISSIONS.has(
     compact(row?.permission, 32).toLowerCase(),
-  ));
+  )) || null;
   return Object.freeze({
-    allowed: useAllowed,
-    source: useAllowed ? "workspace_resource_grant" : "brand_grant_missing",
+    allowed: Boolean(grant),
+    source: grant ? "workspace_resource_grant" : "brand_grant_missing",
+    grant_id: grant?.grant_id || null,
+    permission: grant?.permission || null,
     secrets_included: false,
   });
+}
+
+function buildCredentialScopeProvenance({
+  tenant,
+  workspace,
+  plugin,
+  user,
+  ownershipType,
+  ownerScopeType,
+  ownerScopeRef,
+  credentialScope,
+  ownershipRevision,
+  requestedBrandRef,
+  brandAuthority,
+}) {
+  return Object.freeze({
+    schema_version: "connection-credential-scope-provenance-v1",
+    source: "v_context_kernel_connection_ownership_compatibility",
+    tenant_id: tenant,
+    workspace_id: workspace,
+    provider_key: plugin,
+    credential_scope: credentialScope,
+    workspace_ownership_type: ownershipType,
+    owner_scope_type: ownerScopeType,
+    owner_scope_ref: ownerScopeRef,
+    ownership_revision: Number(ownershipRevision || 0),
+    subject_user_id: credentialScope === "user_connection" ? user : null,
+    brand_ref: requestedBrandRef,
+    brand_authority_source: brandAuthority?.source || null,
+    brand_authority_grant_id: brandAuthority?.grant_id || null,
+    brand_authority_permission: brandAuthority?.permission || null,
+    ownership_resolution_required: true,
+    ownership_resolution_status: "classified",
+    secrets_included: false,
+  });
+}
+
+function rowMatchesProvenance(row, provenance) {
+  if (!row || !provenance) return false;
+  if (compact(row.workspace_id, 64) !== compact(provenance.workspace_id, 64)) return false;
+  if (compact(row.owner_scope_type, 64) !== compact(provenance.owner_scope_type, 64)) return false;
+  if (compact(row.owner_scope_ref, 191) !== compact(provenance.owner_scope_ref, 191)) return false;
+  if (compact(row.ownership_status, 32).toLowerCase() !== "active") return false;
+  if (compact(row.ownership_resolution_status, 32).toLowerCase() !== "classified") return false;
+  if (provenance.owner_scope_type === "brand" && compact(row.brand_id, 191) !== compact(provenance.brand_ref, 191)) return false;
+  if (provenance.owner_scope_type !== "brand" && compact(row.brand_id, 191)) return false;
+  return true;
 }
 
 export async function loadTenantPlatformPluginOwnershipScopedConnections({
@@ -227,10 +284,10 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
   let ownerScopeType = ownershipType === "personal" ? "personal_workspace" : "company_workspace";
   let ownerScopeRef = workspace;
   let credentialScope = ownershipType === "personal" ? "user_connection" : "tenant_connection";
-  let brandAuthoritySource = null;
+  let brandAuthority = null;
 
   if (requestedBrandRef) {
-    const brandAuthority = await resolveBrandConnectionUseAuthority({
+    brandAuthority = await resolveBrandConnectionUseAuthority({
       pool,
       tenant,
       user,
@@ -250,8 +307,21 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     ownerScopeType = "brand";
     ownerScopeRef = requestedBrandRef;
     credentialScope = "tenant_connection";
-    brandAuthoritySource = brandAuthority.source;
   }
+
+  const provenance = buildCredentialScopeProvenance({
+    tenant,
+    workspace,
+    plugin,
+    user,
+    ownershipType,
+    ownerScopeType,
+    ownerScopeRef,
+    credentialScope,
+    ownershipRevision: workspaceRow.ownership_revision,
+    requestedBrandRef,
+    brandAuthority,
+  });
 
   const connectionQuery = ownerScopeType === "brand"
     ? pool.query(BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL, [
@@ -272,6 +342,19 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     ]);
   const [rowsRaw] = await connectionQuery;
   const rows = Array.isArray(rowsRaw) ? rowsRaw : [];
+  if (rows.some((row) => !rowMatchesProvenance(row, provenance))) {
+    return denied(
+      "connection_credential_scope_provenance_invalid",
+      PlatformPluginConnectionOwnershipDenialCode.PROVENANCE_INVALID,
+      {
+        workspace_id_present: true,
+        brand_ref_present: Boolean(requestedBrandRef),
+        workspace_ownership_type: ownershipType,
+        expected_credential_scope: credentialScope,
+      },
+    );
+  }
+
   const connections = rows.map((row) => Object.freeze({
     connection_id: row.connection_id,
     tenant_id: row.tenant_id,
@@ -284,6 +367,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     last_used_at: row.last_used_at || null,
     is_primary: row.is_primary || 0,
     credential_scope: credentialScope,
+    credential_scope_provenance: provenance,
     workspace_id: workspace,
     owner_scope_type: ownerScopeType,
     owner_scope_ref: ownerScopeRef,
@@ -295,6 +379,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     reason: "connection_ownership_scope_resolved",
     denial_code: null,
     credential_scope: credentialScope,
+    credential_scope_provenance: provenance,
     workspace_ownership_type: ownershipType,
     owner_scope_type: ownerScopeType,
     owner_scope_ref: ownerScopeRef,
@@ -303,7 +388,7 @@ export async function loadTenantPlatformPluginOwnershipScopedConnections({
     connections,
     row_count: connections.length,
     brand_connections_included: ownerScopeType === "brand",
-    brand_authority_source: brandAuthoritySource,
+    brand_authority_source: brandAuthority?.source || null,
     secrets_included: false,
   });
 }
@@ -315,4 +400,6 @@ export const _testingPlatformPluginConnectionOwnership = Object.freeze({
   OWNERSHIP_SCOPED_CONNECTION_SQL,
   BRAND_OWNERSHIP_SCOPED_CONNECTION_SQL,
   BRAND_CONNECTION_USE_PERMISSIONS,
+  buildCredentialScopeProvenance,
+  rowMatchesProvenance,
 });
