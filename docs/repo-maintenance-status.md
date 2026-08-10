@@ -76,6 +76,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/github-main-review-policy-live-activation.yml`
 - `.github/workflows/github-main-review-policy-readiness-publisher.yml`
 - `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
