@@ -220,7 +220,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
       content: "<p>Draft post content.</p>",
       status: "draft",
     },
-    { pool, fetch, decryptCredentials: JSON.parse, env: {} }
+    { pool, lifecycleWriterPool: pool, fetch, decryptCredentials: JSON.parse, env: {} }
   );
   assert.equal(result.ok, true);
   assert.equal(result.status, "completed");
@@ -229,6 +229,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
   assert.equal(result.link, "https://tourism.almallahgroup-mg.com/nile-cruise-egypt/");
   assert.equal(result.readback_status, "created_response_contains_id");
   assert.equal(calls.length, 1);
+  assert.equal(envelopeUpdates.length, 1, "WordPress execution must use the explicitly injected lifecycle writer for envelope reference mutation");
 }
 
 {
@@ -341,7 +342,7 @@ assert.equal(__test__.normalizeWpJsonBase("https://example.com/wp-json/wp/v2"), 
         content: "<p>Draft post content.</p>",
         status: "draft",
       },
-      { pool, fetch, decryptCredentials: JSON.parse, env: {} }
+      { pool, lifecycleWriterPool: pool, fetch, decryptCredentials: JSON.parse, env: {} }
     ),
     /HTTP 401\. code=incorrect_password message=The provided password is an invalid application password\./
   );

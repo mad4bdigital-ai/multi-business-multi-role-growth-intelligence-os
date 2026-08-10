@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "32470cab6d544037b919cd1c7d3f2d27dd08f2a3e725a14b2b508f2e1a1c2284",
+    "source_digest": "4fc1beab822b13d3ebf7283265a498530c72cdd1de39505b19c5ef41de798b62",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "29830de2af777217d24e6f93682cfd14d5205cc8bc4c5ad15f1485ea433bb9a2",
+        "sha256": "5806cb854823c248122a5ee3577edd1e1168178beb9d17045b7865cd2290e723",
         "present": true
       },
       {
@@ -646,7 +646,7 @@
       },
       {
         "file": "routes/localConnectorRoutes.js",
-        "sha256": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
+        "sha256": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
         "present": true
       },
       {
@@ -1046,7 +1046,7 @@
       },
       {
         "file": "scripts/test-manifest.mjs",
-        "sha256": "7c0d3aa4d99718fbb3d88e176b36c4fb6beb5fe555809c8cb9293869b9d7b692",
+        "sha256": "e97f1d420d5b647625fd5e03f4f2cd2d82afa768e287b4c62c87e38741eb425c",
         "present": true
       },
       {
@@ -83273,7 +83273,7 @@
       "family_key": "local-connector.admin",
       "label": "local connector (admin)",
       "source_file": "routes/localConnectorRoutes.js",
-      "source_digest": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
+      "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
       "mount_prefix": "/",
       "mount_order": 21782,
       "split_from_mixed_scope_file": true,
@@ -83635,7 +83635,7 @@
       "family_key": "local-connector.local_device",
       "label": "local connector (local_device)",
       "source_file": "routes/localConnectorRoutes.js",
-      "source_digest": "2aa50ee4fae95ce69947825ceb342b3e1b975e03b9f0d7ba45db8b38a5f2c1ee",
+      "source_digest": "919ab2d23ef824996c1fa408bb2fbfd880108acbbe14b17830dc91d42e1ab0be",
       "mount_prefix": "/",
       "mount_order": 21782,
       "split_from_mixed_scope_file": true,

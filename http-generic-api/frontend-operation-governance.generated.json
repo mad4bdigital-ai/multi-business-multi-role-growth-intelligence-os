@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "61fcdfca98d82bc645b953eb49fcdc789de96b70cbe18356d878e357b313fc37",
+    "source_digest": "4439814e316ebd60e85991578ff272307642dffd9976bbdf503a9c1106bf3998",
     "fail_closed": true
   },
   "source_authority": [
@@ -73,12 +73,12 @@
     },
     {
       "file": "scripts/test-manifest.mjs",
-      "sha256": "7c0d3aa4d99718fbb3d88e176b36c4fb6beb5fe555809c8cb9293869b9d7b692",
+      "sha256": "e97f1d420d5b647625fd5e03f4f2cd2d82afa768e287b4c62c87e38741eb425c",
       "present": true
     },
     {
       "file": "src/application/resourceApi/resourceApiService.js",
-      "sha256": "9b0bb4197e566e2d6ad984c9fcbf96f327e62e380af7602a3d7191741379cc41",
+      "sha256": "2e84f1960cfe742e2e07b63eb7f808d4880077a250176e33bf5a85cdfcf2b82d",
       "present": true
     },
     {
@@ -138,7 +138,7 @@
     },
     {
       "file": "workspaceBrandLifecycle.js",
-      "sha256": "30c985919712ebbf6c6e283a6bae70eeb49fcb470fd73322cf6991e30352762f",
+      "sha256": "85ccdf3cd567b836f4eb52ae405b390191cc040e827605b99e3c24e273508fc3",
       "present": true
     }
   ],
@@ -186,7 +186,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "36330d87fdee31fa2a6f295dbb81c956ea9d711256650740cb24c2bb57d48199",
         "fail_closed": true
       }
     },
@@ -228,7 +228,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "36330d87fdee31fa2a6f295dbb81c956ea9d711256650740cb24c2bb57d48199",
         "fail_closed": true
       }
     },
@@ -272,7 +272,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-closeout-transaction-v1",
-        "source_digest": "b52783ea091d9d1bf482aad236d5a18048c9d4a04ef5370f6efc04b849aaa3c2",
+        "source_digest": "f0d3f63a7304e6fd8027880605cb3abe322ade2639ce1a6041516242f9ed8fbd",
         "fail_closed": true
       }
     },
@@ -316,7 +316,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-promotion-transaction-v1",
-        "source_digest": "b52783ea091d9d1bf482aad236d5a18048c9d4a04ef5370f6efc04b849aaa3c2",
+        "source_digest": "f0d3f63a7304e6fd8027880605cb3abe322ade2639ce1a6041516242f9ed8fbd",
         "fail_closed": true
       }
     },
@@ -361,7 +361,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "dynamic-container-canary-rollback-transaction-v1",
-        "source_digest": "b52783ea091d9d1bf482aad236d5a18048c9d4a04ef5370f6efc04b849aaa3c2",
+        "source_digest": "f0d3f63a7304e6fd8027880605cb3abe322ade2639ce1a6041516242f9ed8fbd",
         "fail_closed": true
       }
     },
@@ -495,7 +495,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-create-v1",
-        "source_digest": "868aa5ff178d93ed152efbfb10b1e80d00d0d6fccba0927ab9bf58fc6f10f76c",
+        "source_digest": "05d4a479575f9ab59fda8179d41847b6159ce34b6a1bfd556f731108357eb150",
         "fail_closed": true
       }
     },
@@ -537,7 +537,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "36330d87fdee31fa2a6f295dbb81c956ea9d711256650740cb24c2bb57d48199",
         "fail_closed": true
       }
     },
@@ -579,7 +579,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "36330d87fdee31fa2a6f295dbb81c956ea9d711256650740cb24c2bb57d48199",
         "fail_closed": true
       }
     },
