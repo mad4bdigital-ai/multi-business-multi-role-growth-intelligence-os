@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/repository-reconciliation-exact-plan-binding.json",
       "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "http-generic-api/test-repository-reconciliation-automation.mjs",
       "http-generic-api/test-repository-reconciliation-plan-binding.mjs"
     ]
   },
@@ -33,6 +34,7 @@
             "Bind plan_id into the hashed plan payload and return the resulting plan_sha256.",
             "Rebuild the plan for apply using the same operation identity and supplied plan binding.",
             "Reject missing plan hash, wrong plan hash, changed operation identity, or changed plan identity before authority evaluation.",
+            "Preserve the planned-recipe activation barrier after exact plan binding succeeds.",
             "Preserve existing lease, step authorization, idempotency, no-force-push, and same-cycle readback controls after binding succeeds."
           ],
           "assertions": [
@@ -40,7 +42,8 @@
             "Apply requires an explicit 64-hex plan_sha256 and explicit plan_id.",
             "A different operation id changes the rebuilt plan hash.",
             "A different plan id changes the rebuilt plan hash.",
-            "Plan binding is evaluated before authorizePlan and executeStep can be reached.",
+            "Plan binding is evaluated before authorizePlan and executeStep can be reached for an apply-eligible recipe.",
+            "A correctly bound apply still fails closed while the reconciliation recipe status is planned.",
             "No force push, migration apply, protected-branch write, provider mutation, deployment, or secret access is introduced by this change."
           ],
           "tests": [
@@ -50,11 +53,19 @@
               "working_directory": "http-generic-api",
               "path": "test-repository-reconciliation-plan-binding.mjs",
               "args": []
+            },
+            {
+              "id": "repository-reconciliation-planned-recipe-barrier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-reconciliation-automation.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/repository-reconciliation-exact-plan-binding.json",
             "http-generic-api/repositoryReconciliationOrchestrator.js",
+            "http-generic-api/test-repository-reconciliation-automation.mjs",
             "http-generic-api/test-repository-reconciliation-plan-binding.mjs"
           ]
         }
@@ -63,7 +74,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Expose the already governed apply executor through the Admin adapter only after exact-plan binding, per-step authority, and same-cycle provider readback are wired and tested."
+      "objective": "Expose the governed apply executor through the Admin adapter only after step payloads are plan-bound, canonical capability-envelope and approval-hold validation is wired, same-cycle provider readback is tested, and the reconciliation recipe receives separate activation approval."
     }
   ],
   "secrets_included": false
