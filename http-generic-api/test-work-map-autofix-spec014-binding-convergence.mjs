@@ -13,6 +13,7 @@ const producer = fs.readFileSync(producerPath, "utf8");
 const hostingerManifest = "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json";
 const hostingerTasks = "specs/014-governed-hostinger-storage-orchestration/tasks.md";
 const retailManifest = "specs/014-retail-commerce-operations-growth-os/work-map-integration.json";
+const runtimeIntegrityManifest = "specs/018-environment-promotion-runtime-integrity/work-map-integration.json";
 
 assert.match(workflow, /node http-generic-api\/scripts\/platform-work-map-generator\.mjs --write/u);
 assert.match(workflow, /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs\s*$/mu);
@@ -20,14 +21,22 @@ assert.match(
   workflow,
   /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 014-retail-commerce-operations-growth-os/u,
 );
+assert.match(
+  workflow,
+  /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 018-environment-promotion-runtime-integrity/u,
+);
 assert.match(workflow, /node http-generic-api\/scripts\/platform-work-map-generator\.mjs --check/u);
 assert.match(workflow, /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --check/u);
 assert.match(
   workflow,
   /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 014-retail-commerce-operations-growth-os --check/u,
 );
+assert.match(
+  workflow,
+  /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 018-environment-promotion-runtime-integrity --check/u,
+);
 
-for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest]) {
+for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest, runtimeIntegrityManifest]) {
   assert.ok(workflow.includes(governedPath), `writer allowlist/staging must include ${governedPath}`);
 }
 
@@ -54,6 +63,7 @@ console.log(JSON.stringify({
   contract: "mad4b.work-map-autofix-spec014-binding-convergence-test.v1",
   ok: true,
   combined_idempotency: true,
+  runtime_integrity_binding_convergence: true,
   exact_head_push: true,
   force_push: false,
   protected_branch_mutation: false,
