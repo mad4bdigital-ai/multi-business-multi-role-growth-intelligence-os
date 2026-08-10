@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-1050-governed-rollout",
+  "title": "Governed Migration 1050 bootstrap repair rollout",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-1050-governed-rollout.json",
+      ".github/ops/github-repository-policy-1050-governed-rollout.mjs",
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+      "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind the final Migration 1050 bytes to the immutable merge identity of this rollout PR after merge, retain PR #6629 as upstream repair lineage, preserve checksum/source authorization binding, redact raw authorization-bearing evidence at every depth, and provide separate Production-safe readiness, exactly-once Apply, and verification phases without retrying Migration 1049 or applying the live GitHub Ruleset.",
+      "e2e_journeys": [
+        {
+          "id": "migration-1050-governed-production-rollout",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6628 governed Migration 1050 lifecycle",
+          "terminal_outcome": "After PR 6746 is merged, readiness derives its immutable merge SHA from GitHub, requires Production to contain that merge and exact Migration 1050 blob 06a2ddde04f6feafefae1cc1cef69dbc6fdadd3f, checksum-binds the decoded raw bytes, proves the durable authorization remains checksum/source-bound after Apply, and publishes only the non-sensitive migration binding summary while raw or nested authorization fields remain redacted; Migration 1049 retry and live GitHub Ruleset Apply remain prohibited.",
+          "steps": [
+            "Resolve upstream repair PR 6629 and require merge 5505adde1bf29125c56d8588cf8de3ee956c819c as immutable lineage.",
+            "Resolve rollout PR 6746 only after it is merged, derive its immutable merge SHA, and require that merge to contain the upstream repair lineage.",
+            "Require current Production to contain the rollout merge and exact Migration 1050 Git blob before readiness can proceed.",
+            "Decode GitHub Contents base64 to raw bytes, reproduce the Git blob SHA, compute SHA-256 directly over those bytes, and require exactly seven SQL statements.",
+            "Prove Runtime version and deployment-info converge to the exact stable Production SHA.",
+            "Create checksum-bound migration authorization, execute dry-run only, and verify one durable authorization row during readiness.",
+            "Require a distinct Migration 1050 Apply command, same-cycle dry-run, an apply-authorized migration capability envelope, and exactly one Apply transport invocation.",
+            "Preserve authorization metadata when the migration seed UPSERT executes and re-read checksum, statement count, source PR, and source merge after Apply.",
+            "Publish that bounded durable binding under migration_binding_summary while keeping every raw or nested authorization, token, secret, cookie, API key, credential, or private key field subject to recursive evidence redaction.",
+            "Never retry after ambiguous Apply transport; reconcile through exact migration ledger plus durable authorization and metadata readback.",
+            "Verify the five canonical repository-policy registration surfaces plus authorization metadata and keep live GitHub policy apply false."
+          ],
+          "assertions": [
+            "The producer has contents: read only, persist-credentials=false, and cannot mutate Issues.",
+            "The rollout workflow cannot run from PR code before PR 6746 is merged into the trusted default branch.",
+            "Production missing the rollout merge or exact blob fails closed before authorization or dry-run.",
+            "SHA-256 is computed from decoded raw GitHub bytes and those bytes must reproduce the pinned Git blob SHA.",
+            "Migration 1049 is never invoked or retried by this lifecycle.",
+            "Readiness performs no migration Apply.",
+            "The readiness authorization-envelope decision note remains canonical and shell-safe under capability alias validation, and the global shell metacharacter guard is not weakened.",
+            "Apply contains exactly one governed_migration_execute Apply transport call and records apply_retried=false.",
+            "The Migration 1050 authorization seed merges into existing metadata instead of replacing checksum/source binding fields.",
+            "Post-Apply and standalone verification re-read and assert migration_checksum_sha256, expected_statement_count, pull_request, and merge_sha.",
+            "The exact key authorization is never globally allowlisted by the evidence sanitizer, so nested headers.authorization and equivalent secret-bearing fields are redacted.",
+            "Safe checksum/source binding evidence is exposed only through the non-sensitive migration_binding_summary key.",
+            "The migration-specific confirmation is distinct from APPLY_GITHUB_MAIN_REVIEW_POLICY.",
+            "No provider mutation, live GitHub Ruleset mutation, Production ref mutation, force push, credential payload publication, or external business write is introduced."
+          ],
+          "tests": [
+            {
+              "id": "migration-1050-governed-rollout-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-governed-rollout.mjs",
+              "args": []
+            },
+            {
+              "id": "migration-1050-bootstrap-repair-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1050-bootstrap-repair.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/github-repository-policy-1050-governed-rollout.mjs",
+            ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+            "http-generic-api/migrations/1050_github_repository_policy_controller_bootstrap_repair.sql",
+            "http-generic-api/test-github-repository-policy-1050-governed-rollout.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -26,7 +26,7 @@
     "registration_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/register",
     "revocation_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/revoke"
   },
-  "file_count": 12,
+  "file_count": 14,
   "files": [
     "README.md",
     "manifest.json",
@@ -38,8 +38,10 @@
     "testing-strategy.md",
     "e2e-phases.json",
     "completion.json",
+    "work-map-integration.json",
     "checklists/requirements.md",
-    "implementation-handoff.md"
+    "implementation-handoff.md",
+    "tools/validate-spec.mjs"
   ],
   "requirements": {
     "functional": 22,
@@ -51,7 +53,7 @@
     "operation_paths": 9,
     "risk_groups": 16,
     "task_groups": 8,
-    "e2e_phases": 6
+    "e2e_phases": 5
   },
   "target_surface": {
     "integration_type": "remote_mcp_oauth21_resource_boundary_hardening",
