@@ -58,6 +58,46 @@ function collectOpenApiOperationsFromText(source) {
   return ops;
 }
 
+function resolveJsonPointer(document, pointer, sourceLabel) {
+  const normalized = String(pointer || "");
+  if (!normalized.startsWith("/")) {
+    throw new Error(`OpenAPI route coverage local ref ${sourceLabel} requires a JSON pointer fragment.`);
+  }
+  let current = document;
+  for (const rawPart of normalized.slice(1).split("/")) {
+    const part = rawPart.replace(/~1/gu, "/").replace(/~0/gu, "~");
+    if (!current || typeof current !== "object" || !(part in current)) {
+      throw new Error(`OpenAPI route coverage local ref ${sourceLabel} cannot resolve pointer #${normalized}.`);
+    }
+    current = current[part];
+  }
+  return current;
+}
+
+function resolveLocalOpenApiPathItem(pathItem, sourceFile) {
+  if (!pathItem || typeof pathItem !== "object" || Array.isArray(pathItem) || !pathItem.$ref) return pathItem;
+  const ref = String(pathItem.$ref || "").trim();
+  if (!ref.startsWith("./") || !ref.includes("#/")) return pathItem;
+
+  const separator = ref.indexOf("#");
+  const relativeFile = ref.slice(0, separator);
+  const pointer = ref.slice(separator + 1);
+  const sourcePath = path.resolve(path.dirname(sourceFile), relativeFile);
+  const openApiDir = path.resolve(OPENAPI_DIR);
+  if (sourcePath !== openApiDir && !sourcePath.startsWith(`${openApiDir}${path.sep}`)) {
+    throw new Error(`OpenAPI route coverage local ref escapes http-generic-api/openapi/: ${ref}`);
+  }
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error(`OpenAPI route coverage local ref source is missing: ${ref}`);
+  }
+  const referencedDocument = YAML.parse(fs.readFileSync(sourcePath, "utf8")) || {};
+  const resolved = resolveJsonPointer(referencedDocument, pointer, ref);
+  if (!resolved || typeof resolved !== "object" || Array.isArray(resolved)) {
+    throw new Error(`OpenAPI route coverage local ref ${ref} must resolve to one path-item object.`);
+  }
+  return resolved;
+}
+
 function collectOpenApiOperations() {
   const files = canonicalOpenApiAuthority({
     apiRoot: ROOT,
@@ -71,7 +111,8 @@ function collectOpenApiOperations() {
       const doc = YAML.parse(source);
       if (!doc?.openapi || !doc?.paths) continue;
       for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
-        for (const method of Object.keys(pathItem || {})) {
+        const resolvedPathItem = resolveLocalOpenApiPathItem(pathItem, file);
+        for (const method of Object.keys(resolvedPathItem || {})) {
           if (HTTP_METHODS.has(method)) ops.add(`${method.toUpperCase()} ${pathKey}`);
         }
       }
