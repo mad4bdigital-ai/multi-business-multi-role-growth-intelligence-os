@@ -12,6 +12,7 @@
       ".github/workflows/tenant-platform-plugin-1052-governed-readiness.yml",
       "http-generic-api/governedMigrationAuthorizationBootstrap.js",
       "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
       "docs/governed-migration-authorization-bootstrap.md",
       "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
