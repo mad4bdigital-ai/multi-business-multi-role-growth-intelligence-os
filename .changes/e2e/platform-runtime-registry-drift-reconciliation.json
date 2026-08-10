@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/platform-runtime-registry-drift-reconciliation.json",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/workspaceGrantResourceAuthority.js",
       "http-generic-api/workspaceBrandLifecycle.js",
       "http-generic-api/workspaceAssetTypeContract.js",
@@ -26,6 +28,9 @@
       "http-generic-api/test-brand-collation-boundary.mjs",
       "http-generic-api/test-platform-runtime-registry-drift-reconciliation.mjs",
       "http-generic-api/test-tenant-published-request-contract-parity.mjs",
+      "http-generic-api/test-growth-audit-evidence-wiring.mjs",
+      "http-generic-api/test-workspace-brand-core-asset-materialization.mjs",
+      "http-generic-api/test-workspace-brand-create.mjs",
       "http-generic-api/scripts/test-manifest.mjs"
     ]
   },
