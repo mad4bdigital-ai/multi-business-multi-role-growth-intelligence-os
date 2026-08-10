@@ -18,6 +18,7 @@
       "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
       "http-generic-api/platformResourceAuthorityGrantTool.js",
       "http-generic-api/governedToolResponseChunkStore.js",
+      "http-generic-api/runtimeVerificationService.js",
       "http-generic-api/releaseReadiness.js",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
@@ -29,6 +30,7 @@
       "http-generic-api/test-capability-envelope-lifecycle-tool.mjs",
       "http-generic-api/test-capability-resolution-envelope-shared-guard.mjs",
       "http-generic-api/test-governance-db-writer-authority.mjs",
+      "http-generic-api/test-governance-db-runtime-parity.mjs",
       "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
       "http-generic-api/test-governed-tool-response-chunk-store.mjs",
       "http-generic-api/wordpressBlogPublishOrchestrator.js",
@@ -42,15 +44,15 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Separate every reviewed Governance persistence mutation discovered by the DB privilege incident from the ordinary runtime DB identity, and expose bounded effective-grant readiness before the first mutation without live Production changes.",
+      "objective": "Separate every reviewed Governance persistence mutation discovered by the DB privilege incident from the ordinary runtime DB identity, expose bounded effective-grant readiness before the first mutation, and make that readiness an effective Production runtime-parity blocker without live Production changes.",
       "e2e_journeys": [
         {
           "id": "runtime-reader-to-dedicated-governance-writer",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Governed execution runtime",
-          "entrypoint": "Capability envelopes, governed migration authorization, platform resource-authority grants, governed response chunks, and release readiness",
-          "terminal_outcome": "Runtime reads remain on the ordinary DB pool; reviewed governance mutations default to GOVERNANCE_DB_*; broad runtime pool injection cannot become write authority; effective privileges are evaluated against the exact table-scoped matrix with no raw grant or secret exposure; no Production DB, provider, migration, deployment, or protected-ref mutation occurs in this source slice.",
+          "entrypoint": "Capability envelopes, governed migration authorization, platform resource-authority grants, governed response chunks, runtime parity, and release readiness",
+          "terminal_outcome": "Runtime reads remain on the ordinary DB pool; reviewed governance mutations default to GOVERNANCE_DB_*; broad runtime pool injection cannot become write authority; effective privileges are evaluated against the exact table-scoped matrix with no raw grant or secret exposure; a recorded verified Production parity is downgraded to an effective degraded/blocked result whenever Governance DB writer authority is not ready; no Production DB, provider, migration, deployment, or protected-ref mutation occurs in this source slice.",
           "steps": [
             "Resolve ordinary runtime authority and envelope lookups through the runtime read pool.",
             "Resolve the Governance DB writer from mandatory GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD without DB_USER or DB_PASSWORD fallback.",
@@ -60,6 +62,8 @@
             "Inspect and load governed response chunks through the runtime reader while persisting, extending TTL, deleting expired chunks, and performing immediate post-write verification through the Governance writer.",
             "Probe CURRENT_USER(), DATABASE(), and SHOW GRANTS only through the Governance connection; normalize the result into the reviewed table/operation matrix without returning raw grants.",
             "Fail readiness with runtime_db_write_authority_degraded when a required operation is absent, a broad/admin/DDL privilege is present, Governance configuration is missing, or the effective-grant probe fails.",
+            "Compose runtime parity with Governance DB readiness while preserving the persisted parity evidence as recorded_production_parity and recorded_blocking_gap_count.",
+            "Allow release readiness to keep its existing source contract and consume the effective runtime parity; verified Production therefore requires both zero persisted blockers and ready Governance DB write authority.",
             "Publish the expanded least-privilege matrix including platform resource authority and governed response chunks.",
             "Run synthetic regressions only; do not provision grants, secrets, Production, Migration 1050, Hostinger, provider, deployment, or restart mutations."
           ],
@@ -72,6 +76,8 @@
             "DELETE is accepted only as the reviewed governed_tool_response_chunks cleanup operation, not as schema-wide authority.",
             "Broad schema/global writes, ALL PRIVILEGES, GRANT OPTION, DDL, FILE, PROCESS, SUPER, and unreviewed table operations make readiness degraded.",
             "Readiness exposes no raw SHOW GRANTS strings, password values, hashes, or credential fragments.",
+            "A persisted production_parity=verified result cannot remain effectively verified when Governance DB readiness is degraded.",
+            "Existing releaseReadiness.js source identity and static contracts remain intact; it continues to gate on the effective getRuntimeParity result.",
             "No provider call or external business write is introduced by this boundary."
           ],
           "tests": [
@@ -80,6 +86,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governance-db-runtime-parity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-runtime-parity.mjs",
               "args": []
             },
             {
@@ -131,8 +144,10 @@
             "http-generic-api/governanceDbWriteReadiness.js",
             "http-generic-api/platformResourceAuthorityGrantTool.js",
             "http-generic-api/governedToolResponseChunkStore.js",
+            "http-generic-api/runtimeVerificationService.js",
             "http-generic-api/releaseReadiness.js",
             "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-governance-db-runtime-parity.mjs",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs"
           ]
         }
