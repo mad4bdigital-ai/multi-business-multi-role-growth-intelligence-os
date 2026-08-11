@@ -22,6 +22,29 @@ function createFakePool() {
       if (sql.includes("FROM information_schema.columns") && sql.includes("table_name = ?")) {
         return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
       }
+      if (sql.includes("SELECT CURRENT_USER() AS current_account")) {
+        return [[{ current_account: "runtime_writer@localhost", current_database: "runtime_test" }]];
+      }
+      if (sql.includes("information_schema.USER_PRIVILEGES")) {
+        return [[{ PRIVILEGE_TYPE: "USAGE" }]];
+      }
+      if (sql.includes("information_schema.SCHEMA_PRIVILEGES")) {
+        return [[]];
+      }
+      if (sql.includes("information_schema.TABLE_PRIVILEGES")) {
+        return [["SELECT", "INSERT", "UPDATE", "DELETE"].map((PRIVILEGE_TYPE) => ({
+          TABLE_SCHEMA: "runtime_test",
+          TABLE_NAME: "governed_tool_response_chunks",
+          PRIVILEGE_TYPE,
+          IS_GRANTABLE: "NO",
+        }))];
+      }
+      if (sql.includes("information_schema.COLUMN_PRIVILEGES")) {
+        return [[]];
+      }
+      if (sql.includes("information_schema.APPLICABLE_ROLES")) {
+        return [[]];
+      }
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
         const [
           chunkId,
@@ -73,6 +96,7 @@ function createFakePool() {
           privileged,
           ownerTenantId,
           ownerUserId,
+          ownerWorkspaceId,
           ownerPrincipalType,
           ownerPrincipalId,
         ] = params;
@@ -80,6 +104,7 @@ function createFakePool() {
         if (!row) return [{ affectedRows: 0 }];
         const ownerMatches = row.owner_tenant_id === ownerTenantId
           && row.owner_user_id === ownerUserId
+          && row.owner_workspace_id === ownerWorkspaceId
           && row.owner_principal_type === ownerPrincipalType
           && row.owner_principal_id === ownerPrincipalId;
         if (Number(privileged) !== 1 && !ownerMatches) return [{ affectedRows: 0 }];
@@ -148,7 +173,7 @@ async function main() {
   assert.ok(routeSource.includes("runGovernedResponseChunkDurableRecoverySmoke"));
   assert.ok(routeSource.includes("memory_cache_evicted"));
 
-  console.log("governed response chunk durable recovery smoke tests passed");
+  console.log("governed response chunk durable recovery smoke with DB authority tests passed");
 }
 
 main().catch((error) => {
