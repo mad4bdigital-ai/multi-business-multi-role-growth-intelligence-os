@@ -269,16 +269,18 @@ jobs:
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
             specs/014-governed-hostinger-storage-orchestration/tasks.md
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/018-environment-promotion-runtime-integrity/work-map-integration.json
           )
 
           run_convergence() {
             node http-generic-api/scripts/platform-work-map-generator.mjs --write
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity
           }
 
           run_convergence
-          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$)' || true)"
+          unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$|specs/018-environment-promotion-runtime-integrity/work-map-integration\.json$)' || true)"
           if [[ -n "${unexpected_files}" ]]; then
             echo "Governed convergence modified files outside the bounded write set:"
             printf '%s\n' "${unexpected_files}"
@@ -293,8 +295,9 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity --check
 
-      - name: Commit and push governed Work Maps and Spec014 bindings
+      - name: Commit and push governed Work Maps and Spec Kit bindings
         id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -307,10 +310,11 @@ jobs:
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
             specs/014-governed-hostinger-storage-orchestration/tasks.md
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/018-environment-promotion-runtime-integrity/work-map-integration.json
           )
 
           if ! git diff --quiet -- "${governed_paths[@]}"; then
-            unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$)' || true)"
+            unexpected_files="$(git diff --name-only | grep -Ev '^(docs/work-maps/|specs/014-governed-hostinger-storage-orchestration/work-map-integration\.json$|specs/014-governed-hostinger-storage-orchestration/tasks\.md$|specs/014-retail-commerce-operations-growth-os/work-map-integration\.json$|specs/018-environment-promotion-runtime-integrity/work-map-integration\.json$)' || true)"
             if [[ -n "${unexpected_files}" ]]; then
               echo "Refusing publish because changed files exceed the bounded write set:"
               printf '%s\n' "${unexpected_files}"
@@ -322,8 +326,9 @@ jobs:
             git add -- docs/work-maps \
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
               specs/014-governed-hostinger-storage-orchestration/tasks.md \
-              specs/014-retail-commerce-operations-growth-os/work-map-integration.json
-            git commit -m "docs(work-maps): regenerate governed maps and Spec014 bindings"
+              specs/014-retail-commerce-operations-growth-os/work-map-integration.json \
+              specs/018-environment-promotion-runtime-integrity/work-map-integration.json
+            git commit -m "docs(work-maps): regenerate governed maps and Spec Kit bindings"
 
             remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
             test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"

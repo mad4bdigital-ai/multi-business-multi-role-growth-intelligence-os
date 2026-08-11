@@ -60,8 +60,8 @@ The writer must:
 - checkout the exact authorized SHA rather than a moving branch ref;
 - verify local and remote heads equal the authorized SHA before generation and again before push;
 - verify the target belongs to the same repository and maps to exactly one open pull request targeting `main`;
-- run the complete Work Map plus Hostinger/Retail Spec014 convergence twice and prove idempotency;
-- reject changes outside the bounded generated write set: `docs/work-maps/**`, `specs/014-governed-hostinger-storage-orchestration/work-map-integration.json`, optional canonical `specs/014-governed-hostinger-storage-orchestration/tasks.md`, and `specs/014-retail-commerce-operations-growth-os/work-map-integration.json`;
+- run the complete Work Map plus Hostinger Spec014, Retail Spec014, and environment-promotion runtime-integrity Spec018 convergence twice and prove idempotency;
+- reject changes outside the bounded generated write set: `docs/work-maps/**`, `specs/014-governed-hostinger-storage-orchestration/work-map-integration.json`, optional canonical `specs/014-governed-hostinger-storage-orchestration/tasks.md`, `specs/014-retail-commerce-operations-growth-os/work-map-integration.json`, and `specs/018-environment-promotion-runtime-integrity/work-map-integration.json`;
 - avoid force push and protected-branch bypass;
 - verify the remote pushed SHA;
 - dispatch CI and the Work Map Integration Gate after a successful commit;
@@ -152,4 +152,4 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
 - Pull-request assurance with issue-write authority: treat as a repository lifecycle violation and block merge.
 - Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
-- Work Map Autofix without an exact same-repository pull-request branch and `expected_head_sha`, or with a diff outside the bounded generated write set (`docs/work-maps/**`, Hostinger Spec014 `work-map-integration.json` plus optional canonical `tasks.md`, and Retail Spec014 `work-map-integration.json`): block the run and keep the pull request unmerged.
+- Work Map Autofix without an exact same-repository pull-request branch and `expected_head_sha`, or with a diff outside the bounded generated write set (`docs/work-maps/**`, Hostinger Spec014 `work-map-integration.json` plus optional canonical `tasks.md`, Retail Spec014 `work-map-integration.json`, and runtime-integrity Spec018 `work-map-integration.json`): block the run and keep the pull request unmerged.
