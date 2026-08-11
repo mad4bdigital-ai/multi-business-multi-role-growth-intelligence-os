@@ -4,7 +4,7 @@
   "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
   "title": "Remote MCP host isolation and OAuth live readiness",
   "delivery_mode": "multi_pr",
-  "current_phase": "mvp",
+  "current_phase": "operational",
   "scope": {
     "include": [
       "specs/017-remote-mcp-host-isolation-oauth-readiness/README.md",
@@ -20,7 +20,23 @@
       "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/checklists/requirements.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/implementation-handoff.md",
-      "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs"
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/tools/validate-spec.mjs",
+      "http-generic-api/.env.example",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/remoteMcpOAuthProfile.js",
+      "http-generic-api/remoteMcpReadiness.js",
+      "http-generic-api/remoteMcpRequestHost.js",
+      "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+      "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+      "http-generic-api/scripts/run-test-manifest.mjs",
+      "http-generic-api/scripts/run-test-diagnostic-shard.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+      "http-generic-api/test-remote-mcp-host-isolation.mjs",
+      "http-generic-api/test-remote-mcp-readiness.mjs"
     ]
   },
   "merge_contract": {
@@ -79,13 +95,113 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Implement and prove canonical host isolation, explicit resource metadata routing, bounded proxy trust, DCR advertisement readiness, no-secret runtime readiness diagnostics, and exact-head source tests while all live feature flags remain unchanged."
+      "status": "implemented",
+      "objective": "Implement canonical Remote MCP host admission, explicit protected-resource routing, bounded proxy host trust, DCR-advertisement readiness, no-secret administrative readiness, environment documentation, and exact regression coverage without enabling any live Remote MCP or OAuth feature flag.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-remote-mcp-host-to-bounded-oauth-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Approved Remote MCP client and platform operator",
+          "entrypoint": "Canonical /mcp transport, protected-resource metadata, authorization-server metadata, and admin readiness readback",
+          "terminal_outcome": "Only the configured MCP resource host can reach the Remote MCP transport, each known resource host receives only its own OAuth metadata, DCR is advertised only with a usable redirect policy, and operators can inspect bounded readiness without receiving secrets.",
+          "steps": [
+            "Resolve the effective request host through one normalized helper and ignore forwarded-host headers unless explicit trusted-proxy mode is enabled.",
+            "Admit /mcp only when the effective host exactly equals the configured Remote MCP resource host.",
+            "Reject issuer, Activation, unknown, malformed, and ambiguous hosts before MCP execution.",
+            "Route protected-resource metadata explicitly among the Remote MCP resource, Tenant GPT core resource, and Activation resource, returning 404 for unknown hosts.",
+            "Advertise the Remote MCP DCR registration endpoint only while DCR is enabled and a usable redirect policy exists.",
+            "Expose admin-protected readiness that reports configuration and OAuth persistence prerequisites as booleans and bounded metadata without secret values.",
+            "Execute canonical host, metadata routing, readiness, OAuth profile, OAuth route, access-token, disabled-boundary, and canonical test-manifest checks on the exact source head."
+          ],
+          "assertions": [
+            "auth.mad4b.com/mcp cannot substitute for mcp.mad4b.com/mcp.",
+            "activation.mad4b.com/mcp and unknown hosts fail closed.",
+            "Forwarded-host headers are not trusted by default.",
+            "Tenant GPT scopes never become Remote MCP scopes merely because /mcp is reachable on another virtual host.",
+            "Unknown protected-resource hosts do not silently inherit Tenant GPT metadata.",
+            "The readiness response never serializes the OAuth signing secret or OAuth grant values.",
+            "DCR metadata remains absent when redirect policy is unavailable.",
+            "No DNS, TLS, reverse-proxy, migration, secret, feature-flag, OAuth-client, deployment, or Production mutation is inferred from source tests."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-host-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-host-isolation.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-readiness",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-metadata-routing",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-chatgpt-mcp-metadata-routing.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth21-profile",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-profile.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-access-token-verifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-access-token-verifier.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth21-routes",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth21-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-disabled-startup-boundary",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-disabled-startup-boundary.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/e2e-phases.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/completion.json",
+            "http-generic-api/.env.example",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+            "http-generic-api/remoteMcpRequestHost.js",
+            "http-generic-api/remoteMcpReadiness.js",
+            "http-generic-api/remoteMcpOAuthProfile.js",
+            "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+            "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+            "http-generic-api/routes/runtimeVerificationRoutes.js",
+            "http-generic-api/scripts/run-test-manifest.mjs",
+            "http-generic-api/scripts/run-test-diagnostic-shard.mjs",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-remote-mcp-host-isolation.mjs",
+            "http-generic-api/test-remote-mcp-readiness.mjs",
+            "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs"
+          ]
+        }
+      ]
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove malformed and spoofed host denial, compatibility isolation for Tenant GPT and Activation resources, database-readiness failure behavior, DCR disable behavior, revocation, expiry, and rollback-safe observability."
+      "objective": "Prove malformed and spoofed host denial, proxy misconfiguration failure behavior, database-readiness dependency faults, refresh/revocation parity, expiry handling, and rollback-safe observability."
     },
     {
       "id": "canary",

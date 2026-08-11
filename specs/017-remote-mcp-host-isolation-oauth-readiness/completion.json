@@ -8,17 +8,19 @@
     "branch": "gpt/spec-017-remote-mcp-host-isolation-oauth-readiness-20260810",
     "base_main_sha": "a722609b45ab3ac4617096963380ab4e1434f17d",
     "complete": true,
-    "review_state": "pending",
+    "review_state": "merged",
     "secrets_included": false
   },
   "implementation": {
-    "started": false,
-    "effective_host_resolver_implemented": false,
-    "mcp_wrong_host_guard_implemented": false,
-    "protected_resource_explicit_host_routing_implemented": false,
-    "wrong_host_regression_tests_implemented": false,
-    "remote_mcp_readiness_surface_implemented": false,
-    "remote_mcp_env_contract_documented": false,
+    "started": true,
+    "branch": "gpt/017-remote-mcp-host-isolation-oauth-readiness-implementation-20260810",
+    "base_spec_head_sha": "73bcf1d8fc25aaa4c264e5fcb0fc22ab88eee7f3",
+    "effective_host_resolver_implemented": true,
+    "mcp_wrong_host_guard_implemented": true,
+    "protected_resource_explicit_host_routing_implemented": true,
+    "wrong_host_regression_tests_implemented": true,
+    "remote_mcp_readiness_surface_implemented": true,
+    "remote_mcp_env_contract_documented": true,
     "exact_head_ci_verified": false
   },
   "live_readiness": {
@@ -78,12 +80,7 @@
     "rollback_rehearsal"
   ],
   "blocking_reasons": [
-    "spec_review_pending",
-    "implementation_not_started",
-    "canonical_host_guard_not_implemented",
-    "metadata_cross_resource_fallback_not_hardened",
-    "no_secret_readiness_surface_not_implemented",
-    "remote_mcp_env_template_incomplete",
+    "exact_head_ci_pending",
     "live_dns_tls_proxy_not_verified",
     "governed_oauth_migration_not_applied",
     "dedicated_signing_secret_not_live_verified",
