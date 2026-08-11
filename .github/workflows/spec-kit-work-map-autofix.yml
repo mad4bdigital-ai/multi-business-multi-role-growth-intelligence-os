@@ -122,17 +122,29 @@ jobs:
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
 
+          target_pr_files="${RUNNER_TEMP}/work-map-autofix-target-pr-files.txt"
+          target_binding_candidates="${RUNNER_TEMP}/work-map-autofix-target-binding-candidates.txt"
           target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
           : > "${target_binding_file}"
-          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100" --jq '.[].filename' \
-            | grep -E '^specs/[0-9]{3}-[A-Za-z0-9._-]+/work-map-integration\.json$' \
-            | sort -u > "${target_binding_file}" || true
+
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100" --jq '.[].filename' > "${target_pr_files}"
+          awk '/^specs\/[0-9]{3}-[^/]+\/work-map-integration\.json$/' "${target_pr_files}" \
+            | sort -u > "${target_binding_candidates}"
 
           while IFS= read -r binding_path; do
             [[ -z "${binding_path}" ]] && continue
-            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+            if [[ ! "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]; then
+              echo "::error::Target-derived Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
+              exit 1
+            fi
+            feature_key="${BASH_REMATCH[1]}"
             test -f "${binding_path}"
-          done < "${target_binding_file}"
+            manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
+            review_state="$(jq -er '.review_state' "${binding_path}")"
+            test "${manifest_feature_key}" = "${feature_key}"
+            test "${review_state}" = "ready_for_implementation"
+            printf '%s\n' "${binding_path}" >> "${target_binding_file}"
+          done < "${target_binding_candidates}"
 
           target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
           echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
@@ -299,7 +311,7 @@ jobs:
           refresh_target_bindings() {
             while IFS= read -r binding_path; do
               [[ -z "${binding_path}" ]] && continue
-              [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+              [[ "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]
               feature_key="${BASH_REMATCH[1]}"
               case "${feature_key}" in
                 014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
@@ -349,7 +361,7 @@ jobs:
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity --check
           while IFS= read -r binding_path; do
             [[ -z "${binding_path}" ]] && continue
-            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[A-Za-z0-9._-]+)/work-map-integration\.json$ ]]
+            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]
             feature_key="${BASH_REMATCH[1]}"
             case "${feature_key}" in
               014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
