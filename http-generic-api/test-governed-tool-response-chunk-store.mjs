@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import {
   GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY,
   GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS,
+  deleteExpiredGovernedToolResponseChunks,
   extendGovernedToolResponseChunkExpiry,
   inspectGovernedResponseChunkSchema,
   loadGovernedToolResponseChunk,
@@ -11,6 +12,7 @@ import {
 } from "./governedToolResponseChunkStore.js";
 
 const PRIVILEGED_TYPES = new Set(["admin", "backend_service", "trusted_internal"]);
+const DEFAULT_DB_PRIVILEGES = Object.freeze(["SELECT", "INSERT", "UPDATE", "DELETE"]);
 
 function governedRowHasOwner(row = {}) {
   return Boolean(
@@ -30,9 +32,19 @@ function sameOwner(row, incoming) {
     && row.owner_principal_id === incoming.owner_principal_id;
 }
 
-function createFakePool() {
+function createFakePool(options = {}) {
   const rows = new Map();
-  const state = { schema_probe_count: 0, fail_next_durable_query: false };
+  const state = {
+    schema_probe_count: 0,
+    privilege_probe_count: 0,
+    fail_next_durable_query: false,
+    cleanup_now_ms: null,
+    table_privileges: [...(options.tablePrivileges || DEFAULT_DB_PRIVILEGES)],
+    schema_privileges: [...(options.schemaPrivileges || [])],
+    user_privileges: [...(options.userPrivileges || [{ PRIVILEGE_TYPE: "USAGE" }])],
+    column_privileges: [...(options.columnPrivileges || [])],
+    applicable_roles: [...(options.applicableRoles || [])],
+  };
   return {
     rows,
     state,
@@ -42,6 +54,30 @@ function createFakePool() {
         return [
           GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name })),
         ];
+      }
+      if (sql.includes("SELECT CURRENT_USER() AS current_account")) {
+        state.privilege_probe_count += 1;
+        return [[{ current_account: "runtime_writer@localhost", current_database: "runtime_test" }]];
+      }
+      if (sql.includes("information_schema.USER_PRIVILEGES")) {
+        return [state.user_privileges];
+      }
+      if (sql.includes("information_schema.SCHEMA_PRIVILEGES")) {
+        return [state.schema_privileges];
+      }
+      if (sql.includes("information_schema.TABLE_PRIVILEGES")) {
+        return [state.table_privileges.map((PRIVILEGE_TYPE) => ({
+          TABLE_SCHEMA: "runtime_test",
+          TABLE_NAME: "governed_tool_response_chunks",
+          PRIVILEGE_TYPE,
+          IS_GRANTABLE: "NO",
+        }))];
+      }
+      if (sql.includes("information_schema.COLUMN_PRIVILEGES")) {
+        return [state.column_privileges];
+      }
+      if (sql.includes("information_schema.APPLICABLE_ROLES")) {
+        return [state.applicable_roles];
       }
       if (state.fail_next_durable_query) {
         state.fail_next_durable_query = false;
@@ -124,6 +160,17 @@ function createFakePool() {
         if (new Date(candidate).getTime() > new Date(row.expires_at).getTime()) row.expires_at = new Date(candidate);
         return [{ affectedRows: 1 }];
       }
+      if (sql.includes("DELETE FROM governed_tool_response_chunks")) {
+        const cutoff = Number.isFinite(state.cleanup_now_ms) ? state.cleanup_now_ms : Date.now();
+        const limitMatch = sql.match(/LIMIT\s+(\d+)/i);
+        const limit = Math.max(1, Number(limitMatch?.[1] || 500));
+        const expired = [...rows.values()]
+          .filter((row) => new Date(row.expires_at).getTime() <= cutoff)
+          .sort((a, b) => new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime())
+          .slice(0, limit);
+        expired.forEach((row) => rows.delete(row.chunk_id));
+        return [{ affectedRows: expired.length }];
+      }
       throw new Error(`Unexpected SQL in fake pool: ${sql.slice(0, 120)}`);
     },
   };
@@ -155,6 +202,7 @@ assert.equal(pool.rows.get(chunkId).owner_user_id, "user-a");
 assert.equal(pool.rows.get(chunkId).owner_workspace_id, "workspace-a");
 assert.equal(pool.rows.get(chunkId).owner_principal_type, "tenant_user");
 assert.equal(pool.state.schema_probe_count, 1, "persist plus verification must share one successful schema probe");
+assert.equal(pool.state.privilege_probe_count, 1, "persist plus verification must share one bounded privilege readback");
 
 const loaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantA }, { pool, now: now + 1000 });
 assert.equal(loaded.serialized, serialized);
@@ -163,6 +211,7 @@ assert.equal(loaded.response_bytes, Buffer.byteLength(serialized, "utf8"));
 assert.equal(loaded.owner_tenant_id, "tenant-a");
 assert.equal(loaded.owner_workspace_id, "workspace-a");
 assert.equal(pool.state.schema_probe_count, 1, "hot-path loads must reuse bounded successful readiness");
+assert.equal(pool.state.privilege_probe_count, 1, "hot-path loads must reuse bounded privilege readiness");
 
 pool.state.fail_next_durable_query = true;
 await assert.rejects(
@@ -173,23 +222,25 @@ await assert.rejects(
   (error) => error?.code === "response_chunk_persistence_unavailable" && error?.status === 503,
 );
 const probesBeforeRecovery = pool.state.schema_probe_count;
+const privilegeProbesBeforeRecovery = pool.state.privilege_probe_count;
 await extendGovernedToolResponseChunkExpiry(
   { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
   { pool, now: now + 1501 },
 );
-assert.equal(pool.state.schema_probe_count, probesBeforeRecovery + 1, "durable query failures must invalidate cached readiness");
+assert.equal(pool.state.schema_probe_count, probesBeforeRecovery + 1, "durable query failures must invalidate cached schema readiness");
+assert.equal(pool.state.privilege_probe_count, privilegeProbesBeforeRecovery + 1, "durable query failures must invalidate cached DB privilege readiness");
 const probesBeforeLiveDiagnostics = pool.state.schema_probe_count;
 await inspectGovernedResponseChunkSchema({ pool, now: now + 1502, operation: "diagnostic_one" });
 await inspectGovernedResponseChunkSchema({ pool, now: now + 1503, operation: "diagnostic_two" });
 assert.equal(pool.state.schema_probe_count, probesBeforeLiveDiagnostics + 2, "explicit diagnostics must remain live and bypass readiness cache");
 
 const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { pool, now: now + 1000 });
-assert.equal(crossTenantLoad, null, "cross-tenant durable reads must be indistinguishable from missing chunks");
+assert.equal(crossTenantLoad, null, "unauthorized cross-tenant principals must not read another owner's chunk");
 const crossWorkspaceLoad = await loadGovernedToolResponseChunk(
   { chunk_id: chunkId, auth: tenantAOtherWorkspace },
   { pool, now: now + 1000 },
 );
-assert.equal(crossWorkspaceLoad, null, "cross-workspace durable reads must be indistinguishable from missing chunks");
+assert.equal(crossWorkspaceLoad, null, "unauthorized cross-workspace principals must not read another workspace's chunk");
 
 const beforeUnauthorizedExtend = new Date(pool.rows.get(chunkId).expires_at).toISOString();
 const unauthorizedExtend = await extendGovernedToolResponseChunkExpiry(
@@ -214,7 +265,7 @@ await assert.rejects(
   }, { pool, now: now + 3000 }),
   (err) => err.code === "response_chunk_not_found" && err.status === 404,
 );
-assert.equal(pool.rows.get(chunkId).response_json, serialized, "cross-tenant overwrite must not mutate the stored response");
+assert.equal(pool.rows.get(chunkId).response_json, serialized, "unauthorized cross-tenant principal must not overwrite another owner's response");
 await assert.rejects(
   persistGovernedToolResponseChunk({
     chunk_id: chunkId,
@@ -316,6 +367,36 @@ await assert.rejects(
   (err) => err.code === "response_chunk_expired" && err.status === 410,
 );
 
+const cleanupId = "56565656-7878-4901-8234-565656565656";
+await persistGovernedToolResponseChunk({ chunk_id: cleanupId, serialized, ttl_ms: 1000, auth: tenantA }, { pool, now });
+pool.state.cleanup_now_ms = now + 2000;
+const cleanup = await deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { pool, now: now + 2000 });
+assert.equal(cleanup.deleted_count, 1, "expired chunk cleanup must exercise bounded DELETE authority");
+assert.equal(pool.rows.has(cleanupId), false);
+assert.equal(pool.rows.has(chunkId), true, "cleanup must preserve unexpired chunks");
+
+const missingUpdatePool = createFakePool({ tablePrivileges: ["SELECT", "INSERT", "DELETE"] });
+await assert.rejects(
+  persistGovernedToolResponseChunk({
+    chunk_id: "67676767-8989-4012-8345-676767676767",
+    serialized,
+    ttl_ms: 300000,
+    auth: tenantA,
+  }, { pool: missingUpdatePool, now }),
+  (err) => err?.code === "response_chunk_persistence_unavailable"
+    && err?.status === 503
+    && err?.details?.cause_code === "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
+);
+assert.equal(missingUpdatePool.rows.size, 0, "missing DB UPDATE privilege must fail before any durable mutation");
+
+const missingDeletePool = createFakePool({ tablePrivileges: ["SELECT", "INSERT", "UPDATE"] });
+await assert.rejects(
+  deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { pool: missingDeletePool, now }),
+  (err) => err?.code === "response_chunk_persistence_unavailable"
+    && err?.status === 503
+    && err?.details?.cause_code === "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
+);
+
 const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
 const previousDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
 for (const key of dbEnvKeys) delete process.env[key];
@@ -360,4 +441,4 @@ assert.match(
   "migration readiness must count distinct composite index names rather than index-column rows",
 );
 
-console.log("governed tool response chunk store ownership tests passed");
+console.log("governed tool response chunk store ownership and DB authority tests passed");
