@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-09.v7",
+  "version": "2026-08-10.v8",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -43,7 +43,8 @@
         "docs/work-maps/**",
         "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
         "specs/014-governed-hostinger-storage-orchestration/tasks.md",
-        "specs/014-retail-commerce-operations-growth-os/work-map-integration.json"
+        "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+        "specs/018-environment-promotion-runtime-integrity/work-map-integration.json"
       ]
     }
   ],
