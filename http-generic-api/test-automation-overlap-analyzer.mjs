@@ -107,21 +107,75 @@ assert.equal(
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const workMapWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml");
 const workMapRecoveryWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml");
+const docsAgentWorkflowPath = path.join(repoRoot, ".github/workflows/docs-agent.yml");
+const openapiAutoSyncWorkflowPath = path.join(repoRoot, ".github/workflows/openapi-auto-sync.yml");
+const surfaceContractWorkflowPath = path.join(repoRoot, ".github/workflows/surface-contract-auto-remediation.yml");
 const overlapPolicyPath = path.join(repoRoot, "http-generic-api/scripts/taxonomy/automation-overlap-policy.json");
 const workMapWorkflow = readFileSync(workMapWorkflowPath, "utf8");
 const workMapRecoveryWorkflow = readFileSync(workMapRecoveryWorkflowPath, "utf8");
+const docsAgentWorkflow = readFileSync(docsAgentWorkflowPath, "utf8");
+const openapiAutoSyncWorkflow = readFileSync(openapiAutoSyncWorkflowPath, "utf8");
+const surfaceContractWorkflow = readFileSync(surfaceContractWorkflowPath, "utf8");
 const overlapPolicy = JSON.parse(readFileSync(overlapPolicyPath, "utf8"));
+const repositoryGeneratedResourceGroup = overlapPolicy.resource_groups.find(
+  (entry) => entry.key === "repository-generated-artifacts",
+);
 const workMapResourceGroup = overlapPolicy.resource_groups.find(
   (entry) => entry.key === "pull-request-work-map-generated-artifacts",
 );
+const expectedRepositoryGeneratedConcurrency = "repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}";
 const expectedWorkMapConcurrency = "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}";
 const expectedRecoveryConcurrency = "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number || github.run_id }}";
+
+assert(repositoryGeneratedResourceGroup, "Repository generated-artifact resource group must remain registered");
+assert.equal(
+  repositoryGeneratedResourceGroup.required_concurrency_group,
+  expectedRepositoryGeneratedConcurrency,
+  "Repository generated-artifact policy must retain one shared serialization identity",
+);
+assert.equal(
+  repositoryGeneratedResourceGroup.required_queue,
+  "max",
+  "Repository generated-artifact policy must retain multi-pending queue protection",
+);
+assert.deepEqual(
+  repositoryGeneratedResourceGroup.workflows,
+  [
+    { path: ".github/workflows/openapi-auto-sync.yml", access: "write" },
+    { path: ".github/workflows/surface-contract-auto-remediation.yml", access: "write" },
+    { path: ".github/workflows/docs-agent.yml", access: "conditional_write" },
+  ],
+  "Repository generated-artifact writers must remain fully registered in one governed resource group",
+);
+for (const [workflowName, workflowSource] of [
+  ["OpenAPI Auto Sync", openapiAutoSyncWorkflow],
+  ["Surface Contract Auto Remediation", surfaceContractWorkflow],
+  ["Docs Agent", docsAgentWorkflow],
+]) {
+  assert(
+    workflowSource.includes(`group: ${expectedRepositoryGeneratedConcurrency}`),
+    `${workflowName} must retain the policy-required generated-artifact concurrency group`,
+  );
+  assert(
+    workflowSource.includes("cancel-in-progress: false"),
+    `${workflowName} must not cancel in-progress generated-artifact mutations`,
+  );
+  assert(
+    workflowSource.includes("queue: max"),
+    `${workflowName} must allow multiple pending generated-artifact runs instead of replacing older pending work`,
+  );
+}
 
 assert(workMapResourceGroup, "Work Map generated-artifact resource group must remain registered");
 assert.equal(
   workMapResourceGroup.required_concurrency_group,
   expectedWorkMapConcurrency,
   "Work Map resource-group policy must match the PR-keyed writer serialization identity",
+);
+assert.equal(
+  workMapResourceGroup.required_queue,
+  "max",
+  "Work Map resource-group policy must retain multi-pending queue protection",
 );
 assert.deepEqual(
   workMapResourceGroup.workflows,
