@@ -10,6 +10,8 @@
       ".changes/e2e/remaining-tenant-runtime-migration-governed-readiness.json",
       ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs",
       ".github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-remaining-tenant-runtime-migration-governed-readiness.mjs"
     ]
