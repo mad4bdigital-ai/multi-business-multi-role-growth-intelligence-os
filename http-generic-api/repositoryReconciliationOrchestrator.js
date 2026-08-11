@@ -55,6 +55,17 @@ function normalize(args = {}, deps = {}) {
   if (!["dry_run","apply"].includes(input.mode)) throw fail("repository_reconciliation_mode_invalid", "mode must be dry_run or apply.", 400);
   return input;
 }
+function normalizeRecipeStep(step = {}) {
+  return {
+    ...step,
+    parent_action_key: value(step.parent_action_key, 191),
+    source_table: value(step.source_table, 120),
+    source_pk_template: json(step.source_pk_template ?? step.source_pk_template_json, null),
+    query_template: json(step.query_template ?? step.query_template_json, null),
+    body_template: json(step.body_template ?? step.body_template_json, null),
+    response_projection: json(step.response_projection ?? step.response_projection_json, null),
+  };
+}
 export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, deps = {}) {
   const pool = deps.pool || getPool();
   const [recipes] = await pool.query(
@@ -65,10 +76,17 @@ export async function loadRepositoryReconciliationRecipe(recipeKey = RECIPE, dep
   );
   if (!recipes?.[0]) throw fail("repository_reconciliation_recipe_missing", "The reconciliation recipe was not found.", 404);
   const [steps] = await pool.query(
-    `SELECT step_order, step_key, step_kind, tool_key, endpoint_key, required, on_error_policy, status
+    `SELECT step_order, step_key, step_kind, parent_action_key, tool_key, endpoint_key, source_table,
+            source_pk_template_json, query_template_json, body_template_json, response_projection_json,
+            required, on_error_policy, status
        FROM platform_resource_recipe_steps WHERE recipe_key=? ORDER BY step_order, step_id`, [recipeKey],
   );
-  return { ...recipes[0], policy: json(recipes[0].policy_json, {}), steps: steps || [], secrets_included: false };
+  return {
+    ...recipes[0],
+    policy: json(recipes[0].policy_json, {}),
+    steps: (steps || []).map(normalizeRecipeStep),
+    secrets_included: false,
+  };
 }
 function evidence(result = {}) {
   const classification = result.classification || result;
@@ -83,11 +101,64 @@ function evidence(result = {}) {
     branch_ref_sha: value(proof.branch_ref_sha, 40)?.toLowerCase() || null,
   };
 }
+export function buildRepositoryReconciliationStepDataflowContract({ input, step = {}, operationId, predecessorStepKey = null } = {}) {
+  const normalizedStep = normalizeRecipeStep(step);
+  const registry = {
+    step_order: Number(normalizedStep.step_order || 0),
+    step_key: value(normalizedStep.step_key, 128),
+    step_kind: value(normalizedStep.step_kind, 64),
+    parent_action_key: value(normalizedStep.parent_action_key, 191),
+    tool_key: value(normalizedStep.tool_key, 191),
+    endpoint_key: value(normalizedStep.endpoint_key, 191),
+    source_table: value(normalizedStep.source_table, 120),
+    source_pk_template: normalizedStep.source_pk_template,
+    query_template: normalizedStep.query_template,
+    body_template: normalizedStep.body_template,
+    response_projection: normalizedStep.response_projection,
+    required: Boolean(normalizedStep.required),
+    on_error_policy: value(normalizedStep.on_error_policy, 64),
+    status: value(normalizedStep.status, 64),
+  };
+  const contract = {
+    version: "repository-reconciliation-step-dataflow-v1",
+    operation_id: operationId,
+    resource: {
+      owner: input.owner,
+      repo: input.repo,
+      branch: input.branch,
+      default_branch: input.defaultBranch,
+      pull_number: input.pullNumber,
+      expected_base_sha: input.expectedBaseSha,
+      expected_branch_sha: input.expectedBranchSha,
+    },
+    dataflow: {
+      predecessor_step_key: predecessorStepKey || null,
+      parent_action_key: registry.parent_action_key,
+    },
+    registry,
+    force_push_allowed: false,
+    migration_apply_allowed: false,
+    execution_enabled: false,
+    secrets_included: false,
+  };
+  return {
+    ...normalizedStep,
+    plan_item_id: hash([operationId, normalizedStep.step_order, normalizedStep.step_key]).slice(0, 36),
+    execution_contract: contract,
+    execution_contract_sha256: hash(contract),
+  };
+}
 export function buildRepositoryReconciliationPlan({ input, recipe, reconciliation, operationId } = {}) {
   const planId = value(input.raw?.plan_id, 64) || operationId;
-  const steps = (recipe.steps || []).filter((step) => step.status !== "disabled").map((step) => ({
-    ...step,
-    plan_item_id: hash([operationId, step.step_order, step.step_key]).slice(0, 36),
+  const recipeSteps = (recipe.steps || [])
+    .filter((step) => step.status !== "disabled")
+    .slice()
+    .sort((left, right) => Number(left.step_order || 0) - Number(right.step_order || 0));
+  const steps = recipeSteps.map((step, index) => buildRepositoryReconciliationStepDataflowContract({
+    input,
+    step,
+    operationId,
+    predecessorStepKey: index > 0 ? value(recipeSteps[index - 1]?.step_key, 128) : null,
   }));
   const plan = {
     version: "repository-reconciliation-orchestrator-v1", plan_id: planId, operation_id: operationId,
@@ -96,6 +167,14 @@ export function buildRepositoryReconciliationPlan({ input, recipe, reconciliatio
       default_branch: input.defaultBranch, pull_number: input.pullNumber,
       expected_base_sha: input.expectedBaseSha, expected_branch_sha: input.expectedBranchSha },
     reconciliation, policy: recipe.policy || {}, steps,
+    dataflow: {
+      version: "repository-reconciliation-step-dataflow-v1",
+      registry_templates_bound: true,
+      sequential_predecessors_bound: true,
+      execution_enabled: false,
+      step_count: steps.length,
+      secrets_included: false,
+    },
     force_push_allowed: false, migration_apply_allowed: false, secrets_included: false,
   };
   return { plan_id: planId,
