@@ -9,7 +9,7 @@ const TARGET_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts"]);
 const EXCLUDED_DIRS = new Set(["node_modules", "coverage", "dist", "build", ".next"]);
 
 const MUTATION_PATTERN = /\b(INSERT(?:\s+IGNORE)?\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+(?:TABLE|INDEX|VIEW|TRIGGER|DATABASE|USER)|ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|VIEW|TRIGGER|DATABASE|USER)|TRUNCATE\s+TABLE|RENAME\s+TABLE|GRANT|REVOKE)\s+([`"'${}A-Za-z0-9_.-]+)?/giu;
-const DB_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?db\.js["']|require\(\s*["'][^"']*\/?db\.js["']\s*\)|\bgetPool\s*\()/u;
+const DB_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?db\.js["']|require\(\s*["'][^"']*\/?db\.js["']\s*\)|\bgetPool\s*\(|from\s+["'][^"']*\/runtimePersistenceWriteAuthority\.js["']|\bresolveRuntimePersistenceExecutor\s*\()/u;
 const TEST_FILE_PATTERN = /(?:^|\/)test[^/]*\.(?:mjs|js|cjs|ts)$/u;
 
 const MIGRATION_ADMIN_PATH_PATTERNS = [
@@ -187,7 +187,7 @@ export async function buildRuntimePersistenceWriteInventory({ apiRoot = API_ROOT
   return {
     contract: "mad4b.runtime-persistence-write-inventory.v1",
     root: "http-generic-api",
-    scope: "direct getPool()/db.js SQL mutation surfaces",
+    scope: "getPool()/db.js-backed SQL mutation surfaces, including the canonical runtime persistence executor",
     classification_values: [
       "ordinary business/runtime persistence",
       "governance/control-plane",
@@ -198,6 +198,7 @@ export async function buildRuntimePersistenceWriteInventory({ apiRoot = API_ROOT
     notes: [
       "Static inventory excludes test files and third-party/build directories.",
       "Dynamic table expressions are retained as dynamic tokens rather than guessed.",
+      "Surfaces routed through runtimePersistenceWriteAuthority.js remain part of the DB_USER-backed inventory after refactoring away from direct getPool() calls.",
       "ON DUPLICATE KEY UPDATE clauses are represented by their parent INSERT surface, not double-counted as standalone UPDATE tables.",
       "platformResourceAuthorityGrantTool.js is inventoried/classified but this window does not modify it.",
       "The inventory is source evidence only; live grants, Production SQL, and secret mutation are outside this command.",
