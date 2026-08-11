@@ -122,12 +122,27 @@ jobs:
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
 
+          target_pr_meta="${RUNNER_TEMP}/work-map-autofix-target-pr-meta.json"
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"
+          expected_changed_files="$(jq -er '.changed_files' "${target_pr_meta}")"
+          [[ "${expected_changed_files}" =~ ^[0-9]+$ ]]
+          if (( expected_changed_files > 3000 )); then
+            echo "::error::Target PR has ${expected_changed_files} changed files, exceeding GitHub pull-request files API completeness cap of 3000."
+            exit 1
+          fi
+
           target_pr_files="${RUNNER_TEMP}/work-map-autofix-target-pr-files.txt"
           target_binding_candidates="${RUNNER_TEMP}/work-map-autofix-target-binding-candidates.txt"
           target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
           : > "${target_binding_file}"
 
           gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100" --jq '.[].filename' > "${target_pr_files}"
+          fetched_changed_files="$(wc -l < "${target_pr_files}" | tr -d '[:space:]')"
+          [[ "${fetched_changed_files}" =~ ^[0-9]+$ ]]
+          if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then
+            echo "::error::Target PR file inventory is incomplete: fetched ${fetched_changed_files} filenames but exact PR metadata reports ${expected_changed_files} changed files."
+            exit 1
+          fi
           awk '/^specs\/[0-9]{3}-[^/]+\/work-map-integration\.json$/' "${target_pr_files}" \
             | sort -u > "${target_binding_candidates}"
 
