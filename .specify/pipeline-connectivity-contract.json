@@ -117,7 +117,7 @@
             "Generate dynamic text Work Map preview",
             "Report preview-only PR mode",
             "never commit, push, merge, or authorize Work Map writes",
-            "docs/auto-docs-agent/**"
+            "docs/auto-docs-agent"
           ],
           "forbidden_commands": [
             "docs-agent-write",
@@ -155,9 +155,9 @@
         "workflow_dispatch"
       ],
       "forbidden_triggers": [
+        "issue_comment",
         "pull_request",
         "pull_request_target",
-        "issue_comment",
         "push",
         "schedule",
         "workflow_run"
@@ -303,14 +303,21 @@
     {
       "key": "docs-agent",
       "workflow": ".github/workflows/docs-agent.yml",
-      "mode": "preview_and_reviewed_impact_note_followup",
+      "mode": "pull_request_preview_only",
       "required_permissions": {
-        "contents": "read"
+        "contents": "read",
+        "pull-requests": "read"
       },
       "required_triggers": [
+        "pull_request"
+      ],
+      "forbidden_triggers": [
         "workflow_dispatch",
-        "pull_request",
-        "push"
+        "push",
+        "schedule",
+        "workflow_run",
+        "issue_comment",
+        "pull_request_target"
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
@@ -318,8 +325,7 @@
         "platform-work-map-generator.mjs --write",
         "Upload generated documentation preview",
         "Report preview-only PR mode",
-        "peter-evans/create-pull-request@v6",
-        "docs/auto-docs-agent/**",
+        "docs/auto-docs-agent",
         "Review is required",
         "github.actor != 'github-actions[bot]'",
         "github.event.pull_request.head.repo.full_name == github.repository"
@@ -336,11 +342,60 @@
       ]
     },
     {
+      "key": "docs-agent-main-followup",
+      "workflow": ".github/workflows/docs-agent-main-followup.yml",
+      "mode": "dispatch_and_write_exact_main_impact_note_followup",
+      "required_permissions": {
+        "actions": "write",
+        "contents": "read",
+        "pull-requests": "read"
+      },
+      "required_triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "forbidden_triggers": [
+        "pull_request",
+        "pull_request_target",
+        "issue_comment",
+        "schedule",
+        "workflow_run"
+      ],
+      "required_commands": [
+        "Resolve live main and dispatch exact writer",
+        "gh workflow run docs-agent-main-followup.yml",
+        "expected_head_sha",
+        "Pin exact main source and safe target branch",
+        "EXPECTED_HEAD_SHA",
+        "test \"$(git rev-parse HEAD)\" = \"${EXPECTED_HEAD_SHA}\"",
+        "test \"${current_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+        "TARGET_BRANCH=\"docs-agent/${EXPECTED_HEAD_SHA}\"",
+        "main|Production)",
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "docs-agent-runner.mjs --write --mode push",
+        "Refuse follow-up mutations outside impact notes",
+        "peter-evans/create-pull-request@v6",
+        "docs/auto-docs-agent/**",
+        "Review is required",
+        "queue: max"
+      ],
+      "forbidden_commands": [
+        "platform-work-map-generator.mjs --write",
+        "git add docs/work-maps",
+        "git push origin",
+        "--force",
+        "--force-with-lease"
+      ]
+    },
+    {
       "key": "openapi-auto-sync",
       "workflow": ".github/workflows/openapi-auto-sync.yml",
-      "mode": "conditional_write_without_work_maps",
+      "mode": "dispatch_and_write_exact_main_repository_contract_sync_without_work_maps",
       "required_permissions": {
-        "contents": "write"
+        "actions": "write",
+        "contents": "read",
+        "pull-requests": "read"
       },
       "required_triggers": [
         "workflow_dispatch",
@@ -353,12 +408,20 @@
         ".github/workflows/openapi-auto-sync.yml"
       ],
       "required_commands": [
+        "Resolve live main and dispatch exact writer",
+        "gh workflow run openapi-auto-sync.yml",
+        "expected_head_sha",
+        "Pin exact source and safe target branch",
+        "EXPECTED_HEAD_SHA",
+        "test \"$(git rev-parse HEAD)\" = \"${EXPECTED_HEAD_SHA}\"",
+        "test \"${current_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+        "main|Production)",
         "pipeline-connectivity-check.mjs",
         "test-pipeline-connectivity-check.mjs",
         "repo-maintenance-sync.mjs --write --skip-work-maps",
         "Refuse Work Map mutation outside the governed writer",
-        "github.actor != 'github-actions[bot]'",
-        "peter-evans/create-pull-request@v6"
+        "peter-evans/create-pull-request@v6",
+        "queue: max"
       ],
       "forbidden_commands": [
         "platform-work-map-generator.mjs --write",
