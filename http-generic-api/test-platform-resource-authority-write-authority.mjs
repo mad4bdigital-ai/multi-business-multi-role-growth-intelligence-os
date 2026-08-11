@@ -88,7 +88,11 @@ const grantApplied = await applyPlatformResourceAuthorityGrant({
 assert.equal(forbiddenRuntimePoolCalls, 0, "generic runtime pool injection must be ignored for authority writes");
 assert.equal(grantWriterCalls, 2, "insert and same-cycle readback must use the Governance writer");
 assert.equal(grantApplied.readback_verified, true);
-assert.deepEqual(grantApplied.binding.principal, grantDry.principal);
+assert.deepEqual(grantApplied.binding.principal, {
+  principal_type: grantDry.principal.principal_type,
+  principal_id: grantDry.principal.principal_id,
+});
+assert.equal(Object.hasOwn(grantApplied.binding.principal, "legacy_user_id"), false, "readback must expose only the canonical persisted principal");
 assert.equal(grantApplied.binding.resource_uri, grantDry.resource_uri);
 assert.equal(grantApplied.binding.recipe_key, grantDry.recipe_key);
 
