@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import { splitMigrationSqlStatements } from '../../http-generic-api/migrationSqlStatements.js';
+import { buildAdminControlDbReadRequest } from './lib/admin-control-db-request.mjs';
 
 const BASE = String(process.env.RUNTIME_BASE_URL || 'https://auth.mad4b.com').replace(/\/+$/, '');
 const KEY = String(process.env.BACKEND_API_KEY || '').trim();
@@ -21,26 +22,49 @@ const TENANT = '00000000-0000-0000-0000-000000000000';
 const ADMIN = '00000000-0000-4000-a000-000000000002';
 const RESOURCE = `db-migration://growth_intelligence_platform/${MIGRATION}`;
 const DIR = String(process.env.EVIDENCE_DIR || `${process.env.RUNNER_TEMP || '/tmp'}/github-issue-comment-parity-readiness`).trim();
+const GITHUB_RUN_ID = String(process.env.GITHUB_RUN_ID || '').trim();
+const GITHUB_RUN_ATTEMPT = String(process.env.GITHUB_RUN_ATTEMPT || '').trim();
+const REQUESTED_BY = `github_actions_github_issue_comment_parity_readiness:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}`.slice(0, 191);
 
 let stage = 'start';
 let envelopeId = null;
+let managedControlPlaneWriteOutcome = 'not_attempted';
 
 const sensitiveKey = /(password|secret|token|authorization|cookie|api[_-]?key|credential|private[_-]?key|refresh[_-]?token|access[_-]?token)/i;
-const SAFE_EVIDENCE_KEYS = new Set(['authorization_status', 'authorization_bootstrap', 'provider_call_executed', 'credential_payload_accessed', 'secrets_included']);
+const SAFE_EVIDENCE_KEYS = new Set([
+  'authorization_status',
+  'authorization_bootstrap',
+  'capability_envelope_id',
+  'authorization_envelope_create_attempted',
+  'managed_control_plane_write_attempted',
+  'managed_control_plane_write_executed',
+  'provider_call_executed',
+  'credential_payload_accessed',
+  'secrets_included',
+]);
+const SECRET_TEXT_PATTERNS = [
+  /Bearer\s+[A-Za-z0-9._~+\/-]+=*/gi,
+  /(?:api[_-]?key|token|secret|password|credential(?:_value)?)\s*[:=]\s*[^\s,;]+/gi,
+];
 
 function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
 function gitBlobSha(bytes) {
   return createHash('sha1').update(Buffer.from(`blob ${bytes.length}\0`, 'utf8')).update(bytes).digest('hex');
 }
+function sanitizeText(value = '') {
+  let text = String(value || '').slice(0, 16000);
+  for (const pattern of SECRET_TEXT_PATTERNS) text = text.replace(pattern, '[redacted]');
+  return text;
+}
 function parsed(value) {
   if (typeof value !== 'string') return value;
   const text = value.trim();
-  if (!text || (!text.startsWith('{') && !text.startsWith('['))) return value;
-  try { return JSON.parse(text); } catch { return value; }
+  if (!text || (!text.startsWith('{') && !text.startsWith('['))) return sanitizeText(value);
+  try { return JSON.parse(text); } catch { return sanitizeText(value); }
 }
 function sanitize(value) {
   if (Array.isArray(value)) return value.map(sanitize);
-  if (!value || typeof value !== 'object') return value;
+  if (!value || typeof value !== 'object') return typeof value === 'string' ? sanitizeText(value) : value;
   return Object.fromEntries(Object.entries(value).map(([key, child]) => [
     key,
     sensitiveKey.test(key) && !SAFE_EVIDENCE_KEYS.has(key) ? '[redacted]' : sanitize(child),
@@ -68,13 +92,21 @@ function collectShas(value, output = new Set()) {
   }
   return output;
 }
+function managedControlPlaneWriteAttempted() {
+  return managedControlPlaneWriteOutcome !== 'not_attempted';
+}
+function managedControlPlaneWriteExecuted() {
+  if (managedControlPlaneWriteOutcome === 'confirmed') return true;
+  if (managedControlPlaneWriteOutcome === 'not_attempted') return false;
+  return null;
+}
 async function writeJson(name, value) {
   await fs.mkdir(DIR, { recursive: true });
   await fs.writeFile(`${DIR}/${name}`, `${JSON.stringify(sanitize(value), null, 2)}\n`, 'utf8');
 }
 async function writeState(extra = {}) {
   await writeJson('state.json', {
-    contract: 'github_issue_comment_exact_response_parity_migration_readiness.v1',
+    contract: 'github_issue_comment_exact_response_parity_migration_readiness.v2',
     stage,
     migration: MIGRATION,
     migration_blob_sha: MIGRATION_BLOB_SHA,
@@ -83,7 +115,14 @@ async function writeState(extra = {}) {
     source_pr: SOURCE_PR,
     source_merge_sha: SOURCE_MERGE_SHA,
     expected_production_sha: EXPECTED_PRODUCTION_SHA,
+    github_run_id: GITHUB_RUN_ID || null,
+    github_run_attempt: GITHUB_RUN_ATTEMPT || null,
+    requested_by: REQUESTED_BY,
     capability_envelope_id: envelopeId,
+    authorization_envelope_create_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+    managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
     migration_apply_performed: false,
     provider_call_executed: false,
     external_write_executed: false,
@@ -119,27 +158,114 @@ async function requestRaw(pathname, body, timeoutMs = 180000) {
     });
     const text = await response.text();
     let payload;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = { non_json_response: true }; }
+    try { payload = text ? JSON.parse(text) : null; }
+    catch { payload = { non_json_response: true, raw_preview: sanitizeText(text.slice(0, 3000)) }; }
     return { transport_ok: true, status: response.status, http_ok: response.ok, payload };
   } catch (error) {
     return { transport_ok: false, status: null, http_ok: false, payload: null, transport_error: String(error?.name || 'Error') };
   }
 }
+function commandEvidence(result) {
+  const error = result?.payload?.error || null;
+  return sanitize({
+    transport_ok: result?.transport_ok === true,
+    http_status: result?.status ?? null,
+    http_ok: result?.http_ok === true,
+    response_ok: result?.payload?.ok ?? null,
+    transport_error: result?.transport_error || null,
+    error_code: error?.code || result?.payload?.error_code || null,
+    error_message: error?.message || result?.payload?.message || null,
+    exit_code: error?.exit_code ?? error?.exitCode ?? null,
+    stdout: parsed(error?.stdout ?? result?.payload?.stdout ?? null),
+    stderr: parsed(error?.stderr ?? result?.payload?.stderr ?? null),
+    payload: result?.payload || null,
+  });
+}
+function buildFailureError(result, label) {
+  const detail = keyed(result?.payload, 'code') || result?.payload?.error || {};
+  const error = new Error(`${label} failed: HTTP ${result?.status ?? 'transport_error'}`);
+  error.code = String(detail?.code || result?.payload?.error_code || `${label}_failed`);
+  error.details = detail?.details || result?.payload?.error?.details || null;
+  error.provenance = commandEvidence(result);
+  return error;
+}
 function requireSuccess(result, label) {
-  if (!result.transport_ok || !result.http_ok || result.payload?.ok === false) {
-    const detail = keyed(result.payload, 'code') || result.payload?.error || {};
-    const error = new Error(`${label} failed: HTTP ${result.status ?? 'transport_error'}`);
-    error.code = String(detail?.code || result.payload?.error_code || `${label}_failed`);
-    error.details = detail?.details || result.payload?.error?.details || null;
-    throw error;
+  if (!result?.transport_ok || !result?.http_ok || result?.payload?.ok === false) {
+    throw buildFailureError(result, label);
   }
   return result.payload;
 }
-async function adminShell(alias, extraArgs, label = alias) {
-  return requireSuccess(await requestRaw('/admin/control', {
+function shellInvocation(alias, extraArgs) {
+  return {
     tool: 'shell', action: 'run', alias, extra_args: extraArgs,
     authority_context: { resource_type: 'shell_alias', resource_uri: `shell://${alias}`, operation_mode: alias, required: true },
-  }), label);
+  };
+}
+function dbReadInvocation(sql, params = [], maxRows = 3, resourceSuffix = 'readback') {
+  assert.match(sql.trim(), /^SELECT\b/i, 'Readiness reconciliation DB query must be SELECT-only');
+  assert.doesNotMatch(sql, /\b(?:INSERT|UPDATE|DELETE|REPLACE|ALTER|DROP|TRUNCATE|CREATE|GRANT|REVOKE)\b/i, 'Readiness reconciliation DB query contains a mutating keyword');
+  return buildAdminControlDbReadRequest({
+    sql,
+    params,
+    maxRows,
+    authorityContext: {
+      resource_type: 'database_query',
+      resource_uri: `db://growth_intelligence_platform/github_issue_comment_parity_readiness/${resourceSuffix}`,
+      operation_mode: 'read_only',
+      required: true,
+    },
+  });
+}
+async function adminShell(alias, extraArgs, label = alias) {
+  return requireSuccess(await requestRaw('/admin/control', shellInvocation(alias, extraArgs)), label);
+}
+async function reconcileEnvelopeCreateFailure() {
+  const result = await requestRaw('/admin/control', dbReadInvocation(
+    `SELECT envelope_id, envelope_status, dispatch_allowed, apply_allowed,
+            approval_required, blocking_gap_count, execution_status,
+            requested_by, created_at
+       FROM capability_resolution_envelope_ledger
+      WHERE requested_by = ?
+        AND app_key = 'platform_orchestration'
+        AND capability_key = 'governed_migration_authorization_bootstrap'
+        AND operation_intent = 'governed_migration_authorization_bootstrap'
+      ORDER BY id DESC
+      LIMIT 3`,
+    [REQUESTED_BY],
+    3,
+    'authorization_envelope_create_failure_reconciliation'
+  ));
+
+  const evidence = commandEvidence(result);
+  if (!result.transport_ok || !result.http_ok || result.payload?.ok === false) {
+    return {
+      classification: 'reconciliation_unavailable',
+      requested_by: REQUESTED_BY,
+      command: evidence,
+      secrets_included: false,
+    };
+  }
+
+  const rowsObject = keyed(result.payload, 'rows');
+  const rows = Array.isArray(rowsObject?.rows) ? rowsObject.rows : [];
+  if (rows.length === 0) {
+    return {
+      classification: 'no_matching_row_after_failure',
+      requested_by: REQUESTED_BY,
+      matching_row_count: 0,
+      command: evidence,
+      secrets_included: false,
+    };
+  }
+
+  return {
+    classification: 'matching_row_persisted_response_failed',
+    requested_by: REQUESTED_BY,
+    matching_row_count: rows.length,
+    matching_rows: rows,
+    command: evidence,
+    secrets_included: false,
+  };
 }
 function envelopeBindingSha() {
   return sha256(JSON.stringify({
@@ -149,6 +275,10 @@ function envelopeBindingSha() {
     migration_file: MIGRATION, migration_checksum_sha256: EXPECTED_CHECKSUM_SHA256,
     statement_count: EXPECTED_STATEMENT_COUNT, production_sha: EXPECTED_PRODUCTION_SHA,
   }));
+}
+async function verifyAuthorizationEventFreshness() {
+  assert.match(GITHUB_RUN_ID, /^\d+$/, 'GITHUB_RUN_ID must be present for a governed issue-comment authorization cycle');
+  assert.equal(GITHUB_RUN_ATTEMPT, '1', 'Consumed authorization events cannot be rerun; post a fresh exact issue comment');
 }
 async function verifySourceAndMigration() {
   assert.equal(ISSUE, 4451);
@@ -183,13 +313,43 @@ async function repinProduction() {
   assert.equal(String(production?.object?.sha || '').toLowerCase(), EXPECTED_PRODUCTION_SHA, 'Production ref moved after runtime parity and before authorization mutation');
 }
 async function createBootstrapEnvelope() {
-  const created = await adminShell('capability_resolution_envelope_create', [
+  const extraArgs = [
     `--tenant-id=${TENANT}`, `--user-id=${ADMIN}`, '--user-role=Admin', '--app-key=platform_orchestration',
     '--capability-key=governed_migration_authorization_bootstrap', '--operation-intent=governed_migration_authorization_bootstrap',
     '--runtime-surface=auth_host', '--requested-source-tier=platform_managed_fallback',
-    '--requested-by=github_actions_github_issue_comment_parity_readiness', '--ttl-minutes=45', '--explain',
+    `--requested-by=${REQUESTED_BY}`, '--ttl-minutes=45', '--explain',
     `--resource-uri=${RESOURCE}`, `--expected-commit-sha=${EXPECTED_PRODUCTION_SHA}`, `--binding-sha256=${envelopeBindingSha()}`,
-  ], 'issue_comment_parity_envelope_create');
+  ];
+
+  managedControlPlaneWriteOutcome = 'attempted_unknown';
+  const createResult = await requestRaw('/admin/control', shellInvocation('capability_resolution_envelope_create', extraArgs));
+
+  let created;
+  try {
+    created = requireSuccess(createResult, 'issue_comment_parity_envelope_create');
+  } catch (error) {
+    const reconciliation = await reconcileEnvelopeCreateFailure();
+    error.reconciliation = reconciliation;
+    error.provenance = { ...(error.provenance || {}), reconciliation };
+    await writeJson('authorization-envelope-create-failure.json', {
+      contract: 'github_issue_comment_exact_response_parity_envelope_create_failure.v1',
+      stage,
+      requested_by: REQUESTED_BY,
+      managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+      create_attempt: commandEvidence(createResult),
+      reconciliation,
+      migration_apply_performed: false,
+      provider_call_executed: false,
+      external_write_executed: false,
+      credential_payload_accessed: false,
+      protected_ref_mutation_executed: false,
+      force_push_executed: false,
+      secrets_included: false,
+    });
+    throw error;
+  }
+
+  managedControlPlaneWriteOutcome = 'confirmed';
   let envelope = keyed(created, 'envelope_id');
   assert.ok(envelope?.envelope_id, 'Capability envelope creation returned no envelope_id');
   assert.equal(Number(envelope.blocking_gap_count || 0), 0, 'Capability envelope has blocking gaps');
@@ -240,6 +400,7 @@ async function dryRun() {
 try {
   assert.ok(KEY, 'BACKEND_API_KEY is required');
   assert.ok(GH, 'GH_READ_TOKEN is required');
+  stage = 'authorization_event_freshness'; await verifyAuthorizationEventFreshness(); await writeState();
   stage = 'source_and_migration_identity'; await verifySourceAndMigration(); await writeState();
   stage = 'runtime_parity'; await verifyRuntimeParity(); await writeState();
   await repinProduction(); await writeState();
@@ -251,19 +412,41 @@ try {
     result: 'pass', stage, migration: MIGRATION, source_pr: SOURCE_PR, source_merge_sha: SOURCE_MERGE_SHA,
     production_sha: EXPECTED_PRODUCTION_SHA, migration_blob_sha: MIGRATION_BLOB_SHA,
     migration_checksum_sha256: EXPECTED_CHECKSUM_SHA256, statement_count: EXPECTED_STATEMENT_COUNT,
+    github_run_id: GITHUB_RUN_ID, github_run_attempt: GITHUB_RUN_ATTEMPT, requested_by: REQUESTED_BY,
     authorization_bootstrap: true, authorization_readback_present: Boolean(authorization), dry_run: 'pass',
-    dry_run_applies_sql: dryRunResult.applies_sql, migration_apply_performed: false,
-    provider_call_executed: false, external_write_executed: false, credential_payload_accessed: false,
-    protected_ref_mutation_executed: false, force_push_executed: false, secrets_included: false,
+    dry_run_applies_sql: dryRunResult.applies_sql,
+    authorization_envelope_create_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+    managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
+    migration_apply_performed: false, provider_call_executed: false, external_write_executed: false,
+    credential_payload_accessed: false, protected_ref_mutation_executed: false, force_push_executed: false,
+    secrets_included: false,
   });
   await writeState({ authorization_bootstrap: true, dry_run: 'pass' });
 } catch (error) {
   await writeJson('failure.json', {
     result: 'fail', stage, migration: MIGRATION, expected_production_sha: EXPECTED_PRODUCTION_SHA,
-    error: { code: error?.code || 'readiness_failed', message: String(error?.message || error) },
-    capability_envelope_id: envelopeId, migration_apply_performed: false, provider_call_executed: false,
+    github_run_id: GITHUB_RUN_ID || null, github_run_attempt: GITHUB_RUN_ATTEMPT || null, requested_by: REQUESTED_BY,
+    error: {
+      code: error?.code || 'readiness_failed',
+      message: String(error?.message || error),
+      provenance: error?.provenance || null,
+      reconciliation: error?.reconciliation || null,
+    },
+    capability_envelope_id: envelopeId,
+    authorization_envelope_create_attempted: managedControlPlaneWriteAttempted(),
+    managed_control_plane_write_outcome: managedControlPlaneWriteOutcome,
+    managed_control_plane_write_executed: managedControlPlaneWriteExecuted(),
+    migration_apply_performed: false, provider_call_executed: false,
     external_write_executed: false, credential_payload_accessed: false, protected_ref_mutation_executed: false,
     force_push_executed: false, secrets_included: false,
+  });
+  await writeState({
+    failed: true,
+    error_code: String(error?.code || error?.name || 'readiness_failed'),
+    error_message: String(error?.message || error),
+    error_provenance: error?.provenance || null,
+    failure_reconciliation: error?.reconciliation || null,
   });
   throw error;
 }
