@@ -26,6 +26,11 @@ function completeTablePrivileges() {
 }
 
 {
+  assert.deepEqual(
+    GOVERNANCE_DB_PRIVILEGE_MATRIX.platform_resource_authority_bindings,
+    ["SELECT", "INSERT"],
+    "resource-authority control-plane writes require only INSERT plus exact readback SELECT",
+  );
   const result = evaluateGovernanceDbPrivilegeReadiness({
     database,
     userPrivileges: [{ PRIVILEGE_TYPE: "USAGE" }],
@@ -35,8 +40,8 @@ function completeTablePrivileges() {
     applicableRoles: [],
   });
   assert.equal(result.ready, true);
-  assert.equal(result.required_privilege_count, 14);
-  assert.equal(result.observed_required_privilege_count, 14);
+  assert.equal(result.required_privilege_count, 16);
+  assert.equal(result.observed_required_privilege_count, 16);
   assert.deepEqual(result.missing_required, []);
   assert.equal(result.unexpected_column_privilege_count, 0);
   assert.equal(result.applicable_role_count, 0);
@@ -62,6 +67,20 @@ function completeTablePrivileges() {
   });
   assert.equal(result.ready, false);
   assert.equal(result.unexpected_table_privilege_count, 1);
+}
+
+{
+  const result = evaluateGovernanceDbPrivilegeReadiness({
+    database,
+    tablePrivileges: [
+      ...completeTablePrivileges(),
+      { TABLE_SCHEMA: database, TABLE_NAME: "platform_resource_authority_bindings", PRIVILEGE_TYPE: "UPDATE" },
+      { TABLE_SCHEMA: database, TABLE_NAME: "platform_resource_authority_bindings", PRIVILEGE_TYPE: "DELETE" },
+    ],
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.unexpected_table_privilege_count, 2);
+  assert.equal(result.checks.no_extra_table_privileges, false);
 }
 
 {
