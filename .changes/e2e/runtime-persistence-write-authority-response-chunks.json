@@ -15,6 +15,7 @@
       "http-generic-api/scripts/runtime-persistence-write-inventory.mjs",
       "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
       "http-generic-api/test-governed-tool-response-chunk-store.mjs",
+      "http-generic-api/test-gpt-tools-response-chunking.mjs",
       "http-generic-api/test-runtime-persistence-write-authority.mjs",
       "http-generic-api/test-runtime-persistence-write-inventory.mjs"
     ]
@@ -43,6 +44,7 @@
             "Reject cross-tenant and cross-workspace reads and overwrite attempts without mutating the stored response.",
             "Require UPDATE authority before sliding TTL extension and DELETE authority before bounded expired-row cleanup.",
             "Reconstruct a durable Arabic/emoji response after memory-cache eviction and verify hash, byte length, cursor policy, and TTL extension.",
+            "Run the existing governed response chunking integration fixture against the same bounded DB authority contract.",
             "Scan all direct getPool()/db.js SQL mutation surfaces and classify each as ordinary runtime persistence, governance/control-plane, or migration/DDL/admin.",
             "Do not modify platformResourceAuthorityGrantTool.js or Governance Migration lifecycle and do not execute live Production SQL, grants, or secret writes."
           ],
@@ -55,6 +57,7 @@
             "Unrelated direct table privileges do not fail this table-specific proof because DB_USER is a shared runtime writer.",
             "Unauthorized principals cannot read or overwrite another owner's chunk and same-owner overwrite remains allowed.",
             "SHA-256, UTF-8 byte length, secret rejection, positive TTL, expiry rejection, and schema readiness remain enforced.",
+            "The existing chunking integration fixture exercises the new DB privilege readback rather than bypassing it.",
             "The inventory emits only the three approved classification values and keeps Window 2's platformResourceAuthorityGrantTool.js visible without modifying it.",
             "No migration, Production SQL, GRANT, database-user, deployment, or secret mutation is performed by this source PR."
           ],
@@ -86,6 +89,13 @@
               "working_directory": "http-generic-api",
               "path": "test-governed-response-chunk-durable-recovery-smoke.mjs",
               "args": []
+            },
+            {
+              "id": "governed-response-chunking-integration",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-gpt-tools-response-chunking.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -96,7 +106,8 @@
             "http-generic-api/test-runtime-persistence-write-authority.mjs",
             "http-generic-api/test-runtime-persistence-write-inventory.mjs",
             "http-generic-api/test-governed-tool-response-chunk-store.mjs",
-            "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs"
+            "http-generic-api/test-governed-response-chunk-durable-recovery-smoke.mjs",
+            "http-generic-api/test-gpt-tools-response-chunking.mjs"
           ]
         }
       ]
