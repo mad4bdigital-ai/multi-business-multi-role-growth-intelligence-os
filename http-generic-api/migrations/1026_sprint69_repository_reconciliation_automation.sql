@@ -76,33 +76,63 @@ VALUES (
     'protected_branch_direct_write_allowed',FALSE,'provider_write_requires_action_specific_capability_envelope',TRUE,
     'approval_hold_required',TRUE,'typed_confirmation_required',TRUE,
     'unknown_provider_outcome_requires_readback',TRUE,'same_cycle_ref_tree_ancestry_readback_required',TRUE,
+    'engine_owned_control_steps',TRUE,'provider_dispatch_installed_tool_only',TRUE,
+    'engine_internal_resolution_builder','repositoryDetachedResolutionBuilder',
     'required_checks',JSON_ARRAY('Syntax Check','Architecture Drift Detection','Execution Resolver Gate','Unit & Integration Tests'),
     'migration_apply_allowed',FALSE,'automatic_activation_allowed',FALSE,'secrets_included',FALSE
   ),
   'summary_node','repository_reconciliation_orchestrator','planned',
-  'Plan-bound reconciliation orchestration. Kept planned until CI, positive smoke, and separate activation approval certify the mutation recipe.'
+  'Plan-bound reconciliation orchestration. Engine owns lease/evidence and detached/merge composition steps; recipe remains planned until authority wiring, CI, positive smoke, and separate activation approval certify mutation.'
 )
 ON DUPLICATE KEY UPDATE
   `policy_json`=VALUES(`policy_json`),`input_schema_json`=VALUES(`input_schema_json`),
   `output_schema_json`=VALUES(`output_schema_json`),`status`='planned',`notes`=VALUES(`notes`),`updated_at`=CURRENT_TIMESTAMP;
 
 INSERT INTO `platform_resource_recipe_steps`
-  (`recipe_key`,`step_order`,`step_key`,`step_kind`,`tool_key`,`source_table`,
+  (`recipe_key`,`step_order`,`step_key`,`step_kind`,`parent_action_key`,`tool_key`,`source_table`,
    `body_template_json`,`response_projection_json`,`required`,`on_error_policy`,`status`)
 VALUES
-  ('repo.pr.reconcile_and_finalize',10,'acquire_branch_lease','classify',NULL,'repository_operation_leases',JSON_OBJECT('lease_mode','exclusive_mutation','ttl_seconds',900),NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',20,'reconcile_branch','installed_tool_call','admin_branch_reconcile',NULL,JSON_OBJECT('mode','dry_run'),NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',30,'build_resolution_commit','installed_tool_call','repo_patch_batch_apply',NULL,NULL,NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',40,'create_merge_commit','installed_tool_call','github_branch_merge_commit_create',NULL,NULL,NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',50,'verify_branch','installed_tool_call','admin_branch_reconcile',NULL,JSON_OBJECT('mode','dry_run'),NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',60,'evaluate_ci','installed_tool_call','github_pr_ci_gate',NULL,NULL,NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',70,'finalize_pr','installed_tool_call','github_pr_finalize',NULL,NULL,NULL,1,'fail','active'),
-  ('repo.pr.reconcile_and_finalize',80,'release_branch_lease','classify',NULL,'repository_operation_leases',JSON_OBJECT('release_reason','reconciliation_completed'),NULL,1,'classify_degraded','active'),
-  ('repo.pr.reconcile_and_finalize',90,'emit_evidence','emit_evidence',NULL,'execution_log',NULL,NULL,1,'classify_degraded','active')
+  ('repo.pr.reconcile_and_finalize',10,'acquire_branch_lease','classify',NULL,NULL,'repository_operation_leases',
+    JSON_OBJECT('lease_mode','exclusive_mutation','ttl_seconds',900),NULL,1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',20,'reconcile_branch','installed_tool_call','acquire_branch_lease','admin_branch_reconcile',NULL,
+    JSON_OBJECT('mode','dry_run'),
+    JSON_OBJECT('base_ref_sha','evidence.base_ref_sha','branch_ref_sha','evidence.branch_ref_sha','changed_files','classification.changed_files'),
+    1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',30,'build_resolution_commit','engine_internal','reconcile_branch','github_detached_resolution_commit_create',NULL,
+    JSON_OBJECT(
+      'engine_key','repositoryDetachedResolutionBuilder',
+      'requires_exact_changed_file_blob_map',TRUE,
+      'force_push_allowed',FALSE,
+      'ref_update_allowed',FALSE
+    ),
+    JSON_OBJECT('resolution_commit_sha','resolution.commit_sha','resolution_tree_sha','resolution.tree_sha'),
+    1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',40,'create_merge_commit','engine_internal','build_resolution_commit','github_branch_merge_commit_create',NULL,
+    JSON_OBJECT(
+      'engine_key','adminBranchReconciliationAdapter',
+      'resolution_commit_source_step','build_resolution_commit',
+      'resolution_commit_source_path','resolution.commit_sha',
+      'force_push_allowed',FALSE
+    ),
+    JSON_OBJECT('merge_commit_sha','commit.sha','branch_sha','update.branch_sha'),
+    1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',50,'verify_branch','installed_tool_call','create_merge_commit','admin_branch_reconcile',NULL,
+    JSON_OBJECT('mode','dry_run'),
+    JSON_OBJECT('classification','classification.classification','behind_by','classification.behind_by','branch_ref_sha','evidence.branch_ref_sha'),
+    1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',60,'evaluate_ci','installed_tool_call','verify_branch','github_pr_ci_gate',NULL,
+    NULL,NULL,1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',70,'finalize_pr','installed_tool_call','evaluate_ci','github_pr_finalize',NULL,
+    NULL,NULL,1,'fail','active'),
+  ('repo.pr.reconcile_and_finalize',80,'release_branch_lease','classify','finalize_pr',NULL,'repository_operation_leases',
+    JSON_OBJECT('release_reason','reconciliation_completed'),NULL,1,'classify_degraded','active'),
+  ('repo.pr.reconcile_and_finalize',90,'emit_evidence','emit_evidence','release_branch_lease',NULL,'execution_log',
+    NULL,NULL,1,'classify_degraded','active')
 ON DUPLICATE KEY UPDATE
-  `step_kind`=VALUES(`step_kind`),`tool_key`=VALUES(`tool_key`),`source_table`=VALUES(`source_table`),
-  `body_template_json`=VALUES(`body_template_json`),`response_projection_json`=VALUES(`response_projection_json`),
-  `required`=VALUES(`required`),`on_error_policy`=VALUES(`on_error_policy`),`status`='active',`updated_at`=CURRENT_TIMESTAMP;
+  `step_kind`=VALUES(`step_kind`),`parent_action_key`=VALUES(`parent_action_key`),`tool_key`=VALUES(`tool_key`),
+  `source_table`=VALUES(`source_table`),`body_template_json`=VALUES(`body_template_json`),
+  `response_projection_json`=VALUES(`response_projection_json`),`required`=VALUES(`required`),
+  `on_error_policy`=VALUES(`on_error_policy`),`status`='active',`updated_at`=CURRENT_TIMESTAMP;
 
 INSERT INTO `execution_policies`
   (`policy_group`,`policy_key`,`policy_value`,`active`,`execution_scope`,`affects_layer`,`blocking`,`notes`)
@@ -113,13 +143,15 @@ VALUES (
     'orchestrator','repositoryReconciliationOrchestrator','lease_service','repositoryOperationLeaseService',
     'lease_table','repository_operation_leases','recipe_key','repo.pr.reconcile_and_finalize','recipe_status','planned',
     'replay_guard',JSON_ARRAY('plan_id_plan_item_id','idempotency_key'),
+    'engine_owned_steps',JSON_ARRAY('acquire_branch_lease','build_resolution_commit','create_merge_commit','release_branch_lease','emit_evidence'),
+    'provider_dispatch_rule','installed_tool_call_only',
     'requires',JSON_ARRAY('fresh_base_and_branch_sha','exclusive_branch_lease','capability_envelope','approval_hold','typed_confirmation','exact_resolution_scope','required_ci_checks','same_cycle_readback','audit'),
-    'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return'),
+    'forbidden',JSON_ARRAY('force_push','protected_branch_direct_write','caller_supplied_lease_authority','blind_retry_after_unknown_provider_outcome','migration_apply','automatic_recipe_activation','secret_return'),
     'secrets_included',FALSE
   ),
   'TRUE','repository_reconciliation|repo_mutation|pull_request_merge|branch_update',
-  'repositoryReconciliationOrchestrator|repositoryOperationLeaseService|repository_mutation_runs_v6|platform_resource_recipes',
-  'TRUE','The automation contract remains planned until separate certification and activation.'
+  'repositoryReconciliationOrchestrator|repositoryOperationLeaseService|repositoryDetachedResolutionBuilder|repository_mutation_runs_v6|platform_resource_recipes',
+  'TRUE','The automation contract remains planned until canonical authority wiring and positive smoke are separately certified.'
 )
 ON DUPLICATE KEY UPDATE
   `policy_value`=VALUES(`policy_value`),`active`=VALUES(`active`),
