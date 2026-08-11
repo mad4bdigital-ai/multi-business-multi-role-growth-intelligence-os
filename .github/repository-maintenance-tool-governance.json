@@ -53,6 +53,7 @@
         "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
         "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
         "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
+        "^specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration\\.json$",
         "^specs/018-environment-promotion-runtime-integrity/work-map-integration\\.json$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
