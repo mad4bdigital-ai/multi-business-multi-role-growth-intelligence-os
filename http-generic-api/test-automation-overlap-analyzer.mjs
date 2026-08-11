@@ -108,12 +108,14 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const workMapWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix.yml");
 const workMapRecoveryWorkflowPath = path.join(repoRoot, ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml");
 const docsAgentWorkflowPath = path.join(repoRoot, ".github/workflows/docs-agent.yml");
+const docsAgentMainFollowupWorkflowPath = path.join(repoRoot, ".github/workflows/docs-agent-main-followup.yml");
 const openapiAutoSyncWorkflowPath = path.join(repoRoot, ".github/workflows/openapi-auto-sync.yml");
 const surfaceContractWorkflowPath = path.join(repoRoot, ".github/workflows/surface-contract-auto-remediation.yml");
 const overlapPolicyPath = path.join(repoRoot, "http-generic-api/scripts/taxonomy/automation-overlap-policy.json");
 const workMapWorkflow = readFileSync(workMapWorkflowPath, "utf8");
 const workMapRecoveryWorkflow = readFileSync(workMapRecoveryWorkflowPath, "utf8");
 const docsAgentWorkflow = readFileSync(docsAgentWorkflowPath, "utf8");
+const docsAgentMainFollowupWorkflow = readFileSync(docsAgentMainFollowupWorkflowPath, "utf8");
 const openapiAutoSyncWorkflow = readFileSync(openapiAutoSyncWorkflowPath, "utf8");
 const surfaceContractWorkflow = readFileSync(surfaceContractWorkflowPath, "utf8");
 const overlapPolicy = JSON.parse(readFileSync(overlapPolicyPath, "utf8"));
@@ -144,13 +146,15 @@ assert.deepEqual(
     { path: ".github/workflows/openapi-auto-sync.yml", access: "write" },
     { path: ".github/workflows/surface-contract-auto-remediation.yml", access: "write" },
     { path: ".github/workflows/docs-agent.yml", access: "conditional_write" },
+    { path: ".github/workflows/docs-agent-main-followup.yml", access: "write" },
   ],
-  "Repository generated-artifact writers must remain fully registered in one governed resource group",
+  "Repository generated-artifact workflows must remain fully registered in one governed resource group",
 );
 for (const [workflowName, workflowSource] of [
   ["OpenAPI Auto Sync", openapiAutoSyncWorkflow],
   ["Surface Contract Auto Remediation", surfaceContractWorkflow],
   ["Docs Agent", docsAgentWorkflow],
+  ["Docs Agent Main Follow-up", docsAgentMainFollowupWorkflow],
 ]) {
   assert(
     workflowSource.includes(`group: ${expectedRepositoryGeneratedConcurrency}`),
@@ -158,13 +162,40 @@ for (const [workflowName, workflowSource] of [
   );
   assert(
     workflowSource.includes("cancel-in-progress: false"),
-    `${workflowName} must not cancel in-progress generated-artifact mutations`,
+    `${workflowName} must not cancel in-progress generated-artifact work`,
   );
   assert(
     workflowSource.includes("queue: max"),
     `${workflowName} must allow multiple pending generated-artifact runs instead of replacing older pending work`,
   );
 }
+
+assert(
+  docsAgentWorkflow.includes("pull_request:") && !docsAgentWorkflow.includes("contents: write"),
+  "Docs Agent PR preview must remain read-only",
+);
+assert(
+  !docsAgentWorkflow.includes("gpt/no-docs-agent/"),
+  "Docs Agent preview opt-out must be label-governed rather than branch-name-governed",
+);
+for (const [workflowName, workflowSource] of [
+  ["OpenAPI Auto Sync", openapiAutoSyncWorkflow],
+  ["Surface Contract Auto Remediation", surfaceContractWorkflow],
+  ["Docs Agent Main Follow-up", docsAgentMainFollowupWorkflow],
+]) {
+  assert(workflowSource.includes("workflow_dispatch:"), `${workflowName} must expose an explicit governed writer dispatch`);
+  assert(workflowSource.includes("expected_head_sha"), `${workflowName} must require an exact expected head SHA`);
+  assert(workflowSource.includes("git rev-parse HEAD"), `${workflowName} must verify the checked-out exact head`);
+  assert(workflowSource.includes("main|Production"), `${workflowName} must reject protected target branches before mutation`);
+}
+assert(
+  !openapiAutoSyncWorkflow.includes("pull_request:"),
+  "OpenAPI Auto Sync must not retain pull-request-triggered repository mutation",
+);
+assert(
+  !openapiAutoSyncWorkflow.includes("chore/repo-contract-auto-sync-"),
+  "OpenAPI Auto Sync must not embed the retired work-branch prefix",
+);
 
 assert(workMapResourceGroup, "Work Map generated-artifact resource group must remain registered");
 assert.equal(
