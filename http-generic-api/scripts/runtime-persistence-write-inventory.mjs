@@ -8,8 +8,14 @@ const API_ROOT = path.resolve(path.dirname(__filename), "..");
 const TARGET_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts"]);
 const EXCLUDED_DIRS = new Set(["node_modules", "coverage", "dist", "build", ".next"]);
 
+export const RUNTIME_PERSISTENCE_DB_BINDING = "DB_USER/getPool";
+export const GOVERNANCE_CONTROL_DB_BINDING = "GOVERNANCE_DB_USER/getGovernancePool";
+export const UNKNOWN_DB_BINDING = "unknown/db.js";
+
 const MUTATION_PATTERN = /\b(INSERT(?:\s+IGNORE)?\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM|CREATE\s+(?:TABLE|INDEX|VIEW|TRIGGER|DATABASE|USER)|ALTER\s+TABLE|DROP\s+(?:TABLE|INDEX|VIEW|TRIGGER|DATABASE|USER)|TRUNCATE\s+TABLE|RENAME\s+TABLE|GRANT|REVOKE)\s+([`"'${}A-Za-z0-9_.-]+)?/giu;
-const DB_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?db\.js["']|require\(\s*["'][^"']*\/?db\.js["']\s*\)|\bgetPool\s*\(|from\s+["'][^"']*\/runtimePersistenceWriteAuthority\.js["']|\bresolveRuntimePersistenceExecutor\s*\()/u;
+const SOURCE_DB_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?(?:db|governanceDb)\.js["']|require\(\s*["'][^"']*\/?(?:db|governanceDb)\.js["']\s*\)|\bgetPool\s*\(|\bgetGovernancePool\s*\(|from\s+["'][^"']*\/runtimePersistenceWriteAuthority\.js["']|\bresolveRuntimePersistenceExecutor\s*\()/u;
+const RUNTIME_SOURCE_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?db\.js["']|require\(\s*["'][^"']*\/?db\.js["']\s*\)|\bgetPool\s*\(|from\s+["'][^"']*\/runtimePersistenceWriteAuthority\.js["']|\bresolveRuntimePersistenceExecutor\s*\()/u;
+const GOVERNANCE_SOURCE_BINDING_PATTERN = /(?:from\s+["'][^"']*\/?governanceDb\.js["']|require\(\s*["'][^"']*\/?governanceDb\.js["']\s*\)|\bgetGovernancePool\s*\()/u;
 const TEST_FILE_PATTERN = /(?:^|\/)test[^/]*\.(?:mjs|js|cjs|ts)$/u;
 
 const MIGRATION_ADMIN_PATH_PATTERNS = [
@@ -91,6 +97,75 @@ function isOnDuplicateKeyUpdate(source, offset, operation) {
   return /ON\s+DUPLICATE\s+KEY\s*$/u.test(prefix);
 }
 
+function escapeRegExp(value = "") {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function nearestSqlExecutor(source = "", offset = 0) {
+  const start = Math.max(0, offset - 800);
+  const prefix = source.slice(start, offset);
+  const pattern = /((?:[A-Za-z_$][A-Za-z0-9_$]*\s*\([^)]*\))|[A-Za-z_$][A-Za-z0-9_$]*)\s*\.\s*(?:query|execute)\s*\(/gu;
+  let last = null;
+  for (const match of prefix.matchAll(pattern)) last = match;
+  if (!last) return null;
+  const absoluteIndex = start + (last.index || 0);
+  const distance = offset - (absoluteIndex + last[0].length);
+  if (distance < 0 || distance > 600) return null;
+  return {
+    token: String(last[1] || "").replace(/\s+/gu, ""),
+    query_call_index: absoluteIndex,
+    mutation_distance: distance,
+  };
+}
+
+function lastNamedBindingIndex(source, executorName, calleeName, offset) {
+  const prefix = source.slice(0, offset);
+  const pattern = new RegExp(
+    `\\b${escapeRegExp(executorName)}\\s*=\\s*[^;]{0,320}\\b${escapeRegExp(calleeName)}\\s*\\(`,
+    "gu",
+  );
+  let last = -1;
+  for (const match of prefix.matchAll(pattern)) last = match.index ?? last;
+  return last;
+}
+
+export function classifyRuntimeSqlMutationBinding({ source = "", mutationOffset = 0 } = {}) {
+  const executor = nearestSqlExecutor(source, mutationOffset);
+  if (!executor) return null;
+
+  const directName = executor.token.match(/^([A-Za-z_$][A-Za-z0-9_$]*)\(/u)?.[1] || "";
+  if (directName === "getGovernancePool") {
+    return { db_binding: GOVERNANCE_CONTROL_DB_BINDING, reason: "direct_get_governance_pool_query" };
+  }
+  if (["getPool", "resolveRuntimePersistenceExecutor", "executor"].includes(directName)) {
+    return { db_binding: RUNTIME_PERSISTENCE_DB_BINDING, reason: "direct_runtime_pool_query" };
+  }
+
+  if (!directName) {
+    const governanceIndex = lastNamedBindingIndex(source, executor.token, "getGovernancePool", mutationOffset);
+    const runtimeIndex = lastNamedBindingIndex(source, executor.token, "getPool", mutationOffset);
+    if (governanceIndex >= 0 || runtimeIndex >= 0) {
+      if (governanceIndex > runtimeIndex) {
+        return { db_binding: GOVERNANCE_CONTROL_DB_BINDING, reason: "named_executor_bound_to_get_governance_pool" };
+      }
+      return { db_binding: RUNTIME_PERSISTENCE_DB_BINDING, reason: "named_executor_bound_to_get_pool" };
+    }
+    if (/governance/iu.test(executor.token)) {
+      return { db_binding: GOVERNANCE_CONTROL_DB_BINDING, reason: "governance_named_executor" };
+    }
+  }
+
+  const hasRuntimeBinding = RUNTIME_SOURCE_BINDING_PATTERN.test(source);
+  const hasGovernanceBinding = GOVERNANCE_SOURCE_BINDING_PATTERN.test(source);
+  if (hasRuntimeBinding && !hasGovernanceBinding) {
+    return { db_binding: RUNTIME_PERSISTENCE_DB_BINDING, reason: "runtime_only_source_binding" };
+  }
+  if (hasGovernanceBinding && !hasRuntimeBinding) {
+    return { db_binding: GOVERNANCE_CONTROL_DB_BINDING, reason: "governance_only_source_binding" };
+  }
+  return { db_binding: UNKNOWN_DB_BINDING, reason: "mixed_source_binding_unresolved_executor" };
+}
+
 export function classifyRuntimeSqlMutation({ file, operation }) {
   if (MIGRATION_ADMIN_PATH_PATTERNS.some((pattern) => pattern.test(file))) {
     return {
@@ -128,12 +203,14 @@ async function walk(dir, out = []) {
 }
 
 export function inventorySourceFile({ source, file }) {
-  if (!DB_BINDING_PATTERN.test(source) || TEST_FILE_PATTERN.test(file)) return [];
+  if (!SOURCE_DB_BINDING_PATTERN.test(source) || TEST_FILE_PATTERN.test(file)) return [];
   const constants = collectStringConstants(source);
   const rows = [];
   for (const match of source.matchAll(MUTATION_PATTERN)) {
     const operation = normalizeOperation(match[1]);
     if (isOnDuplicateKeyUpdate(source, match.index || 0, operation)) continue;
+    const binding = classifyRuntimeSqlMutationBinding({ source, mutationOffset: match.index || 0 });
+    if (!binding) continue;
     const table = normalizeTableToken(match[2], constants);
     const { classification, reason } = classifyRuntimeSqlMutation({ file, operation, table });
     rows.push({
@@ -143,7 +220,9 @@ export function inventorySourceFile({ source, file }) {
       table,
       classification,
       classification_reason: reason,
-      db_binding: "getPool/db.js",
+      db_binding: binding.db_binding,
+      db_binding_reason: binding.reason,
+      db_user_inventory: binding.db_binding === RUNTIME_PERSISTENCE_DB_BINDING,
       static_source_inventory: true,
     });
   }
@@ -153,7 +232,7 @@ export function inventorySourceFile({ source, file }) {
 function dedupeRows(rows) {
   const seen = new Set();
   return rows.filter((row) => {
-    const key = `${row.file}:${row.line}:${row.operation}:${row.table}:${row.classification}`;
+    const key = `${row.file}:${row.line}:${row.operation}:${row.table}:${row.classification}:${row.db_binding}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -163,6 +242,7 @@ function dedupeRows(rows) {
 function summarize(rows) {
   const byClassification = {};
   const byOperation = {};
+  const byDbBinding = {};
   const files = new Set();
   const tables = new Set();
   for (const row of rows) {
@@ -170,6 +250,7 @@ function summarize(rows) {
     tables.add(row.table);
     byClassification[row.classification] = (byClassification[row.classification] || 0) + 1;
     byOperation[row.operation] = (byOperation[row.operation] || 0) + 1;
+    byDbBinding[row.db_binding] = (byDbBinding[row.db_binding] || 0) + 1;
   }
   return {
     mutation_surface_count: rows.length,
@@ -177,6 +258,7 @@ function summarize(rows) {
     table_token_count: tables.size,
     by_classification: byClassification,
     by_operation: byOperation,
+    by_db_binding: byDbBinding,
   };
 }
 
@@ -190,24 +272,40 @@ export async function buildRuntimePersistenceWriteInventory({ apiRoot = API_ROOT
   }
   const inventory = dedupeRows(rows).sort((a, b) =>
     a.file.localeCompare(b.file) || a.line - b.line || a.operation.localeCompare(b.operation));
+  const dbUserInventory = inventory.filter((row) => row.db_binding === RUNTIME_PERSISTENCE_DB_BINDING);
+  const governanceDbInventory = inventory.filter((row) => row.db_binding === GOVERNANCE_CONTROL_DB_BINDING);
   return {
     contract: "mad4b.runtime-persistence-write-inventory.v1",
+    binding_contract: "mad4b.runtime-persistence-write-inventory-binding.v1",
     root: "http-generic-api",
-    scope: "getPool()/db.js-backed SQL mutation surfaces, including the canonical runtime persistence executor",
+    scope: "SQL mutation surfaces directly issued through db.js/getPool(), runtimePersistenceWriteAuthority, or governanceDb.js/getGovernancePool(); DB_USER inventory is the runtime-binding subset only",
     classification_values: [
       "ordinary business/runtime persistence",
       "governance/control-plane",
       "migration/DDL/admin",
     ],
-    summary: summarize(inventory),
+    db_binding_values: [
+      RUNTIME_PERSISTENCE_DB_BINDING,
+      GOVERNANCE_CONTROL_DB_BINDING,
+      UNKNOWN_DB_BINDING,
+    ],
+    summary: {
+      ...summarize(inventory),
+      db_user_mutation_surface_count: dbUserInventory.length,
+      governance_db_mutation_surface_count: governanceDbInventory.length,
+    },
     inventory,
+    db_user_inventory: dbUserInventory,
+    governance_db_inventory: governanceDbInventory,
     notes: [
       "Static inventory excludes test files and third-party/build directories.",
+      "Each SQL mutation is bound to its nearest direct query/execute executor before DB_USER membership is decided.",
       "Dynamic table expressions are retained as dynamic tokens rather than guessed.",
       "Surfaces routed through runtimePersistenceWriteAuthority.js remain part of the DB_USER-backed inventory after refactoring away from direct getPool() calls.",
-      "Known migration/admin paths take precedence, then governance/control-plane ownership paths, then SQL operation classification; this prevents authority/grant terminology in control-plane source from being misclassified as DB DDL.",
+      "getGovernancePool()-backed writes remain visible as governance/control-plane evidence but are excluded from db_user_inventory.",
+      "Known migration/admin paths take precedence, then governance/control-plane ownership paths, then SQL operation classification; semantic classification is independent from credential binding.",
       "ON DUPLICATE KEY UPDATE clauses are represented by their parent INSERT surface, not double-counted as standalone UPDATE tables.",
-      "platformResourceAuthorityGrantTool.js is inventoried/classified but this window does not modify it.",
+      "platformResourceAuthorityGrantTool.js remains visible in the full inventory but is not required in the DB_USER write inventory.",
       "The inventory is source evidence only; live grants, Production SQL, and secret mutation are outside this command.",
     ],
     secrets_included: false,
@@ -218,13 +316,13 @@ function renderMarkdown(report) {
   const lines = [
     "# Runtime Persistence SQL Mutation Inventory",
     "",
-    `Surfaces: ${report.summary.mutation_surface_count}; files: ${report.summary.file_count}; table tokens: ${report.summary.table_token_count}.`,
+    `Surfaces: ${report.summary.mutation_surface_count}; DB_USER: ${report.summary.db_user_mutation_surface_count}; governance DB: ${report.summary.governance_db_mutation_surface_count}; files: ${report.summary.file_count}; table tokens: ${report.summary.table_token_count}.`,
     "",
-    "| File | Line | Operation | Table | Classification |",
-    "|---|---:|---|---|---|",
+    "| File | Line | Operation | Table | Classification | DB binding |",
+    "|---|---:|---|---|---|---|",
   ];
   for (const row of report.inventory) {
-    lines.push(`| \`${row.file}\` | ${row.line} | ${row.operation} | \`${row.table}\` | ${row.classification} |`);
+    lines.push(`| \`${row.file}\` | ${row.line} | ${row.operation} | \`${row.table}\` | ${row.classification} | \`${row.db_binding}\` |`);
   }
   lines.push("", "No live SQL or credential values are included.");
   return `${lines.join("\n")}\n`;
