@@ -23,7 +23,9 @@ Missing governance user/password fails closed with `GOVERNANCE_DB_CONFIG_MISSING
 ## Reader / writer boundary
 
 - Runtime reader (`getPool()`): repository/resource authority resolution and other non-mutating runtime reads.
-- Governance writer (`getGovernancePool()`): envelope creation/approval/apply-authorization, governed migration authorization/policy/certification writes, standalone lifecycle mutations, and same-cycle governance readback.
+- Governance writer (`getGovernancePool()`): envelope creation/approval/apply-authorization, governed migration authorization/policy/certification writes, **platform resource-authority binding creation**, standalone lifecycle mutations, and same-cycle governance readback.
+- `platform_resource_authority_bindings` is an authority/control-plane registry, not ordinary business persistence. Runtime consumers may resolve active bindings through the ordinary reader, but creation of a binding changes which principal may mutate an external resource and therefore must use the dedicated Governance writer.
+- Both current binding-creation surfaces — `applyPlatformResourceAuthorityGrant()` and `createRepositoryMutationAuthorityBindingV6()` — keep validation/existing-binding reads on the runtime reader and use the Governance writer only for `INSERT` plus exact same-cycle binding readback. Neither accepts `DB_USER`/`DB_PASSWORD` as implicit write authority.
 - Execution transaction exception: when a business mutation already holds an **actual SQL connection with transaction primitives** (`beginTransaction`, `commit`, and `rollback`), lifecycle/reference consumption may reuse that explicit connection so envelope state and the business mutation remain atomic. A general pool exposing `getConnection()` does not qualify and is never promoted into mutation authority.
 - Legacy `pool` compatibility is therefore structural and narrow: it is honored only for an already-open transaction connection. A broad runtime pool is ignored for lifecycle-writer selection and the dedicated Governance writer is used instead.
 - An explicitly supplied `transactionPool` that is not an actual transaction connection fails closed with `CAPABILITY_ENVELOPE_LIFECYCLE_TRANSACTION_INVALID` and no secret-bearing details.
@@ -61,6 +63,9 @@ The initial Governance writer principal must be table-scoped. The reviewed minim
 | `capability_apply_authorization_policy_registry` | `SELECT, INSERT, UPDATE` |
 | `runtime_dispatch_certification_registry` | `SELECT, INSERT, UPDATE` |
 | `governed_migration_ledger` | `SELECT` |
+| `platform_resource_authority_bindings` | `SELECT, INSERT` |
+
+`SELECT` on `platform_resource_authority_bindings` is required only for same-cycle exact writer readback after creation; runtime binding resolution continues through the ordinary read identity. `UPDATE` and `DELETE` are intentionally absent because no current runtime binding-creation path requires them.
 
 Do **not** grant `GRANT ALL`, schema-wide write privileges, `DROP`, `ALTER`, `CREATE`, `DELETE`, `FILE`, `PROCESS`, `SUPER`, account-management authority, or equivalent administrative privileges unless a later separately reviewed contract proves a need.
 
@@ -72,7 +77,7 @@ Source merge is only a prerequisite. Issue #6813 remains open until all of the f
 
 1. Pass the no-secret Governance Production environment-authority preflight.
 2. Create a dedicated MariaDB principal outside the application runtime.
-3. Apply only the reviewed table/operation matrix.
+3. Apply only the reviewed table/operation matrix, including `SELECT, INSERT` on `platform_resource_authority_bindings` if not already present.
 4. Configure `GOVERNANCE_DB_*` Production secrets without exposing values.
 5. Promote the merged source through the normal `main -> Production` lifecycle and prove runtime parity.
 6. Run a bounded no-secret readiness probe that proves required operations are available and prohibited broad privileges are absent.
@@ -90,6 +95,10 @@ Repository CI must prove at minimum:
 - Production preflight rejects any Environment Authority whose production branch or promotion target is not exactly `Production`;
 - Production preflight returns no usernames or password values and performs no database connection or mutation;
 - canonical envelope creation writes through `writerPool` while repository authority reads remain on `readPool`;
+- both resource-authority binding creation surfaces write and read back through the Governance writer while ordinary binding lookup remains on the runtime reader;
+- a generic runtime pool cannot be supplied as implicit resource-authority mutation authority;
+- resource-authority same-cycle readback verifies the exact binding target and principal/scope before success is returned;
+- the Governance privilege contract allows only `SELECT, INSERT` on `platform_resource_authority_bindings` and rejects `UPDATE`/`DELETE` as broadening;
 - approval/apply-authorization and migration bootstrap select the dedicated writer by default;
 - a general runtime pool cannot become lifecycle mutation authority merely because a caller supplied it as `pool`;
 - only an already-open SQL transaction connection may preserve envelope lifecycle/reference atomicity, and an invalid explicit `transactionPool` fails closed;
