@@ -146,6 +146,7 @@ jobs:
 
           git cat-file -e "${expected_base_sha}^{commit}"
           git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"
+          git config core.quotePath false
           git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}" \
             | sort -u > "${immutable_target_pr_files}"
           immutable_changed_files="$(wc -l < "${immutable_target_pr_files}" | tr -d '[:space:]')"
