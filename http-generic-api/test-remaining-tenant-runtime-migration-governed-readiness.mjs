@@ -16,7 +16,7 @@ const [workflow, script, migration, manifest] = await Promise.all([
 ]);
 
 const token = 'AUTHORIZE_GOVERNED_MIGRATION_20260810_REMAINING_TENANT_RUNTIME_LIFECYCLE_GAP_CLOSURE';
-const productionSha = '9ed415e324d8d5187b2c29bdf16aaf77187f0333';
+const productionSha = '6957f56ead3f720767957dbb7b9b213cc54ed04e';
 const sourceMergeSha = 'c4c044c75c138f53b4f90cefdc4879cfd472b82c';
 const expectedChecksum = '355a4a375a12c50b19ad96299e9b95c67b83bd4835a86832e771824bd2a8ccb0';
 const expectedBlobSha = 'dfd207c5aeba248b25f9db023e324f904b1e5a39';

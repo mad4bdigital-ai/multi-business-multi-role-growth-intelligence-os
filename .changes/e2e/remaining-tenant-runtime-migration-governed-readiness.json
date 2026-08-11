@@ -35,7 +35,7 @@
           "steps": [
             "Require issue 6871, the exact canonical migration authorization token, and OWNER, MEMBER, or COLLABORATOR association before the readiness job can start.",
             "Require source PR 6851 merge identity, exact migration Git blob SHA, SHA-256 checksum, and executable statement count to remain pinned.",
-            "Require protected Production plus public /health, /version, /deployment-info and /connector-agent/version readbacks to equal 9ed415e324d8d5187b2c29bdf16aaf77187f0333.",
+            "Require protected Production plus public /health, /version, /deployment-info and /connector-agent/version readbacks to equal 6957f56ead3f720767957dbb7b9b213cc54ed04e.",
             "Re-read protected Production immediately before authorization mutation and fail closed on drift.",
             "Create or approve a short-lived capability resolution envelope scoped to governed_migration_authorization_bootstrap and the exact migration resource binding.",
             "Use the canonical governed migration authorization bootstrap with executor readiness mode ensure, then durably verify exactly one checksum/source-bound authorization row.",

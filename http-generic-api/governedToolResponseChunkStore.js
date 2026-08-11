@@ -1,9 +1,5 @@
 import crypto from "node:crypto";
-import {
-  assertRuntimePersistenceWriteAuthority,
-  invalidateRuntimePersistencePrivilegeReadiness,
-  resolveRuntimePersistenceExecutor,
-} from "./runtimePersistenceWriteAuthority.js";
+import { getPool } from "./db.js";
 import {
   canAccessGovernedResponseChunk,
   governedResponseChunkOwnerFields,
@@ -61,7 +57,7 @@ function assertChunkId(chunkId) {
 }
 
 function executor(deps = {}) {
-  return resolveRuntimePersistenceExecutor(deps);
+  return deps.pool || deps.connection || getPool();
 }
 
 function schemaReadinessCacheKey(deps = {}) {
@@ -76,36 +72,6 @@ function schemaReadinessCacheKey(deps = {}) {
 export function invalidateGovernedResponseChunkSchemaReadiness(deps = {}) {
   const key = schemaReadinessCacheKey(deps);
   return key ? governedResponseChunkSchemaReadyCache.delete(key) : false;
-}
-
-function invalidateGovernedResponseChunkPersistenceReadiness(deps = {}) {
-  invalidateGovernedResponseChunkSchemaReadiness(deps);
-  invalidateRuntimePersistencePrivilegeReadiness(deps);
-}
-
-async function assertGovernedResponseChunkPersistenceAuthority(
-  deps = {},
-  operation = "response_chunk_store",
-  requiredOperations = [],
-) {
-  try {
-    return await assertRuntimePersistenceWriteAuthority({
-      table: GOVERNED_RESPONSE_CHUNK_TABLE,
-      requiredOperations,
-    }, deps);
-  } catch (cause) {
-    throw responseChunkError(
-      "response_chunk_persistence_unavailable",
-      "The durable response chunk store DB authority is not ready.",
-      503,
-      {
-        cause_code: cause?.code || "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
-        operation,
-        authority_contract: cause?.details?.contract || "mad4b.runtime-persistence-write-authority.v1",
-        secrets_included: false,
-      },
-    );
-  }
 }
 
 export async function inspectGovernedResponseChunkSchema(deps = {}) {
@@ -190,7 +156,6 @@ function principalFor(input = {}) {
 
 async function readChunkVerificationRow(chunkId, deps = {}) {
   await assertGovernedResponseChunkSchema(deps, "read_verification");
-  await assertGovernedResponseChunkPersistenceAuthority(deps, "read_verification", ["SELECT"]);
   try {
     const [rows] = await executor(deps).query(
       `SELECT chunk_id, response_sha256, owner_tenant_id, owner_user_id, owner_workspace_id,
@@ -200,14 +165,13 @@ async function readChunkVerificationRow(chunkId, deps = {}) {
     );
     return rows?.[0] || null;
   } catch (cause) {
-    invalidateGovernedResponseChunkPersistenceReadiness(deps);
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }
 
 export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
   await assertGovernedResponseChunkSchema(deps, "persist");
-  await assertGovernedResponseChunkPersistenceAuthority(deps, "persist", ["SELECT", "INSERT", "UPDATE"]);
   const chunkId = assertChunkId(input.chunkId || input.chunk_id);
   const serialized = typeof input.serialized === "string" ? input.serialized : "";
   const ttlMs = positiveInteger(input.ttlMs || input.ttl_ms);
@@ -279,7 +243,7 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
       ]
     );
   } catch (cause) {
-    invalidateGovernedResponseChunkPersistenceReadiness(deps);
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 
@@ -300,7 +264,6 @@ export async function persistGovernedToolResponseChunk(input = {}, deps = {}) {
 
 export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
   await assertGovernedResponseChunkSchema(deps, "load");
-  await assertGovernedResponseChunkPersistenceAuthority(deps, "load", ["SELECT"]);
   const chunkId = assertChunkId(input.chunkId || input.chunk_id);
   const principal = principalFor(input);
   if (!principal) return null;
@@ -316,7 +279,7 @@ export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
       [chunkId]
     );
   } catch (cause) {
-    invalidateGovernedResponseChunkPersistenceReadiness(deps);
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 
@@ -365,7 +328,6 @@ export async function loadGovernedToolResponseChunk(input = {}, deps = {}) {
 
 export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {}) {
   await assertGovernedResponseChunkSchema(deps, "extend_expiry");
-  await assertGovernedResponseChunkPersistenceAuthority(deps, "extend_expiry", ["UPDATE"]);
   const chunkId = assertChunkId(input.chunkId || input.chunk_id);
   const ttlMs = positiveInteger(input.ttlMs || input.ttl_ms);
   if (!ttlMs) throw responseChunkError("response_chunk_invalid_ttl", "A positive chunk TTL is required.", 400);
@@ -408,14 +370,12 @@ export async function extendGovernedToolResponseChunkExpiry(input = {}, deps = {
       secrets_included: false,
     };
   } catch (cause) {
-    invalidateGovernedResponseChunkPersistenceReadiness(deps);
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_persistence_unavailable", "The durable response chunk store is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }
 
 export async function deleteExpiredGovernedToolResponseChunks(input = {}, deps = {}) {
-  await assertGovernedResponseChunkSchema(deps, "cleanup_expired");
-  await assertGovernedResponseChunkPersistenceAuthority(deps, "cleanup_expired", ["DELETE"]);
   const limit = Math.min(Math.max(positiveInteger(input.limit, 500), 1), 5000);
   try {
     const [result] = await executor(deps).query(
@@ -426,7 +386,7 @@ export async function deleteExpiredGovernedToolResponseChunks(input = {}, deps =
     );
     return { deleted_count: Number(result?.affectedRows || 0), limit, secrets_included: false };
   } catch (cause) {
-    invalidateGovernedResponseChunkPersistenceReadiness(deps);
+    invalidateGovernedResponseChunkSchemaReadiness(deps);
     throw responseChunkError("response_chunk_cleanup_unavailable", "Expired response chunk cleanup is unavailable.", 503, { cause_code: cause?.code || null });
   }
 }

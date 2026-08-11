@@ -2,47 +2,48 @@ import { Router } from "express";
 import {
   TENANT_GPT_ACTIVATION_RESOURCE,
   TENANT_GPT_AUTHORIZATION_SERVER,
-  TENANT_GPT_CORE_RESOURCE,
+  normalizeTenantGptRequestHost,
 } from "../tenantGptOAuthResourceProfile.js";
 import { TENANT_GPT_SCOPE_LINKS } from "../tenantGptOAuthPreset.js";
 import {
   buildRemoteMcpProtectedResourceMetadata,
   remoteMcpEnabled,
+  resolveRemoteMcpResource,
 } from "../remoteMcpConnectorRuntime.js";
 import {
   REMOTE_MCP_SCOPES,
-  remoteMcpDynamicClientRegistrationAdvertised,
+  envFlag,
+  remoteMcpDynamicClientRegistrationEnabled,
   remoteMcpOAuthEnabled,
+  resolveRemoteMcpAllowedRedirectOrigins,
   resolveRemoteMcpAuthorizationIssuer,
 } from "../remoteMcpOAuthProfile.js";
-import {
-  resolveRemoteMcpConfiguredHost,
-  resolveRemoteMcpEffectiveRequestHost,
-} from "../remoteMcpRequestHost.js";
 import {
   buildTenantGptOAuthTokenExchangeDeps,
   buildTenantGptOAuthTokenRequestBindingGuard,
 } from "../tenantGptOAuthTokenExchangeBindingGuard.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./tenantGptOAuthTokenExchangeRoutes.js";
 
-function resourceHost(resource) {
+function requestHost(req) {
+  return normalizeTenantGptRequestHost(
+    req.headers?.["x-original-host"]
+      || req.headers?.["x-forwarded-host"]
+      || req.headers?.host,
+  );
+}
+
+function configuredMcpHost(env) {
   try {
-    return new URL(resource).hostname.toLowerCase();
+    return new URL(resolveRemoteMcpResource(env)).hostname.toLowerCase();
   } catch {
     return "";
   }
 }
 
-function tenantProtectedResourceMetadata(resource) {
-  return {
-    resource,
-    authorization_servers: [TENANT_GPT_AUTHORIZATION_SERVER],
-    scopes_supported: TENANT_GPT_SCOPE_LINKS,
-    bearer_methods_supported: ["header"],
-    ...(resource === TENANT_GPT_ACTIVATION_RESOURCE
-      ? { resource_documentation: "https://activation.mad4b.com/tenant-gpt/activation-openapi" }
-      : {}),
-  };
+function remoteMcpDcrAdvertised(env) {
+  if (!remoteMcpDynamicClientRegistrationEnabled(env)) return false;
+  return resolveRemoteMcpAllowedRedirectOrigins(env).size > 0
+    || envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
 }
 
 function remoteMcpAuthorizationServerMetadata(env) {
@@ -51,7 +52,7 @@ function remoteMcpAuthorizationServerMetadata(env) {
     issuer,
     authorization_endpoint: `${issuer}/oauth/authorize`,
     token_endpoint: `${issuer}/oauth/token`,
-    ...(remoteMcpDynamicClientRegistrationAdvertised(env)
+    ...(remoteMcpDcrAdvertised(env)
       ? { registration_endpoint: `${issuer}/oauth/register` }
       : {}),
     revocation_endpoint: `${issuer}/oauth/revoke`,
@@ -62,14 +63,6 @@ function remoteMcpAuthorizationServerMetadata(env) {
     scopes_supported: [...REMOTE_MCP_SCOPES],
     resource_parameter_supported: true,
   };
-}
-
-function notFound(res, code) {
-  return res.status(404).json({
-    ok: false,
-    error: { code, message: "Not found." },
-    secrets_included: false,
-  });
 }
 
 export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
@@ -88,7 +81,13 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   // authority decision while still serving the exact issuer-derived URL.
   router.use("/.well-known/oauth-authorization-server", (req, res, next) => {
     if (req.method !== "GET" || req.path !== "/auth/mcp") return next();
-    if (!remoteMcpOAuthEnabled(env)) return notFound(res, "MCP_OAUTH_DISABLED");
+    if (!remoteMcpOAuthEnabled(env)) {
+      return res.status(404).json({
+        ok: false,
+        error: { code: "MCP_OAUTH_DISABLED", message: "Not found." },
+        secrets_included: false,
+      });
+    }
     res.setHeader("Cache-Control", "public, max-age=300");
     return res.status(200).json(remoteMcpAuthorizationServerMetadata(env));
   });
@@ -109,25 +108,26 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   });
 
   router.get("/.well-known/oauth-protected-resource", (req, res) => {
-    const requestHost = resolveRemoteMcpEffectiveRequestHost(req, env);
-    if (!requestHost) return notFound(res, "OAUTH_RESOURCE_NOT_FOUND");
-
-    const mcpHost = resolveRemoteMcpConfiguredHost(env);
-    if (mcpHost && requestHost === mcpHost) {
-      if (!remoteMcpEnabled(env) && !remoteMcpOAuthEnabled(env)) return notFound(res, "MCP_DISABLED");
+    const mcpHost = configuredMcpHost(env);
+    if (mcpHost && requestHost(req) === mcpHost) {
+      if (!remoteMcpEnabled(env)) {
+        return res.status(404).json({
+          ok: false,
+          error: { code: "MCP_DISABLED", message: "Not found." },
+          secrets_included: false,
+        });
+      }
       res.setHeader("Cache-Control", "public, max-age=300");
       return res.status(200).json(buildRemoteMcpProtectedResourceMetadata(env));
     }
 
-    if (requestHost === resourceHost(TENANT_GPT_CORE_RESOURCE)) {
-      return res.status(200).json(tenantProtectedResourceMetadata(TENANT_GPT_CORE_RESOURCE));
-    }
-
-    if (requestHost === resourceHost(TENANT_GPT_ACTIVATION_RESOURCE)) {
-      return res.status(200).json(tenantProtectedResourceMetadata(TENANT_GPT_ACTIVATION_RESOURCE));
-    }
-
-    return notFound(res, "OAUTH_RESOURCE_NOT_FOUND");
+    return res.status(200).json({
+      resource: TENANT_GPT_ACTIVATION_RESOURCE,
+      authorization_servers: [TENANT_GPT_AUTHORIZATION_SERVER],
+      scopes_supported: TENANT_GPT_SCOPE_LINKS,
+      bearer_methods_supported: ["header"],
+      resource_documentation: "https://activation.mad4b.com/tenant-gpt/activation-openapi",
+    });
   });
 
   return router;

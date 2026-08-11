@@ -101,12 +101,6 @@ export function resolveRemoteMcpAllowedRedirectOrigins(env = process.env) {
   return new Set(origins);
 }
 
-export function remoteMcpDynamicClientRegistrationAdvertised(env = process.env) {
-  if (!remoteMcpDynamicClientRegistrationEnabled(env)) return false;
-  return resolveRemoteMcpAllowedRedirectOrigins(env).size > 0
-    || envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
-}
-
 export function remoteMcpDynamicRedirectUriAllowed(value, env = process.env) {
   const normalized = normalizeRemoteMcpRedirectUri(value, env);
   if (!normalized) return false;

@@ -35,8 +35,6 @@ const staticDiscoveryCommands = [
   "node test-capability-assurance-graph.mjs",
   "node test-capability-envelope-template-resolver.mjs",
   "node test-chatgpt-mcp-metadata-routing.mjs",
-  "node test-remote-mcp-host-isolation.mjs",
-  "node test-remote-mcp-readiness.mjs",
   "node test-chatgpt-mcp-readonly-runtime.mjs",
   "node test-cms-authority-reconciliation.mjs",
   "node test-remote-mcp-multi-client-profiles.mjs",
