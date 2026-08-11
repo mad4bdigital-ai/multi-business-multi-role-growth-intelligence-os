@@ -87,7 +87,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-migration-dependency-gate.yml`
 - `.github/workflows/governed-production-candidate-dispatch-bridge.yml`
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
-- `.github/workflows/governed-production-candidate-dispatch-request-dispatcher.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml`
@@ -157,6 +156,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
+- `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
