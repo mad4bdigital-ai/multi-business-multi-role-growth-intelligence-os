@@ -30,17 +30,17 @@ on:
       - "docs/**/*.md"
       - "canonicals/**/*.md"
       - "*.md"
-  pull_request:
-    branches:
-      - main
-    types:
-      - closed
   workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA to synchronize
+        required: true
+        type: string
 
 permissions:
   actions: write
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
@@ -48,20 +48,66 @@ concurrency:
   queue: max
 
 jobs:
-  repo-contract-sync:
+  dispatch-exact-main:
+    name: Dispatch exact main synchronization
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    if: >-
-      (github.event_name == 'push' &&
-       github.ref_name == 'main' &&
-       github.actor != 'github-actions[bot]') ||
-      (github.event_name == 'workflow_dispatch' &&
-       github.ref_name == 'main')
-
+    permissions:
+      actions: write
+      contents: read
     steps:
-      - name: Checkout repository
+      - name: Resolve live main and dispatch exact writer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          expected_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "${expected_head_sha}" != "${EVENT_HEAD_SHA}" ]]; then
+            echo "OpenAPI Auto Sync dispatcher is stale: event=${EVENT_HEAD_SHA}, current_main=${expected_head_sha}. A newer main push owns synchronization."
+            exit 0
+          fi
+          gh workflow run openapi-auto-sync.yml \
+            --ref main \
+            -f expected_head_sha="${expected_head_sha}"
+          echo "Dispatched OpenAPI Auto Sync writer for exact main ${expected_head_sha}."
+
+  repo-contract-sync:
+    name: Synchronize repository contracts from exact main
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'main'
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout exact governed main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.expected_head_sha }}
+
+      - name: Pin exact source and safe target branch
+        id: target
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main
+          current_head_sha="$(git rev-parse origin/main)"
+          test "${current_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          TARGET_BRANCH="repo-contract-auto-sync-${GITHUB_RUN_ID}"
+          case "${TARGET_BRANCH}" in
+            main|Production)
+              echo "Refusing protected target branch ${TARGET_BRANCH}."
+              exit 1
+              ;;
+          esac
+          echo "expected_head_sha=${EXPECTED_HEAD_SHA}" >> "$GITHUB_OUTPUT"
+          echo "target_branch=${TARGET_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -159,18 +205,20 @@ jobs:
 
           echo "auto_merge=$AUTO_MERGE" >> "$GITHUB_OUTPUT"
 
-      - name: Refuse stale main snapshot before PR creation
+      - name: Revalidate exact main before PR creation
         id: freshness
         if: steps.diff.outputs.changed == 'true'
         shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
           latest_main_sha="$(git rev-parse origin/main)"
           echo "latest_main_sha=${latest_main_sha}" >> "$GITHUB_OUTPUT"
-          if [[ "${latest_main_sha}" != "${GITHUB_SHA}" ]]; then
+          if [[ "${latest_main_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
             echo "current=false" >> "$GITHUB_OUTPUT"
-            echo "Skipping stale repository auto-sync run. Triggered at ${GITHUB_SHA}, current main is ${latest_main_sha}."
+            echo "Skipping stale repository auto-sync run. Expected ${EXPECTED_HEAD_SHA}, current main is ${latest_main_sha}."
             exit 0
           fi
           echo "current=true" >> "$GITHUB_OUTPUT"
@@ -181,7 +229,7 @@ jobs:
         continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
-          branch: chore/repo-contract-auto-sync-${{ github.run_id }}
+          branch: ${{ steps.target.outputs.target_branch }}
           delete-branch: true
           title: "Auto-sync repository contracts"
           commit-message: "Auto-sync repository contracts"
@@ -191,9 +239,9 @@ jobs:
             automated
           token: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           body: |
-            <!-- openapi-auto-sync-source:${{ github.sha }} -->
+            <!-- openapi-auto-sync-source:${{ steps.target.outputs.expected_head_sha }} -->
 
-            Autogenerated by **OpenAPI Auto Sync** after a push to `main`.
+            Autogenerated by **OpenAPI Auto Sync** from exact `main` `${{ steps.target.outputs.expected_head_sha }}`.
 
             Generation sequence:
             1. Update the canonical `openapi.yaml` and repository planning docs without Work Map mutation.
@@ -204,7 +252,7 @@ jobs:
 
             Work Maps are intentionally excluded. Their sole remote writer is the governed Spec Kit Work Map Autofix workflow.
 
-            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or non-Markdown changes; those require human/GPT review. Safe Markdown-only synchronization may be auto-merged only after required checks pass. The merge parent is reconciled against the pinned source SHA after merge.
+            Do not merge this PR as-is when it contains generated schema, runtime, authentication, or non-Markdown changes; those require human/GPT review. Safe Markdown-only synchronization may be auto-merged only after required checks pass. Any later main movement causes this writer to fail closed; the next main push dispatches a fresh exact-head synchronization.
 
             Review checklist:
             - Replace any `TODO document ...` summaries with precise contracts.
@@ -219,12 +267,13 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          EXPECTED_HEAD_SHA: ${{ steps.target.outputs.expected_head_sha }}
         shell: bash
         run: |
           set -euo pipefail
           latest_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          if [[ "${latest_main_sha}" != "${GITHUB_SHA}" ]]; then
-            gh pr close "${PR_NUMBER}" --comment "Closing stale docs-only auto-sync PR: main moved from ${GITHUB_SHA} to ${latest_main_sha} before auto-merge registration. A newer run owns regeneration."
+          if [[ "${latest_main_sha}" != "${EXPECTED_HEAD_SHA}" ]]; then
+            gh pr close "${PR_NUMBER}" --comment "Closing stale docs-only auto-sync PR: main moved from ${EXPECTED_HEAD_SHA} to ${latest_main_sha} before auto-merge registration. A newer run owns regeneration."
             echo "Refused stale docs-only auto-merge."
             exit 0
           fi
@@ -243,49 +292,3 @@ jobs:
             --delete-branch \
             --match-head-commit "${pr_head_sha}"
           echo "Registered guarded auto-merge for PR ${PR_NUMBER} at head ${pr_head_sha}."
-
-  reconcile-auto-sync-merge:
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      startsWith(github.event.pull_request.head.ref, 'chore/repo-contract-auto-sync-')
-    permissions:
-      actions: write
-      contents: read
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - name: Reconcile merged PR against pinned source SHA
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.REPO_AUTOSYNC_TOKEN || github.token }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          set -euo pipefail
-
-          source_sha="$(
-            printf '%s\n' "${PR_BODY}" |
-              sed -nE 's/.*<!-- openapi-auto-sync-source:([0-9a-f]{40}) -->.*/\1/p' |
-              head -n 1
-          )"
-          merge_parent_sha="$(
-            gh api "repos/${GITHUB_REPOSITORY}/commits/${MERGE_SHA}" \
-              --jq '.parents[0].sha'
-          )"
-
-          if [[ -n "${source_sha}" && "${merge_parent_sha}" == "${source_sha}" ]]; then
-            echo "Auto-sync merge ${MERGE_SHA} is bound to source ${source_sha}."
-            exit 0
-          fi
-
-          current_main_sha="$(
-            gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" \
-              --jq '.object.sha'
-          )"
-          gh workflow run openapi-auto-sync.yml --ref main
-          gh pr comment "${PR_NUMBER}" --body "OpenAPI Auto Sync reconciliation dispatched on current main \`${current_main_sha}\`. Pinned source: \`${source_sha:-missing}\`; actual merge parent: \`${merge_parent_sha}\`."
-          echo "Dispatched reconciliation because the merged base did not match the pinned source."
