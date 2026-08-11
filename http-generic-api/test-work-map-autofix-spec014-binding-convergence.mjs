@@ -72,9 +72,27 @@ assert.match(
 );
 assert.match(
   workflow,
-  /\^specs\/\[0-9\]\{3\}-\[A-Za-z0-9\._-\]\+\/work-map-integration\\\.json\$/u,
-  "target binding discovery must remain restricted to safe Spec feature integration manifests",
+  /gh api --paginate [^\n]+ --jq '\.\[\]\.filename' > "\$\{target_pr_files\}"/u,
+  "target PR file discovery must write API output directly so API/auth/pagination failures remain fatal",
 );
+assert.doesNotMatch(
+  workflow,
+  /gh api --paginate[^\n]*(?:\n[^\n]*){0,3}\|\| true/u,
+  "target PR API discovery must never mask failures with blanket || true",
+);
+assert.ok(
+  workflow.includes('^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\\.json$'),
+  "target binding feature keys must use the canonical producer-compatible lowercase/hyphen syntax",
+);
+assert.match(workflow, /manifest_feature_key="\$\(jq -er '\.feature_key' "\$\{binding_path\}"\)"/u);
+assert.match(workflow, /review_state="\$\(jq -er '\.review_state' "\$\{binding_path\}"\)"/u);
+assert.match(workflow, /test "\$\{manifest_feature_key\}" = "\$\{feature_key\}"/u);
+assert.match(workflow, /test "\$\{review_state\}" = "ready_for_implementation"/u);
+const discoveryIndex = workflow.indexOf('gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100"');
+const eligibilityIndex = workflow.indexOf('manifest_feature_key="$(jq -er \'\.feature_key\' "${binding_path}")"');
+const consumeIndex = workflow.indexOf("- name: Verify and consume Recovery-issued writer delegation");
+assert.ok(discoveryIndex >= 0 && eligibilityIndex > discoveryIndex, "manifest eligibility must follow exact PR file discovery");
+assert.ok(consumeIndex > eligibilityIndex, "all target-derived manifest eligibility checks must complete before delegation consumption");
 assert.match(workflow, /TARGET_BINDING_FILE/u);
 assert.match(workflow, /feature_key="\$\{BASH_REMATCH\[1\]\}"/u);
 assert.match(
@@ -130,6 +148,8 @@ assert.ok(
 assert.match(producer, /const DEFAULT_FEATURE_KEY = "014-governed-hostinger-storage-orchestration"/u);
 assert.match(producer, /--feature-key/u);
 assert.match(producer, /--check/u);
+assert.match(producer, /\^\[a-z0-9\]\[a-z0-9-\]\*\$/u);
+assert.match(producer, /manifest\.feature_key !== featureKey \|\| manifest\.review_state !== "ready_for_implementation"/u);
 assert.match(producer, /classification_coverage_percent !== 100/u);
 assert.match(producer, /effectiveRegistry\.maps\.length !== 19/u);
 assert.match(producer, /effectiveRegistry\.domains\.length !== 16/u);
@@ -144,6 +164,8 @@ console.log(JSON.stringify({
   combined_idempotency: true,
   runtime_integrity_binding_convergence: true,
   target_pr_binding_discovery: true,
+  target_pr_file_discovery_fail_closed: true,
+  target_pr_binding_producer_eligibility_predelegation: true,
   target_pr_binding_write_set_bounded: true,
   static_binding_replay_excluded: true,
   self_hosting_maintenance_convergence: true,
