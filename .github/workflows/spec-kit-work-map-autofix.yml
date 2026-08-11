@@ -146,6 +146,7 @@ jobs:
 
           git cat-file -e "${expected_base_sha}^{commit}"
           git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"
+          git config core.quotePath false
           git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}" \
             | sort -u > "${immutable_target_pr_files}"
           immutable_changed_files="$(wc -l < "${immutable_target_pr_files}" | tr -d '[:space:]')"
@@ -346,12 +347,14 @@ jobs:
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
             specs/014-governed-hostinger-storage-orchestration/tasks.md
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json
             specs/018-environment-promotion-runtime-integrity/work-map-integration.json
           )
 
           while IFS= read -r binding_path; do
             [[ -z "${binding_path}" ]] && continue
             case "${binding_path}" in
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json) ;;
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) ;;
               *) governed_paths+=("${binding_path}") ;;
             esac
@@ -364,6 +367,7 @@ jobs:
               feature_key="${BASH_REMATCH[1]}"
               case "${feature_key}" in
                 014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
+                017-remote-mcp-host-isolation-oauth-readiness) continue ;;
               esac
               node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}"
             done < "${TARGET_BINDING_FILE}"
@@ -374,7 +378,7 @@ jobs:
             while IFS= read -r changed_file; do
               [[ -z "${changed_file}" ]] && continue
               case "${changed_file}" in
-                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
               esac
               if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
                 continue
@@ -392,6 +396,7 @@ jobs:
             node http-generic-api/scripts/platform-work-map-generator.mjs --write
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity
             refresh_target_bindings
           }
@@ -407,6 +412,7 @@ jobs:
           node http-generic-api/scripts/platform-work-map-generator.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness --check
           node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity --check
           while IFS= read -r binding_path; do
             [[ -z "${binding_path}" ]] && continue
@@ -414,6 +420,7 @@ jobs:
             feature_key="${BASH_REMATCH[1]}"
             case "${feature_key}" in
               014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
+              017-remote-mcp-host-isolation-oauth-readiness) continue ;;
             esac
             node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}" --check
           done < "${TARGET_BINDING_FILE}"
@@ -431,12 +438,14 @@ jobs:
             specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
             specs/014-governed-hostinger-storage-orchestration/tasks.md
             specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json
             specs/018-environment-promotion-runtime-integrity/work-map-integration.json
           )
           target_binding_paths=()
           while IFS= read -r binding_path; do
             [[ -z "${binding_path}" ]] && continue
             case "${binding_path}" in
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json) ;;
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) ;;
               *)
                 governed_paths+=("${binding_path}")
@@ -450,7 +459,7 @@ jobs:
             while IFS= read -r changed_file; do
               [[ -z "${changed_file}" ]] && continue
               case "${changed_file}" in
-                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
               esac
               if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
                 continue
@@ -469,6 +478,7 @@ jobs:
               specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
               specs/014-governed-hostinger-storage-orchestration/tasks.md \
               specs/014-retail-commerce-operations-growth-os/work-map-integration.json \
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json \
               specs/018-environment-promotion-runtime-integrity/work-map-integration.json
             if [[ "${#target_binding_paths[@]}" -ne 0 ]]; then
               git add -- "${target_binding_paths[@]}"
