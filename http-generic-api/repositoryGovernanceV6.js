@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { getGovernancePool } from "./governanceDb.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
@@ -442,14 +443,18 @@ const MUTATION_PERMISSION_BY_RECIPE = {
   "repo.pr.merge_ready": "merge",
 };
 
-export async function createRepositoryMutationAuthorityBindingV6(args = {}, { auth = {} } = {}) {
+export async function createRepositoryMutationAuthorityBindingV6(
+  args = {},
+  { auth = {}, readPool = null, writerPool = null } = {},
+) {
   if (!isAdmin(auth)) { const err = new Error("Repository mutation authority binding creation is admin-only."); err.status = 403; err.code = "repository_mutation_binding_admin_required"; throw err; }
   const repoRef = normalizeGithubRepoRef(args);
   if (!repoRef) { const err = new Error("owner/repo or github://owner/repo is required."); err.status = 400; err.code = "github_repo_ref_required"; throw err; }
+  const runtimeReadPool = readPool || getPool();
   const recipeKey = s(args.recipe_key);
   const requiredPermission = MUTATION_PERMISSION_BY_RECIPE[recipeKey];
   if (!requiredPermission) { const err = new Error("Unsupported repository mutation recipe."); err.status = 400; err.code = "repository_mutation_recipe_unsupported"; throw err; }
-  const [[recipe]] = await getPool().query(
+  const [[recipe]] = await runtimeReadPool.query(
     `SELECT recipe_key, status, risk_class, read_only, requires_capability_envelope, requires_typed_confirmation, requires_same_cycle_readback
        FROM platform_resource_recipes WHERE recipe_key = ? LIMIT 1`,
     [recipeKey]
@@ -457,7 +462,7 @@ export async function createRepositoryMutationAuthorityBindingV6(args = {}, { au
   if (!recipe || recipe.status !== "active" || recipe.risk_class !== "mutation" || Number(recipe.read_only) !== 0 || !Number(recipe.requires_capability_envelope) || !Number(recipe.requires_typed_confirmation) || !Number(recipe.requires_same_cycle_readback)) {
     const err = new Error(`Repository mutation recipe ${recipeKey} is not active with all required gates.`); err.status = 409; err.code = "repository_mutation_recipe_not_active"; err.details = recipe || null; throw err;
   }
-  const scope = await validateRepositoryPrincipalScopeV6(args, { auth });
+  const scope = await validateRepositoryPrincipalScopeV6(args, { auth, pool: runtimeReadPool });
   if (!scope.tenant_id) { const err = new Error("Mutation authority binding requires tenant_id."); err.status = 400; err.code = "repository_mutation_binding_tenant_required"; throw err; }
   const permission = s(args.permission_level || requiredPermission);
   if (![requiredPermission, "admin"].includes(permission)) { const err = new Error(`permission_level must be ${requiredPermission} or admin.`); err.status = 400; err.code = "repository_mutation_binding_permission_mismatch"; throw err; }
@@ -467,9 +472,9 @@ export async function createRepositoryMutationAuthorityBindingV6(args = {}, { au
   const platformManaged = ["platform_managed", "system_seed", "admin_grant"].includes(authoritySource);
   if (!platformManaged && (!sourceSystemId || !sourceInstallationId)) { const err = new Error("Tenant-owned repository mutation bindings require source_system_id and source_installation_id."); err.status = 400; err.code = "repository_mutation_provider_binding_required"; throw err; }
   const candidate = { authority_source: authoritySource, source_system_id: sourceSystemId || null, source_installation_id: sourceInstallationId || null };
-  const provider = await validateRepositoryProviderBindingV6({ binding: candidate, scope });
+  const provider = await validateRepositoryProviderBindingV6({ binding: candidate, scope, pool: runtimeReadPool });
   if (!provider.ok) { const err = new Error("Repository provider binding validation failed."); err.status = 409; err.code = provider.reason_code || "repository_provider_binding_invalid"; err.details = provider; throw err; }
-  const [existing] = await getPool().query(
+  const [existing] = await runtimeReadPool.query(
     `SELECT * FROM platform_resource_authority_bindings
       WHERE status='active' AND tenant_id=? AND COALESCE(workspace_id,'')=COALESCE(?,'') AND COALESCE(user_id,'')=COALESCE(?,'')
         AND resource_type='github_repo' AND resource_uri=? AND recipe_key=? AND permission_level=?
@@ -477,15 +482,38 @@ export async function createRepositoryMutationAuthorityBindingV6(args = {}, { au
     [scope.tenant_id, scope.workspace_id, scope.user_id, repoRef.resource_uri, recipeKey, permission]
   );
   if (existing.length) return { ok: true, tool: "platform_repository_mutation_authority_binding_create_v6", classification: "repository_mutation_authority_binding_already_active", binding: { ...existing[0], resource_ref_json: undefined, allowed_modes_json: safeJson(existing[0].allowed_modes_json, []), secrets_included: false }, created: false, provider, secrets_included: false };
+
+  const governanceWriterPool = writerPool || getGovernancePool();
   const bindingId = randomUUID();
-  await getPool().query(
+  await governanceWriterPool.query(
     `INSERT INTO platform_resource_authority_bindings
       (binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json, recipe_key, permission_level, allowed_modes_json, authority_source, source_system_id, source_installation_id, expires_at, status, notes, created_by)
      VALUES (?, ?, ?, ?, 'github_repo', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?, ?)`,
     [bindingId, scope.tenant_id, scope.workspace_id, scope.user_id, repoRef.resource_uri, JSON.stringify(repoRef.resource_ref), recipeKey, permission, JSON.stringify(["apply"]), authoritySource, sourceSystemId || null, sourceInstallationId || null, args.expires_at || null, s(args.notes || "repository_mutation_authority_binding_v6"), s(args.created_by || auth.user_id || "system:repository_governance_v6")]
   );
-  const [[row]] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id=? LIMIT 1`, [bindingId]);
-  return { ok: true, tool: "platform_repository_mutation_authority_binding_create_v6", classification: "repository_mutation_authority_binding_created", binding: { ...row, resource_ref_json: safeJson(row.resource_ref_json, null), allowed_modes_json: safeJson(row.allowed_modes_json, []), secrets_included: false }, created: true, provider, secrets_included: false };
+  const [[row]] = await governanceWriterPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id=? LIMIT 1`, [bindingId]);
+  const checks = {
+    binding_id: row?.binding_id === bindingId,
+    status: row?.status === "active",
+    tenant_id: row?.tenant_id === scope.tenant_id,
+    workspace_id: s(row?.workspace_id) === s(scope.workspace_id),
+    user_id: s(row?.user_id) === s(scope.user_id),
+    resource_type: row?.resource_type === "github_repo",
+    resource_uri: row?.resource_uri === repoRef.resource_uri,
+    recipe_key: row?.recipe_key === recipeKey,
+    permission_level: row?.permission_level === permission,
+    authority_source: row?.authority_source === authoritySource,
+    source_system_id: s(row?.source_system_id) === sourceSystemId,
+    source_installation_id: s(row?.source_installation_id) === sourceInstallationId,
+  };
+  if (Object.values(checks).some((value) => value !== true)) {
+    const err = new Error("Repository mutation authority binding exact readback failed after insert.");
+    err.status = 500;
+    err.code = "repository_mutation_binding_readback_failed";
+    err.details = { checks, secrets_included: false };
+    throw err;
+  }
+  return { ok: true, tool: "platform_repository_mutation_authority_binding_create_v6", classification: "repository_mutation_authority_binding_created", binding: { ...row, resource_ref_json: safeJson(row.resource_ref_json, null), allowed_modes_json: safeJson(row.allowed_modes_json, []), secrets_included: false }, created: true, provider, writer_identity: "governance_db", secrets_included: false };
 }
 
 async function loadMutationPlanV6(planId = "", { allowExpired = false } = {}) {
