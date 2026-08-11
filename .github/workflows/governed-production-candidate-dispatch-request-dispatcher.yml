@@ -1,0 +1,306 @@
+name: Governed Production Candidate Dispatch Request Dispatcher
+run-name: Governed Production Candidate Dispatch Request Dispatcher · ${{ github.event.workflow_run.id || inputs.expected_head_sha }}
+
+on:
+  workflow_run:
+    workflows:
+      - Governed Production Candidate Dispatch Request
+      - Governed Production Candidate Dispatch Push Request
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      request_pr:
+        description: Open same-repository Production synchronization request PR
+        required: true
+        type: string
+      target_ref:
+        description: Exact governed request branch
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character request PR head SHA
+        required: true
+        type: string
+      expected_main_sha:
+        description: Exact current main SHA
+        required: true
+        type: string
+      expected_production_sha:
+        description: Exact current Production SHA
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: governed-production-candidate-dispatch-request-dispatcher-${{ github.event_name == 'workflow_dispatch' && format('Governed Production Candidate Dispatch Request · {0}', inputs.request_pr) || github.event.workflow_run.event == 'push' && 'Governed Production Candidate Dispatch Request · 4241' || github.event.workflow_run.display_title || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  dispatch:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       (github.event.workflow_run.event == 'issue_comment' || github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      REQUEST_DIR: /tmp/governed-production-candidate-dispatch-request
+      REPORT_DIR: /tmp/governed-production-candidate-dispatch-dispatcher
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+      MANUAL_REQUEST_PR: ${{ inputs.request_pr || '' }}
+      MANUAL_TARGET_REF: ${{ inputs.target_ref || '' }}
+      MANUAL_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+      MANUAL_EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha || '' }}
+      MANUAL_EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha || '' }}
+    steps:
+      - name: Resolve and revalidate exact dispatch request
+        id: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "${REQUEST_DIR}" "${REPORT_DIR}"
+          mkdir -p "${REQUEST_DIR}" "${REPORT_DIR}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            [[ "${MANUAL_REQUEST_PR}" =~ ^[1-9][0-9]*$ ]]
+            [[ "${MANUAL_EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${MANUAL_EXPECTED_MAIN_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            [[ "${MANUAL_EXPECTED_PRODUCTION_SHA}" =~ ^[0-9a-f]{40}$ ]]
+            jq -n \
+              --arg contract "mad4b.governed-production-candidate-dispatch-request.v1" \
+              --arg target_ref "${MANUAL_TARGET_REF}" \
+              --arg expected_head_sha "${MANUAL_EXPECTED_HEAD_SHA}" \
+              --arg expected_main_sha "${MANUAL_EXPECTED_MAIN_SHA}" \
+              --arg expected_production_sha "${MANUAL_EXPECTED_PRODUCTION_SHA}" \
+              --argjson request_pr "${MANUAL_REQUEST_PR}" \
+              --argjson source_run_id "${GITHUB_RUN_ID}" \
+              '{contract:$contract,outcome:"eligible",reason:null,request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,source_run_id:$source_run_id,source_event:"workflow_dispatch",candidate_code_checkout:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+              > "${REQUEST_DIR}/request.json"
+          else
+            [[ "${SOURCE_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+            gh run download "${SOURCE_RUN_ID}" \
+              --repo "${REPOSITORY}" \
+              --name "governed-production-candidate-dispatch-request-${SOURCE_RUN_ID}" \
+              --dir "${REQUEST_DIR}"
+          fi
+
+          request="${REQUEST_DIR}/request.json"
+          test -f "${request}"
+          contract="$(jq -r '.contract' "${request}")"
+          outcome="$(jq -r '.outcome' "${request}")"
+          reason="$(jq -r '.reason // empty' "${request}")"
+          request_pr="$(jq -r '.request_pr' "${request}")"
+          target_ref="$(jq -r '.target_ref // empty' "${request}")"
+          expected_head_sha="$(jq -r '.expected_head_sha // empty' "${request}")"
+          expected_main_sha="$(jq -r '.expected_main_sha // empty' "${request}")"
+          expected_production_sha="$(jq -r '.expected_production_sha // empty' "${request}")"
+          request_source_run_id="$(jq -r '.source_run_id' "${request}")"
+
+          failure_code=""
+          failure_detail=""
+          if [[ "${contract}" != "mad4b.governed-production-candidate-dispatch-request.v1" ]]; then
+            failure_code="invalid_request_contract"
+            failure_detail="The dispatch request artifact contract is not recognized."
+          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" && "${request_source_run_id}" != "${SOURCE_RUN_ID}" ]]; then
+            failure_code="request_source_run_mismatch"
+            failure_detail="The request source run differs from the triggering workflow run."
+          elif [[ "${outcome}" != "eligible" ]]; then
+            failure_code="${reason:-request_not_eligible}"
+            failure_detail="The read-only request stage did not authorize dispatch."
+          elif [[ ! "${request_pr}" =~ ^[1-9][0-9]*$ ]]; then
+            failure_code="invalid_request_pr"
+            failure_detail="The dispatch request must name a positive pull request number."
+          elif [[ ! "${expected_head_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            failure_code="invalid_expected_head_sha"
+            failure_detail="The dispatch request must pin the current request PR head."
+          elif [[ ! "${expected_main_sha}" =~ ^[0-9a-f]{40}$ || ! "${expected_production_sha}" =~ ^[0-9a-f]{40}$ ]]; then
+            failure_code="invalid_protected_ref_pins"
+            failure_detail="The dispatch request must pin exact main and Production SHAs."
+          fi
+
+          target_branch="${target_ref}"
+          if [[ -z "${failure_code}" && ( "${target_branch}" == "main" || "${target_branch}" == "Production" ) ]]; then
+            failure_code="protected_request_branch_forbidden"
+            failure_detail="The dispatch request branch may not be main or Production."
+          fi
+
+          if [[ -z "${failure_code}" ]]; then
+            pr="$(gh api \
+              -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "repos/${REPOSITORY}/pulls/${request_pr}")"
+            title="$(jq -r '.title' <<<"${pr}")"
+            state="$(jq -r '.state' <<<"${pr}")"
+            draft="$(jq -r '.draft' <<<"${pr}")"
+            current_base_ref="$(jq -r '.base.ref' <<<"${pr}")"
+            current_target_ref="$(jq -r '.head.ref' <<<"${pr}")"
+            head_repository="$(jq -r '.head.repo.full_name' <<<"${pr}")"
+            current_head_sha="$(jq -r '.head.sha' <<<"${pr}")"
+            current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+            current_production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+
+            if [[ "${title}" != "ops: request governed Production synchronization" ]]; then
+              failure_code="unexpected_request_title"; failure_detail="The request PR title no longer matches the governed Production synchronization contract."
+            elif [[ "${state}" != "open" || "${draft}" == "true" ]]; then
+              failure_code="request_pr_not_ready"; failure_detail="The request PR must remain open and non-draft."
+            elif [[ "${head_repository}" != "${REPOSITORY}" ]]; then
+              failure_code="cross_repository_request_forbidden"; failure_detail="The request PR must remain in the same repository."
+            elif [[ "${current_base_ref}" != "main" ]]; then
+              failure_code="unexpected_base_branch"; failure_detail="The request PR must continue to target main."
+            elif [[ ! "${target_ref}" =~ ^(gpt|cert|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]; then
+              failure_code="invalid_governed_request_branch"; failure_detail="The request ref is not an approved governed work branch."
+            elif [[ "${current_target_ref}" != "${target_ref}" ]]; then
+              failure_code="request_branch_mismatch"; failure_detail="The current request branch differs from the request artifact."
+            elif [[ "${current_head_sha}" != "${expected_head_sha}" ]]; then
+              failure_code="request_head_mismatch"; failure_detail="The current request PR head differs from expected_head_sha."
+            elif [[ "${current_main_sha}" != "${expected_main_sha}" ]]; then
+              failure_code="main_moved"; failure_detail="main moved after the read-only dispatch request was created."
+            elif [[ "${current_production_sha}" != "${expected_production_sha}" ]]; then
+              failure_code="production_moved"; failure_detail="Production moved after the read-only dispatch request was created."
+            fi
+          fi
+
+          if [[ -n "${failure_code}" ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-production-candidate-dispatch-decision.v1" \
+              --arg code "${failure_code}" \
+              --arg detail "${failure_detail}" \
+              --arg target_ref "${target_ref:-unresolved}" \
+              --arg expected_head_sha "${expected_head_sha:-unresolved}" \
+              --arg expected_main_sha "${expected_main_sha:-unresolved}" \
+              --arg expected_production_sha "${expected_production_sha:-unresolved}" \
+              --argjson request_pr "${request_pr:-0}" \
+              '{contract:$contract,outcome:"blocked",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,first_failure:{code:$code,detail:$detail},dispatch_requested:false,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+              > "${REPORT_DIR}/decision.json"
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "eligible=true" >> "$GITHUB_OUTPUT"
+          echo "request_pr=${request_pr}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
+          echo "expected_head_sha=${expected_head_sha}" >> "$GITHUB_OUTPUT"
+          echo "expected_main_sha=${expected_main_sha}" >> "$GITHUB_OUTPUT"
+          echo "expected_production_sha=${expected_production_sha}" >> "$GITHUB_OUTPUT"
+
+      - name: Suppress duplicate or dispatch exact current-ref candidate builder
+        if: steps.candidate.outputs.eligible == 'true'
+        shell: bash
+        env:
+          REQUEST_PR: ${{ steps.candidate.outputs.request_pr }}
+          TARGET_REF: ${{ steps.candidate.outputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ steps.candidate.outputs.expected_head_sha }}
+          MAIN_SHA: ${{ steps.candidate.outputs.expected_main_sha }}
+          PRODUCTION_SHA: ${{ steps.candidate.outputs.expected_production_sha }}
+        run: |
+          set -euo pipefail
+
+          remote_head_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
+          current_main_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          current_production_sha="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          test "${current_main_sha}" = "${MAIN_SHA}"
+          test "${current_production_sha}" = "${PRODUCTION_SHA}"
+          target_branch="${TARGET_REF}"
+          if [[ "${target_branch}" == "main" || "${target_branch}" == "Production" ]]; then
+            echo "::error::protected request branch mutation is forbidden"
+            exit 1
+          fi
+
+          existing_body="$(gh api "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments?per_page=100" \
+            --jq "[.[] | select(.body | startswith(\"GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH \") and contains(\"main_sha=${MAIN_SHA}\") and contains(\"production_sha=${PRODUCTION_SHA}\"))] | last.body // empty")"
+          dispatch_required=true
+          if [[ -n "${existing_body}" ]]; then
+            existing_run_id="$(sed -n 's/.*builder_run_id=\([0-9][0-9]*\).*/\1/p' <<<"${existing_body}")"
+            if [[ -z "${existing_run_id}" ]]; then
+              dispatch_required=false
+            else
+              run_json="$(gh run view "${existing_run_id}" --repo "${REPOSITORY}" --json status,conclusion 2>/dev/null || true)"
+              if [[ -z "${run_json}" ]]; then
+                dispatch_required=false
+              else
+                run_status="$(jq -r '.status // ""' <<<"${run_json}")"
+                run_conclusion="$(jq -r '.conclusion // ""' <<<"${run_json}")"
+                if [[ "${run_status}" != "completed" || "${run_conclusion}" == "success" ]]; then
+                  dispatch_required=false
+                fi
+              fi
+            fi
+          fi
+
+          if [[ "${dispatch_required}" != "true" ]]; then
+            BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH status=duplicate_suppressed request_pr=${REQUEST_PR} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} merge_executed=false deployment_executed=false"
+            gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null
+            jq -n \
+              --arg contract "mad4b.governed-production-candidate-dispatch-decision.v1" \
+              --arg target_ref "${TARGET_REF}" \
+              --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+              --arg expected_main_sha "${MAIN_SHA}" \
+              --arg expected_production_sha "${PRODUCTION_SHA}" \
+              --argjson request_pr "${REQUEST_PR}" \
+              '{contract:$contract,outcome:"duplicate_suppressed",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,dispatch_requested:false,evidence_comment_written:true,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+              > "${REPORT_DIR}/decision.json"
+            exit 0
+          fi
+
+          main_short="${MAIN_SHA:0:12}"
+          production_short="${PRODUCTION_SHA:0:12}"
+          release_prefix="release"
+          validation_prefix="gpt"
+          suffix="bridge-${GITHUB_RUN_ID}"
+          release_branch="${release_prefix}/production-candidate-${main_short}-${production_short}-${suffix}"
+          validation_branch="${validation_prefix}/validate-production-candidate-${main_short}-${production_short}-${suffix}"
+          validation_base_branch="${validation_prefix}/validate-production-base-${main_short}-${production_short}-${suffix}"
+          before_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" --jq '[.workflow_runs[].id] | max // 0')"
+
+          gh workflow run production-promotion-candidate.yml \
+            --repo "${REPOSITORY}" \
+            --ref main \
+            --field expected_main_sha="${MAIN_SHA}" \
+            --field expected_production_sha="${PRODUCTION_SHA}" \
+            --field release_branch="${release_branch}" \
+            --field validation_branch="${validation_branch}" \
+            --field validation_base_branch="${validation_base_branch}" \
+            --field create_pull_requests=true
+
+          builder_run_id=""
+          for _ in $(seq 1 60); do
+            builder_run_id="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?event=workflow_dispatch&branch=main&per_page=20" \
+              --jq ".workflow_runs | map(select(.id > ${before_run_id})) | sort_by(.id) | .[0].id // empty")"
+            if [[ -n "${builder_run_id}" ]]; then break; fi
+            sleep 5
+          done
+          test -n "${builder_run_id}"
+
+          BODY="GOVERNED_PRODUCTION_CANDIDATE_BUILDER_DISPATCH request_pr=${REQUEST_PR} dispatcher_run_id=${GITHUB_RUN_ID} builder_run_id=${builder_run_id} main_sha=${MAIN_SHA} production_sha=${PRODUCTION_SHA} release_branch=${release_branch} validation_branch=${validation_branch} validation_base_branch=${validation_base_branch} merge_executed=false deployment_executed=false migration_executed=false provider_call_executed=false credential_payload_read=false secrets_included=false"
+          gh api --method POST "/repos/${REPOSITORY}/issues/${REQUEST_PR}/comments" -f body="${BODY}" >/dev/null
+
+          jq -n \
+            --arg contract "mad4b.governed-production-candidate-dispatch-decision.v1" \
+            --arg target_ref "${TARGET_REF}" \
+            --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg expected_main_sha "${MAIN_SHA}" \
+            --arg expected_production_sha "${PRODUCTION_SHA}" \
+            --arg release_branch "${release_branch}" \
+            --arg validation_branch "${validation_branch}" \
+            --arg validation_base_branch "${validation_base_branch}" \
+            --argjson request_pr "${REQUEST_PR}" \
+            --argjson builder_run_id "${builder_run_id}" \
+            '{contract:$contract,outcome:"dispatched",request_pr:$request_pr,target_ref:$target_ref,expected_head_sha:$expected_head_sha,expected_main_sha:$expected_main_sha,expected_production_sha:$expected_production_sha,release_branch:$release_branch,validation_branch:$validation_branch,validation_base_branch:$validation_base_branch,dispatch_requested:true,builder_run_id:$builder_run_id,evidence_comment_written:true,repository_mutation_performed:false,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "${REPORT_DIR}/decision.json"
+
+      - name: Upload canonical dispatch decision
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-production-candidate-dispatch-decision-${{ github.run_id }}
+          path: ${{ env.REPORT_DIR }}/decision.json
+          if-no-files-found: error
+          retention-days: 14

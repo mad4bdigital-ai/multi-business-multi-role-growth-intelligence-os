@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "remaining-tenant-runtime-migration-governed-readiness",
+  "title": "Remaining tenant runtime migration governed readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/remaining-tenant-runtime-migration-governed-readiness.json",
+      ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs",
+      ".github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-remaining-tenant-runtime-migration-governed-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one exact-token, Production-bound and checksum-bound readiness vehicle for the remaining tenant runtime lifecycle migration. The vehicle may establish governed migration executor readiness metadata, record/read back checksum-bound authorization, and execute dry-run only while keeping Migration Apply, CMS reconciliation apply, Support Ticket reconciliation apply, live tenant repair, provider calls, credential payload access, external writes, deployment and protected-ref mutation outside this authority domain.",
+      "e2e_journeys": [
+        {
+          "id": "remaining-tenant-runtime-migration-authorization-and-dry-run",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6871 exact authorization comment on the trusted default-branch workflow",
+          "terminal_outcome": "The trusted workflow proves exact PR #6851 migration identity and Production/runtime parity at the pinned SHA, creates or approves a short-lived authorization-bootstrap capability envelope, records and durably reads back checksum-bound migration authorization, completes governed_migration_execute in dry_run mode with applies_sql=false and zero preflight risks, and re-pins Production without executing migration SQL or any tenant/provider mutation.",
+          "steps": [
+            "Require issue 6871, the exact canonical migration authorization token, and OWNER, MEMBER, or COLLABORATOR association before the readiness job can start.",
+            "Require source PR 6851 merge identity, exact migration Git blob SHA, SHA-256 checksum, and executable statement count to remain pinned.",
+            "Require protected Production plus public /health, /version, /deployment-info and /connector-agent/version readbacks to equal 9ed415e324d8d5187b2c29bdf16aaf77187f0333.",
+            "Re-read protected Production immediately before authorization mutation and fail closed on drift.",
+            "Create or approve a short-lived capability resolution envelope scoped to governed_migration_authorization_bootstrap and the exact migration resource binding.",
+            "Use the canonical governed migration authorization bootstrap with executor readiness mode ensure, then durably verify exactly one checksum/source-bound authorization row.",
+            "Invoke governed_migration_execute only with mode dry_run and require applies_sql=false, exact checksum, exact statement count and zero preflight risks.",
+            "Re-read protected Production again after dry-run and upload sanitized evidence with all prohibited mutation flags false."
+          ],
+          "assertions": [
+            "Production ref drift, runtime drift, source PR drift, migration blob drift, SHA-256 drift, statement-count drift, authorization mismatch, or dry-run preflight risk fails closed.",
+            "The workflow exposes no Migration Apply phase or token.",
+            "The executor never invokes governed_migration_execute with mode apply and never requests capability_resolution_envelope_apply_authorize.",
+            "The executor does not invoke CMS authority reconciliation apply or Support Ticket resolution reconciliation apply.",
+            "No provider call, credential payload read, external send/write, live tenant repair, protected-ref mutation, force push or deployment occurs.",
+            "The only intended state mutations in this readiness authority domain are short-lived capability-envelope lifecycle records, migration executor readiness metadata bootstrap/ensure, and the checksum-bound governed migration authorization record."
+          ],
+          "tests": [
+            {
+              "id": "remaining-tenant-runtime-migration-governed-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remaining-tenant-runtime-migration-governed-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs",
+            ".github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml",
+            "http-generic-api/migrations/20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql",
+            "http-generic-api/test-remaining-tenant-runtime-migration-governed-readiness.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
