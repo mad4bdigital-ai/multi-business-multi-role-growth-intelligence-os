@@ -36,7 +36,7 @@ These documents are deterministically generated from repository source. Docs Age
 1. Platform source, manifests, migrations, or workflows change.
 2. Docs Agent generates a non-mutating preview and the Integration gate runs `platform-work-map-generator.mjs --check`.
 3. If stale, the Integration gate publishes an exact-head repair artifact and fails closed without a remote write.
-4. After explicit one-time authorization, `spec-kit-work-map-autofix.yml` regenerates, refreshes Hostinger and Retail Spec014 bindings, proves the complete generated set idempotent, commits only the bounded write set (`docs/work-maps/**`, `specs/014-governed-hostinger-storage-orchestration/work-map-integration.json`, optional canonical `specs/014-governed-hostinger-storage-orchestration/tasks.md`, and `specs/014-retail-commerce-operations-growth-os/work-map-integration.json`), and performs remote SHA readback.
-5. CI and reviewers validate the generated Markdown and Spec014 binding diff before merge.
+4. After explicit one-time authorization, `spec-kit-work-map-autofix.yml` regenerates, refreshes Hostinger Spec014, Retail Spec014, and environment-promotion runtime-integrity Spec018 bindings, proves the complete generated set idempotent, commits only the bounded write set (`docs/work-maps/**`, `specs/014-governed-hostinger-storage-orchestration/work-map-integration.json`, optional canonical `specs/014-governed-hostinger-storage-orchestration/tasks.md`, `specs/014-retail-commerce-operations-growth-os/work-map-integration.json`, and `specs/018-environment-promotion-runtime-integrity/work-map-integration.json`), and performs remote SHA readback.
+5. CI and reviewers validate the generated Markdown and all three final-registry binding diffs before merge.
 
 No image files, credentials, provider payloads, runtime secrets, or raw database rows are generated.
