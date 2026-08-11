@@ -24,6 +24,29 @@ function createFakeChunkPool() {
       if (sql.includes("information_schema.columns")) {
         return [GOVERNED_RESPONSE_CHUNK_REQUIRED_COLUMNS.map((column_name) => ({ column_name }))];
       }
+      if (sql.includes("SELECT CURRENT_USER() AS current_account")) {
+        return [[{ current_account: "runtime_writer@localhost", current_database: "runtime_test" }]];
+      }
+      if (sql.includes("information_schema.USER_PRIVILEGES")) {
+        return [[{ PRIVILEGE_TYPE: "USAGE" }]];
+      }
+      if (sql.includes("information_schema.SCHEMA_PRIVILEGES")) {
+        return [[]];
+      }
+      if (sql.includes("information_schema.TABLE_PRIVILEGES")) {
+        return [["SELECT", "INSERT", "UPDATE", "DELETE"].map((PRIVILEGE_TYPE) => ({
+          TABLE_SCHEMA: "runtime_test",
+          TABLE_NAME: "governed_tool_response_chunks",
+          PRIVILEGE_TYPE,
+          IS_GRANTABLE: "NO",
+        }))];
+      }
+      if (sql.includes("information_schema.COLUMN_PRIVILEGES")) {
+        return [[]];
+      }
+      if (sql.includes("information_schema.APPLICABLE_ROLES")) {
+        return [[]];
+      }
       if (sql.includes("INSERT INTO governed_tool_response_chunks")) {
         const [
           chunkId,
