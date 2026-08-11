@@ -1,0 +1,121 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-generated-artifact-queue-readiness",
+  "title": "Repository generated-artifact multi-pending queue readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+      ".github/workflows/docs-agent.yml",
+      ".github/workflows/openapi-auto-sync.yml",
+      ".github/workflows/surface-contract-auto-remediation.yml",
+      "docs/automation-overlap-governance.md",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-automation-overlap-analyzer.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve one shared generated-artifact mutation owner while allowing multiple pending GitHub Actions runs to wait instead of silently replacing an older pending lifecycle.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-writers-queue-without-cancellation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository generated-artifact governance",
+          "entrypoint": "A main push or manual trigger that starts OpenAPI Auto Sync, Surface Contract Auto Remediation, and Docs Agent work in the same governed concurrency group",
+          "terminal_outcome": "Every admitted generated-artifact run retains the shared serialization key, cannot cancel in-progress work, and can wait in the bounded multi-pending queue instead of replacing another pending run.",
+          "steps": [
+            "Load the repository-generated-artifacts resource-group policy and its three registered workflows.",
+            "Require every registered writer to use the exact shared repository/ref concurrency identity.",
+            "Require cancel-in-progress=false for every registered writer.",
+            "Require queue=max for every registered writer so simultaneous generated-artifact triggers can remain pending together.",
+            "Run the focused automation-overlap regression against the candidate tree."
+          ],
+          "assertions": [
+            "OpenAPI Auto Sync retains the shared generated-artifact concurrency group and queue=max.",
+            "Surface Contract Auto Remediation retains the shared generated-artifact concurrency group and queue=max.",
+            "Docs Agent retains the shared generated-artifact concurrency group and queue=max.",
+            "The policy declares required_queue=max for repository-generated-artifacts.",
+            "No protected-branch write, force push, provider call, database mutation, deployment, or Production action is introduced by this queue contract."
+          ],
+          "tests": [
+            {
+              "id": "repository-generated-artifact-queue-overlap-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-automation-overlap-analyzer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/docs-agent.yml",
+            ".github/workflows/openapi-auto-sync.yml",
+            ".github/workflows/surface-contract-auto-remediation.yml",
+            "docs/automation-overlap-governance.md",
+            "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+            "http-generic-api/test-automation-overlap-analyzer.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail regression coverage when any governed shared generated-artifact writer drops its multi-pending queue or diverges from the declared serialization contract.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-queue-regression-ratchet",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Automation Overlap Guard",
+          "entrypoint": "A pull request changing generated-artifact workflows, overlap policy, or focused overlap tests",
+          "terminal_outcome": "The candidate is rejected if a registered repository-generated-artifact writer can again use GitHub Actions' single-pending replacement behavior.",
+          "steps": [
+            "Read the declared required_queue value from the governed resource group.",
+            "Read each registered workflow source from the same candidate tree.",
+            "Assert the exact concurrency group, cancel-in-progress=false, and queue=max contract for all three workflows.",
+            "Run the existing real-repository automation overlap analysis and require zero blocking findings."
+          ],
+          "assertions": [
+            "The queue ratchet is candidate-local and does not rely on historical run state.",
+            "The regression covers all three registered repository-generated-artifact workflows.",
+            "The existing Work Map writer queue=max ratchet remains intact.",
+            "Evidence contains no secrets."
+          ],
+          "tests": [
+            {
+              "id": "repository-generated-artifact-queue-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-automation-overlap-analyzer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+            "http-generic-api/test-automation-overlap-analyzer.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository concurrency contract has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository concurrency contract performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}
