@@ -1,0 +1,53 @@
+name: Governed Migration 1052 Tenant Platform Plugin Readiness
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    name: Authorize and dry-run Migration 1052
+    if: >-
+      github.event.issue.number == 4451 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_1052_TENANT_PLATFORM_PLUGIN_MANAGED_REPAIR_AUTHORITY' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: tenant-platform-plugin-migration-1052-readiness
+      cancel-in-progress: false
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '4451'
+      EVIDENCE_DIR: .artifacts/tenant-platform-plugin-migration-1052-readiness
+
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Execute Production-bound authorization bootstrap and dry-run
+        run: node .github/ops/tenant-platform-plugin-1052-governed-readiness.mjs
+
+      - name: Upload no-secret readiness evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tenant-platform-plugin-migration-1052-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30

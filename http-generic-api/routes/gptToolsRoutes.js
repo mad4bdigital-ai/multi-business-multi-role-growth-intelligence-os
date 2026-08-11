@@ -1004,6 +1004,12 @@ const VIRTUAL_ADMIN_TOOLS = [
         merge_sha: { type: "string", pattern: "^[0-9a-f]{40}$" },
         confirm: { type: "string" },
         capability_envelope_id: { type: "string" },
+        executor_readiness_mode: {
+          type: "string",
+          enum: ["ensure", "require_existing"],
+          default: "ensure",
+          description: "Controls executor readiness handling. ensure preserves legacy bootstrap behavior; require_existing verifies the exact apply policy and runtime dispatch certification without creating or updating either.",
+        },
         decision_note: { type: "string", minLength: 20, maxLength: 1000 },
       },
       additionalProperties: false,
