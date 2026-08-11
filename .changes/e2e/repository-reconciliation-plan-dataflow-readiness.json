@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-reconciliation-plan-dataflow-readiness",
+  "title": "Repository reconciliation plan dataflow readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-reconciliation-plan-dataflow-readiness.json",
+      "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "http-generic-api/test-repository-reconciliation-plan-dataflow.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind repository reconciliation step registry templates, projections, sequential dependencies, and exact repository identity into the authorized plan hash while keeping mutation execution disabled and the recipe planned.",
+      "e2e_journeys": [
+        {
+          "id": "step-registry-dataflow-to-plan-hash",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository reconciliation planner",
+          "entrypoint": "A reconciliation dry-run with exact repository, PR, base SHA, branch SHA, recipe steps, and registry templates",
+          "terminal_outcome": "Every planned step carries a deterministic execution-contract hash covering exact resource identity plus registry dataflow metadata, and any template, projection, or head drift changes the overall plan hash without exposing apply execution.",
+          "steps": [
+            "Load complete recipe step registry metadata including body/query/source templates and response projections.",
+            "Normalize the registry templates into the reconciliation planner rather than dropping them from the recipe step.",
+            "Bind exact owner, repo, branch, default branch, PR number, expected base SHA, and expected branch SHA into each step execution contract.",
+            "Bind sequential predecessor and parent-action metadata into the step dataflow contract.",
+            "Hash each step execution contract and include the resulting step structures inside the overall plan hash.",
+            "Prove body-template drift, response-projection drift, and branch-head drift all produce a different plan hash.",
+            "Keep force push and Migration Apply forbidden and keep execution_enabled=false for this readiness slice."
+          ],
+          "assertions": [
+            "The recipe loader reads body_template_json, response_projection_json, query_template_json, source_pk_template_json, parent_action_key, and source_table.",
+            "Each non-disabled step contains execution_contract_sha256.",
+            "Each execution contract binds the exact expected base and branch SHAs.",
+            "Changing a body template or response projection changes plan_sha256.",
+            "Changing the exact branch head changes plan_sha256.",
+            "Sequential predecessor metadata is deterministic and plan-bound.",
+            "execution_enabled remains false and this slice does not activate repo.pr.reconcile_and_finalize or expose Admin apply."
+          ],
+          "tests": [
+            {
+              "id": "repository-reconciliation-plan-dataflow-binding",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-reconciliation-plan-dataflow.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-reconciliation-plan-dataflow-readiness.json",
+            "http-generic-api/repositoryReconciliationOrchestrator.js",
+            "http-generic-api/test-repository-reconciliation-plan-dataflow.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Resolve plan-bound step outputs through a separately governed executor, canonical capability-envelope and approval-hold validation, active repository lease evidence, and same-cycle provider readback before any recipe activation."
+    }
+  ],
+  "secrets_included": false
+}
