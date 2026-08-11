@@ -5,6 +5,7 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
   capability_apply_authorization_policy_registry: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   runtime_dispatch_certification_registry: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   governed_migration_ledger: Object.freeze(["SELECT"]),
+  platform_resource_authority_bindings: Object.freeze(["SELECT", "INSERT"]),
 });
 
 const ALLOWED_GLOBAL_PRIVILEGES = new Set(["USAGE"]);

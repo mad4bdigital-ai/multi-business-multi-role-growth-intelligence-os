@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getPool } from "./db.js";
+import { getGovernancePool } from "./governanceDb.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -218,7 +218,6 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
   const workspace_id = requireUuid(args.workspace_id, "workspace_id");
   const principal = normalizePrincipal(args);
   const user_id = principal.principal_id;
-
   const recipe_key = text(args.recipe_key, 128);
   const recipe = RECIPES[recipe_key];
   if (!recipe) {
@@ -321,15 +320,15 @@ export function buildPlatformResourceAuthorityGrantPlan(args = {}) {
   return plan;
 }
 
-export async function applyPlatformResourceAuthorityGrant(args = {}) {
+export async function applyPlatformResourceAuthorityGrant(args = {}, deps = {}) {
   const plan = buildPlatformResourceAuthorityGrantPlan(args);
   if (plan.mode === "dry_run") {
     return { ...plan, readback_verified: false };
   }
 
-  const pool = getPool();
+  const writerPool = deps.writerPool || getGovernancePool();
   const bindingId = crypto.randomUUID();
-  await pool.query(
+  await writerPool.query(
     `INSERT INTO platform_resource_authority_bindings
       (binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json,
        recipe_key, permission_level, allowed_modes_json, authority_source, expires_at, status, notes, created_by)
@@ -353,7 +352,7 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
     ]
   );
 
-  const [[row]] = await pool.query(
+  const [[row]] = await writerPool.query(
     `SELECT binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, recipe_key,
             permission_level, allowed_modes_json, authority_source, resource_ref_json, expires_at, status, created_at
        FROM platform_resource_authority_bindings
@@ -361,29 +360,37 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
       LIMIT 1`,
     [bindingId]
   );
-  if (!row || row.status !== "active") {
-    const err = new Error("Resource authority grant readback failed after insert.");
-    err.code = "platform_resource_authority_grant_readback_failed";
-    err.statusCode = 500;
-    throw err;
-  }
 
   let storedResourceRef;
   try {
-    storedResourceRef = typeof row.resource_ref_json === "string" ? JSON.parse(row.resource_ref_json) : row.resource_ref_json || {};
+    storedResourceRef = typeof row?.resource_ref_json === "string" ? JSON.parse(row.resource_ref_json) : row?.resource_ref_json || {};
   } catch {
     storedResourceRef = {};
   }
   const storedPrincipal = storedResourceRef.principal;
-  if (
-    storedPrincipal?.principal_type !== plan.principal.principal_type ||
-    storedPrincipal?.principal_id !== plan.principal.principal_id
-  ) {
-    const err = new Error("Resource authority principal readback failed after insert.");
-    err.code = "platform_resource_authority_grant_principal_readback_failed";
+  const checks = {
+    binding_id: row?.binding_id === bindingId,
+    status: row?.status === "active",
+    tenant_id: row?.tenant_id === plan.tenant_id,
+    workspace_id: row?.workspace_id === plan.workspace_id,
+    user_id: row?.user_id === plan.user_id,
+    resource_type: row?.resource_type === plan.resource_type,
+    resource_uri: row?.resource_uri === plan.resource_uri,
+    recipe_key: row?.recipe_key === plan.recipe_key,
+    permission_level: row?.permission_level === plan.permission_level,
+    authority_source: row?.authority_source === plan.authority_source,
+    principal_type: storedPrincipal?.principal_type === plan.principal.principal_type,
+    principal_id: storedPrincipal?.principal_id === plan.principal.principal_id,
+    expected_commit_sha: storedResourceRef?.expected_commit_sha === plan.resource_ref.expected_commit_sha,
+  };
+  if (Object.values(checks).some((value) => value !== true)) {
+    const err = new Error("Resource authority grant exact readback failed after insert.");
+    err.code = "platform_resource_authority_grant_readback_failed";
     err.statusCode = 500;
+    err.details = { checks, secrets_included: false };
     throw err;
   }
+
   const binding = { ...row, principal: storedPrincipal };
   delete binding.resource_ref_json;
 
@@ -391,6 +398,7 @@ export async function applyPlatformResourceAuthorityGrant(args = {}) {
     ok: true,
     mode: "apply",
     binding,
+    writer_identity: "governance_db",
     readback_verified: true,
     expected_confirm: plan.expected_confirm,
     secrets_included: false,
