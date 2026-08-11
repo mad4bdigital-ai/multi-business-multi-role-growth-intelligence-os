@@ -156,6 +156,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
+- `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
