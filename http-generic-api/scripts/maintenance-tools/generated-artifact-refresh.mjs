@@ -28,6 +28,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
   "specs/014-governed-hostinger-storage-orchestration/tasks.md",
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+  "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
 ]);
 const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
   ".github/workflows/spec-kit-work-map-autofix.yml",
@@ -54,6 +55,7 @@ const WORK_MAP_BOOTSTRAP_GOVERNED_PATHS = [
   "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
   "specs/014-governed-hostinger-storage-orchestration/tasks.md",
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+  "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
 ];
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -233,6 +235,7 @@ function runWorkMapSelfHostingBootstrap() {
     run("generate_work_maps", "node", ["scripts/platform-work-map-generator.mjs", "--write"], { cwd: apiDir });
     run("refresh_hostinger_spec014_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
     run("refresh_retail_spec014_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os"], { cwd: apiDir });
+    run("refresh_runtime_integrity_spec018_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "018-environment-promotion-runtime-integrity"], { cwd: apiDir });
   };
 
   converge();
@@ -245,13 +248,14 @@ function runWorkMapSelfHostingBootstrap() {
       step: "prove_work_map_bootstrap_idempotency",
       command: "compare bounded generated diff after two convergence passes",
       status: 1,
-      stderr: "Work Map plus Spec014 convergence changed between the first and second deterministic pass.",
+      stderr: "Work Map plus final-registry binding convergence changed between the first and second deterministic pass.",
     });
   }
 
   run("verify_work_maps_current", "node", ["scripts/platform-work-map-generator.mjs", "--check"], { cwd: apiDir });
   run("verify_hostinger_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--check"], { cwd: apiDir });
   run("verify_retail_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os", "--check"], { cwd: apiDir });
+  run("verify_runtime_integrity_spec018_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "018-environment-promotion-runtime-integrity", "--check"], { cwd: apiDir });
   run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
 }
 
@@ -343,7 +347,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       run("configure_git_email", "git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], { cwd: repoRoot });
       run("stage_generated_artifacts", "git", ["add", "--", ...changedFiles], { cwd: repoRoot });
       const commitMessage = recipe === WORK_MAP_BOOTSTRAP_RECIPE
-        ? "docs(work-maps): bootstrap governed maps and Spec014 bindings"
+        ? "docs(work-maps): bootstrap governed maps and Spec Kit bindings"
         : "chore(ci): refresh generated contract artifacts";
       run("commit_generated_artifacts", "git", ["commit", "-m", commitMessage], { cwd: repoRoot });
       commitSha = run("read_resulting_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
