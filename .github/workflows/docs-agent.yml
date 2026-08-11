@@ -93,4 +93,4 @@ jobs:
           retention-days: 7
 
       - name: Report preview-only PR mode
-        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Main follow-up mutation is owned by Docs Agent Main Follow-up through an exact-head workflow_dispatch writer."
+        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Main follow-up mutation is owned by Docs Agent Main Follow-up through an exact-head workflow_dispatch writer. Review is required for every follow-up PR."
