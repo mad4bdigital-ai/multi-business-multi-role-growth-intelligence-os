@@ -21,6 +21,21 @@ export function resolveGovernanceDbConfig(env = process.env) {
       missing,
       governance_identity_required: true,
       runtime_identity_fallback_allowed: false,
+      same_runtime_identity_rejected: true,
+      secrets_included: false,
+    };
+    throw error;
+  }
+
+  const governanceUser = String(env.GOVERNANCE_DB_USER).trim();
+  const runtimeUser = String(env.DB_USER || "").trim();
+  if (runtimeUser && governanceUser === runtimeUser) {
+    const error = new Error("Governance DB writer identity must be distinct from the ordinary runtime DB identity.");
+    error.code = "GOVERNANCE_DB_IDENTITY_NOT_DEDICATED";
+    error.details = {
+      governance_identity_required: true,
+      runtime_identity_fallback_allowed: false,
+      same_runtime_identity_rejected: true,
       secrets_included: false,
     };
     throw error;
@@ -30,7 +45,7 @@ export function resolveGovernanceDbConfig(env = process.env) {
     host,
     port: boundedInteger(env.GOVERNANCE_DB_PORT || env.DB_PORT, 3306, { min: 1, max: 65535 }),
     database,
-    user: String(env.GOVERNANCE_DB_USER).trim(),
+    user: governanceUser,
     password: String(env.GOVERNANCE_DB_PASSWORD),
     waitForConnections: true,
     connectionLimit: boundedInteger(env.GOVERNANCE_DB_CONNECTION_LIMIT, 2, { min: 1, max: 5 }),
