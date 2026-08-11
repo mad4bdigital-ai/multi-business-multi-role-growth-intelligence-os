@@ -37,7 +37,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: governed-production-candidate-dispatch-request-dispatcher-${{ github.event.workflow_run.id || inputs.expected_head_sha || github.run_id }}
+  group: governed-production-candidate-dispatch-request-dispatcher-${{ github.event_name == 'workflow_dispatch' && format('Governed Production Candidate Dispatch Request · {0}', inputs.request_pr) || github.event.workflow_run.event == 'push' && 'Governed Production Candidate Dispatch Request · 4241' || github.event.workflow_run.display_title || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -45,7 +45,7 @@ jobs:
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.conclusion == 'success' &&
-       (github.event.workflow_run.event == 'issue_comment' || github.event.workflow_run.event == 'push'))
+       (github.event.workflow_run.event == 'issue_comment' || github.event.workflow_run.event == 'push' || github.event.workflow_run.event == 'workflow_dispatch'))
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
