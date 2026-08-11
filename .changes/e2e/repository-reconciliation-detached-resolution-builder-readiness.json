@@ -1,0 +1,76 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-reconciliation-detached-resolution-builder-readiness",
+  "title": "Repository reconciliation detached resolution builder readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-reconciliation-detached-resolution-builder-readiness.json",
+      "http-generic-api/repositoryDetachedResolutionBuilder.js",
+      "http-generic-api/test-repository-detached-resolution-builder.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide a lease-bound internal Git-object builder that can create an exact detached reconciliation resolution commit without moving any repository ref or exposing Admin apply.",
+      "e2e_journeys": [
+        {
+          "id": "diverged-work-branch-to-detached-resolution-object",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository reconciliation planner",
+          "entrypoint": "Exact expected base/head SHAs, active reconciliation lease evidence, explicit detached-resolution confirmation, and a bounded exact changed-file blob map",
+          "terminal_outcome": "A one-parent detached commit is created from the exact base tree, validates against the work-branch changed-file set, and same-cycle readback proves both base and work-branch refs are unchanged.",
+          "steps": [
+            "Validate the active repository reconciliation lease before resolving any provider token.",
+            "Validate the governed work-branch target and exact typed detached-resolution confirmation.",
+            "Reject force/ref-update flags and reject unsafe, duplicate, non-blob, unsupported-mode, oversized, missing, or extra resolution entries.",
+            "Read same-cycle reconciliation evidence and reject stale expected base/head SHAs or non-diverged branch state.",
+            "Read the exact base commit tree and create a Git tree from the exact changed-file blob map.",
+            "Create a detached Git commit whose sole parent is the exact expected base SHA.",
+            "Read back the detached commit, compare it to the exact base, and reuse governed merge-resolution validation for exact file scope and ancestry.",
+            "Re-read reconciliation evidence and prove the base ref and work-branch ref are unchanged without calling any ref mutation endpoint."
+          ],
+          "assertions": [
+            "Repository reconciliation lease verification precedes provider access.",
+            "Only governed non-protected work branches are eligible.",
+            "Resolution entries exactly match the current branch changed-file set and contain at most 50 regular/executable blobs.",
+            "The created tree is based on the exact expected base tree.",
+            "The detached commit has exactly one parent equal to the expected base SHA.",
+            "Existing merge-resolution evidence validation accepts the detached commit before it can feed a later merge-commit step.",
+            "No PATCH/DELETE ref mutation or POST /git/refs operation is part of detached construction.",
+            "Same-cycle readback proves expected base and work-branch refs remain unchanged.",
+            "force_push_allowed remains false, the recipe remains planned, and no Admin apply/tool surface is exposed by this readiness slice."
+          ],
+          "tests": [
+            {
+              "id": "repository-detached-resolution-builder",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-detached-resolution-builder.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-reconciliation-detached-resolution-builder-readiness.json",
+            "http-generic-api/repositoryDetachedResolutionBuilder.js",
+            "http-generic-api/test-repository-detached-resolution-builder.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bind the detached builder into the separately governed reconciliation executor only after tool-schema lease parity, canonical authority wiring, plan-bound output propagation, and positive same-cycle smoke are complete."
+    }
+  ],
+  "secrets_included": false
+}
