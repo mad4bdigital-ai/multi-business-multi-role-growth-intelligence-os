@@ -66,17 +66,97 @@ jobs:
         working-directory: http-generic-api
         run: node test-governance-db-privilege-readiness.mjs
 
-      - name: Run bounded no-secret Production privilege probe
-        working-directory: http-generic-api
+      - name: Collect bounded exact Production runtime privilege evidence
         env:
-          DB_HOST: ${{ secrets.DB_HOST }}
-          DB_PORT: ${{ secrets.DB_PORT }}
-          DB_NAME: ${{ secrets.DB_NAME }}
-          DB_USER: ${{ secrets.DB_USER }}
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-          GOVERNANCE_DB_HOST: ${{ secrets.GOVERNANCE_DB_HOST }}
-          GOVERNANCE_DB_PORT: ${{ secrets.GOVERNANCE_DB_PORT }}
-          GOVERNANCE_DB_NAME: ${{ secrets.GOVERNANCE_DB_NAME }}
-          GOVERNANCE_DB_USER: ${{ secrets.GOVERNANCE_DB_USER }}
-          GOVERNANCE_DB_PASSWORD: ${{ secrets.GOVERNANCE_DB_PASSWORD }}
-        run: node scripts/governance-db-privilege-readiness.mjs
+          EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+          REPORT_PATH: ${{ runner.temp }}/governance-db-privilege-readiness.json
+        run: |
+          set -euo pipefail
+          endpoint="https://auth.mad4b.com/deployment-info?include_governance_db_readiness=1"
+          raw_path="${RUNNER_TEMP}/governance-db-runtime-readback.json"
+          curl --fail-with-body --silent --show-error \
+            --max-time 30 \
+            --retry 2 \
+            --retry-delay 2 \
+            --retry-all-errors \
+            --output "$raw_path" \
+            "$endpoint"
+
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const rawPath = process.env.RUNNER_TEMP + '/governance-db-runtime-readback.json';
+          const reportPath = process.env.REPORT_PATH;
+          const expected = String(process.env.EXPECTED_PRODUCTION_SHA || '').toLowerCase();
+          const payload = JSON.parse(fs.readFileSync(rawPath, 'utf8'));
+          const readiness = payload?.governance_db_privilege_readiness;
+
+          const checks = {
+            runtime_commit_exact: String(payload?.commit_sha || payload?.commit || '').toLowerCase() === expected,
+            runtime_branch_exact: payload?.branch === 'Production',
+            readiness_contract_exact: readiness?.contract === 'mad4b.governance-db-privilege-readiness-runtime.v1',
+            readiness_ready: readiness?.ready === true,
+            privilege_matrix_exact: readiness?.privilege_matrix_exact === true,
+            production_preflight_ready: readiness?.production_preflight_ready === true,
+            production_branch_exact: readiness?.production_branch_exact === true,
+            promotion_target_branch_exact: readiness?.promotion_target_branch_exact === true,
+            governance_identity_configured: readiness?.governance_identity_configured === true,
+            database_connection_performed: readiness?.database_connection_performed === true,
+            sql_readback_performed: readiness?.sql_readback_performed === true,
+            no_sql_mutation: readiness?.sql_mutation_performed === false,
+            no_migration_apply: readiness?.migration_apply_performed === false,
+            no_provider_mutation: readiness?.provider_mutation_performed === false,
+            no_deployment: readiness?.deployment_performed === false,
+            no_secret_value: readiness?.secret_value_returned === false,
+            no_secrets: readiness?.secrets_included === false,
+          };
+          const ok = Object.values(checks).every(Boolean);
+          const report = {
+            contract: 'mad4b.governance-db-privilege-readiness-runtime-evidence.v1',
+            expected_production_sha: expected,
+            checks,
+            ready: ok,
+            runtime_status: readiness?.status || 'missing',
+            runtime_code: readiness?.code || null,
+            public_get_only: true,
+            github_db_secrets_required: false,
+            database_connection_performed_by_github_runner: false,
+            sql_readback_performed_by_github_runner: false,
+            sql_mutation_performed: false,
+            migration_apply_performed: false,
+            provider_mutation_performed: false,
+            deployment_performed: false,
+            secrets_included: false,
+          };
+          fs.writeFileSync(reportPath, JSON.stringify(report, null, 2) + '\n');
+          console.log(JSON.stringify({
+            contract: report.contract,
+            ready: report.ready,
+            runtime_status: report.runtime_status,
+            runtime_code: report.runtime_code,
+            secrets_included: false,
+          }));
+          if (!ok) process.exit(1);
+          NODE
+          rm -f "$raw_path"
+
+      - name: Re-read exact Production head after runtime evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
+          if [[ "${actual_sha,,}" != "${EXPECTED_PRODUCTION_SHA,,}" ]]; then
+            echo "::error::Production moved after runtime privilege evidence collection."
+            exit 1
+          fi
+          echo "Production post-readback exact-head authorization: ok"
+
+      - name: Upload bounded no-secret readiness evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: governance-db-privilege-readiness-${{ inputs.expected_production_sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/governance-db-privilege-readiness.json
+          if-no-files-found: error
+          retention-days: 14
