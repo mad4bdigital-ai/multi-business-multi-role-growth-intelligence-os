@@ -2,6 +2,7 @@ import { Router } from "express";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { readDeploymentManifest } from "../deploymentManifest.js";
+import { getGovernanceDbPrivilegeReadinessSnapshot } from "../governanceDbPrivilegeReadinessRuntime.js";
 import { inspectRuntimeIntegrity } from "../runtimeIntegrity.js";
 
 async function fileMtimeIso(file) {
@@ -224,6 +225,10 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
     if (!runtimeIntegrity || typeof runtimeIntegrity !== "object") {
       runtimeIntegrity = runtimeIntegrityFailure("runtime_integrity_invalid_readback");
     }
+    const includeGovernanceDbReadiness = String(req.query?.include_governance_db_readiness || "").trim() === "1";
+    const governanceDbPrivilegeReadiness = includeGovernanceDbReadiness
+      ? await getGovernanceDbPrivilegeReadinessSnapshot()
+      : undefined;
 
     res.status(200).json({
       ok: true,
@@ -269,6 +274,9 @@ export function buildDeploymentInfoRoutes({ runtimeIntegrityReader = inspectRunt
         ref_mtime: git.ref_mtime || null,
       } : { detected: false },
       runtime_integrity: runtimeIntegrity,
+      ...(includeGovernanceDbReadiness ? {
+        governance_db_privilege_readiness: governanceDbPrivilegeReadiness,
+      } : {}),
       evidence: {
         commit_sha_available: Boolean(commitSha),
         branch_available: Boolean(branch),
