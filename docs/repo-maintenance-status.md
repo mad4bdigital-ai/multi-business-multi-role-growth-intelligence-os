@@ -20,8 +20,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
-- `platform-plugins`: 52
 - `connected-systems`: 51
+- `platform-plugins`: 51
 - `platform-intelligence`: 36
 - `resource-api`: 34
 - `activation`: 31
@@ -190,6 +190,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/tenant-platform-plugin-1052-governed-readiness.yml`
 - `.github/workflows/tenant-request-identity-collation-dry-run.yml`
 - `.github/workflows/tenant-request-identity-collation-readonly-diagnostic.yml`
 - `.github/workflows/tenant-request-identity-collation-runtime-readiness.yml`
@@ -277,6 +278,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-shared-tool-bindings.mjs`
 - `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
+- `http-generic-api/test-production-deployment-openapi-transition.mjs`
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
@@ -292,6 +294,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
+- `http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs`
 - `http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs`
 - `http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs`
 - `http-generic-api/test-tenant-platform-plugin-managed-repair-run-mode.mjs`
@@ -299,9 +302,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
-- `http-generic-api/test-tenant-tool-schema-strictness.mjs`
-- `http-generic-api/test-transport-response-chunk-schema-recovery.mjs`
-- ...and 3 more
+- ...and 5 more
 
 ## Maintenance Contract
 
