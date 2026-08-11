@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-reconciliation-engine-routing-readiness",
+  "title": "Repository reconciliation engine routing readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-reconciliation-engine-routing-readiness.json",
+      "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "http-generic-api/migrations/1026_sprint69_repository_reconciliation_automation.sql",
+      "http-generic-api/test-repository-reconciliation-engine-routing.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind repository reconciliation control, detached-resolution, and merge-composition steps to engine-owned execution routes so provider dispatch is limited to installed-tool calls while the mutation recipe remains planned and Admin apply remains closed.",
+      "e2e_journeys": [
+        {
+          "id": "plan-bound-engine-routing-without-apply-exposure",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed repository reconciliation planner",
+          "entrypoint": "A planned repository reconciliation recipe with exact base/head identity, engine control steps, engine-internal detached/merge steps, installed-tool checks, and response projections",
+          "terminal_outcome": "The generated plan hashes execution-route ownership and prior-output bindings, only installed-tool calls are provider-dispatch eligible, lease/evidence controls remain engine-owned, and no apply surface or recipe activation is exposed.",
+          "steps": [
+            "Classify every recipe step into provider-tool, engine-internal, engine-control, engine-evidence, or blocked routing.",
+            "Bind the execution route, predecessor, body template, and response projection into each per-step execution contract and plan hash.",
+            "Route acquire/release lease and evidence steps internally without provider dispatch or duplicate lease mutation calls.",
+            "Route detached resolution construction and merge composition as engine-internal steps that require a separately wired engine executor.",
+            "Keep branch reconciliation, CI, and PR lifecycle calls as installed-tool steps only.",
+            "Keep the recipe status planned, automatic activation forbidden, force push forbidden, migration apply forbidden, and Admin orchestration apply unexposed."
+          ],
+          "assertions": [
+            "classify, engine_internal, and emit_evidence step kinds are never provider-dispatch eligible.",
+            "Only installed_tool_call step kinds may use the provider executor.",
+            "build_resolution_commit is bound to repositoryDetachedResolutionBuilder and projects resolution.commit_sha without moving a ref.",
+            "create_merge_commit consumes the build_resolution_commit result through an explicit plan-bound source step/path contract.",
+            "Changing predecessor or response-projection metadata changes plan_sha256.",
+            "Lease release remains orchestrator-finally owned rather than a duplicate provider call.",
+            "Admin apply remains dry-run-only and repo.pr.reconcile_and_finalize remains planned.",
+            "force_push_allowed and migration_apply_allowed remain false and secrets_included remains false."
+          ],
+          "tests": [
+            {
+              "id": "repository-reconciliation-engine-routing",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-reconciliation-engine-routing.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-reconciliation-engine-routing-readiness.json",
+            "http-generic-api/repositoryReconciliationOrchestrator.js",
+            "http-generic-api/migrations/1026_sprint69_repository_reconciliation_automation.sql",
+            "http-generic-api/test-repository-reconciliation-engine-routing.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Wire canonical V6 capability-envelope and approval-hold authority plus plan-bound engine/provider executors and complete positive same-cycle smoke before a separately authorized recipe activation."
+    }
+  ],
+  "secrets_included": false
+}
