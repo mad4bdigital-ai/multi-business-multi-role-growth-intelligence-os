@@ -92,16 +92,22 @@ function isOnDuplicateKeyUpdate(source, offset, operation) {
 }
 
 export function classifyRuntimeSqlMutation({ file, operation }) {
-  if (isDdlAdminOperation(operation) || MIGRATION_ADMIN_PATH_PATTERNS.some((pattern) => pattern.test(file))) {
+  if (MIGRATION_ADMIN_PATH_PATTERNS.some((pattern) => pattern.test(file))) {
     return {
       classification: "migration/DDL/admin",
-      reason: isDdlAdminOperation(operation) ? "ddl_or_db_admin_operation" : "migration_or_admin_path",
+      reason: "migration_or_admin_path",
     };
   }
   if (GOVERNANCE_CONTROL_PATH_PATTERNS.some((pattern) => pattern.test(file))) {
     return {
       classification: "governance/control-plane",
       reason: "governance_or_control_plane_path",
+    };
+  }
+  if (isDdlAdminOperation(operation)) {
+    return {
+      classification: "migration/DDL/admin",
+      reason: "ddl_or_db_admin_operation",
     };
   }
   return {
@@ -199,6 +205,7 @@ export async function buildRuntimePersistenceWriteInventory({ apiRoot = API_ROOT
       "Static inventory excludes test files and third-party/build directories.",
       "Dynamic table expressions are retained as dynamic tokens rather than guessed.",
       "Surfaces routed through runtimePersistenceWriteAuthority.js remain part of the DB_USER-backed inventory after refactoring away from direct getPool() calls.",
+      "Known migration/admin paths take precedence, then governance/control-plane ownership paths, then SQL operation classification; this prevents authority/grant terminology in control-plane source from being misclassified as DB DDL.",
       "ON DUPLICATE KEY UPDATE clauses are represented by their parent INSERT surface, not double-counted as standalone UPDATE tables.",
       "platformResourceAuthorityGrantTool.js is inventoried/classified but this window does not modify it.",
       "The inventory is source evidence only; live grants, Production SQL, and secret mutation are outside this command.",
