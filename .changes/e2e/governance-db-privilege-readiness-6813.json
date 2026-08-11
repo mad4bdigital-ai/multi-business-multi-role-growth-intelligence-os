@@ -100,40 +100,6 @@
           ]
         }
       ]
-    },
-    {
-      "id": "operational",
-      "status": "blocked",
-      "objective": "Resume the read-only privilege probe only after the Production database architecture can truthfully satisfy the dedicated Governance writer provider-capability contract.",
-      "blockers": [
-        "Current Production provider capability policy is unsupported for a second principal on the same authoritative database plus exact direct table grants.",
-        "A separately governed provider migration or Governance datastore redesign has not been completed and proven.",
-        "After any future provider remediation, dedicated Governance identity/grant/secret readiness must still be proven without runtime credential fallback.",
-        "This provider-capability source repair has not yet been promoted through the normal main to Production lifecycle.",
-        "A fresh exact-head Governance DB Privilege Readiness workflow has not passed after provider remediation and source promotion."
-      ]
-    },
-    {
-      "id": "resilient",
-      "status": "planned",
-      "objective": "Exercise unsupported-provider, unresolved-provider, same-runtime-identity, insufficient-grant, and stale-identity failure cases while preserving no-secret bounded evidence."
-    },
-    {
-      "id": "canary",
-      "status": "not_applicable",
-      "objective": "No write canary is appropriate for a provider/privilege readiness probe."
-    },
-    {
-      "id": "production",
-      "status": "blocked",
-      "objective": "Close #6813 only after a provider-capable database architecture, distinct Governance writer identity, exact privilege proof, Production parity, and a fresh governed migration readiness/dry-run lifecycle are all independently completed.",
-      "blockers": [
-        "Current Production database provider capability remains unsupported for the dedicated writer contract.",
-        "No separately authorized provider migration or Governance datastore redesign has been completed.",
-        "Dedicated Governance writer identity, exact bounded grants, and runtime secret wiring are not yet proven on a provider-capable target.",
-        "A successful exact-head privilege readiness workflow using runtime evidence is not yet available after remediation.",
-        "Fresh governed migration readiness authorization and dry-run evidence are not yet available."
-      ]
     }
   ]
 }
