@@ -72,7 +72,7 @@ function collectStringConstants(source = "") {
 }
 
 function normalizeTableToken(raw = "", constants = new Map()) {
-  let token = String(raw || "").trim().replace(/^[`"']|[`"']$/gu, "");
+  const token = String(raw || "").trim().replace(/^[`"']|[`"']$/gu, "");
   const interpolation = token.match(/^\$\{([A-Z][A-Z0-9_]*)\}$/u);
   if (interpolation && constants.has(interpolation[1])) return constants.get(interpolation[1]);
   if (!token) return "<dynamic_or_unknown>";
@@ -83,6 +83,12 @@ function normalizeTableToken(raw = "", constants = new Map()) {
 
 function lineNumberAt(source, offset) {
   return source.slice(0, offset).split(/\r?\n/u).length;
+}
+
+function isOnDuplicateKeyUpdate(source, offset, operation) {
+  if (operation !== "UPDATE") return false;
+  const prefix = source.slice(Math.max(0, offset - 80), offset).toUpperCase();
+  return /ON\s+DUPLICATE\s+KEY\s*$/u.test(prefix);
 }
 
 export function classifyRuntimeSqlMutation({ file, operation }) {
@@ -121,6 +127,7 @@ export function inventorySourceFile({ source, file }) {
   const rows = [];
   for (const match of source.matchAll(MUTATION_PATTERN)) {
     const operation = normalizeOperation(match[1]);
+    if (isOnDuplicateKeyUpdate(source, match.index || 0, operation)) continue;
     const table = normalizeTableToken(match[2], constants);
     const { classification, reason } = classifyRuntimeSqlMutation({ file, operation, table });
     rows.push({
@@ -191,6 +198,7 @@ export async function buildRuntimePersistenceWriteInventory({ apiRoot = API_ROOT
     notes: [
       "Static inventory excludes test files and third-party/build directories.",
       "Dynamic table expressions are retained as dynamic tokens rather than guessed.",
+      "ON DUPLICATE KEY UPDATE clauses are represented by their parent INSERT surface, not double-counted as standalone UPDATE tables.",
       "platformResourceAuthorityGrantTool.js is inventoried/classified but this window does not modify it.",
       "The inventory is source evidence only; live grants, Production SQL, and secret mutation are outside this command.",
     ],
