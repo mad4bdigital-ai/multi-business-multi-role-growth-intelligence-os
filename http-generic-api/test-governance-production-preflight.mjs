@@ -13,9 +13,9 @@ const governanceEnv = {
   DB_HOST: "db.internal",
   DB_NAME: "platform",
   DB_PORT: "3306",
-  DB_USER: "runtime_reader",
+  DB_USER: "runtime_identity_fixture_6813",
   DB_PASSWORD: "runtime-secret-value",
-  GOVERNANCE_DB_USER: "governance_writer",
+  GOVERNANCE_DB_USER: "governance_identity_fixture_6813",
   GOVERNANCE_DB_PASSWORD: "governance-secret-value",
   GOVERNANCE_DB_CONNECTION_LIMIT: "2",
 };
@@ -129,7 +129,11 @@ assert.equal(preflight.provider_mutation_performed, false);
 assert.equal(preflight.deployment_performed, false);
 assert.equal(preflight.secrets_included, false);
 assert.doesNotMatch(JSON.stringify(preflight), /governance-secret-value|runtime-secret-value/);
-assert.doesNotMatch(JSON.stringify(preflight), /governance_writer|runtime_reader/);
+assert.doesNotMatch(
+  JSON.stringify(preflight),
+  /governance_identity_fixture_6813|runtime_identity_fixture_6813/,
+  "Preflight evidence must not expose fixture database identities",
+);
 
 let providerBlockedAuthorityLoads = 0;
 await assert.rejects(
