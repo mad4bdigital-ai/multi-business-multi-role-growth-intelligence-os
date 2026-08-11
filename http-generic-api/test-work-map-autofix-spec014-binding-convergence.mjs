@@ -69,7 +69,7 @@ assert.ok(
 assert.match(
   workflow,
   /pulls\/\$\{actual_pr_number\}\/files\?per_page=100/u,
-  "target binding discovery must come from the exact resolved pull request",
+  "target PR files API must remain a fail-closed completeness cross-check",
 );
 assert.ok(
   workflow.includes('target_pr_meta="${RUNNER_TEMP}/work-map-autofix-target-pr-meta.json"'),
@@ -80,6 +80,18 @@ assert.ok(
   "target PR metadata fetch must use the exact resolved pull request endpoint",
 );
 assert.ok(
+  workflow.includes('test "$(jq -r \'\.head.sha\' "${target_pr_meta}")" = "${EXPECTED_HEAD_SHA}"'),
+  "exact PR metadata must bind the inventory to expected_head_sha",
+);
+assert.ok(
+  workflow.includes('expected_base_sha="$(jq -er \'\.base.sha\' "${target_pr_meta}")"'),
+  "the immutable PR base SHA must come from the same exact metadata snapshot",
+);
+assert.ok(
+  workflow.includes('[[ "${expected_base_sha}" =~ ^[0-9a-f]{40}$ ]]'),
+  "the immutable PR base SHA must be a full lowercase commit SHA",
+);
+assert.ok(
   workflow.includes('expected_changed_files="$(jq -er \'\.changed_files\' "${target_pr_meta}")"'),
   "target PR changed_files must come from exact PR metadata",
 );
@@ -87,10 +99,30 @@ assert.ok(
   workflow.includes('if (( expected_changed_files > 3000 )); then'),
   "target PRs above GitHub's 3000-file API completeness cap must fail closed",
 );
+assert.ok(
+  workflow.includes('git cat-file -e "${expected_base_sha}^{commit}"'),
+  "the immutable base commit object must exist locally before inventory derivation",
+);
+assert.ok(
+  workflow.includes('git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"'),
+  "the authorized exact-head commit object must exist locally before inventory derivation",
+);
+assert.ok(
+  workflow.includes('git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}"'),
+  "target binding authority must derive from the immutable exact-base/exact-head three-dot Git diff",
+);
+assert.ok(
+  workflow.includes('immutable_changed_files="$(wc -l < "${immutable_target_pr_files}" | tr -d \'[:space:]\')"'),
+  "the immutable Git inventory must be counted",
+);
+assert.ok(
+  workflow.includes('if [[ "${immutable_changed_files}" != "${expected_changed_files}" ]]; then'),
+  "the immutable Git inventory count must equal exact PR changed_files",
+);
 assert.match(
   workflow,
-  /gh api --paginate [^\n]+ --jq '\.\[\]\.filename' > "\$\{target_pr_files\}"/u,
-  "target PR file discovery must write API output directly so API/auth/pagination failures remain fatal",
+  /gh api --paginate [^\n]+ --jq '\.\[\]\.filename' > "\$\{target_pr_files_api\}"/u,
+  "target PR file API cross-check must write output directly so API/auth/pagination failures remain fatal",
 );
 assert.doesNotMatch(
   workflow,
@@ -98,12 +130,45 @@ assert.doesNotMatch(
   "target PR API discovery must never mask failures with blanket || true",
 );
 assert.ok(
-  workflow.includes('fetched_changed_files="$(wc -l < "${target_pr_files}" | tr -d \'[:space:]\')"'),
-  "target PR file inventory must count successfully fetched filenames",
+  workflow.includes('fetched_changed_files="$(wc -l < "${target_pr_files_api}" | tr -d \'[:space:]\')"'),
+  "target PR file API cross-check must count successfully fetched filenames",
 );
 assert.ok(
   workflow.includes('if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then'),
-  "target PR fetched filename count must equal exact PR changed_files",
+  "target PR API filename count must equal exact PR changed_files",
+);
+assert.ok(
+  workflow.includes('sort -u "${target_pr_files_api}" > "${target_pr_files_api_sorted}"'),
+  "target PR API filenames must be normalized before exact-set comparison",
+);
+assert.ok(
+  workflow.includes('if ! cmp -s "${immutable_target_pr_files}" "${target_pr_files_api_sorted}"; then'),
+  "mutable PR-files API results must exactly match the immutable Git inventory before delegation",
+);
+assert.ok(
+  workflow.includes('target_pr_meta_after="${RUNNER_TEMP}/work-map-autofix-target-pr-meta-after.json"'),
+  "target PR metadata must be re-read after API pagination",
+);
+assert.ok(
+  workflow.includes('test "$(jq -r \'\.head.sha\' "${target_pr_meta_after}")" = "${EXPECTED_HEAD_SHA}"'),
+  "post-pagination metadata must still bind to expected_head_sha",
+);
+assert.ok(
+  workflow.includes('test "$(jq -r \'\.base.sha\' "${target_pr_meta_after}")" = "${expected_base_sha}"'),
+  "post-pagination metadata must retain the immutable base SHA",
+);
+assert.ok(
+  workflow.includes('test "$(jq -er \'\.changed_files\' "${target_pr_meta_after}")" = "${expected_changed_files}"'),
+  "post-pagination metadata must retain changed_files",
+);
+assert.ok(
+  workflow.includes('awk \'/^specs\\/[0-9]{3}-[^/]+\\/work-map-integration\\.json$/\' "${immutable_target_pr_files}"'),
+  "target-derived candidates must come only from the immutable Git inventory",
+);
+assert.doesNotMatch(
+  workflow,
+  /awk '\^?\/\^specs[^\n]*"\$\{target_pr_files_api\}"/u,
+  "the mutable API inventory must never directly grant target-derived binding authority",
 );
 assert.ok(
   workflow.includes('^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\\.json$'),
@@ -115,15 +180,25 @@ assert.match(workflow, /test "\$\{manifest_feature_key\}" = "\$\{feature_key\}"/
 assert.match(workflow, /test "\$\{review_state\}" = "ready_for_implementation"/u);
 const metadataIndex = workflow.indexOf('gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"');
 const capIndex = workflow.indexOf("if (( expected_changed_files > 3000 )); then");
+const immutableInventoryIndex = workflow.indexOf('git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}"');
+const immutableCompletenessIndex = workflow.indexOf('if [[ "${immutable_changed_files}" != "${expected_changed_files}" ]]; then');
 const discoveryIndex = workflow.indexOf('gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100"');
-const completenessIndex = workflow.indexOf('if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then');
+const apiCompletenessIndex = workflow.indexOf('if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then');
+const setEqualityIndex = workflow.indexOf('if ! cmp -s "${immutable_target_pr_files}" "${target_pr_files_api_sorted}"; then');
+const metadataRereadIndex = workflow.indexOf('target_pr_meta_after="${RUNNER_TEMP}/work-map-autofix-target-pr-meta-after.json"');
+const candidateIndex = workflow.indexOf('"${immutable_target_pr_files}" \\\n            | sort -u > "${target_binding_candidates}"');
 const eligibilityIndex = workflow.indexOf('manifest_feature_key="$(jq -er \'\.feature_key\' "${binding_path}")"');
 const consumeIndex = workflow.indexOf("- name: Verify and consume Recovery-issued writer delegation");
 assert.ok(metadataIndex >= 0 && capIndex > metadataIndex, "3000-file cap must follow exact PR metadata fetch");
-assert.ok(discoveryIndex > capIndex, "file enumeration must occur only after the over-cap fail-closed guard");
-assert.ok(completenessIndex > discoveryIndex, "inventory completeness must be checked after successful file enumeration");
-assert.ok(eligibilityIndex > completenessIndex, "manifest eligibility must follow complete exact PR file discovery");
-assert.ok(consumeIndex > eligibilityIndex, "all target-derived inventory and manifest eligibility checks must complete before delegation consumption");
+assert.ok(immutableInventoryIndex > capIndex, "immutable Git inventory must be derived only after metadata and cap validation");
+assert.ok(immutableCompletenessIndex > immutableInventoryIndex, "immutable inventory count must be validated after exact-SHA diff derivation");
+assert.ok(discoveryIndex > immutableCompletenessIndex, "mutable API enumeration must be only a cross-check after immutable authority is established");
+assert.ok(apiCompletenessIndex > discoveryIndex, "API inventory completeness must be checked after successful enumeration");
+assert.ok(setEqualityIndex > apiCompletenessIndex, "API and immutable filename sets must be compared only after both counts are complete");
+assert.ok(metadataRereadIndex > setEqualityIndex, "metadata must be re-read after API pagination and exact-set verification");
+assert.ok(candidateIndex > metadataRereadIndex, "binding candidates must derive from immutable inventory only after all cross-checks pass");
+assert.ok(eligibilityIndex > candidateIndex, "manifest eligibility must follow immutable exact-head candidate derivation");
+assert.ok(consumeIndex > eligibilityIndex, "all immutable inventory, API cross-check, metadata reread, and manifest eligibility checks must complete before delegation consumption");
 assert.match(workflow, /TARGET_BINDING_FILE/u);
 assert.match(workflow, /feature_key="\$\{BASH_REMATCH\[1\]\}"/u);
 assert.match(
@@ -184,6 +259,10 @@ assert.ok(
   "supervisor runbook must register the same target-derived Work Map manifest authority",
 );
 assert.ok(
+  supervisorRunbook.includes("immutable exact-base/exact-head Git inventory"),
+  "supervisor runbook must document immutable exact-head inventory authority",
+);
+assert.ok(
   generator.includes(dynamicManifestPattern),
   "generated README source must register the same target-derived Work Map manifest authority",
 );
@@ -210,6 +289,10 @@ console.log(JSON.stringify({
   target_pr_file_discovery_fail_closed: true,
   target_pr_file_cap_guard: true,
   target_pr_file_inventory_complete: true,
+  target_pr_inventory_authority: "immutable_exact_head_git_diff",
+  target_pr_api_inventory_cross_check: true,
+  target_pr_inventory_exact_set_match: true,
+  target_pr_post_pagination_metadata_reread: true,
   target_pr_binding_producer_eligibility_predelegation: true,
   target_pr_binding_write_set_bounded: true,
   target_pr_dynamic_writer_scope_registered: true,
