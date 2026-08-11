@@ -41,9 +41,16 @@ They must share:
 repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
 ```
 
-and must use `cancel-in-progress: false`.
+and must use both:
 
-Queueing is intentional. Cancelling a mutation workflow can interrupt generation, evidence collection, branch creation, or pull-request publication after only part of the lifecycle has completed.
+```yaml
+cancel-in-progress: false
+queue: max
+```
+
+Queueing is intentional. `cancel-in-progress: false` prevents a running mutation from being interrupted, while `queue: max` allows multiple pending runs to wait instead of using GitHub Actions' single-pending default, where a newer pending run replaces the older one. This matters when one push starts multiple generated-artifact workflows at the same time: no generated-artifact lifecycle may disappear merely because another member of the same governed resource group reached the concurrency gate later.
+
+Cancelling a mutation workflow after it starts can interrupt generation, evidence collection, branch creation, or pull-request publication after only part of the lifecycle has completed. Replacing a pending mutation before it starts is also unsafe because it silently drops the requested lifecycle entirely. The governed queue therefore protects both in-progress and pending generated-artifact work.
 
 ### Governed migration reconciliation
 
@@ -86,9 +93,10 @@ Before adding or changing a script or workflow:
 2. Identify files, database tables, queues, branches, pull requests, and provider effects it may mutate.
 3. Reuse an existing resource group when ownership overlaps.
 4. Add a new resource group only when the resource boundary is real and independently operable.
-5. Use a durable database lock, lease, claim token, or queue ownership mechanism for database and worker coordination.
-6. Add tests for lock-busy, failure cleanup, repeated invocation, and idempotent replay.
-7. Run the overlap check before requesting review.
+5. Use a bounded multi-pending concurrency queue for shared mutation workflows; do not rely on the single-pending default.
+6. Use a durable database lock, lease, claim token, or queue ownership mechanism for database and worker coordination.
+7. Add tests for lock-busy, failure cleanup, repeated invocation, and idempotent replay.
+8. Run the overlap check before requesting review.
 
 ## Ratcheting
 
@@ -104,6 +112,6 @@ For each recurring finding:
 
 ## Failure Handling
 
-The analyzer fails closed for missing policy workflows, concurrency drift, unsafe mutation cancellation, insufficient governed schedule separation, and incomplete database lock contracts.
+The analyzer fails closed for missing policy workflows, concurrency drift, unsafe mutation cancellation, insufficient governed schedule separation, and incomplete database lock contracts. Focused regression tests additionally require governed shared mutation groups to retain their declared multi-pending queue contract.
 
 Reports contain no credentials or raw environment values and explicitly return `secrets_included: false`.
