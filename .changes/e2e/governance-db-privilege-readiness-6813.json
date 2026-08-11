@@ -10,6 +10,7 @@
       ".changes/e2e/governance-db-privilege-readiness-6813.json",
       ".github/workflows/governance-db-privilege-readiness.yml",
       "docs/runbooks/governance-db-privilege-readiness.md",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/governanceDbPrivilegeContract.js",
       "http-generic-api/governanceDbPrivilegeReadinessService.js",
       "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
