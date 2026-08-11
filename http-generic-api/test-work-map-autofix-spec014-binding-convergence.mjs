@@ -26,6 +26,7 @@ const hostingerManifest = "specs/014-governed-hostinger-storage-orchestration/wo
 const hostingerTasks = "specs/014-governed-hostinger-storage-orchestration/tasks.md";
 const retailManifest = "specs/014-retail-commerce-operations-growth-os/work-map-integration.json";
 const runtimeIntegrityManifest = "specs/018-environment-promotion-runtime-integrity/work-map-integration.json";
+const dynamicManifestPattern = "specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json";
 
 assert.match(workflow, /node http-generic-api\/scripts\/platform-work-map-generator\.mjs --write/u);
 assert.match(workflow, /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs\s*$/mu);
@@ -70,6 +71,22 @@ assert.match(
   /pulls\/\$\{actual_pr_number\}\/files\?per_page=100/u,
   "target binding discovery must come from the exact resolved pull request",
 );
+assert.ok(
+  workflow.includes('target_pr_meta="${RUNNER_TEMP}/work-map-autofix-target-pr-meta.json"'),
+  "target PR exact metadata must be fetched before file inventory discovery",
+);
+assert.ok(
+  workflow.includes('gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"'),
+  "target PR metadata fetch must use the exact resolved pull request endpoint",
+);
+assert.ok(
+  workflow.includes('expected_changed_files="$(jq -er \'\.changed_files\' "${target_pr_meta}")"'),
+  "target PR changed_files must come from exact PR metadata",
+);
+assert.ok(
+  workflow.includes('if (( expected_changed_files > 3000 )); then'),
+  "target PRs above GitHub's 3000-file API completeness cap must fail closed",
+);
 assert.match(
   workflow,
   /gh api --paginate [^\n]+ --jq '\.\[\]\.filename' > "\$\{target_pr_files\}"/u,
@@ -81,6 +98,14 @@ assert.doesNotMatch(
   "target PR API discovery must never mask failures with blanket || true",
 );
 assert.ok(
+  workflow.includes('fetched_changed_files="$(wc -l < "${target_pr_files}" | tr -d \'[:space:]\')"'),
+  "target PR file inventory must count successfully fetched filenames",
+);
+assert.ok(
+  workflow.includes('if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then'),
+  "target PR fetched filename count must equal exact PR changed_files",
+);
+assert.ok(
   workflow.includes('^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\\.json$'),
   "target binding feature keys must use the canonical producer-compatible lowercase/hyphen syntax",
 );
@@ -88,11 +113,17 @@ assert.match(workflow, /manifest_feature_key="\$\(jq -er '\.feature_key' "\$\{bi
 assert.match(workflow, /review_state="\$\(jq -er '\.review_state' "\$\{binding_path\}"\)"/u);
 assert.match(workflow, /test "\$\{manifest_feature_key\}" = "\$\{feature_key\}"/u);
 assert.match(workflow, /test "\$\{review_state\}" = "ready_for_implementation"/u);
+const metadataIndex = workflow.indexOf('gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"');
+const capIndex = workflow.indexOf("if (( expected_changed_files > 3000 )); then");
 const discoveryIndex = workflow.indexOf('gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100"');
+const completenessIndex = workflow.indexOf('if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then');
 const eligibilityIndex = workflow.indexOf('manifest_feature_key="$(jq -er \'\.feature_key\' "${binding_path}")"');
 const consumeIndex = workflow.indexOf("- name: Verify and consume Recovery-issued writer delegation");
-assert.ok(discoveryIndex >= 0 && eligibilityIndex > discoveryIndex, "manifest eligibility must follow exact PR file discovery");
-assert.ok(consumeIndex > eligibilityIndex, "all target-derived manifest eligibility checks must complete before delegation consumption");
+assert.ok(metadataIndex >= 0 && capIndex > metadataIndex, "3000-file cap must follow exact PR metadata fetch");
+assert.ok(discoveryIndex > capIndex, "file enumeration must occur only after the over-cap fail-closed guard");
+assert.ok(completenessIndex > discoveryIndex, "inventory completeness must be checked after successful file enumeration");
+assert.ok(eligibilityIndex > completenessIndex, "manifest eligibility must follow complete exact PR file discovery");
+assert.ok(consumeIndex > eligibilityIndex, "all target-derived inventory and manifest eligibility checks must complete before delegation consumption");
 assert.match(workflow, /TARGET_BINDING_FILE/u);
 assert.match(workflow, /feature_key="\$\{BASH_REMATCH\[1\]\}"/u);
 assert.match(
@@ -144,6 +175,18 @@ assert.ok(
   writerOwnership.write_patterns?.includes(runtimeIntegrityManifest),
   "automation overlap policy must assign Spec018 to the sole Work Map writer",
 );
+assert.ok(
+  writerOwnership.write_patterns?.includes(dynamicManifestPattern),
+  "automation overlap policy must register producer-compatible target-derived Work Map manifest authority",
+);
+assert.ok(
+  supervisorRunbook.includes(dynamicManifestPattern),
+  "supervisor runbook must register the same target-derived Work Map manifest authority",
+);
+assert.ok(
+  generator.includes(dynamicManifestPattern),
+  "generated README source must register the same target-derived Work Map manifest authority",
+);
 
 assert.match(producer, /const DEFAULT_FEATURE_KEY = "014-governed-hostinger-storage-orchestration"/u);
 assert.match(producer, /--feature-key/u);
@@ -165,8 +208,11 @@ console.log(JSON.stringify({
   runtime_integrity_binding_convergence: true,
   target_pr_binding_discovery: true,
   target_pr_file_discovery_fail_closed: true,
+  target_pr_file_cap_guard: true,
+  target_pr_file_inventory_complete: true,
   target_pr_binding_producer_eligibility_predelegation: true,
   target_pr_binding_write_set_bounded: true,
+  target_pr_dynamic_writer_scope_registered: true,
   static_binding_replay_excluded: true,
   self_hosting_maintenance_convergence: true,
   maintenance_governance_registered: true,
