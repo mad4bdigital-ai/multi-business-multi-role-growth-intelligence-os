@@ -15,6 +15,7 @@ permissions:
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   pr-impact-note:
