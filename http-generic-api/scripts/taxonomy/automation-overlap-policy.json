@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-11.v10",
+  "version": "2026-08-11.v11",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -16,7 +16,8 @@
       "workflows": [
         { "path": ".github/workflows/openapi-auto-sync.yml", "access": "write" },
         { "path": ".github/workflows/surface-contract-auto-remediation.yml", "access": "write" },
-        { "path": ".github/workflows/docs-agent.yml", "access": "conditional_write" }
+        { "path": ".github/workflows/docs-agent.yml", "access": "conditional_write" },
+        { "path": ".github/workflows/docs-agent-main-followup.yml", "access": "write" }
       ],
       "write_patterns": [
         "http-generic-api/openapi.yaml",
