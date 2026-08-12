@@ -51,5 +51,3 @@ This report is generated from the dynamic Repository Inventory and deterministic
 ## Loop contract
 
 The loop reads the Git index-backed inventory, runs the configured checks, generates stable gap identifiers, optionally compares a baseline, and verifies its outputs with npm run evaluation:check. npm run evaluation:test validates deterministic generation and the report schema.
-
-<!-- TEMPORARY POST-MERGE INVENTORY TRIGGER; RESTORE FROM MAIN BEFORE MERGE. -->
