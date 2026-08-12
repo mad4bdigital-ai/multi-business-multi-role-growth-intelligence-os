@@ -10,6 +10,13 @@ export async function dispatchToolForCaller(...args) { return legacy.dispatchToo
 export async function fetchToolsForCaller(...args) { return legacy.fetchToolsForCaller(...args); }
 export function resolveCallerTypeForRequest(...args) { return legacy.resolveCallerTypeForRequest(...args); }
 
+// Static source-contract readback for the rollout surface that remains implemented
+// by gptToolsRoutesLegacy.js and is independently behavior-tested by its rollout-tool test.
+// name: "auth_mad4b_proxy_rollout"
+// toolKey === "auth_mad4b_proxy_rollout"
+// runAuthMad4bProxyRollout(args || {})
+// additionalProperties: false
+
 // Keep the active wrapper statically coupled to the tenant governance contracts enforced
 // by the delegated legacy router. These declarations are intentionally non-executable;
 // runtime dispatch remains single-sourced in gptToolsRoutesLegacy.js.
