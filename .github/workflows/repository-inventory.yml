@@ -2,6 +2,15 @@ name: Repository Inventory
 
 on:
   workflow_dispatch:
+    inputs:
+      target_ref:
+        description: Governed work branch whose exact head must be verified
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact 40-character branch head SHA to verify
+        required: true
+        type: string
   push:
     branches: [main]
     paths:
@@ -20,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: repository-inventory-${{ github.workflow }}-${{ github.ref }}
+  group: repository-inventory-${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,12 +38,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      - name: Validate exact-head verification dispatch
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
+          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
+          [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
       - name: Checkout exact source revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Verify local and remote exact-head identity
+        if: github.event_name == 'workflow_dispatch'
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          local_sha="$(git rev-parse HEAD)"
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
+          test "$local_sha" = "$EXPECTED_HEAD_SHA"
+          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -54,12 +88,31 @@ jobs:
           npm run inventory:test
           git diff --exit-code -- docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md
 
+      - name: Record exact-head verification evidence
+        if: success()
+        shell: bash
+        env:
+          TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.ref_name }}
+          EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          jq -cn \
+            --arg contract "mad4b.repository-inventory-exact-head-verification.v1" \
+            --arg event_name "${GITHUB_EVENT_NAME}" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
+            --arg actual_head_sha "$actual_sha" \
+            '{contract:$contract,outcome:"passed",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_head_sha,permissions:{contents:"read"},mutation:false,secrets_included:false}' \
+            > repository-inventory-verification.json
+
       - name: Upload inventory artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: repository-inventory-${{ github.sha }}
+          name: repository-inventory-${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
           path: |
             docs/repository-inventory.json
             docs/repository-inventory-summary.json
             docs/repository-inventory.md
+            repository-inventory-verification.json
           if-no-files-found: error
