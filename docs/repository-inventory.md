@@ -7,21 +7,21 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,615 |
-| Total bytes | 58,031,119 |
-| Counted text lines | 1,359,590 |
-| Directories | 249 |
+| Tracked files | 6,647 |
+| Total bytes | 58,520,307 |
+| Counted text lines | 1,367,780 |
+| Directories | 251 |
 | Categories | 13 |
 
 ## Files by category
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 1,975 |
-| `documentation` | 1,827 |
-| `api-runtime` | 1,322 |
+| `tests-and-specs` | 1,982 |
+| `documentation` | 1,848 |
+| `api-runtime` | 1,323 |
 | `database-migrations` | 767 |
-| `root-and-other` | 212 |
+| `root-and-other` | 215 |
 | `ci-workflows` | 150 |
 | `api-contracts` | 147 |
 | `ci-config` | 93 |
@@ -35,17 +35,18 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,422 |
-| `.mjs` | 1,516 |
-| `.js` | 925 |
+| `.md` | 2,434 |
+| `.mjs` | 1,521 |
+| `.js` | 928 |
 | `.sql` | 782 |
-| `.json` | 642 |
+| `.json` | 648 |
 | `.yml` | 152 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
 | `.txt` | 6 |
+| `.py` | 5 |
 | `.ps1` | 5 |
 | `.css` | 3 |
 | `.csproj` | 2 |
@@ -55,6 +56,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `.gitignore` | 1 |
 | `.nvmrc` | 1 |
 | `.manifest` | 1 |
+| `.jsonl` | 1 |
 | `.htaccess` | 1 |
 | `.gcloudignore` | 1 |
 | `[no extension]` | 1 |
@@ -70,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 150 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,038 |
+| Test/spec files (paths) | 2,045 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -91,6 +93,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
+| `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
 | `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 203,883 | 4369 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
@@ -113,7 +116,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/registry.js` | api-runtime | 96,496 | 2451 |
 | `http-generic-api/execution.js` | api-runtime | 93,620 | 2881 |
 | `http-generic-api/repositoryGovernanceV6.js` | api-runtime | 91,304 | 1039 |
-| `http-generic-api/routes/supportTicketRoutes.js` | api-runtime | 88,446 | 1824 |
 
 ## Complete machine-readable inventory
 

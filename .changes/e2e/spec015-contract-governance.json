@@ -1,0 +1,152 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec015-contract-governance",
+  "title": "Spec 015 deterministic contract validation and fail-closed readiness gates",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec015-contract-governance.json",
+      "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+      "http-generic-api/scripts/run-github-policy-live-plan.mjs",
+      "http-generic-api/spec015ContractValidators.js",
+      "http-generic-api/spec015ReadinessFacade.js",
+      "http-generic-api/spec015RuntimeGateContracts.js",
+      "http-generic-api/test-spec015-contract-validators.mjs",
+      "http-generic-api/test-spec015-readiness-facade.mjs",
+      "http-generic-api/test-spec015-runtime-gate-contracts.mjs",
+      "http-generic-api/test-tenant-connection-self-repair-service.mjs",
+      "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
+      "http-generic-api/test-tenant-platform-plugin-routes.mjs",
+      "http-generic-api/test-workspace-resource-authority-foundation.mjs",
+      "http-generic-api/test-workspace-resource-grant-canonical-validation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove deterministic, credential-free Spec 015 contract validation and read-only readiness evaluation while keeping provider, database, migration, and Production mutations fail closed.",
+      "e2e_journeys": [
+        {
+          "id": "spec015-contract-and-readiness-gate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 015 contract governance evaluator",
+          "entrypoint": "spec015ReadinessFacade",
+          "terminal_outcome": "The validator facade accepts only internally consistent identity, dependency, binding, publication, lifecycle, ownership, export, AI safety, CAS, and readiness-preview contracts, and returns blocked/no-write outcomes for unresolved authority or stale state.",
+          "steps": [
+            "Load the pure Spec 015 validators and the read-only readiness facade with deterministic fixtures.",
+            "Evaluate valid and invalid tenant, Brand, dependency, binding, lifecycle, ownership, export, AI safety, and compare-and-set inputs.",
+            "Compute the deterministic readiness/impact manifest and verify that no validator consumes secrets or performs persistence/provider writes.",
+            "Run the runtime gate and repository policy plan regressions with finalizer identity supplied only as non-secret configuration.",
+            "Run the tenant connection promotion-order and fail-closed contract checks together with tenant, workspace authority, and sidecar certification checks."
+          ],
+          "assertions": [
+            "Valid contract fixtures pass with stable deterministic output.",
+            "Wrong-scope, cross-tenant, stale-hash, ambiguity, revoked-delegation, and invalid-transition fixtures fail closed.",
+            "Credential-free bindings and no-secret outputs never expose private keys, tokens, passwords, or authorization headers.",
+            "Readiness and impact preview are read-only and do not persist, migrate, dispatch, or mutate a provider.",
+            "Runtime-open identity, migration/readback, and provider fail-closed gates remain blocked until authoritative evidence is present.",
+            "The policy live-plan runner records finalizer App identity resolution without executing an apply mutation.",
+            "Tenant Platform Plugin and Workspace Resource Authority checks preserve canonical authority and cross-scope rejection.",
+            "Tenant Connection read-only, certification, binding, provider, preflight, and execute contracts remain ordered and fail closed."
+          ],
+          "tests": [
+            {
+              "id": "spec015-contract-validator-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec015-contract-validators.mjs",
+              "args": []
+            },
+            {
+              "id": "spec015-readiness-facade-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec015-readiness-facade.mjs",
+              "args": []
+            },
+            {
+              "id": "spec015-runtime-gate-contract-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec015-runtime-gate-contracts.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-connection-promotion-order-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-connection-self-repair-service.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-openapi-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-openapi.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-platform-plugin-route-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-resource-authority-foundation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-resource-authority-foundation.mjs",
+              "args": []
+            },
+            {
+              "id": "workspace-resource-grant-canonical-validation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-workspace-resource-grant-canonical-validation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec015-contract-governance.json",
+            "http-generic-api/spec015ContractValidators.js",
+            "http-generic-api/spec015ReadinessFacade.js",
+            "http-generic-api/spec015RuntimeGateContracts.js",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
+            "http-generic-api/scripts/run-github-policy-live-plan.mjs",
+            "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Bind the contract package to authoritative persistence and governed migration/readback only after a separately reviewed Production authority exists."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove upgrade, revocation, retry, and unknown-provider-outcome behavior across repeated readiness cycles without widening authority."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This contract package has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This contract grants no Production, deployment, migration Apply, database, Cloudflare, provider, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}

@@ -71,7 +71,8 @@
             "Trigger files and versioned one-off patch runners are rejected.",
             "Unregistered scripts under the governed tool root are rejected.",
             "A registered read-only lifecycle guard and compliant manually dispatched workflow are accepted.",
-            "The report identifies the exact candidate and base SHA and declares secrets_included=false."
+            "The report identifies the exact candidate and base SHA and declares secrets_included=false.",
+            "Path-like docs/spec-portfolio and similar documentation paths are not mistaken for work-branch literals."
           ],
           "tests": [
             {

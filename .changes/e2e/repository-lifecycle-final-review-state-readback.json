@@ -1,0 +1,107 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-lifecycle-final-review-state-readback",
+  "title": "Repository lifecycle final review-state readback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-lifecycle-draft-merge-guard.json",
+      ".changes/e2e/repository-lifecycle-final-review-state-readback.json",
+      "http-generic-api/githubRepositoryLifecycle.js",
+      "http-generic-api/repositoryAutomationControlPlane.js",
+      "http-generic-api/test-github-repository-lifecycle.mjs",
+      "http-generic-api/test-github-final-review-state-readback.mjs",
+      "http-generic-api/test-repository-automation-control-plane.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Re-read bounded exact-head review decisions, then perform a final open/Draft/head/base identity readback immediately before merge and expose only the final validated approval evidence in merge audit output and require every counted reviewer to have resolved eligible collaborator permission.",
+      "e2e_journeys": [
+        {
+          "id": "final-review-state-is-revalidated-before-merge",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_automation_operator",
+          "entrypoint": "finalizeGithubPullRequest",
+          "terminal_outcome": "PUT /pulls/{number}/merge is reachable only when the final bounded review readback proves the required exact-head non-author human approval quorum and the subsequent final identity readback still proves an open non-Draft PR with unchanged head and base.",
+          "steps": [
+            "Validate CI, freshness, Draft state, and exact head/base identity.",
+            "Read and validate initial bounded exact-head approval evidence.",
+            "Re-read open/Draft/head/base identity after initial approval evidence.",
+            "Re-read the bounded review set and recompute approval quorum immediately before merge.",
+            "Re-read open/Draft/head/base identity after final review evidence and immediately before PUT /merge.",
+            "Return only final approval evidence in merge audit output."
+          ],
+          "assertions": [
+            "Approval dismissal after initial validation blocks merge.",
+            "A newly active exact-head CHANGES_REQUESTED decision blocks merge.",
+            "Reviewer replacement, stale substitution, or quorum loss blocks merge.",
+            "Unchanged final approval evidence remains bound to expected_head_sha.",
+            "Initial or final unbounded review evidence blocks merge.",
+            "All final review-state failures report validation_phase=final_pre_merge_review_readback and do not call the merge endpoint.",
+            "State, Draft, head, or base drift after final review evidence fails with validation_phase=final_pre_merge_identity_readback and does not call the merge endpoint.",
+            "Only exact-head reviewers with resolved collaborator permission write, maintain, or admin count toward approval quorum or active changes-requested decisions.",
+            "Outside, read-only, triage-only, unresolved, bot, author, dismissed, or stale-head review evidence cannot satisfy or block the governed quorum."
+          ],
+          "tests": [
+            {
+              "id": "github-repository-lifecycle-regression-suite",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "github-final-review-state-readback-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-final-review-state-readback.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-automation-control-plane-readiness-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-automation-control-plane.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-lifecycle-final-review-state-readback.json",
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/test-github-final-review-state-readback.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Prove active main ruleset review enforcement and non-bypass finalizer identity before protected merge."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove equivalent policy across merge queue and auto-merge paths."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository lifecycle finalization has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This guard grants no Production, deployment, provider, database, migration, credential, or external-send authority."
+    }
+  ],
+  "secrets_included": false
+}

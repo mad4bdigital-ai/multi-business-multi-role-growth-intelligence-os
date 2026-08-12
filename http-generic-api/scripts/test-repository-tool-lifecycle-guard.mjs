@@ -157,6 +157,24 @@ jobs:
 );
 assert(!repositoryShellPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
 
+const spec015PreflightWorkflow = ".github/workflows/spec015-preflight.yml";
+const spec015PreflightFindings = await evaluate(
+  [{ status: "A", path: spec015PreflightWorkflow }],
+  {
+    [spec015PreflightWorkflow]: `
+ on:
+   pull_request:
+ permissions:
+   contents: read
+ jobs:
+   preflight:
+     steps:
+       - run: python3 docs/spec-portfolio/spec015-final-closure-preflight.py
+ `,
+  },
+);
+assert(!spec015PreflightFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
 const docsBranchContextWorkflow = ".github/workflows/docs-branch-context.yml";
 const docsBranchContextFindings = await evaluate(
   [{ status: "A", path: docsBranchContextWorkflow }],
@@ -388,6 +406,6 @@ assert.deepEqual(compliantFindings, []);
 console.log(JSON.stringify({
   ok: true,
   gate: "repository_tool_lifecycle_governance",
-  cases: 21,
+  cases: 22,
   secrets_included: false,
 }));
