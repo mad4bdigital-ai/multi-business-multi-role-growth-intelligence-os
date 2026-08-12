@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6598,
-    "bytes": 57928710,
-    "lines": 1357223,
+    "bytes": 57928979,
+    "lines": 1357227,
     "directories": 248,
     "categories": 13
   },
@@ -10003,9 +10003,9 @@
       "path": ".github/workflows/repository-inventory.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 1560,
-      "lines": 62,
-      "sha256": "02d333b0bc7a1694cac19f33d42a5cb66aa521721750ccd5f5ec13047c50511f",
+      "bytes": 1829,
+      "lines": 66,
+      "sha256": "9cf6ce5966181888433cb735d5ab452355ffdb3b17a323cc77d7c3bcf1675870",
       "mode": "644",
       "executable": false,
       "generated": false
