@@ -32,7 +32,10 @@ jobs:
       - name: Checkout exact source revision
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          # Temporary branch-only diagnostic instrumentation: generate artifacts from
+          # the pre-instrumentation PR HEAD so the uploaded inventory represents the
+          # intended final source tree, not this temporary workflow edit.
+          ref: d668a884736d80f0e0ab9a94f57f65804a693f95
           fetch-depth: 0
           persist-credentials: false
 
@@ -47,6 +50,16 @@ jobs:
 
       - name: Regenerate inventory artifacts
         run: npm run inventory:write
+
+      - name: Upload generated inventory before freshness gate
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-inventory-generated-d668a884736d80f0e0ab9a94f57f65804a693f95
+          path: |
+            docs/repository-inventory.json
+            docs/repository-inventory-summary.json
+            docs/repository-inventory.md
+          if-no-files-found: error
 
       - name: Verify inventory is committed and deterministic
         run: |
