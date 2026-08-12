@@ -116,7 +116,7 @@ assert.match(dispatcherWorkflow, /delegated_run_observed:true/u);
 assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
 assert.doesNotMatch(dispatcherWorkflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "unfinished delegated writer runs must not filter the dispatcher report object");
 assert.match(dispatcherWorkflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "queued or in-progress delegated writer conclusions must be encoded as JSON null");
-assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@v5/u);
+assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5/u);
 assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
 assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
 assert.doesNotMatch(dispatcherWorkflow, /github\.event\.pull_request\.head/u, "dispatcher must not checkout or trust pull-request event code");

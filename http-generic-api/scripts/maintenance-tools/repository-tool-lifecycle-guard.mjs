@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { basename, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -12,6 +14,7 @@ const GUARD_ENTRYPOINT = `${TOOL_ROOT}/repository-tool-lifecycle-guard.mjs`;
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const WORK_BRANCH_PATTERN = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
 const WORK_BRANCH_CONTEXT_PATTERN = /(?:branches?|refs?\/heads|ref|head|base|target[_-]?branch|source[_-]?branch|destination[_-]?branch|git\s+(?:checkout|switch|push)|--ref\b)/iu;
+const execFileAsync = promisify(execFile);
 const REQUIRED_PROTECTED_BRANCHES = Object.freeze(["main", "Production"]);
 const REQUIRED_RULE_KEYS = Object.freeze([
   "one_off_automation_must_not_merge",
@@ -175,6 +178,23 @@ function hasExpectedHeadGuard(content) {
   const currentHead = /git\s+rev-parse\s+HEAD|current[_-]?head|head[_-]?sha/iu.test(content);
   const rejection = /(?:===|==|!=|!==|\btest\b|\[\[|\bassert\b|\bthrow\b|\breject\b|exit\s+1)/iu.test(content);
   return expectedHead && currentHead && rejection;
+}
+
+function normalizeActionReferences(content) {
+  return String(content)
+    .split(/\r?\n/u)
+    .map((line) => {
+      if (!/^\s*(?:-\s*)?uses:\s*[^\s#]+@[^\s#]+/u.test(line)) return line;
+      return line
+        .replace(/(@)[^\s#]+/u, "$1<action-ref>")
+        .replace(/\s+#.*$/u, "");
+    })
+    .join("\n");
+}
+
+function isActionReferenceOnlyChange(baseContent, candidateContent) {
+  return typeof baseContent === "string"
+    && normalizeActionReferences(baseContent) === normalizeActionReferences(candidateContent);
 }
 
 function hasProtectedBranchGuard(content) {
@@ -361,7 +381,7 @@ async function inspectRegisteredToolBodies({ policy, registeredTools, readText }
   return findings;
 }
 
-export async function evaluateRepositoryToolLifecycle({ policy, entries, readText }) {
+export async function evaluateRepositoryToolLifecycle({ policy, entries, readText, readBaseText = null }) {
   const findings = [];
   const registeredTools = buildRegisteredTools(policy);
   const registeredEntrypoints = new Set(registeredTools.keys());
@@ -415,6 +435,15 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
 
     if (!path.startsWith(".github/workflows/")) continue;
     const content = await readText(path);
+    let actionReferenceOnlyChange = false;
+    if (readBaseText) {
+      try {
+        actionReferenceOnlyChange = isActionReferenceOnlyChange(await readBaseText(path), content);
+      } catch {
+        actionReferenceOnlyChange = false;
+      }
+    }
+    if (actionReferenceOnlyChange) continue;
     const mutatesRepository = hasRepositoryMutation(content);
 
     if (
@@ -507,12 +536,19 @@ async function main() {
   const entries = normalizeChangedEntries(await readFile(changedFilesPath, "utf8"));
   const candidateSha = process.env.CANDIDATE_SHA || null;
   const baseSha = process.env.BASE_SHA || null;
+  const readBaseText = baseSha
+    ? async (path) => {
+      const { stdout } = await execFileAsync("git", ["show", `${baseSha}:${path}`], { encoding: "utf8" });
+      return stdout;
+    }
+    : null;
   const findings = [
     ...validateGovernanceInputs({ policy, candidateSha, baseSha }),
     ...await evaluateRepositoryToolLifecycle({
       policy,
       entries,
       readText: (path) => readFile(path, "utf8"),
+      readBaseText,
     }),
   ];
   const report = {

@@ -105,7 +105,7 @@ assert.doesNotMatch(workflow, /^\s*pull-requests:\s*write\s*$/mu);
 assert.match(workflow, /^\s*ref:\s*\$\{\{ env\.CI_SOURCE_HEAD_SHA \}\}\s*$/mu);
 assert.match(workflow, /^\s*persist-credentials:\s*false\s*$/mu);
 assert.match(workflow, /hostinger-tenant-canary-ci\.mjs/u);
-assert.match(workflow, /actions\/upload-artifact@v4/u);
+assert.match(workflow, /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/u);
 assert.match(workflow, /hostinger-storage-tenant-canary-\$\{\{ github\.run_id \}\}-summary/u);
 assert.match(workflow, /^\s*if:\s*always\(\)\s*$/mu);
 assert.match(workflow, /report\.workflow !== 'Hostinger Storage Tenant Canary Guard'/u);

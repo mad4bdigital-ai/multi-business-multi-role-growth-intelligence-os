@@ -1,0 +1,162 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-gap-hardening",
+  "title": "Repository evaluation and CI hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-gap-hardening.json",
+      "http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs",
+      "http-generic-api/test-openapi-autofill-missing-routes.mjs",
+      "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+      "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+      "scripts/repository-evaluation.mjs",
+      "scripts/test-repository-evaluation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "resilient"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Pin CI actions and keep repository evaluation contracts synchronized without changing product runtime behavior.",
+      "e2e_journeys": [
+        {
+          "id": "evaluate-pinned-ci-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository evaluator and CI contract maintainer",
+          "entrypoint": "Deterministic repository evaluation and contract tests",
+          "terminal_outcome": "Pinned workflow references and committed evaluation artifacts are accepted as synchronized.",
+          "steps": [
+            "Load the exact repository inventory and evaluation inputs.",
+            "Validate action references, repository lifecycle contracts, and evaluation fixtures.",
+            "Re-run deterministic checks and compare committed artifacts with generated output."
+          ],
+          "assertions": [
+            "Workflow actions are represented by exact commit SHAs with release comments.",
+            "Evaluation and inventory checks are deterministic and non-stale.",
+            "No repository secret is included in the reports."
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "repository-evaluation-regression",
+          "runner": "node",
+          "working_directory": ".",
+          "path": "scripts/test-repository-evaluation.mjs",
+          "args": []
+        },
+        {
+          "id": "repository-tool-lifecycle-guard-regression",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+          "args": []
+        }
+      ],
+      "evidence_paths": [
+        "docs/repository-evaluation.json",
+        "docs/repository-inventory.json",
+        "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Expose CI evidence for dependency and .NET probes while preserving deterministic committed artifacts.",
+      "e2e_journeys": [
+        {
+          "id": "publish-environment-evidence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "CI environment probe",
+          "entrypoint": "Repository evaluation workflow",
+          "terminal_outcome": "Structured npm and .NET evidence is uploaded independently from deterministic repository artifacts.",
+          "steps": [
+            "Install locked dependencies and configure the .NET SDK.",
+            "Run network dependency and environment probes.",
+            "Upload structured evidence without rewriting committed summaries."
+          ],
+          "assertions": [
+            "Environment probes are explicit and distinguish not-run from failed.",
+            "Evidence is bounded and secret-free.",
+            "Committed artifacts remain deterministic."
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "pipeline-connectivity-contract",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "test-pipeline-connectivity-check.mjs",
+          "args": []
+        }
+      ],
+      "evidence_paths": [
+        ".github/workflows/repository-evaluation.yml",
+        "docs/repository-evaluation-loop.md"
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Prevent false lifecycle findings for action-reference-only diffs while retaining fail-closed checks for behavioral workflow changes.",
+      "e2e_journeys": [
+        {
+          "id": "classify-action-only-diff",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository lifecycle guard",
+          "entrypoint": "Changed workflow compared with exact base content",
+          "terminal_outcome": "A SHA-only rewrite does not reopen inherited findings, while any behavioral change is still evaluated.",
+          "steps": [
+            "Read candidate and base workflow content.",
+            "Normalize only action references and compare the remaining workflow text.",
+            "Skip inherited findings only for an exact action-reference-only diff.",
+            "Evaluate branch, permission, mutation, and protected-branch rules for behavioral changes."
+          ],
+          "assertions": [
+            "A pin-only diff is recognized deterministically.",
+            "A non-pin workflow change is not exempted from lifecycle checks.",
+            "Exact candidate and base identities remain required.",
+            "Findings remain bounded and secret-free."
+          ]
+        }
+      ],
+      "tests": [
+        {
+          "id": "repository-tool-lifecycle-pin-only-regression",
+          "runner": "node",
+          "working_directory": "http-generic-api",
+          "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+          "args": []
+        }
+      ],
+      "evidence_paths": [
+        "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+        "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Observe action pinning and lifecycle classification across unrelated pull requests before tightening enforcement thresholds."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require the hardened evaluation and lifecycle contracts on protected branches after canary observation."
+    }
+  ],
+  "secrets_included": false
+}
