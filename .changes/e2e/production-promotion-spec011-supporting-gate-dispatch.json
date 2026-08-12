@@ -1,0 +1,89 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-promotion-spec011-supporting-gate-dispatch",
+  "title": "Production promotion Spec 011 supporting gate dispatch",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/production-promotion-spec011-supporting-gate-dispatch.json",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Production promotion convergence obtain the required Spec 011 Delegation MariaDB Certification on the exact candidate without dummy commits or relaxed gate counts by dispatching the existing workflow once on the release branch only when an exact-head run is absent.",
+      "e2e_journeys": [
+        {
+          "id": "dispatch-missing-spec011-gate-on-exact-production-candidate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production Promotion Request Launcher",
+          "entrypoint": "Exact candidate validation has succeeded and supporting workflow evidence is being resolved for the candidate SHA.",
+          "terminal_outcome": "An already-existing exact-head Spec 011 run is reused; otherwise the launcher re-reads the release branch, dispatches the Spec 011 workflow once on that branch only when it still equals the candidate SHA, resolves the resulting run by exact head SHA, and fails closed if dispatch outcome remains ambiguous or no exact run appears.",
+          "steps": [
+            "Resolve each supporting workflow against the candidate SHA and current convergence attempt window.",
+            "For Spec 011 only, perform one immediate exact-head lookup before considering dispatch.",
+            "Re-read the release branch and require it to still equal CANDIDATE_SHA before dispatch.",
+            "Dispatch spec-011-delegation-mariadb-certification.yml exactly once with --ref RELEASE_BRANCH.",
+            "After either successful or ambiguous dispatch return, resolve the workflow run by exact candidate SHA rather than retrying dispatch blindly.",
+            "Require the resolved run to complete successfully before counting supporting gates as 6/6.",
+            "Preserve the existing final protected-ref and candidate readbacks before convergence evidence is finalized."
+          ],
+          "assertions": [
+            "No dummy candidate commit is created to satisfy path filters.",
+            "No existing exact-head Spec 011 run is duplicated.",
+            "The release branch must still point to the candidate before dispatch.",
+            "Spec 011 dispatch targets the release branch and therefore the candidate tree, not main or Production.",
+            "A failed or ambiguous dispatch command is followed by exact-head run discovery and is never blindly retried in the same attempt.",
+            "The launcher still requires all six supporting workflows and exact candidate success.",
+            "No Production merge, deployment, SQL, migration, provider, credential, secret, or protected-ref write authority is added by this repair.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/production-promotion-spec011-supporting-gate-dispatch.json",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Record whether the Spec 011 supporting run was reused or dispatched in convergence evidence without weakening exact-head validation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise canceled launchers, delayed workflow registration, and ambiguous dispatch transport failures while proving no duplicate dispatch occurs blindly."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This orchestration repair has no provider or live-runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair does not itself authorize Production merge, deployment, database mutation, or Migration 1050 execution."
+    }
+  ],
+  "secrets_included": false
+}

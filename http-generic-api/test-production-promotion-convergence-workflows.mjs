@@ -26,6 +26,10 @@ for (const required of [
   /Platform Completion Cleanup Readback/,
   /Platform Remaining Scope Scorecard/,
   /Spec 011 Delegation MariaDB Certification/,
+  /resolve_run_once\(\)/,
+  /spec-011-delegation-mariadb-certification\.yml/,
+  /Spec 011 release branch moved before supporting gate dispatch/,
+  /refusing blind dispatch retry/,
   /protected refs moved during validation; retrying from current refs/,
   /request_pr: \$request_pr/,
   /candidate_tree_matches_main: true/,
@@ -43,6 +47,42 @@ for (const required of [
   assert.match(launcher, required);
 }
 assert.doesNotMatch(launcher, /headRepositoryOwner/);
+
+const spec011DispatchBlock =
+  launcher.match(
+    /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?else\n\s+SUPPORTING_RUN_ID=/,
+  )?.[0] ?? "";
+assert.ok(spec011DispatchBlock, "Spec 011 supporting gate must have an explicit bounded dispatch block");
+assert.match(
+  spec011DispatchBlock,
+  /SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
+  "Spec 011 must reuse an already-visible exact-head run before dispatch",
+);
+assert.match(
+  spec011DispatchBlock,
+  /SPEC011_RELEASE_READBACK="\$\(gh api "\/repos\/\$\{REPOSITORY\}\/git\/ref\/heads\/\$\{RELEASE_BRANCH\}" --jq '\.object\.sha'\)"/,
+  "Spec 011 dispatch must CAS-read the release branch immediately before dispatch",
+);
+assert.match(
+  spec011DispatchBlock,
+  /gh workflow run spec-011-delegation-mariadb-certification\.yml[\s\S]*?--ref "\$RELEASE_BRANCH"/,
+  "Spec 011 dispatch must target the release branch that points at the candidate",
+);
+assert.equal(
+  (spec011DispatchBlock.match(/gh workflow run spec-011-delegation-mariadb-certification\.yml/g) ?? []).length,
+  1,
+  "Spec 011 must have one bounded dispatch command and no blind retry loop",
+);
+assert.doesNotMatch(
+  spec011DispatchBlock,
+  /--ref main/,
+  "Spec 011 supporting-gate dispatch must not run against moving main",
+);
+assert.doesNotMatch(
+  spec011DispatchBlock,
+  /--ref Production/,
+  "Spec 011 supporting-gate dispatch must not run against Production",
+);
 
 for (const required of [
   /workflow_run:/,
