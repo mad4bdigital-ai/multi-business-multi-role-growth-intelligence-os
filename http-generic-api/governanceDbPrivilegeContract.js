@@ -13,6 +13,8 @@ export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
   repository_mutation_runs_v6: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   runtime_break_glass_incidents: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   runtime_break_glass_audit_events: Object.freeze(["SELECT", "INSERT"]),
+  runtime_verification_runs: Object.freeze(["SELECT"]),
+  runtime_verification_evidence_chunks: Object.freeze(["SELECT", "INSERT"]),
   deployment_attestations: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
 });
 
