@@ -246,6 +246,48 @@ export function validateCandidateConvergence({ head_sha = "", canonical_paths = 
   return { valid: found.length === 0, converged: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
 }
 
+export function validateSparseOverrides(base = {}, overrides = {}, { tenantId } = {}) {
+  const found = [];
+  if (!base || typeof base !== "object" || Array.isArray(base)) found.push(issue("override_base_invalid", "$.base", "Base configuration must be an object."));
+  if (!overrides || typeof overrides !== "object" || Array.isArray(overrides)) found.push(issue("override_set_invalid", "$.overrides", "Overrides must be an object."));
+  if (found.length) return { valid: false, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+  for (const key of Object.keys(overrides)) {
+    if (!Object.prototype.hasOwnProperty.call(base, key)) found.push(issue("override_out_of_bounds", `$.overrides.${key}`, "Override cannot introduce a new field."));
+    if (key.includes("tenant") && tenantId !== undefined && String(overrides[key]) !== String(tenantId)) found.push(issue("override_wrong_scope", `$.overrides.${key}`, "Override crosses the requested tenant scope."));
+  }
+  found.push(...findSecretPayload(overrides, "$.overrides"));
+  return { valid: found.length === 0, errors: errors(found), effective: { ...base, ...overrides }, mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateCompareAndSetReadback({ expected_revision, expected_hash, observed_revision, observed_hash, lease_id } = {}) {
+  const found = [];
+  if (!Number.isInteger(expected_revision) || expected_revision < 1) found.push(issue("expected_revision_invalid", "$.expected_revision", "expected_revision must be a positive integer."));
+  if (!Number.isInteger(observed_revision) || observed_revision < 1) found.push(issue("observed_revision_invalid", "$.observed_revision", "observed_revision must be a positive integer."));
+  if (!/^[a-f0-9]{64}$/.test(String(expected_hash || ""))) found.push(issue("expected_hash_invalid", "$.expected_hash", "expected_hash must be a SHA-256 hash."));
+  if (!/^[a-f0-9]{64}$/.test(String(observed_hash || ""))) found.push(issue("observed_hash_invalid", "$.observed_hash", "observed_hash must be a SHA-256 hash."));
+  if (!String(lease_id || "").trim()) found.push(issue("lease_missing", "$.lease_id", "A lease_id is required for compare-and-set readback."));
+  if (expected_revision !== observed_revision) found.push(issue("revision_mismatch", "$.observed_revision", "Observed revision does not match expected revision."));
+  if (expected_hash !== observed_hash) found.push(issue("hash_mismatch", "$.observed_hash", "Observed hash does not match expected hash."));
+  return { valid: found.length === 0, readback_verified: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateExportManifest(entries = [], { tenantId } = {}) {
+  const found = [];
+  const seenPaths = new Set();
+  if (!Array.isArray(entries)) return { valid: false, errors: [issue("export_manifest_not_array", "$", "Export manifest must be an array.")] };
+  for (const [index, entry] of entries.entries()) {
+    const path = `$[${index}]`;
+    const exportPath = String(entry?.path || "");
+    if (!exportPath || exportPath.startsWith("/") || exportPath.includes("..")) found.push(issue("export_path_invalid", `${path}.path`, "Export path must be relative and traversal-free."));
+    if (seenPaths.has(exportPath)) found.push(issue("export_path_duplicate", `${path}.path`, "Export paths must be unique."));
+    seenPaths.add(exportPath);
+    if (tenantId !== undefined && String(entry?.tenant_id || "") !== String(tenantId)) found.push(issue("export_cross_tenant", `${path}.tenant_id`, "Export entry crosses tenant boundary."));
+    if (entry?.external_exposure === true && entry?.allowlist_ref === undefined) found.push(issue("export_allowlist_missing", `${path}.allowlist_ref`, "External exposure requires an explicit allowlist reference."));
+    found.push(...findSecretPayload(entry, path));
+  }
+  return { valid: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
 export function validateSpec015Manifest(manifest = {}) {
   const identity = validatePackageComponentIdentity(manifest.identity || {});
   const graph = validateDependencyGraph(manifest.dependencies || []);

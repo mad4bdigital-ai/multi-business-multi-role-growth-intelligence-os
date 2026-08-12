@@ -2,14 +2,17 @@ import assert from "node:assert/strict";
 import {
   spec015DeterministicHash,
   validateCandidateConvergence,
+  validateCompareAndSetReadback,
   validateCredentialFreeBindings,
   validateDependencyGraph,
   validateDraftAiSafety,
   validateLifecycleTransition,
   validateOwnershipManifest,
+  validateExportManifest,
   validatePackageComponentIdentity,
   validatePublicationPolicy,
   validateReadinessPreview,
+  validateSparseOverrides,
   validateSpec015Manifest,
 } from "./spec015ContractValidators.js";
 
@@ -127,6 +130,31 @@ assert.equal(validateCandidateConvergence({
   stale_artifact_count: 0,
   spec016_exposure_verified: true,
 }).valid, false);
+
+const baseConfig = { tenant_id: "tenant-001", timeout_ms: 1000, mode: "safe" };
+assert.equal(validateSparseOverrides(baseConfig, { timeout_ms: 1500 }, { tenantId: "tenant-001" }).valid, true);
+assert.equal(validateSparseOverrides(baseConfig, { unknown: true }, { tenantId: "tenant-001" }).valid, false);
+assert.equal(validateSparseOverrides(baseConfig, { tenant_id: "tenant-002" }, { tenantId: "tenant-001" }).valid, false);
+assert.equal(validateSparseOverrides(baseConfig, { api_token: "secret" }, { tenantId: "tenant-001" }).valid, false);
+
+const cas = { expected_revision: 3, expected_hash: "b".repeat(64), observed_revision: 3, observed_hash: "b".repeat(64), lease_id: "lease-003" };
+assert.equal(validateCompareAndSetReadback(cas).readback_verified, true);
+assert.equal(validateCompareAndSetReadback({ ...cas, observed_revision: 4 }).valid, false);
+assert.equal(validateCompareAndSetReadback({ ...cas, observed_hash: "c".repeat(64) }).valid, false);
+assert.equal(validateCompareAndSetReadback({ ...cas, lease_id: "" }).valid, false);
+
+assert.equal(validateExportManifest([
+  { path: "manifests/catalog.json", tenant_id: "tenant-001", external_exposure: false },
+], { tenantId: "tenant-001" }).valid, true);
+assert.equal(validateExportManifest([
+  { path: "../secrets.json", tenant_id: "tenant-001" },
+], { tenantId: "tenant-001" }).valid, false);
+assert.equal(validateExportManifest([
+  { path: "manifests/catalog.json", tenant_id: "tenant-001", external_exposure: true },
+], { tenantId: "tenant-001" }).valid, false);
+assert.equal(validateExportManifest([
+  { path: "manifests/catalog.json", tenant_id: "tenant-002" },
+], { tenantId: "tenant-001" }).valid, false);
 
 console.log(JSON.stringify({
   ok: true,
