@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6661,
-    "bytes": 58684825,
-    "lines": 1369868,
+    "bytes": 58685034,
+    "lines": 1369871,
     "directories": 251,
     "categories": 13
   },
@@ -7458,9 +7458,9 @@
       "path": ".changes/e2e/spec015-tenant-audit-convergence.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5019,
-      "lines": 90,
-      "sha256": "78f6c30c08097e1897e8ec1c599306f57ececa6fc48887354c42a3198645520e",
+      "bytes": 5163,
+      "lines": 92,
+      "sha256": "209e333eee2febbbd094c54b2c75051d0230127ae41152be3b3b4981c2ca434d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10780,9 +10780,9 @@
       "path": ".specify/spec-kit-work-map-integration-policy.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 3320,
-      "lines": 73,
-      "sha256": "1c3cbd04d639ed80f47d39fea31b192afd4003f83ea5587971a8cb946f6354c5",
+      "bytes": 3387,
+      "lines": 74,
+      "sha256": "015c912dd06b043212396a3c9dec91f495a81f782cb20f2edb288615fb2cccdb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76813,9 +76813,9 @@
       "path": "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 30769,
+      "bytes": 30767,
       "lines": 1002,
-      "sha256": "dd875ef6ba7af43db8e37bc64f76da5703543457bfcf90cb889898cc3a8f95e7",
+      "sha256": "0828da993bf592bc67bd402eb45cb3190f4fa8a36626cffe45f8356b0e6ee18e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77376,7 +77376,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "68b24ed9e77ef4a388c7fe25c9a2cf2fec8519773a2f0fd7bcb7637d582b1477",
+      "sha256": "b5f3dfe8def5f1a025287bafcd90bdfa2dedfca776dec845663197819f30ac79",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78201,7 +78201,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "dc2dbbb6daf6dc811baa32cecc4818de5e42234a87d0450f5bc6a8aad16e890d",
+      "sha256": "11182502ee4624e1f7e60783b231833873e912a0e4c4d3fe840d1c841074d6d0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78432,7 +78432,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "93db0f0f2d1912b7b04a82343a759847286fd3080733e44abd75ff802fa81dda",
+      "sha256": "eb6ff5ab1cb7dd87b52a407ea04cd0bb928517bd4c9f4b6fac76198246dbeebf",
       "mode": "644",
       "executable": false,
       "generated": false

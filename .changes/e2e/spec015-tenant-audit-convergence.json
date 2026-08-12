@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/spec015-tenant-audit-convergence.json",
       ".specify/spec-kit-work-map-integration-policy.json",
+      ".github/workflows/repository-inventory-autofix-dispatch.yml",
       "specs/015-tenant-operating-system-studio/e2e-phases.json",
       "specs/015-tenant-operating-system-studio/candidate-convergence.json",
       "specs/015-tenant-operating-system-studio/manifest.json",
@@ -70,6 +71,7 @@
           "evidence_paths": [
             ".changes/e2e/spec015-tenant-audit-convergence.json",
             ".specify/spec-kit-work-map-integration-policy.json",
+            ".github/workflows/repository-inventory-autofix-dispatch.yml",
             "specs/015-tenant-operating-system-studio/e2e-phases.json",
             "specs/015-tenant-operating-system-studio/candidate-convergence.json",
             "specs/015-tenant-operating-system-studio/manifest.json",

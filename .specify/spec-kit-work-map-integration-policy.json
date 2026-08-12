@@ -62,7 +62,8 @@
     "specs",
     "docs",
     ".changes/e2e",
-    ".specify/spec-kit-work-map-integration-policy.json"
+    ".specify/spec-kit-work-map-integration-policy.json",
+    ".github/workflows/repository-inventory-autofix-dispatch.yml"
   ],
   "new_spec_kit_contract": "Every new Spec Kit must contain a current work-map-integration.json generated from all repository Work Maps and the effective generated schema coverage.",
   "implementation_contract": "When a PR changes implementation or repository-governance surfaces, all targeted Work Map, schema-domain, taxonomy-gap, and discovered-dimension decisions must be resolved and implementation_readiness.status must be ready.",
