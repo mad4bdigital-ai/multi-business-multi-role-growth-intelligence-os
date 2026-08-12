@@ -18,7 +18,7 @@ for (const marker of [
   "actions/upload-artifact@v4",
   "Report preview-only PR mode",
   "never commit, push, merge, or authorize Work Map writes",
-  "docs/auto-docs-agent/**",
+  "docs/auto-docs-agent/",
   "Review is required",
 ]) {
   assert.ok(docsAgent.includes(marker), `docs-agent workflow missing ${marker}`);
