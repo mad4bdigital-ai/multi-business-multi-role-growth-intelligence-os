@@ -33,8 +33,8 @@
 
 ## المخرجات
 
-ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص.
+ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص المحلية. probes الخارجية اختيارية: `--include-network` لفحص advisories و`--include-environment` لفحص SDK، ويُعلن تشغيل أي منهما كغير deterministic بسبب اعتماد النتيجة على البيئة الخارجية.
 
 ## سياسة الدمج
 
-يجب أن يمر Pull Request عبر `evaluation:check -- --enforce` و`evaluation:test`، وأن يثبت أن التقرير متسق مع الجرد الحالي. لا يمنع التقرير الدمج بسبب فجوة معلوماتية وحدها، لكنه يعلنها ويحتفظ بدليلها حتى لا تختفي من المتابعة. تشغيل `--include-network` اختياري وموسوم كغير deterministic بالنسبة إلى البيئة الخارجية.
+يجب أن يمر Pull Request عبر `evaluation:check -- --enforce` و`evaluation:test`، وأن يثبت أن التقرير متسق مع الجرد الحالي. لا يمنع التقرير الدمج بسبب فجوة معلوماتية وحدها، لكنه يعلنها ويحتفظ بدليلها حتى لا تختفي من المتابعة. تشغيل `--include-network` و`--include-environment` اختياري وموسوم كغير deterministic بالنسبة إلى البيئة الخارجية. الوضع الافتراضي لا يستدعي `dotnet`؛ لذلك يظهر احتياج .NET كفجوة `not-evaluated` بدل أن تختلف artifacts بين runner وآخر.

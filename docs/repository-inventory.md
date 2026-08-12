@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,612 |
-| Total bytes | 58,003,810 |
-| Counted text lines | 1,358,931 |
+| Total bytes | 58,006,107 |
+| Counted text lines | 1,358,948 |
 | Directories | 249 |
 | Categories | 13 |
 
@@ -78,7 +78,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 58 | 9 | 0 |
-| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 14 | 0 | 4 |
+| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 15 | 0 | 4 |
 
 ## Largest tracked files
 

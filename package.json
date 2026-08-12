@@ -20,6 +20,7 @@
     "evaluation:check": "node scripts/repository-evaluation.mjs --check",
     "evaluation:test": "node scripts/test-repository-evaluation.mjs",
     "evaluation:network": "node scripts/repository-evaluation.mjs --include-network",
+    "evaluation:environment": "node scripts/repository-evaluation.mjs --include-environment",
     "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
   },
   "devDependencies": {

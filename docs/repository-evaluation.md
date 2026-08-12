@@ -10,20 +10,20 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Decision | **warn** |
 | Blocking gaps | 0 |
 | Warning or informational gaps | 6 |
-| Input fingerprint | `fce470d412c5faed4f91cd7ff5628dd3401044d2fd067405d4fedce396b50d9d` |
+| Input fingerprint | `6ca025b971a1acd692ce7872966601a3d4681814ca626014505a2546b60e8918` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
 | Inventory files | 6,612 |
-| Inventory bytes | 58,003,810 |
+| Inventory bytes | 58,006,107 |
 | Workflows | 150 |
 | Workflows without explicit permissions | 2 |
 | Broad write permission matches | 11 |
 | Suspected secret files | 0 |
 | Dependency audit mode | not-run |
-| .NET availability | not-available |
+| .NET availability | not-evaluated |
 
 ## Checks
 
@@ -40,7 +40,7 @@ This report is generated from the dynamic Repository Inventory and deterministic
 |---|---|---|---|---|---|
 | `AUTO-CI-SURFACE-SIZE` | maintainability | low | open | new | no |
 | `DEP-AUDIT-NOT-EVALUATED` | dependencies | medium | not-evaluated | new | no |
-| `ENV-DOTNET-NOT-AVAILABLE` | environment | medium | not-evaluated | new | no |
+| `ENV-DOTNET-NOT-EVALUATED` | environment | medium | not-evaluated | new | no |
 | `MAINT-LARGE-TRACKED-FILES` | maintainability | low | open | new | no |
 | `SEC-CI-BROAD-WRITE` | security | medium | open | new | no |
 | `SEC-CI-EXPLICIT-PERMISSIONS` | security | medium | open | new | no |

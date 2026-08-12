@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6612,
-    "bytes": 58003810,
-    "lines": 1358931,
+    "bytes": 58006107,
+    "lines": 1358948,
     "directories": 249,
     "categories": 13
   },
@@ -192,6 +192,7 @@
         "evaluation:check",
         "evaluation:test",
         "evaluation:network",
+        "evaluation:environment",
         "evaluation:loop"
       ],
       "dependencies": 0,

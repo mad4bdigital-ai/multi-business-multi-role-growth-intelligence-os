@@ -20,6 +20,10 @@ assert.equal(first.inputFingerprint, second.inputFingerprint, "evaluation finger
 assert.equal(first.gaps.some((gap) => gap.gapId === "SEC-TRACKED-SECRET-SUSPECT"), false, "repository fixtures must not create a secret blocker");
 assert.ok(["pass", "warn", "fail"].includes(first.gate.decision));
 assert.ok(first.gaps.every((gap) => gap.lifecycle === "new"), "without a baseline, gaps must be marked new");
+assert.equal(first.signals.dotnet.status, "not-evaluated", "default evaluation must not depend on local .NET availability");
+const environmentProbe = buildEvaluation({ skipChecks: true, includeEnvironment: true });
+assert.equal(environmentProbe.deterministic, false, "environment probes must be marked non-deterministic");
+assert.ok(["passed", "failed", "not-available"].includes(environmentProbe.signals.dotnet.status));
 
 const baseline = { gaps: [{ gapId: "OLD-001", status: "open" }, { gapId: "PERSIST-001", status: "open" }] };
 const current = { gaps: [{ gapId: "PERSIST-001", status: "open" }, { gapId: "NEW-001", status: "open" }] };

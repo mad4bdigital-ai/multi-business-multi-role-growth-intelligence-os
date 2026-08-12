@@ -49,6 +49,9 @@
     "scripts/repository-inventory-rules.mjs",
     "scripts/repository-inventory-fixtures.json",
     "scripts/test-repository-inventory.mjs",
+    "scripts/repository-evaluation.mjs",
+    "scripts/test-repository-evaluation.mjs",
+    "scripts/repository-evaluation-rules.mjs",
     "package.json",
     "specs/**/work-map-integration.json"
   ],

@@ -15,7 +15,7 @@ const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".sql", ".cs", ".sh", ".ps1", ".html", ".css"]);
 
 function parseArgs(argv) {
-  const options = { check: false, diff: false, enforce: false, skipChecks: false, includeNetwork: false, baseline: null, outputs: { ...DEFAULT_OUTPUTS } };
+  const options = { check: false, diff: false, enforce: false, skipChecks: false, includeNetwork: false, includeEnvironment: false, baseline: null, outputs: { ...DEFAULT_OUTPUTS } };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--check") options.check = true;
@@ -23,6 +23,7 @@ function parseArgs(argv) {
     else if (argument === "--enforce") options.enforce = true;
     else if (argument === "--skip-checks") options.skipChecks = true;
     else if (argument === "--include-network") options.includeNetwork = true;
+    else if (argument === "--include-environment") options.includeEnvironment = true;
     else if (argument === "--baseline") {
       options.baseline = argv[index + 1];
       index += 1;
@@ -69,6 +70,13 @@ function runCheck(id, args, cwd = ROOT, skip = false) {
     status: timedOut ? "failed" : result.status === 0 ? "passed" : "failed",
     exitCode: timedOut ? null : result.status,
   };
+}
+
+function dotnetSignals(inventory, includeEnvironment) {
+  const required = inventory.files.some((file) => /(?:^|\/)[^/]+\.(?:csproj|sln)$/.test(file.path) || /(?:^|\/)global\.json$/.test(file.path));
+  if (!required) return { required: false, status: "not-required", available: null, exitCode: null, output: "" };
+  if (!includeEnvironment) return { required: true, status: "not-evaluated", available: null, exitCode: null, output: "Environment probe disabled in deterministic mode." };
+  return { required: true, ...runBinary("dotnet", ["--version"]) };
 }
 
 function runBinary(binary, args, cwd = ROOT) {
@@ -182,7 +190,8 @@ function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet }) {
     const findings = audit.packages.filter((item) => item.status === "findings");
     if (findings.length > 0) addGap(gaps, { gapId: "DEP-AUDIT-FINDINGS", domain: "dependencies", severity: "medium", status: "open", blocking: false, evidence: findings, impact: "One or more package manifests report dependency advisories or audit errors.", recommendation: "Review the audit metadata and update dependencies through a controlled PR." });
   }
-  if (dotnet.status === "not-available") addGap(gaps, { gapId: "ENV-DOTNET-NOT-AVAILABLE", domain: "environment", severity: "medium", status: "not-evaluated", blocking: false, evidence: dotnet, impact: "Some .NET-dependent validation cannot run in the current environment.", recommendation: "Install the repository-supported .NET SDK in CI or explicitly mark the check as environment-gated." });
+  if (dotnet.status === "not-evaluated") addGap(gaps, { gapId: "ENV-DOTNET-NOT-EVALUATED", domain: "environment", severity: "medium", status: "not-evaluated", blocking: false, evidence: dotnet, impact: "Some .NET-dependent validation was not probed in deterministic mode.", recommendation: "Run node scripts/repository-evaluation.mjs --include-environment in an environment with the repository-supported .NET SDK." });
+  else if (dotnet.status === "not-available") addGap(gaps, { gapId: "ENV-DOTNET-NOT-AVAILABLE", domain: "environment", severity: "medium", status: "not-evaluated", blocking: false, evidence: dotnet, impact: "Some .NET-dependent validation cannot run in the current environment.", recommendation: "Install the repository-supported .NET SDK in CI or explicitly mark the check as environment-gated." });
   gaps.sort((a, b) => a.gapId.localeCompare(b.gapId) || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
   return gaps;
 }
@@ -207,7 +216,7 @@ function compareBaseline(current, baseline) {
   };
 }
 
-function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = false, baseline = null } = {}) {
+function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = false, includeEnvironment = false, baseline = null } = {}) {
   const inventory = loadInventory();
   // The inventory remains complete, but generated evaluation files are excluded from
   // evaluator inputs to avoid a self-referential fingerprint/write cycle.
@@ -216,7 +225,7 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   const secrets = secretSignals(evaluationInventory);
   const audit = auditSignals(evaluationInventory, includeNetwork);
   const evaluatedBytes = evaluationInventory.files.reduce((total, file) => total + file.bytes, 0);
-  const dotnet = runBinary("dotnet", ["--version"]);
+  const dotnet = dotnetSignals(evaluationInventory, includeEnvironment);
   const checks = [
     runCheck("inventory-check", ["run", "inventory:check"], root, skipChecks),
     runCheck("inventory-selftest", ["run", "inventory:test"], root, skipChecks),
@@ -235,7 +244,7 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   const evaluation = {
     schemaVersion: 1,
     generatedFrom: "repository-inventory",
-    deterministic: !includeNetwork,
+    deterministic: !includeNetwork && !includeEnvironment,
     inputFingerprint,
     inventory: { files: evaluationInventory.files.length, bytes: evaluatedBytes, directories: inventory.totals.directories, categories: inventory.totals.categories },
     signals: { workflow, secrets, audit, dotnet },
