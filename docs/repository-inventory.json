@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6656,
-    "bytes": 58655646,
+    "bytes": 58655689,
     "lines": 1369771,
     "directories": 251,
     "categories": 13
@@ -10215,9 +10215,9 @@
       "path": ".github/workflows/repository-inventory-autofix-dispatch.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 14791,
+      "bytes": 14834,
       "lines": 321,
-      "sha256": "34efb7dc73a21a350f79761dfd3b145130fc1dd66ab64207c189ae66c843141f",
+      "sha256": "48e55bec71a1db25fac40eda907fa348ab04e650a246b707b340516cf9ece929",
       "mode": "644",
       "executable": false,
       "generated": false
