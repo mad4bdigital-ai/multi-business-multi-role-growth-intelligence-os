@@ -27,8 +27,8 @@ jobs:
       contents: read
       pull-requests: read
     outputs:
-      eligible: ${{ steps.classify.outputs.eligible }}
-      reason: ${{ steps.classify.outputs.reason }}
+      eligible: ${{ steps.finalize.outputs.eligible }}
+      reason: ${{ steps.finalize.outputs.reason }}
       pr_number: ${{ steps.classify.outputs.pr_number }}
       target_ref: ${{ steps.classify.outputs.target_ref }}
       expected_head_sha: ${{ steps.classify.outputs.expected_head_sha }}
