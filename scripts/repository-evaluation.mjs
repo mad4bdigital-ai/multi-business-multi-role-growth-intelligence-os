@@ -11,6 +11,9 @@ const DEFAULT_OUTPUTS = {
   summary: "docs/repository-evaluation-summary.json",
 };
 const EVALUATION_OUTPUT_PATHS = new Set(Object.values(DEFAULT_OUTPUTS));
+const CI_SURFACE_POLICY_PATH = "docs/repository-ci-surface-policy.json";
+const DEPENDENCY_AUDIT_POLICY_PATH = "docs/repository-dependency-audit-policy.json";
+const LARGE_FILE_POLICY_PATH = "docs/repository-large-file-policy.json";
 const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 const TEXT_EXTENSIONS = new Set([".js", ".mjs", ".cjs", ".ts", ".tsx", ".jsx", ".json", ".yml", ".yaml", ".md", ".sql", ".cs", ".sh", ".ps1", ".html", ".css"]);
 
@@ -55,6 +58,10 @@ function readJson(relativePath) {
   return JSON.parse(readFileSync(absolute(relativePath), "utf8"));
 }
 
+function readOptionalJson(relativePath, fallback) {
+  return existsSync(absolute(relativePath)) ? readJson(relativePath) : fallback;
+}
+
 function commandName() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
@@ -72,10 +79,36 @@ function runCheck(id, args, cwd = ROOT, skip = false) {
   };
 }
 
+function runNodeCheck(id, args, cwd = ROOT, skip = false) {
+  const command = "node";
+  if (skip) return { id, command: [command, ...args], status: "not-run", exitCode: null };
+  const result = spawnSync(command, args, { cwd, encoding: "utf8", timeout: 180000, maxBuffer: 2 * 1024 * 1024 });
+  const timedOut = result.error?.code === "ETIMEDOUT";
+  return {
+    id,
+    command: [command, ...args],
+    status: timedOut ? "failed" : result.status === 0 ? "passed" : "failed",
+    exitCode: timedOut ? null : result.status,
+  };
+}
+
 function dotnetSignals(inventory, includeEnvironment) {
   const required = inventory.files.some((file) => /(?:^|\/)[^/]+\.(?:csproj|sln)$/.test(file.path) || /(?:^|\/)global\.json$/.test(file.path));
   if (!required) return { required: false, status: "not-required", available: null, exitCode: null, output: "" };
-  if (!includeEnvironment) return { required: true, status: "not-evaluated", available: null, exitCode: null, output: "Environment probe disabled in deterministic mode." };
+  const sdkContracted = inventory.files
+    .filter((file) => file.category === "ci-workflows")
+    .some((file) => /actions\/setup-dotnet@/u.test(readFileSync(absolute(file.path), "utf8")) && /dotnet-version\s*:/u.test(readFileSync(absolute(file.path), "utf8")));
+  if (!includeEnvironment) {
+    return {
+      required: true,
+      status: sdkContracted ? "contracted" : "not-evaluated",
+      available: null,
+      exitCode: null,
+      output: sdkContracted
+        ? "Repository CI declares an explicit setup-dotnet SDK contract; local binary probe is opt-in."
+        : "Environment probe disabled in deterministic mode.",
+    };
+  }
   return { required: true, ...runBinary("dotnet", ["--version"]) };
 }
 
@@ -105,7 +138,7 @@ function workflowSignals(inventory) {
   for (const file of workflows) {
     const content = readFileSync(absolute(file.path), "utf8");
     if (/^\s*permissions\s*:/m.test(content)) explicitPermissions += 1;
-    if (/permissions\s*:\s*write-all|contents\s*:\s*write/m.test(content)) broadWrite += 1;
+    if (/^\s*permissions\s*:\s*(?:write-all|write)\s*$/m.test(content)) broadWrite += 1;
     for (const match of content.matchAll(/uses:\s*[^\s@]+@([^\s]+)/g)) {
       if (!/^[0-9a-f]{40}$/i.test(match[1])) unpinnedActions += 1;
     }
@@ -173,19 +206,49 @@ function addGap(gaps, gap) {
   });
 }
 
-function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet }) {
+function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals }) {
   const gaps = [];
+  const overlapCheck = checks.find((check) => check.id === "automation-overlap");
   const failedChecks = checks.filter((check) => check.status === "failed");
   for (const check of failedChecks) {
     addGap(gaps, { gapId: `QUALITY-${check.id.toUpperCase()}`, domain: "quality", severity: "high", status: "open", blocking: true, evidence: check, impact: `${check.id} is not passing`, recommendation: `Repair ${check.id} and rerun the evaluation loop.` });
   }
   if (workflow.missingExplicitPermissions > 0) addGap(gaps, { gapId: "SEC-CI-EXPLICIT-PERMISSIONS", domain: "security", severity: "medium", status: "open", blocking: false, evidence: workflow, impact: "Some workflows do not declare an explicit permission boundary.", recommendation: "Review each workflow and declare the minimum required permissions." });
   if (workflow.broadWrite > 0) addGap(gaps, { gapId: "SEC-CI-BROAD-WRITE", domain: "security", severity: "medium", status: "open", blocking: false, evidence: { broadWrite: workflow.broadWrite }, impact: "Some workflows request write-level authority.", recommendation: "Replace broad write permissions with least-privilege scopes." });
-  if (workflow.workflowCount > 100) addGap(gaps, { gapId: "AUTO-CI-SURFACE-SIZE", domain: "maintainability", severity: "low", status: "open", blocking: false, evidence: { workflowCount: workflow.workflowCount }, impact: "A large workflow surface increases maintenance and overlap risk.", recommendation: "Consolidate duplicate workflows and keep ownership boundaries explicit." });
-  const largeFiles = inventory.files.filter((file) => file.bytes >= 1024 * 1024).map((file) => ({ path: file.path, bytes: file.bytes })).sort((a, b) => b.bytes - a.bytes);
-  if (largeFiles.length > 0) addGap(gaps, { gapId: "MAINT-LARGE-TRACKED-FILES", domain: "maintainability", severity: "low", status: "open", blocking: false, evidence: { count: largeFiles.length, files: largeFiles.slice(0, 10) }, impact: "Large generated or source files increase review and change costs.", recommendation: "Prefer generated artifacts, split oversized sources, or document why each large file is retained." });
+  const workflowBudgetExceeded = workflow.workflowCount > Number(ciSurfacePolicy.maxWorkflowCount ?? 100);
+  const overlapCheckMissingOrFailed = ciSurfacePolicy.requireOverlapCheck === true && overlapCheck?.status !== "passed";
+  if (workflowBudgetExceeded || overlapCheckMissingOrFailed) {
+    addGap(gaps, {
+      gapId: "AUTO-CI-SURFACE-SIZE",
+      domain: "maintainability",
+      severity: "low",
+      status: "open",
+      blocking: false,
+      evidence: {
+        workflowCount: workflow.workflowCount,
+        maxWorkflowCount: Number(ciSurfacePolicy.maxWorkflowCount ?? 100),
+        overlapCheck: overlapCheck?.status ?? "not-run",
+      },
+      impact: "The CI surface exceeds its declared budget or lacks a passing overlap-control check.",
+      recommendation: "Keep the workflow count within the declared budget and maintain a passing automation overlap check.",
+    });
+  }
+  if (largeFileSignals.unapproved.length > 0) addGap(gaps, {
+    gapId: "MAINT-LARGE-TRACKED-FILES",
+    domain: "maintainability",
+    severity: "low",
+    status: "open",
+    blocking: false,
+    evidence: {
+      totalLargeFiles: largeFileSignals.all.length,
+      approved: largeFileSignals.approved,
+      unapproved: largeFileSignals.unapproved.slice(0, 10),
+    },
+    impact: "Large files without an explicit ownership and rationale policy increase review and change costs.",
+    recommendation: "Split or generate the file, or add a bounded rationale to the large-file policy.",
+  });
   if (secrets.suspectedSecretFiles.length > 0) addGap(gaps, { gapId: "SEC-TRACKED-SECRET-SUSPECT", domain: "security", severity: "critical", status: "open", blocking: true, evidence: secrets, impact: "A tracked file matches a high-risk credential pattern.", recommendation: "Remove the credential, rotate it, and add a suitable secret-scanning rule." });
-  if (audit.mode === "not-run") addGap(gaps, { gapId: "DEP-AUDIT-NOT-EVALUATED", domain: "dependencies", severity: "medium", status: "not-evaluated", blocking: false, evidence: audit, impact: "Dependency advisories were not queried in this offline-safe run.", recommendation: "Run npm run evaluation:network in a network-enabled CI context." });
+  if (audit.mode === "not-run" && dependencyAuditPolicy.ciNetworkAuditRequired !== true) addGap(gaps, { gapId: "DEP-AUDIT-NOT-EVALUATED", domain: "dependencies", severity: "medium", status: "not-evaluated", blocking: false, evidence: { ...audit, policy: dependencyAuditPolicy }, impact: "Dependency advisories were not queried in this offline-safe run and no CI audit contract is declared.", recommendation: "Declare and run a network-enabled dependency audit in CI." });
   else {
     const findings = audit.packages.filter((item) => item.status === "findings");
     if (findings.length > 0) addGap(gaps, { gapId: "DEP-AUDIT-FINDINGS", domain: "dependencies", severity: "medium", status: "open", blocking: false, evidence: findings, impact: "One or more package manifests report dependency advisories or audit errors.", recommendation: "Review the audit metadata and update dependencies through a controlled PR." });
@@ -194,6 +257,19 @@ function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet }) {
   else if (dotnet.status === "not-available") addGap(gaps, { gapId: "ENV-DOTNET-NOT-AVAILABLE", domain: "environment", severity: "medium", status: "not-evaluated", blocking: false, evidence: dotnet, impact: "Some .NET-dependent validation cannot run in the current environment.", recommendation: "Install the repository-supported .NET SDK in CI or explicitly mark the check as environment-gated." });
   gaps.sort((a, b) => a.gapId.localeCompare(b.gapId) || SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
   return gaps;
+}
+
+function largeFileSignals(inventory, policy) {
+  const all = inventory.files
+    .filter((file) => file.bytes >= 1024 * 1024)
+    .map((file) => ({ path: file.path, bytes: file.bytes }))
+    .sort((a, b) => b.bytes - a.bytes);
+  const approvedPaths = new Set((policy.files ?? []).map((item) => item.path));
+  return {
+    all,
+    approved: all.filter((file) => approvedPaths.has(file.path)),
+    unapproved: all.filter((file) => !approvedPaths.has(file.path)),
+  };
 }
 
 function comparableGap(gap) {
@@ -221,6 +297,9 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   // The inventory remains complete, but generated evaluation files are excluded from
   // evaluator inputs to avoid a self-referential fingerprint/write cycle.
   const evaluationInventory = { ...inventory, files: inventory.files.filter((file) => !EVALUATION_OUTPUT_PATHS.has(file.path)) };
+  const ciSurfacePolicy = readOptionalJson(CI_SURFACE_POLICY_PATH, { maxWorkflowCount: 100, requireOverlapCheck: false });
+  const dependencyAuditPolicy = readOptionalJson(DEPENDENCY_AUDIT_POLICY_PATH, { ciNetworkAuditRequired: false });
+  const largeFilePolicy = readOptionalJson(LARGE_FILE_POLICY_PATH, { files: [] });
   const workflow = workflowSignals(evaluationInventory);
   const secrets = secretSignals(evaluationInventory);
   const audit = auditSignals(evaluationInventory, includeNetwork);
@@ -231,9 +310,11 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
     runCheck("inventory-selftest", ["run", "inventory:test"], root, skipChecks),
     runCheck("typecheck", ["run", "typecheck"], root, skipChecks),
     runCheck("root-tests", ["test", "--", "--runInBand"], root, skipChecks),
+    runNodeCheck("automation-overlap", ["http-generic-api/scripts/automation-overlap-analyzer.mjs", "--check"], root, skipChecks),
   ];
-  const inputFingerprint = sha256({ inventoryFiles: evaluationInventory.files, workflow, secrets, audit, dotnet, checks: checks.map(({ id, status, exitCode }) => ({ id, status, exitCode })) });
-  const gaps = collectGaps({ inventory: evaluationInventory, checks, workflow, secrets, audit, dotnet });
+  const largeFiles = largeFileSignals(evaluationInventory, largeFilePolicy);
+  const inputFingerprint = sha256({ inventoryFiles: evaluationInventory.files, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFilePolicy, largeFiles, checks: checks.map(({ id, status, exitCode }) => ({ id, status, exitCode })) });
+  const gaps = collectGaps({ inventory: evaluationInventory, checks, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals: largeFiles });
   const baselineDiff = compareBaseline({ gaps }, baseline);
   for (const gap of gaps) {
     gap.lifecycle = !baselineDiff.available ? "new" : baselineDiff.newGapIds.includes(gap.gapId) ? "new" : baselineDiff.unchangedGapIds.includes(gap.gapId) ? "unchanged" : "persisting";
@@ -247,7 +328,19 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
     deterministic: !includeNetwork && !includeEnvironment,
     inputFingerprint,
     inventory: { files: evaluationInventory.files.length, bytes: evaluatedBytes, directories: inventory.totals.directories, categories: inventory.totals.categories },
-    signals: { workflow, secrets, audit, dotnet },
+    signals: {
+      workflow,
+      secrets,
+      audit,
+      dotnet,
+      maintainability: {
+        workflowBudget: Number(ciSurfacePolicy.maxWorkflowCount ?? 100),
+        totalLargeFiles: largeFiles.all.length,
+        approvedLargeFiles: largeFiles.approved.length,
+        unapprovedLargeFiles: largeFiles.unapproved.length,
+      },
+    },
+    policies: { ciSurface: ciSurfacePolicy, dependencyAudit: dependencyAuditPolicy, largeFiles: largeFilePolicy },
     checks,
     gaps,
     gate,
@@ -282,8 +375,12 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Workflows | ${evaluation.signals.workflow.workflowCount} |
 | Workflows without explicit permissions | ${evaluation.signals.workflow.missingExplicitPermissions} |
 | Broad write permission matches | ${evaluation.signals.workflow.broadWrite} |
+| Automation overlap check | ${evaluation.checks.find((check) => check.id === "automation-overlap")?.status ?? "not-run"} |
+| Workflow budget | ${evaluation.signals.maintainability.workflowBudget} |
+| Unapproved large files | ${evaluation.signals.maintainability.unapprovedLargeFiles} |
 | Suspected secret files | ${evaluation.signals.secrets.suspectedSecretFiles.length} |
 | Dependency audit mode | ${evaluation.signals.audit.mode} |
+| CI dependency audit contract | ${evaluation.policies.dependencyAudit.ciNetworkAuditRequired ? "required" : "missing"} |
 | .NET availability | ${evaluation.signals.dotnet.status} |
 
 ## Checks

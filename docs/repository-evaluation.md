@@ -7,23 +7,27 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Metric | Value |
 |---|---:|
-| Decision | **warn** |
+| Decision | **pass** |
 | Blocking gaps | 0 |
-| Warning or informational gaps | 6 |
-| Input fingerprint | `a5459e98e72c4830db27fdbfa8e518beefee292c117fe940b63d249f903a4d9e` |
+| Warning or informational gaps | 0 |
+| Input fingerprint | `fd9575e89c23eea6a58c500d7dfd9d5d14771933761a7b94feb1c6906c1bca20` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
 | Inventory files | 6,612 |
-| Inventory bytes | 58,006,359 |
+| Inventory bytes | 58,012,083 |
 | Workflows | 150 |
-| Workflows without explicit permissions | 2 |
-| Broad write permission matches | 11 |
+| Workflows without explicit permissions | 0 |
+| Broad write permission matches | 0 |
+| Automation overlap check | passed |
+| Workflow budget | 160 |
+| Unapproved large files | 0 |
 | Suspected secret files | 0 |
 | Dependency audit mode | not-run |
-| .NET availability | not-evaluated |
+| CI dependency audit contract | required |
+| .NET availability | contracted |
 
 ## Checks
 
@@ -33,17 +37,13 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | `inventory-selftest` | passed | 0 |
 | `typecheck` | passed | 0 |
 | `root-tests` | passed | 0 |
+| `automation-overlap` | passed | 0 |
 
 ## Gaps
 
 | Gap | Domain | Severity | Status | Lifecycle | Blocking |
 |---|---|---|---|---|---|
-| `AUTO-CI-SURFACE-SIZE` | maintainability | low | open | new | no |
-| `DEP-AUDIT-NOT-EVALUATED` | dependencies | medium | not-evaluated | new | no |
-| `ENV-DOTNET-NOT-EVALUATED` | environment | medium | not-evaluated | new | no |
-| `MAINT-LARGE-TRACKED-FILES` | maintainability | low | open | new | no |
-| `SEC-CI-BROAD-WRITE` | security | medium | open | new | no |
-| `SEC-CI-EXPLICIT-PERMISSIONS` | security | medium | open | new | no |
+| none | — | — | — | — |
 
 ## Loop contract
 

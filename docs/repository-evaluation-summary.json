@@ -2,18 +2,11 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-evaluation",
   "deterministic": true,
-  "inputFingerprint": "a5459e98e72c4830db27fdbfa8e518beefee292c117fe940b63d249f903a4d9e",
+  "inputFingerprint": "fd9575e89c23eea6a58c500d7dfd9d5d14771933761a7b94feb1c6906c1bca20",
   "gate": {
-    "decision": "warn",
+    "decision": "pass",
     "blockingGapIds": [],
-    "warningGapIds": [
-      "AUTO-CI-SURFACE-SIZE",
-      "DEP-AUDIT-NOT-EVALUATED",
-      "ENV-DOTNET-NOT-EVALUATED",
-      "MAINT-LARGE-TRACKED-FILES",
-      "SEC-CI-BROAD-WRITE",
-      "SEC-CI-EXPLICIT-PERMISSIONS"
-    ]
+    "warningGapIds": []
   },
   "baselineDiff": {
     "available": false,
@@ -23,69 +16,15 @@
     "resolvedGapIds": []
   },
   "gapCounts": {
-    "total": 6,
+    "total": 0,
     "bySeverity": {
       "critical": 0,
       "high": 0,
-      "medium": 4,
-      "low": 2,
+      "medium": 0,
+      "low": 0,
       "info": 0
     },
-    "byDomain": {
-      "dependencies": 1,
-      "environment": 1,
-      "maintainability": 2,
-      "security": 2
-    }
+    "byDomain": {}
   },
-  "topGaps": [
-    {
-      "gapId": "AUTO-CI-SURFACE-SIZE",
-      "domain": "maintainability",
-      "severity": "low",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "DEP-AUDIT-NOT-EVALUATED",
-      "domain": "dependencies",
-      "severity": "medium",
-      "status": "not-evaluated",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "ENV-DOTNET-NOT-EVALUATED",
-      "domain": "environment",
-      "severity": "medium",
-      "status": "not-evaluated",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "MAINT-LARGE-TRACKED-FILES",
-      "domain": "maintainability",
-      "severity": "low",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "SEC-CI-BROAD-WRITE",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    },
-    {
-      "gapId": "SEC-CI-EXPLICIT-PERMISSIONS",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    }
-  ]
+  "topGaps": []
 }

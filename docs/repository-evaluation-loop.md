@@ -13,7 +13,7 @@
 3. تحويل النتائج إلى فجوات ذات معرّفات مستقرة مبنية على المجال والقاعدة، لا على ترتيب التنفيذ.
 4. مقارنة الفجوات الحالية بالـ baseline السابق إن وُجد. تحمل الفجوة الحالية lifecycle من `new` أو `unchanged` أو `persisting`، بينما تظهر الفجوات التي اختفت في `resolvedGapIds` داخل baseline diff.
 5. إعادة بناء التقرير والتحقق من أن artifacts committed متطابقة مع التوليد الحالي؛ أي اختلاف يعني أن التوليد غير deterministic.
-6. إصدار قرار البوابة. مع `--enforce` يفشل CI فقط عند فجوة blocking مفتوحة أو فشل فحص حاجز، بينما تبقى فجوات `warn` و`not-evaluated` ظاهرة دون منع الدمج. الفجوات المعلوماتية مثل dependency audit أو توفر SDK لا تتحول تلقائيًا إلى فشل بناء.
+6. إصدار قرار البوابة. مع `--enforce` يفشل CI فقط عند فجوة blocking مفتوحة أو فشل فحص حاجز، بينما تبقى الفجوات التحذيرية ظاهرة دون منع الدمج. يظل التقييم المحلي deterministic، في حين يملك CI probes شبكية وبيئية منفصلة للتحقق من dependency advisories و.NET SDK.
 
 ## مصدر الحقيقة
 
@@ -25,7 +25,7 @@
 
 ## المجالات الحالية
 
-يغطي الإصدار الأول سلامة الجرد والتقارير المولدة، typecheck والاختبارات الأساسية، انجراف Workflows، الاعتماديات، توفر أدوات البناء، الملفات الكبيرة ومؤشرات الصيانة، والحالة العامة لبوابة CI. يمكن إضافة قواعد جديدة دون تعديل schema الأساسي.
+يغطي الإصدار الأول سلامة الجرد والتقارير المولدة، typecheck والاختبارات الأساسية، انجراف Workflows، الاعتماديات، توفر أدوات البناء، الملفات الكبيرة ومؤشرات الصيانة، والحالة العامة لبوابة CI. يعتمد حجم سطح CI على `docs/repository-ci-surface-policy.json` مع فحص `automation-overlap-analyzer`، بينما تعتمد الملفات الكبيرة على `docs/repository-large-file-policy.json` التي تتطلب مبررًا ومالكًا لكل ملف مستثنى. يمكن إضافة قواعد جديدة دون تعديل schema الأساسي.
 
 ## حدود الأتمتة
 
@@ -33,8 +33,8 @@
 
 ## المخرجات
 
-ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص المحلية. probes الخارجية اختيارية: `--include-network` لفحص advisories و`--include-environment` لفحص SDK، ويُعلن تشغيل أي منهما كغير deterministic بسبب اعتماد النتيجة على البيئة الخارجية.
+ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص المحلية. probes الخارجية اختيارية محليًا: `--include-network` لفحص advisories و`--include-environment` لفحص SDK، بينما يفرض Workflow البعيد audit الشبكي و`setup-dotnet@v5` عبر `docs/repository-dependency-audit-policy.json`. يظل ناتج التقييم committed مبنيًا على الوضع deterministic ولا يخلط نتائج runner الخارجية داخله.
 
 ## سياسة الدمج
 
-يجب أن يمر Pull Request عبر `evaluation:check -- --enforce` و`evaluation:test`، وأن يثبت أن التقرير متسق مع الجرد الحالي. لا يمنع التقرير الدمج بسبب فجوة معلوماتية وحدها، لكنه يعلنها ويحتفظ بدليلها حتى لا تختفي من المتابعة. تشغيل `--include-network` و`--include-environment` اختياري وموسوم كغير deterministic بالنسبة إلى البيئة الخارجية. الوضع الافتراضي لا يستدعي `dotnet`؛ لذلك يظهر احتياج .NET كفجوة `not-evaluated` بدل أن تختلف artifacts بين runner وآخر.
+يجب أن يمر Pull Request عبر `evaluation:check -- --enforce` و`evaluation:test`، وأن يثبت أن التقرير متسق مع الجرد الحالي. يجب أيضًا أن ينجح فحص overlap وnetwork dependency audit و.NET SDK probe في Workflow البعيد. لا يمنع التقرير الدمج بسبب فجوة معلوماتية وحدها، لكنه يعلنها ويحتفظ بدليلها حتى لا تختفي من المتابعة. الوضع الافتراضي لا يستدعي binary `dotnet`؛ وعند وجود عقد `setup-dotnet` موثق يصنف البيئة كـ `contracted`، بينما يبقى probe المحلي opt-in.

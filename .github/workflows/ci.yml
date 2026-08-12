@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, Production]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}-local-connector-v18
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

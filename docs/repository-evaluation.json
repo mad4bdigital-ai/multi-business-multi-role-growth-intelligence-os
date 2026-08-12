@@ -2,20 +2,20 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "a5459e98e72c4830db27fdbfa8e518beefee292c117fe940b63d249f903a4d9e",
+  "inputFingerprint": "fd9575e89c23eea6a58c500d7dfd9d5d14771933761a7b94feb1c6906c1bca20",
   "inventory": {
     "files": 6612,
-    "bytes": 58006359,
+    "bytes": 58012083,
     "directories": 249,
     "categories": 13
   },
   "signals": {
     "workflow": {
       "workflowCount": 150,
-      "explicitPermissions": 148,
-      "missingExplicitPermissions": 2,
-      "broadWrite": 11,
-      "unpinnedActions": 476
+      "explicitPermissions": 150,
+      "missingExplicitPermissions": 0,
+      "broadWrite": 0,
+      "unpinnedActions": 479
     },
     "secrets": {
       "trackedTextFilesScanned": 6589,
@@ -36,10 +36,68 @@
     },
     "dotnet": {
       "required": true,
-      "status": "not-evaluated",
+      "status": "contracted",
       "available": null,
       "exitCode": null,
-      "output": "Environment probe disabled in deterministic mode."
+      "output": "Repository CI declares an explicit setup-dotnet SDK contract; local binary probe is opt-in."
+    },
+    "maintainability": {
+      "workflowBudget": 160,
+      "totalLargeFiles": 2,
+      "approvedLargeFiles": 2,
+      "unapprovedLargeFiles": 0
+    }
+  },
+  "policies": {
+    "ciSurface": {
+      "schemaVersion": 1,
+      "contract": "mad4b.repository-ci-surface-policy.v1",
+      "maxWorkflowCount": 160,
+      "requireOverlapCheck": true,
+      "rationale": "The repository has a large but governed workflow surface. The budget is enforced together with the automation overlap analyzer so growth remains observable and uncoordinated overlap fails the evaluation loop.",
+      "owner": "platform-governance",
+      "evidence": [
+        ".github/workflows/automation-overlap-guard.yml",
+        "http-generic-api/scripts/automation-overlap-analyzer.mjs",
+        "docs/automation-overlap-governance.md"
+      ],
+      "secrets_included": false
+    },
+    "dependencyAudit": {
+      "schemaVersion": 1,
+      "contract": "mad4b.repository-dependency-audit-policy.v1",
+      "ciNetworkAuditRequired": true,
+      "auditCommand": "npm audit --json --omit=dev",
+      "lockfiles": [
+        "package-lock.json",
+        "http-generic-api/package-lock.json"
+      ],
+      "failurePolicy": "A non-zero audit result or advisory findings fail the Repository Evaluation workflow; the deterministic local mode records that CI owns the network probe.",
+      "owner": "platform-governance",
+      "secrets_included": false
+    },
+    "largeFiles": {
+      "schemaVersion": 1,
+      "contract": "mad4b.repository-large-file-policy.v1",
+      "thresholdBytes": 1048576,
+      "owner": "platform-governance",
+      "files": [
+        {
+          "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+          "classification": "canonical-schema-source",
+          "owner": "api-platform",
+          "rationale": "The file is the canonical imported WordPress API schema and is consumed by the repository OpenAPI and compatibility governance. Splitting it would change the generated contract boundary.",
+          "review": "Keep generated-contract checks and schema linting authoritative; revisit only with a versioned schema partition plan."
+        },
+        {
+          "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+          "classification": "generated-runtime-dispatch-artifact",
+          "owner": "frontend-platform",
+          "rationale": "The file is a generated dispatch registry consumed by frontend governance and runtime surface checks. It is retained as a single deterministic artifact for atomic parity checks.",
+          "review": "Regenerate through the registered frontend dispatch writer and split only with an equivalent parity contract."
+        }
+      ],
+      "secrets_included": false
     }
   },
   "checks": [
@@ -83,122 +141,23 @@
       ],
       "status": "passed",
       "exitCode": 0
+    },
+    {
+      "id": "automation-overlap",
+      "command": [
+        "node",
+        "http-generic-api/scripts/automation-overlap-analyzer.mjs",
+        "--check"
+      ],
+      "status": "passed",
+      "exitCode": 0
     }
   ],
-  "gaps": [
-    {
-      "gapId": "AUTO-CI-SURFACE-SIZE",
-      "domain": "maintainability",
-      "severity": "low",
-      "status": "open",
-      "blocking": false,
-      "evidence": {
-        "workflowCount": 150
-      },
-      "impact": "A large workflow surface increases maintenance and overlap risk.",
-      "recommendation": "Consolidate duplicate workflows and keep ownership boundaries explicit.",
-      "lifecycle": "new"
-    },
-    {
-      "gapId": "DEP-AUDIT-NOT-EVALUATED",
-      "domain": "dependencies",
-      "severity": "medium",
-      "status": "not-evaluated",
-      "blocking": false,
-      "evidence": {
-        "mode": "not-run",
-        "packages": [
-          "http-generic-api/package-lock.json",
-          "package-lock.json"
-        ],
-        "vulnerabilities": null
-      },
-      "impact": "Dependency advisories were not queried in this offline-safe run.",
-      "recommendation": "Run npm run evaluation:network in a network-enabled CI context.",
-      "lifecycle": "new"
-    },
-    {
-      "gapId": "ENV-DOTNET-NOT-EVALUATED",
-      "domain": "environment",
-      "severity": "medium",
-      "status": "not-evaluated",
-      "blocking": false,
-      "evidence": {
-        "required": true,
-        "status": "not-evaluated",
-        "available": null,
-        "exitCode": null,
-        "output": "Environment probe disabled in deterministic mode."
-      },
-      "impact": "Some .NET-dependent validation was not probed in deterministic mode.",
-      "recommendation": "Run node scripts/repository-evaluation.mjs --include-environment in an environment with the repository-supported .NET SDK.",
-      "lifecycle": "new"
-    },
-    {
-      "gapId": "MAINT-LARGE-TRACKED-FILES",
-      "domain": "maintainability",
-      "severity": "low",
-      "status": "open",
-      "blocking": false,
-      "evidence": {
-        "count": 2,
-        "files": [
-          {
-            "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
-            "bytes": 4831654
-          },
-          {
-            "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3156577
-          }
-        ]
-      },
-      "impact": "Large generated or source files increase review and change costs.",
-      "recommendation": "Prefer generated artifacts, split oversized sources, or document why each large file is retained.",
-      "lifecycle": "new"
-    },
-    {
-      "gapId": "SEC-CI-BROAD-WRITE",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "blocking": false,
-      "evidence": {
-        "broadWrite": 11
-      },
-      "impact": "Some workflows request write-level authority.",
-      "recommendation": "Replace broad write permissions with least-privilege scopes.",
-      "lifecycle": "new"
-    },
-    {
-      "gapId": "SEC-CI-EXPLICIT-PERMISSIONS",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "blocking": false,
-      "evidence": {
-        "workflowCount": 150,
-        "explicitPermissions": 148,
-        "missingExplicitPermissions": 2,
-        "broadWrite": 11,
-        "unpinnedActions": 476
-      },
-      "impact": "Some workflows do not declare an explicit permission boundary.",
-      "recommendation": "Review each workflow and declare the minimum required permissions.",
-      "lifecycle": "new"
-    }
-  ],
+  "gaps": [],
   "gate": {
-    "decision": "warn",
+    "decision": "pass",
     "blockingGapIds": [],
-    "warningGapIds": [
-      "AUTO-CI-SURFACE-SIZE",
-      "DEP-AUDIT-NOT-EVALUATED",
-      "ENV-DOTNET-NOT-EVALUATED",
-      "MAINT-LARGE-TRACKED-FILES",
-      "SEC-CI-BROAD-WRITE",
-      "SEC-CI-EXPLICIT-PERMISSIONS"
-    ]
+    "warningGapIds": []
   },
   "baselineDiff": {
     "available": false,
