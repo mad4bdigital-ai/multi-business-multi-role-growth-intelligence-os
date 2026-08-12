@@ -91,6 +91,11 @@ jobs:
           cache: "npm"
           cache-dependency-path: http-generic-api/package-lock.json
 
+      - name: Set up .NET 8 for sidecar certification tests
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci

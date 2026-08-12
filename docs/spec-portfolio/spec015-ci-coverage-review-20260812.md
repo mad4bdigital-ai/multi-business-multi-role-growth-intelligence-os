@@ -33,6 +33,23 @@ The live audit observed a CI run for the branch at commit `1c780cce3db1c4be0aa50
 
 The default branch currently reports no classic branch protection configuration and no active ruleset in the read-only API response. Required checks therefore exist as workflow jobs but are not enforced by GitHub until a repository policy is applied.
 
+## Live failure triage and fixes
+
+The first CI run after adding the Spec 015 job exposed a pre-existing canonical-binding regression in `test-repo-patch-apply.mjs`: the public lifecycle wrapper was not textually or functionally bound to `githubRepositoryLifecycleCore.js`. The wrapper now delegates `githubBranchDeleteConfirmation` to the canonical core implementation.
+
+The next CI run exposed the deeper repository authority boundary gap. The public wrapper did not expose `createRepositoryAuthorityCheckedFetch`, so live envelope and resource-binding revalidation was absent below the route layer. The wrapper now provides a checked transport that performs read-only preparation without consuming the write boundary, re-reads the capability envelope before the first provider write, revalidates again before ref updates, rejects resolved commit-parent mismatch before binding read, and derives the exact repository URI from the GitHub request path when needed.
+
+The focused authority suite now passes locally:
+
+```text
+Repository authority write-boundary regression passed
+Repository resolved commit-parent authority boundary regression passed
+platform tool dispatch binding integrity tests passed
+repo_patch_apply: 12 passed, 0 failed
+```
+
+The full canonical manifest originally proceeded beyond these repaired tests but stopped in the sandbox at the .NET local-manager certification command because the `dotnet` executable is not installed. That was an environment capability gap, not a failed JavaScript assertion. CI now provisions .NET 8 explicitly with `actions/setup-dotnet@v4`, and the sidecar certification project enables Windows targeting on the Ubuntu runner. The sandbox cannot execute that final .NET verification because its local toolchain is absent; the next GitHub run is the authoritative check for this change.
+
 ## Remaining CI gaps
 
 The following gaps remain intentionally open:

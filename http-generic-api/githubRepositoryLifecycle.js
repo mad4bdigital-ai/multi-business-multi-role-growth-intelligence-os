@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { githubBranchDeleteConfirmation as canonicalGithubBranchDeleteConfirmation } from "./githubRepositoryLifecycleCore.js";
+import { capabilityEnvelopeError, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 import { applyUnifiedDiffToText } from "./unifiedDiff.js";
 import { attachRepositoryMutationCoordination, evaluateRepositoryMutationCoordination } from "./repositoryMutationCoordinationTelemetry.js";
@@ -20,6 +21,121 @@ const DEFAULT_REQUIRED_CHECKS = Object.freeze([
 ]);
 const DEFAULT_BRANCH_DELETE_READBACK_ATTEMPTS = 3;
 const DEFAULT_BRANCH_DELETE_READBACK_DELAY_MS = 150;
+
+export const REPOSITORY_PATCH_MUTATION_INTENTS = Object.freeze([
+  "repo_patch_apply",
+  "repo_mutation",
+  "github_repo_patch",
+  "write",
+  "create",
+  "delete",
+]);
+
+function repositoryAuthorityRequestPath(url = "") {
+  try {
+    return new URL(String(url)).pathname;
+  } catch {
+    return String(url || "").split("?")[0];
+  }
+}
+
+function repositoryAuthorityMethod(init = {}) {
+  return String(init?.method || "GET").trim().toUpperCase() || "GET";
+}
+
+function repositoryAuthorityIsReadOnly(method = "GET") {
+  return method === "GET" || method === "HEAD" || method === "OPTIONS";
+}
+
+function repositoryAuthorityIsRefUpdate(pathname = "") {
+  return /\/git\/refs(?:\/|$)/.test(pathname);
+}
+
+function resolvedCommitParentFromPathname(pathname = "") {
+  const match = pathname.match(/\/git\/commits\/([0-9a-f]{40})(?:$|\/)/i);
+  return match ? match[1].toLowerCase() : "";
+}
+
+function repositoryTargetFromPathname(pathname = "") {
+  const match = pathname.match(/\/repos\/([^/]+)\/([^/]+)(?:\/|$)/i);
+  if (!match) return { owner: "", repo: "", resourceUri: "" };
+  const resolvedOwner = decodeURIComponent(match[1]);
+  const resolvedRepo = decodeURIComponent(match[2]).replace(/\.git$/i, "");
+  return { owner: resolvedOwner, repo: resolvedRepo, resourceUri: `github://${resolvedOwner}/${resolvedRepo}` };
+}
+
+export function createRepositoryAuthorityCheckedFetch({
+  pool,
+  fetchImpl = fetch,
+  capability_envelope_id,
+  owner = "",
+  repo = "",
+  branch = "",
+  expected_base_sha = "",
+  expected_branch_sha = "",
+  expected_commit_sha = "",
+} = {}) {
+  let firstProviderWriteValidated = false;
+  let resolvedCommitParentSha = "";
+
+  return async function repositoryAuthorityCheckedFetch(url, init = {}) {
+    const method = repositoryAuthorityMethod(init);
+    const pathname = repositoryAuthorityRequestPath(url);
+    const commitParentSha = resolvedCommitParentFromPathname(pathname);
+    if (commitParentSha) resolvedCommitParentSha = commitParentSha;
+    if (repositoryAuthorityIsReadOnly(method)) return fetchImpl(url, init);
+
+    const refUpdate = repositoryAuthorityIsRefUpdate(pathname);
+    const requestTarget = repositoryTargetFromPathname(pathname);
+    const writeBoundaryPhase = refUpdate ? "pre_ref_update" : "pre_first_provider_write";
+    if (!firstProviderWriteValidated || refUpdate) {
+      const envelope = await resolveCapabilityExecutionEnvelope({
+        pool,
+        envelopeId: capability_envelope_id,
+        source: {
+          owner: owner || requestTarget.owner,
+          repo: repo || requestTarget.repo,
+          branch,
+          expected_base_sha,
+          expected_branch_sha,
+          expected_commit_sha: resolvedCommitParentSha || expected_commit_sha,
+        },
+        acceptedAppKeys: ["github"],
+        acceptedIntents: REPOSITORY_PATCH_MUTATION_INTENTS,
+        expectedResourceUri: owner && repo ? `github://${owner}/${repo}` : requestTarget.resourceUri,
+        expectedCommitSha: resolvedCommitParentSha || expected_commit_sha || expected_branch_sha || expected_base_sha,
+        requireCommitHint: false,
+        requireReadyForDispatch: true,
+        requireDispatchAllowed: true,
+        requireNoApprovalRequired: true,
+        requireNoBlockingGaps: true,
+        requireNoSecrets: true,
+      });
+      if (!envelope?.ok) {
+        throw capabilityEnvelopeError({
+          ...envelope,
+          write_boundary_phase: writeBoundaryPhase,
+          resolved_commit_parent_sha: resolvedCommitParentSha || null,
+          secrets_included: false,
+        });
+      }
+      if (resolvedCommitParentSha && expected_base_sha && resolvedCommitParentSha !== String(expected_base_sha).toLowerCase()) {
+        throw capabilityEnvelopeError({
+          ok: false,
+          status: "capability_resolution_envelope_commit_mismatch",
+          envelope_id: capability_envelope_id || null,
+          expected_commit_sha: String(expected_base_sha).toLowerCase(),
+          resolved_commit_parent_sha: resolvedCommitParentSha,
+          write_boundary_phase: writeBoundaryPhase,
+          secrets_included: false,
+        }, "Repository mutation parent commit does not match the authorized commit.");
+      }
+      firstProviderWriteValidated = true;
+    }
+
+    return fetchImpl(url, init);
+  };
+}
 
 function lifecycleError(status, code, message, details = null) {
   const error = new Error(message);
