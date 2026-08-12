@@ -1,0 +1,110 @@
+{
+  "generated_at": "2026-08-12T14:39:56.156Z",
+  "readback": {
+    "mode": "readback",
+    "target": {
+      "owner": "mad4bdigital-ai",
+      "repo": "multi-business-multi-role-growth-intelligence-os",
+      "default_branch": "main"
+    },
+    "main_sha": "916a30359ce3d36d079b15eeb48e99af3f75b631",
+    "branch_protected": false,
+    "repository_auto_merge_allowed": false,
+    "managed_ruleset_count": 0,
+    "repository_managed_ruleset_count": 0,
+    "bypass_actors": [],
+    "eligible_human_collaborators": [
+      {
+        "login": "mad4bdigital-ai",
+        "type": "User",
+        "status": 200,
+        "permission": "admin",
+        "role_name": "admin",
+        "secrets_included": false
+      }
+    ],
+    "review_policy_mode": "incomplete",
+    "finalizer_identity": {
+      "app_id": null,
+      "installation_id": null,
+      "resolved": false
+    },
+    "required_checks": [
+      "Syntax Check",
+      "Unit & Integration Tests",
+      "Architecture Drift Detection",
+      "Execution Resolver Gate",
+      "Evaluate changed feature phases",
+      "Execute current phase journeys",
+      "Single Owner Review Gate"
+    ],
+    "observed_required_checks": [],
+    "proof": {
+      "policy_state_readable": true,
+      "collaborator_ownership_complete": true,
+      "ruleset_details_readable": true,
+      "required_reviews_proven": false,
+      "required_approving_review_count": 0,
+      "dismiss_stale_reviews_proven": false,
+      "required_review_thread_resolution_proven": false,
+      "require_last_push_approval_observed": false,
+      "required_status_checks_proven": false,
+      "missing_required_status_checks": [
+        "Syntax Check",
+        "Unit & Integration Tests",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Evaluate changed feature phases",
+        "Execute current phase journeys",
+        "Single Owner Review Gate"
+      ],
+      "direct_push_block_proven": false,
+      "finalizer_app_identity_resolved": false,
+      "finalizer_not_bypass_proven": false,
+      "merge_queue_disabled_or_equivalent": true,
+      "auto_merge_disabled": true,
+      "server_policy_gate_complete": false
+    },
+    "findings": [
+      "required_review_missing",
+      "stale_review_dismissal_missing",
+      "review_thread_resolution_missing",
+      "latest_push_approval_missing",
+      "required_status_checks_missing",
+      "direct_push_block_unproven",
+      "finalizer_app_identity_unresolved",
+      "finalizer_bypass_posture_unproven"
+    ],
+    "mutation_executed": false,
+    "secrets_included": false
+  },
+  "plan": {
+    "mode": "plan",
+    "target": {
+      "owner": "mad4bdigital-ai",
+      "repo": "multi-business-multi-role-growth-intelligence-os",
+      "default_branch": "main"
+    },
+    "expected_main_sha": "916a30359ce3d36d079b15eeb48e99af3f75b631",
+    "desired_ruleset_fingerprint": "b1a3eaf63b096e27b9198dcc1178a5aff989b34957c66ee7ed244a24140d4ea1",
+    "policy_fingerprint": "6a3644c5946c9b479763d3245daf1b37f48908e8fe1511ce2f673c7dbcfdb135",
+    "review_policy_mode": "single_owner_attestation",
+    "single_owner_mode": true,
+    "operation": "create_ruleset",
+    "existing_ruleset_id": null,
+    "preconditions": {
+      "policy_state_readable": true,
+      "finalizer_app_identity_resolved": false,
+      "no_main_bypass_actors": true,
+      "managed_ruleset_ambiguity_absent": true,
+      "managed_ruleset_repository_owned": true,
+      "repository_auto_merge_disabled": true,
+      "merge_queue_disabled": true,
+      "review_policy_mode_eligible": true
+    },
+    "mutation_executed": false,
+    "force_push_allowed": false,
+    "repository_content_mutation_allowed": false,
+    "secrets_included": false
+  }
+}
