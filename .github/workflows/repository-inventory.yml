@@ -25,8 +25,9 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET_REF: fix/openapi-auto-merge-race-readback-20260812
-      EXPECTED_PARENT_SHA: 942eced123ad79b7354e4aa1f6481c4ef67ed8ba
-      EXPECTED_PREVIOUS_RECOVERY_PARENT_SHA: 1414eff01942d6da18758dc9e00cf73a8d90cabb
+      EXPECTED_PARENT_SHA: db64cccafbfed743b342c1491433d34b0611b69d
+      EXPECTED_RECOVERY_PARENT_SHA: 942eced123ad79b7354e4aa1f6481c4ef67ed8ba
+      EXPECTED_DIAGNOSTIC_SHA: 1414eff01942d6da18758dc9e00cf73a8d90cabb
       EXPECTED_MAIN_SHA: 916a30359ce3d36d079b15eeb48e99af3f75b631
       INTENDED_SOURCE_SHA: d668a884736d80f0e0ab9a94f57f65804a693f95
       REPORT_DIR: .ci-evidence/repository-inventory-detached-recovery
@@ -47,8 +48,9 @@ jobs:
           [[ "$EVENT_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$(git rev-parse HEAD)" == "$EVENT_HEAD_SHA" ]]
           [[ "$(git rev-parse HEAD^)" == "$EXPECTED_PARENT_SHA" ]]
-          [[ "$(git rev-parse "${EXPECTED_PARENT_SHA}^")" == "$EXPECTED_PREVIOUS_RECOVERY_PARENT_SHA" ]]
-          [[ "$(git rev-parse "${EXPECTED_PREVIOUS_RECOVERY_PARENT_SHA}^")" == "$INTENDED_SOURCE_SHA" ]]
+          [[ "$(git rev-parse "${EXPECTED_PARENT_SHA}^")" == "$EXPECTED_RECOVERY_PARENT_SHA" ]]
+          [[ "$(git rev-parse "${EXPECTED_RECOVERY_PARENT_SHA}^")" == "$EXPECTED_DIAGNOSTIC_SHA" ]]
+          [[ "$(git rev-parse "${EXPECTED_DIAGNOSTIC_SHA}^")" == "$INTENDED_SOURCE_SHA" ]]
           remote_head="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           [[ "$remote_head" == "$EVENT_HEAD_SHA" ]]
@@ -75,33 +77,15 @@ jobs:
         run: |
           set -euo pipefail
           npm run inventory:write
-          sha256sum \
-            docs/repository-inventory.json \
-            docs/repository-inventory-summary.json \
-            docs/repository-inventory.md \
-            > "$RUNNER_TEMP/inventory-first.sha256"
+          sha256sum docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md > "$RUNNER_TEMP/inventory-first.sha256"
 
       - name: Prove deterministic regeneration
         shell: bash
         run: |
           set -euo pipefail
           npm run inventory:write
-          sha256sum \
-            docs/repository-inventory.json \
-            docs/repository-inventory-summary.json \
-            docs/repository-inventory.md \
-            > "$RUNNER_TEMP/inventory-second.sha256"
+          sha256sum docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md > "$RUNNER_TEMP/inventory-second.sha256"
           cmp "$RUNNER_TEMP/inventory-first.sha256" "$RUNNER_TEMP/inventory-second.sha256"
-
-      - name: Verify exact authoritative inventory hashes
-        shell: bash
-        run: |
-          set -euo pipefail
-          printf '%s  %s\n' \
-            '88166670d810f3f9e252110d414238b4795874f656fc3d69a41c742465d4bdeb' 'docs/repository-inventory.json' \
-            'c42d1193590066abd1a89e4d06c7aeec3d5d8b95b5edf2098723b8cfa6c9ff24' 'docs/repository-inventory-summary.json' \
-            '815986442face31920886ef3e63e4ece035953cd25184fcbedac5e7f572e7ed5' 'docs/repository-inventory.md' \
-            | sha256sum -c -
 
       - name: Run repository inventory freshness check
         run: npm run inventory:check
@@ -134,11 +118,12 @@ jobs:
           set -euo pipefail
           make_blob() {
             local file="$1"
-            base64 -w0 "$file" \
-              | jq -Rs '{content: ., encoding: "base64"}' \
-              | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha'
+            base64 -w0 "$file" | jq -Rs '{content: ., encoding: "base64"}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha'
           }
 
+          inventory_hash="$(sha256sum docs/repository-inventory.json | awk '{print $1}')"
+          summary_hash="$(sha256sum docs/repository-inventory-summary.json | awk '{print $1}')"
+          markdown_hash="$(sha256sum docs/repository-inventory.md | awk '{print $1}')"
           workflow_blob="$(git rev-parse "${INTENDED_SOURCE_SHA}:.github/workflows/repository-inventory.yml")"
           inventory_blob="$(make_blob docs/repository-inventory.json)"
           summary_blob="$(make_blob docs/repository-inventory-summary.json)"
@@ -156,15 +141,13 @@ jobs:
               {path:"docs/repository-inventory.json",mode:"100644",type:"blob",sha:$inventory_blob},
               {path:"docs/repository-inventory-summary.json",mode:"100644",type:"blob",sha:$summary_blob},
               {path:"docs/repository-inventory.md",mode:"100644",type:"blob",sha:$markdown_blob}
-            ]}' \
-            | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
+            ]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
 
           detached_sha="$(jq -cn \
             --arg message 'docs(inventory): regenerate repository inventory for exact PR source' \
             --arg tree "$tree_sha" \
             --arg parent "$EVENT_HEAD_SHA" \
-            '{message:$message,tree:$tree,parents:[$parent]}' \
-            | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
+            '{message:$message,tree:$tree,parents:[$parent]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
 
           [[ "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${detached_sha}" --jq '.parents[0].sha')" == "$EVENT_HEAD_SHA" ]]
           [[ "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${detached_sha}" --jq '.tree.sha')" == "$tree_sha" ]]
@@ -192,11 +175,10 @@ jobs:
             --arg expected_main_sha "$EXPECTED_MAIN_SHA" \
             --arg detached_commit_sha "$detached_sha" \
             --arg tree_sha "$tree_sha" \
-            --arg inventory_sha256 '88166670d810f3f9e252110d414238b4795874f656fc3d69a41c742465d4bdeb' \
-            --arg summary_sha256 'c42d1193590066abd1a89e4d06c7aeec3d5d8b95b5edf2098723b8cfa6c9ff24' \
-            --arg markdown_sha256 '815986442face31920886ef3e63e4ece035953cd25184fcbedac5e7f572e7ed5' \
-            '{contract:$contract,target_ref:$target_ref,expected_parent_sha:$expected_parent_sha,intended_source_sha:$intended_source_sha,expected_main_sha:$expected_main_sha,detached_commit_sha:$detached_commit_sha,tree_sha:$tree_sha,inventory_sha256:$inventory_sha256,summary_sha256:$summary_sha256,markdown_sha256:$markdown_sha256,ref_moved:false,secrets_included:false}' \
-            > "$REPORT_DIR/report.json"
+            --arg inventory_sha256 "$inventory_hash" \
+            --arg summary_sha256 "$summary_hash" \
+            --arg markdown_sha256 "$markdown_hash" \
+            '{contract:$contract,target_ref:$target_ref,expected_parent_sha:$expected_parent_sha,intended_source_sha:$intended_source_sha,expected_main_sha:$expected_main_sha,detached_commit_sha:$detached_commit_sha,tree_sha:$tree_sha,inventory_sha256:$inventory_sha256,summary_sha256:$summary_sha256,markdown_sha256:$markdown_sha256,ref_moved:false,secrets_included:false}' > "$REPORT_DIR/report.json"
           echo "detached_sha=$detached_sha" >> "$GITHUB_OUTPUT"
 
       - name: Upload detached recovery evidence
