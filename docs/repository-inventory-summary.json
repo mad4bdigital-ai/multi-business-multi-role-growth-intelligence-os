@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6667,
-    "bytes": 58709291,
-    "lines": 1370365,
+    "files": 6702,
+    "bytes": 58981842,
+    "lines": 1375433,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1987,
+      "tests-and-specs": 1997,
       "documentation": 1853,
-      "api-runtime": 1323,
-      "database-migrations": 767,
-      "root-and-other": 222,
+      "api-runtime": 1339,
+      "database-migrations": 774,
+      "root-and-other": 224,
       "ci-workflows": 152,
       "api-contracts": 147,
       "ci-config": 94,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2438,
-      ".mjs": 1528,
-      ".js": 928,
-      ".sql": 782,
-      ".json": 655,
+      ".mjs": 1540,
+      ".js": 941,
+      ".sql": 789,
+      ".json": 658,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3429,
+      "http-generic-api": 3462,
       "docs": 1759,
       "specs": 809,
       ".github": 246,
-      ".changes": 218,
+      ".changes": 220,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -203,9 +203,9 @@
   ],
   "surfaces": {
     "workflows": 152,
-    "migrations": 767,
+    "migrations": 774,
     "apiContracts": 147,
-    "testSpecFiles": 2050
+    "testSpecFiles": 2060
   },
   "largestFiles": [
     {
@@ -217,8 +217,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3158811,
-      "lines": 97001
+      "bytes": 3143785,
+      "lines": 96512
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 328113,
-      "lines": 8552
+      "bytes": 327168,
+      "lines": 8529
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -257,7 +257,7 @@
       "lines": 3134
     },
     {
-      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
       "bytes": 203883,
       "lines": 4369
