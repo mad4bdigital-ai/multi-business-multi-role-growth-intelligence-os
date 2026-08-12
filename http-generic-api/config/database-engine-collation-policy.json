@@ -1,0 +1,69 @@
+{
+  "contract": "mad4b.database-engine-collation-policy.v1",
+  "policy_version": 1,
+  "default_semantic_policy": "human_text_default",
+  "semantic_policies": {
+    "human_text_default": {
+      "description": "Human-readable Unicode text with accent/case-insensitive comparison where supported."
+    },
+    "join_key_strict": {
+      "description": "Relational identifiers compared across tables must use the same physical comparison contract on both sides of a join."
+    },
+    "opaque_identifier": {
+      "description": "Opaque identifiers must preserve byte/case significance and must not inherit human-text folding semantics."
+    },
+    "case_sensitive_text": {
+      "description": "Text where case changes meaning."
+    },
+    "search_folded": {
+      "description": "Search-oriented text may use engine-native Unicode folding when not used as a relational join key."
+    }
+  },
+  "engine_profiles": [
+    {
+      "profile_key": "mariadb_10_10_plus",
+      "engine_family": "mariadb",
+      "minimum_version": "10.10.0",
+      "physical": {
+        "human_text_default": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" },
+        "join_key_strict": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" },
+        "opaque_identifier": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
+        "case_sensitive_text": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
+        "search_folded": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" }
+      },
+      "legacy_compatible_collations": ["utf8mb4_unicode_ci"],
+      "forbidden_collation_patterns": ["utf8mb4_0900_"]
+    },
+    {
+      "profile_key": "mysql_8_plus",
+      "engine_family": "mysql",
+      "minimum_version": "8.0.0",
+      "physical": {
+        "human_text_default": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" },
+        "join_key_strict": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" },
+        "opaque_identifier": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
+        "case_sensitive_text": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
+        "search_folded": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" }
+      },
+      "legacy_compatible_collations": ["utf8mb4_unicode_ci"],
+      "forbidden_collation_patterns": ["utf8mb4_uca1400_"]
+    },
+    {
+      "profile_key": "postgresql_16_plus",
+      "engine_family": "postgresql",
+      "minimum_version": "16.0.0",
+      "physical": {
+        "human_text_default": { "provider": "icu", "locale": "und" },
+        "join_key_strict": { "provider": "icu", "locale": "und" },
+        "opaque_identifier": { "provider": "binary" },
+        "case_sensitive_text": { "provider": "icu", "locale": "und-u-ks-level3" },
+        "search_folded": { "provider": "icu", "locale": "und" }
+      },
+      "legacy_compatible_collations": [],
+      "forbidden_collation_patterns": ["utf8mb4_"]
+    }
+  ],
+  "unknown_engine_policy": "block",
+  "legacy_collation_policy": "warn_unless_join_incompatible",
+  "secrets_included": false
+}
