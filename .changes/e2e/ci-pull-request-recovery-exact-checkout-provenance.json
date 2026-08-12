@@ -2,14 +2,16 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "ci-pull-request-recovery-exact-checkout-provenance",
-  "title": "CI Pull Request Recovery exact checkout provenance",
+  "title": "CI exact PR-head recovery provenance and pull-request stale-run cancellation",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
+      ".github/workflows/ci.yml",
       ".github/workflows/ci-pull-request-recovery.yml",
       "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
-      ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
+      ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
+      ".specify/work-map-currentness-probe.txt"
     ]
   },
   "merge_contract": {
@@ -19,27 +21,39 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Bind Recovery test progress artifacts to the exact Git tree actually checked out and executed instead of allowing an event-level pull-request merge SHA to label a head-SHA test result.",
+      "objective": "Bind Recovery execution and test evidence to the exact current pull-request head, including manual recovery after bot-generated commits whose normal PR workflows are blocked before job creation, while cancelling only superseded pull-request CI runs and keeping workflow-dispatch verification non-cancellable.",
       "e2e_journeys": [
         {
-          "id": "checked-out-head-sha-stamps-recovery-test-evidence",
+          "id": "verified-current-pr-head-stamps-recovery-evidence",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "CI evidence publisher and repository reviewer",
-          "entrypoint": "CI Pull Request Recovery Unit & Integration Tests job",
-          "terminal_outcome": "The test suite starts only after the checked-out SHA matches the selected candidate and its structured progress reports expose that same checked-out SHA through the process-local GITHUB_SHA value.",
+          "entrypoint": "CI Pull Request Recovery through pull_request or workflow_dispatch with pull_request_number, candidate_sha, expected_base_ref and optional expected_base_sha",
+          "terminal_outcome": "Recovery resolves the live open PR, proves the requested candidate is still its exact same-repository head on the expected base, checks out only that verified SHA, re-verifies currentness before tests, and publishes test/runtime evidence for that SHA without mutating the candidate branch or relying on an unrelated workflow-ref github.sha.",
           "steps": [
-            "Checkout the selected pull-request head SHA or explicit workflow-dispatch SHA.",
-            "Resolve git rev-parse HEAD immediately before the test suite.",
-            "Reject any mismatch between the checked-out SHA and the selected candidate SHA.",
+            "For manual recovery, require pull_request_number, candidate_sha and expected_base_ref; accept expected_base_sha as an optional additional freshness constraint.",
+            "Load the current pull request through the GitHub API before checkout.",
+            "Require the pull request to remain open and its head repository to equal the current repository.",
+            "Require candidate_sha to equal the pull request's current head SHA and require the base ref to equal the expected base.",
+            "When expected_base_sha is supplied, require it to equal the pull request's current base SHA.",
+            "Expose the verified pull request number, candidate SHA, head ref, base ref and base SHA as job outputs.",
+            "Checkout the API-verified candidate SHA and reject any git rev-parse HEAD mismatch.",
+            "Before Unit & Integration execution, query the pull request again and reject a head/base change that occurred after syntax verification.",
+            "Scope context-kernel differential checks from the verified PR base SHA rather than an unrelated manual-dispatch workflow ref.",
             "Run npm test with process-local GITHUB_SHA bound to the verified checked-out SHA.",
-            "Upload ordered test progress reports without relabeling head execution as a different merge candidate."
+            "Bind deployment/runtime evidence to the verified PR head ref and candidate SHA.",
+            "Use the pull-request event predicate as the only cancel-in-progress authority; manual recovery remains non-cancellable.",
+            "Upload ordered test progress reports without relabeling head execution as a different merge or workflow-ref candidate."
           ],
           "assertions": [
+            "Manual recovery cannot silently fall back to github.sha or the workflow ref as candidate identity.",
+            "A stale candidate SHA fails before checkout and tests.",
+            "A candidate from another pull request, fork repository, wrong base ref or closed pull request fails closed.",
+            "A pull-request head/base change between syntax and test jobs fails before test evidence is published.",
             "Recovery reports cannot inherit a different event-level GITHUB_SHA after exact-head checkout.",
-            "A candidate identity mismatch fails before npm test.",
-            "No repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, or external send is introduced.",
-            "The workflow retains read-only contents permission."
+            "Superseded pull-request runs are cancellable while workflow-dispatch recovery is not unconditionally cancellable.",
+            "Recovery adds only read access to pull-request metadata in addition to read-only repository contents.",
+            "No empty commit, Draft/Ready toggle, repository write, protected-ref mutation, provider call, deployment, database action, migration, credential access, force push or external send is introduced."
           ],
           "tests": [
             {
@@ -51,9 +65,11 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/ci.yml",
             ".github/workflows/ci-pull-request-recovery.yml",
             "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
-            ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json"
+            ".changes/e2e/ci-pull-request-recovery-exact-checkout-provenance.json",
+            ".specify/work-map-currentness-probe.txt"
           ]
         }
       ]
@@ -61,22 +77,22 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Publish the verified checkout identity as an explicit typed field across all recovery evidence families."
+      "objective": "Publish the verified pull-request/head/base identity and blocked-trigger recovery reason as explicit typed fields across all CI evidence families."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove identity preservation across reruns, workflow dispatch, pull-request synchronize events, and cancelled/restarted jobs."
+      "objective": "Prove identity preservation and current-head rejection across manual reruns, bot-generated writer commits, pull-request synchronize events, base advancement, and cancelled/restarted jobs."
     },
     {
       "id": "canary",
       "status": "not_applicable",
-      "objective": "This CI evidence correction has no provider canary authority."
+      "objective": "This CI evidence and scheduling correction has no provider canary authority."
     },
     {
       "id": "production",
       "status": "not_applicable",
-      "objective": "This CI evidence correction grants no Production or deployment authority."
+      "objective": "This CI evidence and scheduling correction grants no Production or deployment authority."
     }
   ],
   "secrets_included": false

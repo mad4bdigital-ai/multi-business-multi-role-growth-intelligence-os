@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-015/package-installation.schema.json",
+  "title": "Tenant Solution Package Installation Revision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "installation_ref",
+    "installation_revision",
+    "package_ref",
+    "package_version",
+    "target_context",
+    "environment",
+    "resolved_components",
+    "overrides",
+    "extensions",
+    "bindings",
+    "lineage",
+    "version_vector",
+    "context_hash",
+    "status",
+    "acceptance_status",
+    "secrets_included"
+  ],
+  "properties": {
+    "record_type": { "const": "tenant_solution_package_installation_revision" },
+    "installation_ref": { "$ref": "#/$defs/reference" },
+    "installation_revision": { "type": "integer", "minimum": 1 },
+    "package_ref": { "$ref": "#/$defs/reference" },
+    "package_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "target_context": { "$ref": "#/$defs/targetContext" },
+    "environment": {
+      "type": "string",
+      "enum": ["sandbox", "staging", "production_canary", "production"]
+    },
+    "business_profile_ref": {
+      "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+    },
+    "effective_business_profile_ref": {
+      "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+    },
+    "resolved_components": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 2000,
+      "items": { "$ref": "#/$defs/resolvedComponent" }
+    },
+    "overrides": {
+      "type": "array",
+      "maxItems": 2000,
+      "items": { "$ref": "#/$defs/override" }
+    },
+    "extensions": {
+      "type": "array",
+      "maxItems": 500,
+      "items": { "$ref": "#/$defs/extension" }
+    },
+    "bindings": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/binding" }
+    },
+    "conflicts": {
+      "type": "array",
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/conflict" }
+    },
+    "lineage": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 5000,
+      "items": { "$ref": "#/$defs/lineageItem" }
+    },
+    "version_vector": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": ["string", "integer"] }
+    },
+    "authority_epoch": { "type": "integer", "minimum": 0 },
+    "context_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "compilation_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "acceptance_status": {
+      "type": "string",
+      "enum": ["not_started", "running", "warning", "blocked", "passed", "stale"]
+    },
+    "acceptance_evidence_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/reference" }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "compiled", "conflicts_found", "validation_failed", "validated", "awaiting_approval", "active", "superseded", "rolled_back_from", "archived"]
+    },
+    "activated_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_by_ref": { "$ref": "#/$defs/reference" },
+    "approved_by_ref": {
+      "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }]
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "versionedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "version"],
+      "properties": {
+        "key": { "$ref": "#/$defs/reference" },
+        "version": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
+    "targetContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tenant_ref", "workspace_ref", "target_scope_type", "target_scope_ref"],
+      "properties": {
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "client_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "target_scope_type": { "type": "string", "enum": ["tenant", "workspace", "brand"] },
+        "target_scope_ref": { "$ref": "#/$defs/reference" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "target_scope_type": { "const": "brand" } } },
+          "then": { "required": ["brand_ref"] }
+        }
+      ]
+    },
+    "resolvedComponent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_key", "component_type", "component_version", "content_hash", "resolution_effect"],
+      "properties": {
+        "component_key": { "$ref": "#/$defs/reference" },
+        "component_type": { "$ref": "#/$defs/reference" },
+        "component_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "source_package_ref": { "$ref": "#/$defs/reference" },
+        "resolution_effect": { "type": "string", "enum": ["inherited", "package", "overridden", "extended", "mandatory", "blocked", "not_applicable"] }
+      }
+    },
+    "override": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_component_key", "setting_pointer", "value", "schema_version", "source_principal_ref"],
+      "properties": {
+        "target_component_key": { "$ref": "#/$defs/reference" },
+        "setting_pointer": { "type": "string", "minLength": 1, "maxLength": 500, "pattern": "^/" },
+        "value": {},
+        "schema_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "source_principal_ref": { "$ref": "#/$defs/reference" },
+        "reason": { "type": "string", "maxLength": 2000 },
+        "evidence_ref": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] }
+      }
+    },
+    "extension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_component_key", "extension_point", "component_ref", "component_version", "order"],
+      "properties": {
+        "target_component_key": { "$ref": "#/$defs/reference" },
+        "extension_point": { "$ref": "#/$defs/reference" },
+        "component_ref": { "$ref": "#/$defs/reference" },
+        "component_version": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "order": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "compatibility_status": { "type": "string", "enum": ["unknown", "compatible", "compatible_with_constraints", "incompatible"] }
+      }
+    },
+    "binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding_type", "binding_key", "resource_ref", "readiness_status"],
+      "properties": {
+        "binding_type": { "type": "string", "enum": ["resource", "provider_connection", "file_root", "role_template", "report_audience", "workspace_brand_relation"] },
+        "binding_key": { "$ref": "#/$defs/reference" },
+        "resource_ref": { "$ref": "#/$defs/reference" },
+        "required_capability_key": { "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }] },
+        "required_effect_class": { "type": "string", "enum": ["read", "internal_draft", "staging_write", "production_canary", "production_write"] },
+        "readiness_status": { "type": "string", "enum": ["ready", "missing", "ambiguous", "unauthorized", "degraded", "stale", "blocked"] },
+        "binding_revision": { "type": ["string", "integer", "null"] }
+      }
+    },
+    "conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conflict_code", "severity", "message", "blocking"],
+      "properties": {
+        "conflict_code": { "$ref": "#/$defs/reference" },
+        "severity": { "type": "string", "enum": ["info", "warning", "high", "critical"] },
+        "message": { "type": "string", "minLength": 1, "maxLength": 4000 },
+        "source_refs": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/reference" } },
+        "blocking": { "type": "boolean" },
+        "remediation": { "type": "string", "maxLength": 4000 }
+      }
+    },
+    "lineageItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_key", "source_type", "source_ref", "source_revision", "resolution_effect"],
+      "properties": {
+        "target_key": { "$ref": "#/$defs/reference" },
+        "source_type": { "type": "string", "enum": ["platform_policy", "business_profile", "package", "component", "installation_override", "installation_extension", "resource_binding", "approval", "acceptance"] },
+        "source_ref": { "$ref": "#/$defs/reference" },
+        "source_revision": { "type": ["string", "integer"] },
+        "resolution_effect": { "type": "string", "enum": ["selected", "inherited", "defaulted", "overridden", "restricted", "blocked", "merged", "ignored_not_applicable"] },
+        "value_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    }
+  }
+}

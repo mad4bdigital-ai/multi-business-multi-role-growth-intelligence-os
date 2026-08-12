@@ -1,0 +1,118 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governance-db-privilege-readiness-6813",
+  "title": "Governance DB Privilege Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governance-db-privilege-readiness-6813.json",
+      ".github/workflows/governance-db-privilege-readiness.yml",
+      "docs/governance-db-provider-capability.md",
+      "docs/runbooks/governance-db-privilege-readiness.md",
+      "http-generic-api/config/governance-db-provider-capabilities.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/governanceDb.js",
+      "http-generic-api/governanceDbProviderCapability.js",
+      "http-generic-api/governanceProductionPreflight.js",
+      "http-generic-api/governanceDbPrivilegeContract.js",
+      "http-generic-api/governanceDbPrivilegeReadinessService.js",
+      "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
+      "http-generic-api/test-governance-db-writer-authority.mjs",
+      "http-generic-api/test-governance-production-preflight.mjs",
+      "http-generic-api/test-governance-db-privilege-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add a fail-closed, no-secret Production provider-capability and privilege verification path for the dedicated Governance DB writer without duplicating Production DB credentials into GitHub Actions and without provisioning accounts, grants, secrets, provider migration, deployment, or migration apply authority.",
+      "e2e_journeys": [
+        {
+          "id": "governance-db-least-privilege-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Production governance operator",
+          "entrypoint": "Repository provider-capability policy, dedicated-writer identity guard, privilege matrix evaluator, opt-in runtime deployment-info readiness projection, and exact-head manual readiness workflow",
+          "terminal_outcome": "The exact Production runtime first proves its database provider can represent the dedicated Governance writer contract. Unsupported provider capability stops before credential readiness or DB connection; only a supported provider may continue with a genuinely distinct Governance DB identity and prove the exact required direct table privilege matrix while GitHub receives bounded no-secret evidence and exact runtime/ref drift remains fail-closed.",
+          "steps": [
+            "Load the repository-defined Production database provider capability policy before Governance credential readiness.",
+            "Fail closed when the provider cannot represent a second principal on the same authoritative database plus exact direct table-scoped grants.",
+            "After provider support, require explicit Governance credentials and reject an exact GOVERNANCE_DB_USER equal to DB_USER instead of accepting copied runtime identity under a different environment-variable name.",
+            "Load the repository-defined Governance DB privilege matrix only after provider and Production preflight are capable of reaching the metadata probe.",
+            "Accept normalized information_schema privilege rows without a database connection in synthetic regression coverage.",
+            "Prove the exact required direct table privileges are accepted, including SELECT and INSERT on platform_resource_authority_bindings.",
+            "Reject missing required privileges, schema-wide privileges, unexpected global privileges, unrelated table scopes, extra operations on allowed tables, column-level grants, and applicable MariaDB roles.",
+            "Reuse one live probe service for CLI and runtime execution so the privilege contract cannot drift between paths.",
+            "Expose only an opt-in cached bounded readiness projection through deployment-info; do not expose usernames, database names, raw privilege rows, role names, missing-grant details, or secret values.",
+            "Require an exact Production branch SHA and explicit confirmation token before the GitHub workflow collects runtime evidence.",
+            "Require the running deployment SHA and branch to match the authorized exact Production state and re-read Production afterward.",
+            "Do not supply DB_* or GOVERNANCE_DB_* values to the GitHub runner.",
+            "Do not create users, execute GRANT, mutate application rows, migrate a provider, deploy, restart, or run migration SQL in this source slice."
+          ],
+          "assertions": [
+            "The current Production provider policy is explicitly unsupported for the dedicated Governance writer contract and yields GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED before a DB connection.",
+            "Copying DB_USER into GOVERNANCE_DB_USER is rejected with GOVERNANCE_DB_IDENTITY_NOT_DEDICATED even when a different password is supplied.",
+            "The required privilege matrix is identical to the reviewed #6813 Production contract and contains 16 table-operation pairs.",
+            "The synthetic evaluator fails closed when any required privilege is missing.",
+            "The synthetic evaluator fails closed on any schema-wide privilege or unexpected global privilege.",
+            "The synthetic evaluator fails closed on unrelated table/schema grants and extra privileges on allowed tables.",
+            "The synthetic evaluator fails closed on column-level privilege paths and applicable MariaDB roles.",
+            "The runtime probe composes with resolveGovernanceProductionPreflight() and therefore cannot treat main as Production authority, bypass provider capability, or reuse runtime DB credentials as Governance credentials.",
+            "The public runtime projection omits raw privilege details and credential-bearing identity/target values.",
+            "The GitHub workflow contains no DB_* or GOVERNANCE_DB_* secret bindings and performs no database connection itself.",
+            "The workflow proves exact runtime SHA and branch before accepting the verdict and re-reads Production afterward.",
+            "No Production SQL mutation, CREATE USER, GRANT, provider migration/mutation, deployment, restart, or Migration readiness/apply is performed by CI for this PR."
+          ],
+          "tests": [
+            {
+              "id": "governance-db-writer-identity-isolation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governance-production-provider-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-production-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "governance-db-privilege-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-privilege-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/governance-db-provider-capability.md",
+            "docs/runbooks/governance-db-privilege-readiness.md",
+            "http-generic-api/config/governance-db-provider-capabilities.json",
+            "http-generic-api/governanceDb.js",
+            "http-generic-api/governanceDbProviderCapability.js",
+            "http-generic-api/governanceProductionPreflight.js",
+            "http-generic-api/governanceDbPrivilegeContract.js",
+            "http-generic-api/governanceDbPrivilegeReadinessService.js",
+            "http-generic-api/governanceDbPrivilegeReadinessRuntime.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/scripts/governance-db-privilege-readiness.mjs",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-governance-production-preflight.mjs",
+            "http-generic-api/test-governance-db-privilege-readiness.mjs",
+            ".github/workflows/governance-db-privilege-readiness.yml"
+          ]
+        }
+      ]
+    }
+  ]
+}

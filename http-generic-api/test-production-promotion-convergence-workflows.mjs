@@ -26,6 +26,10 @@ for (const required of [
   /Platform Completion Cleanup Readback/,
   /Platform Remaining Scope Scorecard/,
   /Spec 011 Delegation MariaDB Certification/,
+  /resolve_run_once\(\)/,
+  /spec-011-delegation-mariadb-certification\.yml/,
+  /Spec 011 release branch moved before supporting gate dispatch/,
+  /refusing blind dispatch retry/,
   /protected refs moved during validation; retrying from current refs/,
   /request_pr: \$request_pr/,
   /candidate_tree_matches_main: true/,
@@ -37,24 +41,66 @@ for (const required of [
   /provider_call_executed: false/,
   /credential_payload_read: false/,
   /secrets_included: false/,
+  /\.head\.repo\.full_name \/\/ ""/,
+  /request PR must originate from this repository/,
 ]) {
   assert.match(launcher, required);
 }
+assert.doesNotMatch(launcher, /headRepositoryOwner/);
+
+const spec011DispatchBlock =
+  launcher.match(
+    /if \[\[ "\$workflow_name" == "Spec 011 Delegation MariaDB Certification" \]\]; then[\s\S]*?else\n\s+SUPPORTING_RUN_ID=/,
+  )?.[0] ?? "";
+assert.ok(spec011DispatchBlock, "Spec 011 supporting gate must have an explicit bounded dispatch block");
+assert.match(
+  spec011DispatchBlock,
+  /SUPPORTING_RUN_ID="\$\(resolve_run_once "\$workflow_name" "\$ATTEMPT_STARTED_AT" "\$CANDIDATE_SHA"\)"/,
+  "Spec 011 must reuse an already-visible exact-head run before dispatch",
+);
+assert.match(
+  spec011DispatchBlock,
+  /SPEC011_RELEASE_READBACK="\$\(gh api "\/repos\/\$\{REPOSITORY\}\/git\/ref\/heads\/\$\{RELEASE_BRANCH\}" --jq '\.object\.sha'\)"/,
+  "Spec 011 dispatch must CAS-read the release branch immediately before dispatch",
+);
+assert.match(
+  spec011DispatchBlock,
+  /gh workflow run spec-011-delegation-mariadb-certification\.yml[\s\S]*?--ref "\$RELEASE_BRANCH"/,
+  "Spec 011 dispatch must target the release branch that points at the candidate",
+);
+assert.equal(
+  (spec011DispatchBlock.match(/gh workflow run spec-011-delegation-mariadb-certification\.yml/g) ?? []).length,
+  1,
+  "Spec 011 must have one bounded dispatch command and no blind retry loop",
+);
+assert.doesNotMatch(
+  spec011DispatchBlock,
+  /--ref main/,
+  "Spec 011 supporting-gate dispatch must not run against moving main",
+);
+assert.doesNotMatch(
+  spec011DispatchBlock,
+  /--ref Production/,
+  "Spec 011 supporting-gate dispatch must not run against Production",
+);
 
 for (const required of [
   /workflow_run:/,
   /Governed Production Promotion Request Launcher/,
   /MAX_POST_FINALIZATION_RETRIES: 3/,
   /\.request_pr \| test/,
+  /\.validation_pr \| test/,
   /jq -r '\.request_pr'/,
+  /jq -r '\.validation_pr'/,
   /main_moved_after_finalization/,
   /production_moved_after_finalization/,
   /release_head_changed_after_finalization/,
   /candidate_no_longer_matches_or_contains_main/,
   /candidate_no_longer_contains_pinned_production/,
   /gh pr reopen "\$REQUEST_PR"/,
-  /startswith\(\"release\/production-\"\)/,
-  /startswith\(\"gpt\/validate-production-candidate-\"\)/,
+  /startswith\(\"release: promote pinned main \"\)/,
+  /startswith\(\"ci: validate exact Production candidate \"\)/,
+  /authoritative_validation_pr=/,
   /single_release_surface=true/,
   /final_freshness_readback=true/,
   /merge executed: false/,
@@ -63,22 +109,20 @@ for (const required of [
 ]) {
   assert.match(postFinalizationGuard, required);
 }
+assert.doesNotMatch(
+  postFinalizationGuard,
+  /(?:release\/production-|gpt\/validate-production-candidate-)/,
+  "post-finalization cleanup must select governed PR surfaces independently of work-branch names",
+);
 
 for (const required of [
   /name: Certified Production Release Cut Validation/,
   /pull_request_target:/,
-  /issues: write/,
-  /gpt\/validate-certified-release-base-\*/,
-  /gpt\/validate-certified-release-candidate-/,
+  /contents: read/,
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
   /Validate trusted same-repository validation surface/,
   /certified validation requires a same-repository head/,
   /persist-credentials: false/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=started/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=ci_dispatched/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=succeeded/,
-  /CERTIFIED_PRODUCTION_RELEASE_CUT_VALIDATION phase=failed/,
-  /runner_pool=ubuntu-24\.04-arm/,
-  /execution_mode=direct_arm/,
   /candidate first parent must be the certified release cut/,
   /candidate tree differs from certified release cut/,
   /certified release cut is not contained by current main/,
@@ -114,11 +158,14 @@ for (const required of [
 const certifiedJobHeader =
   certifiedReleaseCut.match(/  certified-release-cut-ci:\n[\s\S]*?    steps:/)?.[0] ?? "";
 assert.ok(certifiedJobHeader, "certified release-cut job header must exist");
-assert.doesNotMatch(
+assert.match(
   certifiedJobHeader,
-  /^    if:/m,
-  "certified release-cut validation must not use a job-level eligibility condition",
+  /if: "startsWith\(github\.event\.pull_request\.title, 'test\(release\): certify immutable Production candidate '\)"/,
+  "certified release-cut validation must use a quoted, branch-independent governed eligibility selector",
 );
+assert.doesNotMatch(certifiedReleaseCut, /issues:\s*write/);
+assert.doesNotMatch(certifiedReleaseCut, /gh pr comment/);
+assert.doesNotMatch(certifiedReleaseCut, /gpt\/validate-certified-release-(?:base|candidate)-/);
 
 const armJobs = certifiedReleaseCut.match(/runs-on: ubuntu-24\.04-arm/g) ?? [];
 assert.equal(

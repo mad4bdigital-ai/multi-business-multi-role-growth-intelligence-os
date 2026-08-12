@@ -1,0 +1,4 @@
+contract=mad4b.work-map-currentness-probe.v1
+purpose=activate governed Work Map recovery for CI pull-request stale-run cancellation
+repository_content_write_authority=false
+secrets_included=false

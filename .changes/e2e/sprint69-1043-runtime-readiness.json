@@ -38,7 +38,7 @@
             "Verify the Production copy of Migration 1043 has the reviewed Git blob and the runtime reports the same exact Production SHA through health, version, and deployment evidence.",
             "Perform governed migration schema and ledger readback before creating any new authorization evidence.",
             "If the exact apply ledger already exists, report already_applied without creating authorization or dry-run evidence.",
-            "Otherwise create and approve only a checksum- and Production-bound capability envelope for governed_migration_authorization_bootstrap.",
+            "Otherwise create and approve only a checksum- and Production-bound capability envelope for governed_migration_authorization_bootstrap using shell-safe bounded extra arguments.",
             "Bootstrap the exact migration authorization with one bounded previous-checksum rotation path when required.",
             "Execute governed_migration_execute in dry_run mode and require applies_sql=false, the exact checksum and statement count, and a zero-risk preflight.",
             "Upload sanitized Artifact and Job Summary evidence without repository writes, provider calls, business-data mutation, registry synchronization, Apply authorization, or Apply execution."
@@ -51,6 +51,7 @@
             "Health, version, and deployment-info must converge on one stable protected Production SHA.",
             "Readback occurs before authorization creation and prevents a duplicate readiness mutation when the exact apply ledger is already present.",
             "Authorization bootstrap is bound to Migration 1043, checksum a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9, four statements, source PR #4845, and its exact merge SHA.",
+            "Capability-envelope approval decision-note arguments contain no shell metacharacters rejected by the Admin shell safety contract; the shell guard itself is not weakened.",
             "The dry-run reports mode=dry_run, applies_sql=false, exact checksum and statement count, preflight status pass, and zero risks.",
             "The implementation contains no mode=apply request, no capability_resolution_envelope_apply_authorize call, and no activation authorized-surface registry synchronization.",
             "Managed control-plane authorization evidence may be written only after the explicit operator comment; migration SQL, business data, providers, external business systems, and Production refs remain unmodified.",

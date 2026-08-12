@@ -1,0 +1,195 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "018-environment-promotion-runtime-integrity",
+  "title": "Environment promotion and runtime integrity",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/018-environment-promotion-runtime-integrity/checklists/requirements.md",
+      "specs/018-environment-promotion-runtime-integrity/completion.json",
+      "specs/018-environment-promotion-runtime-integrity/contracts/openapi.yaml",
+      "specs/018-environment-promotion-runtime-integrity/e2e-phases.json",
+      "specs/018-environment-promotion-runtime-integrity/plan.md",
+      "specs/018-environment-promotion-runtime-integrity/runtime-immutability-inventory.md",
+      "specs/018-environment-promotion-runtime-integrity/spec.md",
+      "specs/018-environment-promotion-runtime-integrity/tasks.md",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "http-generic-api/environmentBranchAuthority.js",
+      "http-generic-api/productionDeploymentAuthority.js",
+      "http-generic-api/hostingerSshDeployExecutor.js",
+      "http-generic-api/runtimeIntegrity.js",
+      "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/openapi.yaml",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
+      "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+      "http-generic-api/openapi/production-deployment-authority.yaml",
+      "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
+      "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/test-environment-branch-authority.mjs",
+      "http-generic-api/test-production-deployment-authority.mjs",
+      "http-generic-api/test-production-deployment-openapi-transition.mjs",
+      "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
+      "http-generic-api/test-runtime-integrity.mjs",
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove the merged environment/deployment authority and bounded runtime-immutability candidate are internally consistent, fail closed on authority or checkout drift, preserve routine local mutation denial, expose runtime integrity separately from service health, and execute without applying migrations or mutating GitHub protected branches or Hostinger production.",
+      "e2e_journeys": [
+        {
+          "id": "spec-018-policy-derived-production-deploy-authority",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform release governance reviewer",
+          "entrypoint": "Spec 018 environment authority plus Hostinger deploy compatibility surface",
+          "terminal_outcome": "A deployment candidate can proceed past branch authority only when the effective branch is the governed Production branch and expected_commit_sha equals its same-cycle GitHub head; unauthorized branch selection and stale SHA fail closed before deploy dispatch.",
+          "steps": [
+            "Load the SQL-first environment branch authority and its repository-policy fallback without reading provider credentials.",
+            "Resolve the governed production branch and treat any caller branch only as a compatibility assertion that must match authority.",
+            "Read the current Production branch ref through the governed read-only GitHub authority path and compare it with expected_commit_sha.",
+            "Reject main, arbitrary branches, invalid SHA, and stale SHA before deploy planning can become eligible.",
+            "Verify the Hostinger deploy executor and caller schemas consume only the policy-derived branch while routine SSH mutation remains blocked by target policy.",
+            "Verify the precise OpenAPI registry owns the deploy-release operation, its path-item contract exposes no caller-selectable branch, and the legacy replacement transition is constrained to the exact historical operation identity/security/request shape.",
+            "Verify Spec 018 completion evidence describes the same no-migration/no-production-mutation boundary."
+          ],
+          "assertions": [
+            "No governed caller schema exposes branch as a selectable production deployment input.",
+            "The effective deployment branch is resolved from environment_branch_authority_v1 and is Production.",
+            "expected_commit_sha must equal the current same-cycle Production branch head before dispatch.",
+            "Caller branch main or any arbitrary work branch fails before GitHub readback or deploy dispatch.",
+            "Stale expected_commit_sha fails with production_deployment_sha_stale.",
+            "The precise OpenAPI route contract removes caller branch selection and is registered for deterministic root OpenAPI synchronization.",
+            "Legacy root OpenAPI replacement remains fail-closed unless signature, route file, operationId, admin security, consequential flag, and historical required request fields all match the bounded transition.",
+            "The candidate does not apply migrations, write main or Production, invoke Hostinger mutation, or return secrets."
+          ],
+          "tests": [
+            {
+              "id": "spec-018-production-deployment-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-deployment-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-production-deployment-openapi-transition",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-deployment-openapi-transition.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-hostinger-deploy-safety-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-ssh-deploy-executor.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-work-map-governance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/spec-kit-work-map-integration-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/018-environment-promotion-runtime-integrity/contracts/openapi.yaml",
+            "specs/018-environment-promotion-runtime-integrity/completion.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "http-generic-api/environmentBranchAuthority.js",
+            "http-generic-api/productionDeploymentAuthority.js",
+            "http-generic-api/hostingerSshDeployExecutor.js",
+            "http-generic-api/openapi.yaml",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+            "http-generic-api/openapi/production-deployment-authority.yaml",
+            "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
+            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+            "http-generic-api/test-production-deployment-authority.mjs",
+            "http-generic-api/test-production-deployment-openapi-transition.mjs",
+            "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
+          ]
+        },
+        {
+          "id": "spec-018-runtime-immutability-integrity-separation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform runtime integrity reviewer",
+          "entrypoint": "Hostinger production target policy plus public deployment-info diagnostics",
+          "terminal_outcome": "Routine local application-code mutation remains denied, tracked checkout drift is detected through read-only Git evidence, and a healthy diagnostic surface can independently report degraded runtime integrity without exposing file paths, file contents, credentials, or secrets.",
+          "steps": [
+            "Inventory the existing Hostinger SSH mutation and read-only probe/readback surfaces without creating new mutation authority.",
+            "Verify Production target metadata keeps deployment_allowed=false, ssh_normal_updates_allowed=false, and ssh_break_glass_only=true for routine SSH application-code mutation.",
+            "Inspect the local checkout using fixed Git argv, shell=false, GIT_OPTIONAL_LOCKS=0, and tracked files only.",
+            "Compare canonical deployed commit evidence with the checkout commit when both are available.",
+            "Classify tracked dirty state, commit mismatch, or unavailable checkout evidence as degraded runtime integrity using bounded reason codes.",
+            "Expose runtime_integrity through deployment-info while leaving the service diagnostic ok state independent.",
+            "Verify untracked runtime metadata is ignored and no modified file path or raw Git output is returned."
+          ],
+          "assertions": [
+            "Routine Hostinger SSH application-code mutation remains fail-closed under the existing Production target policy.",
+            "No break-glass authorization or local mutation exception is introduced by phase C.",
+            "Clean tracked checkout plus matching commit can report runtime_integrity.state=verified.",
+            "Tracked dirty checkout reports runtime_integrity.state=degraded with unapproved_dirty_runtime.",
+            "Commit mismatch and unavailable checkout evidence fail closed as degraded integrity.",
+            "deployment-info can return ok=true while runtime_integrity is degraded, proving health and integrity are separate states.",
+            "Runtime integrity evidence is read-only, ignores untracked files, exposes no changed paths or raw content, and includes no secrets."
+          ],
+          "tests": [
+            {
+              "id": "spec-018-runtime-integrity-classifier",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-integrity.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-runtime-integrity-deployment-info-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-gate-deployment-info-parity.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/018-environment-promotion-runtime-integrity/runtime-immutability-inventory.md",
+            "http-generic-api/runtimeIntegrity.js",
+            "http-generic-api/routes/deploymentInfoRoutes.js",
+            "http-generic-api/test-runtime-integrity.mjs",
+            "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+            "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Complete break-glass lifecycle, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after runtime immutability is merged."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove dirty-runtime detection, break-glass expiry, rollback, reconciliation, provider/readback faults, and no-secret evidence under failure conditions."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate the integrated candidate on main staging with exact-SHA readback and no production mutation before promotion."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact Production SHA promotion, immutable Hostinger runtime alignment, generated deployment attestation, rollback readiness, and post-deploy integrity under separate release authorization."
+    }
+  ]
+}

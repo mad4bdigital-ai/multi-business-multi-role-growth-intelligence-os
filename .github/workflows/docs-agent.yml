@@ -1,12 +1,9 @@
 name: Docs Agent
 
 on:
-  workflow_dispatch:
   pull_request:
     branches: [main]
     types: [opened, synchronize, reopened, labeled]
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -15,13 +12,12 @@ permissions:
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   pr-impact-note:
     name: PR docs impact preview
     if: >-
-      github.event_name == 'pull_request' &&
-      !startsWith(github.event.pull_request.head.ref, 'gpt/no-docs-agent/') &&
       !contains(github.event.pull_request.labels.*.name, 'skip-docs-agent') &&
       github.actor != 'github-actions[bot]' &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -97,62 +93,4 @@ jobs:
           retention-days: 7
 
       - name: Report preview-only PR mode
-        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Use the governed Spec Kit Work Map Autofix workflow for branch mutation."
-
-  main-followup-pr:
-    name: Main follow-up impact-note PR
-    if: >-
-      github.event_name == 'push' &&
-      github.actor != 'github-actions[bot]'
-    permissions:
-      contents: write
-      pull-requests: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: "22"
-
-      - name: Validate inter-pipeline connectivity
-        run: |
-          node http-generic-api/scripts/pipeline-connectivity-check.mjs
-          node http-generic-api/test-pipeline-connectivity-check.mjs
-
-      - name: Generate docs impact note for merged commit
-        id: agent
-        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ github.event.before }}' --head '${{ github.event.after }}'
-
-      - name: Refuse follow-up mutations outside impact notes
-        shell: bash
-        run: |
-          unexpected_files="$(git diff --name-only | grep -Ev '^docs/auto-docs-agent/' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Docs Agent follow-up modified files outside docs/auto-docs-agent:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
-
-      - name: Create reviewed impact-note follow-up PR
-        id: create_followup
-        uses: peter-evans/create-pull-request@v6
-        with:
-          branch: docs-agent/${{ github.event.after }}
-          delete-branch: true
-          title: "Docs agent: impact note for ${{ github.event.after }}"
-          commit-message: "docs(agent): record impact for ${{ github.event.after }}"
-          add-paths: |
-            docs/auto-docs-agent/**
-          labels: |
-            docs
-            automated
-          body: |
-            Automated impact-note follow-up for merged commit `${{ github.event.after }}`.
-
-            Scope is restricted to `docs/auto-docs-agent/**`.
-            Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
-            Review is required; this workflow does not auto-merge the follow-up PR.
+        run: echo "Docs Agent pull-request runs are preview-only and never commit, push, merge, or authorize Work Map writes. Main follow-up mutation is owned by Docs Agent Main Follow-up through an exact-head workflow_dispatch writer. Review is required for every follow-up PR."

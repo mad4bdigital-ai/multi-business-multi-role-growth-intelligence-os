@@ -1,0 +1,213 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "github-repository-policy-single-owner-mode",
+  "title": "GitHub main single-owner review policy mode",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/github-repository-policy-single-owner-mode.json",
+      ".github/ops/github-repository-policy-1049-governed-rollout.mjs",
+      ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
+      ".github/workflows/migration-1049-readiness-evidence-publisher.yml",
+      ".github/workflows/single-owner-review-gate.yml",
+      "http-generic-api/githubRepositoryPolicyController.js",
+      "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql",
+      "http-generic-api/scripts/migration-1049-readiness-issue-publisher.mjs",
+      "http-generic-api/scripts/single-owner-review-gate.mjs",
+      "http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs",
+      "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-single-owner-review-gate.mjs",
+      ".github/ops/github-main-review-policy-live-activation.mjs",
+      ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+      ".github/workflows/github-main-review-policy-live-activation.yml",
+      ".github/workflows/github-main-review-policy-readiness-publisher.yml",
+      ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      "http-generic-api/migrations/1051_github_repository_policy_live_apply_authority.sql",
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+      "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
+      "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
+      "http-generic-api/test-github-repository-policy-live-apply-authority.mjs",
+      "http-generic-api/test-repository-policy-capability-envelope-create.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Allow a repository with exactly one eligible human collaborator to use exact-head self-attestation without weakening CI, while automatically reverting to independent approval whenever another eligible human collaborator exists, and govern the Production metadata migration required by that mode.",
+      "e2e_journeys": [
+        {
+          "id": "single-owner-exact-head-review-gate",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "sole_eligible_human_collaborator",
+          "entrypoint": "pull request review plus repository policy plan/apply",
+          "terminal_outcome": "Single-owner mode plans zero GitHub-native approvals only when complete live collaborator and permission readback proves exactly one eligible human and requires the read-only Single Owner Review Gate on the exact head; independent approval resumes automatically otherwise.",
+          "steps": [
+            "Read all effective collaborators with bounded pagination and resolve every collaborator permission.",
+            "Select single-owner mode only when collaborator and permission proof is complete and exactly one eligible human exists.",
+            "For a PR authored by that sole eligible human, require an exact-head COMMENTED owner attestation because GitHub rejects self-APPROVE.",
+            "Evaluate the gate in a read-only pull-request workflow whose native Actions job is named Single Owner Review Gate; do not create a Check Run through a write API.",
+            "Require that native status check in the managed main Ruleset and keep stale-review, thread-resolution, strict status checks, no bypass actors, non-fast-forward and direct-push blocking.",
+            "Reject explicit single_owner_mode when complete collaborator eligibility cannot be proven."
+          ],
+          "assertions": [
+            "Sole eligible human with exact-head attestation passes.",
+            "Stale-head attestation fails.",
+            "Adding an eligible independent collaborator disables self-attestation mode and requires independent APPROVED review.",
+            "Partial collaborator or permission readback fails closed to independent approval mode.",
+            "Single-owner Ruleset uses native approval count zero only together with the required Single Owner Review Gate.",
+            "Independent mode still requires at least one GitHub-native approval.",
+            "The pull-request gate is read-only and does not request checks:write or invoke the Check Runs write API.",
+            "No bypass actors, force push, repository content mutation, secrets, Production mutation or provider action are introduced."
+          ],
+          "tests": [
+            {
+              "id": "single-owner-review-gate-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-single-owner-review-gate.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-controller-single-owner-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/single-owner-review-gate.yml",
+            "http-generic-api/githubRepositoryPolicyController.js",
+            "http-generic-api/scripts/single-owner-review-gate.mjs",
+            "http-generic-api/test-single-owner-review-gate.mjs",
+            "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql"
+          ]
+        },
+        {
+          "id": "migration-1049-governed-production-rollout",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6612 governed Migration 1049 lifecycle",
+          "terminal_outcome": "Readiness is checksum-bound and write-free, its no-secret evidence remains machine-verifiable after sanitization, Apply can be attempted exactly once only after separate migration authorization, and verification proves the migration ledger plus single-owner metadata without applying the live GitHub Ruleset.",
+          "steps": [
+            "Pin the exact Production migration blob, checksum, statement count and source merge and prove Runtime parity with current Production.",
+            "Create a checksum-bound authorization capability envelope and execute dry-run with zero preflight risks; do not execute SQL during readiness.",
+            "Sanitize the readiness artifact while preserving the explicit safe boolean secrets_included=false and continuing to redact every other sensitive-key value.",
+            "Publish readiness to Issue 6612 only from a trusted workflow_run publisher after validating the exact source run, SHA and artifact.",
+            "Require the migration-specific Apply confirmation and the exact readiness marker before the single Apply invocation.",
+            "Never retry an Apply after transport ambiguity; reconcile through exact migration ledger and read-only metadata readback.",
+            "Prove Repository Policy Controller metadata is registered and live_github_policy_apply remains false; GitHub Ruleset Apply stays a separate capability and confirmation."
+          ],
+          "assertions": [
+            "The rollout producer has contents: read only and cannot mutate Issue metadata.",
+            "The trusted publisher alone has issues: write and accepts only a successful exact-source readiness artifact.",
+            "The sanitizer preserves only the explicit safe evidence field secrets_included=false while all other sensitive-key values remain redacted.",
+            "The trusted publisher contract remains fail-closed and still requires summary.secrets_included === false.",
+            "The runner contains exactly one Apply invocation literal and records apply_retried=false.",
+            "The only direct DB operation is a SELECT metadata readback.",
+            "The migration-specific confirmation is distinct from APPLY_GITHUB_MAIN_REVIEW_POLICY.",
+            "No raw SQL Apply, provider mutation, Production ref mutation, force push, credential publication, external send or live GitHub policy mutation is introduced."
+          ],
+          "tests": [
+            {
+              "id": "migration-1049-governed-rollout-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-1049-governed-rollout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/github-repository-policy-1049-governed-rollout.mjs",
+            ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
+            ".github/workflows/migration-1049-readiness-evidence-publisher.yml",
+            "http-generic-api/scripts/migration-1049-readiness-issue-publisher.mjs",
+            "http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs",
+            "http-generic-api/migrations/1049_github_repository_policy_single_owner_mode.sql"
+          ]
+        },
+        {
+          "id": "migration-1051-and-live-main-policy-activation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 6625 governed Migration 1051 lifecycle followed by separately authorized live GitHub main policy lifecycle",
+          "terminal_outcome": "Repository policy apply authority is registered through a metadata-only governed migration, then live Ruleset readiness is exact-main and policy-fingerprint bound; a separately typed live Apply can execute at most once through an apply-authorized repository capability envelope and must prove the server policy gate in same-cycle readback or reconcile without retry.",
+          "steps": [
+            "Merge and promote the reviewed source before either operational workflow can proceed; pin the exact Production migration and repository-aware envelope-creator blobs and prove Runtime parity.",
+            "Authorize and dry-run Migration 1051 separately, bind its authorization to the merged source PR and checksum, and keep live_github_policy_apply=false.",
+            "Apply Migration 1051 only with its migration-specific confirmation, one governed migration envelope and exact post-Apply ledger/metadata readback; do not call GitHub from the migration lifecycle.",
+            "Read back and deterministically plan the live main policy after Migration 1051 is proven applied; bind readiness to the current main SHA, policy fingerprint and controller binding SHA-256.",
+            "Publish the live readiness marker only from a trusted workflow_run publisher that validates the exact successful source run and no-write readiness artifact.",
+            "On the distinct APPLY_GITHUB_MAIN_REVIEW_POLICY command, create, approve and dynamically apply-authorize one repository-aware capability envelope bound to Repository Authority V2, the exact main SHA and policy fingerprint.",
+            "Recheck that main has not moved, execute one policy-controller Apply call, require same-cycle readback with server_policy_gate_complete=true and zero bypass actors, and never blind-retry after ambiguous transport.",
+            "Verify the live gate read-only in a separate phase; source CI and pull-request validation never execute Migration Apply or live Ruleset Apply."
+          ],
+          "assertions": [
+            "Migration 1051 is metadata-only and its lifecycle records provider_call_executed=false, external_write_executed=false and live_github_policy_apply=false.",
+            "The repository-policy apply allowlist is exact to app=github, capability=repository_policy_controller, intent=github_repository_policy_apply and runtime_surface=system_layer.",
+            "The repository-aware envelope path rejects mismatched runtime/source tier, missing exact binding, repository authority drift, tenant/workspace mismatch and controller fingerprint drift before live Apply.",
+            "The Migration 1051 producer and live policy producer have contents: read only; only the trusted live-readiness publisher has issues: write.",
+            "The live readiness producer creates no capability envelope and performs no provider write.",
+            "The trusted publisher requires summary.secrets_included=false and exact main_sha, policy_fingerprint and binding_sha256 before writing the marker.",
+            "The live Apply path contains exactly one controller Apply transport call, records apply_retried=false and reconciles ambiguous transport through readback rather than a second mutation.",
+            "The controller requires current-main CAS, exact policy fingerprint, typed confirmation, apply-authorized single-use envelope, no bypass actors and same-cycle post-readback.",
+            "No force push, repository content mutation, credential payload publication, Production ref mutation, deployment or restart is introduced by this lifecycle."
+          ],
+          "tests": [
+            {
+              "id": "repository-policy-live-apply-authority-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-apply-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-capability-envelope-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-policy-capability-envelope-create.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-live-activation-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-live-activation-contract.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-policy-controller-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-controller.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/github-repository-policy-1051-governed-rollout.mjs",
+            ".github/ops/github-main-review-policy-live-activation.mjs",
+            ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+            ".github/workflows/github-main-review-policy-live-activation.yml",
+            ".github/workflows/github-main-review-policy-readiness-publisher.yml",
+            "http-generic-api/migrations/1051_github_repository_policy_live_apply_authority.sql",
+            "http-generic-api/scripts/capability-resolution-envelope-create.mjs",
+            "http-generic-api/scripts/github-main-review-policy-readiness-issue-publisher.mjs",
+            "http-generic-api/test-github-repository-policy-live-apply-authority.mjs",
+            "http-generic-api/test-repository-policy-capability-envelope-create.mjs",
+            "http-generic-api/test-github-repository-policy-live-activation-contract.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

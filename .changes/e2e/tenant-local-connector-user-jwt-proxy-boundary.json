@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-local-connector-user-jwt-proxy-boundary",
+  "title": "Tenant User JWT Local Connector proxy boundary regression",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-local-connector-user-jwt-proxy-boundary.json",
+      "http-generic-api/test-tenant-local-connector-user-jwt-proxy.mjs",
+      "http-generic-api/routes/connectorProxyRoutes.js",
+      "http-generic-api/runtimeGuards.js",
+      "http-generic-api/connectorSchemaCompatibility.js"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that a valid tenant User JWT reaches tenant-scoped Local Connector device resolution on tenant-safe proxy routes without requiring an admin backend key, while explicit admin/break-glass routes remain denied before device or credential access.",
+      "e2e_journeys": [
+        {
+          "id": "tenant-user-jwt-reaches-scoped-local-connector-without-break-glass-escalation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Authenticated tenant user",
+          "entrypoint": "POST /connector/:device_id/browser with a valid User JWT",
+          "terminal_outcome": "The request passes mixed authentication, reaches exact user-and-tenant device resolution, cannot override tenant scope from request input, and never requires admin_backend_api_key_required; an explicit browser4 break-glass request remains 403 before DB or connector access.",
+          "steps": [
+            "Create the production mixed authentication middleware with a configured backend key and User JWT verifier secret.",
+            "Sign a bounded User JWT carrying one user_id and tenant_id.",
+            "Mount the production Connector Proxy router with the production mixed authentication middleware.",
+            "Use a process-local fake MySQL pool so the journey performs no live database connection or mutation.",
+            "Call the tenant-safe /connector/:device_id/browser route with the User JWT and a conflicting tenant_id in the request body.",
+            "Verify the route reaches local_connector_user_configs resolution using the authenticated user_id and tenant_id, never the conflicting body tenant_id.",
+            "Return the normal device_not_found result from the empty fake registry rather than an admin backend-key denial.",
+            "Call the explicit /connector/:device_id/browser4 admin/break-glass route with the same User JWT.",
+            "Verify browser4 fails with admin_backend_api_key_required before any additional DB query, credential lookup, or connector forwarding."
+          ],
+          "assertions": [
+            "createBackendApiKeyMiddleware accepts a valid User JWT as a non-admin user principal even when BACKEND_API_KEY is configured.",
+            "The tenant-safe browser proxy does not return admin_backend_api_key_required for a valid User JWT.",
+            "Device resolution binds exact authenticated user_id and tenant_id parameters.",
+            "A request-body tenant_id cannot override req.auth.tenant_id.",
+            "The empty tenant-scoped fake device registry returns device_not_found without any external connector call.",
+            "browser4 remains admin-only and returns admin_backend_api_key_required for the same tenant User JWT.",
+            "The admin-only denial happens before any additional database, credential, or connector access.",
+            "No live DB connection, provider call, local-device action, secret read, SQL mutation, or Production action occurs in the test."
+          ],
+          "tests": [
+            {
+              "id": "tenant-local-connector-user-jwt-proxy",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-local-connector-user-jwt-proxy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-local-connector-user-jwt-proxy-boundary.json",
+            "http-generic-api/test-tenant-local-connector-user-jwt-proxy.mjs",
+            "http-generic-api/routes/connectorProxyRoutes.js",
+            "http-generic-api/runtimeGuards.js",
+            "http-generic-api/connectorSchemaCompatibility.js"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

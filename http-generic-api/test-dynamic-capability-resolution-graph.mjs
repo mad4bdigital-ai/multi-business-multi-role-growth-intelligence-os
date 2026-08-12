@@ -1,5 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import {
+  authorityStatus,
+  hasExactAdminResourceAuthority,
+  permissionSatisfiesResourceOperation,
+} from "./scripts/capability-resolution-dry-run.mjs";
 
 const script = readFileSync(new URL("./scripts/capability-resolution-dry-run.mjs", import.meta.url), "utf8");
 const migration = readFileSync(new URL("./migrations/221_sprint67_dynamic_capability_resolution_graph.sql", import.meta.url), "utf8");
@@ -11,12 +16,21 @@ assert.match(script, /dynamic_capability_source_tiers_v1/);
 assert.match(script, /v_app_integration_capability_map/);
 assert.match(script, /workspace_registry/);
 assert.match(script, /v_workspace_resource_grant_effective/);
+assert.match(script, /platform_resource_authority_bindings/);
 assert.match(script, /brand_core/);
 assert.match(script, /business_activity_types/);
 assert.match(script, /credential_bindings/);
 assert.match(script, /runtime_dispatch_certification_registry/);
 assert.match(script, /user_app_connections/);
 assert.match(script, /runCapabilityResolutionDryRun/);
+assert.match(script, /--principal-type/);
+assert.match(script, /--principal-id/);
+assert.match(script, /--resource-uri/);
+assert.match(script, /--resource-branch/);
+assert.match(script, /--expected-commit-sha/);
+assert.match(script, /--operation-mode/);
+assert.match(script, /exact_platform_resource_authority_present/);
+assert.match(script, /workspaceGrantPrincipalId = principal\.principal_id/);
 assert.match(script, /approval_required/);
 assert.match(script, /quota_required/);
 assert.match(script, /audit_required: true/);
@@ -25,6 +39,219 @@ assert.match(script, /secrets_included: false/);
 assert.match(script, /This is a dry-run envelope only; no tool\/app\/runtime was executed/);
 assert.doesNotMatch(script, /decryptToken|value_ciphertext|private_key|oauth_token/i);
 assert.doesNotMatch(script, /fetch\(|axios|child_process|exec\(|spawn\(/);
+assert.doesNotMatch(script, /endsWith\(["']_service["']\)/);
+assert.doesNotMatch(script, /userRole\s*===\s*["']admin["']/);
+
+const tenantId = "tenant-capability-authority-test";
+const workspaceId = "workspace-capability-authority-test";
+const resourceUri = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
+const resourceBranch = "gpt/019-governed-database-lifecycle-pressure-relief-20260807";
+const expectedCommitSha = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const principal = { principal_type: "service", principal_id: "platform_admin_service" };
+const resourceRef = {
+  branch: resourceBranch,
+  expected_commit_sha: expectedCommitSha,
+  principal,
+};
+const exactBinding = {
+  binding_id: "binding-platform-admin-service-test",
+  tenant_id: tenantId,
+  workspace_id: workspaceId,
+  user_id: principal.principal_id,
+  resource_type: "github_repo",
+  resource_uri: resourceUri,
+  resource_ref_json: JSON.stringify(resourceRef),
+  recipe_key: "repo_patch_batch_apply",
+  permission_level: "patch",
+  allowed_modes_json: JSON.stringify(["write_file", "replace_block", "apply_unified_diff", "delete_file", "atomic_change_set"]),
+  status: "active",
+  expires_at: "2099-01-01T00:00:00.000Z",
+};
+const exactAuthorityArgs = {
+  principal,
+  bindings: [exactBinding],
+  tenantId,
+  workspaceId,
+  resourceType: "github_repo",
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  now: new Date("2026-08-08T08:00:00.000Z"),
+};
+
+// Case A: typed admin service principal + exact active binding succeeds.
+assert.equal(hasExactAdminResourceAuthority(exactAuthorityArgs), true);
+assert.equal(permissionSatisfiesResourceOperation("patch", "atomic_change_set"), true);
+
+const exactAuthorityStatus = authorityStatus({
+  workspace: { workspace_id: workspaceId },
+  grants: [],
+  platformResourceAuthorityBindings: [exactBinding],
+  principal,
+  resourceType: "github_repo",
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  tenantId,
+  workspaceId,
+  brandKey: "",
+  brandCore: null,
+  activity: null,
+  risk: "high",
+  certifications: [],
+  sourceTiers: { selected_source_tier: "tenant_managed" },
+});
+assert.equal(exactAuthorityStatus.exact_platform_resource_authority, true);
+assert.equal(exactAuthorityStatus.exact_platform_resource_authority_scope.resource_branch, resourceBranch);
+assert.equal(exactAuthorityStatus.exact_platform_resource_authority_scope.expected_commit_sha, expectedCommitSha);
+assert.equal(exactAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), false);
+assert.equal(exactAuthorityStatus.missing.includes("elevated_permission_missing"), false);
+assert.equal(exactAuthorityStatus.missing.includes("dispatch_certification_missing_or_not_allowed"), true);
+
+// Legacy principal-id-only callers may qualify only because the persisted exact binding proves service type.
+const legacyUntypedPrincipal = { principal_type: "", principal_id: "platform_admin_service" };
+assert.equal(hasExactAdminResourceAuthority({ ...exactAuthorityArgs, principal: legacyUntypedPrincipal }), true);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  principal: { principal_type: "", principal_id: "different_service" },
+}), false);
+
+// A real strong workspace grant remains the other valid side of the OR for a service principal.
+const workspaceGrantAuthorityStatus = authorityStatus({
+  workspace: { workspace_id: workspaceId },
+  grants: [{ permission: "admin" }],
+  platformResourceAuthorityBindings: [],
+  principal,
+  resourceType: "github_repo",
+  resourceUri,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  tenantId,
+  workspaceId,
+  brandKey: "",
+  brandCore: null,
+  activity: null,
+  risk: "high",
+  certifications: [{ dispatch_allowed: 1 }],
+  sourceTiers: { selected_source_tier: "tenant_managed" },
+});
+assert.equal(workspaceGrantAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), false);
+assert.equal(workspaceGrantAuthorityStatus.missing.includes("elevated_permission_missing"), false);
+
+// Case B: exact repository URI is mandatory.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceUri: "github://mad4bdigital-ai/another-repo",
+}), false);
+
+// Branch and expected commit are part of the exact authority scope.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "gpt/different-branch",
+}), false);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  expectedCommitSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+}), false);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "",
+}), true);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  resourceBranch: "",
+  bindings: [
+    exactBinding,
+    {
+      ...exactBinding,
+      binding_id: "binding-ambiguous-branch-test",
+      resource_ref_json: JSON.stringify({ ...resourceRef, branch: "gpt/another-same-sha-branch" }),
+    },
+  ],
+}), false);
+
+// Case C: expired bindings never authorize.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  bindings: [{ ...exactBinding, expires_at: "2026-08-08T07:59:59.000Z" }],
+}), false);
+
+// Case D: recipe mismatch remains blocked.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  recipeKey: "github_pr_create",
+}), false);
+
+// Case E: operation mode must be explicitly allowed by the exact binding.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  operationMode: "branch_delete",
+}), false);
+
+// Case F: tenant/user principals cannot borrow platform service authority.
+const tenantPrincipal = { principal_type: "user", principal_id: "tenant-user-authority-test" };
+assert.equal(hasExactAdminResourceAuthority({ ...exactAuthorityArgs, principal: tenantPrincipal }), false);
+const tenantAuthorityStatus = authorityStatus({
+  workspace: { workspace_id: workspaceId },
+  grants: [],
+  platformResourceAuthorityBindings: [exactBinding],
+  principal: tenantPrincipal,
+  resourceType: "github_repo",
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  tenantId,
+  workspaceId,
+  brandKey: "",
+  brandCore: null,
+  activity: null,
+  risk: "high",
+  certifications: [{ dispatch_allowed: 1 }],
+  sourceTiers: { selected_source_tier: "tenant_managed" },
+});
+assert.equal(tenantAuthorityStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), true);
+assert.equal(tenantAuthorityStatus.missing.includes("elevated_permission_missing"), true);
+
+// Case G: a service principal without an exact binding remains blocked.
+const noBindingStatus = authorityStatus({
+  workspace: { workspace_id: workspaceId },
+  grants: [],
+  platformResourceAuthorityBindings: [],
+  principal,
+  resourceType: "github_repo",
+  resourceUri,
+  resourceBranch,
+  expectedCommitSha,
+  recipeKey: "repo_patch_batch_apply",
+  operationMode: "atomic_change_set",
+  tenantId,
+  workspaceId,
+  brandKey: "",
+  brandCore: null,
+  activity: null,
+  risk: "high",
+  certifications: [{ dispatch_allowed: 1 }],
+  sourceTiers: { selected_source_tier: "tenant_managed" },
+});
+assert.equal(noBindingStatus.missing.includes("workspace_resource_grant_missing_for_high_risk_operation"), true);
+assert.equal(noBindingStatus.missing.includes("elevated_permission_missing"), true);
+
+// Wildcard authority is never accepted for this high-risk service-principal path.
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  bindings: [{ ...exactBinding, resource_uri: "github://mad4bdigital-ai/*" }],
+  resourceUri: "github://mad4bdigital-ai/*",
+}), false);
+assert.equal(hasExactAdminResourceAuthority({
+  ...exactAuthorityArgs,
+  bindings: [{ ...exactBinding, allowed_modes_json: JSON.stringify(["*"]) }],
+}), false);
 
 assert.match(migration, /dynamic_capability_resolution_policy_v1/);
 assert.match(migration, /dynamic_capability_source_tiers_v1/);

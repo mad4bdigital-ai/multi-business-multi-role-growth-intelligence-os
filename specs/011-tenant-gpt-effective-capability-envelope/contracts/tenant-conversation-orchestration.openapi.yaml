@@ -1,0 +1,410 @@
+openapi: 3.1.0
+info:
+  title: Tenant Conversation Capability Orchestration API
+  version: 0.1.0
+  description: Preview-first Tenant-safe intent, questionnaire, preflight, operation status, and retry contracts.
+servers:
+  - url: https://auth.mad4b.com
+security:
+  - userBearerAuth: []
+paths:
+  /tenant/intent-capabilities/resolve:
+    post:
+      operationId: resolveTenantIntentCapabilities
+      tags: [Tenant Conversation Orchestration]
+      summary: Resolve natural-language intent into effective capability candidates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IntentResolveRequest'
+      responses:
+        '200':
+          description: Resolved, clarification-required, blocked, or inferred candidates
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IntentResolveResponse'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /tenant/questionnaires/{questionnaireId}:
+    get:
+      operationId: getTenantQuestionnaire
+      tags: [Tenant Conversation Orchestration]
+      summary: Read the current bounded questionnaire state
+      parameters:
+        - $ref: '#/components/parameters/QuestionnaireId'
+      responses:
+        '200':
+          description: Questionnaire state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Questionnaire'
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      operationId: answerTenantQuestionnaire
+      tags: [Tenant Conversation Orchestration]
+      summary: Submit bounded answers and receive the next question or preflight state
+      parameters:
+        - $ref: '#/components/parameters/QuestionnaireId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [answers, expectedSchemaFingerprint]
+              properties:
+                answers:
+                  type: object
+                  maxProperties: 50
+                  additionalProperties: true
+                expectedSchemaFingerprint:
+                  type: string
+                  pattern: '^[a-f0-9]{64}$'
+      responses:
+        '200':
+          description: Updated questionnaire
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Questionnaire'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/operations/preflight:
+    post:
+      operationId: previewTenantConversationOperation
+      tags: [Tenant Conversation Orchestration]
+      summary: Build a no-side-effect operation preview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [effectiveCapabilityEnvelopeId, input]
+              properties:
+                effectiveCapabilityEnvelopeId:
+                  type: string
+                  format: uuid
+                input:
+                  type: object
+                  additionalProperties: true
+                idempotencyKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 191
+      responses:
+        '200':
+          description: Preview and execution requirements
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationPreflight'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/operations/{operationId}:
+    get:
+      operationId: getTenantConversationOperation
+      tags: [Tenant Conversation Orchestration]
+      summary: Read operation status and bounded readback
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+      responses:
+        '200':
+          description: Operation state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatus'
+        '404': { $ref: '#/components/responses/NotFound' }
+  /tenant/operations/{operationId}/confirm:
+    post:
+      operationId: confirmTenantConversationOperation
+      tags: [Tenant Conversation Orchestration]
+      summary: Confirm a preflighted operation under existing governance
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedRequestHash]
+              properties:
+                expectedRequestHash:
+                  type: string
+                  pattern: '^[a-f0-9]{64}$'
+                approvalHoldId:
+                  type: string
+                  format: uuid
+                typedConfirmation:
+                  type: string
+                  maxLength: 255
+      responses:
+        '202':
+          description: Operation accepted into the governed lifecycle
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatus'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenant/operations/{operationId}/retry:
+    post:
+      operationId: retryTenantConversationOperation
+      tags: [Tenant Conversation Orchestration]
+      summary: Revalidate and resume a previously blocked operation
+      parameters:
+        - $ref: '#/components/parameters/OperationId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                reason:
+                  type: string
+                  maxLength: 512
+      responses:
+        '200':
+          description: Refreshed questionnaire, preflight, or terminal state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationStatus'
+        '409': { $ref: '#/components/responses/Conflict' }
+components:
+  securitySchemes:
+    userBearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    QuestionnaireId:
+      name: questionnaireId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    OperationId:
+      name: operationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  schemas:
+    IntentResolveRequest:
+      type: object
+      additionalProperties: false
+      required: [intent]
+      properties:
+        intent: { type: string, minLength: 1, maxLength: 4000 }
+        locale: { type: string, default: ar, maxLength: 20 }
+        workspaceRef: { type: string, maxLength: 2048 }
+        brandRef: { type: string, maxLength: 2048 }
+        resourceRef: { type: string, maxLength: 2048 }
+        operationRef: { type: string, maxLength: 191 }
+    IntentResolveResponse:
+      type: object
+      additionalProperties: false
+      required: [resolutionId, status, candidates, secretsIncluded]
+      properties:
+        resolutionId: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [resolved, clarification_required, blocked, inferred_only]
+        candidates:
+          type: array
+          maxItems: 20
+          items: { $ref: '#/components/schemas/CapabilityCandidate' }
+        question: { $ref: '#/components/schemas/Question' }
+        operationRef: { type: string }
+        detailsRef: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    CapabilityCandidate:
+      type: object
+      additionalProperties: false
+      required: [candidateKey, displayName, state, evidenceClass, readiness]
+      properties:
+        candidateKey: { type: string }
+        displayName: { type: string }
+        state:
+          type: string
+          enum: [executable_now, preview_only, blocked, inferred_only]
+        evidenceClass:
+          type: string
+          enum: [live_verified, indexed_verified, inferred_only, blocked]
+        resource: { $ref: '#/components/schemas/PublicResource' }
+        readiness: { $ref: '#/components/schemas/ReadinessVector' }
+        publicBlockers:
+          type: array
+          items: { type: string }
+        effectiveCapabilityEnvelopeId:
+          type: string
+          format: uuid
+    PublicResource:
+      type: object
+      additionalProperties: false
+      properties:
+        type: { type: string }
+        key: { type: string }
+        displayName: { type: string }
+        brandKey: { type: string }
+        siteUrl: { type: string, format: uri }
+    ReadinessDimension:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [unknown, not_configured, pending, valid, invalid, stale, inaccessible, not_applicable]
+        checkedAt: { type: string, format: date-time }
+        expiresAt: { type: string, format: date-time }
+        publicReasonCode: { type: string }
+    ReadinessVector:
+      type: object
+      additionalProperties: false
+      required: [configured, credentialsPresent, authorized, reachable, schemaVerified, operationReady]
+      properties:
+        configured: { $ref: '#/components/schemas/ReadinessDimension' }
+        credentialsPresent: { $ref: '#/components/schemas/ReadinessDimension' }
+        authorized: { $ref: '#/components/schemas/ReadinessDimension' }
+        reachable: { $ref: '#/components/schemas/ReadinessDimension' }
+        schemaVerified: { $ref: '#/components/schemas/ReadinessDimension' }
+        operationReady: { $ref: '#/components/schemas/ReadinessDimension' }
+    Question:
+      type: object
+      additionalProperties: false
+      required: [questionKey, prompt, type]
+      properties:
+        questionKey: { type: string }
+        prompt: { type: string }
+        type:
+          type: string
+          enum: [single_select, multi_select, text, number, date, boolean]
+        required: { type: boolean }
+        options:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [key, label, evidenceClass]
+            properties:
+              key: { type: string }
+              label: { type: string }
+              evidenceClass:
+                type: string
+                enum: [live_verified, indexed_verified, inferred_only, blocked]
+              disabled: { type: boolean }
+              publicReasonCode: { type: string }
+    Questionnaire:
+      type: object
+      additionalProperties: false
+      required: [questionnaireId, state, schemaFingerprint, secretsIncluded]
+      properties:
+        questionnaireId: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [context_resolving, clarification_required, collecting_fields, preflight_ready, blocked, expired, cancelled]
+        schemaFingerprint: { type: string, pattern: '^[a-f0-9]{64}$' }
+        question: { $ref: '#/components/schemas/Question' }
+        invalidatedFieldKeys:
+          type: array
+          items: { type: string }
+        operationRef: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    OperationPreflight:
+      type: object
+      additionalProperties: false
+      required: [operationId, state, requestHash, target, effect, requirements, secretsIncluded]
+      properties:
+        operationId: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [preview_ready, blocked, awaiting_approval, executable]
+        requestHash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        target: { $ref: '#/components/schemas/PublicResource' }
+        effect: { type: string }
+        requirements:
+          type: object
+          additionalProperties: false
+          properties:
+            approvalRequired: { type: boolean }
+            typedConfirmationRequired: { type: boolean }
+            idempotencyRequired: { type: boolean }
+            quotaRequired: { type: boolean }
+            auditRequired: { type: boolean }
+            readbackRequired: { type: boolean }
+        preview:
+          type: object
+          additionalProperties: true
+        publicBlockers:
+          type: array
+          items: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    OperationStatus:
+      type: object
+      additionalProperties: false
+      required: [operationId, state, verified, secretsIncluded]
+      properties:
+        operationId: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [requested, context_loaded, preflight_passed, awaiting_approval, executing, readback_pending, verified, blocked, failed, unknown_outcome, cancelled, expired]
+        verified: { type: boolean }
+        publicReasonCode: { type: string }
+        retryAvailable: { type: boolean }
+        readback:
+          type: object
+          additionalProperties: true
+        detailsRef: { type: string }
+        secretsIncluded: { type: boolean, const: false }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            requestId: { type: string }
+  responses:
+    BadRequest:
+      description: Invalid request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Unauthorized:
+      description: Authentication required
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Forbidden:
+      description: Authenticated but not authorized
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    NotFound:
+      description: Resource not found in caller scope
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    Conflict:
+      description: Current state or governance prevents the request
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }
+    RateLimited:
+      description: Rate limit exceeded
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content: { application/json: { schema: { $ref: '#/components/schemas/ErrorEnvelope' } } }

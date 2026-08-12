@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "feature_key": "011-tenant-gpt-effective-capability-envelope",
+  "title": "Tenant GPT Effective Capability Envelope and Context-Aware Questionnaires",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/011-tenant-gpt-effective-capability-envelope",
+      "role": "specification_contracts_process_paths_and_risk_model",
+      "status": "branch_committed",
+      "merge_sha": null
+    },
+    "implementation_prs": [],
+    "closeout_pr": {"number": null, "branch": null, "status": "pending"}
+  },
+  "evidence": {
+    "specification": {
+      "status": "complete_on_branch_pending_review",
+      "requirements": true,
+      "architecture": true,
+      "data_model": true,
+      "end_to_end_flows": true,
+      "testing_strategy": true,
+      "threat_model": true,
+      "rollout_and_recovery": true,
+      "traceability": true,
+      "arabic_overview": true
+    },
+    "implementation": {"status": "not_started"},
+    "ci": {"status": "pending_specification_pr"},
+    "migration": {"status": "not_designed_or_applied"},
+    "production_verification": {"status": "pending"},
+    "post_merge_audit": {"status": "pending"}
+  },
+  "source_ticket": "0314ec00-6ca0-4f4d-af4a-7532f85c4a7c",
+  "sensitive_values_included": false
+}

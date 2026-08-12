@@ -1,0 +1,73 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "transport-response-schema-1048-governed-rollout",
+  "title": "Transport Response Schema Migration 1048 Governed Rollout",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "secrets_included": false,
+  "scope": {
+    "include": [
+      ".github/ops/transport-response-schema-1048-governed-rollout.mjs",
+      ".github/workflows/transport-response-schema-1048-governed-rollout.yml",
+      ".github/workflows/migration-1048-readiness-evidence-publisher.yml",
+      "http-generic-api/scripts/migration-1048-readiness-issue-publisher.mjs",
+      "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
+      ".changes/e2e/transport-response-schema-1048-governed-rollout.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Validate the repository-governed readiness, trusted evidence publication, exactly-once apply, and readback control plane for Migration 1048 without executing SQL, reading secrets, or mutating Production during CI.",
+      "e2e_journeys": [
+        {
+          "id": "validate-migration-1048-governed-rollout-control-plane",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "governed migration rollout evaluator",
+          "entrypoint": "The exact pull-request head contains the Migration 1048 rollout runner, read-only issue-comment producer, trusted workflow-run readiness publisher, regression test, and this phase contract.",
+          "terminal_outcome": "The control plane proves checksum/blob-bound readiness, trusted publication of the exact readiness marker, explicit authorization, exactly-once Apply semantics with no retry, and verification by ledger/readback while CI itself performs no migration or external runtime mutation.",
+          "steps": [
+            "Read the Migration 1048 governed rollout runner, producer workflow, trusted readiness publisher workflow, and publisher module from the exact pull-request head.",
+            "Verify that Issue-level workflow trigger commands remain control-plane commands while runtime authorization and Apply typed confirmations are derived from the exact canonical migration filename.",
+            "Verify that the issue-comment rollout producer has no GitHub metadata write permission and only uploads checksum-bound readiness evidence.",
+            "Verify that the trusted workflow-run publisher accepts only a successful exact source run, validates the readiness artifact and marker fields, deduplicates an identical marker, and writes only the bound marker to Issue #6531.",
+            "Execute the repository regression that checks command bindings, Production provenance guards, dry-run gating, canonical runtime typed confirmations, trusted readiness handoff, single Apply dispatch, no retry behavior, and Verify-only reconciliation.",
+            "Record repository evidence only; do not execute Migration 1048, connect to a live database for mutation, read credentials or secrets, call a provider, deploy, mutate Production, or publish a real readiness marker during CI."
+          ],
+          "assertions": [
+            "Readiness is bound to the live Production SHA, Migration 1048 path, expected blob SHA, exact checksum, and statement count before Apply can become eligible.",
+            "The authorization bootstrap confirmation is derived as AUTHORIZE_GOVERNED_MIGRATION_<canonical migration filename without .sql> rather than reusing the Issue trigger command.",
+            "The governed executor Apply confirmation is derived as APPLY_<canonical migration filename without .sql> and therefore preserves the complete transport_response_chunk_schema_recovery identity.",
+            "The issue-comment rollout producer remains read-only to GitHub repository metadata; readiness publication is isolated behind a trusted workflow_run publisher consuming the exact successful source-run artifact.",
+            "The readiness publisher validates source workflow identity, source head SHA, result=ready_for_apply, secrets_included=false, Production SHA, migration blob, checksum, statement count, authorization=pass, and dry_run=pass before writing the marker to Issue #6531.",
+            "Apply requires explicit checksum-bound readiness evidence and contains exactly one governed migration execution path with no automatic retry.",
+            "Verify performs ledger/readback reconciliation without sending Apply.",
+            "CI performs no SQL mutation, migration Apply, provider call, credential or secret access, deployment, Production mutation, external send, or force update."
+          ],
+          "tests": [
+            {
+              "id": "transport-response-schema-1048-governed-rollout",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-schema-1048-governed-rollout.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/transport-response-schema-1048-governed-rollout.mjs",
+            ".github/workflows/transport-response-schema-1048-governed-rollout.yml",
+            ".github/workflows/migration-1048-readiness-evidence-publisher.yml",
+            "http-generic-api/scripts/migration-1048-readiness-issue-publisher.mjs",
+            "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

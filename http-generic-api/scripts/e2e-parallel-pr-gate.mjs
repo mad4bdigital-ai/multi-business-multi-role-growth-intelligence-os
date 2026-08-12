@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,8 @@ import { matchesPattern } from "./e2e-phase-governance.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(HERE, "..", "..");
+const PARALLEL_MAINTENANCE_CONTEXT_ARTIFACTS = new Set(["work-map-integration.json"]);
+const MAX_PRODUCTION_PROMOTION_REARM_DEPTH = 4;
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -71,18 +73,148 @@ function writeOutputs(file, outputs) {
   fs.appendFileSync(file, `${lines.join("\n")}\n`);
 }
 
-function resolveCanonicalMainRef(root) {
-  for (const candidate of ["refs/remotes/origin/main", "refs/heads/main", "main"]) {
-    try {
-      execFileSync("git", ["rev-parse", "--verify", `${candidate}^{commit}`], {
-        cwd: root,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
+function normalize(value) {
+  return String(value || "").replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+export function resolveParallelMaintenanceScope(contract) {
+  const contractScope = Array.isArray(contract.scope?.include) ? contract.scope.include : [];
+  const workstreamScopes = Array.isArray(contract.parallel_work?.workstreams)
+    ? contract.parallel_work.workstreams.flatMap((workstream) =>
+        Array.isArray(workstream.scope?.include) ? workstream.scope.include : []
+      )
+    : [];
+  return [...new Set([...contractScope, ...workstreamScopes].map(normalize).filter(Boolean))];
+}
+
+function resolveParallelMaintenanceSummaries({ root, changedFiles, runtimeFiles, policy, parallelSummaries }) {
+  const summariesByPath = new Map(
+    parallelSummaries.map((summary) => [normalize(summary.contract_path), summary])
+  );
+  const specRoot = normalize(policy.spec_root).replace(/\/+$/, "");
+  const specPrefix = `${specRoot}/`;
+
+  for (const rawFile of changedFiles) {
+    const file = normalize(rawFile);
+    if (!file.startsWith(specPrefix)) continue;
+    const [feature, ...relativeParts] = file.slice(specPrefix.length).split("/");
+    const relativePath = relativeParts.join("/");
+    if (!feature || !PARALLEL_MAINTENANCE_CONTEXT_ARTIFACTS.has(relativePath)) continue;
+
+    const contractPath = normalize(path.posix.join(specRoot, feature, policy.spec_contract_file));
+    if (summariesByPath.has(contractPath)) continue;
+    const absolute = path.join(root, contractPath);
+    if (!fs.existsSync(absolute)) continue;
+    const contract = readJson(absolute);
+    if (contract.parallel_work?.enabled !== true) continue;
+    const scope = resolveParallelMaintenanceScope(contract);
+    if (
+      !runtimeFiles.some((runtimeFile) => scope.some((pattern) => matchesPattern(runtimeFile, pattern)))
+    ) continue;
+    summariesByPath.set(contractPath, {
+      feature_key: contract.feature_key || null,
+      contract_path: contractPath
+    });
+  }
+
+  return [...summariesByPath.values()].sort((left, right) =>
+    normalize(left.contract_path).localeCompare(normalize(right.contract_path))
+  );
+}
+
+function resolveSinglePrMaintenanceContract({ root, changedFiles, runtimeFiles, policy, parallelSummaries, baseRef }) {
+  if (baseRef !== "main" || !runtimeFiles.length || !parallelSummaries.length) return null;
+
+  const allParallelContractsIntegrated = parallelSummaries.every((summary) => {
+    const contract = readJson(path.join(root, summary.contract_path));
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const workstreams = new Map((contract.parallel_work?.workstreams || []).map((row) => [row.id, row]));
+    const requiredWorkstreams = contract.parallel_work?.integration?.required_workstreams || [];
+    return currentPhase?.status === "implemented"
+      && requiredWorkstreams.length > 0
+      && requiredWorkstreams.every((id) => workstreams.get(id)?.status === "integrated");
+  });
+  if (!allParallelContractsIntegrated) return null;
+
+  const contractRoot = normalize(policy.non_spec_contract_root || ".changes/e2e").replace(/\/+$/, "");
+  const candidates = changedFiles
+    .filter((file) => file.startsWith(`${contractRoot}/`) && file.endsWith(".json"))
+    .sort();
+
+  const matches = [];
+  for (const contractPath of candidates) {
+    const absolute = path.join(root, contractPath);
+    if (!fs.existsSync(absolute)) continue;
+    const contract = readJson(absolute);
+    const currentPhase = (contract.phases || []).find((phase) => phase.id === contract.current_phase);
+    const scope = contract.scope?.include || [];
+    if (
+      contract.delivery_mode === "single_pr"
+      && currentPhase?.status === "implemented"
+      && contract.secrets_included === false
+      && Array.isArray(scope)
+      && runtimeFiles.every((file) => scope.some((pattern) => matchesPattern(file, pattern)))
+    ) {
+      matches.push({
+        feature_key: contract.feature_key || null,
+        contract_path: contractPath,
+        runtime_files: runtimeFiles
       });
-      return candidate;
-    } catch {}
+    }
+  }
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function resolveCanonicalMainRef(root, { allowLocalFallback = false } = {}) {
+  const candidates = allowLocalFallback
+    ? ["refs/remotes/origin/main", "refs/heads/main"]
+    : ["refs/remotes/origin/main"];
+  for (const mainRef of candidates) {
+    const result = spawnSync("git", ["rev-parse", "--verify", `${mainRef}^{commit}`], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    });
+    if (!result.error && result.status === 0) return mainRef;
   }
   return null;
+}
+
+function resolveLiveProtectedSha(root, name) {
+  const token = String(process.env.GITHUB_TOKEN_FOR_REF_LOOKUP || "").trim();
+  if (token) {
+    const repository = String(process.env.GITHUB_REPOSITORY || "").trim();
+    if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository)) return null;
+    const childEnv = { ...process.env, GH_TOKEN: token };
+    delete childEnv.GITHUB_TOKEN_FOR_REF_LOOKUP;
+    const result = spawnSync(
+      "gh",
+      ["api", `repos/${repository}/git/ref/heads/${name}`, "--jq", ".object.sha"],
+      {
+        cwd: root,
+        encoding: "utf8",
+        env: childEnv,
+        stdio: ["ignore", "pipe", "ignore"]
+      }
+    );
+    if (result.error || result.status !== 0) return null;
+    const sha = String(result.stdout || "").trim();
+    return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+  }
+
+  const result = spawnSync("git", ["ls-remote", "--heads", "origin", `refs/heads/${name}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+  if (result.error || result.status !== 0) return null;
+  const output = String(result.stdout || "").trim();
+  const rows = output.split(/\r?\n/).filter(Boolean);
+  if (rows.length !== 1) return null;
+  const [onlyRow] = rows;
+  const [sha, ref] = onlyRow.trim().split(/\s+/);
+  if (!/^[0-9a-f]{40}$/.test(sha) || ref !== `refs/heads/${name}`) return null;
+  return sha;
 }
 
 function isAncestor(root, ancestor, descendant) {
@@ -155,41 +287,116 @@ function resolveParents(root, headSha) {
   }
 }
 
+function parseProductionCandidateRef(headRef) {
+  const bridge = /^release\/production-candidate-([0-9a-f]{12})-([0-9a-f]{12})-(?:bridge|push)-([1-9]\d*)$/.exec(headRef);
+  if (bridge) {
+    return {
+      kind: "governed_dispatch_bridge",
+      main_prefix: bridge[1],
+      production_prefix: bridge[2],
+      dispatch_run_id: bridge[3]
+    };
+  }
+
+  const shaBound = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
+  if (shaBound) {
+    return {
+      kind: "sha_bound",
+      candidate_prefix: shaBound[1]
+    };
+  }
+  return null;
+}
+
+function resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree }) {
+  let current = headSha;
+  for (let depth = 0; depth <= MAX_PRODUCTION_PROMOTION_REARM_DEPTH; depth += 1) {
+    const currentTree = resolveTree(root, current);
+    if (!currentTree || currentTree !== mainTree) return null;
+
+    const parents = resolveParents(root, current);
+    if (parents.length === 2 && parents[0] === mainSha && parents[1] === baseSha) {
+      return { anchor_sha: current, rearm_depth: depth };
+    }
+    if (parents.length !== 1) return null;
+    current = parents[0];
+  }
+  return null;
+}
+
 function classifyProductionPromotion({ root, headRef, baseRef, headSha, baseSha }) {
   if (headRef === "main" && baseRef === "Production") {
-    return { allowed: true, identity: "protected_main" };
+    return { allowed: true, identity: "protected_main", phase_evaluation_base: resolveFirstParent(root, headSha) };
   }
-  if (baseRef !== "Production") return { allowed: false, identity: null };
-
-  const match = /^release\/production-candidate-(?:\d{8}-)?([0-9a-f]{8})(?:-v[1-9]\d*)?$/.exec(headRef);
-  if (!match) return { allowed: false, identity: null };
-  if (!/^[0-9a-f]{40}$/.test(headSha) || !headSha.startsWith(match[1])) {
-    return { allowed: false, identity: null };
+  if (baseRef !== "Production") return { allowed: false, identity: null, phase_evaluation_base: null };
+  if (!/^[0-9a-f]{40}$/.test(headSha || "") || !/^[0-9a-f]{40}$/.test(baseSha || "")) {
+    return { allowed: false, identity: null, phase_evaluation_base: null };
   }
 
-  const mainRef = resolveCanonicalMainRef(root);
-  if (!mainRef) return { allowed: false, identity: null };
-  if (isAncestor(root, headSha, mainRef)) {
-    return { allowed: true, identity: "immutable_main_snapshot" };
-  }
+  const candidateRef = parseProductionCandidateRef(headRef);
+  if (!candidateRef) return { allowed: false, identity: null, phase_evaluation_base: null };
 
+  const mainRef = resolveCanonicalMainRef(root, { allowLocalFallback: candidateRef.kind === "sha_bound" });
+  if (!mainRef) return { allowed: false, identity: null, phase_evaluation_base: null };
   const mainSha = resolveCommit(root, mainRef);
   const mainTree = resolveTree(root, mainRef);
+  if (!mainSha || !mainTree) return { allowed: false, identity: null, phase_evaluation_base: null };
+
+  if (candidateRef.kind === "governed_dispatch_bridge") {
+    const liveMainSha = resolveLiveProtectedSha(root, "main");
+    const liveProductionSha = resolveLiveProtectedSha(root, "Production");
+    if (
+      !liveMainSha
+      || liveMainSha !== mainSha
+      || !liveProductionSha
+      || liveProductionSha !== baseSha
+      || !liveMainSha.startsWith(candidateRef.main_prefix)
+      || !liveProductionSha.startsWith(candidateRef.production_prefix)
+    ) {
+      return { allowed: false, identity: null, phase_evaluation_base: null };
+    }
+    const reconciliation = resolveProductionReconciliationAnchor({ root, headSha, mainSha, baseSha, mainTree });
+    if (!reconciliation) return { allowed: false, identity: null, phase_evaluation_base: null };
+    return {
+      allowed: true,
+      identity: "history_preserving_main_reconciliation",
+      phase_evaluation_base: mainSha,
+      promotion_anchor_sha: reconciliation.anchor_sha,
+      rearm_depth: reconciliation.rearm_depth
+    };
+  }
+
+  if (!headSha.startsWith(candidateRef.candidate_prefix)) {
+    return { allowed: false, identity: null, phase_evaluation_base: null };
+  }
+  if (isAncestor(root, headSha, mainRef)) {
+    return {
+      allowed: true,
+      identity: "immutable_main_snapshot",
+      phase_evaluation_base: resolveFirstParent(root, headSha),
+      promotion_anchor_sha: headSha,
+      rearm_depth: 0
+    };
+  }
+
   const headTree = resolveTree(root, headSha);
   const parents = resolveParents(root, headSha);
   if (
-    !mainSha ||
-    !mainTree ||
-    !headTree ||
-    !/^[0-9a-f]{40}$/.test(baseSha || "") ||
-    parents.length !== 2 ||
-    parents[0] !== mainSha ||
-    parents[1] !== baseSha ||
-    headTree !== mainTree
+    !headTree
+    || parents.length !== 2
+    || parents[0] !== mainSha
+    || parents[1] !== baseSha
+    || headTree !== mainTree
   ) {
-    return { allowed: false, identity: null };
+    return { allowed: false, identity: null, phase_evaluation_base: null };
   }
-  return { allowed: true, identity: "history_preserving_main_reconciliation" };
+  return {
+    allowed: true,
+    identity: "history_preserving_main_reconciliation",
+    phase_evaluation_base: mainSha,
+    promotion_anchor_sha: headSha,
+    rearm_depth: 0
+  };
 }
 
 function main() {
@@ -203,27 +410,27 @@ function main() {
   });
 
   const promotion = classifyProductionPromotion({
-  root: options.root,
-  headRef: options.headRef,
-  baseRef: options.baseRef,
-  headSha: options.head,
-  baseSha: options.base
-});
-const productionPromotion = promotion.allowed;
-const phaseEvaluationBase = productionPromotion ? resolveFirstParent(options.root, options.head) : null;
-if (productionPromotion && !phaseEvaluationBase) {
-  addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
-    head_sha: options.head,
-    promotion_identity: promotion.identity
+    root: options.root,
+    headRef: options.headRef,
+    baseRef: options.baseRef,
+    headSha: options.head,
+    baseSha: options.base
   });
-}
-if (options.baseRef === "Production" && !productionPromotion) {
-  addFinding(report, "production_promotion_identity_invalid", {
-    head_ref: options.headRef || null,
-    head_sha: options.head || null,
-    base_sha: options.base || null
-  });
-}
+  const productionPromotion = promotion.allowed;
+  const phaseEvaluationBase = productionPromotion ? promotion.phase_evaluation_base : null;
+  if (productionPromotion && !phaseEvaluationBase) {
+    addFinding(report, "production_promotion_phase_evaluation_base_unavailable", {
+      head_sha: options.head,
+      promotion_identity: promotion.identity
+    });
+  }
+  if (options.baseRef === "Production" && !productionPromotion) {
+    addFinding(report, "production_promotion_identity_invalid", {
+      head_ref: options.headRef || null,
+      head_sha: options.head || null,
+      base_sha: options.base || null
+    });
+  }
 
   const active = [];
   const integrations = [];
@@ -264,6 +471,7 @@ if (options.baseRef === "Production" && !productionPromotion) {
   let featureKey = "";
   let contractPath = "";
   let workstreamId = "";
+  let singlePrMaintenanceContract = null;
   if (defaultBranchSync) {
     mode = "default_branch_sync";
   } else if (!productionPromotion && active.length === 1) {
@@ -275,22 +483,47 @@ if (options.baseRef === "Production" && !productionPromotion) {
     mode = "integration";
     featureKey = integrations[0].contract.feature_key;
     contractPath = integrations[0].summary.contract_path;
-  } else if (report.contracts.length && options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
-    const runtimeChanged = report.changed_files.some((file) => {
-      const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
-      return policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern));
+  } else if (options.baseRef && options.headRef && !options.headRef.startsWith("gh-readonly-queue/") && !productionPromotion) {
+    const policy = readJson(path.join(options.root, ".specify", "e2e-phase-governance.json"));
+    const runtimeFiles = report.changed_files.filter((file) =>
+      policy.runtime_patterns.some((pattern) => matchesPattern(file, pattern))
+    );
+    const maintenanceParallelSummaries = resolveParallelMaintenanceSummaries({
+      root: options.root,
+      changedFiles: report.changed_files,
+      runtimeFiles,
+      policy,
+      parallelSummaries: report.contracts
     });
-    if (runtimeChanged) addFinding(report, "parallel_work_pr_branch_not_declared", { head_ref: options.headRef, contracts: report.contracts.map((row) => row.feature_key) });
+    if (maintenanceParallelSummaries.length) {
+      singlePrMaintenanceContract = resolveSinglePrMaintenanceContract({
+        root: options.root,
+        changedFiles: report.changed_files,
+        runtimeFiles,
+        policy,
+        parallelSummaries: maintenanceParallelSummaries,
+        baseRef: options.baseRef
+      });
+      if (runtimeFiles.length && !singlePrMaintenanceContract) {
+        addFinding(report, "parallel_work_pr_branch_not_declared", {
+          head_ref: options.headRef,
+          contracts: maintenanceParallelSummaries.map((row) => row.feature_key)
+        });
+      }
+    }
   }
 
   report.pr_mode = mode;
   report.feature_key = featureKey || null;
   report.contract_path = contractPath || null;
   report.workstream_id = workstreamId || null;
+  report.single_pr_maintenance_contract = singlePrMaintenanceContract;
   report.base_ref = options.baseRef || null;
   report.production_promotion = productionPromotion;
   report.production_promotion_identity = promotion.identity;
   report.phase_evaluation_base = phaseEvaluationBase;
+  report.production_promotion_anchor_sha = promotion.promotion_anchor_sha || null;
+  report.production_promotion_rearm_depth = Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : null;
   writeAtomic(options.reportFile, report);
   writeOutputs(options.githubOutput, {
     mode,
@@ -299,10 +532,13 @@ if (options.baseRef === "Production" && !productionPromotion) {
     workstream_id: workstreamId,
     production_promotion: productionPromotion,
     production_promotion_identity: promotion.identity || "",
-    phase_evaluation_base: phaseEvaluationBase || ""
+    phase_evaluation_base: phaseEvaluationBase || "",
+    production_promotion_anchor_sha: promotion.promotion_anchor_sha || "",
+    production_promotion_rearm_depth: Number.isInteger(promotion.rearm_depth) ? promotion.rearm_depth : ""
   });
   console.log(JSON.stringify(report, null, 2));
   if (!report.ok) process.exit(1);
 }
 
-main();
+const isDirectExecution = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectExecution) main();

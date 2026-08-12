@@ -1,17 +1,18 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { loadPlatformPluginCatalog } from "../platformPluginCatalog.js";
 import {
   resolvePlatformPluginExecution,
   validateCapabilitySelectorContract,
 } from "../platformPluginResolver.js";
+import { buildTenantPlatformPluginEligibility } from "../tenantPlatformPluginEligibility.js";
 import { installPlatformPluginForTenant } from "../platformPluginInstall.js";
 import { createCredentialIntakeSessionRecord } from "./credentialIntakeRoutes.js";
 import { buildTenantCredentialIntakeAuthoritySnapshot } from "../credentialIntakeBindingPolicy.js";
 import { writeAuditLogAsync } from "../auditLogger.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const TENANT_CONNECTION_MANAGER_ROLES = new Set(["owner", "admin"]);
 const TENANT_INTAKE_ALLOWED_FIELDS = new Set([
   "plugin_key", "pluginKey", "purpose", "display_label", "displayLabel",
@@ -26,6 +27,8 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "toolKey",
   "workspace_id",
   "workspaceId",
+  "brand_ref",
+  "brandRef",
   "agent_id",
   "agentId",
   "requested_credential_scope",
@@ -37,15 +40,6 @@ const TENANT_RESOLVE_ALLOWED_FIELDS = new Set([
   "target_mode",
   "targetMode",
 ]);
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   const pool = getPool();
@@ -96,9 +90,7 @@ function tenantIntakeUnknownFields(input = {}) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
@@ -173,18 +165,31 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
   const pluginKey = tenantValueFromAliases(input, "plugin_key", "pluginKey");
   const action = tenantValueFromAliases(input, "action_key", "actionKey");
   const tool = tenantValueFromAliases(input, "tool_key", "toolKey");
+  const workspace = tenantValueFromAliases(input, "workspace_id", "workspaceId");
+  const brand = tenantValueFromAliases(input, "brand_ref", "brandRef");
+  if (!workspace.value) {
+    throw tenantResolveContractError(
+      "TENANT_WORKSPACE_CONTEXT_REQUIRED",
+      "workspace_id is required for tenant platform plugin resolution.",
+      { required_field: "workspace_id" }
+    );
+  }
   const selector = validateCapabilitySelectorContract({ actionKey: action.value, toolKey: tool.value });
   const legacyFields = [];
   if (pluginKey.legacyUsed) legacyFields.push("pluginKey");
   if (action.legacyUsed) legacyFields.push("actionKey");
   if (tool.legacyUsed) legacyFields.push("toolKey");
+  if (workspace.legacyUsed) legacyFields.push("workspaceId");
+  if (brand.legacyUsed) legacyFields.push("brandRef");
   return {
     pluginKey: pluginKey.value,
+    workspaceId: workspace.value,
+    brandRef: brand.value,
     selector,
     compatibilityTelemetry: {
       legacy_selector_alias_used: action.legacyUsed || tool.legacyUsed,
       legacy_fields: legacyFields,
-      contract_version: "one-selector-v1",
+      contract_version: "one-selector-workspace-v2",
     },
   };
 }
@@ -192,11 +197,12 @@ function parseTenantPlatformPluginResolveContract(input = {}) {
 export function buildTenantPlatformPluginRoutes() {
   const router = Router();
 
-  router.get("/tenant/platform/plugins/catalog", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/platform/plugins/catalog", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const result = await loadPlatformPluginCatalog({
         tenantId: req.auth.tenant_id,
         userId: req.auth.user_id,
+        principalClass: "tenant",
         includeInactive: false,
         includeBindings: req.query.include_bindings === undefined ? true : bool(req.query.include_bindings),
         limit: boundedInt(req.query.limit, 100, 1, 250),
@@ -215,7 +221,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_catalog_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/install", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/install", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const result = await installPlatformPluginForTenant({
@@ -244,7 +250,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_platform_plugin_install_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/credential-intake-sessions", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/credential-intake-sessions", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       if (!tenantCanManageConnections(req.auth.tenant_role)) {
         return res.status(403).json({
@@ -372,7 +378,7 @@ export function buildTenantPlatformPluginRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_credential_intake_session_create_failed"); }
   });
 
-  router.post("/tenant/platform/plugins/resolve", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/platform/plugins/resolve", requireCanonicalUserJwt, requireTenantUserJwt, async (req, res) => {
     try {
       const input = req.body && typeof req.body === "object" ? req.body : {};
       const contract = parseTenantPlatformPluginResolveContract(input);
@@ -381,7 +387,8 @@ export function buildTenantPlatformPluginRoutes() {
         actionKey: contract.selector.actionKey,
         toolKey: contract.selector.toolKey,
         tenantId: req.auth.tenant_id,
-        workspaceId: input.workspace_id || input.workspaceId || null,
+        workspaceId: contract.workspaceId,
+        brandRef: contract.brandRef,
         userId: req.auth.user_id,
         agentId: input.agent_id || input.agentId || null,
         principalClass: "tenant",
@@ -393,8 +400,10 @@ export function buildTenantPlatformPluginRoutes() {
         correlationId: req.headers["x-correlation-id"] || req.headers["x-request-id"] || null,
       });
       const { security_decision_trace_admin: _adminTrace, ...tenantSafeResult } = result;
+      const eligibility = buildTenantPlatformPluginEligibility(result);
       return res.status(200).json({
         ...tenantSafeResult,
+        eligibility,
         compatibility_telemetry: contract.compatibilityTelemetry,
         auth_context: {
           tenant_id: req.auth.tenant_id,
@@ -412,7 +421,8 @@ export function buildTenantPlatformPluginRoutes() {
 }
 
 export const _testingTenantPlatformPluginRoutes = {
-  verifyUserJwt,
+  requireTenantUserJwt,
+  requireCanonicalUserJwt,
   boundedInt,
   bool,
   parseTenantPlatformPluginResolveContract,

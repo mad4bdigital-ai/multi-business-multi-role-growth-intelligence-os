@@ -231,8 +231,8 @@ async function adminShell(alias, extraArgs, label) {
 async function adminDbFixed(query, params = []) {
   const result = await requestRaw('/admin/control', {
     tool: 'db',
-    action: 'query',
-    query,
+    action: 'run',
+    sql: query,
     params,
     read_only: true,
     max_rows: 20,
@@ -418,12 +418,11 @@ function exactApplyLedger(readback) {
 }
 
 function exactObjects(readback) {
-  const tables = readback?.tables || [];
-  const tableMap = new Map(tables.map((row) => [row.table, row]));
-  return EXPECTED_OBJECTS.every((name) => {
-    const row = tableMap.get(name);
-    return row && row.found === true && Number(row.row_count || 0) >= 0;
-  });
+  const tables = readback?.schema?.tables;
+  const missing = readback?.expectations?.missing?.tables;
+  if (!Array.isArray(tables) || !Array.isArray(missing) || missing.length !== 0) return false;
+  const tableNames = new Set(tables.map((row) => String(row?.TABLE_NAME || '').trim()).filter(Boolean));
+  return EXPECTED_OBJECTS.every((name) => tableNames.has(name));
 }
 
 async function readinessViewProbe() {

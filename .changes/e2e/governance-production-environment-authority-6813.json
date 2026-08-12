@@ -1,0 +1,75 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governance-production-environment-authority-6813",
+  "title": "Governance Production environment and provider-capability preflight",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governance-production-environment-authority-6813.json",
+      "docs/governance-db-writer-authority.md",
+      "docs/governance-db-provider-capability.md",
+      "http-generic-api/config/governance-db-provider-capabilities.json",
+      "http-generic-api/governanceDbProviderCapability.js",
+      "http-generic-api/governanceProductionPreflight.js",
+      "http-generic-api/test-governance-production-preflight.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind Governance DB Production preflight to an explicit database-provider capability authority and the canonical Environment Authority without moving database credentials, grants, provider mutation, migration execution, or deployment authority into Spec 018.",
+      "e2e_journeys": [
+        {
+          "id": "governance-production-preflight-fails-closed-on-provider-or-environment-drift",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production database operator",
+          "entrypoint": "Governance DB Production preflight before any credential readiness, principal provisioning, privilege probe, or governed migration lifecycle",
+          "terminal_outcome": "The preflight first requires the repository-defined Production database provider to support a dedicated second principal plus exact direct table grants, then requires a dedicated Governance DB identity and canonical Environment Authority with Production as both production branch and promotion target; unsupported provider capability fails with bounded no-secret evidence before credential readiness or database connection.",
+          "steps": [
+            "Load the repository-defined Production database provider capability policy without reading secrets or connecting to a database.",
+            "Fail closed with GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED when the provider cannot represent the dedicated Governance writer contract, and with GOVERNANCE_DB_PROVIDER_CAPABILITY_UNRESOLVED when the policy is absent.",
+            "Only after provider support, resolve and validate the dedicated GOVERNANCE_DB_USER and GOVERNANCE_DB_PASSWORD configuration without falling back to the ordinary runtime DB identity.",
+            "Load Environment Authority through the Spec 018 resolver.",
+            "Require production_branch=Production and promotion_target_branch=Production.",
+            "Return bounded preflight evidence only after all independent authority domains pass."
+          ],
+          "assertions": [
+            "Database provider capability, Environment/branch authority, and database mutation identity are independent fail-closed concerns.",
+            "The current repository Production provider policy is explicitly unsupported for the dedicated Governance writer contract rather than being represented as missing credentials only.",
+            "Provider capability failure occurs before Governance credential readiness, Environment Authority loading, database connection, or SQL execution.",
+            "A caller cannot treat main as the Production authority for Governance DB operations.",
+            "Runtime DB_USER and DB_PASSWORD never satisfy Governance writer identity requirements.",
+            "The preflight output and errors contain no username or password values.",
+            "The preflight does not connect to MariaDB, execute SQL, apply a migration, mutate a provider, deploy, or restart runtime.",
+            "This integration composes with the Environment Authority foundation and does not move database-provider remediation into Spec 018."
+          ],
+          "tests": [
+            {
+              "id": "governance-production-preflight",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-production-preflight.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/governance-db-provider-capability.md",
+            "docs/governance-db-writer-authority.md",
+            "http-generic-api/config/governance-db-provider-capabilities.json",
+            "http-generic-api/governanceDbProviderCapability.js",
+            "http-generic-api/governanceProductionPreflight.js",
+            "http-generic-api/test-governance-production-preflight.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

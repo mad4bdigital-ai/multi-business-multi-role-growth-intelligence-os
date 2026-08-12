@@ -1,0 +1,86 @@
+openapi: 3.1.0
+info:
+  title: Spec 018 Production Deployment Authority Contract
+  version: 1.0.0
+  description: >-
+    Bounded contract for Spec 018 B04-B09. The production branch is resolved from
+    environment_branch_authority_v1 and is not caller-selectable. The exact requested
+    commit SHA must equal the same-cycle GitHub head of the governed Production branch
+    before any deploy dispatch is eligible to continue.
+paths:
+  /platform/remote-runtime/hosting/deploy-release:
+    post:
+      operationId: remoteRuntimeHostingerDeployRelease
+      summary: Plan or execute a governed Production deployment
+      description: >-
+        Resolves the production branch from environment authority, verifies the current
+        Production branch head through a read-only same-cycle GitHub ref readback, and
+        rejects caller branch mismatch or stale expected SHA before dispatch. Routine
+        Hostinger SSH mutation remains separately blocked by target policy unless an
+        independently governed break-glass execution path is authorized.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [target_id, expected_commit_sha]
+              properties:
+                target_id: { type: string }
+                app_key: { type: string, default: auth.mad4b.com }
+                app_path: { type: string }
+                expected_commit_sha:
+                  type: string
+                  pattern: '^[0-9a-fA-F]{40}$'
+                  description: Must equal the current same-cycle GitHub head SHA of the governed Production branch.
+                dry_run: { type: boolean, default: true }
+                force_clean: { type: boolean, default: false }
+                restart: { type: boolean, default: true }
+                approval_reason: { type: string, minLength: 20 }
+                capability_envelope_id: { type: string }
+                timeout_ms: { type: integer, minimum: 1000, maximum: 300000 }
+                ssh_auth_mode: { type: string, enum: [password, private_key] }
+      responses:
+        '200':
+          description: Dry-run completed or deployment completed without restart.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+                properties:
+                  branch: { type: string, enum: [Production] }
+                  expected_commit_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
+                  production_authority:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - production_branch
+                      - production_branch_head_sha
+                      - same_cycle_branch_readback
+                      - expected_sha_matches_production_head
+                      - secrets_included
+                    properties:
+                      source: { type: [string, 'null'] }
+                      config_key: { type: [string, 'null'] }
+                      production_branch: { type: string, enum: [Production] }
+                      production_branch_head_sha: { type: string, pattern: '^[0-9a-f]{40}$' }
+                      same_cycle_branch_readback: { type: boolean, enum: [true] }
+                      expected_sha_matches_production_head: { type: boolean, enum: [true] }
+                      secrets_included: { type: boolean, enum: [false] }
+                  secrets_included: { type: boolean, enum: [false] }
+        '202':
+          description: Deployment files were updated and a deferred restart was accepted; bounded readback remains required.
+        '400':
+          description: Invalid deployment input, including an invalid expected_commit_sha.
+        '403':
+          description: Approval, capability envelope, or execution gate missing.
+        '409':
+          description: >-
+            Governed deployment conflict. Structured runtime error codes include
+            production_deployment_branch_authority_mismatch,
+            production_deployment_sha_stale, target/path conflicts, or a blocked
+            Hostinger SSH target policy.
+        '502':
+          description: GitHub authority readback or SSH deployment failed before acceptance.

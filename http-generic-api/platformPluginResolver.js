@@ -3,6 +3,10 @@ import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
 import {
+  loadTenantPlatformPluginOwnershipScopedConnections,
+  PlatformPluginConnectionOwnershipDenialCode,
+} from "./platformPluginConnectionOwnership.js";
+import {
   buildPlatformPluginPreApprovalDecision,
   buildPlatformPluginSecurityDecision,
 } from "./src/application/capability/platformPluginSecurityDecisionUseCase.js";
@@ -20,6 +24,7 @@ export const CredentialResolutionState = Object.freeze({
   RESOLVED: "resolved",
   MISSING: "missing",
   SCOPE_DENIED: "scope_denied",
+  AMBIGUOUS: "ambiguous",
 });
 
 export const CredentialUsabilityState = Object.freeze({
@@ -34,6 +39,11 @@ export const CredentialDenialCode = Object.freeze({
   NOT_USABLE: "CREDENTIAL_NOT_USABLE",
   REQUIRED: "CREDENTIAL_REQUIRED",
   DEDICATED_CONNECTION_REQUIRED: "DEDICATED_CONNECTION_REQUIRED",
+  AMBIGUOUS_CONNECTION_SELECTION: "AMBIGUOUS_CONNECTION_SELECTION",
+  WORKSPACE_REQUIRED: PlatformPluginConnectionOwnershipDenialCode.WORKSPACE_REQUIRED,
+  OWNERSHIP_SCOPE_DENIED: PlatformPluginConnectionOwnershipDenialCode.SCOPE_DENIED,
+  OWNERSHIP_SCOPE_MISMATCH: PlatformPluginConnectionOwnershipDenialCode.SCOPE_MISMATCH,
+  BRAND_AUTHORITY_REQUIRED: PlatformPluginConnectionOwnershipDenialCode.BRAND_AUTHORITY_REQUIRED,
 });
 
 function compactString(value = "", max = 500) {
@@ -169,14 +179,14 @@ function connectionIsUsable(row = {}) {
   return status === "active" && ["validated", "valid", "active", "healthy"].includes(validationStatus);
 }
 
-function pickConnectionForScope(scope, connections = []) {
+function eligibleConnectionsForScope(scope, connections = []) {
   if (scope === "user_connection") {
-    return connections.find((row) => connectionIsUsable(row) && row.user_id) || null;
+    return connections.filter((row) => connectionIsUsable(row) && row.user_id);
   }
   if (scope === "tenant_connection") {
-    return connections.find((row) => connectionIsUsable(row)) || null;
+    return connections.filter((row) => connectionIsUsable(row));
   }
-  return null;
+  return [];
 }
 
 function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections = [], requestedScope = null }) {
@@ -225,7 +235,22 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       };
     }
     if (scope === "user_connection" || scope === "tenant_connection") {
-      const connection = pickConnectionForScope(scope, connections);
+      const eligibleConnections = eligibleConnectionsForScope(scope, connections);
+      if (eligibleConnections.length > 1) {
+        return {
+          ok: false,
+          requirement: CredentialRequirement.REQUIRED,
+          resolution_state: CredentialResolutionState.AMBIGUOUS,
+          usability_state: CredentialUsabilityState.NOT_EVALUATED,
+          credential_source: null,
+          reason: "connection_selection_ambiguous",
+          denial_code: CredentialDenialCode.AMBIGUOUS_CONNECTION_SELECTION,
+          ambiguous_scope: scope,
+          candidate_count: eligibleConnections.length,
+          candidate_scopes: candidateScopes,
+        };
+      }
+      const connection = eligibleConnections[0] || null;
       if (connection) {
         return {
           ok: true,
@@ -290,6 +315,46 @@ function resolveCredentialDecision({ plugin, binding, tenantPolicy, connections 
       ? CredentialDenialCode.DEDICATED_CONNECTION_REQUIRED
       : CredentialDenialCode.REQUIRED,
     candidate_scopes: candidateScopes,
+  };
+}
+
+function resolveOwnershipScopeCredentialDenial({ credentialRequirement, ownershipResolution }) {
+  if (!ownershipResolution) return null;
+  if (!ownershipResolution.ok) {
+    return {
+      ok: false,
+      requirement: credentialRequirement.requirement,
+      resolution_state: CredentialResolutionState.SCOPE_DENIED,
+      usability_state: CredentialUsabilityState.NOT_EVALUATED,
+      credential_source: null,
+      reason: ownershipResolution.reason,
+      denial_code: ownershipResolution.denial_code || CredentialDenialCode.OWNERSHIP_SCOPE_DENIED,
+      requested_scope: credentialRequirement.requested_scope,
+      candidate_scopes: credentialRequirement.candidate_scopes,
+    };
+  }
+  const ownershipCredentialScope = normalize(ownershipResolution.credential_scope || "");
+  const connectionCandidateScopes = credentialRequirement.candidate_scopes
+    .filter((scope) => ["user_connection", "tenant_connection"].includes(scope));
+  const requestedScope = credentialRequirement.requested_scope;
+  const mismatch = Boolean(
+    ownershipCredentialScope && (
+      (requestedScope && requestedScope !== ownershipCredentialScope) ||
+      (!requestedScope && connectionCandidateScopes.length > 0 && !connectionCandidateScopes.includes(ownershipCredentialScope))
+    )
+  );
+  if (!mismatch) return null;
+  return {
+    ok: false,
+    requirement: credentialRequirement.requirement,
+    resolution_state: CredentialResolutionState.SCOPE_DENIED,
+    usability_state: CredentialUsabilityState.NOT_EVALUATED,
+    credential_source: null,
+    reason: "connection_ownership_scope_mismatch",
+    denial_code: CredentialDenialCode.OWNERSHIP_SCOPE_MISMATCH,
+    requested_scope: requestedScope,
+    required_credential_scope: ownershipCredentialScope,
+    candidate_scopes: credentialRequirement.candidate_scopes,
   };
 }
 
@@ -599,6 +664,7 @@ async function persistSecurityDecisionTrace({
         principal_class: context.principal_class || null,
         tenant_id: context.tenant_id || null,
         workspace_id: context.workspace_id || null,
+        brand_ref: context.brand_ref || null,
       },
       response_payload: {
         trace: securityDecision.trace,
@@ -639,6 +705,7 @@ export async function resolvePlatformPluginExecution({
   toolKey = null,
   tenantId = null,
   workspaceId = null,
+  brandRef = null,
   userId = null,
   agentId = null,
   principalClass = "admin",
@@ -662,6 +729,7 @@ export async function resolvePlatformPluginExecution({
 
   const normalizedActionKey = compactString(actionKey || "", 191) || null;
   const normalizedToolKey = compactString(toolKey || "", 191) || null;
+  const normalizedBrandRef = compactString(brandRef || "", 191) || null;
   const selectorContract = validateCapabilitySelectorContract({
     actionKey: normalizedActionKey,
     toolKey: normalizedToolKey,
@@ -739,13 +807,28 @@ export async function resolvePlatformPluginExecution({
     canonicalPolicy.ready &&
     skill.granted
   );
-  const connections = credentialLookupAuthorized
-    ? await loadScopedConnections({
+  const tenantOwnershipLookupRequired = Boolean(
+    credentialLookupAuthorized && normalize(principalClass) === "tenant" && (workspaceId || normalizedBrandRef)
+  );
+  const ownershipResolution = tenantOwnershipLookupRequired
+    ? await loadTenantPlatformPluginOwnershipScopedConnections({
         pool,
         pluginKey: normalizedPluginKey,
         tenantId,
+        workspaceId,
+        brandRef: normalizedBrandRef,
         userId,
       })
+    : null;
+  const connections = credentialLookupAuthorized
+    ? (ownershipResolution
+      ? ownershipResolution.connections
+      : await loadScopedConnections({
+          pool,
+          pluginKey: normalizedPluginKey,
+          tenantId,
+          userId,
+        }))
     : [];
   const credentialDecisionEvaluated = Boolean(
     credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED ||
@@ -753,7 +836,11 @@ export async function resolvePlatformPluginExecution({
     !credentialLookupRequired ||
     credentialLookupAuthorized
   );
-  const credential = credentialDecisionEvaluated
+  const ownershipCredentialDenial = resolveOwnershipScopeCredentialDenial({
+    credentialRequirement,
+    ownershipResolution,
+  });
+  const credential = ownershipCredentialDenial || (credentialDecisionEvaluated
       ? resolveCredentialDecision({
           plugin: rows.plugin,
           binding,
@@ -770,7 +857,7 @@ export async function resolvePlatformPluginExecution({
           reason: "credential_resolution_deferred_until_authorized",
           requested_scope: credentialRequirement.requested_scope,
           candidate_scopes: credentialRequirement.candidate_scopes,
-        };
+        });
   const targetAuthority = await resolvePlatformManagedTargetAuthority({
     pool,
     credentialSource: credential.credential_source,
@@ -845,6 +932,7 @@ export async function resolvePlatformPluginExecution({
       principal_class: principalClass,
       tenant_id: tenantId,
       workspace_id: workspaceId,
+      brand_ref: normalizedBrandRef,
       user_id: userId,
       agent_id: agentId,
     },
@@ -871,16 +959,33 @@ export async function resolvePlatformPluginExecution({
       required: credentialLookupRequired,
       attempted: credentialLookupAuthorized,
       authorized: credentialLookupAuthorized,
+      ownership_scoped: Boolean(ownershipResolution),
       reason: credentialRequirement.requirement === CredentialRequirement.NOT_REQUIRED
           ? "credential_lookup_not_required_by_policy"
           : (!credentialRequirement.scope_allowed
             ? "credential_scope_denied_before_lookup"
-            : (credentialLookupAuthorized
-              ? "authorization_and_scope_gates_passed"
-              : "blocked_before_credential_lookup")),
+            : (ownershipResolution && !ownershipResolution.ok
+              ? ownershipResolution.reason
+              : (credentialLookupAuthorized
+                ? "authorization_and_scope_gates_passed"
+                : "blocked_before_credential_lookup"))),
       row_count: connections.length,
       secrets_included: false,
     },
+    connection_ownership_resolution: ownershipResolution ? {
+      ok: ownershipResolution.ok,
+      reason: ownershipResolution.reason,
+      denial_code: ownershipResolution.denial_code || null,
+      credential_scope: ownershipResolution.credential_scope,
+      workspace_ownership_type: ownershipResolution.workspace_ownership_type,
+      owner_scope_type: ownershipResolution.owner_scope_type,
+      owner_scope_ref: ownershipResolution.owner_scope_ref || null,
+      brand_ref: ownershipResolution.brand_ref || null,
+      row_count: ownershipResolution.row_count,
+      brand_connections_included: ownershipResolution.brand_connections_included === true,
+      brand_authority_source: ownershipResolution.brand_authority_source || null,
+      secrets_included: false,
+    } : null,
     plugin: {
       plugin_key: platformPlugin.plugin_key,
       display_name: platformPlugin.display_name,
@@ -930,7 +1035,9 @@ export async function resolvePlatformPluginExecution({
         "app_integration_action_bindings",
         "app_integration_tool_bindings",
         "tenant_integration_policies",
-        ...(credentialLookupAuthorized ? ["user_app_connections"] : []),
+        ...(ownershipResolution
+          ? ["workspace_registry", "v_context_kernel_connection_ownership_compatibility", "user_app_connections"]
+          : (credentialLookupAuthorized ? ["user_app_connections"] : [])),
         ...(targetAuthority.lookup_attempted ? ["platform_resource_authority_bindings"] : []),
         "app_action_grants",
         "agent_skills",

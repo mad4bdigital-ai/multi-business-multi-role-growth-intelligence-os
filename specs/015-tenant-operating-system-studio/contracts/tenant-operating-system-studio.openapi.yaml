@@ -1,0 +1,509 @@
+openapi: 3.1.0
+info:
+  title: Tenant Operating System Studio API
+  version: 0.1.0-draft
+  description: >-
+    Draft-only contract for package authoring, validation, publication, installation,
+    compilation, activation, upgrades, rollback, delegation, export, and handover.
+    Presence of this contract does not create mounted routes or mutation authority.
+servers: []
+tags:
+  - name: Packages
+  - name: Installations
+  - name: Agency and handover
+paths:
+  /tenants/{tenantId}/solution-packages:
+    get:
+      tags: [Packages]
+      operationId: listTenantSolutionPackages
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Tenant-safe package catalog
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PackageListResponse'
+    post:
+      tags: [Packages]
+      operationId: createTenantSolutionPackageDraft
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePackageDraftRequest'
+      responses:
+        '201':
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/solution-packages/{packageKey}/versions/{version}/validate:
+    post:
+      tags: [Packages]
+      operationId: validateTenantSolutionPackageVersion
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/PackageKey'
+        - $ref: '#/components/parameters/Version'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExactCandidateRequest'
+      responses:
+        '202':
+          description: Validation operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenants/{tenantId}/solution-packages/{packageKey}/versions/{version}/publish:
+    post:
+      tags: [Packages]
+      operationId: publishTenantSolutionPackageVersion
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/PackageKey'
+        - $ref: '#/components/parameters/Version'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublishPackageRequest'
+      responses:
+        '202':
+          description: Publication operation accepted; approval/readback may remain pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/solution-installations:
+    get:
+      tags: [Installations]
+      operationId: listTenantSolutionInstallations
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/Cursor'
+        - in: query
+          name: workspace_ref
+          schema: { type: string, maxLength: 191 }
+        - in: query
+          name: brand_ref
+          schema: { type: string, maxLength: 191 }
+      responses:
+        '200':
+          description: Tenant-safe installation list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InstallationListResponse'
+    post:
+      tags: [Installations]
+      operationId: planTenantSolutionInstallation
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanInstallationRequest'
+      responses:
+        '202':
+          description: Installation plan accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/solution-installations/{installationId}/compile:
+    post:
+      tags: [Installations]
+      operationId: compileTenantSolutionInstallation
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompileInstallationRequest'
+      responses:
+        '202':
+          description: Compilation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationFailed' }
+  /tenants/{tenantId}/solution-installations/{installationId}/activate:
+    post:
+      tags: [Installations]
+      operationId: activateTenantSolutionInstallationRevision
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivateInstallationRequest'
+      responses:
+        '202':
+          description: Activation accepted; success requires readback
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/solution-installations/{installationId}/upgrades/preview:
+    post:
+      tags: [Installations]
+      operationId: previewTenantSolutionInstallationUpgrade
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/InstallationId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpgradePreviewRequest'
+      responses:
+        '200':
+          description: Three-way compatibility and migration preview
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpgradePreviewResponse'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/solution-installations/{installationId}/rollback:
+    post:
+      tags: [Installations]
+      operationId: rollbackTenantSolutionInstallation
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackRequest'
+      responses:
+        '202':
+          description: Rollback operation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '409': { $ref: '#/components/responses/Conflict' }
+  /tenants/{tenantId}/agency-delegations:
+    post:
+      tags: [Agency and handover]
+      operationId: createAgencyDelegation
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDelegationRequest'
+      responses:
+        '202':
+          description: Delegation request accepted; normal approval may remain
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /tenants/{tenantId}/solution-installations/{installationId}/handover:
+    post:
+      tags: [Agency and handover]
+      operationId: planSolutionInstallationHandover
+      parameters:
+        - $ref: '#/components/parameters/TenantId'
+        - $ref: '#/components/parameters/InstallationId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HandoverRequest'
+      responses:
+        '202':
+          description: Handover inventory/plan accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationReceipt'
+components:
+  parameters:
+    TenantId:
+      in: path
+      name: tenantId
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+      description: Constraint only; authenticated authority remains canonical.
+    PackageKey:
+      in: path
+      name: packageKey
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    Version:
+      in: path
+      name: version
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 64 }
+    InstallationId:
+      in: path
+      name: installationId
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+    Cursor:
+      in: query
+      name: cursor
+      schema: { type: string, maxLength: 2000 }
+    IdempotencyKey:
+      in: header
+      name: Idempotency-Key
+      required: true
+      schema: { type: string, minLength: 8, maxLength: 191 }
+    IfMatch:
+      in: header
+      name: If-Match
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 191 }
+  schemas:
+    Reference:
+      type: string
+      minLength: 1
+      maxLength: 191
+    CreatePackageDraftRequest:
+      type: object
+      additionalProperties: false
+      required: [package_key, package_class, owner_scope_ref]
+      properties:
+        package_key: { $ref: '#/components/schemas/Reference' }
+        package_class: { type: string, enum: [operating_system, solution_pack, component_bundle, reference_pack] }
+        owner_scope_ref: { $ref: '#/components/schemas/Reference' }
+        name_ar: { type: string, maxLength: 300 }
+        name_en: { type: string, maxLength: 300 }
+        description: { type: string, maxLength: 5000 }
+    ExactCandidateRequest:
+      type: object
+      additionalProperties: false
+      required: [candidate_hash]
+      properties:
+        candidate_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        expected_parent_version: { type: [string, 'null'], maxLength: 64 }
+    PublishPackageRequest:
+      allOf:
+        - $ref: '#/components/schemas/ExactCandidateRequest'
+        - type: object
+          required: [publication_policy_ref]
+          properties:
+            publication_policy_ref: { $ref: '#/components/schemas/Reference' }
+            approval_ref: { type: [string, 'null'], maxLength: 191 }
+    PlanInstallationRequest:
+      type: object
+      additionalProperties: false
+      required: [workspace_ref, target_scope_type, target_scope_ref, package_ref, version_policy, environment]
+      properties:
+        workspace_ref: { $ref: '#/components/schemas/Reference' }
+        brand_ref: { type: [string, 'null'], maxLength: 191 }
+        target_scope_type: { type: string, enum: [tenant, workspace, brand] }
+        target_scope_ref: { $ref: '#/components/schemas/Reference' }
+        package_ref: { $ref: '#/components/schemas/Reference' }
+        version_policy: { type: string, enum: [version_pinned, approval_required, compatible_auto_upgrade] }
+        requested_version: { type: [string, 'null'], maxLength: 64 }
+        environment: { type: string, enum: [sandbox, staging, production_canary, production] }
+    CompileInstallationRequest:
+      type: object
+      additionalProperties: false
+      required: [draft_revision, expected_configuration_hash]
+      properties:
+        draft_revision: { type: integer, minimum: 1 }
+        expected_configuration_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        run_acceptance: { type: boolean, default: false }
+    ActivateInstallationRequest:
+      type: object
+      additionalProperties: false
+      required: [installation_revision, context_hash, acceptance_evidence_refs]
+      properties:
+        installation_revision: { type: integer, minimum: 1 }
+        context_hash: { type: string, pattern: '^[a-f0-9]{64}$' }
+        acceptance_evidence_refs:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Reference' }
+        approval_ref: { type: [string, 'null'], maxLength: 191 }
+    UpgradePreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [target_package_version]
+      properties:
+        target_package_version: { type: string, minLength: 1, maxLength: 64 }
+    UpgradePreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [installation_ref, origin_version, target_version, compatibility_status, conflicts, proposed_actions, secrets_included]
+      properties:
+        installation_ref: { $ref: '#/components/schemas/Reference' }
+        origin_version: { type: string }
+        target_version: { type: string }
+        compatibility_status: { type: string, enum: [compatible, compatible_with_migration, needs_resolution, blocked] }
+        conflicts: { type: array, items: { $ref: '#/components/schemas/Problem' } }
+        proposed_actions: { type: array, items: { type: string, maxLength: 2000 } }
+        secrets_included: { const: false }
+    RollbackRequest:
+      type: object
+      additionalProperties: false
+      required: [target_installation_revision, reason]
+      properties:
+        target_installation_revision: { type: integer, minimum: 1 }
+        reason: { type: string, minLength: 1, maxLength: 4000 }
+        approval_ref: { type: [string, 'null'], maxLength: 191 }
+    CreateDelegationRequest:
+      type: object
+      additionalProperties: false
+      required: [agency_tenant_ref, principal_or_group_refs, capability_keys, resource_selectors, effect_classes, valid_until]
+      properties:
+        agency_tenant_ref: { $ref: '#/components/schemas/Reference' }
+        principal_or_group_refs:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Reference' }
+        capability_keys:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { $ref: '#/components/schemas/Reference' }
+        resource_selectors:
+          type: array
+          minItems: 1
+          items: { type: object, additionalProperties: true }
+        effect_classes:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items: { type: string, enum: [read, internal_draft, staging_write, production_canary, production_write] }
+        valid_until: { type: string, format: date-time }
+    HandoverRequest:
+      type: object
+      additionalProperties: false
+      required: [target_owner_ref, include_export_inventory, revoke_delegation_after_readback]
+      properties:
+        target_owner_ref: { $ref: '#/components/schemas/Reference' }
+        include_export_inventory: { type: boolean }
+        revoke_delegation_after_readback: { type: boolean }
+        requested_completion_at: { type: [string, 'null'], format: date-time }
+    OperationReceipt:
+      type: object
+      additionalProperties: false
+      required: [operation_id, status, request_id, readback_status, secrets_included]
+      properties:
+        operation_id: { $ref: '#/components/schemas/Reference' }
+        status: { type: string, enum: [accepted, pending_approval, running, succeeded, failed, blocked, outcome_unknown] }
+        request_id: { $ref: '#/components/schemas/Reference' }
+        resource_ref: { type: [string, 'null'], maxLength: 191 }
+        readback_status: { type: string, enum: [not_required, pending, verified, failed, stale] }
+        reason_codes: { type: array, uniqueItems: true, items: { $ref: '#/components/schemas/Reference' } }
+        secrets_included: { const: false }
+    PackageSummary:
+      type: object
+      additionalProperties: false
+      required: [package_key, owner_scope_ref, latest_version, status]
+      properties:
+        package_key: { $ref: '#/components/schemas/Reference' }
+        owner_scope_ref: { $ref: '#/components/schemas/Reference' }
+        latest_version: { type: string }
+        status: { type: string }
+        visibility: { type: string }
+    PackageListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/PackageSummary' } }
+        next_cursor: { type: [string, 'null'] }
+        secrets_included: { const: false }
+    InstallationSummary:
+      type: object
+      additionalProperties: false
+      required: [installation_ref, package_ref, target_scope_ref, status]
+      properties:
+        installation_ref: { $ref: '#/components/schemas/Reference' }
+        package_ref: { $ref: '#/components/schemas/Reference' }
+        target_scope_ref: { $ref: '#/components/schemas/Reference' }
+        active_revision: { type: [integer, 'null'], minimum: 1 }
+        status: { type: string }
+        health: { type: string, enum: [unknown, healthy, warning, degraded, blocked] }
+    InstallationListResponse:
+      type: object
+      additionalProperties: false
+      required: [items, secrets_included]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/InstallationSummary' } }
+        next_cursor: { type: [string, 'null'] }
+        secrets_included: { const: false }
+    Problem:
+      type: object
+      additionalProperties: false
+      required: [code, message]
+      properties:
+        code: { $ref: '#/components/schemas/Reference' }
+        message: { type: string, maxLength: 4000 }
+        remediation: { type: [string, 'null'], maxLength: 4000 }
+        request_id: { type: [string, 'null'], maxLength: 191 }
+        secrets_included: { const: false }
+  responses:
+    Forbidden:
+      description: Authenticated principal lacks exact object/capability authority
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: State, version, context, idempotency, compatibility, or ambiguity conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    ValidationFailed:
+      description: Schema, semantic, policy, dependency, or readiness validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Problem' }

@@ -60,12 +60,17 @@ The writer must:
 - checkout the exact authorized SHA rather than a moving branch ref;
 - verify local and remote heads equal the authorized SHA before generation and again before push;
 - verify the target belongs to the same repository and maps to exactly one open pull request targeting `main`;
-- generate twice and prove idempotency;
-- reject changes outside `docs/work-maps/**`;
+- fetch exact pull-request metadata before delegation consumption, require the metadata head to equal `expected_head_sha`, require `base.ref=main`, capture and validate the immutable base SHA, require numeric `changed_files`, and reject targets above GitHub's 3,000-file pull-request-files API cap;
+- derive the authoritative target filename inventory from the immutable local three-dot Git diff between that exact base SHA and `expected_head_sha`, require its count to equal metadata `changed_files`, then use the pull-request files API only as a fail-closed completeness cross-check whose count and sorted filename set must exactly equal the immutable Git inventory;
+- re-fetch pull-request metadata after API pagination and require head SHA, base SHA, and `changed_files` to remain unchanged before delegation consumption;
+- treat pull-request file API, authentication, pagination, metadata, Git-object, inventory-count, or exact-set mismatches as fatal before Recovery delegation consumption;
+- derive any dynamic binding authority only from the immutable exact-base/exact-head Git inventory, then require `specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json` producer-compatible syntax, exact manifest `feature_key` identity, `review_state=ready_for_implementation`, and file existence before delegation consumption;
+- run the complete Work Map plus Hostinger Spec014, Retail Spec014, environment-promotion runtime-integrity Spec018, and every additional validated target-derived binding convergence twice and prove idempotency;
+- reject changes outside the bounded generated write set: `docs/work-maps/**`, `specs/014-governed-hostinger-storage-orchestration/work-map-integration.json`, optional canonical `specs/014-governed-hostinger-storage-orchestration/tasks.md`, `specs/014-retail-commerce-operations-growth-os/work-map-integration.json`, `specs/018-environment-promotion-runtime-integrity/work-map-integration.json`, and only exact target-derived manifests matching `specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json` that were discovered and validated from that immutable exact-head inventory;
 - avoid force push and protected-branch bypass;
 - verify the remote pushed SHA;
 - dispatch CI and the Work Map Integration Gate after a successful commit;
-- publish a bounded `mad4b.spec-kit-work-map-autofix.v2` diagnostic artifact and a `WORK_MAP_AUTOFIX_V2` pull-request report.
+- publish a bounded `mad4b.spec-kit-work-map-autofix.v3` diagnostic artifact and a `WORK_MAP_AUTOFIX_V3` pull-request report.
 
 The workflow has no pull-request event trigger and does not use a body marker as authorization. The exact branch and SHA are explicit dispatch inputs, and stale or mismatched identity fails closed before generation or push.
 
@@ -152,4 +157,4 @@ Record the readiness timestamp and trace ID in the lifecycle note. If a later li
 - Behavioral apply failure: confirm rollback occurred, keep the operational alert open, and attach the failed trace or error.
 - Pull-request assurance with issue-write authority: treat as a repository lifecycle violation and block merge.
 - Docs Agent Work Map branch mutation: treat as a sole-writer policy violation and block merge.
-- Work Map Autofix without an exact same-repository pull-request branch and `expected_head_sha`, or with a diff outside `docs/work-maps/**`: block the run and keep the pull request unmerged.
+- Work Map Autofix without an exact same-repository pull-request branch and `expected_head_sha`, without an immutable exact-base/exact-head Git inventory that exactly matches metadata and the pull-request files API, with more than 3,000 target changed files, or with a diff outside the bounded generated write set (`docs/work-maps/**`, Hostinger Spec014 `work-map-integration.json` plus optional canonical `tasks.md`, Retail Spec014 `work-map-integration.json`, runtime-integrity Spec018 `work-map-integration.json`, and only predelegation-validated target-derived `specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json` manifests): block the run and keep the pull request unmerged.

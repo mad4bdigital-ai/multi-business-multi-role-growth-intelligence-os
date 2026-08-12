@@ -3,12 +3,24 @@ name: Spec Kit Work Map Autofix
 on:
   workflow_dispatch:
     inputs:
+      pr_number:
+        description: Pull request number bound to the Recovery-issued delegation
+        required: true
+        type: string
       branch:
         description: Existing same-repository pull-request branch to update
         required: true
         type: string
       expected_head_sha:
-        description: Exact branch head SHA authorized for regeneration
+        description: Exact current branch head SHA authorized for regeneration
+        required: true
+        type: string
+      recovery_run_id:
+        description: Recovery workflow run that issued this one-time writer delegation
+        required: true
+        type: string
+      delegation_comment_id:
+        description: Bot-authored one-time delegation grant comment bound to this exact target
         required: true
         type: string
 
@@ -19,8 +31,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}
+  group: work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
   regenerate:
@@ -31,8 +44,11 @@ jobs:
       run:
         shell: bash
     env:
+      REQUESTED_PR_NUMBER: ${{ inputs.pr_number }}
       TARGET_BRANCH: ${{ inputs.branch }}
       EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      RECOVERY_RUN_ID: ${{ inputs.recovery_run_id }}
+      DELEGATION_COMMENT_ID: ${{ inputs.delegation_comment_id }}
     steps:
       - name: Initialize diagnostics and validate inputs
         id: initialize
@@ -43,10 +59,14 @@ jobs:
           mkdir -p "${diagnostic_root}"
           : > "${diagnostic_root}/validation-results.tsv"
 
+          [[ "${REQUESTED_PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          test "${GITHUB_ACTOR}" = "github-actions[bot]"
           git check-ref-format --branch "${TARGET_BRANCH}"
           [[ "${TARGET_BRANCH}" != refs/* ]]
           [[ "${TARGET_BRANCH}" != "main" && "${TARGET_BRANCH}" != "Production" ]]
           [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
 
           cat > "${diagnostic_root}/report.md" <<EOF
           # Work Map Autofix Diagnostic Report
@@ -55,8 +75,11 @@ jobs:
           |---|---|
           | Repository | \`${GITHUB_REPOSITORY}\` |
           | Run | \`${GITHUB_RUN_ID}\` |
+          | Pull request | \`${REQUESTED_PR_NUMBER}\` |
           | Target branch | \`${TARGET_BRANCH}\` |
           | Expected head | \`${EXPECTED_HEAD_SHA}\` |
+          | Recovery run | \`${RECOVERY_RUN_ID}\` |
+          | Delegation comment | \`${DELEGATION_COMMENT_ID}\` |
           EOF
 
       - name: Checkout exact authorized head
@@ -92,11 +115,131 @@ jobs:
             -f per_page=2 > "${pr_file}"
           pr_count="$(jq 'length' "${pr_file}")"
           test "${pr_count}" = "1"
+          actual_pr_number="$(jq -r '.[0].number' "${pr_file}")"
+          test "${actual_pr_number}" = "${REQUESTED_PR_NUMBER}"
           test "$(jq -r '.[0].head.repo.full_name' "${pr_file}")" = "${GITHUB_REPOSITORY}"
           test "$(jq -r '.[0].head.ref' "${pr_file}")" = "${TARGET_BRANCH}"
           test "$(jq -r '.[0].head.sha' "${pr_file}")" = "${EXPECTED_HEAD_SHA}"
           test "$(jq -r '.[0].base.ref' "${pr_file}")" = "main"
-          echo "pr_number=$(jq -r '.[0].number' "${pr_file}")" >> "$GITHUB_OUTPUT"
+
+          target_pr_meta="${RUNNER_TEMP}/work-map-autofix-target-pr-meta.json"
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta}"
+          test "$(jq -r '.head.repo.full_name' "${target_pr_meta}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' "${target_pr_meta}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' "${target_pr_meta}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(jq -r '.base.ref' "${target_pr_meta}")" = "main"
+          expected_base_sha="$(jq -er '.base.sha' "${target_pr_meta}")"
+          [[ "${expected_base_sha}" =~ ^[0-9a-f]{40}$ ]]
+          expected_changed_files="$(jq -er '.changed_files' "${target_pr_meta}")"
+          [[ "${expected_changed_files}" =~ ^[0-9]+$ ]]
+          if (( expected_changed_files > 3000 )); then
+            echo "::error::Target PR has ${expected_changed_files} changed files, exceeding GitHub pull-request files API completeness cap of 3000."
+            exit 1
+          fi
+
+          immutable_target_pr_files="${RUNNER_TEMP}/work-map-autofix-target-pr-files-immutable.txt"
+          target_pr_files_api="${RUNNER_TEMP}/work-map-autofix-target-pr-files-api.txt"
+          target_pr_files_api_sorted="${RUNNER_TEMP}/work-map-autofix-target-pr-files-api-sorted.txt"
+          target_binding_candidates="${RUNNER_TEMP}/work-map-autofix-target-binding-candidates.txt"
+          target_binding_file="${RUNNER_TEMP}/work-map-autofix-target-bindings.txt"
+          : > "${target_binding_file}"
+
+          git cat-file -e "${expected_base_sha}^{commit}"
+          git cat-file -e "${EXPECTED_HEAD_SHA}^{commit}"
+          git config core.quotePath false
+          git diff --name-only --find-renames "${expected_base_sha}...${EXPECTED_HEAD_SHA}" \
+            | sort -u > "${immutable_target_pr_files}"
+          immutable_changed_files="$(wc -l < "${immutable_target_pr_files}" | tr -d '[:space:]')"
+          [[ "${immutable_changed_files}" =~ ^[0-9]+$ ]]
+          if [[ "${immutable_changed_files}" != "${expected_changed_files}" ]]; then
+            echo "::error::Immutable exact-head Git inventory has ${immutable_changed_files} filenames but exact PR metadata reports ${expected_changed_files} changed files."
+            exit 1
+          fi
+
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}/files?per_page=100" --jq '.[].filename' > "${target_pr_files_api}"
+          fetched_changed_files="$(wc -l < "${target_pr_files_api}" | tr -d '[:space:]')"
+          [[ "${fetched_changed_files}" =~ ^[0-9]+$ ]]
+          if [[ "${fetched_changed_files}" != "${expected_changed_files}" ]]; then
+            echo "::error::Target PR file API cross-check is incomplete: fetched ${fetched_changed_files} filenames but exact PR metadata reports ${expected_changed_files} changed files."
+            exit 1
+          fi
+          sort -u "${target_pr_files_api}" > "${target_pr_files_api_sorted}"
+          if ! cmp -s "${immutable_target_pr_files}" "${target_pr_files_api_sorted}"; then
+            echo "::error::Target PR file API set does not exactly match the immutable exact-base/exact-head Git inventory."
+            exit 1
+          fi
+
+          target_pr_meta_after="${RUNNER_TEMP}/work-map-autofix-target-pr-meta-after.json"
+          gh api --method GET "repos/${GITHUB_REPOSITORY}/pulls/${actual_pr_number}" > "${target_pr_meta_after}"
+          test "$(jq -r '.head.repo.full_name' "${target_pr_meta_after}")" = "${GITHUB_REPOSITORY}"
+          test "$(jq -r '.head.ref' "${target_pr_meta_after}")" = "${TARGET_BRANCH}"
+          test "$(jq -r '.head.sha' "${target_pr_meta_after}")" = "${EXPECTED_HEAD_SHA}"
+          test "$(jq -r '.base.ref' "${target_pr_meta_after}")" = "main"
+          test "$(jq -r '.base.sha' "${target_pr_meta_after}")" = "${expected_base_sha}"
+          test "$(jq -er '.changed_files' "${target_pr_meta_after}")" = "${expected_changed_files}"
+
+          awk '/^specs\/[0-9]{3}-[^/]+\/work-map-integration\.json$/' "${immutable_target_pr_files}" \
+            | sort -u > "${target_binding_candidates}"
+
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            if [[ ! "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]; then
+              echo "::error::Target-derived Work Map manifest uses a feature key outside canonical producer syntax: ${binding_path}"
+              exit 1
+            fi
+            feature_key="${BASH_REMATCH[1]}"
+            test -f "${binding_path}"
+            manifest_feature_key="$(jq -er '.feature_key' "${binding_path}")"
+            review_state="$(jq -er '.review_state' "${binding_path}")"
+            test "${manifest_feature_key}" = "${feature_key}"
+            test "${review_state}" = "ready_for_implementation"
+            printf '%s\n' "${binding_path}" >> "${target_binding_file}"
+          done < "${target_binding_candidates}"
+
+          target_binding_count="$(wc -l < "${target_binding_file}" | tr -d '[:space:]')"
+          echo "TARGET_BINDING_FILE=${target_binding_file}" >> "$GITHUB_ENV"
+          echo "pr_number=${actual_pr_number}" >> "$GITHUB_OUTPUT"
+          echo "target_binding_count=${target_binding_count}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify and consume Recovery-issued writer delegation
+        id: delegation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          [[ "${PR_NUMBER}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${RECOVERY_RUN_ID}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${DELEGATION_COMMENT_ID}" =~ ^[1-9][0-9]*$ ]]
+
+          recovery_file="${DIAGNOSTIC_ROOT}/recovery-run.json"
+          delegation_file="${DIAGNOSTIC_ROOT}/writer-delegation.json"
+          delegation_payload="${DIAGNOSTIC_ROOT}/writer-delegation-consume-payload.json"
+
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RECOVERY_RUN_ID}" > "${recovery_file}"
+          test "$(jq -r '.path' "${recovery_file}")" = ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
+          test "$(jq -r '.event' "${recovery_file}")" = "workflow_dispatch"
+          test "$(jq -r '.head_branch' "${recovery_file}")" = "main"
+          test "$(jq -r '.status' "${recovery_file}")" = "completed"
+          test "$(jq -r '.conclusion' "${recovery_file}")" = "success"
+          recovery_run_attempt="$(jq -r '.run_attempt' "${recovery_file}")"
+          [[ "${recovery_run_attempt}" =~ ^[1-9][0-9]*$ ]]
+
+          gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" > "${delegation_file}"
+          test "$(jq -r '.user.login' "${delegation_file}")" = "github-actions[bot]"
+          test "$(jq -r '.issue_url' "${delegation_file}")" = "https://api.github.com/repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}"
+
+          expected_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true"
+          actual_grant="$(jq -r '.body' "${delegation_file}")"
+          test "${actual_grant}" = "${expected_grant}"
+
+          consumed_grant="WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=consumed recovery_run_id=${RECOVERY_RUN_ID} recovery_run_attempt=${recovery_run_attempt} pr_number=${PR_NUMBER} target_branch=${TARGET_BRANCH} expected_head_sha=${EXPECTED_HEAD_SHA} authorization_consumed=true writer_run_id=${GITHUB_RUN_ID} writer_run_attempt=${GITHUB_RUN_ATTEMPT}"
+          jq -n --arg body "${consumed_grant}" '{body:$body}' > "${delegation_payload}"
+          gh api --method PATCH "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" \
+            --input "${delegation_payload}" >/dev/null
+          readback_grant="$(gh api "repos/${GITHUB_REPOSITORY}/issues/comments/${DELEGATION_COMMENT_ID}" --jq '.body')"
+          test "${readback_grant}" = "${consumed_grant}"
+          echo "consumed=true" >> "$GITHUB_OUTPUT"
 
       - name: Validate generator and governance contracts
         id: validate
@@ -143,6 +286,12 @@ jobs:
             node --check http-generic-api/scripts/work-map-schema-classification.mjs
           run_contract "syntax-work-map-schema-classification-contract" \
             node --check http-generic-api/scripts/work-map-schema-classification-contract.mjs
+          run_contract "syntax-spec014-final-work-map-binding" \
+            node --check http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+          run_contract "spec014-final-work-map-binding-regression" \
+            node http-generic-api/test-spec014-refresh-final-work-map-binding.mjs
+          run_contract "work-map-autofix-spec014-binding-convergence-regression" \
+            node http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs
           run_contract "syntax-pipeline-connectivity-check" \
             node --check http-generic-api/scripts/pipeline-connectivity-check.mjs
           run_contract "pipeline-connectivity-check" \
@@ -193,21 +342,90 @@ jobs:
         id: generate
         run: |
           set -euo pipefail
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          unexpected_files="$(git diff --name-only | grep -v '^docs/work-maps/' || true)"
-          if [[ -n "${unexpected_files}" ]]; then
-            echo "Generator modified files outside docs/work-maps:"
-            printf '%s\n' "${unexpected_files}"
-            exit 1
-          fi
+          governed_paths=(
+            docs/work-maps
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+            specs/014-governed-hostinger-storage-orchestration/tasks.md
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json
+            specs/018-environment-promotion-runtime-integrity/work-map-integration.json
+          )
 
-          first_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_diff_hash="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            case "${binding_path}" in
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json) ;;
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) ;;
+              *) governed_paths+=("${binding_path}") ;;
+            esac
+          done < "${TARGET_BINDING_FILE}"
+
+          refresh_target_bindings() {
+            while IFS= read -r binding_path; do
+              [[ -z "${binding_path}" ]] && continue
+              [[ "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]
+              feature_key="${BASH_REMATCH[1]}"
+              case "${feature_key}" in
+                014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
+                017-remote-mcp-host-isolation-oauth-readiness) continue ;;
+              esac
+              node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}"
+            done < "${TARGET_BINDING_FILE}"
+          }
+
+          assert_bounded_write_set() {
+            unexpected_files=()
+            while IFS= read -r changed_file; do
+              [[ -z "${changed_file}" ]] && continue
+              case "${changed_file}" in
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
+              esac
+              if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              unexpected_files+=("${changed_file}")
+            done < <(git diff --name-only)
+            if [[ "${#unexpected_files[@]}" -ne 0 ]]; then
+              echo "Governed convergence modified files outside the bounded write set:"
+              printf '%s\n' "${unexpected_files[@]}"
+              exit 1
+            fi
+          }
+
+          run_convergence() {
+            node http-generic-api/scripts/platform-work-map-generator.mjs --write
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity
+            refresh_target_bindings
+          }
+
+          run_convergence
+          assert_bounded_write_set
+          first_diff_hash="$(git diff --binary -- "${governed_paths[@]}" | sha256sum | awk '{print $1}')"
+          run_convergence
+          assert_bounded_write_set
+          second_diff_hash="$(git diff --binary -- "${governed_paths[@]}" | sha256sum | awk '{print $1}')"
           test "${first_diff_hash}" = "${second_diff_hash}"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
 
-      - name: Commit and push governed Work Maps
+          node http-generic-api/scripts/platform-work-map-generator.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 014-retail-commerce-operations-growth-os --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 017-remote-mcp-host-isolation-oauth-readiness --check
+          node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key 018-environment-promotion-runtime-integrity --check
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            [[ "${binding_path}" =~ ^specs/([0-9]{3}-[a-z0-9][a-z0-9-]*)/work-map-integration\.json$ ]]
+            feature_key="${BASH_REMATCH[1]}"
+            case "${feature_key}" in
+              014-governed-hostinger-storage-orchestration|014-retail-commerce-operations-growth-os|018-environment-promotion-runtime-integrity) continue ;;
+              017-remote-mcp-host-isolation-oauth-readiness) continue ;;
+            esac
+            node http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs --feature-key "${feature_key}" --check
+          done < "${TARGET_BINDING_FILE}"
+
+      - name: Commit and push governed Work Maps and target bindings
         id: publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -215,12 +433,57 @@ jobs:
           set -euo pipefail
           changed=false
           result_head_sha="${EXPECTED_HEAD_SHA}"
+          governed_paths=(
+            docs/work-maps
+            specs/014-governed-hostinger-storage-orchestration/work-map-integration.json
+            specs/014-governed-hostinger-storage-orchestration/tasks.md
+            specs/014-retail-commerce-operations-growth-os/work-map-integration.json
+            specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json
+            specs/018-environment-promotion-runtime-integrity/work-map-integration.json
+          )
+          target_binding_paths=()
+          while IFS= read -r binding_path; do
+            [[ -z "${binding_path}" ]] && continue
+            case "${binding_path}" in
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json) ;;
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) ;;
+              *)
+                governed_paths+=("${binding_path}")
+                target_binding_paths+=("${binding_path}")
+                ;;
+            esac
+          done < "${TARGET_BINDING_FILE}"
 
-          if ! git diff --quiet -- docs/work-maps; then
+          if ! git diff --quiet -- "${governed_paths[@]}"; then
+            unexpected_files=()
+            while IFS= read -r changed_file; do
+              [[ -z "${changed_file}" ]] && continue
+              case "${changed_file}" in
+                docs/work-maps/*|specs/014-governed-hostinger-storage-orchestration/work-map-integration.json|specs/014-governed-hostinger-storage-orchestration/tasks.md|specs/014-retail-commerce-operations-growth-os/work-map-integration.json|specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json|specs/018-environment-promotion-runtime-integrity/work-map-integration.json) continue ;;
+              esac
+              if grep -Fxq "${changed_file}" "${TARGET_BINDING_FILE}"; then
+                continue
+              fi
+              unexpected_files+=("${changed_file}")
+            done < <(git diff --name-only)
+            if [[ "${#unexpected_files[@]}" -ne 0 ]]; then
+              echo "Refusing publish because changed files exceed the bounded write set:"
+              printf '%s\n' "${unexpected_files[@]}"
+              exit 1
+            fi
+
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add docs/work-maps
-            git commit -m "docs(work-maps): regenerate governed platform maps"
+            git add -- docs/work-maps \
+              specs/014-governed-hostinger-storage-orchestration/work-map-integration.json \
+              specs/014-governed-hostinger-storage-orchestration/tasks.md \
+              specs/014-retail-commerce-operations-growth-os/work-map-integration.json \
+              specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json \
+              specs/018-environment-promotion-runtime-integrity/work-map-integration.json
+            if [[ "${#target_binding_paths[@]}" -ne 0 ]]; then
+              git add -- "${target_binding_paths[@]}"
+            fi
+            git commit -m "docs(work-maps): regenerate governed maps and target bindings"
 
             remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
             test "${remote_head_sha}" = "${EXPECTED_HEAD_SHA}"
@@ -245,8 +508,81 @@ jobs:
           [[ "${RESULT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
           remote_head_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_BRANCH}" | awk '{print $1}')"
           test "${remote_head_sha}" = "${RESULT_HEAD_SHA}"
-          gh workflow run ci.yml --ref "${TARGET_BRANCH}"
-          gh workflow run spec-kit-work-map-integration.yml --ref "${TARGET_BRANCH}"
+
+          for workflow in ci.yml spec-kit-work-map-integration.yml; do
+            workflow_state="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')"
+            if [[ "${workflow_state}" != "active" ]]; then
+              gh api --method PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
+            fi
+            test "$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}" --jq '.state')" = "active"
+          done
+
+          dispatch_started_at="$(node -e 'process.stdout.write(new Date(Date.now() - 5000).toISOString().replace(/\.\d{3}Z$/, "Z"))')"
+          ci_payload="$(jq -cn --arg ref "${TARGET_BRANCH}" '{ref:$ref}')"
+          integration_payload="$(jq -cn --arg ref "${TARGET_BRANCH}" '{ref:$ref}')"
+          ci_stdout="${DIAGNOSTIC_ROOT}/dispatch-ci.stdout"
+          ci_stderr="${DIAGNOSTIC_ROOT}/dispatch-ci.stderr"
+          integration_stdout="${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.stdout"
+          integration_stderr="${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.stderr"
+
+          set +e
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/dispatches" \
+            --input - >"${ci_stdout}" 2>"${ci_stderr}" <<<"${ci_payload}"
+          ci_dispatch_exit_code=$?
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/dispatches" \
+            --input - >"${integration_stdout}" 2>"${integration_stderr}" <<<"${integration_payload}"
+          integration_dispatch_exit_code=$?
+          set -e
+
+          printf '%s\n' "${ci_dispatch_exit_code}" > "${DIAGNOSTIC_ROOT}/dispatch-ci.exit-code"
+          printf '%s\n' "${integration_dispatch_exit_code}" > "${DIAGNOSTIC_ROOT}/dispatch-work-map-integration.exit-code"
+          cat "${ci_stdout}" || true
+          cat "${ci_stderr}" || true
+          cat "${integration_stdout}" || true
+          cat "${integration_stderr}" || true
+
+          ci_run_id=""
+          integration_run_id=""
+          if [[ "${ci_dispatch_exit_code}" -eq 0 ]]; then
+            for _ in $(seq 1 30); do
+              ci_run_id="$(gh api --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/ci.yml/runs" \
+                -f event=workflow_dispatch \
+                -f branch="${TARGET_BRANCH}" \
+                -f per_page=30 \
+                --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${RESULT_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${ci_run_id}" ]]; then
+                break
+              fi
+              sleep 2
+            done
+          fi
+          if [[ "${integration_dispatch_exit_code}" -eq 0 ]]; then
+            for _ in $(seq 1 30); do
+              integration_run_id="$(gh api --method GET \
+                "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/runs" \
+                -f event=workflow_dispatch \
+                -f branch="${TARGET_BRANCH}" \
+                -f per_page=30 \
+                --jq ".workflow_runs | map(select(.created_at >= \"${dispatch_started_at}\" and .head_sha == \"${RESULT_HEAD_SHA}\")) | sort_by(.created_at) | last | .id // empty")"
+              if [[ -n "${integration_run_id}" ]]; then
+                break
+              fi
+              sleep 2
+            done
+          fi
+
+          echo "ci_dispatch_exit_code=${ci_dispatch_exit_code}" >> "$GITHUB_OUTPUT"
+          echo "integration_dispatch_exit_code=${integration_dispatch_exit_code}" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=${ci_run_id}" >> "$GITHUB_OUTPUT"
+          echo "integration_run_id=${integration_run_id}" >> "$GITHUB_OUTPUT"
+
+          [[ "${ci_dispatch_exit_code}" -eq 0 ]]
+          [[ "${integration_dispatch_exit_code}" -eq 0 ]]
+          [[ "${ci_run_id}" =~ ^[1-9][0-9]*$ ]]
+          [[ "${integration_run_id}" =~ ^[1-9][0-9]*$ ]]
 
       - name: Finalize diagnostic evidence
         id: diagnostics
@@ -254,8 +590,13 @@ jobs:
         continue-on-error: true
         env:
           PR_NUMBER: ${{ steps.pin.outputs.pr_number }}
+          DELEGATION_CONSUMED: ${{ steps.delegation.outputs.consumed }}
           CHANGED: ${{ steps.publish.outputs.changed }}
           RESULT_HEAD_SHA: ${{ steps.publish.outputs.result_head_sha }}
+          CI_DISPATCH_EXIT_CODE: ${{ steps.verify.outputs.ci_dispatch_exit_code }}
+          INTEGRATION_DISPATCH_EXIT_CODE: ${{ steps.verify.outputs.integration_dispatch_exit_code }}
+          CI_VERIFICATION_RUN_ID: ${{ steps.verify.outputs.ci_run_id }}
+          WORK_MAP_VERIFICATION_RUN_ID: ${{ steps.verify.outputs.integration_run_id }}
           JOB_STATUS: ${{ job.status }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -284,32 +625,46 @@ jobs:
           | Field | Value |
           |---|---|
           | Job status | \`${JOB_STATUS}\` |
+          | Recovery run | \`${RECOVERY_RUN_ID}\` |
+          | Delegation comment | \`${DELEGATION_COMMENT_ID}\` |
+          | Delegation consumed | \`${DELEGATION_CONSUMED:-false}\` |
           | Failed validation contract | \`${failed_validation_contract}\` |
           | Failed validation exit code | \`${failed_validation_exit_code}\` |
           | Failed validation contracts count | \`${failed_validation_contracts_count}\` |
           | Failed validation contracts | \`${failed_validation_contracts}\` |
           | Generated changes | \`${CHANGED:-unknown}\` |
           | Result head | \`${RESULT_HEAD_SHA:-unresolved}\` |
+          | CI dispatch exit code | \`${CI_DISPATCH_EXIT_CODE:-unresolved}\` |
+          | Work Map integration dispatch exit code | \`${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved}\` |
+          | CI verification run | \`${CI_VERIFICATION_RUN_ID:-unresolved}\` |
+          | Work Map integration verification run | \`${WORK_MAP_VERIFICATION_RUN_ID:-unresolved}\` |
           | Protected branch mutation | \`false\` |
           | Force push | \`false\` |
           EOF
 
           jq -n \
-            --arg contract "mad4b.spec-kit-work-map-autofix.v2" \
+            --arg contract "mad4b.spec-kit-work-map-autofix.v3" \
             --arg outcome "${JOB_STATUS}" \
             --arg target_branch "${TARGET_BRANCH}" \
             --arg expected_head_sha "${EXPECTED_HEAD_SHA}" \
+            --arg recovery_run_id "${RECOVERY_RUN_ID}" \
+            --arg delegation_comment_id "${DELEGATION_COMMENT_ID}" \
+            --arg delegation_consumed "${DELEGATION_CONSUMED:-false}" \
             --arg failed_validation_contract "${failed_validation_contract}" \
             --arg failed_validation_exit_code "${failed_validation_exit_code}" \
             --arg failed_validation_contracts_count "${failed_validation_contracts_count}" \
             --arg failed_validation_contracts "${failed_validation_contracts}" \
             --arg result_head_sha "${RESULT_HEAD_SHA:-unresolved}" \
             --arg changed "${CHANGED:-unknown}" \
-            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            --arg ci_dispatch_exit_code "${CI_DISPATCH_EXIT_CODE:-unresolved}" \
+            --arg integration_dispatch_exit_code "${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved}" \
+            --arg ci_verification_run_id "${CI_VERIFICATION_RUN_ID:-unresolved}" \
+            --arg work_map_verification_run_id "${WORK_MAP_VERIFICATION_RUN_ID:-unresolved}" \
+            '{contract:$contract,outcome:$outcome,target_branch:$target_branch,expected_head_sha:$expected_head_sha,recovery_run_id:$recovery_run_id,delegation_comment_id:$delegation_comment_id,delegation_consumed:$delegation_consumed,failed_validation_contract:$failed_validation_contract,failed_validation_exit_code:$failed_validation_exit_code,failed_validation_contracts_count:($failed_validation_contracts_count|tonumber),failed_validation_contracts:$failed_validation_contracts,result_head_sha:$result_head_sha,changed:$changed,ci_dispatch_exit_code:$ci_dispatch_exit_code,integration_dispatch_exit_code:$integration_dispatch_exit_code,ci_verification_run_id:$ci_verification_run_id,work_map_verification_run_id:$work_map_verification_run_id,direct_protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${DIAGNOSTIC_ROOT}/report.json"
 
           if [[ "${PR_NUMBER:-}" =~ ^[1-9][0-9]*$ ]]; then
-            body="WORK_MAP_AUTOFIX_V2 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} protected_branch_mutation=false force_push=false"
+            body="WORK_MAP_AUTOFIX_V3 outcome=${JOB_STATUS} expected_head_sha=${EXPECTED_HEAD_SHA} recovery_run_id=${RECOVERY_RUN_ID} delegation_comment_id=${DELEGATION_COMMENT_ID} delegation_consumed=${DELEGATION_CONSUMED:-false} failed_validation_contract=${failed_validation_contract} failed_validation_exit_code=${failed_validation_exit_code} failed_validation_contracts_count=${failed_validation_contracts_count} failed_validation_contracts=${failed_validation_contracts} result_head_sha=${RESULT_HEAD_SHA:-unresolved} changed=${CHANGED:-unknown} ci_dispatch_exit_code=${CI_DISPATCH_EXIT_CODE:-unresolved} integration_dispatch_exit_code=${INTEGRATION_DISPATCH_EXIT_CODE:-unresolved} ci_verification_run_id=${CI_VERIFICATION_RUN_ID:-unresolved} work_map_verification_run_id=${WORK_MAP_VERIFICATION_RUN_ID:-unresolved} protected_branch_mutation=false force_push=false"
             gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" -f body="${body}" >/dev/null
           fi
 

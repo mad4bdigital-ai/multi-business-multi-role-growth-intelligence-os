@@ -37,7 +37,7 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.event == 'pull_request_target' &&
        github.event.workflow_run.conclusion == 'success')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       REPORT_DIR: /tmp/governed-generated-artifact-refresh-request-dispatcher
@@ -273,7 +273,7 @@ jobs:
             --arg delegated_run_url "${delegated_run_url}" \
             --arg delegated_run_status "${delegated_run_status}" \
             --arg delegated_run_conclusion "${delegated_run_conclusion}" \
-            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,dispatch_requested:true,delegated_workflow:"governed-generated-artifact-refresh.yml",delegated_run_observed:true,delegated_run_id:$delegated_run_id,delegated_run_url:$delegated_run_url,delegated_run_status:$delegated_run_status,delegated_run_conclusion:($delegated_run_conclusion|select(length>0)),typed_confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,dispatch_requested:true,delegated_workflow:"governed-generated-artifact-refresh.yml",delegated_run_observed:true,delegated_run_id:$delegated_run_id,delegated_run_url:$delegated_run_url,delegated_run_status:$delegated_run_status,delegated_run_conclusion:(if ($delegated_run_conclusion|length)>0 then $delegated_run_conclusion else null end),typed_confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
             > "${REPORT_DIR}/dispatch.json"
 
       - name: Checkout trusted default branch publisher

@@ -25,6 +25,8 @@ const {
 } = await import("./scripts/frontend-operation-governance-generator.mjs");
 
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
+const BRAND_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
+const MATERIALIZE_OPERATION = "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core";
 const EXPECTED_OPERATIONS = [
   "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
   "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}",
@@ -33,6 +35,8 @@ const EXPECTED_OPERATIONS = [
   "POST /admin/container-authority/canary-rollbacks",
   LEASE_OPERATION,
   "POST /connect/bootstrap",
+  BRAND_OPERATION,
+  MATERIALIZE_OPERATION,
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}",
   "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore",
 ].sort();
@@ -59,10 +63,17 @@ const EVIDENCE_FILES = [
   "repositoryReconciliationLeaseControl.js",
   "repositoryOperationLeaseService.js",
   "test-repository-reconciliation-lease-control.mjs",
+  "routes/workspaceResourceRoutes.js",
+  "workspaceBrandLifecycle.js",
+  "test-workspace-brand-create-operation-governance.mjs",
+  "workspaceBrandCoreAssetMaterialization.js",
+  "test-brand-core-asset-materialization-operation-governance.mjs",
+  "migrations/319_sprint69_dynamic_container_authority_foundation.sql",
+  "migrations/20260730_context_kernel_connection_ownership_persistence.sql",
 ];
 
 function createFixture() {
-  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-operation-governance-lease-extension-"));
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "frontend-operation-governance-materialization-extension-"));
   for (const relativeFile of EVIDENCE_FILES) {
     const target = path.join(fixture, relativeFile);
     fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -89,8 +100,8 @@ if (plan.rejected_candidates.length) {
 }
 assert.equal(plan.schema_version, "frontend-operation-governance-v1");
 assert.deepEqual(plan.coverage, {
-  candidate_count: 9,
-  generated_rule_count: 9,
+  candidate_count: 11,
+  generated_rule_count: 11,
   rejected_candidate_count: 0,
 });
 assert.deepEqual(plan.operation_rules.map((rule) => rule.operation).sort(), EXPECTED_OPERATIONS);
@@ -107,18 +118,45 @@ assert.equal(leaseRule.approval.mode, "runtime_authorization_and_typed_confirmat
 assert.equal(leaseRule.readback.mode, "transactional_readback");
 assert.equal(leaseRule.readback.same_cycle, true);
 assert.equal(leaseRule.readback.before_commit, true);
-assert.deepEqual(leaseRule.rollback, {
-  mode: "transaction",
-  on: ["mutation_failure", "readback_failure"],
-});
+assert.deepEqual(leaseRule.rollback, { mode: "transaction", on: ["mutation_failure", "readback_failure"] });
 assert.equal(leaseRule.parameter_bindings.lease_id, "response.lease.lease_id");
-assert.deepEqual(leaseRule.evidence_refs, [
-  "routes/repositoryAutomationRoutes.js",
-  "repositoryReconciliationLeaseControl.js",
-  "repositoryOperationLeaseService.js",
-  "test-repository-reconciliation-lease-control.mjs",
-]);
 assert.match(leaseRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
+
+const brandRule = plan.operation_rules.find((rule) => rule.operation === BRAND_OPERATION);
+assert(brandRule, "Brand Create operation must have a generated rule");
+assert.equal(brandRule.rule_id, "generated-workspace-brand-create-governance");
+assert.equal(brandRule.classification, "state_change");
+assert.equal(brandRule.preflight.mode, "locked_workspace_owner_authority_and_canonical_identity");
+assert.equal(brandRule.approval.mode, "runtime_authorization");
+assert.equal(brandRule.readback.before_commit, true);
+assert.equal(brandRule.parameter_bindings.brand_target_key, "response.brand.target_key");
+assert.match(brandRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
+
+const materializeRule = plan.operation_rules.find((rule) => rule.operation === MATERIALIZE_OPERATION);
+assert(materializeRule, "Brand Core materialization must have a generated rule");
+assert.equal(materializeRule.rule_id, "generated-workspace-brand-core-asset-materialize-governance");
+assert.equal(materializeRule.classification, "state_change");
+assert.equal(materializeRule.owner, "workspace-platform");
+assert.equal(materializeRule.preflight.mode, "canonical_user_jwt_root_workspace_brand_container_and_resource_asset_provenance");
+assert.equal(materializeRule.approval.mode, "runtime_authorization");
+assert.equal(materializeRule.readback.mode, "transactional_readback");
+assert.equal(materializeRule.readback.before_commit, true);
+assert.equal(materializeRule.rollback.mode, "transaction");
+assert.equal(materializeRule.parameter_bindings.workspace_id, "request.path.workspace_id");
+assert.equal(materializeRule.parameter_bindings.brand_key, "request.path.brand_key");
+assert.equal(materializeRule.parameter_bindings.tenant_id, "response.tenant_id");
+assert.equal(materializeRule.parameter_bindings.asset_id, "response.asset.asset_id");
+assert.equal(materializeRule.parameter_bindings.content_identity, "response.asset.content_identity");
+assert.equal(materializeRule.parameter_bindings.brand_workspace_id, "response.workspace.brand_workspace_id");
+assert.equal(materializeRule.parameter_bindings.brand_container_id, "response.workspace.brand_container_id");
+assert.equal(materializeRule.parameter_bindings.containment_relationship_id, "response.workspace.containment_relationship_id");
+assert(materializeRule.evidence_refs.includes("src/infrastructure/resourceApi/resourceRepository.js"));
+assert(materializeRule.evidence_refs.includes("migrations/319_sprint69_dynamic_container_authority_foundation.sql"));
+assert(materializeRule.evidence_refs.includes("migrations/20260730_context_kernel_connection_ownership_persistence.sql"));
+assert(!materializeRule.evidence_refs.some((file) => file.includes("1050_workspace_asset_provenance_content_identity")));
+assert(materializeRule.evidence_refs.includes("test-brand-core-asset-materialization-operation-governance.mjs"));
+assert.match(materializeRule.generated_evidence.source_digest, /^[a-f0-9]{64}$/);
+
 assert.deepEqual(plan.safety, {
   writes_runtime_source: false,
   writes_database: false,
@@ -130,62 +168,92 @@ assert.deepEqual(plan.safety, {
 const deterministicFixture = createFixture();
 const writeResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "write" });
 assert.equal(writeResult.ok, true);
-assert.equal(writeResult.plan.coverage.generated_rule_count, 9);
+assert.equal(writeResult.plan.coverage.generated_rule_count, 11);
 const checkResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
 assert.equal(checkResult.ok, true);
 assert.equal(checkResult.drift, false);
-fs.appendFileSync(path.join(deterministicFixture, "repositoryReconciliationLeaseControl.js"), "\n// lease evidence drift\n");
+fs.appendFileSync(path.join(deterministicFixture, "workspaceBrandCoreAssetMaterialization.js"), "\n// materialization evidence drift\n");
 const driftResult = syncOperationGovernance({ apiRoot: deterministicFixture, mode: "check" });
-assert.equal(driftResult.ok, false, "Lease source drift must invalidate committed generated governance");
+assert.equal(driftResult.ok, false, "Brand Core materialization source drift must invalidate committed generated governance");
 
 const noLeaseApplyFixture = createFixture();
-replaceEvidence(
-  noLeaseApplyFixture,
-  "repositoryReconciliationLeaseControl.js",
-  "resolved.apply_allowed !== true",
-  "resolved.applyEvidenceRemoved !== true"
-);
+replaceEvidence(noLeaseApplyFixture, "repositoryReconciliationLeaseControl.js", "resolved.apply_allowed !== true", "resolved.applyEvidenceRemoved !== true");
 const noLeaseApplyPlan = buildOperationGovernance({ apiRoot: noLeaseApplyFixture });
 assert(rejection(noLeaseApplyPlan, LEASE_OPERATION).missing_evidence.includes("capability_envelope_apply_authorization"));
 
-const noLeaseConfirmationFixture = createFixture();
-replaceEvidence(
-  noLeaseConfirmationFixture,
-  "repositoryReconciliationLeaseControl.js",
-  "assertTypedConfirmation(action, args.confirm)",
-  "typedConfirmationEvidenceRemoved(action, args.confirm)"
-);
-const noLeaseConfirmationPlan = buildOperationGovernance({ apiRoot: noLeaseConfirmationFixture });
-assert(rejection(noLeaseConfirmationPlan, LEASE_OPERATION).missing_evidence.includes("typed_confirmation"));
+const noBrandOwnerFixture = createFixture();
+replaceEvidence(noBrandOwnerFixture, "workspaceBrandLifecycle.js", "OWNER_ROLES.has", "ownerRoleEvidenceRemoved");
+const noBrandOwnerPlan = buildOperationGovernance({ apiRoot: noBrandOwnerFixture });
+assert(rejection(noBrandOwnerPlan, BRAND_OPERATION).missing_evidence.includes("locked_owner_authority"));
 
-const noLeaseReadbackFixture = createFixture();
+const noMaterializePersistenceFixture = createFixture();
 replaceEvidence(
-  noLeaseReadbackFixture,
-  "repositoryOperationLeaseService.js",
-  "const released = await readLeaseById(connection, leaseId)",
-  "const released = await releaseReadbackEvidenceRemoved(connection, leaseId)"
+  noMaterializePersistenceFixture,
+  "workspaceBrandCoreAssetMaterialization.js",
+  "repository.insertAsset",
+  "canonicalAssetPersistenceRemoved"
 );
-const noLeaseReadbackPlan = buildOperationGovernance({ apiRoot: noLeaseReadbackFixture });
-assert(rejection(noLeaseReadbackPlan, LEASE_OPERATION).missing_evidence.includes("release_transactional_readback"));
+const noMaterializePersistencePlan = buildOperationGovernance({ apiRoot: noMaterializePersistenceFixture });
+assert(rejection(noMaterializePersistencePlan, MATERIALIZE_OPERATION).missing_evidence.includes("canonical_asset_persistence"));
 
-const noLeaseTestFixture = createFixture();
+const noMaterializeTopologyFixture = createFixture();
 replaceEvidence(
-  noLeaseTestFixture,
-  "test-repository-reconciliation-lease-control.mjs",
-  `// frontend-surface-operation: ${LEASE_OPERATION}`,
-  "// operation claim removed for fail-closed regression"
+  noMaterializeTopologyFixture,
+  "workspaceBrandCoreAssetMaterialization.js",
+  "relationship.relationship_type_key='contains'",
+  "relationship.relationship_type_key='topologyEvidenceRemoved'"
 );
-const noLeaseTestPlan = buildOperationGovernance({ apiRoot: noLeaseTestFixture });
-assert(rejection(noLeaseTestPlan, LEASE_OPERATION).missing_evidence.includes("registered_operation_test"));
+const noMaterializeTopologyPlan = buildOperationGovernance({ apiRoot: noMaterializeTopologyFixture });
+assert(rejection(noMaterializeTopologyPlan, MATERIALIZE_OPERATION).missing_evidence.includes("brand_container_topology"));
 
-const noLeaseRegistrationFixture = createFixture();
+const noMaterializeClosureFixture = createFixture();
 replaceEvidence(
-  noLeaseRegistrationFixture,
+  noMaterializeClosureFixture,
+  "workspaceBrandCoreAssetMaterialization.js",
+  "FROM container_closure",
+  "FROM closureEvidenceRemoved"
+);
+const noMaterializeClosurePlan = buildOperationGovernance({ apiRoot: noMaterializeClosureFixture });
+assert(rejection(noMaterializeClosurePlan, MATERIALIZE_OPERATION).missing_evidence.includes("brand_container_closure"));
+
+const noMaterializeSerializationFixture = createFixture();
+replaceEvidence(
+  noMaterializeSerializationFixture,
+  "src/infrastructure/resourceApi/resourceRepository.js",
+  "ON DUPLICATE KEY UPDATE asset_id=asset_id",
+  "atomicAssetSerializationRemoved"
+);
+const noMaterializeSerializationPlan = buildOperationGovernance({ apiRoot: noMaterializeSerializationFixture });
+assert(rejection(noMaterializeSerializationPlan, MATERIALIZE_OPERATION).missing_evidence.includes("atomic_asset_serialization"));
+
+const noMaterializeReadbackFixture = createFixture();
+replaceEvidence(
+  noMaterializeReadbackFixture,
+  "workspaceBrandCoreAssetMaterialization.js",
+  "brand_core_asset_materialize_readback_mismatch",
+  "materializeReadbackEvidenceRemoved"
+);
+const noMaterializeReadbackPlan = buildOperationGovernance({ apiRoot: noMaterializeReadbackFixture });
+assert(rejection(noMaterializeReadbackPlan, MATERIALIZE_OPERATION).missing_evidence.includes("transactional_lineage_readback"));
+
+const noMaterializeTestFixture = createFixture();
+replaceEvidence(
+  noMaterializeTestFixture,
+  "test-brand-core-asset-materialization-operation-governance.mjs",
+  `// frontend-surface-operation: ${MATERIALIZE_OPERATION}`,
+  "// materialization operation claim removed"
+);
+const noMaterializeTestPlan = buildOperationGovernance({ apiRoot: noMaterializeTestFixture });
+assert(rejection(noMaterializeTestPlan, MATERIALIZE_OPERATION).missing_evidence.includes("registered_operation_test"));
+
+const noMaterializeRegistrationFixture = createFixture();
+replaceEvidence(
+  noMaterializeRegistrationFixture,
   "frontend-operation-governance-tests.json",
-  '"file": "test-repository-reconciliation-lease-control.mjs"',
-  '"file": "test-unregistered-repository-reconciliation-lease-control.mjs"'
+  '"file": "test-brand-core-asset-materialization-operation-governance.mjs"',
+  '"file": "test-unregistered-brand-core-asset-materialization-operation-governance.mjs"'
 );
-const noLeaseRegistrationPlan = buildOperationGovernance({ apiRoot: noLeaseRegistrationFixture });
-assert(rejection(noLeaseRegistrationPlan, LEASE_OPERATION).missing_evidence.includes("registered_operation_test"));
+const noMaterializeRegistrationPlan = buildOperationGovernance({ apiRoot: noMaterializeRegistrationFixture });
+assert(rejection(noMaterializeRegistrationPlan, MATERIALIZE_OPERATION).missing_evidence.includes("registered_operation_test"));
 
-console.log("generated frontend operation governance Lease extension tests passed");
+console.log("generated frontend operation governance Lease + Brand Create + Root Workspace Brand Container materialization extension tests passed");

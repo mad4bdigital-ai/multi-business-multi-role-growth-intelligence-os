@@ -32,7 +32,7 @@ jobs:
        (github.event.issue.pull_request &&
         startsWith(github.event.comment.body, '/refresh-generated-artifacts ') &&
         contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || 'UNRESOLVED' }}
@@ -218,7 +218,7 @@ jobs:
               --arg http_status "${http_status}" \
               --arg request_id "${request_id}" \
               --arg detail "workflow dispatch rejected with HTTP ${http_status}: ${body:0:1000}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:($http_status|tonumber),github_request_id:($request_id|select(length>0)),first_failure:{code:"workflow_dispatch_rejected",diagnostic_tail:$detail},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:($http_status|tonumber),github_request_id:(if ($request_id|length)>0 then $request_id else null end),first_failure:{code:"workflow_dispatch_rejected",diagnostic_tail:$detail},dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
               > "${REPORT_DIR}/dispatch.json"
             exit 0
           fi
@@ -251,7 +251,7 @@ jobs:
               --argjson pr_number "${PR_NUMBER}" \
               --arg request_id "${request_id}" \
               --arg dispatch_started_at "${dispatch_started_at}" \
-              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:204,github_request_id:($request_id|select(length>0)),dispatch_requested:true,delegated_run_observed:false,dispatch_started_at:$dispatch_started_at,first_failure:{code:"delegated_workflow_run_not_observed",diagnostic_tail:"GitHub accepted workflow_dispatch but no matching governed writer run appeared within the bounded observation window."},direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+              '{contract:$contract,outcome:"blocked",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:204,github_request_id:(if ($request_id|length)>0 then $request_id else null end),dispatch_requested:true,delegated_run_observed:false,dispatch_started_at:$dispatch_started_at,first_failure:{code:"delegated_workflow_run_not_observed",diagnostic_tail:"GitHub accepted workflow_dispatch but no matching governed writer run appeared within the bounded observation window."},direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
               > "${REPORT_DIR}/dispatch.json"
             exit 0
           fi
@@ -266,7 +266,7 @@ jobs:
             --arg delegated_run_url "${delegated_run_url}" \
             --arg delegated_run_status "${delegated_run_status}" \
             --arg delegated_run_conclusion "${delegated_run_conclusion}" \
-            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:204,github_request_id:($request_id|select(length>0)),dispatch_requested:true,delegated_workflow:"governed-generated-artifact-refresh.yml",delegated_run_observed:true,delegated_run_id:$delegated_run_id,delegated_run_url:$delegated_run_url,delegated_run_status:$delegated_run_status,delegated_run_conclusion:($delegated_run_conclusion|select(length>0)),typed_confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
+            '{contract:$contract,outcome:"passed",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,http_status:204,github_request_id:(if ($request_id|length)>0 then $request_id else null end),dispatch_requested:true,delegated_workflow:"governed-generated-artifact-refresh.yml",delegated_run_observed:true,delegated_run_id:$delegated_run_id,delegated_run_url:$delegated_run_url,delegated_run_status:$delegated_run_status,delegated_run_conclusion:(if ($delegated_run_conclusion|length)>0 then $delegated_run_conclusion else null end),typed_confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,secrets_included:false}' \
             > "${REPORT_DIR}/dispatch.json"
 
       - name: Render canonical dispatch evidence

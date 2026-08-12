@@ -45,8 +45,8 @@ function makePool(initialRow) {
 assert.deepEqual(CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS, ["consume", "cancel", "expire"]);
 
 {
-  const pool = makePool(makeRow());
-  const result = await transitionCapabilityEnvelopeLifecycle({ pool, envelopeId: "env-1", action: "consume", executionRef: "run-1" });
+  const writerPool = makePool(makeRow());
+  const result = await transitionCapabilityEnvelopeLifecycle({ writerPool, envelopeId: "env-1", action: "consume", executionRef: "run-1" });
   assert.equal(result.ok, true);
   assert.equal(result.after.execution_status, "executed");
   assert.equal(result.after.dispatch_allowed, false);
@@ -54,28 +54,34 @@ assert.deepEqual(CAPABILITY_ENVELOPE_LIFECYCLE_ACTIONS, ["consume", "cancel", "e
 }
 
 {
-  const pool = makePool(makeRow({ envelope_status: "ready_requires_approval", dispatch_allowed: 0, apply_allowed: 0 }));
-  const result = await transitionCapabilityEnvelopeLifecycle({ pool, envelopeId: "env-1", action: "cancel", reason: "operator requested" });
+  const writerPool = makePool(makeRow({ envelope_status: "ready_requires_approval", dispatch_allowed: 0, apply_allowed: 0 }));
+  const result = await transitionCapabilityEnvelopeLifecycle({ writerPool, envelopeId: "env-1", action: "cancel", reason: "operator requested" });
   assert.equal(result.ok, true);
   assert.equal(result.after.envelope_status, "superseded");
   assert.equal(result.after.execution_status, "cancelled");
 }
 
 {
-  const pool = makePool(makeRow({ envelope_status: "ready_for_dispatch" }));
-  const result = await transitionCapabilityEnvelopeLifecycle({ pool, envelopeId: "env-1", action: "expire", reason: "ttl cleanup" });
+  const writerPool = makePool(makeRow({ envelope_status: "ready_for_dispatch" }));
+  const result = await transitionCapabilityEnvelopeLifecycle({ writerPool, envelopeId: "env-1", action: "expire", reason: "ttl cleanup" });
   assert.equal(result.ok, true);
   assert.equal(result.after.envelope_status, "expired");
   assert.equal(result.after.apply_allowed, false);
 }
 
 {
-  const pool = makePool(makeRow({ execution_status: "executed", dispatch_allowed: 0, apply_allowed: 0 }));
-  const result = await transitionCapabilityEnvelopeLifecycle({ pool, envelopeId: "env-1", action: "consume" });
+  const writerPool = makePool(makeRow({ execution_status: "executed", dispatch_allowed: 0, apply_allowed: 0 }));
+  const result = await transitionCapabilityEnvelopeLifecycle({ writerPool, envelopeId: "env-1", action: "consume" });
   assert.equal(result.ok, false);
   assert.equal(result.status, "capability_resolution_envelope_lifecycle_transition_blocked");
   assert.equal(result.secrets_included, false);
 }
+
+const guardSource = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
+assert.match(guardSource, /getGovernancePool/);
+assert.match(guardSource, /writerPool/);
+assert.match(guardSource, /pool: _legacyRuntimePool/);
+assert.match(guardSource, /transitionCapabilityEnvelopeLifecycle/);
 
 const script = readFileSync(new URL("./scripts/capability-resolution-envelope-lifecycle.mjs", import.meta.url), "utf8");
 assert.match(script, /transitionCapabilityEnvelopeLifecycle/);

@@ -6,6 +6,7 @@ import {
   resourceError,
   wrapResource,
 } from "../../domain/resourceApi/resourceCatalog.js";
+import { requireWorkspaceAssetType } from "../../../workspaceAssetTypeContract.js";
 
 function tenantContext(tenantId, member, auth) {
   return { tenantId, member, auth };
@@ -29,9 +30,15 @@ function requireAssetOperation(resourceKey, operation) {
 }
 
 function requireAssetInput(input = {}) {
-  if (!input.asset_type || !input.display_name) {
-    throw resourceError("asset_fields_required", "asset_type and display_name are required.", 400);
+  if (!input.asset_type || (!input.asset_ref && !input.asset_id) || !input.display_name) {
+    throw resourceError(
+      "asset_fields_required",
+      "asset_type, display_name, and either asset_ref or asset_id are required.",
+      400
+    );
   }
+  input.asset_type = requireWorkspaceAssetType(input.asset_type);
+  return input;
 }
 
 function ensureSessionAuthorized(auth, session) {

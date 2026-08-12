@@ -10,7 +10,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 614
+- Paths: 615
 - Operations: 566
 - Top-level tags: 36
 
@@ -20,8 +20,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Top Operation Tags
 
-- `platform-plugins`: 52
 - `connected-systems`: 51
+- `platform-plugins`: 51
 - `platform-intelligence`: 36
 - `resource-api`: 34
 - `activation`: 31
@@ -66,6 +66,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
+- `.github/workflows/docs-agent-main-followup.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/e2e-contract-reference-integrity.yml`
@@ -73,6 +74,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/frontend-parity-refresh-dispatch.yml`
 - `.github/workflows/frontend-surface-dispatch-refresh.yml`
 - `.github/workflows/frontend-surface-dispatch.yml`
+- `.github/workflows/github-issue-comment-parity-governed-readiness.yml`
+- `.github/workflows/github-main-review-policy-live-activation.yml`
+- `.github/workflows/github-main-review-policy-readiness-publisher.yml`
+- `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
+- `.github/workflows/governance-db-privilege-readiness.yml`
+- `.github/workflows/governed-command-gateway.yml`
+- `.github/workflows/governed-command-registry-validation.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -80,6 +90,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-migration-dependency-gate.yml`
 - `.github/workflows/governed-production-candidate-dispatch-bridge.yml`
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
+- `.github/workflows/governed-production-candidate-dispatch-request-dispatcher.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml`
@@ -90,8 +101,6 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2-contract.yml`
 - `.github/workflows/hostinger-nodejs-build-evidence-dispatch-r2.yml`
 - `.github/workflows/hostinger-nodejs-build-evidence.yml`
-- `.github/workflows/hostinger-nodejs-completed-build-log-evidence-push-r3b.yml`
-- `.github/workflows/hostinger-nodejs-completed-build-log-evidence-r3c-windows.yml`
 - `.github/workflows/hostinger-nodejs-completed-build-log-evidence.yml`
 - `.github/workflows/hostinger-production-release-evidence-r5.yml`
 - `.github/workflows/hostinger-production-release-evidence-r6.yml`
@@ -138,6 +147,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/http-generic-api-fanout-relocation-apply.yml`
 - `.github/workflows/http-generic-api-fanout-relocation.yml`
 - `.github/workflows/local-manager-windows.yml`
+- `.github/workflows/migration-1048-readiness-evidence-publisher.yml`
+- `.github/workflows/migration-1049-readiness-evidence-publisher.yml`
 - `.github/workflows/openapi-auto-sync.yml`
 - `.github/workflows/platform-completion-cleanup-readback.yml`
 - `.github/workflows/platform-remaining-scope-scorecard.yml`
@@ -149,14 +160,17 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
+- `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
+- `.github/workflows/repository-evaluation.yml`
+- `.github/workflows/repository-inventory.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
-- `.github/workflows/response-chunk-ownership-governed-rollout-push.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`
 - `.github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml`
 - `.github/workflows/retail-commerce-production-schema-baseline.yml`
 - `.github/workflows/retail-commerce-specification-baseline.yml`
 - `.github/workflows/runtime-startup-deployment-evidence.yml`
+- `.github/workflows/single-owner-review-gate.yml`
 - `.github/workflows/spec-011-delegation-mariadb-certification.yml`
 - `.github/workflows/spec-011-evidence-auto-closeout.yml`
 - `.github/workflows/spec-011-goal-filtered-operational-intelligence.yml`
@@ -165,10 +179,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml`
 - `.github/workflows/spec-kit-work-map-autofix.yml`
 - `.github/workflows/spec-kit-work-map-integration.yml`
+- `.github/workflows/spec-kit-work-map-recovery-bootstrap.yml`
+- `.github/workflows/spec014-wave1-apply.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness-contract-guard.yml`
 - `.github/workflows/spec014-wave1-runtime-readiness.yml`
+- `.github/workflows/spec017-fixture-context-readback.yml`
+- `.github/workflows/spec017-protected-managed-execution-canary.yml`
 - `.github/workflows/sprint69-1006-governed-rollout.yml`
 - `.github/workflows/sprint69-1043-apply.yml`
+- `.github/workflows/sprint69-1043-readback-certify.yml`
 - `.github/workflows/sprint69-1043-repository-readiness.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness-backfill.yml`
 - `.github/workflows/sprint69-1043-runtime-readiness.yml`
@@ -178,8 +197,12 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/surface-auto-remediation-closure.yml`
 - `.github/workflows/surface-contract-auto-remediation.yml`
 - `.github/workflows/surface-phase-a-final-rebuild.yml`
+- `.github/workflows/tenant-platform-plugin-1052-governed-readiness.yml`
+- `.github/workflows/tenant-request-identity-collation-dry-run.yml`
+- `.github/workflows/tenant-request-identity-collation-readonly-diagnostic.yml`
+- `.github/workflows/tenant-request-identity-collation-runtime-readiness.yml`
+- `.github/workflows/transport-response-schema-1048-governed-rollout.yml`
 - `.github/workflows/ueacp-governed-operational-evidence-cycle.yml`
-- `.github/workflows/ueacp-live-authority-evidence-one-shot.yml`
 - `.github/workflows/verify-runtime.yml`
 
 ## Maintenance Scripts
@@ -231,6 +254,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-openapi-inventory-fragment-discovery.mjs`
 - `http-generic-api/test-openapi-lint-and-compatibility.mjs`
 - `http-generic-api/test-openapi-precise-contract-inline-ref-migration.mjs`
+- `http-generic-api/test-openapi-precise-inline-registry-transition.mjs`
 - `http-generic-api/test-openapi-precise-legacy-registry-transition.mjs`
 - `http-generic-api/test-openapi-response-object-guard.mjs`
 - `http-generic-api/test-openapi-route-coverage.mjs`
@@ -242,9 +266,13 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-evolution-openapi-docs.mjs`
 - `http-generic-api/test-platform-plugin-action-grants.mjs`
 - `http-generic-api/test-platform-plugin-action-templates.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-authority.mjs`
+- `http-generic-api/test-platform-plugin-brand-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-catalog.mjs`
+- `http-generic-api/test-platform-plugin-connection-ownership.mjs`
 - `http-generic-api/test-platform-plugin-contract-docs.mjs`
 - `http-generic-api/test-platform-plugin-contribution.mjs`
+- `http-generic-api/test-platform-plugin-credential-scope-provenance.mjs`
 - `http-generic-api/test-platform-plugin-install.mjs`
 - `http-generic-api/test-platform-plugin-openapi-db-tag-parity.mjs`
 - `http-generic-api/test-platform-plugin-policy.mjs`
@@ -257,6 +285,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-platform-plugin-shared-tool-bindings.mjs`
 - `http-generic-api/test-platform-plugin-strict-request-contract.mjs`
 - `http-generic-api/test-platform-plugin-target-authority.mjs`
+- `http-generic-api/test-production-deployment-openapi-transition.mjs`
 - `http-generic-api/test-resource-surface-openapi-automation.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline-pr-trigger.mjs`
 - `http-generic-api/test-retail-commerce-production-schema-baseline.mjs`
@@ -272,12 +301,15 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `http-generic-api/test-support-ticket-runtime-openapi-completion.mjs`
 - `http-generic-api/test-support-ticket-runtime-openapi-sync.mjs`
 - `http-generic-api/test-tenant-database-schema-read.mjs`
+- `http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-authority.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-executor.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair-run-mode.mjs`
+- `http-generic-api/test-tenant-platform-plugin-managed-repair.mjs`
 - `http-generic-api/test-tenant-platform-plugin-openapi.mjs`
 - `http-generic-api/test-tenant-platform-plugin-routes.mjs`
 - `http-generic-api/test-tenant-resolution-registry-schema.mjs`
-- `http-generic-api/test-tenant-tool-schema-strictness.mjs`
-- `http-generic-api/test-work-map-schema-classification-contract.mjs`
-- `http-generic-api/test-work-map-schema-classification.mjs`
+- ...and 5 more
 
 ## Maintenance Contract
 

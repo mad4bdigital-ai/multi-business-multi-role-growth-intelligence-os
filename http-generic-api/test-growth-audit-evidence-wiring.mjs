@@ -13,6 +13,10 @@ const runtime = await fs.readFile(
   new URL("./growthAuditEvidence.js", import.meta.url),
   "utf8"
 );
+const brandAuthority = await fs.readFile(
+  new URL("./workspaceBrandReadAuthority.js", import.meta.url),
+  "utf8"
+);
 
 assert.match(migration, /growth_audit_evidence_v1/);
 assert.match(migration, /growth_audit_evidence_prepare/);
@@ -31,7 +35,15 @@ assert.match(routes, /source_key:\s*"growth_audit_evidence_v1"/);
 assert.match(runtime, /growth_audit_evidence_prepare/);
 assert.match(runtime, /requires_admin:\s*true/);
 assert.match(runtime, /tenant_brand_authority_required/);
-assert.match(runtime, /\(brand_ref IS NOT NULL OR site_ref IS NOT NULL\)/);
+assert.match(runtime, /resolveWorkspaceBrandReadAuthority/);
+assert.match(runtime, /authorization:\s*authority/);
+assert.doesNotMatch(runtime, /\(brand_ref IS NOT NULL OR site_ref IS NOT NULL\)/);
+assert.doesNotMatch(runtime, /workspace_assets[\s\S]{0,300}(?:authorized|authority)/i);
+assert.match(brandAuthority, /FROM tenant_brand_links/);
+assert.match(brandAuthority, /FROM memberships m/);
+assert.match(brandAuthority, /v_workspace_resource_grant_effective/);
+assert.match(brandAuthority, /tenant_owner_membership/);
+assert.match(brandAuthority, /workspace_resource_grant/);
 assert.match(runtime, /visitor_issue_requires:\s*"rendered_visible"/);
 assert.match(runtime, /native_edge_visual_capture_allowed:\s*false/);
 assert.match(runtime, /provider_calls_made:\s*0/);
@@ -39,4 +51,4 @@ assert.match(runtime, /mutations_executed:\s*false/);
 assert.match(runtime, /external_sends:\s*0/);
 assert.match(runtime, /secrets_included:\s*false/);
 
-console.log("growth audit descriptor and migration wiring tests passed");
+console.log("growth audit descriptor, canonical Brand authority, and migration wiring tests passed");

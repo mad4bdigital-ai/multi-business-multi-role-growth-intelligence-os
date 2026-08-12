@@ -73,6 +73,17 @@ assert.match(runner, /metadata\.pull_request/);
 assert.match(runner, /metadata\.merge_sha/);
 assert.doesNotMatch(runner, /governed_migration_authorization_bootstrap/);
 
+assert.match(
+  runner,
+  /tool: 'db',\s*action: 'run',\s*sql: query,/,
+  'Migration 1043 Apply fixed DB readback must use the canonical admin DB action=run + sql contract.',
+);
+assert.doesNotMatch(
+  runner,
+  /tool: 'db',\s*action: 'query'/,
+  'Migration 1043 Apply must not use the unsupported admin DB action=query contract.',
+);
+
 assert.match(runner, /name: 'governed_migration_schema_readback'/);
 assert.match(runner, /name: 'governed_migration_execute'/);
 assert.match(runner, /mode: 'dry_run'/);
@@ -97,6 +108,13 @@ assert.match(runner, /readiness_status/);
 assert.match(runner, /exactApplyLedger/);
 assert.match(runner, /exactObjects/);
 assert.match(runner, /final_readback/);
+
+const exactObjectsBody = runner.match(/function exactObjects\(readback\) \{([\s\S]*?)\n\}\n\nasync function readinessViewProbe/)?.[1] || '';
+assert.match(exactObjectsBody, /readback\?\.schema\?\.tables/);
+assert.match(exactObjectsBody, /readback\?\.expectations\?\.missing\?\.tables/);
+assert.match(exactObjectsBody, /row\?\.TABLE_NAME/);
+assert.doesNotMatch(exactObjectsBody, /readback\?\.tables/);
+assert.match(exactObjectsBody, /missing\.length !== 0/);
 
 const mainBody = runner.slice(runner.indexOf('async function main()'));
 const order = [
@@ -138,6 +156,8 @@ console.log(JSON.stringify({
   issue: 4449,
   readiness_authorization_must_preexist: true,
   same_cycle_dry_run_required: true,
+  admin_db_control_contract: 'action_run_sql',
+  canonical_readback_shape: 'schema.tables[].TABLE_NAME',
   apply_request_count: 1,
   apply_retry_allowed: false,
   exact_ledger_and_readiness_required: true,

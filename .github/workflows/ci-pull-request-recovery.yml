@@ -2,32 +2,138 @@ name: CI Pull Request Recovery
 
 on:
   workflow_dispatch:
+    inputs:
+      pull_request_number:
+        description: "Open pull request number to recover"
+        required: true
+        type: string
+      candidate_sha:
+        description: "Exact current pull request head SHA to validate"
+        required: true
+        type: string
+      expected_base_ref:
+        description: "Expected pull request base branch"
+        required: true
+        default: "main"
+        type: string
+      expected_base_sha:
+        description: "Optional exact current pull request base SHA"
+        required: false
+        type: string
   pull_request:
     branches: [main, Production]
     types: [opened, reopened, synchronize, ready_for_review]
 
 permissions:
   contents: read
+  pull-requests: read
 
 concurrency:
-  group: ci-pr-recovery-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: false
+  group: ci-pr-recovery-${{ github.event.pull_request.number || inputs.pull_request_number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   syntax:
     name: Syntax Check
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    outputs:
+      pull_request_number: ${{ steps.candidate.outputs.pull_request_number }}
+      candidate_sha: ${{ steps.candidate.outputs.candidate_sha }}
+      base_ref: ${{ steps.candidate.outputs.base_ref }}
+      base_sha: ${{ steps.candidate.outputs.base_sha }}
+      head_ref: ${{ steps.candidate.outputs.head_ref }}
     steps:
+      - name: Resolve and verify exact PR candidate identity
+        id: candidate
+        uses: actions/github-script@v8
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_PR_NUMBER: ${{ inputs.pull_request_number || '' }}
+          DISPATCH_CANDIDATE_SHA: ${{ inputs.candidate_sha || '' }}
+          DISPATCH_EXPECTED_BASE_REF: ${{ inputs.expected_base_ref || '' }}
+          DISPATCH_EXPECTED_BASE_SHA: ${{ inputs.expected_base_sha || '' }}
+        with:
+          script: |
+            const isDispatch = process.env.EVENT_NAME === 'workflow_dispatch';
+            const eventPr = context.payload.pull_request || {};
+            const prNumber = Number(isDispatch ? process.env.DISPATCH_PR_NUMBER : eventPr.number);
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed('A valid pull request number is required.');
+              return;
+            }
+
+            const requestedSha = String(isDispatch ? process.env.DISPATCH_CANDIDATE_SHA : eventPr.head?.sha || '').trim();
+            if (!/^[0-9a-f]{40}$/i.test(requestedSha)) {
+              core.setFailed('candidate_sha must be an exact 40-character commit SHA.');
+              return;
+            }
+
+            const expectedBaseRef = String(isDispatch ? process.env.DISPATCH_EXPECTED_BASE_REF : eventPr.base?.ref || '').trim();
+            if (!expectedBaseRef) {
+              core.setFailed('An expected pull request base ref is required.');
+              return;
+            }
+            const expectedBaseSha = String(isDispatch ? process.env.DISPATCH_EXPECTED_BASE_SHA : eventPr.base?.sha || '').trim();
+            if (expectedBaseSha && !/^[0-9a-f]{40}$/i.test(expectedBaseSha)) {
+              core.setFailed('expected_base_sha must be empty or an exact 40-character commit SHA.');
+              return;
+            }
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (pr.state !== 'open') {
+              core.setFailed(`Pull request #${prNumber} is not open.`);
+              return;
+            }
+            if (pr.head.repo?.full_name !== repository) {
+              core.setFailed(`Pull request #${prNumber} head is not owned by ${repository}.`);
+              return;
+            }
+            if (pr.head.sha !== requestedSha) {
+              core.setFailed(`Candidate SHA is stale: requested ${requestedSha}, current ${pr.head.sha}.`);
+              return;
+            }
+            if (pr.base.ref !== expectedBaseRef) {
+              core.setFailed(`Base ref mismatch: expected ${expectedBaseRef}, current ${pr.base.ref}.`);
+              return;
+            }
+            if (expectedBaseSha && pr.base.sha !== expectedBaseSha) {
+              core.setFailed(`Base SHA mismatch: expected ${expectedBaseSha}, current ${pr.base.sha}.`);
+              return;
+            }
+
+            core.setOutput('pull_request_number', String(pr.number));
+            core.setOutput('candidate_sha', pr.head.sha);
+            core.setOutput('base_ref', pr.base.ref);
+            core.setOutput('base_sha', pr.base.sha);
+            core.setOutput('head_ref', pr.head.ref);
+            await core.summary
+              .addHeading('Exact-head PR recovery identity')
+              .addTable([
+                [{ data: 'Field', header: true }, { data: 'Verified value', header: true }],
+                ['Pull request', `#${pr.number}`],
+                ['Candidate SHA', pr.head.sha],
+                ['Head ref', pr.head.ref],
+                ['Base ref', pr.base.ref],
+                ['Base SHA', pr.base.sha],
+                ['Trigger', process.env.EVENT_NAME],
+              ])
+              .write();
+
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ steps.candidate.outputs.candidate_sha }}
           fetch-depth: 0
 
       - name: Verify exact candidate checkout
         shell: bash
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ steps.candidate.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
@@ -93,15 +199,37 @@ jobs:
     runs-on: ubuntu-latest
     needs: syntax
     steps:
+      - name: Re-verify candidate is still the current PR head
+        uses: actions/github-script@v8
+        env:
+          VERIFIED_PR_NUMBER: ${{ needs.syntax.outputs.pull_request_number }}
+          VERIFIED_CANDIDATE_SHA: ${{ needs.syntax.outputs.candidate_sha }}
+          VERIFIED_BASE_REF: ${{ needs.syntax.outputs.base_ref }}
+          VERIFIED_BASE_SHA: ${{ needs.syntax.outputs.base_sha }}
+        with:
+          script: |
+            const prNumber = Number(process.env.VERIFIED_PR_NUMBER);
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const repository = `${context.repo.owner}/${context.repo.repo}`;
+            if (pr.state !== 'open') core.setFailed(`Pull request #${prNumber} is no longer open.`);
+            else if (pr.head.repo?.full_name !== repository) core.setFailed(`Pull request #${prNumber} head repository changed.`);
+            else if (pr.head.sha !== process.env.VERIFIED_CANDIDATE_SHA) core.setFailed(`Pull request #${prNumber} head changed after syntax verification.`);
+            else if (pr.base.ref !== process.env.VERIFIED_BASE_REF) core.setFailed(`Pull request #${prNumber} base ref changed after syntax verification.`);
+            else if (pr.base.sha !== process.env.VERIFIED_BASE_SHA) core.setFailed(`Pull request #${prNumber} base SHA changed after syntax verification.`);
+
       - uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ needs.syntax.outputs.candidate_sha }}
           fetch-depth: 0
 
       - name: Verify exact candidate checkout
         shell: bash
         env:
-          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_SHA: ${{ needs.syntax.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
@@ -119,27 +247,20 @@ jobs:
       - name: Determine context-kernel hardcoding ratchet scope
         shell: bash
         env:
-          EVENT_NAME: ${{ github.event_name }}
-          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          PUSH_BEFORE_SHA: ${{ github.event.before }}
-          REF_NAME: ${{ github.ref_name }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          PULL_REQUEST_BASE_SHA: ${{ needs.syntax.outputs.base_sha }}
+          PULL_REQUEST_HEAD_REF: ${{ needs.syntax.outputs.head_ref }}
+          PULL_REQUEST_BASE_REF: ${{ needs.syntax.outputs.base_ref }}
         run: |
           set -euo pipefail
           CHANGED_FILES="$RUNNER_TEMP/context-kernel-changed-files.txt"
-          DEFAULT_BRANCH="${DEFAULT_BRANCH:-main}"
-          if [[ "$EVENT_NAME" == "pull_request" && -n "${PULL_REQUEST_BASE_SHA:-}" ]]; then
+          if [[ "$PULL_REQUEST_BASE_REF" == "Production" ]]; then
+            PROMOTION_REPORT="$RUNNER_TEMP/context-kernel-production-promotion.json"
+            node http-generic-api/scripts/e2e-parallel-pr-gate.mjs --base "$PULL_REQUEST_BASE_SHA" --head "$(git rev-parse HEAD)" --head-ref "$PULL_REQUEST_HEAD_REF" --base-ref "$PULL_REQUEST_BASE_REF" --report-file "$PROMOTION_REPORT"
+            BASE_SHA="$(node -e 'const fs=require("fs"); const report=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const base=report.phase_evaluation_base; if(!/^[0-9a-f]{40}$/.test(base || "")) process.exit(1); process.stdout.write(base);' "$PROMOTION_REPORT")"
+            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
+          else
             BASE_SHA="$PULL_REQUEST_BASE_SHA"
             git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
-          elif [[ "$EVENT_NAME" == "push" && "$REF_NAME" == "$DEFAULT_BRANCH" && -n "${PUSH_BEFORE_SHA:-}" && ! "$PUSH_BEFORE_SHA" =~ ^0+$ ]]; then
-            BASE_SHA="$PUSH_BEFORE_SHA"
-            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
-          elif git rev-parse --verify "origin/$DEFAULT_BRANCH" >/dev/null 2>&1; then
-            BASE_SHA="origin/$DEFAULT_BRANCH"
-            git diff --name-only "$BASE_SHA"...HEAD > "$CHANGED_FILES"
-          else
-            BASE_SHA="$(git rev-parse HEAD^)"
-            git diff --name-only "$BASE_SHA" HEAD > "$CHANGED_FILES"
           fi
           echo "Context-kernel hardcoding ratchet base: $BASE_SHA"
           echo "Changed files considered by the ratchet:"
@@ -165,7 +286,7 @@ jobs:
         working-directory: http-generic-api
         env:
           TEST_SUITE_REPORT_DIR: ${{ runner.temp }}/test-suite-reports
-          EXPECTED_TEST_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          EXPECTED_TEST_CANDIDATE_SHA: ${{ needs.syntax.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse HEAD)"
@@ -185,8 +306,8 @@ jobs:
         working-directory: http-generic-api
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
-          DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
-          DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
+          DEPLOYMENT_BRANCH: "${{ needs.syntax.outputs.head_ref }}"
+          DEPLOYMENT_COMMIT_SHA: "${{ needs.syntax.outputs.candidate_sha }}"
         run: |
           node test-deployment-manifest-generator.mjs
           npm run manifest:deployment

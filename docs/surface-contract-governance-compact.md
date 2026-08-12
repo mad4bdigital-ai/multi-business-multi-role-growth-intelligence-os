@@ -1,14 +1,15 @@
 # Surface Contract Governance Compact
 
-- Gate: pass
-- Blocking new items: 0
-- Docs completion: 458/461 (99.35%)
-- Queue items: 3
-- OpenAPI missing SQL routes: 0
-- OpenAPI-exempt SQL route-like literals: 673/704
+- Gate: fail
+- Blocking new items: 4
+- Docs completion: 464/470 (98.72%)
+- Queue items: 6
+- OpenAPI missing SQL routes: 2
+- OpenAPI-exempt SQL route-like literals: 676/709
 - Safety marker gap migrations: 1
-- Trend quality gate: pass
+- Trend quality gate: fail
 
 ## Top actionable
 
-- none
+- `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 909; classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 908; classify route-like strings, then add OpenAPI contract or false-positive exemption

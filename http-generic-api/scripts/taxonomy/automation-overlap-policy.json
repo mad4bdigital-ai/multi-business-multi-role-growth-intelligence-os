@@ -1,5 +1,5 @@
 {
-  "version": "2026-08-03.v5",
+  "version": "2026-08-11.v11",
   "purpose": "Govern repository automation ownership, concurrency, schedule separation, and database advisory-lock contracts.",
   "enforcement": {
     "fail_severity": "critical",
@@ -12,10 +12,12 @@
       "kind": "repository_write",
       "owner": "http-generic-api/scripts/repo-maintenance-sync.mjs",
       "required_concurrency_group": "repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}",
+      "required_queue": "max",
       "workflows": [
         { "path": ".github/workflows/openapi-auto-sync.yml", "access": "write" },
         { "path": ".github/workflows/surface-contract-auto-remediation.yml", "access": "write" },
-        { "path": ".github/workflows/docs-agent.yml", "access": "conditional_write" }
+        { "path": ".github/workflows/docs-agent.yml", "access": "conditional_write" },
+        { "path": ".github/workflows/docs-agent-main-followup.yml", "access": "write" }
       ],
       "write_patterns": [
         "http-generic-api/openapi.yaml",
@@ -35,12 +37,18 @@
       "key": "pull-request-work-map-generated-artifacts",
       "kind": "pull_request_branch_write",
       "owner": "http-generic-api/scripts/platform-work-map-generator.mjs",
-      "required_concurrency_group": "spec-kit-work-map-artifacts-${{ github.repository }}-${{ inputs.branch }}",
+      "required_concurrency_group": "work-map-writer-delegation-${{ github.repository }}-pr-${{ inputs.pr_number }}",
+      "required_queue": "max",
       "workflows": [
         { "path": ".github/workflows/spec-kit-work-map-autofix.yml", "access": "write" }
       ],
       "write_patterns": [
-        "docs/work-maps/**"
+        "docs/work-maps/**",
+        "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+        "specs/014-governed-hostinger-storage-orchestration/tasks.md",
+        "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+        "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+        "specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json"
       ]
     }
   ],

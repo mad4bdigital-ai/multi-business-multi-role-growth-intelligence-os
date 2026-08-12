@@ -1,0 +1,83 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-platform-plugin-1052-governed-readiness",
+  "title": "Governed Migration 1052 tenant platform plugin readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-platform-plugin-1052-governed-readiness.json",
+      ".github/ops/tenant-platform-plugin-1052-governed-readiness.mjs",
+      ".github/workflows/tenant-platform-plugin-1052-governed-readiness.yml",
+      "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+      "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+      "docs/governed-migration-authorization-bootstrap.md",
+      "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Provide one exact-token, Production-bound, checksum-bound readiness bridge for Migration 1052 that records durable governed authorization and performs dry-run only after source and runtime parity, while keeping Migration Apply, Runtime Dispatch Certification, Managed Execution, provider calls, credential payload access, protected-ref mutation, and external writes outside this PR.",
+      "e2e_journeys": [
+        {
+          "id": "migration-1052-authorization-bootstrap-and-dry-run-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository_admin",
+          "entrypoint": "Issue 4451 exact authorization comment on the trusted default-branch workflow",
+          "terminal_outcome": "The trusted workflow proves exact Migration 1052 source identity and Production/runtime parity, creates a short-lived governed capability envelope, records and durably reads back the checksum-bound migration authorization, and completes governed_migration_execute in dry_run mode with applies_sql=false and zero preflight risks, without any Apply or managed repair execution path.",
+          "steps": [
+            "Require issue 4451, the exact Migration 1052 authorization token, and OWNER, MEMBER, or COLLABORATOR author association before the readiness job can start.",
+            "Require source PR 6763 merge identity, exact Migration 1052 Git blob SHA, raw-byte SHA-256 checksum, and executable statement count to remain pinned.",
+            "Require protected Production and public runtime readbacks to equal pinned Production SHA 6957f56ead3f720767957dbb7b9b213cc54ed04e before creating migration authorization.",
+            "Create or approve a short-lived capability resolution envelope scoped to governed_migration_authorization_bootstrap and the exact Migration 1052 resource binding.",
+            "Record checksum/source-bound governed migration authorization and verify exactly one durable registry row with matching checksum, statement count, source PR, and source merge SHA.",
+            "Invoke governed_migration_execute only with mode dry_run and require applies_sql=false, the exact checksum and statement count, and zero preflight risks.",
+            "Upload sanitized readiness evidence that explicitly records Migration Apply, Runtime Dispatch Certification, Managed Execution, provider calls, credential payload access, protected-ref mutation, force push, and external writes as false."
+          ],
+          "assertions": [
+            "The workflow has no Migration 1052 Apply trigger, Apply phase, or Apply job.",
+            "The executor contains no governed_migration_execute call with mode apply.",
+            "The bridge never requests capability_resolution_envelope_apply_authorize.",
+            "The bridge never invokes tenantPlatformPluginManagedRepairExecutor or creates a Managed Execution run.",
+            "Runtime Dispatch Certification issuance remains absent and separately governed.",
+            "Production mismatch, runtime mismatch, source identity drift, migration checksum drift, statement-count drift, authorization mismatch, or dry-run preflight risk fails closed.",
+            "No provider mutation, credential payload publication, protected-ref mutation, force push, or external business write is introduced."
+          ],
+          "tests": [
+            {
+              "id": "migration-1052-governed-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-platform-plugin-1052-governed-readiness.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/ops/tenant-platform-plugin-1052-governed-readiness.mjs",
+            ".github/workflows/tenant-platform-plugin-1052-governed-readiness.yml",
+            "http-generic-api/governedMigrationAuthorizationBootstrap.js",
+            "http-generic-api/governedMigrationAuthorizationBootstrapRuntime.js",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/scripts/test-manifest.mjs",
+            "http-generic-api/test-governed-migration-authorization-bootstrap.mjs",
+            "docs/governed-migration-authorization-bootstrap.md",
+            "http-generic-api/test-tenant-platform-plugin-1052-governed-readiness.mjs"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -17,12 +17,26 @@ export { extractFunctionBlock };
 const DEFAULT_OUTPUT = "frontend-operation-governance.generated.json";
 const WRAPPER_FILE = "scripts/frontend-operation-governance-generator.mjs";
 const BASE_GENERATOR_FILE = "scripts/frontend-operation-governance-base.mjs";
+const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
+
 const LEASE_ROUTE_FILE = "routes/repositoryAutomationRoutes.js";
 const LEASE_CONTROL_FILE = "repositoryReconciliationLeaseControl.js";
 const LEASE_SERVICE_FILE = "repositoryOperationLeaseService.js";
 const LEASE_TEST_FILE = "test-repository-reconciliation-lease-control.mjs";
-const TEST_REGISTRY_FILE = "frontend-operation-governance-tests.json";
 const LEASE_OPERATION = "POST /admin/repository-automation/reconciliation-lease";
+
+const BRAND_ROUTE_FILE = "routes/workspaceResourceRoutes.js";
+const BRAND_SERVICE_FILE = "workspaceBrandLifecycle.js";
+const BRAND_TEST_FILE = "test-workspace-brand-create-operation-governance.mjs";
+const BRAND_CREATE_OPERATION = "POST /me/workspaces/{tenant_id}/brands";
+
+const MATERIALIZE_ROUTE_FILE = "routes/resourceApiRoutes.js";
+const MATERIALIZE_SERVICE_FILE = "workspaceBrandCoreAssetMaterialization.js";
+const MATERIALIZE_REPOSITORY_FILE = "src/infrastructure/resourceApi/resourceRepository.js";
+const MATERIALIZE_TEST_FILE = "test-brand-core-asset-materialization-operation-governance.mjs";
+const MATERIALIZE_CONTAINER_FOUNDATION_FILE = "migrations/319_sprint69_dynamic_container_authority_foundation.sql";
+const MATERIALIZE_WORKSPACE_OWNERSHIP_FILE = "migrations/20260730_context_kernel_connection_ownership_persistence.sql";
+const BRAND_CORE_MATERIALIZE_OPERATION = "POST /me/workspaces/{workspace_id}/brands/{brand_key}/assets/materialize-brand-core";
 
 function canonicalText(value = "") {
   return String(value).replace(/\r\n?/g, "\n");
@@ -137,7 +151,137 @@ function evaluateLeaseRecipe(apiRoot) {
   return { recipe, gates, evidenceFiles: [LEASE_ROUTE_FILE, LEASE_CONTROL_FILE, LEASE_SERVICE_FILE, LEASE_TEST_FILE] };
 }
 
-function generatedLeaseRule(recipe, evidenceFiles, apiRoot) {
+function evaluateBrandCreateRecipe(apiRoot) {
+  const routeSource = readText(apiRoot, BRAND_ROUTE_FILE);
+  const serviceSource = readText(apiRoot, BRAND_SERVICE_FILE);
+  const route = routeRegistry(routeSource, BRAND_ROUTE_FILE).get(BRAND_CREATE_OPERATION);
+  const createBlock = extractFunctionBlock(serviceSource, "createWorkspaceBrand");
+  const ownerBlock = extractFunctionBlock(serviceSource, "requireOwnerAuthority");
+  const linkBlock = extractFunctionBlock(serviceSource, "ensureTenantBrandLink");
+  const workspaceBlock = extractFunctionBlock(serviceSource, "ensureBrandWorkspace");
+  const grantBlock = extractFunctionBlock(serviceSource, "ensureCreatorBrandGrant");
+  const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CREATE_OPERATION) || [];
+  const gates = [
+    evidenceGate("route_present", route, BRAND_ROUTE_FILE),
+    evidenceGate("user_jwt_guard", route?.route_guards?.includes("requireUserJwt"), "requireUserJwt"),
+    evidenceGate("route_service_binding", route?.declaration?.includes("createWorkspaceBrand"), "createWorkspaceBrand"),
+    evidenceGate("transaction_scope", routeSource.includes("MUTATION_TRANSACTION: workspace_brand_create") && routeSource.includes("await connection.commit()") && routeSource.includes("await connection.rollback()"), "begin/commit/rollback"),
+    evidenceGate("service_present", createBlock, "createWorkspaceBrand"),
+    evidenceGate("locked_owner_authority", ownerBlock.includes("LIMIT 2 FOR UPDATE") && ownerBlock.includes("OWNER_ROLES.has"), "owner/admin locked membership"),
+    evidenceGate("canonical_identity", serviceSource.includes("canonicalWorkspaceBrandTargetKey") && serviceSource.includes("normalizeWorkspaceBrandName"), "deterministic canonical identity"),
+    evidenceGate("explicit_tenant_link", linkBlock.includes("workspace_owner_brand_create") && linkBlock.includes("tenant_brand_links") && linkBlock.includes("FOR UPDATE"), "tenant_brand_links explicit authority/readback"),
+    evidenceGate("brand_workspace_binding", workspaceBlock.includes("workspace_registry") && workspaceBlock.includes("linked_brand_key") && workspaceBlock.includes("FOR UPDATE"), "brand workspace registry/readback"),
+    evidenceGate("creator_admin_grant", grantBlock.includes("workspace_resource_grants") && grantBlock.includes("'brand'") && grantBlock.includes("'admin'") && grantBlock.includes("FOR UPDATE"), "creator brand/admin grant/readback"),
+    evidenceGate("no_secret_response", routeSource.includes("secrets_included: false"), "secrets_included=false"),
+    evidenceGate("registered_operation_test", claimedTests.includes(BRAND_TEST_FILE), BRAND_TEST_FILE),
+  ];
+  const recipe = {
+    recipe_id: "workspace-brand-create-v1",
+    rule_id: "generated-workspace-brand-create-governance",
+    operation: BRAND_CREATE_OPERATION,
+    source_file: BRAND_ROUTE_FILE,
+    owner: "workspace-platform",
+    rationale: "Creates or idempotently reuses one canonical brand for an active workspace owner/admin, then atomically establishes the explicit tenant-brand authority link, canonical brand workspace binding, and creator brand/admin grant; all authority and durable readbacks occur on the same transaction and roll back together on failure.",
+    preflight_mode: "locked_workspace_owner_authority_and_canonical_identity",
+    approval_mode: "runtime_authorization",
+    parameter_bindings: {
+      tenant_id: "request.path.tenant_id",
+      display_name: "request.body.display_name|request.body.brand_name",
+      actor_user_id: "authenticated_user.user_id",
+      brand_target_key: "response.brand.target_key",
+      brand_workspace_id: "response.workspace_link.workspace_id",
+      creator_grant_id: "response.creator_grant.grant_id",
+    },
+  };
+  return { recipe, gates, evidenceFiles: [BRAND_ROUTE_FILE, BRAND_SERVICE_FILE, BRAND_TEST_FILE] };
+}
+
+function evaluateBrandCoreMaterializeRecipe(apiRoot) {
+  const routeSource = readText(apiRoot, MATERIALIZE_ROUTE_FILE);
+  const serviceSource = readText(apiRoot, MATERIALIZE_SERVICE_FILE);
+  const repositorySource = readText(apiRoot, MATERIALIZE_REPOSITORY_FILE);
+  const containerFoundationSource = readText(apiRoot, MATERIALIZE_CONTAINER_FOUNDATION_FILE);
+  const workspaceOwnershipSource = readText(apiRoot, MATERIALIZE_WORKSPACE_OWNERSHIP_FILE);
+  const route = routeRegistry(routeSource, MATERIALIZE_ROUTE_FILE).get(BRAND_CORE_MATERIALIZE_OPERATION);
+  const materializeBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAsset");
+  const transactionBlock = extractFunctionBlock(serviceSource, "materializeWorkspaceBrandCoreAssetTransaction");
+  const inputBlock = extractFunctionBlock(serviceSource, "materializedAssetInput");
+  const rootWorkspaceBlock = extractFunctionBlock(serviceSource, "resolveRootWorkspace");
+  const brandBlock = extractFunctionBlock(serviceSource, "resolveCanonicalBrand");
+  const brandWorkspaceBlock = extractFunctionBlock(serviceSource, "resolveBrandOperationalWorkspace");
+  const topologyBlock = extractFunctionBlock(serviceSource, "resolveBrandContainerTopology");
+  const sourceBlock = extractFunctionBlock(serviceSource, "resolveBrandCoreSource");
+  const persistBlock = extractFunctionBlock(serviceSource, "persistMaterializedAsset");
+  const insertAssetBlock = extractFunctionBlock(repositorySource, "insertAsset");
+  const claimedTests = registeredTestEvidence(apiRoot).get(BRAND_CORE_MATERIALIZE_OPERATION) || [];
+  const gates = [
+    evidenceGate("route_present", route, MATERIALIZE_ROUTE_FILE),
+    evidenceGate(
+      "canonical_user_jwt_guard",
+      routeSource.includes("const requireUserJwt = createUserJwtMiddleware();")
+        && route?.route_guards?.includes("requireUserJwt")
+        && !/\bfunction\s+(?:verifyUserJwt|requireUserJwt)\s*\(/.test(routeSource),
+      "centralized createUserJwtMiddleware binding parsed as requireUserJwt with no route-local User JWT verifier"
+    ),
+    evidenceGate("route_service_binding", route?.declaration?.includes("materializeWorkspaceBrandCoreAsset"), "materializeWorkspaceBrandCoreAssetTransaction"),
+    evidenceGate("workspace_route_binding", route?.declaration?.includes("workspace_id") && route?.declaration?.includes("brand_key") && !route?.declaration?.includes(":tenant_id/assets/materialize-brand-core"), "workspace_id + brand_key route authority"),
+    evidenceGate("transaction_scope", transactionBlock.includes("MUTATION_TRANSACTION: workspace_brand_core_asset_materialize") && transactionBlock.includes("await connection.beginTransaction()") && transactionBlock.includes("await connection.commit()") && transactionBlock.includes("await connection.rollback()"), "service-owned transaction begin/commit/rollback"),
+    evidenceGate("route_readback_marker", transactionBlock.includes("MUTATION_READBACK: workspace_brand_core_asset_materialize") && transactionBlock.includes("source_provider") && transactionBlock.includes("brand_container_id") && transactionBlock.includes("content_identity"), "service-owned Root Workspace + Brand container + canonical asset readback marker"),
+    evidenceGate("service_present", materializeBlock, "materializeWorkspaceBrandCoreAsset"),
+    evidenceGate("root_workspace_authority", rootWorkspaceBlock.includes("workspace_ownership_type") && rootWorkspaceBlock.includes("personal") && rootWorkspaceBlock.includes("company") && rootWorkspaceBlock.includes("workspace_type") && rootWorkspaceBlock.includes("FOR UPDATE"), "personal/company Root Workspace classification and locked tenant derivation"),
+    evidenceGate("root_workspace_schema_contract", workspaceOwnershipSource.includes("workspace_ownership_type") && workspaceOwnershipSource.includes("ENUM('personal','company')") && workspaceOwnershipSource.includes("Existing workspace_registry.workspace_type semantics remain unchanged"), MATERIALIZE_WORKSPACE_OWNERSHIP_FILE),
+    evidenceGate("canonical_brand_authority", brandBlock.includes("resolveWorkspaceAssetBrandRef") && brandBlock.includes("FOR UPDATE"), "existing canonical tenant Brand mutation authority"),
+    evidenceGate("brand_workspace_authority", brandWorkspaceBlock.includes("workspace_registry") && brandWorkspaceBlock.includes("workspace_type='brand'") && brandWorkspaceBlock.includes("linked_brand_key") && brandWorkspaceBlock.includes("workspace_ownership_type") && brandWorkspaceBlock.includes("FOR UPDATE"), "workspace_type=brand child operational compatibility workspace"),
+    evidenceGate("brand_container_topology", topologyBlock.includes("FROM containers brand_container") && topologyBlock.includes("JOIN container_relationships relationship") && topologyBlock.includes("relationship.relationship_type_key='contains'") && topologyBlock.includes("brand_core_materialize_brand_container_cross_workspace") && topologyBlock.includes("contributes_to_inheritance"), "exact Root Workspace contains Brand container topology"),
+    evidenceGate("brand_container_closure", topologyBlock.includes("FROM container_closure") && topologyBlock.includes("shortest_depth") && topologyBlock.includes("path_count") && topologyBlock.includes("brand_core_materialize_brand_container_path_ambiguous"), "single direct inheritance-bearing closure path"),
+    evidenceGate("container_schema_contract", containerFoundationSource.includes("('brand','Brand'") && containerFoundationSource.includes("JSON_ARRAY('workspace')") && containerFoundationSource.includes("('contains','Contains','containment',1,1,1") && containerFoundationSource.includes("('connections','Connections'") && containerFoundationSource.includes("('assets','Assets'") && containerFoundationSource.includes("('brand_core','Brand Core'"), MATERIALIZE_CONTAINER_FOUNDATION_FILE),
+    evidenceGate("no_topology_self_heal", !serviceSource.includes("INSERT INTO containers") && !serviceSource.includes("INSERT INTO container_relationships"), "missing topology fails closed instead of mutating authority graph"),
+    evidenceGate("canonical_source_resolution", sourceBlock.includes("FROM brand_core") && sourceBlock.includes("LIMIT 3 FOR UPDATE") && sourceBlock.includes("sourceActive"), "Brand Core source identity/status resolution"),
+    evidenceGate("canonical_provenance_adapter", inputBlock.includes('source_type: "import"') && inputBlock.includes('source_provider: "brand_core"') && inputBlock.includes("content_sha256: null") && inputBlock.includes("root_workspace_id") && inputBlock.includes("brand_workspace_id") && inputBlock.includes("brand_container_id") && inputBlock.includes("brand_container_relationship_id"), "Root Workspace and Brand container lineage mapped into canonical workspace asset provenance"),
+    evidenceGate("canonical_asset_persistence", persistBlock.includes("createResourceRepository") && persistBlock.includes("repository.insertAsset"), "canonical Resource API repository insertAsset"),
+    evidenceGate("atomic_asset_serialization", insertAssetBlock.includes("ON DUPLICATE KEY UPDATE asset_id=asset_id") && insertAssetBlock.includes("WHERE tenant_id=? AND asset_type=? AND asset_ref=?") && insertAssetBlock.includes("LIMIT 2 FOR UPDATE"), "existing workspace asset UNIQUE identity serialization and locked reread"),
+    evidenceGate("provenance_conflict_guard", insertAssetBlock.includes("assertWorkspaceAssetIdentityCompatible") && insertAssetBlock.includes("workspace_asset_provenance_readback_mismatch"), "canonical provenance compatibility/readback"),
+    evidenceGate("transactional_lineage_readback", persistBlock.includes("FROM workspace_assets") && persistBlock.includes("LIMIT 2 FOR UPDATE") && persistBlock.includes("brand_core_asset_materialize_readback_mismatch"), "exact Root Workspace/Brand container/Brand Core lineage readback"),
+    evidenceGate("no_parallel_schema_preflight", !serviceSource.includes("information_schema") && !serviceSource.includes("workspace_asset_provenance_schema_required"), "no second provenance schema authority"),
+    evidenceGate("no_provider_content_fetch", serviceSource.includes("provider_content_fetched: false") && !serviceSource.includes("fetch("), "no provider content fetch"),
+    evidenceGate("registered_operation_test", claimedTests.includes(MATERIALIZE_TEST_FILE), MATERIALIZE_TEST_FILE),
+  ];
+  const recipe = {
+    recipe_id: "workspace-brand-core-asset-materialize-v3-root-brand-container",
+    rule_id: "generated-workspace-brand-core-asset-materialize-governance",
+    operation: BRAND_CORE_MATERIALIZE_OPERATION,
+    source_file: MATERIALIZE_ROUTE_FILE,
+    owner: "workspace-platform",
+    rationale: "Materializes exactly one active Brand Core context source only after canonical User-JWT, a personal/company Root Workspace that derives tenant scope, existing Brand mutation authority, one workspace_type=brand child operational binding, and one direct inheritance-bearing Root Workspace contains Brand container path. Missing, ambiguous, or cross-workspace topology fails closed without self-healing the authority graph. Persistence stays on the canonical Resource API workspace asset lifecycle and no provider content is fetched or falsely checksummed.",
+    preflight_mode: "canonical_user_jwt_root_workspace_brand_container_and_resource_asset_provenance",
+    approval_mode: "runtime_authorization",
+    parameter_bindings: {
+      workspace_id: "request.path.workspace_id",
+      brand_key: "request.path.brand_key",
+      tenant_id: "response.tenant_id",
+      source_ref: "request.body.source_ref",
+      asset_id: "response.asset.asset_id",
+      content_identity: "response.asset.content_identity",
+      brand_workspace_id: "response.workspace.brand_workspace_id",
+      brand_container_id: "response.workspace.brand_container_id",
+      containment_relationship_id: "response.workspace.containment_relationship_id",
+    },
+  };
+  return {
+    recipe,
+    gates,
+    evidenceFiles: [
+      MATERIALIZE_ROUTE_FILE,
+      MATERIALIZE_SERVICE_FILE,
+      MATERIALIZE_REPOSITORY_FILE,
+      MATERIALIZE_TEST_FILE,
+      MATERIALIZE_CONTAINER_FOUNDATION_FILE,
+      MATERIALIZE_WORKSPACE_OWNERSHIP_FILE,
+    ],
+  };
+}
+
+function generatedStateChangeRule(recipe, evidenceFiles, apiRoot) {
   return {
     rule_id: recipe.rule_id,
     operation: recipe.operation,
@@ -160,14 +304,27 @@ function generatedLeaseRule(recipe, evidenceFiles, apiRoot) {
 }
 
 function withSourceAuthority(plan, apiRoot) {
-  const files = unique([
-    ...plan.source_authority.map((entry) => entry.file),
+  const extensionFiles = [
     WRAPPER_FILE,
     BASE_GENERATOR_FILE,
+    TEST_REGISTRY_FILE,
     LEASE_ROUTE_FILE,
     LEASE_CONTROL_FILE,
     LEASE_SERVICE_FILE,
     LEASE_TEST_FILE,
+    BRAND_ROUTE_FILE,
+    BRAND_SERVICE_FILE,
+    BRAND_TEST_FILE,
+    MATERIALIZE_ROUTE_FILE,
+    MATERIALIZE_SERVICE_FILE,
+    MATERIALIZE_REPOSITORY_FILE,
+    MATERIALIZE_TEST_FILE,
+    MATERIALIZE_CONTAINER_FOUNDATION_FILE,
+    MATERIALIZE_WORKSPACE_OWNERSHIP_FILE,
+  ];
+  const files = unique([
+    ...plan.source_authority.map((entry) => entry.file),
+    ...extensionFiles,
   ]);
   const sourceAuthority = files.map((file) => ({
     file,
@@ -178,7 +335,7 @@ function withSourceAuthority(plan, apiRoot) {
     ...plan,
     generator: {
       ...plan.generator,
-      id: "frontend-operation-governance-generator-v2-lease-extension",
+      id: "frontend-operation-governance-generator-v6-root-workspace-brand-container",
       source_digest: digest(sourceAuthority.map((entry) => `${entry.file}:${entry.sha256}`).join("\n")),
       fail_closed: true,
     },
@@ -190,30 +347,37 @@ export function buildOperationGovernance({ apiRoot = process.cwd() } = {}) {
   const basePlan = buildBaseOperationGovernance({ apiRoot });
   if (process.env.FRONTEND_OPERATION_GOVERNANCE_BASE_TEST === "1") return basePlan;
 
-  const evaluation = evaluateLeaseRecipe(apiRoot);
-  const missingEvidence = evaluation.gates.filter((gate) => !gate.passed).map((gate) => gate.code);
+  const evaluations = [
+    evaluateLeaseRecipe(apiRoot),
+    evaluateBrandCreateRecipe(apiRoot),
+    evaluateBrandCoreMaterializeRecipe(apiRoot),
+  ];
   const plan = withSourceAuthority(basePlan, apiRoot);
   const operationRules = [...plan.operation_rules];
   const rejectedCandidates = [...plan.rejected_candidates];
 
-  if (missingEvidence.length) {
-    rejectedCandidates.push({
-      recipe_id: evaluation.recipe.recipe_id,
-      operation: evaluation.recipe.operation,
-      source_file: evaluation.recipe.source_file,
-      reason: "required_evidence_missing",
-      missing_evidence: missingEvidence,
-      gates: evaluation.gates,
-    });
-  } else {
-    operationRules.push(generatedLeaseRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
+  for (const evaluation of evaluations) {
+    const missingEvidence = evaluation.gates.filter((gate) => !gate.passed).map((gate) => gate.code);
+    if (missingEvidence.length) {
+      rejectedCandidates.push({
+        recipe_id: evaluation.recipe.recipe_id,
+        operation: evaluation.recipe.operation,
+        source_file: evaluation.recipe.source_file,
+        reason: "required_evidence_missing",
+        missing_evidence: missingEvidence,
+        gates: evaluation.gates,
+      });
+      continue;
+    }
+    operationRules.push(generatedStateChangeRule(evaluation.recipe, evaluation.evidenceFiles, apiRoot));
   }
+
   operationRules.sort((left, right) => left.operation.localeCompare(right.operation));
   rejectedCandidates.sort((left, right) => left.operation.localeCompare(right.operation));
   return {
     ...plan,
     coverage: {
-      candidate_count: basePlan.coverage.candidate_count + 1,
+      candidate_count: basePlan.coverage.candidate_count + evaluations.length,
       generated_rule_count: operationRules.length,
       rejected_candidate_count: rejectedCandidates.length,
     },

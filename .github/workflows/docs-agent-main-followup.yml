@@ -1,0 +1,137 @@
+name: Docs Agent Main Follow-up
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA to process
+        required: true
+        type: string
+      base_sha:
+        description: Exact first-parent base SHA for the impact note
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
+  cancel-in-progress: false
+  queue: max
+
+jobs:
+  dispatch-exact-main:
+    name: Dispatch exact main follow-up writer
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Resolve live main and dispatch exact writer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_HEAD_SHA: ${{ github.sha }}
+          EVENT_BASE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          expected_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "${expected_head_sha}" != "${EVENT_HEAD_SHA}" ]]; then
+            echo "Docs follow-up dispatcher is stale: event=${EVENT_HEAD_SHA}, current_main=${expected_head_sha}. A newer main push owns follow-up generation."
+            exit 0
+          fi
+          [[ "${EVENT_BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          gh workflow run docs-agent-main-followup.yml \
+            --repo "${GITHUB_REPOSITORY}" \
+            --ref main \
+            -f expected_head_sha="${expected_head_sha}" \
+            -f base_sha="${EVENT_BASE_SHA}"
+          echo "Dispatched Docs Agent Main Follow-up for exact main ${expected_head_sha}."
+
+  main-followup-pr:
+    name: Main follow-up impact-note PR
+    if: github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.expected_head_sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pin exact main source and safe target branch
+        id: target
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          BASE_SHA: ${{ inputs.base_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          [[ "${BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main
+          current_head_sha="$(git rev-parse origin/main)"
+          test "${current_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          TARGET_BRANCH="docs-agent/${EXPECTED_HEAD_SHA}"
+          case "${TARGET_BRANCH}" in
+            main|Production)
+              echo "Refusing protected target branch ${TARGET_BRANCH}."
+              exit 1
+              ;;
+          esac
+          echo "target_branch=${TARGET_BRANCH}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Validate inter-pipeline connectivity
+        run: |
+          node http-generic-api/scripts/pipeline-connectivity-check.mjs
+          node http-generic-api/test-pipeline-connectivity-check.mjs
+
+      - name: Generate docs impact note for exact main commit
+        id: agent
+        run: node http-generic-api/scripts/docs-agent-runner.mjs --write --mode push --base '${{ inputs.base_sha }}' --head '${{ inputs.expected_head_sha }}'
+
+      - name: Refuse follow-up mutations outside impact notes
+        shell: bash
+        run: |
+          unexpected_files="$(git diff --name-only | grep -Ev '^docs/auto-docs-agent/' || true)"
+          if [[ -n "${unexpected_files}" ]]; then
+            echo "Docs Agent follow-up modified files outside docs/auto-docs-agent:"
+            printf '%s\n' "${unexpected_files}"
+            exit 1
+          fi
+
+      - name: Create reviewed impact-note follow-up PR
+        id: create_followup
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: main
+          branch: ${{ steps.target.outputs.target_branch }}
+          delete-branch: true
+          title: "Docs agent: impact note for ${{ inputs.expected_head_sha }}"
+          commit-message: "docs(agent): record impact for ${{ inputs.expected_head_sha }}"
+          add-paths: |
+            docs/auto-docs-agent/**
+          labels: |
+            docs
+            automated
+          body: |
+            Automated impact-note follow-up for exact main commit `${{ inputs.expected_head_sha }}`.
+
+            Source base: `${{ inputs.base_sha }}`.
+            Scope is restricted to `docs/auto-docs-agent/**`.
+            Work Maps are excluded and remain owned by the governed Spec Kit Work Map Autofix writer.
+            Review is required; this workflow does not auto-merge the follow-up PR.

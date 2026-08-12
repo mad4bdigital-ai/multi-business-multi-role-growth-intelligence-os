@@ -51,7 +51,7 @@ jobs:
       MIGRATION: ${{ inputs.migration }}
       EXPECTED_CHECKSUM_SHA256: ${{ inputs.expected_checksum_sha256 }}
       EXPECTED_STATEMENT_COUNT: ${{ inputs.expected_statement_count }}
-      EVIDENCE_PATH: ${{ runner.temp }}/governed-migration-dependency-gate.json
+      EVIDENCE_PATH: .artifacts/governed-migration-dependency-gate.json
     steps:
       - name: Checkout trusted dependency contract
         uses: actions/checkout@v5
@@ -69,6 +69,7 @@ jobs:
         run: |
           set -o pipefail
           set +e
+          mkdir -p "$(dirname "$EVIDENCE_PATH")"
           node http-generic-api/scripts/governed-migration-dependency-gate.mjs >"$EVIDENCE_PATH" 2>&1
           STATUS=$?
           set -e

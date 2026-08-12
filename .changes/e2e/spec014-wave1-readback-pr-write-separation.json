@@ -1,0 +1,161 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec014-wave1-readback-pr-write-separation",
+  "title": "Spec 014 Wave 1 readback lifecycle separation and retirement",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec014-wave1-readback-pr-write-separation.json",
+      ".github/ops/spec014-wave1-runtime-evidence-readback.mjs",
+      ".github/workflows/spec014-wave1-runtime-evidence-readback-contract-guard.yml",
+      ".github/workflows/spec014-wave1-runtime-evidence-readback.yml",
+      ".github/workflows/hostinger-storage-control-plane-guard.yml",
+      ".github/workflows/hostinger-storage-cleanup-guard.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+      ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+      "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+      "http-generic-api/test-spec014-wave1-runtime-evidence-readback-contract.mjs",
+      "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+      "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance.mjs",
+      "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+      "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+      ".changes/e2e/work-map-exact-changed-file-resolution.json",
+      "http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs",
+      "http-generic-api/scripts/work-map-schema-classification.mjs",
+      "http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs",
+      "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Retire the completed single-use Wave 1 evidence collector while retaining read-only pull-request validation, the permanent owner-bound R7 runtime readback contract, fail-closed governance for bounded post-integration maintenance, runtime-scoped filtering of neutral generated maintenance context, exact candidate-history checkout for storage validation, exact base/head Work Map changed-file resolution, structured no-secret Work Map governance diagnostics, and separate canonical Work Map and schema-classification overlay fingerprints.",
+      "e2e_journeys": [
+        {
+          "id": "retire-single-use-readback-and-retain-r7-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository governance reviewer validating Spec 014 evidence lifecycle boundaries",
+          "entrypoint": "A change to the storage control-plane or cleanup guard, permanent R7 readback surface, lifecycle contract, post-integration maintenance gate, exact Work Map changed-file resolver, or schema-classification overlay",
+          "terminal_outcome": "The retained contracts prove that pull-request validation remains read-only, the completed one-time collector is absent, storage cleanup validation checks the exact candidate with complete comparison history, future public runtime verification is available only through the bounded owner-bound R7 workflow, a maintenance branch can target main only when one changed implemented single-PR contract covers every changed runtime file after all affected parallel workstreams are integrated, unrelated Work Map integration artifacts do not pull non-overlapping parallel contracts into maintenance readiness, Work Map governance evaluates the immutable base/head file set while publishing bounded structured findings, and manifest bindings remain attached to the canonical Work Map registry while schema-classification drift retains an independent fingerprint.",
+          "steps": [
+            "Load the retained storage control-plane guard, storage cleanup guard, and permanent R7 workflow through executable contract coverage.",
+            "Require the storage control-plane pull-request guard to retain contents: read and its control-plane validation job.",
+            "Require the storage cleanup guard to check out the exact candidate SHA with full comparison history before evaluating branch-relative contracts.",
+            "Require the R7 workflow to remain owner-bound, public-HTTPS-GET-only, exact-SHA-bound, and conversation-read-only.",
+            "Allow bounded post-integration maintenance only when the target is main, every affected multi-PR contract is implemented with all required workstreams integrated, and one changed implemented single-PR contract covers every changed runtime file.",
+            "Filter maintenance-only Work Map integration context to parallel contracts whose declared scope intersects at least one changed runtime file before evaluating integrated-workstream readiness.",
+            "Independently derive and revalidate the unique changed single-PR maintenance contract inside phase evaluation, and suppress only stale unchanged-contract findings for implemented multi-PR contracts whose required workstreams remain integrated.",
+            "Resolve Work Map changed files from the immutable pull-request base and head SHAs, and reject unavailable or moved identities without falling back to HEAD~1.",
+            "Persist a bounded Work Map governance diagnostic artifact containing exact head identity, exit status, and combined structured gate output before failing closed.",
+            "Keep the canonical Work Map registry fingerprint equal across direct and governed validators, and record schema-classification policy drift through a separate overlay fingerprint and signature.",
+            "Reject under-scoped maintenance contracts, non-main targets, reopened parallel delivery, pull-request write permissions, repository content mutation outside the sole governed writer, protected-ref mutation, provider credentials, deployment actions, SQL, Migration Apply, database mutation, or secret inclusion.",
+            "Preserve the retained R7 artifact identity and keep issue 6215 closed unless runtime parity is separately authorized and disproven."
+          ],
+          "assertions": [
+            "Pull-request validation remains read-only.",
+            "The completed single-use evidence collector is not restored.",
+            "The storage cleanup guard binds checkout to the exact candidate SHA and fetches sufficient history for comparison-based validation.",
+            "The permanent R7 readback remains exact-command, owner-bound, bounded, scrubbed, and public-GET-only.",
+            "Post-integration maintenance fails closed unless one changed implemented single-PR contract covers every changed runtime file and every affected multi-PR workstream remains integrated.",
+            "Unrelated Work Map integration artifacts do not enter maintenance parallel context unless the referenced parallel contract scope overlaps the changed runtime files.",
+            "Phase evaluation independently revalidates the unique changed maintenance contract and removes no finding unless runtime coverage, main targeting, implemented status, secret exclusion, and integrated parallel work all hold.",
+            "Work Map integration resolves the exact base/head changed-file set and never falls back to historical first-parent scope.",
+            "A failing Work Map gate uploads a bounded structured artifact before the workflow fails closed, without adding repository write authority or secrets.",
+            "Canonical Work Map fingerprinting is not mutated by the schema-classification overlay, while the overlay retains a deterministic independent fingerprint bound to its registry hash.",
+            "Direct and governed Work Map validation agree on the canonical registry fingerprint and reject stale manifest bindings.",
+            "Post-integration maintenance is rejected when it targets a branch other than main or when parallel delivery is reopened.",
+            "The retained surfaces perform no runtime, database, provider, deployment, credential, or external business mutation.",
+            "Final required checks run from a repository-owner-authored exact head after any governed Work Map writer commit.",
+            "Regression coverage fails if write authority, the removed one-time collector, an unbounded maintenance bypass, unrelated generated maintenance-context contamination, heuristic changed-file fallback, shallow candidate checkout, classification-overlay fingerprint leakage into canonical manifest bindings, or unstructured-only failure evidence returns."
+          ],
+          "tests": [
+            {
+              "id": "hostinger-production-runtime-readback-r7-lifecycle-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-hostinger-production-runtime-readback-r7.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-parallel-single-pr-post-integration-maintenance",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
+              "args": []
+            },
+            {
+              "id": "e2e-single-pr-maintenance-evaluator",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+              "args": []
+            },
+            {
+              "id": "exact-work-map-changed-file-resolution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-exact-changed-files.mjs",
+              "args": []
+            },
+            {
+              "id": "canonical-and-schema-classification-fingerprint-separation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec-kit-work-map-governance-gate.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec014-wave1-readback-pr-write-separation.json",
+            ".github/workflows/hostinger-storage-control-plane-guard.yml",
+            ".github/workflows/hostinger-storage-cleanup-guard.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            ".changes/e2e/hostinger-production-runtime-readback-r7.json",
+            ".github/workflows/hostinger-production-runtime-readback-r7.yml",
+            "http-generic-api/test-hostinger-production-runtime-readback-r7.mjs",
+            "http-generic-api/scripts/e2e-parallel-pr-gate.mjs",
+            "http-generic-api/scripts/test-e2e-parallel-single-pr-maintenance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance.mjs",
+            "http-generic-api/scripts/e2e-phase-governance-core.mjs",
+            "http-generic-api/scripts/test-e2e-single-pr-maintenance-evaluator.mjs",
+            ".changes/e2e/work-map-exact-changed-file-resolution.json",
+            "http-generic-api/scripts/spec-kit-work-map-governance-gate.mjs",
+            "http-generic-api/scripts/work-map-schema-classification.mjs",
+            "http-generic-api/test-spec-kit-work-map-exact-changed-files.mjs",
+            "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Keep the retained R7 evidence path, exact-history storage validation, bounded post-integration maintenance classification, runtime-scoped generated maintenance context, exact Work Map changed-file resolution, structured Work Map diagnostics, and separate canonical/overlay fingerprints aligned as future repository changes occur."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove lifecycle separation across R7 reruns, malformed commands, protected-ref movement, shallow-history attempts, under-scoped maintenance, unrelated generated maintenance context, non-main targets, reopened parallel work, unavailable base/head identities, classification-registry drift, and future control-plane guard changes without restoring one-time write authority."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository-governance cleanup performs no provider or runtime canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This cleanup performs no Production ref update, deployment, restart, SQL, Migration Apply, database mutation, provider action, or external business send."
+    }
+  ],
+  "secrets_included": false
+}

@@ -52,10 +52,14 @@ assert.match(workflow, /secrets_included:\s*false/u);
 assert.match(workflow, /github\.actor != 'github-actions\[bot\]'/u, "bot-authored activity must not recursively dispatch");
 assert.match(workflow, /workflow_conclusion="failure"/u, "blocked evidence must be published as a failed decision");
 assert.match(workflow, /workflow_conclusion="success"/u, "passed or skipped evidence must be published as a successful decision");
+assert.doesNotMatch(workflow, /github_request_id:\(\$request_id\|select\(length>0\)\)/u, "optional request IDs must not filter the dispatch report object");
+assert.match(workflow, /github_request_id:\(if \(\$request_id\|length\)>0 then \$request_id else null end\)/u, "missing request IDs must be encoded as JSON null");
+assert.doesNotMatch(workflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "queued delegated runs must not filter the dispatch report object");
+assert.match(workflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "an unfinished delegated run conclusion must be encoded as JSON null");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 46,
+  tests: 50,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
   unique_workflow_identity: "Governed Generated Artifact Refresh Dispatch V2",

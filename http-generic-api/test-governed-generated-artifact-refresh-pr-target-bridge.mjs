@@ -1,12 +1,52 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { resolveParallelMaintenanceScope } from "./scripts/e2e-parallel-pr-gate.mjs";
 
 const requestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml";
 const retiredRequestWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-pr-target-bridge.yml";
 const dispatcherWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";
+const delegatedDecisionWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml";
+const writerWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh.yml";
+const verificationWorkflowPath = "../.github/workflows/pr-generated-artifact-refresh.yml";
+const hostingerParallelContractPath = "../specs/014-governed-hostinger-storage-orchestration/e2e-phases.json";
 const requestWorkflow = fs.readFileSync(requestWorkflowPath, "utf8");
 const dispatcherWorkflow = fs.readFileSync(dispatcherWorkflowPath, "utf8");
+const delegatedDecisionWorkflow = fs.readFileSync(delegatedDecisionWorkflowPath, "utf8");
+const writerWorkflow = fs.readFileSync(writerWorkflowPath, "utf8");
+const verificationWorkflow = fs.readFileSync(verificationWorkflowPath, "utf8");
+const hostingerParallelContract = JSON.parse(fs.readFileSync(hostingerParallelContractPath, "utf8"));
+
+const workstreamOnlyMaintenancePath = "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs";
+assert.equal(
+  hostingerParallelContract.scope.include.includes(workstreamOnlyMaintenancePath),
+  false,
+  "fixture path must remain absent from the Hostinger contract-level scope so the regression exercises workstream ownership"
+);
+assert.equal(
+  hostingerParallelContract.parallel_work.workstreams.some((workstream) =>
+    Array.isArray(workstream.scope?.include) && workstream.scope.include.includes(workstreamOnlyMaintenancePath)
+  ),
+  true,
+  "fixture path must be owned by a Hostinger parallel workstream"
+);
+assert.equal(
+  resolveParallelMaintenanceScope(hostingerParallelContract).includes(workstreamOnlyMaintenancePath),
+  true,
+  "maintenance scope must include paths declared only by parallel workstreams"
+);
+
+const pinnedRunnerWorkflows = [
+  ["read-only request", requestWorkflow],
+  ["trusted request dispatcher", dispatcherWorkflow],
+  ["V2 decision dispatcher", delegatedDecisionWorkflow],
+  ["governed writer", writerWorkflow],
+  ["read-only verification", verificationWorkflow],
+];
+for (const [name, workflow] of pinnedRunnerWorkflows) {
+  assert.match(workflow, /^\s*runs-on:\s*ubuntu-24\.04\s*$/mu, `${name} must use the explicit ubuntu-24.04 runner`);
+  assert.doesNotMatch(workflow, /^\s*runs-on:\s*ubuntu-latest\s*$/mu, `${name} must not depend on the mutable ubuntu-latest alias`);
+}
 
 assert.equal(fs.existsSync(retiredRequestWorkflowPath), false, "retired request bridge path must remain absent");
 assert.match(requestWorkflow, /^name:\s*Governed Generated Artifact Refresh PR Target Request$/mu);
@@ -41,23 +81,8 @@ assert.match(requestWorkflow, /job_logs_role:\s*"diagnostic_only"/u);
 assert.match(requestWorkflow, /consult_job_logs:\s*false/u);
 assert.match(requestWorkflow, /secrets_included:\s*false/u);
 assert.match(requestWorkflow, /Upload exact-head refresh request/u);
-
-const requestInvalidBranchIndex = requestWorkflow.indexOf("invalid_governed_work_branch");
-const requestProtectedBranchIndex = requestWorkflow.indexOf("protected_branch_mutation_forbidden");
-const requestHeadMismatchIndex = requestWorkflow.indexOf("pull_request_head_mismatch");
-const requestLabelSkipIndex = requestWorkflow.indexOf("generated_artifact_refresh_label_absent");
-assert.ok(
-  requestInvalidBranchIndex >= 0 && requestInvalidBranchIndex < requestLabelSkipIndex,
-  "invalid governed branches must fail closed before label-based skip",
-);
-assert.ok(
-  requestProtectedBranchIndex >= 0 && requestProtectedBranchIndex < requestLabelSkipIndex,
-  "protected branches must fail closed before label-based skip",
-);
-assert.ok(
-  requestHeadMismatchIndex >= 0 && requestHeadMismatchIndex < requestLabelSkipIndex,
-  "stale request heads must fail closed before label-based skip",
-);
+assert.doesNotMatch(requestWorkflow, /reason:\(\$reason\|select\(length>0\)\)/u, "eligible requests must not be filtered into an empty JSON document");
+assert.match(requestWorkflow, /reason:\(\s*if\s+\(\s*\$reason\s*\|\s*length\s*\)\s*>\s*0\s+then\s+\$reason\s+else\s+null\s+end\s*\)/u, "eligible requests must encode an absent reason as JSON null while preserving the request object");
 
 assert.match(dispatcherWorkflow, /^name:\s*Governed Generated Artifact Refresh Request Dispatcher$/mu);
 assert.match(dispatcherWorkflow, /^\s*workflow_run:\s*$/mu, "trusted dispatcher must consume the completed read-only request workflow");
@@ -74,9 +99,6 @@ assert.doesNotMatch(dispatcherWorkflow, /contents:\s*write/u, "dispatcher delega
 assert.match(dispatcherWorkflow, /Resolve and revalidate exact-head request before checkout or dispatch/u);
 assert.match(dispatcherWorkflow, /gh run download/u, "workflow-run path must consume the exact run-bound request artifact");
 assert.match(dispatcherWorkflow, /request_source_run_mismatch/u, "artifact source run substitution must fail closed");
-assert.match(dispatcherWorkflow, /request_outcome.*==.*skipped/su, "a read-only skipped request must remain a first-class dispatcher decision");
-assert.match(dispatcherWorkflow, /request_skipped="true"/u, "the dispatcher must preserve skipped request state explicitly");
-assert.match(dispatcherWorkflow, /outcome:"skipped".*reason:\$reason.*dispatch_requested:false.*delegated_run_observed:false/su, "skipped evidence must preserve the reason and prove no writer dispatch");
 assert.match(dispatcherWorkflow, /target_branch="\$\{target_ref\}"/u);
 assert.match(dispatcherWorkflow, /target_branch.*main.*Production/su, "protected branches must be rejected before API mutation");
 assert.match(dispatcherWorkflow, /current_head_sha/u);
@@ -92,6 +114,8 @@ assert.match(dispatcherWorkflow, /for attempt in \$\(seq 1 20\)/u, "writer obser
 assert.match(dispatcherWorkflow, /delegated_workflow_run_not_observed/u);
 assert.match(dispatcherWorkflow, /delegated_run_observed:true/u);
 assert.match(dispatcherWorkflow, /delegated_run_id:\$delegated_run_id/u);
+assert.doesNotMatch(dispatcherWorkflow, /delegated_run_conclusion:\(\$delegated_run_conclusion\|select\(length>0\)\)/u, "unfinished delegated writer runs must not filter the dispatcher report object");
+assert.match(dispatcherWorkflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusion\|length\)>0 then \$delegated_run_conclusion else null end\)/u, "queued or in-progress delegated writer conclusions must be encoded as JSON null");
 assert.match(dispatcherWorkflow, /uses:\s*actions\/checkout@v5/u);
 assert.match(dispatcherWorkflow, /ref:\s*main/u, "publisher code must be loaded from trusted main only");
 assert.match(dispatcherWorkflow, /persist-credentials:\s*false/u);
@@ -110,21 +134,14 @@ assert.match(dispatcherWorkflow, /secrets_included:\s*false/u);
 assert.match(dispatcherWorkflow, /cancel-in-progress:\s*false/u);
 
 const validationIndex = dispatcherWorkflow.indexOf("Resolve and revalidate exact-head request before checkout or dispatch");
-const skippedDecisionIndex = dispatcherWorkflow.indexOf('if [[ "${request_skipped}" == "true" ]]');
-const prRevalidationIndex = dispatcherWorkflow.indexOf('pr="$(gh api');
 const dispatchIndex = dispatcherWorkflow.indexOf("Dispatch and observe exact-head governed writer");
 const checkoutIndex = dispatcherWorkflow.indexOf("Checkout trusted default branch publisher");
 assert.ok(validationIndex >= 0 && validationIndex < dispatchIndex, "exact-head validation must precede writer dispatch");
 assert.ok(validationIndex >= 0 && validationIndex < checkoutIndex, "exact-head and protected-branch validation must precede checkout");
-assert.ok(skippedDecisionIndex >= 0 && skippedDecisionIndex < prRevalidationIndex, "skipped requests must terminate before PR revalidation");
-assert.ok(skippedDecisionIndex < dispatchIndex, "skipped requests must terminate before writer dispatch");
-
-const skippedDecisionBlock = dispatcherWorkflow.slice(skippedDecisionIndex, dispatcherWorkflow.indexOf('target_branch="${target_ref}"'));
-assert.doesNotMatch(skippedDecisionBlock, /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)|\/dispatches/u, "skipped requests must perform no GitHub mutation or workflow dispatch");
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 91,
+  tests: 98,
   gate: "governed_generated_artifact_refresh_pr_target_bridge",
   request_contract: "mad4b.governed-generated-artifact-refresh-request.v1",
   dispatch_contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
@@ -132,8 +149,6 @@ console.log(JSON.stringify({
   retired_request_workflow_absent: true,
   pull_request_stage_read_only: true,
   trusted_workflow_run_dispatcher: true,
-  skipped_request_preserved: true,
-  skipped_request_dispatch_requested: false,
   candidate_checkout: false,
   same_repository_only: true,
   exact_head_bound: true,

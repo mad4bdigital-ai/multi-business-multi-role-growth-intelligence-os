@@ -191,6 +191,110 @@ async function hasResolutionCaseTicketIdColumn(connection) {
   return Number(rows?.[0]?.present || 0) === 1;
 }
 
+async function hasOperationalAlertsTable(connection) {
+  const [rows] = await connection.query(
+    `SELECT COUNT(*) AS present
+       FROM information_schema.tables
+      WHERE table_schema = DATABASE()
+        AND table_name = 'operational_alerts'`
+  );
+  return Number(rows?.[0]?.present || 0) === 1;
+}
+
+function ticketEscalationEvidence(ticket = {}) {
+  const metadata = parseJson(ticket.metadata_json, {}) || {};
+  const resolution = metadata && typeof metadata.resolution === "object" ? metadata.resolution : {};
+  const fields = [
+    ticket.category,
+    ticket.lifecycle_state,
+    ticket.customer_status,
+    ticket.ticket_type,
+    ticket.source_event,
+    metadata.case_status,
+    metadata.current_step,
+    metadata.current_step_key,
+    resolution.case_status,
+    resolution.current_step,
+    resolution.current_step_key,
+  ].map((value) => safeString(value, 191).toLowerCase()).filter(Boolean);
+  return {
+    escalated: fields.some((value) => /(^|[_\s-])escalat(?:ed|ion|e)?($|[_\s-])/.test(value) || value === "diagnostic_escalated"),
+    indicators: [...new Set(fields.filter((value) => value.includes("escalat")))].slice(0, 8),
+  };
+}
+
+async function ensureSupportTicketOperationalAlert({ connection, ticket, classification, caseId }) {
+  const escalation = ticketEscalationEvidence(ticket);
+  if (!escalation.escalated) {
+    return { required: false, available: true, created_or_refreshed: false, alert_key: null, secrets_included: false };
+  }
+  if (!(await hasOperationalAlertsTable(connection))) {
+    return { required: true, available: false, created_or_refreshed: false, alert_key: null, reason: "operational_alerts_table_unavailable", secrets_included: false };
+  }
+
+  const alertKey = `support.ticket.escalation.${sha256(`${ticket.tenant_id}|${ticket.ticket_id}`).slice(0, 48)}`;
+  const sourceRef = `ticket://${ticket.ticket_id}`;
+  const occurrenceCount = Math.max(Number(ticket.occurrence_count || 1), 1);
+  const evidence = JSON.stringify({
+    ticket_id: ticket.ticket_id,
+    resolution_case_id: caseId || null,
+    queue_key: safeString(ticket.queue_key, 191) || null,
+    lifecycle_state: safeString(ticket.lifecycle_state, 191) || null,
+    escalation_indicators: escalation.indicators,
+    source: "support_ticket_resolution_case_bridge",
+    provider_call_allowed: false,
+    external_send_allowed: false,
+    external_write_allowed: false,
+    secrets_included: false,
+  });
+
+  await connection.query(
+    `INSERT INTO operational_alerts (
+       alert_id, alert_key, fingerprint_sha256, tenant_id, user_id,
+       source_type, source_ref, source_record_id, category, severity, title,
+       summary, reason_code, lifecycle_status, verification_state,
+       evidence_type, evidence_ref, evidence_json, occurrence_count,
+       first_seen_at, last_seen_at, recommended_action_key,
+       requires_confirmation, manual_known_issue, secrets_included
+     ) VALUES (?, ?, ?, ?, ?, 'support_ticket', ?, ?, 'support', ?, ?, ?,
+               'support_ticket_escalated', 'open', 'verified',
+               'support_ticket_resolution_case', ?, ?, ?, UTC_TIMESTAMP(), UTC_TIMESTAMP(),
+               'support_ticket.review_resolution_case', 0, 0, 0)
+     ON DUPLICATE KEY UPDATE
+       tenant_id = VALUES(tenant_id),
+       user_id = VALUES(user_id),
+       severity = VALUES(severity),
+       title = VALUES(title),
+       summary = VALUES(summary),
+       verification_state = 'verified',
+       evidence_type = VALUES(evidence_type),
+       evidence_ref = VALUES(evidence_ref),
+       evidence_json = VALUES(evidence_json),
+       occurrence_count = GREATEST(occurrence_count, VALUES(occurrence_count)),
+       last_seen_at = UTC_TIMESTAMP(),
+       recommended_action_key = VALUES(recommended_action_key),
+       secrets_included = 0,
+       updated_at = UTC_TIMESTAMP()`,
+    [
+      randomUUID(),
+      alertKey,
+      sha256(alertKey),
+      ticket.tenant_id,
+      ticket.user_id || null,
+      sourceRef,
+      ticket.ticket_id,
+      classification.severity,
+      safeString(`Support ticket escalated: ${ticket.title || ticket.ticket_id}`, 512),
+      safeString(ticket.internal_summary || ticket.customer_message || ticket.title || "Support ticket requires resolution-case attention.", 2000),
+      sourceRef,
+      evidence,
+      occurrenceCount,
+    ]
+  );
+
+  return { required: true, available: true, created_or_refreshed: true, alert_key: alertKey, secrets_included: false };
+}
+
 async function selectPlaybook(connection, classification) {
   const [rows] = await connection.query(
     `SELECT playbook_key, root_family, display_name, description,
@@ -274,6 +378,12 @@ export async function ensureSupportTicketResolutionCase({
   );
   const existing = existingRows[0] || null;
   if (existing) {
+    const operationalAlert = await ensureSupportTicketOperationalAlert({
+      connection,
+      ticket,
+      classification,
+      caseId: existing.case_id,
+    });
     return {
       ok: true,
       created: false,
@@ -284,6 +394,7 @@ export async function ensureSupportTicketResolutionCase({
         row: existing,
         created: false,
       }),
+      operational_alert: operationalAlert,
       secrets_included: false,
     };
   }
@@ -355,6 +466,13 @@ export async function ensureSupportTicketResolutionCase({
     ]
   );
 
+  const operationalAlert = await ensureSupportTicketOperationalAlert({
+    connection,
+    ticket,
+    classification,
+    caseId,
+  });
+
   return {
     ok: true,
     created: true,
@@ -370,6 +488,7 @@ export async function ensureSupportTicketResolutionCase({
       },
       created: true,
     }),
+    operational_alert: operationalAlert,
     secrets_included: false,
   };
 }
@@ -447,4 +566,6 @@ export const _testingSupportTicketResolutionService = {
   normalizeCaseSeverity,
   classificationText,
   resolutionSummary,
+  ticketEscalationEvidence,
+  ensureSupportTicketOperationalAlert,
 };

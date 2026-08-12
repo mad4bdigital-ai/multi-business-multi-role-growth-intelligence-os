@@ -1,0 +1,173 @@
+openapi: 3.1.0
+info:
+  title: Governed PR Delivery Orchestration Draft Contract
+  version: 0.1.0-draft
+  description: Draft tool contract for drift-aware, receipt-backed PR delivery orchestration.
+paths:
+  /admin/repository/pr-delivery/plan:
+    post:
+      operationId: governed_pr_delivery_plan
+      summary: Build a read-only PR delivery plan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryPlanRequest'
+      responses:
+        '200':
+          description: Delivery plan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryPlanResponse'
+  /admin/repository/pr-delivery/apply:
+    post:
+      operationId: governed_pr_delivery_apply
+      summary: Apply one planned delivery stage with typed confirmation and readback.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeliveryApplyRequest'
+      responses:
+        '200':
+          description: Apply result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryApplyResponse'
+  /admin/repository/pr-delivery/status/{delivery_id}:
+    get:
+      operationId: governed_pr_delivery_status
+      summary: Read delivery status and evidence refs.
+      parameters:
+        - name: delivery_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Delivery status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeliveryStatusResponse'
+components:
+  schemas:
+    DeliveryPlanRequest:
+      type: object
+      required: [owner, repo, pull_number]
+      additionalProperties: false
+      properties:
+        owner:
+          type: string
+        repo:
+          type: string
+        pull_number:
+          type: integer
+          minimum: 1
+        delivery_mode:
+          type: string
+          enum: [auto, spec_only, code_only, migration, production_verification, closeout]
+          default: auto
+        required_checks:
+          type: array
+          items:
+            type: string
+          maxItems: 20
+    DeliveryPlanResponse:
+      type: object
+      required: [ok, delivery_id, classification, plan_fingerprint, secrets_included]
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+        delivery_id:
+          type: string
+        classification:
+          type: string
+          enum: [ready, sync_required, resolution_required, ci_required, merge_ready, already_merged, blocked]
+        plan_fingerprint:
+          type: string
+        expected_head_sha:
+          type: string
+        expected_base_sha:
+          type: string
+        next_stage:
+          type: string
+        compact_summary:
+          type: object
+        evidence_refs:
+          type: array
+          items:
+            type: string
+        secrets_included:
+          type: boolean
+          const: false
+    DeliveryApplyRequest:
+      type: object
+      required: [delivery_id, plan_fingerprint, stage, confirm, capability_envelope_id]
+      additionalProperties: false
+      properties:
+        delivery_id:
+          type: string
+        plan_fingerprint:
+          type: string
+        stage:
+          type: string
+          enum: [sync, dispatch_ci, build_candidate, finalize_merge, migration_closeout, release_readiness, cleanup]
+        confirm:
+          type: string
+        capability_envelope_id:
+          type: string
+        idempotency_key:
+          type: string
+    DeliveryApplyResponse:
+      type: object
+      required: [ok, delivery_id, stage, classification, receipts, secrets_included]
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+        delivery_id:
+          type: string
+        stage:
+          type: string
+        classification:
+          type: string
+        receipts:
+          type: array
+          items:
+            type: string
+        readback:
+          type: object
+        next_stage:
+          type: string
+        secrets_included:
+          type: boolean
+          const: false
+    DeliveryStatusResponse:
+      type: object
+      required: [ok, delivery_id, status, current_stage, secrets_included]
+      additionalProperties: false
+      properties:
+        ok:
+          type: boolean
+        delivery_id:
+          type: string
+        status:
+          type: string
+        current_stage:
+          type: string
+        compact_summary:
+          type: object
+        receipt_refs:
+          type: array
+          items:
+            type: string
+        secrets_included:
+          type: boolean
+          const: false

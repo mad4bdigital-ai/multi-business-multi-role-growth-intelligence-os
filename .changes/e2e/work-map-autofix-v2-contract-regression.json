@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "work-map-autofix-v2-contract-regression",
-  "title": "Work Map Autofix v2 governance contract regression",
+  "title": "Work Map Autofix exact-head convergence contract",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -12,10 +12,19 @@
       ".github/workflows/e2e-contract-reference-integrity.yml",
       ".github/workflows/spec-kit-work-map-autofix.yml",
       "docs/runbooks/supervisor-runtime-assurance.md",
+      "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/platform-work-map-generator.mjs",
+      "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
       "http-generic-api/test-automation-overlap-analyzer.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
-      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+      "http-generic-api/test-platform-work-map-generator.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+      "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+      "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
     ]
   },
   "merge_contract": {
@@ -25,33 +34,50 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Align the repository governance graph, recovery bridge, automation-overlap policy, runbook, and executable regressions with the existing Work Map Autofix v2 exact-dispatch writer without changing either workflow or granting new authority.",
+      "objective": "Keep the sole governed Work Map writer exact-head bound while preserving the registered Hostinger Spec014, Retail Spec014, and runtime-integrity Spec018 final-registry convergence and deterministically refreshing any additional producer-eligible work-map-integration binding derived from an immutable exact-base/exact-head Git inventory that is cross-checked against complete target pull-request metadata and file API evidence.",
       "e2e_journeys": [
         {
           "id": "work-map-autofix-v2-contract-to-regression",
           "end_to_end": true,
           "level": "synthetic_runtime",
           "actor": "Repository governance reviewer",
-          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix v2 workflow, and their central pipeline and automation-overlap contracts",
-          "terminal_outcome": "The reviewer receives deterministic passing evidence only when one-time pull-request authorization remains in the non-writer recovery bridge, the sole writer remains workflow_dispatch-only and exact-head bound, and branch exclusions, shared concurrency, idempotent generation, bounded diagnostics, and no-force-push controls agree across policy, documentation, and tests.",
+          "entrypoint": "The current E2E Work Map recovery bridge, Spec Kit Work Map Autofix workflow, governed generated-artifact refresh authority, canonical final Work Map binding producer, and their pipeline/automation-overlap contracts",
+          "terminal_outcome": "The reviewer receives deterministic evidence only when the exact-head writer binds target-derived authority to the immutable local three-dot Git diff from the exact PR base SHA to expected_head_sha, proves that inventory exactly matches PR metadata and the complete pull-request files API set before delegation, validates every discovered Work Map manifest against canonical producer eligibility, regenerates Work Maps plus the registered static and target-derived bindings under explicitly registered writer authority, proves the combined write set idempotent/current, pushes once without force, and dispatches verification for the resulting exact head.",
           "steps": [
-            "Load the current E2E Work Map recovery bridge without modifying or executing it.",
-            "Load the current Work Map Autofix v2 workflow without modifying or executing it.",
-            "Validate the central recovery-bridge and writer pipeline declarations against strings, triggers, permissions, and non-writer boundaries present in the live workflows.",
-            "Validate the automation-overlap resource group uses the exact current v2 concurrency key.",
-            "Validate the Supervisor runbook documents the separation between one-time bridge authorization and the workflow-dispatch exact-head writer.",
-            "Run the Pipeline Connectivity, Automation Overlap, and Supervisor Runtime Assurance regressions against the same repository tree."
+            "Load the current E2E Work Map recovery bridge, sole workflow-dispatch writer, registered generated-artifact refresh maintenance authority, and canonical binding producer.",
+            "Validate branch/head identity, protected-ref rejection, recovery delegation, shared concurrency, self-hosting source scope, and no-force-push boundaries.",
+            "Resolve exactly one same-repository open pull request, fetch exact metadata, require head.sha=expected_head_sha and base.ref=main, capture the immutable base SHA, require numeric changed_files not greater than 3000, and derive the authoritative filename inventory locally from the three-dot Git diff between that exact base SHA and expected_head_sha.",
+            "Require the immutable Git filename count to equal changed_files, enumerate the pull-request files API only as a fail-closed cross-check, require its count and sorted filename set to exactly equal the immutable inventory, then re-fetch PR metadata and require head SHA, base SHA, and changed_files to remain unchanged before consuming delegation.",
+            "Propagate target pull-request metadata, Git-object, file API, authentication, pagination, over-cap, inventory-count, or exact-set failures instead of treating them as an empty binding set.",
+            "Identify specs/<feature-key>/work-map-integration.json candidates only from the immutable Git inventory, require canonical lowercase/hyphen feature-key syntax, exact manifest feature_key identity, review_state=ready_for_implementation, and file existence in the exact checked-out head before consuming the one-time delegation.",
+            "Require Automation Overlap policy, Supervisor Runtime Assurance, and generated README source to register the same producer-compatible target-derived Work Map manifest authority as the workflow.",
+            "Run Work Map generation followed by Hostinger Spec014, Retail Spec014, and runtime-integrity Spec018 static convergence plus the canonical binding producer for every additional target-derived feature key.",
+            "Restrict the candidate delta to docs/work-maps, the registered static outputs, and only target-derived integration manifests discovered and validated from the immutable exact-base/exact-head inventory.",
+            "Repeat the complete convergence and compare the bounded diff to prove combined idempotency.",
+            "Run Work Map currentness plus all registered static and target-derived binding checks before commit/push.",
+            "Run Pipeline Connectivity, Automation Overlap, Supervisor Runtime Assurance, generated-artifact maintenance authority, trusted evidence publisher, Work Map generator, and final-binding convergence regressions against the same repository tree."
           ],
           "assertions": [
-            "Work Map Autofix remains the sole remote writer for docs/work-maps.",
-            "The one-time work-map-autofix authorization marker is consumed only by the E2E recovery bridge, which dispatches the writer without generating, committing, or pushing Work Maps.",
-            "The recovery bridge is bound to an immutable same-repository pull-request snapshot and delegates the exact branch head to the writer.",
-            "The writer has no pull_request trigger or authorization marker and is started only by workflow_dispatch with an existing same-repository pull-request branch and exact expected_head_sha.",
-            "main and Production are rejected as targets, and local plus remote head identity is verified before generation and push.",
-            "The policy-declared Work Map resource group exactly matches the workflow v2 concurrency key and keeps cancel-in-progress disabled.",
-            "Generation remains idempotent and rejects changes outside docs/work-maps.",
-            "The writer uses no force push and publishes bounded v2 diagnostic evidence.",
-            "This change modifies governance, documentation, and regressions only; it does not change or execute either workflow and does not mutate Work Maps."
+            "Work Map Autofix remains the sole remote writer for docs/work-maps and does not gain a pull_request trigger.",
+            "The one-time work-map-autofix authorization marker remains outside the writer in the recovery bridge.",
+            "The writer is bound to one existing same-repository PR branch and immutable expected_head_sha; main and Production remain forbidden targets.",
+            "Target-derived binding authority comes only from the immutable local exact-base/exact-head three-dot Git filename inventory and never from a mutable PR-files response, caller-supplied feature key, manifest path, or arbitrary repository path.",
+            "Target-PR inventory discovery is fail-closed before Recovery delegation consumption: exact PR metadata must bind head SHA and base SHA, expose numeric changed_files, changed_files above 3000 are rejected, immutable Git inventory count must equal changed_files, API/authentication/pagination failures abort, the API count must equal changed_files, and the sorted API filename set must exactly equal the immutable Git set.",
+            "PR metadata is re-read after file API pagination and head SHA, base SHA, and changed_files must remain identical to the pre-discovery snapshot before delegation consumption.",
+            "Only an immutable inventory that passed metadata, count, API completeness, exact-set, and metadata-reread checks with zero producer-eligible manifest candidates is treated as no target-derived binding work.",
+            "A target-derived binding path must match specs/[0-9]{3}-[a-z0-9][a-z0-9-]*/work-map-integration.json, exist in the exact checked-out head, contain the same feature_key, and declare review_state=ready_for_implementation before delegation consumption.",
+            "Hostinger Spec014, Retail Spec014, and runtime-integrity Spec018 bindings remain refreshed through http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs after Work Map generation.",
+            "Every additional target-derived binding is refreshed through the same canonical producer using its prevalidated derived feature key.",
+            "The registered static Hostinger, Retail, and Spec018 keys are excluded from target-derived replay so the canonical producer is not invoked twice for the same static binding.",
+            "Automation Overlap policy, Supervisor Runtime Assurance, and generated README source register the same bounded target-derived pattern specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json in addition to the static Work Map outputs.",
+            "The generated-artifact self-hosting source scope explicitly permits the canonical binding regression plus the Work Map generator, supervisor runbook, automation-overlap policy, and evidence publisher surfaces needed to govern this convergence; unrelated source paths remain fail-closed.",
+            "The maintenance bootstrap runs the strict final-binding regression only after Work Map generation and every governed registered binding in scope have converged and passed currentness checks.",
+            "The maintenance authority and trusted generated-artifact PR evidence publisher accept the same bounded self-hosting candidate source set, so a successful bootstrap report cannot be rejected by publisher scope drift.",
+            "The static bounded writer set remains docs/work-maps, Hostinger work-map-integration.json plus optional canonical tasks.md, Retail work-map-integration.json, and runtime-integrity Spec018 work-map-integration.json; dynamic authority can add only exact predelegation-validated manifests matching the registered producer-compatible pattern and discovered from the immutable exact-head inventory.",
+            "Combined Work Map plus final-registry binding generation is idempotent and every producer passes check mode before any commit.",
+            "The remote branch is re-read against expected_head_sha immediately before one normal push; force push remains forbidden.",
+            "Post-write CI and Spec Kit Work Map Integration are dispatched only for the resulting exact head.",
+            "The binding producer performs no provider dispatch, live database access, migration apply, Production mutation, or secret access."
           ],
           "tests": [
             {
@@ -74,18 +100,57 @@
               "working_directory": "http-generic-api",
               "path": "test-supervisor-runtime-assurance-automation.mjs",
               "args": []
+            },
+            {
+              "id": "generated-artifact-refresh-maintenance-tool",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
+              "id": "generated-artifact-refresh-pr-publisher",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+              "args": []
+            },
+            {
+              "id": "platform-work-map-generator",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-work-map-generator.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-autofix-spec014-binding-convergence",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-spec014-binding-convergence.mjs",
+              "args": []
+            },
+            {
+              "id": "spec014-final-work-map-binding-producer",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec014-refresh-final-work-map-binding.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
             ".changes/e2e/work-map-autofix-v2-contract-regression.json",
-            ".specify/pipeline-connectivity-contract.json",
-            ".github/workflows/e2e-contract-reference-integrity.yml",
             ".github/workflows/spec-kit-work-map-autofix.yml",
             "docs/runbooks/supervisor-runtime-assurance.md",
+            "http-generic-api/scripts/generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/platform-work-map-generator.mjs",
+            "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
-            "http-generic-api/test-automation-overlap-analyzer.mjs",
-            "http-generic-api/test-pipeline-connectivity-check.mjs",
-            "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-pr-publisher.mjs",
+            "http-generic-api/test-platform-work-map-generator.mjs",
+            "http-generic-api/test-work-map-autofix-spec014-binding-convergence.mjs",
+            "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]
         }
       ]
@@ -93,7 +158,7 @@
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Observe the next explicitly authorized Work Map Autofix v2 dispatch and confirm exact-head readback and diagnostic evidence under its existing governance boundary."
+      "objective": "Observe the next explicitly authorized Work Map Autofix dispatch and confirm an additional producer-eligible target-derived Spec binding converges in the same exact-head writer cycle while the registered Spec018 binding remains converged without a separate repair cycle."
     }
   ],
   "secrets_included": false

@@ -33,6 +33,7 @@
         "Initialize diagnostics and validate inputs",
         "Checkout exact authorized head",
         "Pin branch and pull request identity",
+        "Verify and consume Recovery-issued writer delegation",
         "Validate generator and governance contracts",
         "Regenerate and prove idempotency",
         "Commit and push governed Work Maps",
@@ -40,22 +41,38 @@
         "Finalize diagnostic evidence",
         "Upload Work Map diagnostic evidence",
         "EXPECTED_HEAD_SHA",
+        "RECOVERY_RUN_ID",
+        "DELEGATION_COMMENT_ID",
+        "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
+        "state=consumed recovery_run_id=${RECOVERY_RUN_ID}",
+        "issues/comments/${DELEGATION_COMMENT_ID}",
+        "gh api --method PATCH",
         "test \"${pr_count}\" = \"1\"",
         "git push origin",
         "git rev-parse HEAD",
-        "gh workflow run ci.yml",
-        "gh workflow run spec-kit-work-map-integration.yml",
         "cancel-in-progress: false",
         "docs/work-maps",
-        "mad4b.spec-kit-work-map-autofix.v2",
-        "WORK_MAP_AUTOFIX_V2",
-        "[[ \"${TARGET_BRANCH}\" != \"main\" && \"${TARGET_BRANCH}\" != \"Production\" ]]"
+        "[[ \"${TARGET_BRANCH}\" != \"main\" && \"${TARGET_BRANCH}\" != \"Production\" ]]",
+        "RESULT_HEAD_SHA",
+        "gh api --method POST",
+        "actions/workflows/ci.yml/dispatches",
+        "actions/workflows/spec-kit-work-map-integration.yml/dispatches",
+        "ci_dispatch_exit_code",
+        "integration_dispatch_exit_code",
+        "ci_run_id",
+        "integration_run_id",
+        "head_sha ==",
+        "mad4b.spec-kit-work-map-autofix.v3",
+        "WORK_MAP_AUTOFIX_V3"
       ],
       "forbidden_writer_commands": [
         "--force",
         "--force-with-lease",
         "work-map-autofix:authorized",
-        "gh api --method PATCH"
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
+        "mad4b.spec-kit-work-map-autofix.v2",
+        "WORK_MAP_AUTOFIX_V2"
       ],
       "non_writer_pipelines": [
         {
@@ -64,6 +81,11 @@
             "Resolve and validate exact same-repository target",
             "work-map-autofix:authorized",
             "consumed=true",
+            "Issue exact one-time writer delegation grant",
+            "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
+            "recovery_run_id",
+            "delegation_comment_id",
+            "authorization_consumed=true",
             "spec-kit-work-map-autofix.yml/dispatches",
             "direct_repository_mutation:false",
             "protected_branch_mutation:false",
@@ -95,7 +117,7 @@
             "Generate dynamic text Work Map preview",
             "Report preview-only PR mode",
             "never commit, push, merge, or authorize Work Map writes",
-            "docs/auto-docs-agent/**"
+            "docs/auto-docs-agent"
           ],
           "forbidden_commands": [
             "docs-agent-write",
@@ -125,20 +147,31 @@
     {
       "key": "work-map-recovery-bridge",
       "workflow": ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
-      "mode": "consume_one_time_authorization_and_dispatch_exact_head_writer",
+      "mode": "consume_one_time_authorization_issue_delegation_and_dispatch_exact_head_writer",
       "required_permissions": {
         "contents": "read"
       },
       "required_triggers": [
-        "workflow_dispatch",
+        "workflow_dispatch"
+      ],
+      "forbidden_triggers": [
+        "issue_comment",
+        "pull_request",
         "pull_request_target",
-        "issue_comment"
+        "push",
+        "schedule",
+        "workflow_run"
       ],
       "required_commands": [
         "Resolve and validate exact same-repository target",
         "Publish structured recovery evidence on target PR",
         "work-map-autofix:authorized",
         "consumed=true",
+        "Issue exact one-time writer delegation grant",
+        "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
+        "recovery_run_id",
+        "delegation_comment_id",
+        "authorization_consumed=true",
         "spec-kit-work-map-autofix.yml/dispatches",
         "expected_head_sha",
         "run_id",
@@ -198,7 +231,7 @@
     {
       "key": "spec-kit-work-map-autofix",
       "workflow": ".github/workflows/spec-kit-work-map-autofix.yml",
-      "mode": "sole_remote_write",
+      "mode": "sole_remote_write_with_recovery_issued_one_time_delegation",
       "required_permissions": {
         "actions": "write",
         "contents": "write",
@@ -220,6 +253,7 @@
         "Initialize diagnostics and validate inputs",
         "Checkout exact authorized head",
         "Pin branch and pull request identity",
+        "Verify and consume Recovery-issued writer delegation",
         "Validate generator and governance contracts",
         "Regenerate and prove idempotency",
         "Commit and push governed Work Maps",
@@ -229,38 +263,61 @@
         "platform-work-map-generator.mjs --write",
         "platform-work-map-generator.mjs --check",
         "EXPECTED_HEAD_SHA",
+        "RECOVERY_RUN_ID",
+        "DELEGATION_COMMENT_ID",
+        "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
+        "state=consumed recovery_run_id=${RECOVERY_RUN_ID}",
+        "issues/comments/${DELEGATION_COMMENT_ID}",
+        "gh api --method PATCH",
         "test \"${actual_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
         "test \"${remote_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
         "test \"${pr_count}\" = \"1\"",
         "head=\"${GITHUB_REPOSITORY_OWNER}:${TARGET_BRANCH}\"",
         "git push origin",
         "git rev-parse HEAD",
-        "gh workflow run ci.yml",
-        "gh workflow run spec-kit-work-map-integration.yml",
-        "mad4b.spec-kit-work-map-autofix.v2",
-        "WORK_MAP_AUTOFIX_V2",
         "cancel-in-progress: false",
         "windows-latest",
-        "shell: bash"
+        "shell: bash",
+        "RESULT_HEAD_SHA",
+        "gh api --method POST",
+        "actions/workflows/ci.yml/dispatches",
+        "actions/workflows/spec-kit-work-map-integration.yml/dispatches",
+        "ci_dispatch_exit_code",
+        "integration_dispatch_exit_code",
+        "ci_run_id",
+        "integration_run_id",
+        "head_sha ==",
+        "mad4b.spec-kit-work-map-autofix.v3",
+        "WORK_MAP_AUTOFIX_V3"
       ],
       "forbidden_commands": [
         "--force",
         "--force-with-lease",
         "work-map-autofix:authorized",
-        "gh api --method PATCH"
+        "gh workflow run ci.yml",
+        "gh workflow run spec-kit-work-map-integration.yml",
+        "mad4b.spec-kit-work-map-autofix.v2",
+        "WORK_MAP_AUTOFIX_V2"
       ]
     },
     {
       "key": "docs-agent",
       "workflow": ".github/workflows/docs-agent.yml",
-      "mode": "preview_and_reviewed_impact_note_followup",
+      "mode": "pull_request_preview_only",
       "required_permissions": {
-        "contents": "read"
+        "contents": "read",
+        "pull-requests": "read"
       },
       "required_triggers": [
+        "pull_request"
+      ],
+      "forbidden_triggers": [
         "workflow_dispatch",
-        "pull_request",
-        "push"
+        "push",
+        "schedule",
+        "workflow_run",
+        "issue_comment",
+        "pull_request_target"
       ],
       "required_commands": [
         "pipeline-connectivity-check.mjs",
@@ -268,8 +325,7 @@
         "platform-work-map-generator.mjs --write",
         "Upload generated documentation preview",
         "Report preview-only PR mode",
-        "peter-evans/create-pull-request@v6",
-        "docs/auto-docs-agent/**",
+        "docs/auto-docs-agent",
         "Review is required",
         "github.actor != 'github-actions[bot]'",
         "github.event.pull_request.head.repo.full_name == github.repository"
@@ -286,11 +342,60 @@
       ]
     },
     {
+      "key": "docs-agent-main-followup",
+      "workflow": ".github/workflows/docs-agent-main-followup.yml",
+      "mode": "dispatch_and_write_exact_main_impact_note_followup",
+      "required_permissions": {
+        "actions": "write",
+        "contents": "read",
+        "pull-requests": "read"
+      },
+      "required_triggers": [
+        "push",
+        "workflow_dispatch"
+      ],
+      "forbidden_triggers": [
+        "pull_request",
+        "pull_request_target",
+        "issue_comment",
+        "schedule",
+        "workflow_run"
+      ],
+      "required_commands": [
+        "Resolve live main and dispatch exact writer",
+        "gh workflow run docs-agent-main-followup.yml",
+        "expected_head_sha",
+        "Pin exact main source and safe target branch",
+        "EXPECTED_HEAD_SHA",
+        "test \"$(git rev-parse HEAD)\" = \"${EXPECTED_HEAD_SHA}\"",
+        "test \"${current_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+        "TARGET_BRANCH=\"docs-agent/${EXPECTED_HEAD_SHA}\"",
+        "main|Production)",
+        "pipeline-connectivity-check.mjs",
+        "test-pipeline-connectivity-check.mjs",
+        "docs-agent-runner.mjs --write --mode push",
+        "Refuse follow-up mutations outside impact notes",
+        "peter-evans/create-pull-request@v6",
+        "docs/auto-docs-agent/**",
+        "Review is required",
+        "queue: max"
+      ],
+      "forbidden_commands": [
+        "platform-work-map-generator.mjs --write",
+        "git add docs/work-maps",
+        "git push origin",
+        "--force",
+        "--force-with-lease"
+      ]
+    },
+    {
       "key": "openapi-auto-sync",
       "workflow": ".github/workflows/openapi-auto-sync.yml",
-      "mode": "conditional_write_without_work_maps",
+      "mode": "dispatch_and_write_exact_main_repository_contract_sync_without_work_maps",
       "required_permissions": {
-        "contents": "write"
+        "actions": "write",
+        "contents": "read",
+        "pull-requests": "read"
       },
       "required_triggers": [
         "workflow_dispatch",
@@ -303,12 +408,20 @@
         ".github/workflows/openapi-auto-sync.yml"
       ],
       "required_commands": [
+        "Resolve live main and dispatch exact writer",
+        "gh workflow run openapi-auto-sync.yml",
+        "expected_head_sha",
+        "Pin exact source and safe target branch",
+        "EXPECTED_HEAD_SHA",
+        "test \"$(git rev-parse HEAD)\" = \"${EXPECTED_HEAD_SHA}\"",
+        "test \"${current_head_sha}\" = \"${EXPECTED_HEAD_SHA}\"",
+        "main|Production)",
         "pipeline-connectivity-check.mjs",
         "test-pipeline-connectivity-check.mjs",
         "repo-maintenance-sync.mjs --write --skip-work-maps",
         "Refuse Work Map mutation outside the governed writer",
-        "github.actor != 'github-actions[bot]'",
-        "peter-evans/create-pull-request@v6"
+        "peter-evans/create-pull-request@v6",
+        "queue: max"
       ],
       "forbidden_commands": [
         "platform-work-map-generator.mjs --write",
@@ -320,7 +433,7 @@
     {
       "from": "work-map-recovery-bridge",
       "to": "spec-kit-work-map-autofix",
-      "type": "authorized_exact_head_dispatch"
+      "type": "recovery_issued_one_time_delegation"
     },
     {
       "from": "spec-kit-work-map-integration",

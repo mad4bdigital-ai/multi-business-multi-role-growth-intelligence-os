@@ -80,6 +80,14 @@ assert.doesNotMatch(runner, /capability_resolution_envelope_apply_authorize/);
 assert.doesNotMatch(runner, /activation_authorized_surface_registry_sync/);
 assert.doesNotMatch(runner, /APPLY_GOVERNED_MIGRATION_1043/);
 
+const approvalDecisionNote = runner.match(/'--decision-note=([^']+)'/)?.[1] || '';
+assert.ok(approvalDecisionNote, 'Runtime readiness runner must provide an approval decision note.');
+assert.doesNotMatch(
+  approvalDecisionNote,
+  /[;&|`$<>\\!{}()\n\r]/,
+  'Capability-envelope approval decision note must satisfy the admin shell extra-arg safety contract.',
+);
+
 assert.match(backfillWorkflow, /^on:\n  push:\n    branches: \[main\]/m);
 assert.match(backfillWorkflow, /^\s{2}workflow_dispatch:/m);
 assert.doesNotMatch(backfillWorkflow, /^\s{2}(?:pull_request|issue_comment|workflow_run):/m);

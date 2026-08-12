@@ -138,12 +138,16 @@ When maps, migrations, schema taxonomy, classification rules, or exception recor
 
 The required validation workflow is read-only. It checks an immutable pull-request head SHA and never commits, pushes, or runs the generator in write mode.
 
-Generated changes may be published only by a producer registered in `.specify/pipeline-connectivity-contract.json`. The normal pull-request path is preview-only. An explicit `docs-agent-write` or `docs-agent-automerge` label authorizes Docs Agent to publish a real generated diff. The separate Work Map Autofix workflow requires a non-main branch and its exact expected head SHA.
+Generated changes may be published only by a producer registered in `.specify/pipeline-connectivity-contract.json`. Under the current contract, Docs Agent is preview-only and must never commit or push Work Maps; `docs-agent-write` and `docs-agent-automerge` are forbidden as Work Map write authority. `spec-kit-work-map-autofix.yml` is the sole remote Work Map writer. Its write path is delegated through the independent Recovery bridge after one-time authorization and requires a governed non-protected branch plus its exact current head SHA. Direct writer dispatch is not write authority: before generation, the writer must verify a trusted `spec-kit-work-map-autofix-recovery-dispatch.yml` run on `main` and consume the bot-authored one-time delegation grant bound to that Recovery run, PR, branch, and exact head SHA.
 
 ```text
 source change
 → read-only freshness check
-→ stale: preview or explicitly authorized repair
+→ stale: exact-head repair candidate
+→ one-time Recovery authorization
+→ Recovery-issued exact-target writer delegation grant
+→ writer verifies and consumes grant
+→ exact-head sole-writer execution
 → generate twice and prove idempotency
 → reject files outside the governed generated root
 → re-read the remote branch head
@@ -152,7 +156,9 @@ source change
 → explicitly dispatch CI and Work Map validation for the new head
 ```
 
-A producer may not use `--force`, `--force-with-lease`, a stale branch head, a no-op commit, or a silent best-effort validation dispatch. Because pushes made with `GITHUB_TOKEN` do not provide a reliable recursive validation trigger, every governed producer must explicitly dispatch `ci.yml` and `spec-kit-work-map-integration.yml` after successful push readback. Failure to dispatch either validator fails the producer job.
+The Recovery bridge itself never mutates repository content. It validates the exact same-repository target, consumes the one-time authorization, issues one bot-authored exact-target writer delegation grant, and delegates the exact head to the sole writer. An issued grant is single-use; the writer changes it to `state=consumed` before generation, while a Recovery run that becomes blocked revokes an orphaned unconsumed grant. Pull-request Draft/Ready metadata is not repository-write authority; actual authority remains bound to the open same-repository PR, governed branch, exact head, current `main` relationship, one-time authorization, and Recovery-issued delegation contract.
+
+A producer may not use `--force`, `--force-with-lease`, a stale branch head, a no-op commit, or a silent best-effort validation dispatch. Because pushes made with `GITHUB_TOKEN` do not provide a reliable recursive validation trigger, the governed Work Map writer must explicitly dispatch `ci.yml` and `spec-kit-work-map-integration.yml` after successful push readback. Failure to dispatch either validator fails the producer job.
 
 The connectivity contract verifies the producer, consumer, trigger, permission, command, and graph-edge relationships. Generated Work Maps remain generator-owned and direct manual editing is prohibited.
 
@@ -194,10 +200,12 @@ node test-spec-kit-work-map-governance-gate.mjs
 node test-spec-kit-completion-gate.mjs
 ```
 
-The dedicated validation and repair workflows are:
+The dedicated validation, recovery, and repair workflows are:
 
 ```text
 .github/workflows/spec-kit-work-map-integration.yml
+.github/workflows/spec-kit-work-map-recovery-bootstrap.yml
+.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml
 .github/workflows/spec-kit-work-map-autofix.yml
 ```
 
@@ -213,17 +221,24 @@ Existing Spec Kits without `work-map-integration.json` are grandfathered until t
 
 ## Phase convergence and final validation readback
 
-The implementation phase must converge as one ancestry-preserving wave rather than by repeatedly rebasing or forcing the feature branch. The completed convergence cycle for the initial delivery used these controls:
+The implementation phase must converge as one ancestry-preserving wave rather than by repeatedly rebasing or forcing the feature branch.
 
-- pin the moving `main` line at `ece5f0e253beb50cf61cc9773e541e536834e4fc`;
-- merge that pinned ancestry into the feature branch through a normal two-parent merge commit `115c59b759e9de027845760cac7d7cf22ef2a6ec`;
-- require `behind_by = 0` and a merge base equal to the pinned `main` SHA;
-- publish generator-owned documentation only through Docs Agent, producing generated head `998eab89d0411c2f783aae0308972d52ff517d4b`;
-- remove `docs-agent-write` after the generated diff is committed, so final validation is preview-only and cannot recursively move the reviewed head;
-- run CI and Spec Kit Work Map Integration on the final human-authored closeout head;
-- repeat the ancestry readback immediately before merge and reject the merge if `main` moved, the head changed, a review thread reopened, or a required gate is not successful.
+The initial delivery historically used Docs Agent to publish a generated Work Map head. That record predates the current sole-remote-writer ratchet and is historical evidence only; it is not current write authority. The current connectivity contract explicitly makes Docs Agent preview-only and reserves remote Work Map mutation to `spec-kit-work-map-autofix.yml`.
 
-This record is operational evidence, not authority to bypass a gate. A bot-authored generated commit whose pull-request runs are marked `action_required` is not accepted as final evidence. The final closeout must be a meaningful human-authored governance change outside the Work Map generator source set, leaving the generated maps current while allowing all required checks to execute on the exact reviewed head.
+The reusable convergence controls are:
+
+- pin the moving `main` line and merge that pinned ancestry into the feature branch through a normal two-parent merge commit;
+- require `behind_by = 0` and a merge base equal to the pinned `main` SHA before one-time authorization is consumed;
+- keep Docs Agent preview-only;
+- publish generator-owned Work Maps only through the exact-head sole writer after Recovery authorization and successful one-time writer-delegation consumption;
+- reject direct writer dispatch that cannot prove its Recovery run and exact bot-authored delegation grant;
+- require writer-side remote-head readback before fast-forward push and resulting-SHA readback after push;
+- explicitly dispatch CI and Spec Kit Work Map Integration for the writer-produced exact head;
+- repeat ancestry and review readback immediately before merge and reject the merge if `main` moved, the head changed, a review thread reopened, or a required gate is not successful.
+
+Historical convergence commits such as `115c59b759e9de027845760cac7d7cf22ef2a6ec` and generated head `998eab89d0411c2f783aae0308972d52ff517d4b` remain provenance records only. They do not authorize Docs Agent writes under the current contract.
+
+A bot-authored generated commit whose pull-request runs are marked `action_required` is not accepted as final evidence. Final closeout must use exact-head readback and successful governed validators without adding a no-op commit solely to retrigger checks.
 
 ## Safety boundary
 

@@ -38,6 +38,7 @@
             "Resolve exactly one open same-repository pull request for the target branch.",
             "Require the generated-artifact-refresh label and matching pull-request head.",
             "Dispatch the registered mutating workflow on main with target_ref, expected_head_sha, and APPLY_GENERATED_ARTIFACT_REFRESH.",
+            "Emit non-empty canonical dispatch JSON even when optional GitHub request IDs or delegated-run conclusions are absent, encoding absent optional values as JSON null.",
             "Publish JSON and Markdown evidence before enforcing the structured decision."
           ],
           "assertions": [
@@ -53,7 +54,9 @@
             "Bot-authored generated commits do not recursively dispatch.",
             "The evidence contract is mad4b.governed-generated-artifact-refresh-dispatch.v1.",
             "Job logs are diagnostic-only and the report declares consult_job_logs=false and secrets_included=false.",
-            "Force push is forbidden."
+            "Force push is forbidden.",
+            "Optional GitHub request IDs never filter out the dispatch object; an absent request ID is represented as JSON null.",
+            "A delegated run that is queued or in progress may have no conclusion; the absent conclusion is represented as JSON null without deleting the dispatch object."
           ],
           "tests": [
             {

@@ -1,0 +1,83 @@
+{
+  "spec_key": "017-remote-mcp-host-isolation-oauth-readiness",
+  "title": "Remote MCP Host Isolation and OAuth Live Readiness",
+  "branch": "gpt/spec-017-remote-mcp-host-isolation-oauth-readiness-20260810",
+  "status": "specification_draft_review_pending",
+  "specification_only": true,
+  "created_at": "2026-08-10T09:38:00+03:00",
+  "base_main_sha": "a722609b45ab3ac4617096963380ab4e1434f17d",
+  "delivery_mode": "multi_pr",
+  "scope_extension": "remote_mcp_resource_host_isolation_and_live_oauth_readiness",
+  "dependencies": [
+    "specs/016-chatgpt-plugin-mcp-integration",
+    "http-generic-api/remoteMcpConnectorRuntime.js",
+    "http-generic-api/remoteMcpOAuthProfile.js",
+    "http-generic-api/remoteMcpOAuthStore.js",
+    "http-generic-api/migrations/20260801_remote_mcp_oauth21_operational.sql",
+    "http-generic-api/docs/remote-mcp-oauth21-runbook.md",
+    "http-generic-api/.env.example"
+  ],
+  "canonical_topology": {
+    "resource": "https://mcp.mad4b.com",
+    "endpoint": "https://mcp.mad4b.com/mcp",
+    "issuer": "https://auth.mad4b.com/auth/mcp",
+    "authorization_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/authorize",
+    "token_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/token",
+    "registration_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/register",
+    "revocation_endpoint": "https://auth.mad4b.com/auth/mcp/oauth/revoke"
+  },
+  "file_count": 14,
+  "files": [
+    "README.md",
+    "manifest.json",
+    "spec.md",
+    "plan.md",
+    "tasks.md",
+    "operation-paths.md",
+    "concerns.md",
+    "testing-strategy.md",
+    "e2e-phases.json",
+    "completion.json",
+    "work-map-integration.json",
+    "checklists/requirements.md",
+    "implementation-handoff.md",
+    "tools/validate-spec.mjs"
+  ],
+  "requirements": {
+    "functional": 22,
+    "non_functional": 10,
+    "success_criteria": 12
+  },
+  "coverage": {
+    "user_scenarios": 6,
+    "operation_paths": 9,
+    "risk_groups": 16,
+    "task_groups": 8,
+    "e2e_phases": 5
+  },
+  "target_surface": {
+    "integration_type": "remote_mcp_oauth21_resource_boundary_hardening",
+    "mcp_url": "https://mcp.mad4b.com/mcp",
+    "resource_host_must_be_canonical": true,
+    "wrong_host_fails_closed": true,
+    "oauth_metadata_cross_resource_fallback_forbidden": true,
+    "trusted_proxy_host_resolution_required": true,
+    "admin_no_secret_readiness_required": true,
+    "dcr_is_separately_gated": true,
+    "live_readiness_is_not_source_readiness": true
+  },
+  "boundaries": {
+    "runtime_changes_on_spec_branch": false,
+    "database_migration_apply": false,
+    "oauth_client_registration": false,
+    "secret_provisioning_or_read": false,
+    "dns_or_tls_mutation": false,
+    "reverse_proxy_mutation": false,
+    "provider_calls": false,
+    "feature_flag_activation": false,
+    "chatgpt_connection_creation": false,
+    "production_activation": false,
+    "force_push": false,
+    "secrets_included": false
+  }
+}

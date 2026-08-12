@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "feature_key": "008-governed-pr-delivery-orchestration",
+  "title": "Governed PR Delivery Orchestration",
+  "status": "draft",
+  "owners": ["platform_admin"],
+  "surfaces": [
+    "repository_governance",
+    "github_api_mcp",
+    "governed_migration_execute",
+    "release_readiness",
+    "response_chunk_read"
+  ],
+  "risk_class": "D",
+  "expected_delivery_mode": "multi_pr",
+  "secrets_included": false
+}

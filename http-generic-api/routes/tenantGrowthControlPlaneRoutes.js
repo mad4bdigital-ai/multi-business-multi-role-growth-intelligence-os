@@ -46,13 +46,14 @@ function errorResponse(req, res, error) {
   });
 }
 
-export function buildTenantGrowthControlPlaneRoutes({ pool }) {
+export function buildTenantGrowthControlPlaneRoutes({ pool, requireBackendApiKey } = {}) {
   const router = Router();
   const repository = createTenantGrowthControlProjectionRepository({ pool });
   const service = createTenantGrowthControlProjectionService({ repository });
+  const requireTenant = [requireBackendApiKey, requireTenantUserJwt].filter(Boolean);
 
   // frontend-surface-operation: GET /tenant/control-plane/configuration-versions
-  router.get("/tenant/control-plane/configuration-versions", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/control-plane/configuration-versions", ...requireTenant, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listConfigurationVersions(req.auth, req.query);
@@ -63,7 +64,7 @@ export function buildTenantGrowthControlPlaneRoutes({ pool }) {
   });
 
   // frontend-surface-operation: GET /tenant/control-plane/activity-bindings
-  router.get("/tenant/control-plane/activity-bindings", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/control-plane/activity-bindings", ...requireTenant, async (req, res) => {
     try {
       assertAllowedQuery(req.query);
       const result = await service.listActivityBindings(req.auth, req.query);

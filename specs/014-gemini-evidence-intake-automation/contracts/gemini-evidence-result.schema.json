@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://mad4b.com/schemas/gemini-evidence-result.v1.schema.json",
+  "title": "Gemini Evidence Analysis Proposed Result",
+  "description": "Untrusted provider proposal. Validation does not create authority or approval.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "language",
+    "detected_media_type",
+    "content_summary",
+    "observations",
+    "suggested_classifications",
+    "suggested_tags",
+    "contains_personal_data",
+    "sensitivity_suggestion",
+    "quality",
+    "missing_information",
+    "clarification_questions",
+    "confidence",
+    "limitations",
+    "authority_claims",
+    "secrets_included"
+  ],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "language": { "type": "string", "minLength": 2, "maxLength": 32 },
+    "detected_media_type": {
+      "enum": ["text", "link", "image", "screenshot", "audio", "video", "pdf", "document", "spreadsheet", "unknown"]
+    },
+    "source_platform": { "type": ["string", "null"], "maxLength": 80 },
+    "content_summary": { "type": "string", "minLength": 1, "maxLength": 4000 },
+    "verbatim_segments": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "provenance"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "provenance": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["page", "paragraph", "timestamp", "region", "message", "unknown"] },
+              "page": { "type": "integer", "minimum": 1 },
+              "paragraph": { "type": "integer", "minimum": 1 },
+              "start_ms": { "type": "integer", "minimum": 0 },
+              "end_ms": { "type": "integer", "minimum": 0 },
+              "region": { "type": "string", "maxLength": 120 },
+              "note": { "type": "string", "maxLength": 500 }
+            }
+          }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "maxItems": 40,
+      "items": { "type": "string", "minLength": 1, "maxLength": 1200 }
+    },
+    "suggested_classifications": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "confidence", "rationale"],
+        "properties": {
+          "code": {
+            "enum": ["complaint", "question", "competitor", "style_reference", "audit_evidence", "client_data", "meeting", "ad_signal", "delivery_evidence", "other"]
+          },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+          "rationale": { "type": "string", "minLength": 1, "maxLength": 800 }
+        }
+      }
+    },
+    "suggested_tags": {
+      "type": "array",
+      "maxItems": 30,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._:-]{1,79}$" }
+    },
+    "customer_voice": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["quote", "provenance", "is_verbatim"],
+        "properties": {
+          "quote": { "type": "string", "minLength": 1, "maxLength": 2000 },
+          "provenance": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "is_verbatim": { "type": "boolean" },
+          "speaker_label": { "type": ["string", "null"], "maxLength": 120 }
+        }
+      }
+    },
+    "entities": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "value"],
+        "properties": {
+          "type": { "type": "string", "minLength": 1, "maxLength": 80 },
+          "value": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "sensitive": { "type": "boolean" }
+        }
+      }
+    },
+    "contains_personal_data": { "type": "boolean" },
+    "personal_data_categories": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": { "enum": ["name", "email", "phone", "address", "identifier", "financial", "health", "biometric", "voice", "image", "other"] }
+    },
+    "sensitivity_suggestion": {
+      "enum": ["public_reference", "internal", "client_confidential", "restricted", "unknown"]
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["score", "reasons"],
+      "properties": {
+        "score": { "type": "number", "minimum": 0, "maximum": 1 },
+        "reasons": {
+          "type": "array",
+          "maxItems": 20,
+          "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      }
+    },
+    "duplicate_search_text": { "type": "string", "maxLength": 4000 },
+    "suggested_filename_tokens": {
+      "type": "array",
+      "maxItems": 12,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_-]{1,64}$" }
+    },
+    "suggested_route_code": {
+      "type": ["string", "null"],
+      "enum": ["research_complaints", "research_competitors", "research_styles", "research_screenshots", "audit_evidence", "client_intake", "restricted_intake", "unsorted", "manual_review", null]
+    },
+    "missing_information": {
+      "type": "array",
+      "maxItems": 20,
+      "items": { "type": "string", "minLength": 1, "maxLength": 500 }
+    },
+    "clarification_questions": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["question_key", "question", "reason"],
+        "properties": {
+          "question_key": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,79}$" },
+          "question": { "type": "string", "minLength": 4, "maxLength": 500 },
+          "reason": { "type": "string", "minLength": 4, "maxLength": 500 },
+          "required": { "type": "boolean" }
+        }
+      }
+    },
+    "proposed_intents": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["intent", "arguments", "rationale"],
+        "properties": {
+          "intent": { "enum": ["suggest_route", "suggest_classification", "request_clarification", "propose_usage_link", "propose_audit_candidate"] },
+          "arguments": { "type": "object", "maxProperties": 20 },
+          "rationale": { "type": "string", "minLength": 1, "maxLength": 800 }
+        }
+      }
+    },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "limitations": {
+      "type": "array",
+      "maxItems": 30,
+      "items": { "type": "string", "minLength": 1, "maxLength": 800 }
+    },
+    "authority_claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_granted", "access_granted", "deletion_authorized", "external_publish_authorized", "route_authoritative"],
+      "properties": {
+        "approval_granted": { "const": false },
+        "access_granted": { "const": false },
+        "deletion_authorized": { "const": false },
+        "external_publish_authorized": { "const": false },
+        "route_authoritative": { "const": false }
+      }
+    },
+    "secrets_included": { "const": false }
+  }
+}

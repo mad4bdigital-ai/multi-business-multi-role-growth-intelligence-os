@@ -213,7 +213,7 @@ const baseCandidates = [
     maxItems: 50,
   });
   const result = await runCapabilityEnvelopeBatchExpire({
-    pool,
+    writerPool: pool,
     mode: "apply",
     requestedBy: "gpt_admin",
     expiredBefore: cutoff,
@@ -241,7 +241,7 @@ const baseCandidates = [
   const pool = makeBatchPool(baseCandidates);
   await assert.rejects(
     () => runCapabilityEnvelopeBatchExpire({
-      pool,
+      writerPool: pool,
       mode: "apply",
       requestedBy: "gpt_admin",
       expiredBefore: cutoff,
@@ -259,12 +259,17 @@ const baseCandidates = [
 }
 
 const guardSource = readFileSync(new URL("./capabilityResolutionEnvelopeGuard.js", import.meta.url), "utf8");
-assert.match(guardSource, /execution_ref IS NULL/);
-assert.match(guardSource, /execution_status = 'not_executed'/);
-assert.match(guardSource, /FOR UPDATE/);
-assert.match(guardSource, /candidate_limit_exceeded/);
-assert.match(guardSource, /transitionCapabilityEnvelopeLifecycle/);
-assert.doesNotMatch(guardSource, /DELETE FROM capability_resolution_envelope_ledger/);
+assert.match(guardSource, /writerPool/);
+assert.match(guardSource, /normalizedMode !== "apply"/);
+assert.match(guardSource, /getGovernancePool/);
+
+const runtimeSource = readFileSync(new URL("./capabilityResolutionEnvelopeGuardRuntime.js", import.meta.url), "utf8");
+assert.match(runtimeSource, /execution_ref IS NULL/);
+assert.match(runtimeSource, /execution_status = 'not_executed'/);
+assert.match(runtimeSource, /FOR UPDATE/);
+assert.match(runtimeSource, /candidate_limit_exceeded/);
+assert.match(runtimeSource, /transitionCapabilityEnvelopeLifecycle/);
+assert.doesNotMatch(runtimeSource, /DELETE FROM capability_resolution_envelope_ledger/);
 
 const gptToolsRoutes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 assert.match(gptToolsRoutes, /name: "capability_resolution_envelope_batch_expire"/);
