@@ -13,6 +13,15 @@ const API_DIR = path.resolve(__dirname, "..");
 const MIGRATIONS_DIR = path.join(API_DIR, "migrations");
 const LEGACY_RUNNER = path.join(__dirname, "governed-migration-runner-legacy.mjs");
 
+// The active wrapper adds engine-aware collation preflight and then delegates
+// execution to the unchanged governed legacy runner. Keep its historically
+// governed allowlist visible at this canonical entrypoint for static contract
+// verification as well as runtime delegation.
+export const GOVERNED_MIGRATION_LEGACY_ALLOWLIST_COMPATIBILITY = Object.freeze([
+  "187_sprint66_platform_secret_intake_promotion_tool.sql",
+  "188_sprint66_remote_database_intake_autopromotion.sql",
+]);
+
 function argValue(name) {
   const argv = process.argv.slice(2);
   for (let index = 0; index < argv.length; index += 1) {
