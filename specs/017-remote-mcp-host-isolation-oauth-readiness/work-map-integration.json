@@ -3,8 +3,8 @@
   "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
   "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "1163935978f33376f00713c6a7ed61cffd1ccbc4999d292ee2106ee64f15e996",
-    "index_source_hash": "5b6a438cea9044f568da8e70c7603467feb51205c0732db45f613312fec8ea87",
+    "fingerprint": "dd370d131c9c53e7aa465b884af00dc13e6ea00524e00da115f796dbfb213800",
+    "index_source_hash": "5d54230901b47d8ad3e8b78149068e460b9a4a9764f5f903b59fbde0eeec2ecf",
     "coverage_source_hash": "d6d4c5534a37ea683bf5fb0ecad0f8441e4748acc5b7e39941d4d1e4275a39e3",
     "map_count": 19,
     "domain_count": 16,
