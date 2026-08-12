@@ -34,9 +34,31 @@ jobs:
           node-version: "22"
 
       - name: Verify dynamic repository inventory
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          npm run inventory:check
-          npm run inventory:test
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/repository-inventory-verification.json"
+          node scripts/repository-inventory-verification-gate.mjs \
+            --event-name "$EVENT_NAME" \
+            --target-ref "$TARGET_REF" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --head-repository "$HEAD_REPOSITORY" \
+            --base-ref "$BASE_REF" \
+            --repository "$REPOSITORY" \
+            --output "$REPORT"
+          jq -r '
+            "Repository Inventory CI gate: " + (.outcome // "unknown") +
+            " | state=" + (.inventory_state // "unknown") +
+            " | current=" + ((.current // false) | tostring) +
+            " | followup_required=" + ((.followup_required // false) | tostring)
+          ' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guard centralized fail-closed user JWT auth
         working-directory: http-generic-api
