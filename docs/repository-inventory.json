@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6657,
-    "bytes": 58624934,
-    "lines": 1368601,
+    "bytes": 58625138,
+    "lines": 1368605,
     "directories": 251,
     "categories": 13
   },
@@ -7444,9 +7444,9 @@
       "path": ".changes/e2e/spec015-tenant-audit-convergence.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4893,
-      "lines": 88,
-      "sha256": "ce93b8e7bc5e03e2e59f8aae3bbef5a41795f535cd78199eaf13adbaa1c9a8b2",
+      "bytes": 5019,
+      "lines": 90,
+      "sha256": "78f6c30c08097e1897e8ec1c599306f57ececa6fc48887354c42a3198645520e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10755,9 +10755,9 @@
       "path": ".specify/spec-kit-work-map-integration-policy.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 3242,
-      "lines": 71,
-      "sha256": "abe0e605c14ade3183d1604ed87a525b7f6c4e5356b59d7f08e6b2f2e55ade8a",
+      "bytes": 3320,
+      "lines": 73,
+      "sha256": "1c3cbd04d639ed80f47d39fea31b192afd4003f83ea5587971a8cb946f6354c5",
       "mode": "644",
       "executable": false,
       "generated": false
