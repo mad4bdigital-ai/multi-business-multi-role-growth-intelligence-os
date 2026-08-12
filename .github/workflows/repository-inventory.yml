@@ -1,67 +1,40 @@
-name: Repository Inventory Detached Recovery
+name: Repository Inventory
 
 on:
-  pull_request:
-    types: [synchronize]
+  workflow_dispatch:
+  push:
     branches: [main]
     paths:
-      - ".github/workflows/repository-inventory.yml"
+      - '**'
+      - '!docs/repository-inventory.json'
+      - '!docs/repository-inventory-summary.json'
+      - '!docs/repository-inventory.md'
+  pull_request:
+    paths:
+      - '**'
+      - '!docs/repository-inventory.json'
+      - '!docs/repository-inventory-summary.json'
+      - '!docs/repository-inventory.md'
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: repository-inventory-detached-recovery-6947
-  cancel-in-progress: false
+  group: repository-inventory-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  recover:
-    if: >-
-      github.event.pull_request.number == 6947 &&
-      github.event.pull_request.base.ref == 'main' &&
-      github.event.pull_request.head.ref == 'fix/openapi-auto-merge-race-readback-20260812' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    env:
-      TARGET_REF: fix/openapi-auto-merge-race-readback-20260812
-      EXPECTED_PARENT_SHA: db64cccafbfed743b342c1491433d34b0611b69d
-      EXPECTED_RECOVERY_PARENT_SHA: 942eced123ad79b7354e4aa1f6481c4ef67ed8ba
-      EXPECTED_DIAGNOSTIC_SHA: 1414eff01942d6da18758dc9e00cf73a8d90cabb
-      EXPECTED_MAIN_SHA: 916a30359ce3d36d079b15eeb48e99af3f75b631
-      INTENDED_SOURCE_SHA: d668a884736d80f0e0ab9a94f57f65804a693f95
-      REPORT_DIR: .ci-evidence/repository-inventory-detached-recovery
+  inventory:
+    name: Generate and verify repository inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - name: Checkout exact recovery head
-        uses: actions/checkout@v5
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Validate exact recovery boundary
-        shell: bash
-        env:
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          [[ "$EVENT_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$(git rev-parse HEAD)" == "$EVENT_HEAD_SHA" ]]
-          [[ "$(git rev-parse HEAD^)" == "$EXPECTED_PARENT_SHA" ]]
-          [[ "$(git rev-parse "${EXPECTED_PARENT_SHA}^")" == "$EXPECTED_RECOVERY_PARENT_SHA" ]]
-          [[ "$(git rev-parse "${EXPECTED_RECOVERY_PARENT_SHA}^")" == "$EXPECTED_DIAGNOSTIC_SHA" ]]
-          [[ "$(git rev-parse "${EXPECTED_DIAGNOSTIC_SHA}^")" == "$INTENDED_SOURCE_SHA" ]]
-          remote_head="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          [[ "$remote_head" == "$EVENT_HEAD_SHA" ]]
-          [[ "$remote_main" == "$EXPECTED_MAIN_SHA" ]]
-
-      - name: Restore intended final workflow before generation
-        shell: bash
-        run: |
-          set -euo pipefail
-          git checkout "$INTENDED_SOURCE_SHA" -- .github/workflows/repository-inventory.yml
-          git diff --exit-code "$INTENDED_SOURCE_SHA" -- .github/workflows/repository-inventory.yml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -72,119 +45,21 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Generate repository inventory
-        shell: bash
+      - name: Regenerate inventory artifacts
+        run: npm run inventory:write
+
+      - name: Verify inventory is committed and deterministic
         run: |
-          set -euo pipefail
-          npm run inventory:write
-          sha256sum docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md > "$RUNNER_TEMP/inventory-first.sha256"
+          npm run inventory:check
+          npm run inventory:test
+          git diff --exit-code -- docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md
 
-      - name: Prove deterministic regeneration
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run inventory:write
-          sha256sum docs/repository-inventory.json docs/repository-inventory-summary.json docs/repository-inventory.md > "$RUNNER_TEMP/inventory-second.sha256"
-          cmp "$RUNNER_TEMP/inventory-first.sha256" "$RUNNER_TEMP/inventory-second.sha256"
-
-      - name: Run repository inventory freshness check
-        run: npm run inventory:check
-
-      - name: Run repository inventory contract tests
-        run: npm run inventory:test
-
-      - name: Enforce exact bounded write set
-        shell: bash
-        run: |
-          set -euo pipefail
-          git diff HEAD --name-only | sort > "$RUNNER_TEMP/actual.txt"
-          cat > "$RUNNER_TEMP/expected.txt" <<'EOF'
-          .github/workflows/repository-inventory.yml
-          docs/repository-inventory-summary.json
-          docs/repository-inventory.json
-          docs/repository-inventory.md
-          EOF
-          sort -o "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/expected.txt"
-          diff -u "$RUNNER_TEMP/expected.txt" "$RUNNER_TEMP/actual.txt"
-          git diff --exit-code "$INTENDED_SOURCE_SHA" -- .github/workflows/repository-inventory.yml
-
-      - name: Create detached final commit without moving any ref
-        id: detached
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          set -euo pipefail
-          make_blob() {
-            local file="$1"
-            base64 -w0 "$file" | jq -Rs '{content: ., encoding: "base64"}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/blobs" --input - --jq '.sha'
-          }
-
-          inventory_hash="$(sha256sum docs/repository-inventory.json | awk '{print $1}')"
-          summary_hash="$(sha256sum docs/repository-inventory-summary.json | awk '{print $1}')"
-          markdown_hash="$(sha256sum docs/repository-inventory.md | awk '{print $1}')"
-          workflow_blob="$(git rev-parse "${INTENDED_SOURCE_SHA}:.github/workflows/repository-inventory.yml")"
-          inventory_blob="$(make_blob docs/repository-inventory.json)"
-          summary_blob="$(make_blob docs/repository-inventory-summary.json)"
-          markdown_blob="$(make_blob docs/repository-inventory.md)"
-          base_tree="$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${EVENT_HEAD_SHA}" --jq '.tree.sha')"
-
-          tree_sha="$(jq -cn \
-            --arg base_tree "$base_tree" \
-            --arg workflow_blob "$workflow_blob" \
-            --arg inventory_blob "$inventory_blob" \
-            --arg summary_blob "$summary_blob" \
-            --arg markdown_blob "$markdown_blob" \
-            '{base_tree:$base_tree,tree:[
-              {path:".github/workflows/repository-inventory.yml",mode:"100644",type:"blob",sha:$workflow_blob},
-              {path:"docs/repository-inventory.json",mode:"100644",type:"blob",sha:$inventory_blob},
-              {path:"docs/repository-inventory-summary.json",mode:"100644",type:"blob",sha:$summary_blob},
-              {path:"docs/repository-inventory.md",mode:"100644",type:"blob",sha:$markdown_blob}
-            ]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/trees" --input - --jq '.sha')"
-
-          detached_sha="$(jq -cn \
-            --arg message 'docs(inventory): regenerate repository inventory for exact PR source' \
-            --arg tree "$tree_sha" \
-            --arg parent "$EVENT_HEAD_SHA" \
-            '{message:$message,tree:$tree,parents:[$parent]}' | gh api --method POST "repos/${GITHUB_REPOSITORY}/git/commits" --input - --jq '.sha')"
-
-          [[ "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${detached_sha}" --jq '.parents[0].sha')" == "$EVENT_HEAD_SHA" ]]
-          [[ "$(gh api "repos/${GITHUB_REPOSITORY}/git/commits/${detached_sha}" --jq '.tree.sha')" == "$tree_sha" ]]
-
-          gh api "repos/${GITHUB_REPOSITORY}/compare/${INTENDED_SOURCE_SHA}...${detached_sha}" --jq '.files[].filename' | sort > "$RUNNER_TEMP/final-files.txt"
-          cat > "$RUNNER_TEMP/final-expected.txt" <<'EOF'
-          docs/repository-inventory-summary.json
-          docs/repository-inventory.json
-          docs/repository-inventory.md
-          EOF
-          sort -o "$RUNNER_TEMP/final-expected.txt" "$RUNNER_TEMP/final-expected.txt"
-          diff -u "$RUNNER_TEMP/final-expected.txt" "$RUNNER_TEMP/final-files.txt"
-
-          remote_head="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          remote_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          [[ "$remote_head" == "$EVENT_HEAD_SHA" ]]
-          [[ "$remote_main" == "$EXPECTED_MAIN_SHA" ]]
-
-          mkdir -p "$REPORT_DIR"
-          jq -cn \
-            --arg contract 'mad4b.repository-inventory-detached-recovery.v1' \
-            --arg target_ref "$TARGET_REF" \
-            --arg expected_parent_sha "$EVENT_HEAD_SHA" \
-            --arg intended_source_sha "$INTENDED_SOURCE_SHA" \
-            --arg expected_main_sha "$EXPECTED_MAIN_SHA" \
-            --arg detached_commit_sha "$detached_sha" \
-            --arg tree_sha "$tree_sha" \
-            --arg inventory_sha256 "$inventory_hash" \
-            --arg summary_sha256 "$summary_hash" \
-            --arg markdown_sha256 "$markdown_hash" \
-            '{contract:$contract,target_ref:$target_ref,expected_parent_sha:$expected_parent_sha,intended_source_sha:$intended_source_sha,expected_main_sha:$expected_main_sha,detached_commit_sha:$detached_commit_sha,tree_sha:$tree_sha,inventory_sha256:$inventory_sha256,summary_sha256:$summary_sha256,markdown_sha256:$markdown_sha256,ref_moved:false,secrets_included:false}' > "$REPORT_DIR/report.json"
-          echo "detached_sha=$detached_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Upload detached recovery evidence
+      - name: Upload inventory artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: repository-inventory-detached-recovery-${{ github.run_id }}
-          path: .ci-evidence/repository-inventory-detached-recovery/report.json
+          name: repository-inventory-${{ github.sha }}
+          path: |
+            docs/repository-inventory.json
+            docs/repository-inventory-summary.json
+            docs/repository-inventory.md
           if-no-files-found: error
-          retention-days: 30

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6608,
-    "bytes": 57973164,
-    "lines": 1358390,
+    "bytes": 57974571,
+    "lines": 1358413,
     "directories": 249,
     "categories": 13
   },
@@ -9975,9 +9975,9 @@
       "path": ".github/workflows/openapi-auto-sync.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 12198,
-      "lines": 297,
-      "sha256": "1300dc9891a1e79d133fa930410efd20a3bfd1640159fbda7a477a3514995bef",
+      "bytes": 13558,
+      "lines": 319,
+      "sha256": "316791b1175cb79a56a9c0b99b1000269e399e372f2d0ab6a8004d6afa10599b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -29621,9 +29621,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 19243,
-      "lines": 320,
-      "sha256": "a7abd8c5faad8a187eb33e214a688ae556b191e6369c1dc1ab41b4d19e3cac70",
+      "bytes": 19290,
+      "lines": 321,
+      "sha256": "3498affa4190fdfe985f632b62be5e6f0e6506db89663b8dacb02466ead56052",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30679,7 +30679,7 @@
       "extension": ".md",
       "bytes": 4205,
       "lines": 43,
-      "sha256": "bb899f29bedcf5a231b7ed637ae7ed49dfb0fd43c72966411e09a233a9520773",
+      "sha256": "3e11a3086654eaf18256744e00c97af349e0d2e3bd8487990e225a3d46d731e7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30844,7 +30844,7 @@
       "extension": ".md",
       "bytes": 44736,
       "lines": 478,
-      "sha256": "d7472124811769e96a925ca9d2f709e3bf7c33fb2f9a05e727f6aeefb78cfc12",
+      "sha256": "d2654fd47969b63eee96e249e1c83268225c0f274037aad86ce475d996cd07e7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76219,7 +76219,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "618dcced7d62c5ff884f2c3141c71086e4b12d38bcec102d4a4b49dd10f82b88",
+      "sha256": "7bc62feb5ba61855a929ba8c366a660df0d4d9e2f0b65264a4601322f2150894",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76780,7 +76780,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "b9c4d18185544be46de02029ece16b6615543d62e474d1aa6cc699c8ea5a6a92",
+      "sha256": "3d8d4016963cfdec90fcbd2b64e60f6c3b1da8761484ef80a170db702738bf98",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77583,7 +77583,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "1197fa3fa1ed19b5e74a8e4083bdf3e9e64ff370d261545c5e3176b1e1019da1",
+      "sha256": "2169ed12236c482365b7e94a99bb2aeaaf94402afe34183a3e24de5db1d5a9b3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77814,7 +77814,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "8264e36e0a2eda93585b4660e616deb17df89eecbd386692300154ec02f19df4",
+      "sha256": "83a797951eb17006a62a8f5ef20565a55792e73798675bdd5da39bd11ffd67c8",
       "mode": "644",
       "executable": false,
       "generated": false
