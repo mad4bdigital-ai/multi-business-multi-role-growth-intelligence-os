@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "629df874c6f2ce1ead211a4a117e96b62ae815d5d67d6cfa10131c4d8c0f9153",
+  "inputFingerprint": "153a427aef0103748ba145b3319df77931b217dfb9dced8aeac16d84d6343430",
   "inventory": {
     "files": 6615,
-    "bytes": 58056415,
+    "bytes": 58056888,
     "directories": 249,
     "categories": 13
   },
