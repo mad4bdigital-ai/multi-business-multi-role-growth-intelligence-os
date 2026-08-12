@@ -37,20 +37,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout trusted default branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: main
           fetch-depth: 1
           persist-credentials: false
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
       - name: Download E2E canonical report
         if: github.event.workflow_run.name == 'E2E Phase Governance'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: e2e-phase-summary-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/canonical
@@ -60,7 +60,7 @@ jobs:
 
       - name: Download branch diagnostic canonical report
         if: github.event.workflow_run.name == 'Branch Test Diagnostic Shards'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: branch-test-diagnostic-${{ github.event.workflow_run.id }}-summary
           path: ${{ runner.temp }}/canonical
@@ -70,7 +70,7 @@ jobs:
 
       - name: Download Context Kernel canonical report
         if: github.event.workflow_run.name == 'Context Kernel Hardcoding Report'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: context-kernel-hardcoding-summary-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/canonical
@@ -82,7 +82,7 @@ jobs:
         if: >-
           github.event.workflow_run.name == 'PR Generated Artifact Refresh' ||
           github.event.workflow_run.name == 'Protected Promotion Generated Artifact Refresh'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: pr-generated-artifact-refresh-${{ github.event.workflow_run.id }}-summary
           path: ${{ runner.temp }}/canonical
@@ -92,7 +92,7 @@ jobs:
 
       - name: Download governed generated-artifact apply report
         if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: governed-generated-artifact-refresh-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/canonical
@@ -102,7 +102,7 @@ jobs:
 
       - name: Download governed generated-artifact dispatcher report
         if: github.event.workflow_run.name == 'Governed Generated Artifact Refresh Dispatch'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: governed-generated-artifact-refresh-dispatch-${{ github.event.workflow_run.id }}
           path: ${{ runner.temp }}/canonical
@@ -112,7 +112,7 @@ jobs:
 
       - name: Download Hostinger Tenant Canary canonical report
         if: github.event.workflow_run.name == 'Hostinger Storage Tenant Canary Guard'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: hostinger-storage-tenant-canary-${{ github.event.workflow_run.id }}-summary
           path: ${{ runner.temp }}/canonical
@@ -236,7 +236,7 @@ jobs:
 
       - name: Download exact-head Hostinger Tenant Canary fallback report
         if: steps.hostinger_discovery.outputs.found == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: hostinger-storage-tenant-canary-${{ steps.hostinger_discovery.outputs.run_id }}-summary
           path: ${{ runner.temp }}/hostinger-canonical

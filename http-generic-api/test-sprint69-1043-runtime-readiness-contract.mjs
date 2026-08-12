@@ -49,7 +49,7 @@ assert.doesNotMatch(workflow, /gh\s+api|issues\/\$|comments/);
 assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 
 for (const value of [AUTH_CONFIRM, CHECKSUM, BLOB, SOURCE_MERGE, REPOSITORY_READINESS_MERGE]) {
   assert.ok(runner.includes(value), `Runtime readiness runner is missing pinned value ${value}.`);
@@ -94,7 +94,7 @@ assert.doesNotMatch(backfillWorkflow, /^\s{2}(?:pull_request|issue_comment|workf
 assert.match(backfillWorkflow, /permissions:\n  actions: read\n  contents: read\n  issues: write/);
 assert.doesNotMatch(backfillWorkflow, /contents:\s*write|actions:\s*write|pull-requests:\s*write/);
 assert.match(backfillWorkflow, /persist-credentials: false/);
-assert.match(backfillWorkflow, /actions\/download-artifact@v4/);
+assert.match(backfillWorkflow, /actions\/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4/);
 assert.match(backfillWorkflow, /run-id: \$\{\{ steps\.discover\.outputs\.run_id \}\}/);
 assert.match(backfillWorkflow, /github-token: \$\{\{ github\.token \}\}/);
 assert.match(backfillWorkflow, /if: always\(\)[\s\S]*sprint69-1043-runtime-readiness-backfill-/);
