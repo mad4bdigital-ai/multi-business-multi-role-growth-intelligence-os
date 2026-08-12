@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6649,
-    "bytes": 58538578,
-    "lines": 1368023,
+    "bytes": 58538722,
+    "lines": 1368025,
     "directories": 251,
     "categories": 13
   },
@@ -7748,9 +7748,9 @@
       "path": ".changes/e2e/tenant-route-auth-hardening.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4463,
-      "lines": 83,
-      "sha256": "5a3daf564b1f80e611c9317e541f9c6494aef2282043d678197da872cf13af38",
+      "bytes": 4607,
+      "lines": 85,
+      "sha256": "c49a65b4d57479376c477819009e4ecfe3a6f9e9df1bee731e32d56bf6e28053",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58427,7 +58427,7 @@
       "extension": ".mjs",
       "bytes": 9272,
       "lines": 237,
-      "sha256": "f5c3c5d58a539acfb59453dacacb34e312056ef85fbb8e0a462e8351830a901d",
+      "sha256": "d96eb0dc878c476c8e52bbd78f2a004f03124c2008a9a95a7c84c834e8e760ea",
       "mode": "644",
       "executable": false,
       "generated": false
