@@ -1,5 +1,5 @@
 name: Repository Inventory Autofix Dispatch
-run-name: Repository Inventory Autofix Dispatch · source ${{ github.event.workflow_run.id }}
+run-name: Repository Inventory Autofix Dispatch · ${{ github.event.workflow_run.id || inputs.expected_head_sha || github.run_id }}
 
 on:
   workflow_run:
@@ -7,6 +7,24 @@ on:
       - Repository Inventory
     types:
       - completed
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Open same-repository pull request number
+        required: true
+        type: string
+      target_ref:
+        description: Governed work branch containing the stale Repository Inventory
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact current 40-character pull-request head SHA
+        required: true
+        type: string
+      confirmation:
+        description: Type REQUEST_REPOSITORY_INVENTORY_REFRESH
+        required: true
+        type: string
 
 permissions:
   actions: read
@@ -14,7 +32,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: repository-inventory-regeneration-pr-${{ github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+  group: repository-inventory-regeneration-pr-${{ github.event.workflow_run.pull_requests[0].number || inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -38,10 +56,14 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
-          SOURCE_EVENT: ${{ github.event.workflow_run.event }}
-          SOURCE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          SOURCE_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+          SOURCE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || 'workflow_dispatch' }}
+          SOURCE_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || 'manual' }}
+          SOURCE_HEAD_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.expected_head_sha }}
+          MANUAL_PR_NUMBER: ${{ inputs.pr_number || '' }}
+          MANUAL_TARGET_REF: ${{ inputs.target_ref || '' }}
+          MANUAL_EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha || '' }}
+          MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
         run: |
           set -euo pipefail
 
@@ -52,15 +74,28 @@ jobs:
             exit 0
           }
 
-          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "source_run_id_invalid"
-          [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
-          [[ "$SOURCE_CONCLUSION" == "failure" ]] || emit_ineligible "source_run_not_failed"
-          [[ "$SOURCE_EVENT" == "pull_request" ]] || emit_ineligible "source_event_not_pull_request"
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
+            [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "source_run_id_invalid"
+            [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
+            [[ "$SOURCE_CONCLUSION" == "failure" ]] || emit_ineligible "source_run_not_failed"
+            [[ "$SOURCE_EVENT" == "pull_request" ]] || emit_ineligible "source_event_not_pull_request"
 
-          pr_count="$(jq '.workflow_run.pull_requests | length' "$GITHUB_EVENT_PATH")"
-          [[ "$pr_count" == "1" ]] || emit_ineligible "source_run_not_bound_to_single_pr"
-          pr_number="$(jq -r '.workflow_run.pull_requests[0].number' "$GITHUB_EVENT_PATH")"
-          [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
+            pr_count="$(jq '.workflow_run.pull_requests | length' "$GITHUB_EVENT_PATH")"
+            [[ "$pr_count" == "1" ]] || emit_ineligible "source_run_not_bound_to_single_pr"
+            pr_number="$(jq -r '.workflow_run.pull_requests[0].number' "$GITHUB_EVENT_PATH")"
+            [[ "$pr_number" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
+            requested_target_ref=""
+            requested_head_sha="$SOURCE_HEAD_SHA"
+          else
+            [[ "$MANUAL_CONFIRMATION" == "REQUEST_REPOSITORY_INVENTORY_REFRESH" ]] || emit_ineligible "manual_confirmation_invalid"
+            [[ "$MANUAL_PR_NUMBER" =~ ^[1-9][0-9]*$ ]] || emit_ineligible "pr_number_invalid"
+            [[ "$MANUAL_TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
+            [[ "$MANUAL_TARGET_REF" != "main" && "$MANUAL_TARGET_REF" != "Production" ]] || emit_ineligible "protected_target_forbidden"
+            [[ "$MANUAL_EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || emit_ineligible "source_head_sha_invalid"
+            pr_number="$MANUAL_PR_NUMBER"
+            requested_target_ref="$MANUAL_TARGET_REF"
+            requested_head_sha="$MANUAL_EXPECTED_HEAD_SHA"
+          fi
 
           pr_json="${RUNNER_TEMP}/repository-inventory-autofix-pr.json"
           gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}" > "$pr_json"
@@ -72,7 +107,10 @@ jobs:
           expected_head_sha="$(jq -r '.head.sha' "$pr_json")"
           [[ "$target_ref" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]] || emit_ineligible "target_ref_not_governed"
           [[ "$target_ref" != "main" && "$target_ref" != "Production" ]] || emit_ineligible "protected_target_forbidden"
-          [[ "$expected_head_sha" == "$SOURCE_HEAD_SHA" ]] || emit_ineligible "source_run_head_is_stale"
+          [[ "$expected_head_sha" == "$requested_head_sha" ]] || emit_ineligible "source_run_head_is_stale"
+          if [[ -n "$requested_target_ref" && "$target_ref" != "$requested_target_ref" ]]; then
+            emit_ineligible "pull_request_branch_mismatch"
+          fi
 
           compare_json="${RUNNER_TEMP}/repository-inventory-autofix-compare.json"
           gh api "repos/${GITHUB_REPOSITORY}/compare/main...${expected_head_sha}" > "$compare_json"
