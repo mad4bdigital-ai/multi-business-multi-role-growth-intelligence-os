@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { _testingWorkspaceResourceRoutes } from "./routes/workspaceResourceRoutes.js";
 
-const migration = readFileSync("migrations/193_sprint67_workspace_resource_authority_foundation.sql", "utf8");
-const brandListMigration = readFileSync("migrations/229_sprint67_workspace_brands_list_tool.sql", "utf8");
-const routeSource = readFileSync("routes/workspaceResourceRoutes.js", "utf8");
-const indexSource = readFileSync("routes/index.js", "utf8");
+const testDir = dirname(fileURLToPath(import.meta.url));
+const readRepoFile = (relativePath) => readFileSync(resolve(testDir, relativePath), "utf8");
+const migration = readRepoFile("migrations/193_sprint67_workspace_resource_authority_foundation.sql");
+const brandListMigration = readRepoFile("migrations/229_sprint67_workspace_brands_list_tool.sql");
+const routeSource = readRepoFile("routes/workspaceResourceRoutes.js");
+const indexSource = readRepoFile("routes/index.js");
 
 assert(migration.includes("CREATE TABLE IF NOT EXISTS workspace_resource_grants"), "resource grants table must exist");
 assert(migration.includes("CREATE TABLE IF NOT EXISTS workspace_vaults"), "workspace vaults table must exist");
