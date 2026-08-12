@@ -167,6 +167,85 @@ export function validatePublicationPolicy(input = {}) {
   return { valid: found.length === 0, errors: errors(found) };
 }
 
+const LIFECYCLE_TRANSITIONS = Object.freeze({
+  planned: new Set(["installing", "archived"]),
+  installing: new Set(["configuration", "validation", "suspended"]),
+  configuration: new Set(["validation", "suspended"]),
+  validation: new Set(["ready", "configuration", "suspended"]),
+  ready: new Set(["active", "configuration", "suspended"]),
+  active: new Set(["suspended", "archive_requested", "uninstall_requested", "deprecated"]),
+  suspended: new Set(["configuration", "validation", "ready", "archived"]),
+  archive_requested: new Set(["archived", "active"]),
+  uninstall_requested: new Set(["retired", "active"]),
+  deprecated: new Set(["retired", "active"]),
+  archived: new Set([]),
+  retired: new Set([]),
+});
+
+export function validateReadinessPreview({ manifest = {}, expected_hash = "", observed_hash = "", conflicts = [], stale = false, ambiguity = false } = {}) {
+  const found = [];
+  const computedHash = spec015DeterministicHash(manifest);
+  if (!/^[a-f0-9]{64}$/.test(String(expected_hash))) found.push(issue("expected_hash_invalid", "$.expected_hash", "expected_hash must be a SHA-256 hash."));
+  if (expected_hash && expected_hash !== computedHash) found.push(issue("expected_hash_mismatch", "$.expected_hash", "expected_hash does not match the manifest."));
+  if (observed_hash && observed_hash !== expected_hash) found.push(issue("observed_hash_stale", "$.observed_hash", "Observed hash differs from expected hash."));
+  if (stale) found.push(issue("stale_evidence", "$.stale", "Readiness evidence is stale."));
+  if (ambiguity) found.push(issue("readiness_ambiguity", "$.ambiguity", "Readiness is ambiguous."));
+  if (Array.isArray(conflicts) && conflicts.length) found.push(issue("readiness_conflict", "$.conflicts", "Readiness contains unresolved conflicts."));
+  return { valid: found.length === 0, ready: found.length === 0, errors: errors(found), computed_hash: computedHash, mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateLifecycleTransition(from, to, { revocation = false } = {}) {
+  const found = [];
+  const source = String(from || "");
+  const target = String(to || "");
+  if (!Object.prototype.hasOwnProperty.call(LIFECYCLE_TRANSITIONS, source)) found.push(issue("lifecycle_source_invalid", "$.from", "Unknown lifecycle source state."));
+  if (!Object.prototype.hasOwnProperty.call(LIFECYCLE_TRANSITIONS, target)) found.push(issue("lifecycle_target_invalid", "$.to", "Unknown lifecycle target state."));
+  if (!found.length && !LIFECYCLE_TRANSITIONS[source].has(target)) found.push(issue("lifecycle_transition_invalid", "$", `Transition ${source} -> ${target} is not allowed.`));
+  if (revocation && !["suspended", "uninstall_requested", "retired"].includes(target)) found.push(issue("revocation_target_invalid", "$.to", "Revocation must end in a bounded disable/uninstall/retired state."));
+  return { valid: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateDraftAiSafety(input = {}) {
+  const found = [];
+  if (input.mode !== "draft") found.push(issue("ai_mode_not_draft", "$.mode", "AI authoring must remain draft-only."));
+  if (!input.proposal || typeof input.proposal !== "object" || Array.isArray(input.proposal)) found.push(issue("ai_proposal_not_structured", "$.proposal", "AI output must be a structured object."));
+  if (!Number.isInteger(input.budget_tokens) || input.budget_tokens < 1 || input.budget_tokens > 10000) found.push(issue("ai_budget_invalid", "$.budget_tokens", "budget_tokens must be between 1 and 10000."));
+  if (input.execute === true || input.apply === true || input.mutation === true || input.write === true) found.push(issue("ai_authority_invention", "$", "AI output cannot authorize execution or mutation."));
+  if (input.safety?.prompt_injection_detected === true) found.push(issue("ai_prompt_injection", "$.safety.prompt_injection_detected", "Prompt injection must block the draft."));
+  if (input.safety?.sensitivity === "high" && input.safety?.human_review_required !== true) found.push(issue("ai_human_review_missing", "$.safety.human_review_required", "High-sensitivity drafts require human review."));
+  found.push(...findSecretPayload(input));
+  return { valid: found.length === 0, errors: errors(found), draft_only: true, mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateOwnershipManifest(entries = [], { tenantId } = {}) {
+  const found = [];
+  const allowedOwners = new Set(["platform", "agency", "client", "tenant", "brand"]);
+  const seen = new Set();
+  if (!Array.isArray(entries)) return { valid: false, errors: [issue("ownership_not_array", "$", "Ownership manifest must be an array.")] };
+  for (const [index, entry] of entries.entries()) {
+    const path = `$[${index}]`;
+    const key = String(entry?.artifact_key || "");
+    if (!KEY_PATTERN.test(key)) found.push(issue("ownership_artifact_invalid", `${path}.artifact_key`, "artifact_key is invalid."));
+    if (seen.has(key)) found.push(issue("ownership_duplicate_artifact", `${path}.artifact_key`, "artifact_key must be unique."));
+    seen.add(key);
+    if (!allowedOwners.has(String(entry?.owner_type || ""))) found.push(issue("ownership_type_invalid", `${path}.owner_type`, "owner_type is outside the bounded ownership model."));
+    if (tenantId !== undefined && String(entry?.tenant_id || "") !== String(tenantId)) found.push(issue("ownership_cross_tenant", `${path}.tenant_id`, "Ownership entry crosses tenant boundary."));
+    if (entry?.delegation_status === "revoked" && entry?.external_delivery_allowed === true) found.push(issue("revoked_delegation_delivery", `${path}.external_delivery_allowed`, "Revoked delegation cannot retain external delivery authority."));
+    found.push(...findSecretPayload(entry, path));
+  }
+  return { valid: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
+export function validateCandidateConvergence({ head_sha = "", canonical_paths = false, duplicate_identity_count = 0, stale_artifact_count = 0, spec016_exposure_verified = false } = {}) {
+  const found = [];
+  if (!/^[a-f0-9]{40}$/i.test(String(head_sha))) found.push(issue("candidate_head_invalid", "$.head_sha", "Candidate head_sha must be a full commit SHA."));
+  if (canonical_paths !== true) found.push(issue("canonical_paths_unverified", "$.canonical_paths", "Canonical paths are not verified."));
+  if (Number(duplicate_identity_count) !== 0) found.push(issue("duplicate_identity_detected", "$.duplicate_identity_count", "Duplicate identity count must be zero."));
+  if (Number(stale_artifact_count) !== 0) found.push(issue("stale_artifact_detected", "$.stale_artifact_count", "Stale artifact count must be zero."));
+  if (spec016_exposure_verified !== true) found.push(issue("spec016_exposure_unverified", "$.spec016_exposure_verified", "Spec 016 exposure is not verified."));
+  return { valid: found.length === 0, converged: found.length === 0, errors: errors(found), mutation_executed: false, provider_call_executed: false, database_mutation: false, secrets_included: false };
+}
+
 export function validateSpec015Manifest(manifest = {}) {
   const identity = validatePackageComponentIdentity(manifest.identity || {});
   const graph = validateDependencyGraph(manifest.dependencies || []);

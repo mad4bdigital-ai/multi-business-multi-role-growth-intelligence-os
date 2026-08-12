@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import {
   spec015DeterministicHash,
+  validateCandidateConvergence,
   validateCredentialFreeBindings,
   validateDependencyGraph,
+  validateDraftAiSafety,
+  validateLifecycleTransition,
+  validateOwnershipManifest,
   validatePackageComponentIdentity,
   validatePublicationPolicy,
+  validateReadinessPreview,
   validateSpec015Manifest,
 } from "./spec015ContractValidators.js";
 
@@ -71,6 +76,57 @@ assert.equal(invalidManifest.valid, false);
 assert.ok(invalidManifest.errors.some((error) => error.code === "cross_tenant_binding"));
 assert.ok(invalidManifest.errors.some((error) => error.code === "secret_key_detected"));
 assert.ok(invalidManifest.errors.some((error) => error.code === "graph_cycle"));
+
+const readiness = validateReadinessPreview({
+  manifest,
+  expected_hash: validManifest.deterministic_hash,
+  observed_hash: validManifest.deterministic_hash,
+});
+assert.equal(readiness.valid, true);
+assert.equal(validateReadinessPreview({ manifest, expected_hash: validManifest.deterministic_hash, stale: true }).valid, false);
+assert.equal(validateReadinessPreview({ manifest, expected_hash: "0".repeat(64) }).valid, false);
+
+assert.equal(validateLifecycleTransition("planned", "installing").valid, true);
+assert.equal(validateLifecycleTransition("active", "retired").valid, false);
+assert.equal(validateLifecycleTransition("active", "uninstall_requested", { revocation: true }).valid, true);
+assert.equal(validateLifecycleTransition("active", "configuration").valid, false);
+
+const safeAiDraft = validateDraftAiSafety({
+  mode: "draft",
+  proposal: { component_key: "catalog" },
+  budget_tokens: 1200,
+  safety: { sensitivity: "low", prompt_injection_detected: false },
+});
+assert.equal(safeAiDraft.valid, true);
+assert.equal(validateDraftAiSafety({ ...safeAiDraft, mode: "execute" }).valid, false);
+assert.equal(validateDraftAiSafety({ mode: "draft", proposal: {}, budget_tokens: 1200, execute: true }).valid, false);
+assert.equal(validateDraftAiSafety({ mode: "draft", proposal: {}, budget_tokens: 1200, safety: { prompt_injection_detected: true } }).valid, false);
+assert.equal(validateDraftAiSafety({ mode: "draft", proposal: {}, budget_tokens: 1200, safety: { sensitivity: "high" } }).valid, false);
+
+assert.equal(validateOwnershipManifest([
+  { artifact_key: "catalog.manifest", owner_type: "client", tenant_id: "tenant-001", delegation_status: "active", external_delivery_allowed: true },
+], { tenantId: "tenant-001" }).valid, true);
+assert.equal(validateOwnershipManifest([
+  { artifact_key: "catalog.manifest", owner_type: "client", tenant_id: "tenant-002" },
+], { tenantId: "tenant-001" }).valid, false);
+assert.equal(validateOwnershipManifest([
+  { artifact_key: "catalog.manifest", owner_type: "client", tenant_id: "tenant-001", delegation_status: "revoked", external_delivery_allowed: true },
+], { tenantId: "tenant-001" }).valid, false);
+
+assert.equal(validateCandidateConvergence({
+  head_sha: "a".repeat(40),
+  canonical_paths: true,
+  duplicate_identity_count: 0,
+  stale_artifact_count: 0,
+  spec016_exposure_verified: true,
+}).valid, true);
+assert.equal(validateCandidateConvergence({
+  head_sha: "a".repeat(40),
+  canonical_paths: true,
+  duplicate_identity_count: 1,
+  stale_artifact_count: 0,
+  spec016_exposure_verified: true,
+}).valid, false);
 
 console.log(JSON.stringify({
   ok: true,
