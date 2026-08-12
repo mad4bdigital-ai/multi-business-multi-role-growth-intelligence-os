@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6701,
-    "bytes": 58969525,
-    "lines": 1375137,
+    "bytes": 58970607,
+    "lines": 1375159,
     "directories": 251,
     "categories": 13
   },
@@ -5895,9 +5895,9 @@
       "path": ".changes/e2e/consolidated-governance-runtime-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 10597,
-      "lines": 138,
-      "sha256": "687c2bb23cbbce1f1f79216ff2ce04bf7f7dfa21606419e1b99c7db2de351b88",
+      "bytes": 11066,
+      "lines": 143,
+      "sha256": "0ed0ee90e748e6cb229ea4e50059bd489a97b5e226c25a9b3421ba6bf2a816e3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10955,9 +10955,9 @@
       "path": ".specify/work-map-schema-classification-registry.json",
       "category": "schemas-and-data",
       "extension": ".json",
-      "bytes": 28454,
-      "lines": 779,
-      "sha256": "e1f0a13d40e641c27955c3e47bd51c484cb8c34adc68559f3aff3234772619f6",
+      "bytes": 29067,
+      "lines": 796,
+      "sha256": "2f73edee7de1445d024a78a93162007fae0ecb0edfb011792e4c02824e67277c",
       "mode": "644",
       "executable": false,
       "generated": false
