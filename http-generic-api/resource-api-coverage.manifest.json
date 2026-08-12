@@ -117,7 +117,7 @@
         ],
         "route_markers": [
           "RESOURCE_API_CALLABILITY_CONTRACT: workspace_members_list",
-          "router.get(\"/me/workspaces/:tenant_id/members\", requireUserJwt",
+          "router.get(\"/me/workspaces/:tenant_id/members\", requireTenantUserJwt",
           "requireActiveMembership(req, res, req.params.tenant_id)",
           "workspace_members_list_failed",
           "secrets_included: false"
@@ -129,7 +129,7 @@
         "test_markers": [
           "migration.includes(\"workspace_members_list\")",
           "routeSource.includes(\"RESOURCE_API_CALLABILITY_CONTRACT: workspace_members_list\")",
-          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/members\", requireUserJwt')",
+          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/members\", requireTenantUserJwt')",
           "indexSource.includes(\"app.use(buildTenantLifecycleRoutes());\")"
         ],
         "openapi_markers": [
@@ -162,7 +162,7 @@
         ],
         "route_markers": [
           "RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list",
-          "router.get(\"/me/workspaces/:tenant_id/invitations\", requireUserJwt",
+          "router.get(\"/me/workspaces/:tenant_id/invitations\", requireTenantUserJwt",
           "requireWorkspaceOwner(req, res, req.params.tenant_id)",
           "workspace_invitations_list_failed",
           "secrets_included: false"
@@ -174,7 +174,7 @@
         "test_markers": [
           "migration.includes(\"workspace_invitations_list\")",
           "routeSource.includes(\"RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list\")",
-          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/invitations\", requireUserJwt')",
+          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/invitations\", requireTenantUserJwt')",
           "indexSource.includes(\"app.use(buildTenantLifecycleRoutes());\")"
         ],
         "openapi_markers": [
@@ -207,7 +207,7 @@
         ],
         "route_markers": [
           "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list",
-          "router.get(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt",
+          "router.get(\"/me/workspaces/:tenant_id/access-requests\", requireTenantUserJwt",
           "requireWorkspaceOwner(req, res, req.params.tenant_id)",
           "workspace_access_requests_list_failed",
           "secrets_included: false"
@@ -219,7 +219,7 @@
         "test_markers": [
           "migration.includes(\"workspace_access_requests_list\")",
           "routeSource.includes(\"RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list\")",
-          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt')",
+          "routeSource.includes('router.get(\"/me/workspaces/:tenant_id/access-requests\", requireTenantUserJwt')",
           "indexSource.includes(\"app.use(buildTenantLifecycleRoutes());\")"
         ],
         "openapi_markers": [

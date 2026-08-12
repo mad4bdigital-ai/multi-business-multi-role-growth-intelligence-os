@@ -6,29 +6,12 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { getPool } from "../db.js";
 import { decryptCredentials } from "../tokenEncryption.js";
 
-function verifyUserJwt(authorization) {
-  if (!authorization || !authorization.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authorization.slice(7), process.env.JWT_SECRET || "dev-secret");
-  } catch {
-    return null;
-  }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) {
-    return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
-  }
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
+const requireUserJwt = createUserJwtMiddleware();
 
 function normalizeAuthKind(kind) {
   const value = String(kind || "").trim().toLowerCase();

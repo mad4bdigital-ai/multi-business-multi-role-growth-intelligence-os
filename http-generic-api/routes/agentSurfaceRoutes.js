@@ -1,9 +1,9 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { agentSurfaceCatalog, normalizeAgentSurfaceKey } from "../agentSurfacePolicy.js";
 import { assessTenantAgentSurfaceReadiness, upsertTenantAgentSurfaceDeployment, upsertUserAgentSurfacePreferences } from "../agentSurfaceRuntimeService.js";
-function requireUserJwt(req, res, next) { if (req.auth?.mode === "user_jwt") return next(); try { const token = String(req.headers.authorization || "").replace(/^Bearer\s+/i, ""); const payload = jwt.verify(token, process.env.JWT_SECRET || "dev-secret"); if (!payload?.user_id) throw new Error("missing user"); req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id || null, is_admin: false }; return next(); } catch { return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false }); } }
+const requireUserJwt = createUserJwtMiddleware();
 async function membership(pool, req) { const params = [req.auth.user_id]; let tenant = ""; if (req.auth.tenant_id) { tenant = " AND m.tenant_id=?"; params.push(req.auth.tenant_id); } const [rows] = await pool.query(`SELECT m.tenant_id,m.user_id,m.role,m.status,t.display_name FROM memberships m JOIN tenants t ON t.tenant_id=m.tenant_id WHERE m.user_id=? AND m.status='active'${tenant} ORDER BY m.granted_at ASC LIMIT 1`, params); if (!rows[0]) { const error = new Error("No active tenant membership was found."); error.status = 403; error.code = "agent_surface_membership_required"; throw error; } return rows[0]; }
 function sendError(res, error, code) { return res.status(error.status || 500).json({ ok: false, error: { code: error.code || code, message: error.message, ...(error.details !== undefined ? { details: error.details } : {}) }, secrets_included: false }); }
 export function buildAgentSurfaceRoutes(deps = {}) {

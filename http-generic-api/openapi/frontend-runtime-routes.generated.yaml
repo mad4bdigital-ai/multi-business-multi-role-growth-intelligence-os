@@ -3032,6 +3032,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
@@ -5018,6 +5019,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
@@ -7038,6 +7040,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
         configuration_dependencies:
           - JWT_SECRET
@@ -7100,6 +7103,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
@@ -7135,6 +7139,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
@@ -7164,6 +7169,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
@@ -7199,6 +7205,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:
@@ -7228,6 +7235,7 @@ paths:
         profile: user_jwt
         principal: tenant_user
         guard_chain:
+          - requireTenantUserJwt
           - requireUserJwt
           - requireWorkspaceOwner
         configuration_dependencies:

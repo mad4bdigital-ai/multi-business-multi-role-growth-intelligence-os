@@ -1,18 +1,7 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { buildActivationGuidance } from "../activationGuidanceService.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   const params = [userId];
@@ -37,9 +26,7 @@ async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
@@ -61,8 +48,10 @@ async function requireTenantUserJwt(req, res, next) {
 export function buildActivationGuidanceRoutes({ requireBackendApiKey, requireAdminPrincipal } = {}) {
   const router = Router();
   const adminGuards = [requireBackendApiKey, requireAdminPrincipal].filter(Boolean);
+  const requireCanonicalUserJwt = createUserJwtMiddleware();
+  const requireTenant = [requireCanonicalUserJwt, requireTenantUserJwt];
 
-  router.get("/tenant/activation/guidance", requireTenantUserJwt, async (req, res, next) => {
+  router.get("/tenant/activation/guidance", requireTenant, async (req, res, next) => {
     try {
       const guidance = await buildActivationGuidance({
         profile: "tenant",
@@ -95,4 +84,4 @@ export function buildActivationGuidanceRoutes({ requireBackendApiKey, requireAdm
   return router;
 }
 
-export const _testingActivationGuidanceRoutes = { verifyUserJwt };
+export const _testingActivationGuidanceRoutes = { requireTenantUserJwt };

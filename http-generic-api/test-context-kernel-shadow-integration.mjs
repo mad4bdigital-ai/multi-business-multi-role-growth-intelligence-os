@@ -204,12 +204,12 @@ for (const routePath of [
   "/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId",
 ]) {
   const handlers = routeStack(routerWithShadow, routePath, "get");
-  assert.equal(handlers.length, 3);
-  assert.equal(handlers[1], shadowMiddleware);
+  assert.equal(handlers.length, 4);
+  assert.equal(handlers[2], shadowMiddleware);
 }
 const writeHandlers = routeStack(routerWithShadow, "/me/workspaces/:tenant_id/resources/:resourceKey", "post");
 assert.equal(writeHandlers.includes(shadowMiddleware), false);
-assert.equal(writeHandlers.length, 2);
+assert.equal(writeHandlers.length, 3);
 
 const routerWithoutShadow = buildResourceApiRoutes({
   resourceApiService: {},
@@ -220,7 +220,7 @@ for (const routePath of [
   "/me/workspaces/:tenant_id/resources/:resourceKey",
   "/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId",
 ]) {
-  assert.equal(routeStack(routerWithoutShadow, routePath, "get").length, 2);
+  assert.equal(routeStack(routerWithoutShadow, routePath, "get").length, 3);
 }
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));

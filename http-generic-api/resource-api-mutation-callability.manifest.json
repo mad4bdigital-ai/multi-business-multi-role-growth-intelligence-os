@@ -32,7 +32,7 @@
       ],
       "route_markers": [
         "RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create",
-        "router.post(\"/me/workspaces/:tenant_id/invitations\", requireUserJwt",
+        "router.post(\"/me/workspaces/:tenant_id/invitations\", requireTenantUserJwt",
         "MUTATION_TRANSACTION: workspace_invitation_create",
         "MUTATION_READBACK: workspace_invitation_create",
         "workspace_invitation_create_failed",
@@ -80,7 +80,7 @@
       ],
       "route_markers": [
         "RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_accept",
-        "router.post(\"/me/invitations/accept\", requireUserJwt",
+        "router.post(\"/me/invitations/accept\", requireTenantUserJwt",
         "MUTATION_TRANSACTION: workspace_invitation_accept",
         "MUTATION_READBACK: workspace_invitation_accept",
         "workspace_invitation_accept_failed",
@@ -128,7 +128,7 @@
       ],
       "route_markers": [
         "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_create",
-        "router.post(\"/me/workspaces/:tenant_id/access-requests\", requireUserJwt",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests\", requireTenantUserJwt",
         "MUTATION_TRANSACTION: workspace_access_request_create",
         "MUTATION_READBACK: workspace_access_request_create",
         "workspace_access_request_create_failed",
@@ -176,7 +176,7 @@
       ],
       "route_markers": [
         "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_approve",
-        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/approve\", requireUserJwt",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/approve\", requireTenantUserJwt",
         "MUTATION_TRANSACTION: workspace_access_request_approve",
         "MUTATION_READBACK: workspace_access_request_approve",
         "workspace_access_request_approve_failed",
@@ -224,7 +224,7 @@
       ],
       "route_markers": [
         "RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_reject",
-        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/reject\", requireUserJwt",
+        "router.post(\"/me/workspaces/:tenant_id/access-requests/:request_id/reject\", requireTenantUserJwt",
         "MUTATION_TRANSACTION: workspace_access_request_reject",
         "MUTATION_READBACK: workspace_access_request_reject",
         "workspace_access_request_reject_failed",
