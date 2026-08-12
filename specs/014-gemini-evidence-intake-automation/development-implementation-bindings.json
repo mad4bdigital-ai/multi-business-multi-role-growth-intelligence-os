@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "feature_key": "014-gemini-evidence-intake-automation",
+  "purpose": "Explicit additive bindings for repository-native tooling and closeout behavior implemented or owned outside the original runtime-oriented task reference arrays.",
+  "bindings": [
+    {
+      "binding_key": "spec014-work-packet-plan-identity",
+      "task_ref": "T001",
+      "requirement_refs": ["FR-006"],
+      "acceptance_refs": ["AC-003"],
+      "implementation_refs": [
+        "tools/generate-work-packet.mjs",
+        "e2e-phases.json#spec014-deterministic-work-packet",
+        "ci-automation.json#phase-governance"
+      ],
+      "state": "implemented_pending_validation",
+      "rationale": "The deterministic Spec-local work-packet generator binds task, wave, scope, source revision, tests, gates, evidence, resume key, work-packet ID, and plan hash without granting mutation authority."
+    },
+    {
+      "binding_key": "spec014-truthful-completion-reporting",
+      "task_ref": "T024",
+      "requirement_refs": ["FR-010"],
+      "acceptance_refs": ["AC-003", "AC-018"],
+      "implementation_refs": [
+        "ci-automation.json#release-completion-gate",
+        "completion.json",
+        "CI_AUTOMATION_BLUEPRINT_AR.md#39-completion-gate"
+      ],
+      "state": "planned",
+      "rationale": "The closeout task owns separate reporting of implemented, verified, blocked, deferred, cancelled, and unowned work, and must fail when authoritative evidence is incomplete."
+    }
+  ],
+  "secrets_included": false
+}

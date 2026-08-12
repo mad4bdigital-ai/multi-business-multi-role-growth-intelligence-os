@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "feature_key": "009-local-connector-reachability-recovery",
+  "status": "in_progress",
+  "delivery_mode": "multi_pr",
+  "specification_pr": {
+    "branch": "gpt/local-connector-reachability-spec-kit-draft2-20260708",
+    "pull_request": 2385,
+    "draft": true,
+    "runtime_effect": "none",
+    "migration_effect": "none",
+    "provider_mutation": false,
+    "local_device_mutation": false,
+    "secrets_included": false
+  },
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "runtime_implementation": true,
+    "parallel_execution": true
+  },
+  "delivery": {
+    "implementation_prs": [],
+    "closeout_pr": {
+      "number": "current",
+      "branch": "gpt/local-connector-reachability-spec-kit-draft2-20260708",
+      "role": "completion",
+      "status": "current_pr"
+    }
+  },
+  "evidence": {
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_applicable_to_specification_pr"
+    },
+    "production_verification": {
+      "status": "not_applicable_to_specification_pr"
+    },
+    "post_merge_audit": {
+      "status": "not_applicable_to_specification_pr"
+    }
+  },
+  "completed_specification_files": [
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "spec.md",
+    "plan.md",
+    "architecture.md",
+    "connection-maps.md",
+    "usage-model.md",
+    "decision-tables.md",
+    "data-model.md",
+    "migration-and-compatibility.md",
+    "operational-model.md",
+    "testing-strategy.md",
+    "threat-model.md",
+    "risk-register.md",
+    "rollout-pr-sequence.md",
+    "contracts/local-connector-reachability.openapi.yaml",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/release-readiness.md",
+    "tasks.md",
+    "manifest.json",
+    "completion.json"
+  ],
+  "implementation_prs": [],
+  "parallel_lanes": {
+    "A_contracts": { "status": "pending", "blocked_by": ["draft_pr_review"] },
+    "B_persistence": { "status": "pending", "blocked_by": ["data_model_review"] },
+    "C_read_only_diagnostics": { "status": "pending", "blocked_by": ["A_contracts", "B_persistence"] },
+    "D_local_manager_ui": { "status": "pending", "blocked_by": ["contract_mock_review"] },
+    "E_runtime_registration_heartbeat": { "status": "pending", "blocked_by": ["B_persistence_or_fixtures"] },
+    "F_probe_orchestration": { "status": "pending", "blocked_by": ["A_contracts", "B_persistence_or_fixtures"] },
+    "G_recovery_planner_auto_install": { "status": "pending", "blocked_by": ["C_read_only_diagnostics", "E_runtime_registration_heartbeat", "F_probe_orchestration"] },
+    "H_break_glass_hardening": { "status": "pending", "blocked_by": ["admin_contract_review"] },
+    "I_production_verification_closeout": { "status": "pending", "blocked_by": ["all_runtime_lanes"] }
+  },
+  "blocking_risks_before_runtime": [
+    "false_recovery_after_provider_acknowledgement",
+    "tenant_route_silently_escalates_to_break_glass",
+    "wrong_device_action_in_multi_device_accounts",
+    "stale_saved_device_token_triggers_privileged_installer",
+    "token_replay_after_reinstall_or_route_generation_change",
+    "heartbeat_spoofing",
+    "diagnostics_secret_leakage",
+    "profile_override_weakens_security",
+    "break_glass_repair_mutates_wrong_infrastructure"
+  ],
+  "next_required_steps": [
+    "complete_draft_pr_review",
+    "assign_lane_owners",
+    "approve_first_parallel_implementation_lanes",
+    "open_contract_and_persistence_prs"
+  ],
+  "last_updated_at": "2026-07-08"
+}
