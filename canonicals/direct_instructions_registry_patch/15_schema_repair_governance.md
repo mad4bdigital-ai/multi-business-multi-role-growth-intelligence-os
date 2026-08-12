@@ -29,33 +29,57 @@ Required evidence:
 4. Read back the repaired schema and the intended registry mutation.
 5. Record ledger and execution-log evidence.
 
-## Database collation guard
+## Database engine and collation policy authority
 
-New schema DDL must use:
+Database comparison authority is semantic and engine-aware. Platform semantics
+MUST NOT be expressed as one globally hard-coded physical collation name.
+Migration and schema code declare the comparison purpose; the observed database
+engine resolves that purpose to an approved physical engine profile.
 
-```sql
-DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-```
+Canonical semantic purposes include:
 
-JSON-like longtext columns may use `utf8mb4_bin` only when policy permits it.
-Cross-table join keys must not use mixed collations. Existing legacy mismatches
-must be tracked as expiring exceptions in
-`database_collation_policy_exception_registry`; future unregistered mismatches
-are actionable drift.
+- `human_text_default` for normal Unicode human text;
+- `join_key_strict` for relational keys that are compared across tables;
+- `opaque_identifier` for identifiers whose bytes/case are significant;
+- `case_sensitive_text` for text where case changes meaning;
+- `search_folded` for search-oriented text that is not a relational join key.
 
-Guard surfaces:
+The current physical implementation profiles are governed configuration, not
+platform semantics:
 
-- `database_collation_policy_registry`
-- `database_collation_policy_exception_registry`
-- `v_database_collation_policy_violations`
-- `v_database_collation_policy_status`
-- `database_schema_governance.unified_collation_required`
+- MariaDB 10.10+ resolves human text and normal join keys to the approved
+  UCA-1400 `utf8mb4` profile;
+- MySQL 8+ resolves them to the approved 0900 `utf8mb4` profile;
+- PostgreSQL 16+ resolves them through the approved ICU/locale profile.
+
+An unknown engine MUST fail closed with `database_engine_profile_unresolved`.
+A collation belonging to another engine family MUST be blocked before SQL
+execution. Existing `utf8mb4_unicode_ci` schema may remain as a tracked legacy
+compatible contract when it is not participating in an incompatible comparison;
+legacy presence alone is a warning, not a mandate for mass conversion.
+
+Cross-table comparison is stricter: both sides of a join/equality contract must
+be proven compatible from live schema metadata or projected DDL. A legacy/new
+mismatch such as `utf8mb4_unicode_ci` versus `utf8mb4_uca1400_ai_ci` on a join
+key is blocking drift.
+
+The authoritative runtime surfaces are:
+
+- `http-generic-api/config/database-engine-collation-policy.json`;
+- `http-generic-api/databaseCollationPolicyGuard.js`;
+- the collation preflight in `scripts/governed-migration-runner.mjs`.
+
+Engine detection and profile resolution do **not** authorize automatic schema
+conversion. Any conversion remains a separately reviewed governed migration.
+
+Legacy database collation registries and diagnostic views may continue to expose
+observed drift, but they MUST NOT override the semantic engine profile authority.
 
 ## Automatic additive reconciliation
 
-Automatic schema repair is permitted only through the governed migration reconciliation engine. The internal scheduler may invoke `governed-migration-reconciler.mjs` under a MySQL advisory lock, but every mutation still requires an exact active rule, DB-backed authorization, static preflight `pass`, typed runner confirmation, and same-cycle ledger plus schema readback.
+Automatic schema repair is permitted only through the governed migration reconciliation engine. The internal scheduler may invoke `governed-migration-reconciler.mjs` under a MySQL advisory lock, but every mutation still requires an exact active rule, DB-backed authorization, static preflight `pass`, typed runner confirmation, same-cycle ledger plus schema readback, and the engine-aware collation preflight.
 
-The scheduler must fail closed when configuration is disabled, a rule or authorization is absent, preflight is not `pass`, or the migration is already recorded. It must not execute raw SQL, infer approval from a file name, widen a migration's resource pattern, retain raw output, or expose secrets. `information_schema`-guarded DDL remains mandatory for `ALTER TABLE ... MODIFY` reconciliation.
+The scheduler must fail closed when configuration is disabled, a rule or authorization is absent, preflight is not `pass`, the database engine profile is unresolved, a comparison contract is incompatible, or the migration is already recorded. It must not execute raw SQL, infer approval from a file name, widen a migration's resource pattern, retain raw output, or expose secrets. `information_schema`-guarded DDL remains mandatory for `ALTER TABLE ... MODIFY` reconciliation.
 
 ## Capability-vault skillpack runtime safety
 
