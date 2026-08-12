@@ -47,6 +47,7 @@ jobs:
       - name: Verify inventory is committed and deterministic
         run: |
           npm run inventory:check
+          npm run inventory:test
           git diff --exit-code -- docs/repository-inventory.json docs/repository-inventory.md
 
       - name: Upload inventory artifacts

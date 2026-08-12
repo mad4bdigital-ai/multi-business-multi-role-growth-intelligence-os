@@ -1,25 +1,26 @@
 <!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated from the Git index at commit `a6c31ec559e3`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated from the Git index at commit `76e9594629c0`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
 
 ## Snapshot
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,595 |
-| Total bytes | 57,921,630 |
-| Counted text lines | 1,357,124 |
+| Tracked files | 6,596 |
+| Total bytes | 57,924,648 |
+| Counted text lines | 1,357,170 |
+| Directories | 248 |
 | Categories | 13 |
 | Git branch | `feature/dynamic-repository-inventory-report` |
-| Commit date | 2026-08-12T14:34:38+03:00 |
+| Commit date | 2026-08-12T12:20:19+00:00 |
 
 ## Files by category
 
 | Category | Files |
 |---|---:|
 | `documentation` | 2,426 |
-| `tests-and-specs` | 1,458 |
+| `tests-and-specs` | 1,459 |
 | `api-runtime` | 1,298 |
 | `database-migrations` | 767 |
 | `root-and-other` | 151 |
@@ -37,7 +38,7 @@ This report is generated from the Git index at commit `a6c31ec559e3`. It is inte
 | Extension | Files |
 |---|---:|
 | `.md` | 2,420 |
-| `.mjs` | 1,508 |
+| `.mjs` | 1,509 |
 | `.js` | 925 |
 | `.sql` | 782 |
 | `.json` | 635 |
@@ -65,7 +66,7 @@ This report is generated from the Git index at commit `a6c31ec559e3`. It is inte
 | GitHub Actions workflows | 147 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files | 1,458 |
+| Test/spec files | 1,459 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -73,7 +74,7 @@ This report is generated from the Git index at commit `a6c31ec559e3`. It is inte
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 58 | 9 | 0 |
-| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 7 | 0 | 4 |
+| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 8 | 0 | 4 |
 
 ## Largest tracked files
 
@@ -112,7 +113,7 @@ This report is generated from the Git index at commit `a6c31ec559e3`. It is inte
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
 
 ## Regeneration
 

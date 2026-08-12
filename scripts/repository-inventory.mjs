@@ -5,8 +5,9 @@
  * Markdown artifact is a human-readable summary generated from the same data.
  */
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, extname, relative, sep } from "node:path";
+import { dirname, extname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -59,6 +60,10 @@ function lineCount(path, bytes) {
   try { return readFileSync(`${root}/${path}`, "utf8").split(/\r?\n/).length; } catch { return null; }
 }
 
+function sha256(path) {
+  return createHash("sha256").update(readFileSync(`${root}/${path}`)).digest("hex");
+}
+
 const commit = {
   sha: run("git", ["rev-parse", "HEAD"]),
   branch: run("git", ["branch", "--show-current"]),
@@ -75,6 +80,9 @@ const files = tracked.map((path) => {
     extension: extension(path),
     bytes: stats.size,
     lines: lineCount(path, stats.size),
+    sha256: sha256(path),
+    mode: (stats.mode & 0o777).toString(8).padStart(3, "0"),
+    executable: Boolean(stats.mode & 0o111),
     generated: generatedPaths.has(path),
   };
 });
@@ -83,6 +91,11 @@ const counts = (items, key) => Object.fromEntries([...items.reduce((map, item) =
 const byCategory = counts(files, "category");
 const byExtension = counts(files, "extension");
 const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
+const directories = [...new Set(files.flatMap((file) => {
+  const parts = file.path.split("/");
+  return parts.slice(0, -1).map((_, index) => parts.slice(0, index + 1).join("/"));
+}))].sort();
+const topLevel = counts(files.map((file) => ({ value: file.path.split("/")[0] })), "value");
 const packages = files.filter((file) => /(^|\/)package\.json$/.test(file.path)).map((file) => readPackage(file.path)).filter(Boolean);
 const workflows = files.filter((file) => file.category === "ci-workflows").map((file) => file.path);
 const migrations = files.filter((file) => file.category === "database-migrations").map((file) => file.path);
@@ -93,8 +106,10 @@ const inventory = {
   schemaVersion: 1,
   generatedFrom: "git-index",
   commit,
-  totals: { files: files.length, bytes: totalBytes, lines: files.reduce((sum, file) => sum + (file.lines ?? 0), 0), categories: Object.keys(byCategory).length },
-  counts: { byCategory, byExtension },
+  totals: { files: files.length, bytes: totalBytes, lines: files.reduce((sum, file) => sum + (file.lines ?? 0), 0), directories: directories.length, categories: Object.keys(byCategory).length },
+  counts: { byCategory, byExtension, topLevel },
+  directories,
+
   packages,
   surfaces: { workflows, migrations, apiContracts: contracts, tests },
   files,
@@ -115,6 +130,7 @@ This report is generated from the Git index at commit \`${commit.sha.slice(0, 12
 | Tracked files | ${inventory.totals.files.toLocaleString("en-US")} |
 | Total bytes | ${inventory.totals.bytes.toLocaleString("en-US")} |
 | Counted text lines | ${inventory.totals.lines.toLocaleString("en-US")} |
+| Directories | ${inventory.totals.directories.toLocaleString("en-US")} |
 | Categories | ${inventory.totals.categories} |
 | Git branch | \`${commit.branch}\` |
 | Commit date | ${commit.date} |
@@ -155,7 +171,7 @@ ${fileRows([...files].sort((a, b) => b.bytes - a.bytes))}
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
 
 ## Regeneration
 
