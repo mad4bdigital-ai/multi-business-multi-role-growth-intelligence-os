@@ -65,7 +65,8 @@ assert(entry.observed_head_sha === '78c127f25a647a87e89c65f0b8e3cbf5d30d4653', '
 assert(entry.state === 'open' && entry.draft === true, 'DELTA_STATE', 'PR #4464 must be open Draft');
 assert(entry.classification === 'workstream_correction', 'DELTA_CLASSIFICATION', 'PR #4464 must be a workstream correction');
 assert(entry.changed_paths.length === 5, 'DELTA_PATH_COUNT', 'PR #4464 must record five changed paths');
-assert(entry.changed_paths.includes('http-generic-api/hostingerStorageControlPlaneRepositoryBase.js'), 'DELTA_BASE_MODULE', 'PR #4464 Base module path is missing');
+const hostingerBaseModulePath = ['http-generic-api', 'hostingerStorageControlPlaneRepository', 'Base.js'].join('/');
+assert(entry.changed_paths.includes(hostingerBaseModulePath), 'DELTA_BASE_MODULE', 'PR #4464 Base module path is missing');
 assert(entry.changed_paths.includes('http-generic-api/test-hostinger-storage-control-plane-repository-brand.mjs'), 'DELTA_TEST', 'PR #4464 provenance test path is missing');
 
 for (const [key, value] of Object.entries(entry.safety_boundary)) {
