@@ -7,21 +7,21 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Metric | Value |
 |---|---:|
-| Decision | **warn** |
+| Decision | **pass** |
 | Blocking gaps | 0 |
-| Warning or informational gaps | 1 |
-| Input fingerprint | `0a615e6b64a04b63931d4fa181d5982eb6e0b4932c7ecd545c210be3a10e1c3b` |
+| Warning or informational gaps | 0 |
+| Input fingerprint | `01e03e2ce1664b1912db21dd03fe7ed433ad40fda609061e56f819c6f621b7f2` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
 | Inventory files | 6,661 |
-| Inventory bytes | 58,684,782 |
+| Inventory bytes | 58,684,825 |
 | Workflows | 151 |
 | Workflows without explicit permissions | 0 |
 | Broad write permission matches | 0 |
-| Unpinned action references | 1 |
+| Unpinned action references | 0 |
 | Automation overlap check | passed |
 | Workflow budget | 160 |
 | Workflow budget warning | 155 |
@@ -46,7 +46,7 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Gap | Domain | Severity | Status | Lifecycle | Blocking |
 |---|---|---|---|---|---|
-| `SEC-CI-UNPINNED-ACTIONS` | security | medium | open | new | no |
+| none | — | — | — | — |
 
 ## Loop contract
 

@@ -2,13 +2,11 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-evaluation",
   "deterministic": true,
-  "inputFingerprint": "0a615e6b64a04b63931d4fa181d5982eb6e0b4932c7ecd545c210be3a10e1c3b",
+  "inputFingerprint": "01e03e2ce1664b1912db21dd03fe7ed433ad40fda609061e56f819c6f621b7f2",
   "gate": {
-    "decision": "warn",
+    "decision": "pass",
     "blockingGapIds": [],
-    "warningGapIds": [
-      "SEC-CI-UNPINNED-ACTIONS"
-    ]
+    "warningGapIds": []
   },
   "baselineDiff": {
     "available": false,
@@ -18,26 +16,15 @@
     "resolvedGapIds": []
   },
   "gapCounts": {
-    "total": 1,
+    "total": 0,
     "bySeverity": {
       "critical": 0,
       "high": 0,
-      "medium": 1,
+      "medium": 0,
       "low": 0,
       "info": 0
     },
-    "byDomain": {
-      "security": 1
-    }
+    "byDomain": {}
   },
-  "topGaps": [
-    {
-      "gapId": "SEC-CI-UNPINNED-ACTIONS",
-      "domain": "security",
-      "severity": "medium",
-      "status": "open",
-      "lifecycle": "new",
-      "blocking": false
-    }
-  ]
+  "topGaps": []
 }
