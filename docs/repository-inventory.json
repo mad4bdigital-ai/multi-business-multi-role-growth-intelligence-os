@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6615,
-    "bytes": 58030594,
-    "lines": 1359578,
+    "bytes": 58030804,
+    "lines": 1359582,
     "directories": 249,
     "categories": 13
   },
@@ -10612,9 +10612,9 @@
       "path": ".specify/e2e-phase-governance.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 2291,
-      "lines": 73,
-      "sha256": "5332e4d060ef659c4b832948b620f13277dc688b4a727ee0b39ae465e9f3bf4c",
+      "bytes": 2501,
+      "lines": 77,
+      "sha256": "1821afadbc6e93f21bd317e715e2edc95a98b7ee29dec565f412a2d8785f1542",
       "mode": "644",
       "executable": false,
       "generated": false
