@@ -1,0 +1,2 @@
+Temporary trigger for the trusted post-merge Repository Inventory regeneration lifecycle.
+This file must be deleted before the generated-output follow-up PR is merged.
