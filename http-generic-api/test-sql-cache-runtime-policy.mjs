@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 
 process.env.SQL_CACHE_ENABLED = "TRUE";
+process.env.SQL_CACHE_REQUIRED = "FALSE";
 process.env.SQL_CACHE_KEY_VERSION = "v2";
 process.env.SQL_CACHE_MAX_VALUE_BYTES = "1048576";
 process.env.SQL_CACHE_POLICY_REFRESH_SECONDS = "15";
@@ -60,12 +61,14 @@ const fallback = getSqlCacheRuntimePolicySnapshot();
 assert.equal(fallback.source, "environment_fallback");
 assert.equal(fallback.key_version, "v2");
 assert.equal(fallback.max_value_bytes, 1_048_576);
+assert.equal(fallback.required, false);
 
 const row = {
   policy_key: "sql_cache_policy_v2",
   revision: 7,
   enabled: 1,
   config_json: JSON.stringify({
+    required: true,
     key_version: "v7",
     max_value_bytes: 524288,
     oversize_cooldown_seconds: 90,
@@ -87,6 +90,7 @@ assert.equal(loaded.source, "mysql_primary");
 assert.equal(loaded.revision, 7);
 assert.equal(loaded.key_version, "v7");
 assert.equal(loaded.single_flight_enabled, false);
+assert.equal(loaded.required, true);
 
 const workflowPolicy = resolveSqlCacheTablePolicy("workflows", { requestedTtlSeconds: 60 });
 assert.equal(workflowPolicy.enabled, true);
@@ -126,7 +130,7 @@ assert.equal(redisSetCalls, 0);
 
 const dryRun = await updateSqlCacheRuntimePolicy({
   expectedRevision: 7,
-  patch: { key_version: "v8", max_value_bytes: 393216 },
+  patch: { key_version: "v8", max_value_bytes: 393216, required: false },
   updatedBy: "test",
   dryRun: true,
   pool,
@@ -140,6 +144,7 @@ const updated = await updateSqlCacheRuntimePolicy({
   patch: {
     key_version: "v8",
     max_value_bytes: 393216,
+    required: false,
     single_flight_enabled: true,
   },
   updatedBy: "test",
@@ -149,6 +154,7 @@ assert.equal(updated.source, "mysql_primary");
 assert.equal(updated.revision, 8);
 assert.equal(updated.key_version, "v8");
 assert.equal(updated.max_value_bytes, 393216);
+assert.equal(updated.required, false);
 assert.equal(sqlCacheKey("table", "workflows", "rows"), "sql:v8:table:workflows:rows");
 
 const stale = await refreshSqlCacheRuntimePolicy({

@@ -10,6 +10,7 @@ This runbook covers the MySQL-primary SQL cache runtime policy, process-lifetime
 - Policy table: `sql_cache_runtime_policies`
 - Policy source of truth: MySQL
 - Fallback: last-known-good runtime snapshot, then environment fallback only when no MySQL snapshot has loaded
+- Availability mode: `required=false` by default; missing Redis uses the governed direct SQL loader fallback, while `required=true` makes cache transport availability a critical condition
 - Security denylist: `endpoints` is immutable and must never be cached
 - Admin read tool: `sql_cache_runtime_policy_get`
 - Admin guarded update tool: `sql_cache_runtime_policy_update`
@@ -26,6 +27,7 @@ Healthy evidence includes:
 - `stale=false`
 - a stable numeric `revision`
 - `table_blocklist` containing `endpoints`
+- `required=false` unless Redis availability is explicitly part of the deployment contract
 - `secrets_included=false`
 
 Do not infer a policy change from a dry-run response. Re-read the policy after every update attempt.
@@ -55,7 +57,8 @@ Counters reset when the Node process restarts. Use them as runtime evidence, not
 
 ## Alert interpretation
 
-- `sql_cache_unavailable`: policy enabled while cache transport is unavailable. Verify Redis configuration and connectivity; application reads must continue through SQL fallback.
+- `sql_cache_optional_fallback_active`: `required=false` and Redis is unavailable. This is a medium warning; the governed direct SQL loader fallback is active and application reads remain fail-open to SQL.
+- `sql_cache_unavailable`: `required=true` while cache transport is unavailable. This is a critical condition; verify Redis configuration and connectivity and decide whether to restore Redis or explicitly change the governed policy.
 - `sql_cache_circuit_open`: transport errors opened the circuit. Review `last_error_code` and retry window; do not force Redis calls.
 - `sql_cache_policy_stale`: MySQL policy refresh failed and last-known-good state is active. Restore DB reachability before changing policy.
 - `sql_cache_low_hit_ratio`: sufficient samples exist but reuse is below threshold. Check invalidation frequency, key scope, and workload reuse before increasing TTL.
@@ -87,7 +90,7 @@ Example no-op safety check:
 {
   "expected_revision": 1,
   "dry_run": true,
-  "policy": { "enabled": true }
+  "policy": { "enabled": true, "required": false }
 }
 ```
 
@@ -114,7 +117,7 @@ For a real update:
 
 ## Disable and rollback
 
-The safest rollback is a guarded policy update setting `enabled=false` while preserving the rest of the policy. This routes reads to SQL fallback; it does not delete Redis data.
+The safest rollback is a guarded policy update setting `enabled=false` while preserving the rest of the policy. This routes reads to SQL fallback; it does not delete Redis data. If Redis is intentionally optional, preserve `required=false`; set `required=true` only when the deployment contract has verified Redis provisioning and connectivity.
 
 Rollback procedure:
 
