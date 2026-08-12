@@ -54,6 +54,12 @@
       "rule_id": "first_candidate_selection",
       "line": 40,
       "reason": "oneOrNull returns a row only when the candidate count is exactly one; zero and multiple candidates return null and are surfaced as explicit structural contradictions."
+    },
+    {
+      "path": "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "rule_id": "first_candidate_selection",
+      "line": 375,
+      "reason": "repository_mutation_runs_v6 enforces UNIQUE KEY uq_repo_v6_run_plan_item (plan_id, plan_item_id) in migration 1011_sprint69_governed_repository_engine_v6.sql; this readback query binds both exact key columns after ER_DUP_ENTRY, so database authority guarantees candidate cardinality is at most one. The line-bound approval fails closed if the selection moves."
     }
   ]
 }
