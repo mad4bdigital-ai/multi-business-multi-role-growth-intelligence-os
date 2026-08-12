@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "spec_key": "015-tenant-operating-system-studio",
-  "snapshot_base_main_sha": "1e7b437ec2fccba46678736007765b3225c4599e",
+  "snapshot_base_main_sha": "33f1861f9cb93351e348d191894077f087c35ddd",
   "status": "audit_only_review_required",
   "secrets_included": false,
   "runtime_mutation_executed": false,

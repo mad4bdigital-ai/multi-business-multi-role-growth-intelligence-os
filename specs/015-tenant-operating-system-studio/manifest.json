@@ -5,7 +5,7 @@
   "status": "specification_draft_convergence_review_pending",
   "specification_only": true,
   "created_at": "2026-08-01T14:03:00Z",
-  "base_main_sha": "1e7b437ec2fccba46678736007765b3225c4599e",
+  "base_main_sha": "33f1861f9cb93351e348d191894077f087c35ddd",
   "dependencies": [
     "specs/006-platform-dynamic-workflow-runtime",
     "specs/010-unified-platform-frontend",

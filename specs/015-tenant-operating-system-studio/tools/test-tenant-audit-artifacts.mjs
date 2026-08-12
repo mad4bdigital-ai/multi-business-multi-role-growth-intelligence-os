@@ -58,7 +58,7 @@ assert.ok(rows.every((row) => row.baseRefName === 'main'));
 assert.equal(rows.filter((row) => row.state === 'OPEN').length, 4);
 assert.equal(rows.filter((row) => row.state === 'CLOSED' || row.state === 'MERGED').length, 5);
 assert.equal(rows.filter((row) => row.isDraft === true).length, 8);
-assert.equal(rows.filter((row) => row.mergeable === 'CONFLICTING').length, 4);
+assert.equal(rows.filter((row) => row.mergeable === 'CONFLICTING').length, 3);
 assert.ok(rows.every((row) => row.snapshotBaseMainSha === matrix.snapshot_base_main_sha));
 assert.ok(rows.every((row) => row.safe_read_only === true));
 assert.ok(rows.every((row) => row.merge_executed === false));

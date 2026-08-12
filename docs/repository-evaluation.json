@@ -2,21 +2,26 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "e477dd91f8d271e2bcad02416ff94fc26e5d1797e8f9191969faefe30b9120a2",
+  "inputFingerprint": "ac625352fc7f3b1efd89c0a013e716dc9e40accced045bd915ef4deea57194f5",
   "inventory": {
-    "files": 6657,
-    "bytes": 58625237,
+    "files": 6661,
+    "bytes": 58684782,
     "directories": 251,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 150,
-      "explicitPermissions": 150,
+      "workflowCount": 151,
+      "explicitPermissions": 151,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
-      "unpinnedActions": 0,
-      "unpinnedActionRefs": [],
+      "unpinnedActions": 1,
+      "unpinnedActionRefs": [
+        {
+          "path": ".github/workflows/repository-inventory-autofix-dispatch.yml",
+          "reference": "uses: actions/checkout@v5"
+        }
+      ],
       "budget": {
         "max": 160,
         "warning": 155,
@@ -24,7 +29,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6628,
+      "trackedTextFilesScanned": 6632,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -164,11 +169,33 @@
       "exitCode": 0
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "gapId": "SEC-CI-UNPINNED-ACTIONS",
+      "domain": "security",
+      "severity": "medium",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "unpinnedActions": 1,
+        "samples": [
+          {
+            "path": ".github/workflows/repository-inventory-autofix-dispatch.yml",
+            "reference": "uses: actions/checkout@v5"
+          }
+        ]
+      },
+      "impact": "Workflow action references are mutable tags or branches and can drift without review.",
+      "recommendation": "Pin every third-party or first-party action reference to a full commit SHA and retain the release tag in a comment.",
+      "lifecycle": "new"
+    }
+  ],
   "gate": {
-    "decision": "pass",
+    "decision": "warn",
     "blockingGapIds": [],
-    "warningGapIds": []
+    "warningGapIds": [
+      "SEC-CI-UNPINNED-ACTIONS"
+    ]
   },
   "baselineDiff": {
     "available": false,
