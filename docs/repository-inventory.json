@@ -3,10 +3,10 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6657,
-    "bytes": 58655814,
-    "lines": 1369774,
-    "directories": 252,
+    "files": 6656,
+    "bytes": 58655646,
+    "lines": 1369771,
+    "directories": 251,
     "categories": 13
   },
   "counts": {
@@ -15,7 +15,7 @@
       "documentation": 1851,
       "api-runtime": 1323,
       "database-migrations": 767,
-      "root-and-other": 220,
+      "root-and-other": 219,
       "ci-workflows": 151,
       "api-contracts": 147,
       "ci-config": 93,
@@ -36,7 +36,7 @@
       ".ts": 15,
       ".cs": 14,
       ".jsx": 9,
-      ".txt": 7,
+      ".txt": 6,
       ".py": 5,
       ".ps1": 5,
       ".css": 3,
@@ -71,7 +71,6 @@
       "edge": 9,
       "scripts": 7,
       "tests": 3,
-      ".ci-trigger": 1,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
@@ -112,7 +111,6 @@
   "directories": [
     ".changes",
     ".changes/e2e",
-    ".ci-trigger",
     ".github",
     ".github/contracts",
     ".github/contracts/governed-command-parameters",
@@ -7987,17 +7985,6 @@
       "bytes": 5023,
       "lines": 75,
       "sha256": "ec8e99a3298cba9a0ca05556dd225084724d946f9afeb05bae7d9dd170410316",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
-      "path": ".ci-trigger/repository-inventory-post-merge.txt",
-      "category": "root-and-other",
-      "extension": ".txt",
-      "bytes": 168,
-      "lines": 3,
-      "sha256": "fd033303a32821f57a9399853ac177e3fb11c4f0225e475e147eeb53a4be2d8a",
       "mode": "644",
       "executable": false,
       "generated": false
