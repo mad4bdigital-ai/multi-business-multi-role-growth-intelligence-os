@@ -8,7 +8,7 @@ The authoritative machine-readable artifact is `docs/repository-inventory.json`.
 
 ## What is included
 
-Each inventoried file includes its repository-relative path, normalized category, extension, byte size, counted text lines, SHA-256 content fingerprint, normalized Unix mode, executable marker, and whether it is a generated artifact. The inventory also contains commit metadata, totals, extension and category counts, package manifests, and grouped lists for workflows, migrations, API contracts, and tests/specifications.
+Each inventoried file includes its repository-relative path, normalized category, extension, byte size, counted text lines, SHA-256 content fingerprint, normalized Unix mode, executable marker, and whether it is a generated artifact. The inventory also contains deterministic provenance, totals, extension and category counts, package manifests, and grouped lists for workflows, migrations, API contracts, and tests/specifications. The generated artifacts intentionally do not embed the current commit SHA, branch, or commit date, because those values would make a freshly committed artifact stale immediately after every commit.
 
 Generated inventory artifacts are deliberately excluded from their own file list. This prevents self-referential output and guarantees deterministic regeneration.
 
@@ -20,7 +20,7 @@ npm run inventory:check
 npm run inventory:test
 ```
 
-Use `inventory:write` after adding or removing repository files. Use `inventory:check` in validation steps; it returns a non-zero exit code when either committed artifact is missing or stale. Use `inventory:test` to validate the artifact schema, deterministic sorting, file count, byte totals, SHA-256 fields, and self-exclusion of generated files.
+Use `inventory:write` after adding or removing repository files. Use `inventory:check` in validation steps; it returns a non-zero exit code when either committed artifact is missing or stale. Use `inventory:test` to validate the artifact schema, deterministic sorting, file count, byte totals, SHA-256 fields, self-exclusion of generated files, and independent classification fixtures.
 
 ## Continuous integration
 

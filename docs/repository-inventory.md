@@ -1,33 +1,31 @@
 <!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated from the Git index at commit `f4c62da41848`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
 
 ## Snapshot
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,596 |
-| Total bytes | 57,925,195 |
-| Counted text lines | 1,357,177 |
+| Tracked files | 6,598 |
+| Total bytes | 57,926,895 |
+| Counted text lines | 1,357,196 |
 | Directories | 248 |
 | Categories | 13 |
-| Git branch | `feature/dynamic-repository-inventory-report` |
-| Commit date | 2026-08-12T12:25:29+00:00 |
 
 ## Files by category
 
 | Category | Files |
 |---|---:|
-| `documentation` | 2,426 |
-| `tests-and-specs` | 1,459 |
-| `api-runtime` | 1,298 |
+| `tests-and-specs` | 1,974 |
+| `documentation` | 1,822 |
+| `api-runtime` | 1,322 |
 | `database-migrations` | 767 |
-| `root-and-other` | 151 |
+| `root-and-other` | 211 |
 | `api-contracts` | 147 |
 | `ci-workflows` | 147 |
 | `ci-config` | 86 |
-| `schemas-and-data` | 59 |
+| `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
 | `applications` | 19 |
 | `source` | 12 |
@@ -38,26 +36,32 @@ This report is generated from the Git index at commit `f4c62da41848`. It is inte
 | Extension | Files |
 |---|---:|
 | `.md` | 2,420 |
-| `.mjs` | 1,509 |
+| `.mjs` | 1,510 |
 | `.js` | 925 |
 | `.sql` | 782 |
-| `.json` | 635 |
+| `.json` | 636 |
 | `.yml` | 149 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
 | `.cs` | 14 |
 | `.jsx` | 9 |
-| `[no extension]` | 7 |
 | `.txt` | 6 |
 | `.ps1` | 5 |
 | `.css` | 3 |
 | `.csproj` | 2 |
 | `.toml` | 2 |
 | `.example` | 2 |
+| `.gitattributes` | 1 |
+| `.gitignore` | 1 |
+| `.nvmrc` | 1 |
 | `.manifest` | 1 |
+| `.htaccess` | 1 |
+| `.gcloudignore` | 1 |
+| `[no extension]` | 1 |
 | `.png` | 1 |
 | `.html` | 1 |
 | `.sh` | 1 |
+| `.keep` | 1 |
 
 ## Important surfaces
 
@@ -66,7 +70,7 @@ This report is generated from the Git index at commit `f4c62da41848`. It is inte
 | GitHub Actions workflows | 147 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files | 1,459 |
+| Test/spec files | 2,036 |
 | package.json manifests | 2 |
 
 ## Package manifests

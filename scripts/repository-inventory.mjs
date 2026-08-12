@@ -7,8 +7,9 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { dirname, extname, sep } from "node:path";
+import { dirname, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { category, extension, isTestOrSpec } from "./repository-inventory-rules.mjs";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const outputJson = process.env.INVENTORY_JSON ?? "docs/repository-inventory.json";
@@ -22,28 +23,6 @@ function run(command, args) {
 
 function normalize(path) {
   return path.split(sep).join("/");
-}
-
-function category(path) {
-  if (path.startsWith(".github/workflows/")) return "ci-workflows";
-  if (path.startsWith(".github/")) return "ci-config";
-  if (path.includes("/migrations/") || path.startsWith("migrations/")) return "database-migrations";
-  if (path.includes("/openapi/") || path.includes("openapi")) return "api-contracts";
-  if (path.startsWith("docs/") || path.endsWith(".md")) return "documentation";
-  if (path.includes("test") || path.includes("spec")) return "tests-and-specs";
-  if (path.includes("schema") || path.endsWith(".sql")) return "schemas-and-data";
-  if (path.startsWith("apps/")) return "applications";
-  if (path.startsWith("src/")) return "source";
-  if (path.startsWith("http-generic-api/")) return "api-runtime";
-  if (path.startsWith("local-connector/") || path.startsWith("edge/")) return "connectors-and-edge";
-  if (/package(-lock)?\.json$|pnpm-lock|yarn\.lock|requirements|pyproject|Dockerfile|docker-compose/i.test(path)) return "build-and-dependencies";
-  return "root-and-other";
-}
-
-function extension(path) {
-  const base = path.split("/").pop();
-  if (!base.includes(".")) return "[no extension]";
-  return extname(base).toLowerCase() || "[no extension]";
 }
 
 function readPackage(path) {
@@ -63,13 +42,6 @@ function lineCount(path, bytes) {
 function sha256(path) {
   return createHash("sha256").update(readFileSync(`${root}/${path}`)).digest("hex");
 }
-
-const commit = {
-  sha: run("git", ["rev-parse", "HEAD"]),
-  branch: run("git", ["branch", "--show-current"]),
-  subject: run("git", ["log", "-1", "--format=%s"]),
-  date: run("git", ["log", "-1", "--format=%aI"]),
-};
 
 const tracked = run("git", ["ls-files", "-z"]).split("\0").filter(Boolean).map(normalize).filter((path) => !generatedPaths.has(path));
 const files = tracked.map((path) => {
@@ -100,12 +72,12 @@ const packages = files.filter((file) => /(^|\/)package\.json$/.test(file.path)).
 const workflows = files.filter((file) => file.category === "ci-workflows").map((file) => file.path);
 const migrations = files.filter((file) => file.category === "database-migrations").map((file) => file.path);
 const contracts = files.filter((file) => file.category === "api-contracts").map((file) => file.path);
-const tests = files.filter((file) => file.category === "tests-and-specs").map((file) => file.path);
+const tests = files.filter((file) => isTestOrSpec(file.path)).map((file) => file.path);
 
 const inventory = {
   schemaVersion: 1,
   generatedFrom: "git-index",
-  commit,
+  deterministic: true,
   totals: { files: files.length, bytes: totalBytes, lines: files.reduce((sum, file) => sum + (file.lines ?? 0), 0), directories: directories.length, categories: Object.keys(byCategory).length },
   counts: { byCategory, byExtension, topLevel },
   directories,
@@ -121,7 +93,7 @@ function fileRows(entries) { return entries.slice(0, 30).map((file) => `| \`${fi
 const markdown = `<!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated from the Git index at commit \`${commit.sha.slice(0, 12)}\`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
 
 ## Snapshot
 
@@ -132,8 +104,6 @@ This report is generated from the Git index at commit \`${commit.sha.slice(0, 12
 | Counted text lines | ${inventory.totals.lines.toLocaleString("en-US")} |
 | Directories | ${inventory.totals.directories.toLocaleString("en-US")} |
 | Categories | ${inventory.totals.categories} |
-| Git branch | \`${commit.branch}\` |
-| Commit date | ${commit.date} |
 
 ## Files by category
 
