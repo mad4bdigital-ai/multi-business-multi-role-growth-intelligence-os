@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6615,
-    "bytes": 58031119,
-    "lines": 1359590,
-    "directories": 249,
+    "files": 6647,
+    "bytes": 58520307,
+    "lines": 1367780,
+    "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1975,
-      "documentation": 1827,
-      "api-runtime": 1322,
+      "tests-and-specs": 1982,
+      "documentation": 1848,
+      "api-runtime": 1323,
       "database-migrations": 767,
-      "root-and-other": 212,
+      "root-and-other": 215,
       "ci-workflows": 150,
       "api-contracts": 147,
       "ci-config": 93,
@@ -26,17 +26,18 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2422,
-      ".mjs": 1516,
-      ".js": 925,
+      ".md": 2434,
+      ".mjs": 1521,
+      ".js": 928,
       ".sql": 782,
-      ".json": 642,
+      ".json": 648,
       ".yml": 152,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
       ".jsx": 9,
       ".txt": 6,
+      ".py": 5,
       ".ps1": 5,
       ".css": 3,
       ".csproj": 2,
@@ -46,6 +47,7 @@
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
+      ".jsonl": 1,
       ".htaccess": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
@@ -55,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3418,
-      "docs": 1733,
+      "http-generic-api": 3426,
+      "docs": 1754,
       "specs": 807,
       ".github": 243,
-      ".changes": 209,
+      ".changes": 212,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -203,7 +205,7 @@
     "workflows": 150,
     "migrations": 767,
     "apiContracts": 147,
-    "testSpecFiles": 2038
+    "testSpecFiles": 2045
   },
   "largestFiles": [
     {
@@ -247,6 +249,12 @@
       "category": "schemas-and-data",
       "bytes": 242696,
       "lines": 7657
+    },
+    {
+      "path": "docs/spec-portfolio/spec015-gap-matrix.generated.json",
+      "category": "documentation",
+      "bytes": 210893,
+      "lines": 3134
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
@@ -319,12 +327,6 @@
       "category": "api-runtime",
       "bytes": 112202,
       "lines": 2722
-    },
-    {
-      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
-      "category": "api-contracts",
-      "bytes": 110362,
-      "lines": 3289
     }
   ]
 }

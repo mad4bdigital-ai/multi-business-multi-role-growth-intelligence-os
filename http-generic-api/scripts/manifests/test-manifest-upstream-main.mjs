@@ -670,6 +670,7 @@ export const testCommands = [
   "node test-virtual-tool-export-shadow-alignment.mjs",
   "node test-dynamic-capability-governance-persistence.mjs",
   "node test-tenant-connection-shadow-contract-bootstrap.mjs",
+  "node test-tenant-connection-self-repair-service.mjs",
   "node test-platform-capability-shadow-certification-issue.mjs",
   "node test-github-file-patch-shadow-certification-issue.mjs",
   "node test-github-file-patch-runtime-authority-preservation-metadata.mjs",
