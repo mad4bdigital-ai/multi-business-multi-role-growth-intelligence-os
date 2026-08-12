@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6698,
-    "bytes": 58961676,
-    "lines": 1374973,
+    "files": 6666,
+    "bytes": 58701767,
+    "lines": 1370196,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1996,
+      "tests-and-specs": 1987,
       "documentation": 1853,
-      "api-runtime": 1339,
-      "database-migrations": 774,
-      "root-and-other": 223,
-      "ci-workflows": 151,
+      "api-runtime": 1323,
+      "database-migrations": 767,
+      "root-and-other": 221,
+      "ci-workflows": 152,
       "api-contracts": 147,
-      "ci-config": 93,
+      "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -27,11 +27,11 @@
     },
     "byExtension": {
       ".md": 2438,
-      ".mjs": 1538,
-      ".js": 941,
-      ".sql": 789,
-      ".json": 657,
-      ".yml": 153,
+      ".mjs": 1528,
+      ".js": 928,
+      ".sql": 782,
+      ".json": 654,
+      ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3461,
+      "http-generic-api": 3429,
       "docs": 1759,
       "specs": 809,
-      ".github": 244,
-      ".changes": 219,
+      ".github": 246,
+      ".changes": 217,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -202,10 +202,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 151,
-    "migrations": 774,
+    "workflows": 152,
+    "migrations": 767,
     "apiContracts": 147,
-    "testSpecFiles": 2059
+    "testSpecFiles": 2050
   },
   "largestFiles": [
     {
@@ -217,8 +217,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3143785,
-      "lines": 96512
+      "bytes": 3158811,
+      "lines": 97001
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 327168,
-      "lines": 8529
+      "bytes": 328113,
+      "lines": 8552
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -257,7 +257,7 @@
       "lines": 3134
     },
     {
-      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
       "bytes": 203883,
       "lines": 4369
