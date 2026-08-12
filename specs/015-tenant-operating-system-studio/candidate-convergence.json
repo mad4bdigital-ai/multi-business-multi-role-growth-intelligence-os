@@ -1,0 +1,117 @@
+{
+  "schema_version": "1.0.0",
+  "spec_key": "015-tenant-operating-system-studio",
+  "status": "draft_review_required",
+  "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+  "candidates": [
+    {
+      "pull_request": 3922,
+      "source_branch": "gpt/spec-014-retail-commerce-operations-growth-20260731",
+      "observed_head_sha": "4bd74ae487298b7b27f5bb79c26f3614e1c1adbd",
+      "candidate_role": "generic_profile_blueprint_source_and_retail_commerce_child_pack",
+      "merge_posture": "do_not_blind_merge_reconstruct_on_current_main",
+      "generic_substrate": [
+        "business_operating_profile",
+        "business_activity_type_registry",
+        "business_profile_definition_registry",
+        "dimension_specific_inheritance",
+        "bounded_applicability_predicates",
+        "activity_capability_packs",
+        "effective_business_profile",
+        "solution_blueprint_registry",
+        "blueprint_scoring_and_impact_preview"
+      ],
+      "child_package": {
+        "package_key": "platform.reference.retail_commerce_operations",
+        "package_class": "reference_pack",
+        "content_families": [
+          "retail_catalog_and_inventory",
+          "unique_stock_units_and_reservations",
+          "orders_pos_payments_returns",
+          "supplier_and_quality",
+          "product_media_and_content",
+          "catalog_measurement_and_ads",
+          "wordpress_woocommerce",
+          "erpnext_adapter",
+          "retail_operations_surfaces"
+        ]
+      },
+      "must_not_become_universal": [
+        "commerce_brand_requirement_for_non_commerce_packages",
+        "inventory_or_order_tables_for_all_tenants",
+        "wordpress_or_woocommerce_as_default",
+        "erpnext_as_default",
+        "payment_or_pos_capabilities_for_unrelated_systems"
+      ],
+      "blocking_actions": [
+        "field_level_reuse_matrix",
+        "current_main_reconciliation",
+        "duplicate_spec_identity_resolution",
+        "generic_vs_child_path_reconstruction",
+        "current_contract_validation"
+      ]
+    },
+    {
+      "pull_request": 4432,
+      "source_branch": "gpt/spec-014-gemini-evidence-automation-20260801",
+      "observed_head_sha": "521ff64a1fbe69be2d3ebe5ad3ca59baaf5f84e9",
+      "candidate_role": "generic_package_assurance_template_and_evidence_intelligence_child_pack",
+      "merge_posture": "do_not_blind_merge_reconstruct_on_current_main",
+      "generic_substrate": [
+        "development_automation_contract_pattern",
+        "ci_automation_contract_pattern",
+        "exact_candidate_evidence",
+        "changed_scope_test_family_mapping",
+        "phase_governance",
+        "diagnostic_shards",
+        "read_only_validator_and_separate_writer",
+        "work_packet_generation",
+        "completion_evidence_gates"
+      ],
+      "child_package": {
+        "package_key": "platform.reference.evidence_intelligence_operations",
+        "package_class": "reference_pack",
+        "content_families": [
+          "evidence_and_intake_entities",
+          "client_forms_and_surveys",
+          "file_naming_routing_and_duplicates",
+          "gemini_multimodal_analysis",
+          "prompt_model_and_result_contracts",
+          "human_review_and_override",
+          "research_audit_and_task_linkage",
+          "manual_fallback_and_recovery"
+        ]
+      },
+      "must_not_become_universal": [
+        "gemini_as_mandatory_provider",
+        "google_workspace_as_platform_authority",
+        "evidence_specific_entities_for_every_package",
+        "repository_ci_contract_as_runtime_tenant_authority"
+      ],
+      "blocking_actions": [
+        "current_main_reconciliation",
+        "duplicate_spec_identity_resolution",
+        "assurance_template_extraction",
+        "child_package_reconstruction",
+        "work_map_readiness"
+      ]
+    }
+  ],
+  "canonical_targets": {
+    "convergence_spec": "specs/015-tenant-operating-system-studio",
+    "generic_profile_and_blueprint_substrate": "to_be_mapped_during_T003_T006",
+    "generic_package_assurance_template": "to_be_mapped_during_T003_T006",
+    "retail_commerce_reference_pack": "to_be_reconstructed_after_core_package_contracts",
+    "evidence_intelligence_reference_pack": "to_be_reconstructed_after_core_package_contracts"
+  },
+  "invariants": [
+    "no_candidate_branch_is_runtime_authority",
+    "no_green_ci_result_is_reused_after_head_or_base_changes",
+    "no_force_push_or_history_rewrite_is_required",
+    "generic_substrate_is_separated_from_child_package_content",
+    "credentials_grants_client_data_and_provider_payloads_are_never_copied",
+    "runtime_implementation_requires_separate_child_prs",
+    "secrets_included_false"
+  ],
+  "secrets_included": false
+}

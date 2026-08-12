@@ -1,0 +1,21 @@
+# Requirements Review Checklist
+
+- [ ] Problem is framed as a generic Tenant system-authoring gap, not a Commerce- or Evidence-only feature.
+- [ ] Existing Spec 006, 010, 011, 012, Container Authority, capability, policy, connector, and resource authorities are reused.
+- [ ] Package ownership, installation ownership, data ownership, file ownership, connection ownership, and authority are separate.
+- [ ] Solution Package includes entities, forms, lifecycles, workflows, files, AI, UI, reports, roles, connectors, tests, migrations, and runbooks.
+- [ ] Package/component/installation versions are immutable after activation/publication.
+- [ ] Install, override, extend, fork, tenant-author, publish, upgrade, rollback, transfer, suspend, archive, and retire are covered.
+- [ ] Clients-as-Brands and client-owned-Tenant delegation are both covered.
+- [ ] Generated client forms hide internal IDs and preserve exact bound context.
+- [ ] AI is draft-only and cannot create execution authority.
+- [ ] Custom entities use approved persistence/resource patterns rather than arbitrary tables/SQL.
+- [ ] Lifecycle definitions compile to stable runtime primitives rather than a parallel engine.
+- [ ] Generated UI uses Application/Resource services and does not derive authority from visibility.
+- [ ] Package export/fork excludes credentials, grants, client data, files, signed URLs, and runtime state.
+- [ ] Three-way upgrade comparison preserves local overrides/extensions.
+- [ ] Handover and agency revocation preserve client continuity where dependencies are transferable.
+- [ ] Reference-pack treatment for PR #3922 and #4432 is explicit.
+- [ ] Duplicate Spec 014 identity is an explicit blocker.
+- [ ] Runtime implementation, migration apply, deployment, provider calls, and Production activation remain outside this PR.
+- [ ] Success criteria require runtime evidence rather than documentation presence.

@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.mad4b.com/spec-015/solution-package.schema.json",
+  "title": "Tenant Solution Package",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_type",
+    "package_key",
+    "package_version",
+    "package_class",
+    "owner_scope",
+    "ownership_class",
+    "components",
+    "dependencies",
+    "publication",
+    "installation_contract",
+    "acceptance_suite_refs",
+    "lifecycle_status",
+    "secrets_included"
+  ],
+  "properties": {
+    "record_type": { "const": "tenant_solution_package_version" },
+    "package_key": { "$ref": "#/$defs/reference" },
+    "package_version": { "$ref": "#/$defs/semver" },
+    "schema_version": { "type": "string", "minLength": 1, "maxLength": 64, "default": "1" },
+    "package_class": {
+      "type": "string",
+      "enum": ["operating_system", "solution_pack", "component_bundle", "reference_pack"]
+    },
+    "owner_scope": { "$ref": "#/$defs/ownerScope" },
+    "ownership_class": {
+      "type": "string",
+      "enum": ["platform", "tenant", "shared_by_agreement", "fork"]
+    },
+    "origin": {
+      "oneOf": [
+        { "$ref": "#/$defs/origin" },
+        { "type": "null" }
+      ]
+    },
+    "name_ar": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "name_en": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "description": { "type": "string", "maxLength": 5000 },
+    "supported_profile_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/versionedReference" }
+    },
+    "supported_activity_type_keys": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 100,
+      "items": { "$ref": "#/$defs/reference" }
+    },
+    "components": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1000,
+      "items": { "$ref": "#/$defs/componentBinding" }
+    },
+    "dependencies": {
+      "type": "array",
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/dependency" }
+    },
+    "publication": { "$ref": "#/$defs/publication" },
+    "installation_contract": { "$ref": "#/$defs/installationContract" },
+    "migration_plan_ref": {
+      "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+    },
+    "acceptance_suite_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/versionedReference" }
+    },
+    "runbook_refs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/versionedReference" }
+    },
+    "compatibility": { "$ref": "#/$defs/compatibility" },
+    "lifecycle_status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "validating",
+        "needs_clarification",
+        "sandbox_ready",
+        "testing",
+        "awaiting_approval",
+        "published",
+        "installable",
+        "suspended",
+        "deprecated",
+        "retired"
+      ]
+    },
+    "content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "created_by_ref": { "$ref": "#/$defs/reference" },
+    "approved_by_ref": {
+      "oneOf": [{ "$ref": "#/$defs/reference" }, { "type": "null" }]
+    },
+    "secrets_included": { "const": false }
+  },
+  "$defs": {
+    "reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 191,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/-]*$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$"
+    },
+    "ownerScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scope_type", "scope_ref"],
+      "properties": {
+        "scope_type": { "type": "string", "enum": ["platform", "tenant", "workspace", "brand"] },
+        "scope_ref": { "$ref": "#/$defs/reference" },
+        "tenant_ref": { "$ref": "#/$defs/reference" },
+        "workspace_ref": { "$ref": "#/$defs/reference" },
+        "brand_ref": { "$ref": "#/$defs/reference" }
+      }
+    },
+    "versionedReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "version"],
+      "properties": {
+        "key": { "$ref": "#/$defs/reference" },
+        "version": { "type": "string", "minLength": 1, "maxLength": 64 }
+      }
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_key", "package_version", "lineage_class"],
+      "properties": {
+        "package_key": { "$ref": "#/$defs/reference" },
+        "package_version": { "$ref": "#/$defs/semver" },
+        "lineage_class": { "type": "string", "enum": ["new_version", "fork", "reconstruction", "import"] },
+        "origin_content_hash": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    },
+    "componentBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["component_key", "component_type", "version_policy", "requirement_class"],
+      "properties": {
+        "component_key": { "$ref": "#/$defs/reference" },
+        "component_type": {
+          "type": "string",
+          "enum": [
+            "entity_definition",
+            "relationship_definition",
+            "form_definition",
+            "lifecycle_definition",
+            "workflow_definition",
+            "file_policy",
+            "ai_use_case",
+            "ui_surface",
+            "report_definition",
+            "role_template",
+            "connector_requirement",
+            "policy_binding",
+            "sample_dataset",
+            "migration_plan",
+            "acceptance_suite",
+            "runbook"
+          ]
+        },
+        "version_policy": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode"],
+          "properties": {
+            "mode": { "type": "string", "enum": ["pinned", "compatible_range"] },
+            "version": { "type": "string", "maxLength": 64 },
+            "range": { "type": "string", "maxLength": 128 }
+          }
+        },
+        "requirement_class": { "type": "string", "enum": ["required", "optional", "conditional"] },
+        "extension_point": { "type": ["string", "null"], "maxLength": 191 },
+        "priority": { "type": "integer", "minimum": -100000, "maximum": 100000, "default": 0 },
+        "applicability_predicate_ref": {
+          "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+        },
+        "local_configuration_schema_ref": {
+          "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+        }
+      }
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["package_key", "version_range", "dependency_class"],
+      "properties": {
+        "package_key": { "$ref": "#/$defs/reference" },
+        "version_range": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "dependency_class": { "type": "string", "enum": ["runtime", "design_time", "optional", "migration", "test"] }
+      }
+    },
+    "publication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["visibility", "allowed_install_modes", "allowed_customization_modes", "version_policies"],
+      "properties": {
+        "visibility": {
+          "type": "string",
+          "enum": ["private", "tenant_internal", "shared_by_agreement", "marketplace_candidate", "platform_curated", "deprecated", "retired"]
+        },
+        "audience_selector_ref": {
+          "oneOf": [{ "$ref": "#/$defs/versionedReference" }, { "type": "null" }]
+        },
+        "allowed_install_modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["reference", "configured_installation", "fork"] }
+        },
+        "allowed_customization_modes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["none", "override", "extend", "fork"] }
+        },
+        "version_policies": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["version_pinned", "approval_required", "compatible_auto_upgrade"] }
+        }
+      }
+    },
+    "installationContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["eligible_target_scopes", "required_context", "required_evidence_classes", "activation_requires_readback"],
+      "properties": {
+        "eligible_target_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["tenant", "workspace", "brand"] }
+        },
+        "required_context": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "enum": ["tenant", "workspace", "brand", "business_profile", "activity", "environment"] }
+        },
+        "required_connection_families": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_capability_keys": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "required_evidence_classes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "activation_requires_readback": { "const": true }
+      }
+    },
+    "compatibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "platform_version_range": { "type": "string", "maxLength": 128 },
+        "required_feature_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "incompatible_package_refs": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/reference" }
+        },
+        "upgrade_policy": { "type": "string", "enum": ["non_breaking_only", "migration_required", "manual_review"] }
+      }
+    }
+  }
+}
