@@ -1,0 +1,323 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "git-index",
+  "deterministic": true,
+  "totals": {
+    "files": 6608,
+    "bytes": 57974571,
+    "lines": 1358413,
+    "directories": 249,
+    "categories": 13
+  },
+  "counts": {
+    "byCategory": {
+      "tests-and-specs": 1974,
+      "documentation": 1823,
+      "api-runtime": 1322,
+      "database-migrations": 767,
+      "root-and-other": 211,
+      "ci-workflows": 149,
+      "api-contracts": 147,
+      "ci-config": 93,
+      "schemas-and-data": 66,
+      "connectors-and-edge": 23,
+      "applications": 19,
+      "source": 12,
+      "build-and-dependencies": 2
+    },
+    "byExtension": {
+      ".md": 2421,
+      ".mjs": 1514,
+      ".js": 925,
+      ".sql": 782,
+      ".json": 639,
+      ".yml": 151,
+      ".yaml": 107,
+      ".ts": 15,
+      ".cs": 14,
+      ".jsx": 9,
+      ".txt": 6,
+      ".ps1": 5,
+      ".css": 3,
+      ".csproj": 2,
+      ".toml": 2,
+      ".example": 2,
+      ".gitattributes": 1,
+      ".gitignore": 1,
+      ".nvmrc": 1,
+      ".manifest": 1,
+      ".htaccess": 1,
+      ".gcloudignore": 1,
+      "[no extension]": 1,
+      ".png": 1,
+      ".html": 1,
+      ".sh": 1,
+      ".keep": 1
+    },
+    "topLevel": {
+      "http-generic-api": 3418,
+      "docs": 1729,
+      "specs": 807,
+      ".github": 242,
+      ".changes": 209,
+      "canonicals": 70,
+      "local-connector": 23,
+      "apps": 19,
+      ".specify": 14,
+      "schemas": 14,
+      "src": 12,
+      "edge": 9,
+      "scripts": 4,
+      "tests": 3,
+      ".gitattributes": 1,
+      ".gitignore": 1,
+      ".nvmrc": 1,
+      "20260508_add_platform_runtime_config.sql": 1,
+      "AI_Agent_Knowledge_Guide.md": 1,
+      "GPT_Admin_Assistant_Knowledge_Guide.md": 1,
+      "GPT_Tenant_Connector_Instructions.md": 1,
+      "GPT_Tenant_Connector_Knowledge.md": 1,
+      "README.md": 1,
+      "Top Level Instructions.md": 1,
+      "Updating Registry Patch Index.md": 1,
+      "build-canonicals.mjs": 1,
+      "canonical-manifest.mjs": 1,
+      "canonical_validation_checklist.md": 1,
+      "connector_contracts.md": 1,
+      "deployment_parity_checklist.md": 1,
+      "direct_instructions_registry_patch.md": 1,
+      "find-canonical-domain.mjs": 1,
+      "governed_mutation_playbook.md": 1,
+      "hostinger-entrypoint-runtime.js": 1,
+      "hostinger-public": 1,
+      "install-local-connector.ps1": 1,
+      "memory-schema-manifest.mjs": 1,
+      "memory_schema.json": 1,
+      "module_loader.md": 1,
+      "package-lock.json": 1,
+      "package.json": 1,
+      "prompt_router.md": 1,
+      "runtime_boundary_map.md": 1,
+      "runtime_confirmation_procedure.md": 1,
+      "server.js": 1,
+      "system_bootstrap.md": 1,
+      "tsconfig.json": 1,
+      "validate-canonical-sources.mjs": 1,
+      "validate-memory-schema.mjs": 1
+    }
+  },
+  "packages": [
+    {
+      "path": "http-generic-api/package.json",
+      "name": "http-generic-api-connector",
+      "version": "2.7.0-wordpress-dry-run-preflight",
+      "scripts": [
+        "prestart",
+        "start",
+        "governance:admin-control-db-contract",
+        "test",
+        "test:list",
+        "test:context-kernel:provider-consent",
+        "automation:overlap:report",
+        "automation:overlap:check",
+        "test:automation:overlap",
+        "release:phase-rollup-check",
+        "resources:openapi:generate",
+        "resources:openapi:check",
+        "frontend:governance:generate",
+        "frontend:governance:check",
+        "frontend:dispatch:generate",
+        "frontend:dispatch:check",
+        "openapi:auth:write",
+        "openapi:auth:check",
+        "schemas:generate",
+        "schemas:check",
+        "schemas:builder-guard",
+        "openapi:response-objects:guard",
+        "openapi:lint:compat",
+        "test:openapi:response-objects",
+        "test:openapi:lint:compat",
+        "schemas:guard",
+        "readiness:interruptions",
+        "readiness:interruptions:ci",
+        "readiness:verify-plan",
+        "manifest:deployment",
+        "supervisor:readiness",
+        "supervisor:readiness:live",
+        "supervisor:certify",
+        "supervisor:certify:live",
+        "supervisor:exports:check",
+        "smoke:dev-autopilot",
+        "smoke:route-selector",
+        "smoke:installer-reprovision",
+        "smoke:github-tooling-schema",
+        "admin:create",
+        "admin:create:gcloud",
+        "test:live:scopes",
+        "validate",
+        "verify",
+        "activation-gateway:bundle:sync",
+        "activation-gateway:bundle:check",
+        "outbox:status",
+        "outbox:dry-run",
+        "outbox:run-once",
+        "outbox:loop",
+        "auth-email-outbox:status",
+        "auth-email-outbox:dry-run",
+        "auth-email-outbox:run-once",
+        "dev:migration:status",
+        "dev:migration:probe",
+        "dev:migration:client",
+        "dev:outbox:status",
+        "dev:outbox:dry-run"
+      ],
+      "dependencies": 9,
+      "devDependencies": 0
+    },
+    {
+      "path": "package.json",
+      "name": "multi-business-growth-intelligence-os",
+      "version": "1.0.0",
+      "scripts": [
+        "start",
+        "postinstall",
+        "typecheck",
+        "test",
+        "ci:execution-resolvers",
+        "inventory:write",
+        "inventory:check",
+        "inventory:test"
+      ],
+      "dependencies": 0,
+      "devDependencies": 4
+    }
+  ],
+  "surfaces": {
+    "workflows": 149,
+    "migrations": 767,
+    "apiContracts": 147,
+    "testSpecFiles": 2037
+  },
+  "largestFiles": [
+    {
+      "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+      "category": "schemas-and-data",
+      "bytes": 4831654,
+      "lines": 142814
+    },
+    {
+      "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+      "category": "api-runtime",
+      "bytes": 3156577,
+      "lines": 96943
+    },
+    {
+      "path": "http-generic-api/openapi.yaml",
+      "category": "api-contracts",
+      "bytes": 979336,
+      "lines": 22721
+    },
+    {
+      "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "category": "api-contracts",
+      "bytes": 327849,
+      "lines": 8544
+    },
+    {
+      "path": "http-generic-api/wordpress/phaseA.js",
+      "category": "api-runtime",
+      "bytes": 286142,
+      "lines": 7691
+    },
+    {
+      "path": "docs/surface-contract-safety-attestations.json",
+      "category": "documentation",
+      "bytes": 265603,
+      "lines": 7914
+    },
+    {
+      "path": "http-generic-api/schemas/hostinger/hostinger_api.yaml",
+      "category": "schemas-and-data",
+      "bytes": 242696,
+      "lines": 7657
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "category": "api-runtime",
+      "bytes": 203883,
+      "lines": 4369
+    },
+    {
+      "path": "http-generic-api/supportTicketService.js",
+      "category": "api-runtime",
+      "bytes": 157662,
+      "lines": 2301
+    },
+    {
+      "path": "Updating Registry Patch Index.md",
+      "category": "documentation",
+      "bytes": 155274,
+      "lines": 1826
+    },
+    {
+      "path": "http-generic-api/routes/adminCliRoutes.js",
+      "category": "api-runtime",
+      "bytes": 149339,
+      "lines": 3362
+    },
+    {
+      "path": "AI_Agent_Knowledge_Guide.md",
+      "category": "documentation",
+      "bytes": 145911,
+      "lines": 1339
+    },
+    {
+      "path": "package-lock.json",
+      "category": "build-and-dependencies",
+      "bytes": 138721,
+      "lines": 3861
+    },
+    {
+      "path": "http-generic-api/releaseReadiness.js",
+      "category": "api-runtime",
+      "bytes": 134992,
+      "lines": 2591
+    },
+    {
+      "path": "schemas/operations.schema.json",
+      "category": "schemas-and-data",
+      "bytes": 134568,
+      "lines": 3397
+    },
+    {
+      "path": "http-generic-api/routes/devAgentRoutes.js",
+      "category": "api-runtime",
+      "bytes": 127236,
+      "lines": 2754
+    },
+    {
+      "path": "docs/work-maps/data-model-domain-map.md",
+      "category": "documentation",
+      "bytes": 117364,
+      "lines": 848
+    },
+    {
+      "path": "apps/local-manager-windows/Program.cs",
+      "category": "applications",
+      "bytes": 112920,
+      "lines": 2024
+    },
+    {
+      "path": "http-generic-api/platformResourceRecipeCapability.js",
+      "category": "api-runtime",
+      "bytes": 112202,
+      "lines": 2722
+    },
+    {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "category": "api-contracts",
+      "bytes": 110362,
+      "lines": 3289
+    }
+  ]
+}

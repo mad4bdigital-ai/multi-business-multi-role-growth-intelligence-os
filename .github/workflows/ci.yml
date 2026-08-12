@@ -30,6 +30,11 @@ jobs:
         with:
           node-version: "22"
 
+      - name: Verify dynamic repository inventory
+        run: |
+          npm run inventory:check
+          npm run inventory:test
+
       - name: Guard centralized fail-closed user JWT auth
         working-directory: http-generic-api
         run: node scripts/user-jwt-auth-governance.mjs
