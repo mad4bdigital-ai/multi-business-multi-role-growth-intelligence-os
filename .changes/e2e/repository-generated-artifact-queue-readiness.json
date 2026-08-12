@@ -14,7 +14,8 @@
       ".github/workflows/surface-contract-auto-remediation.yml",
       "docs/automation-overlap-governance.md",
       "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
-      "http-generic-api/test-automation-overlap-analyzer.mjs"
+      "http-generic-api/test-automation-overlap-analyzer.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
     ]
   },
   "merge_contract": {
