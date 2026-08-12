@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-evaluation",
   "deterministic": true,
-  "inputFingerprint": "e1bd71c29f61e732e2eb0b16d5e4e433f22a1c3ec474bfc31a36610a97f9ace7",
+  "inputFingerprint": "eaced76f9e53ee2b6245680d4bc0a9b68799925e0a04f149df6a5449f0f081e5",
   "gate": {
     "decision": "pass",
     "blockingGapIds": [],
     "warningGapIds": []
   },
   "baselineDiff": {
-    "available": false,
+    "available": true,
     "newGapIds": [],
     "persistingGapIds": [],
     "unchangedGapIds": [],
