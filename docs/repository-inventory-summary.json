@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6608,
-    "bytes": 57973164,
-    "lines": 1358390,
+    "files": 6641,
+    "bytes": 58238241,
+    "lines": 1363622,
     "directories": 249,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1974,
+      "tests-and-specs": 1984,
       "documentation": 1823,
-      "api-runtime": 1322,
-      "database-migrations": 767,
-      "root-and-other": 211,
+      "api-runtime": 1338,
+      "database-migrations": 773,
+      "root-and-other": 212,
       "ci-workflows": 149,
       "api-contracts": 147,
       "ci-config": 93,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2421,
-      ".mjs": 1514,
-      ".js": 925,
-      ".sql": 782,
-      ".json": 639,
+      ".mjs": 1526,
+      ".js": 938,
+      ".sql": 788,
+      ".json": 641,
       ".yml": 151,
       ".yaml": 107,
       ".ts": 15,
@@ -55,11 +55,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3418,
+      "http-generic-api": 3450,
       "docs": 1729,
       "specs": 807,
       ".github": 242,
-      ".changes": 209,
+      ".changes": 210,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -194,9 +194,9 @@
   ],
   "surfaces": {
     "workflows": 149,
-    "migrations": 767,
+    "migrations": 773,
     "apiContracts": 147,
-    "testSpecFiles": 2037
+    "testSpecFiles": 2047
   },
   "largestFiles": [
     {
@@ -242,7 +242,7 @@
       "lines": 7657
     },
     {
-      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
       "bytes": 203883,
       "lines": 4369
