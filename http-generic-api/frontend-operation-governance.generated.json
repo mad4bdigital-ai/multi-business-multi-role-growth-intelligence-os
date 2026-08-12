@@ -2,7 +2,7 @@
   "schema_version": "frontend-operation-governance-v1",
   "generator": {
     "id": "frontend-operation-governance-generator-v6-root-workspace-brand-container",
-    "source_digest": "5efa24ffaadc9af7df2d9f363cb661913015e7f7dfd0821f1088021a2d734022",
+    "source_digest": "891f3b1c66d5600b6850904e9d2d2794ddb1f6ae6450107dc48e08d1e6d1f926",
     "fail_closed": true
   },
   "source_authority": [
@@ -53,7 +53,7 @@
     },
     {
       "file": "routes/resourceApiRoutes.js",
-      "sha256": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+      "sha256": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
       "present": true
     },
     {
@@ -186,7 +186,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-archive-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "15afd19d4aa855e1b259c4c6b4cc8026ccecbab75a9a5ced01a31c5b34903b30",
         "fail_closed": true
       }
     },
@@ -228,7 +228,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-update-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "15afd19d4aa855e1b259c4c6b4cc8026ccecbab75a9a5ced01a31c5b34903b30",
         "fail_closed": true
       }
     },
@@ -537,7 +537,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-create-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "15afd19d4aa855e1b259c4c6b4cc8026ccecbab75a9a5ced01a31c5b34903b30",
         "fail_closed": true
       }
     },
@@ -579,7 +579,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "tenant-resource-restore-transaction-v1",
-        "source_digest": "2a317757f92a5436ac5c67f6d83e29313268832ab2d4f62548726532f73a1ec4",
+        "source_digest": "15afd19d4aa855e1b259c4c6b4cc8026ccecbab75a9a5ced01a31c5b34903b30",
         "fail_closed": true
       }
     },
@@ -629,7 +629,7 @@
       ],
       "generated_evidence": {
         "recipe_id": "workspace-brand-core-asset-materialize-v3-root-brand-container",
-        "source_digest": "de6debd1c2a8c2900202f9c1ce49bd1f7e5420679b541bcc47b1149490607ee4",
+        "source_digest": "f2cdc9c2805defeb6415fd1e5fa64d90c8dedde10f8f217dfe66e3c5e6d22336",
         "fail_closed": true
       }
     }

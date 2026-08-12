@@ -1,23 +1,13 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { DataManagementError, archiveRow, createRow, getRow, listRows, listTableRegistrations, patchRow } from "../registryDataManagementService.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const WRITE_ROLES = new Set(["owner", "admin", "operator", "editor", "manage", "operate", "edit"]);
 const ARCHIVE_ROLES = new Set(["owner", "admin"]);
 
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authHeader.slice(7), JWT_SECRET); } catch { return null; }
-}
+const requireUserJwt = createUserJwtMiddleware();
 
-function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
-  if (!payload || !payload.user_id) return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id || null, is_admin: false };
-  return next();
-}
 
 async function requireActiveMembership(req, res, tenantId) {
   const [rows] = await getPool().query(

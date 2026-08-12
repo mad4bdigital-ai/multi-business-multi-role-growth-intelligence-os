@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -10,8 +11,15 @@ const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const TARGET_BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
 const PROTECTED_BRANCHES = new Set(["main", "Production"]);
 const MAX_DIAGNOSTIC_CHARS = 4000;
+const AUTO_RECIPE = "auto";
 const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
 const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
+const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
+const EXPLICIT_RECIPES = new Set([
+  FRONTEND_OPENAPI_RECIPE,
+  WORK_MAP_BOOTSTRAP_RECIPE,
+  REPOSITORY_INVENTORY_RECIPE,
+]);
 const FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES = new Set([
   "http-generic-api/openapi.yaml",
   "http-generic-api/openapi/support-tickets.yaml",
@@ -31,20 +39,26 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
 ]);
+const REPOSITORY_INVENTORY_OUTPUTS = new Set([
+  "docs/repository-inventory.json",
+  "docs/repository-inventory-summary.json",
+  "docs/repository-inventory.md",
+]);
 const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
   ".github/workflows/spec-kit-work-map-autofix.yml",
   "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
 ]);
 const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
+  /^(?:\.github\/workflows\/(?:governed-generated-artifact-refresh|repository-inventory(?:-autofix-dispatch)?)\.yml|docs\/repository-inventory-guide\.md)$/u,
   /^\.github\/repository-maintenance-tool-governance\.json$/u,
   /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
   /^docs\/ci-evidence-routing\.md$/u,
   /^docs\/runbooks\/supervisor-runtime-assurance\.md$/u,
-  /^http-generic-api\/scripts\/maintenance-tools\/generated-artifact-refresh\.mjs$/u,
+  /^http-generic-api\/scripts\/maintenance-tools\/(?:generated-artifact-refresh|repository-tool-lifecycle-guard)\.mjs$/u,
   /^http-generic-api\/scripts\/platform-work-map-generator\.mjs$/u,
   /^http-generic-api\/scripts\/taxonomy\/automation-overlap-policy\.json$/u,
-  /^http-generic-api\/scripts\/test-generated-artifact-refresh-maintenance-tool\.mjs$/u,
+  /^http-generic-api\/scripts\/(?:test-generated-artifact-refresh-maintenance-tool|test-repository-tool-lifecycle-guard)\.mjs$/u,
   /^http-generic-api\/scripts\/generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/scripts\/test-generated-artifact-refresh-pr-publisher\.mjs$/u,
   /^http-generic-api\/test-spec014-refresh-final-work-map-binding\.mjs$/u,
@@ -121,7 +135,7 @@ function run(step, command, args = [], options = {}) {
   return result;
 }
 
-function validateInputs({ target_ref, expected_head_sha, confirmation }) {
+function validateInputs({ target_ref, expected_head_sha, confirmation, recipe }) {
   if (!target_ref || !TARGET_BRANCH_PATTERN.test(target_ref)) {
     throw new ToolFailure({ code: "target_ref_invalid", step: "validate_inputs", command: "validate target_ref", status: 1, stderr: "Target ref must match a governed work-branch pattern." });
   }
@@ -134,6 +148,10 @@ function validateInputs({ target_ref, expected_head_sha, confirmation }) {
   }
   if (confirmation !== CONFIRMATION) {
     throw new ToolFailure({ code: "typed_confirmation_required", step: "validate_inputs", command: "validate confirmation", status: 1, stderr: `Confirmation must equal ${CONFIRMATION}.` });
+  }
+  const requestedRecipe = recipe || AUTO_RECIPE;
+  if (requestedRecipe !== AUTO_RECIPE && !EXPLICIT_RECIPES.has(requestedRecipe)) {
+    throw new ToolFailure({ code: "recipe_invalid", step: "validate_inputs", command: "validate recipe", status: 1, stderr: "Recipe must be auto or one of the registered generated-artifact recipes." });
   }
 }
 
@@ -189,9 +207,7 @@ function isAllowedWorkMapSelfHostingSource(file) {
   return isWorkMapBootstrapOutput(file) || WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS.some((pattern) => pattern.test(file));
 }
 
-function classifyRecipe(candidateSourceFiles) {
-  const hasSelfHostingTrigger = candidateSourceFiles.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file));
-  if (!hasSelfHostingTrigger) return FRONTEND_OPENAPI_RECIPE;
+function assertWorkMapSelfHostingScope(candidateSourceFiles) {
   const unexpected = candidateSourceFiles.filter((file) => !isAllowedWorkMapSelfHostingSource(file));
   if (unexpected.length) {
     throw new ToolFailure({
@@ -203,7 +219,20 @@ function classifyRecipe(candidateSourceFiles) {
       stderr: "The Work Map self-hosting bootstrap is restricted to the registered writer, maintenance authority, governed regressions, publisher evidence, and canonical generated outputs.",
     });
   }
+}
+
+function classifyRecipe(candidateSourceFiles) {
+  const hasSelfHostingTrigger = candidateSourceFiles.some((file) => WORK_MAP_SELF_HOSTING_TRIGGER_PATHS.has(file));
+  if (!hasSelfHostingTrigger) return FRONTEND_OPENAPI_RECIPE;
+  assertWorkMapSelfHostingScope(candidateSourceFiles);
   return WORK_MAP_BOOTSTRAP_RECIPE;
+}
+
+function resolveRecipe(requestedRecipe, candidateSourceFiles) {
+  const normalized = requestedRecipe || AUTO_RECIPE;
+  if (normalized === AUTO_RECIPE) return classifyRecipe(candidateSourceFiles);
+  if (normalized === WORK_MAP_BOOTSTRAP_RECIPE) assertWorkMapSelfHostingScope(candidateSourceFiles);
+  return normalized;
 }
 
 function runFrontendOpenApiRefresh() {
@@ -263,8 +292,45 @@ function runWorkMapSelfHostingBootstrap() {
   run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
 }
 
+function hashFile(relativePath) {
+  return createHash("sha256").update(fs.readFileSync(path.join(repoRoot, relativePath))).digest("hex");
+}
+
+function readRepositoryInventoryHashes() {
+  return Object.fromEntries([...REPOSITORY_INVENTORY_OUTPUTS].sort().map((file) => [file, hashFile(file)]));
+}
+
+function runRepositoryInventoryRefresh() {
+  const beforeHashes = readRepositoryInventoryHashes();
+  run("install_root_dependencies", "npm", ["ci", "--ignore-scripts"], { cwd: repoRoot, failureCode: "root_npm_ci_failed" });
+  run("generate_repository_inventory_first_pass", "npm", ["run", "inventory:write"], { cwd: repoRoot });
+  const firstPassHashes = readRepositoryInventoryHashes();
+  run("generate_repository_inventory_second_pass", "npm", ["run", "inventory:write"], { cwd: repoRoot });
+  const secondPassHashes = readRepositoryInventoryHashes();
+  if (JSON.stringify(firstPassHashes) !== JSON.stringify(secondPassHashes)) {
+    throw new ToolFailure({
+      code: "repository_inventory_not_deterministic",
+      step: "prove_repository_inventory_determinism",
+      command: "compare SHA-256 hashes after two inventory:write passes",
+      status: 1,
+      stdout: JSON.stringify({ first_pass: firstPassHashes, second_pass: secondPassHashes }),
+      stderr: "Repository Inventory outputs changed between deterministic generation passes.",
+    });
+  }
+  run("verify_repository_inventory_current", "npm", ["run", "inventory:check"], { cwd: repoRoot });
+  run("verify_repository_inventory_contract", "npm", ["run", "inventory:test"], { cwd: repoRoot });
+  return {
+    deterministic: true,
+    inventory_check: true,
+    inventory_test: true,
+    before_hashes: beforeHashes,
+    after_hashes: secondPassHashes,
+  };
+}
+
 function isAllowedGeneratedOutput(recipe, file) {
   if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) return isWorkMapBootstrapOutput(file);
+  if (recipe === REPOSITORY_INVENTORY_RECIPE) return REPOSITORY_INVENTORY_OUTPUTS.has(file);
   return FRONTEND_OPENAPI_ALLOWED_CHANGED_FILES.has(file);
 }
 
@@ -296,6 +362,7 @@ function writeReport(outputDir, report) {
     `- Recipe: \`${report.recipe || "unresolved"}\``,
     `- Target ref: \`${report.target_ref}\``,
     `- Expected head SHA: \`${report.expected_head_sha}\``,
+    `- Resulting head SHA: \`${report.result_head_sha || "none"}\``,
     `- Resulting commit SHA: \`${report.commit_sha || "none"}\``,
     `- Changed files: **${report.changed_files.length}**`,
     "- Force push: **no**",
@@ -325,19 +392,25 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
   let candidateSourceFiles = [];
   let recipe = null;
   let commitSha = null;
+  let resultHeadSha = null;
+  let verification = null;
   let firstFailure = null;
 
   try {
     validateInputs(args);
     assertExpectedHead({ target_ref: args.target_ref, expected_head_sha: args.expected_head_sha, phase: "preflight_expected_head" });
-    run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
     run("fetch_main", "git", ["fetch", "origin", "main", "--depth=1"], { cwd: repoRoot });
     run("sync_main_ref", "git", ["branch", "-f", "main", "origin/main"], { cwd: repoRoot });
 
     candidateSourceFiles = readCandidateSourceFiles();
-    recipe = classifyRecipe(candidateSourceFiles);
-    if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) runWorkMapSelfHostingBootstrap();
-    else runFrontendOpenApiRefresh();
+    recipe = resolveRecipe(args.recipe, candidateSourceFiles);
+    if (recipe === REPOSITORY_INVENTORY_RECIPE) {
+      verification = runRepositoryInventoryRefresh();
+    } else {
+      run("install_dependencies", "npm", ["ci"], { cwd: apiDir, failureCode: "npm_ci_failed" });
+      if (recipe === WORK_MAP_BOOTSTRAP_RECIPE) runWorkMapSelfHostingBootstrap();
+      else runFrontendOpenApiRefresh();
+    }
 
     changedFiles = parseChangedFiles();
     const unexpected = changedFiles.filter((file) => !isAllowedGeneratedOutput(recipe, file));
@@ -345,14 +418,16 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
       throw new ToolFailure({ code: "generated_artifact_write_set_violation", step: "enforce_write_set", command: `validate ${recipe} generated paths`, status: 1, stdout: unexpected.join("\n"), stderr: "Generated files exceeded the registered recipe allowlist." });
     }
 
+    assertExpectedHead({ target_ref: args.target_ref, expected_head_sha: args.expected_head_sha, phase: "postgeneration_expected_head" });
     if (changedFiles.length) {
-      assertExpectedHead({ target_ref: args.target_ref, expected_head_sha: args.expected_head_sha, phase: "precommit_expected_head" });
       run("configure_git_name", "git", ["config", "user.name", "github-actions[bot]"], { cwd: repoRoot });
       run("configure_git_email", "git", ["config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], { cwd: repoRoot });
       run("stage_generated_artifacts", "git", ["add", "--", ...changedFiles], { cwd: repoRoot });
       const commitMessage = recipe === WORK_MAP_BOOTSTRAP_RECIPE
         ? "docs(work-maps): bootstrap governed maps and Spec Kit bindings"
-        : "chore(ci): refresh generated contract artifacts";
+        : recipe === REPOSITORY_INVENTORY_RECIPE
+          ? "docs(inventory): regenerate repository inventory"
+          : "chore(ci): refresh generated contract artifacts";
       run("commit_generated_artifacts", "git", ["commit", "-m", commitMessage], { cwd: repoRoot });
       commitSha = run("read_resulting_commit", "git", ["rev-parse", "HEAD"], { cwd: repoRoot }).stdout.trim();
       if (!FULL_SHA_PATTERN.test(commitSha)) throw new ToolFailure({ code: "resulting_commit_sha_invalid", step: "read_resulting_commit", command: "git rev-parse HEAD", status: 1, stdout: commitSha });
@@ -361,6 +436,12 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
         throw new ToolFailure({ code: "expected_head_sha_mismatch_before_push", step: "prepush_expected_head", command: "git ls-remote", status: 1, stdout: `expected_head_sha=${args.expected_head_sha} current_head_sha=${current_head_sha || "missing"}`, stderr: "The target branch moved before push; refusing repository mutation." });
       }
       run("push_generated_artifacts", "git", ["push", "origin", `HEAD:${args.target_ref}`], { cwd: repoRoot });
+      resultHeadSha = readRemoteHead(args.target_ref);
+      if (resultHeadSha !== commitSha) {
+        throw new ToolFailure({ code: "resulting_head_readback_mismatch", step: "postpush_exact_head_readback", command: "git ls-remote", status: 1, stdout: `commit_sha=${commitSha} remote_head_sha=${resultHeadSha || "missing"}`, stderr: "Remote branch readback did not equal the generated-artifact commit." });
+      }
+    } else {
+      resultHeadSha = args.expected_head_sha;
     }
   } catch (error) {
     firstFailure = buildFailure(error);
@@ -370,16 +451,22 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     contract: CONTRACT,
     generated_at: new Date().toISOString(),
     outcome: firstFailure ? "blocked" : "passed",
+    recipe_request: args.recipe || AUTO_RECIPE,
     recipe,
     target_ref: args.target_ref || null,
     expected_head_sha: args.expected_head_sha || null,
+    result_head_sha: resultHeadSha,
     candidate_source_files: candidateSourceFiles,
     commit_sha: commitSha,
     changed_files: changedFiles,
+    verification,
     first_failure: firstFailure,
     mutation: {
       mode: "mutating",
+      outcome: changedFiles.length ? "commit" : "none",
+      reason: !firstFailure && recipe === REPOSITORY_INVENTORY_RECIPE && changedFiles.length === 0 ? "inventory_already_current" : null,
       expected_head_verified: !firstFailure || !String(firstFailure.code).includes("expected_head"),
+      result_head_readback_verified: !firstFailure && Boolean(resultHeadSha),
       protected_branches_rejected: true,
       force_push: false,
       allowed_changed_paths_only: !firstFailure || firstFailure.code !== "generated_artifact_write_set_violation",
@@ -393,7 +480,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     secrets_included: false,
   };
   writeReport(outputDir, report);
-  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, recipe: report.recipe, commit_sha: report.commit_sha, first_failure: report.first_failure?.code || null, secrets_included: false })}\n`);
+  process.stdout.write(`${JSON.stringify({ contract: report.contract, outcome: report.outcome, recipe: report.recipe, result_head_sha: report.result_head_sha, commit_sha: report.commit_sha, first_failure: report.first_failure?.code || null, secrets_included: false })}\n`);
   return report;
 }
 

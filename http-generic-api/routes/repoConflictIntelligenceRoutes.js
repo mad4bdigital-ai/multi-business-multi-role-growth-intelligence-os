@@ -1,6 +1,6 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { getPool } from "../db.js";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import {
   analyzeRepoConflict,
   buildConflictCaseStudy,
@@ -13,18 +13,7 @@ import {
   previewSemanticPatches,
 } from "../repoConflictIntelligenceService.js";
 
-function verifyUserJwt(authorization) {
-  if (!authorization || !authorization.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authorization.slice(7), process.env.JWT_SECRET || "dev-secret"); } catch { return null; }
-}
-
-function requireUserJwt(req, res, next) {
-  if (req.auth?.mode === "user_jwt") return next();
-  const payload = verifyUserJwt(req.headers.authorization);
-  if (!payload?.user_id || !payload?.tenant_id) return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Tenant sign-in is required." }, secrets_included: false });
-  req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id, is_admin: false };
-  return next();
-}
+const requireUserJwt = createUserJwtMiddleware();
 
 function errorResponse(res, error, fallbackCode) {
   return res.status(error.status || 500).json({ ok: false, error: { code: error.code || fallbackCode, message: error.message || "Request failed." }, secrets_included: false });
