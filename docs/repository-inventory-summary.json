@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6702,
-    "bytes": 58981842,
-    "lines": 1375433,
+    "bytes": 58983814,
+    "lines": 1375447,
     "directories": 251,
     "categories": 13
   },
@@ -313,8 +313,8 @@
     {
       "path": "docs/work-maps/data-model-domain-map.md",
       "category": "documentation",
-      "bytes": 117364,
-      "lines": 848
+      "bytes": 118205,
+      "lines": 854
     },
     {
       "path": "apps/local-manager-windows/Program.cs",

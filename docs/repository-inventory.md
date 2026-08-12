@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,702 |
-| Total bytes | 58,981,842 |
-| Counted text lines | 1,375,433 |
+| Total bytes | 58,983,814 |
+| Counted text lines | 1,375,447 |
 | Directories | 251 |
 | Categories | 13 |
 
@@ -103,7 +103,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/releaseReadiness.js` | api-runtime | 134,992 | 2591 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
-| `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
+| `docs/work-maps/data-model-domain-map.md` | documentation | 118,205 | 854 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,202 | 2722 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
