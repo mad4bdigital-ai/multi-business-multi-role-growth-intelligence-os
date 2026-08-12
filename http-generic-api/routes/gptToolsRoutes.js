@@ -26,6 +26,9 @@ async function dispatchTool(callerType, toolKey, args, req) {
   admin_scope_grant_dispatch
   resolveToolPreflightDescriptor(callerType, toolKey)
 }
+SESSION_ARCHIVE_PRE_FINAL_CAPTURE_GATE
+pre_final_capture_required
+latest_active_session_pre_final_capture_required
 `;
 void TENANT_TOOL_COMPATIBILITY_CONTRACT;
 
