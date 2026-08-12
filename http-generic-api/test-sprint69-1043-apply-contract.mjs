@@ -48,7 +48,7 @@ assert.doesNotMatch(workflow, /gh\s+api|issues:\s*write|comments\/|workflow_disp
 assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 
 for (const value of [
   APPLY_CONFIRM,

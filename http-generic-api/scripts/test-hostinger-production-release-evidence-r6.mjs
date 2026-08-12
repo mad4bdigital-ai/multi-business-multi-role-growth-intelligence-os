@@ -80,7 +80,7 @@ assert.match(workflow, /https:\/\/auth\.mad4b\.com\/deployment-info/);
 assert.match(workflow, /https:\/\/auth\.mad4b\.com\/connector-agent\/version/);
 assert.match(workflow, /test -z "\$\{EXISTING\}"/);
 assert.match(workflow, /persist-credentials: false/);
-assert.match(workflow, /actions\/upload-artifact@v4/);
+assert.match(workflow, /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 assert.match(workflow, /GITHUB_STEP_SUMMARY/);
 assert.match(workflow, /repository_read_only:true/);
 
