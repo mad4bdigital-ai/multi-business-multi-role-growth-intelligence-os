@@ -62,6 +62,14 @@ Delegation grant, revocation, ownership, and tenant-boundary services provide re
 
 Existing PR-related contracts and readiness tests prove repository governance, not successful reconstruction of the four Spec 015 package/service targets. T080-T085 require exact-head source comparison, duplicate-identity detection, stale-artifact detection, Operation Fabric integration, Tool Catalog projection, Spec 016 exposure verification, and canonical path validation.
 
+## Cross-artifact consistency findings
+
+| Finding | Evidence | Impact | Safe disposition |
+|---|---|---|---|
+| Required-check count mismatch | `.changes/e2e/github-repository-policy-controller.json` describes six canonical checks, while `http-generic-api/githubRepositoryPolicyController.js` currently defines seven, including `Single Owner Review Gate` | A live Ruleset fingerprint can be internally consistent but still disagree with the portfolio contract and Issue acceptance wording | Keep the controller fail-closed and record the mismatch; reconcile the canonical count before live policy apply |
+| Live apply contract versus runtime authority | Migration 1051 registers external-write capability metadata but explicitly does not execute GitHub mutation | A green migration/readiness test cannot be treated as live policy completion | Preserve the distinction and require a separate runtime readback/apply evidence artifact |
+| Adjacent primitives versus Spec 015 identity | Many `platformPlugin*`, `resource*`, and `activation*` modules exist, but no canonical Spec 015 package/component/install identity is established | Copying existing IDs would create duplicate or ambiguous authorities | Reuse only through explicit mapping; do not mark T010-T027 complete from adjacent tests |
+
 ## Deep implementation recommendation
 
 The highest-value local work that does not require a new product or persistence decision is:
