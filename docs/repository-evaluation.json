@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "45327943fc174d1446549384f095ba65135243888fc0ab984f6d21f9faf56811",
+  "inputFingerprint": "a3d5618046f9554d3f59077ae6f9512308b40495652f51c71b63425f7f587937",
   "inventory": {
     "files": 6615,
-    "bytes": 58017169,
+    "bytes": 58029234,
     "directories": 249,
     "categories": 13
   },
@@ -15,7 +15,7 @@
       "explicitPermissions": 150,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
-      "unpinnedActions": 479
+      "unpinnedActions": 480
     },
     "secrets": {
       "trackedTextFilesScanned": 6592,

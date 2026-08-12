@@ -99,6 +99,11 @@ jobs:
           cache: "npm"
           cache-dependency-path: http-generic-api/package-lock.json
 
+      - name: Setup repository-supported .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "8.0.x"
+
       - name: Install dependencies
         working-directory: http-generic-api
         run: npm ci
