@@ -1,0 +1,102 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-inventory-governed-regeneration",
+  "title": "Governed Repository Inventory regeneration",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-inventory-governed-regeneration.json",
+      ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/repository-inventory-autofix-dispatch.yml",
+      ".github/workflows/repository-inventory.yml",
+      "docs/repository-inventory-guide.md",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make Repository Inventory regeneration a bounded recipe of the existing governed generated-artifact writer while keeping pull-request verification read-only and automatic dispatch fail-closed around exact-head, trust, determinism, and write-set checks.",
+      "e2e_journeys": [
+        {
+          "id": "regenerate-stale-repository-inventory-through-governed-writer",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "repository inventory verifier, trusted dispatcher, and governed generated-artifact writer",
+          "entrypoint": "A same-repository pull request on a governed work branch fails Repository Inventory because only the canonical inventory outputs are stale, or a trusted operator explicitly invokes the dispatcher with the exact current PR identity.",
+          "terminal_outcome": "The read-only verifier and dispatcher prove exact identity, zero-behind freshness, trusted control surfaces, deterministic inventory generation, and an exact three-file dirty set before delegating repository_inventory_refresh to the existing writer; the writer applies only the registered outputs with exact-head CAS, non-force push, post-push readback, and exact-head read-only verification.",
+          "steps": [
+            "Run Repository Inventory on the exact pull-request head without repository write permission or persisted checkout credentials.",
+            "Require an open same-repository pull request targeting main and a governed non-protected work branch.",
+            "Require the source failure or manual request to bind the current exact head SHA and require behind_by to equal zero.",
+            "Refuse automatic repair when the writer, verifier, dispatcher, governance registry, package contract, or Inventory generator differs from trusted main.",
+            "Generate the three Repository Inventory outputs twice and compare SHA-256 identities to prove deterministic bytes.",
+            "Run the Repository Inventory currentness and contract regressions and reject any dirty path outside the exact three-output allowlist.",
+            "Delegate repository_inventory_refresh to Governed Generated Artifact Refresh without granting the dispatcher contents write permission.",
+            "Revalidate expected_head_sha after generation and immediately before mutation, reject main and Production, create a bounded commit only when outputs changed, and push without force.",
+            "Read the remote branch after push and require it to equal the generated commit SHA.",
+            "Dispatch Repository Inventory as the exact-head read-only verifier on the resulting SHA."
+          ],
+          "assertions": [
+            "Repository Inventory pull-request verification has contents: read only and performs no git push.",
+            "Repository Inventory regeneration writes exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md.",
+            "Two generation passes produce identical SHA-256 hashes before repository mutation is considered.",
+            "inventory currentness and inventory contract tests pass before a generated commit is created.",
+            "The dispatcher rejects fork pull requests, non-main bases, stale source heads, protected targets, and branches that are behind main.",
+            "The automatic dispatcher refuses to execute candidate-modified mutation authority and requires the trusted control surface to match main.",
+            "The dispatcher has actions write only in the delegation job and never receives contents write permission.",
+            "The governed writer requires an exact expected_head_sha and typed confirmation, rejects main and Production, and never force-pushes.",
+            "The writer supports a no-op outcome when Repository Inventory is already current.",
+            "The remote branch readback after a generated commit must equal the resulting commit SHA.",
+            "Generated-artifact verification routes repository_inventory_refresh to Repository Inventory rather than a generic verifier.",
+            "Force push, protected-branch mutation, Production deployment, database mutation, and secret publication are outside this feature."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-refresh-maintenance-tool",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/workflows/repository-inventory-autofix-dispatch.yml",
+            ".github/workflows/repository-inventory.yml",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+            "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe a trusted post-merge stale-only Inventory repair on a non-protected work branch and retain canonical exact-head verification evidence."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale SHA, branch drift, changed authority surface, nondeterministic generation, dirty-set escape, no-op, dispatch failure, and post-push readback mismatch paths."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Use the first eligible non-production Inventory drift as a bounded canary for automated stale-only repair."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Keep main and Production outside direct generated-artifact mutation targets while allowing the merged verifier and dispatcher contracts to govern ordinary work branches."
+    }
+  ]
+}

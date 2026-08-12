@@ -80,7 +80,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Regenerate inventory artifacts
-        run: npm run inventory:write
+        run: node scripts/repository-inventory.mjs
 
       - name: Verify inventory is committed and deterministic
         run: |
