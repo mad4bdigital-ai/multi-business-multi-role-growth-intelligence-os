@@ -1,0 +1,147 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "repository-generated-artifact-queue-readiness",
+  "title": "Repository generated-artifact queued exact-head writer readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "resilient",
+  "scope": {
+    "include": [
+      ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+      ".github/workflows/docs-agent.yml",
+      ".github/workflows/docs-agent-main-followup.yml",
+      ".github/workflows/openapi-auto-sync.yml",
+      ".github/workflows/surface-contract-auto-remediation.yml",
+      "docs/automation-overlap-governance.md",
+      "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+      "http-generic-api/test-automation-overlap-analyzer.mjs",
+      "http-generic-api/test-supervisor-runtime-assurance-automation.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Preserve one shared generated-artifact mutation owner while allowing multiple pending lifecycle requests to wait and requiring repository writers to execute only from an exact current main snapshot.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-writers-queue-with-exact-head-delegation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository generated-artifact governance",
+          "entrypoint": "A main push, scheduled remediation trigger, pull-request preview, or governed workflow dispatch reaches one of the four registered repository-generated-artifact workflows",
+          "terminal_outcome": "Preview work remains read-only, mutation requests wait in the shared multi-pending queue, and every repository writer verifies an exact live main SHA plus a non-protected target before generation or pull-request creation.",
+          "steps": [
+            "Load the repository-generated-artifacts resource-group policy and its four registered workflows.",
+            "Require every registered workflow to use the exact shared repository/ref concurrency identity with cancel-in-progress=false and queue=max.",
+            "Keep Docs Agent pull-request preview read-only and move main follow-up mutation into the independent exact-head Docs Agent Main Follow-up writer.",
+            "Require OpenAPI Auto Sync push events to dispatch an exact-head workflow_dispatch writer rather than mutating from the push job.",
+            "Require Surface Contract push and schedule events to dispatch an exact-head workflow_dispatch writer rather than mutating from the event job.",
+            "Require each mutating writer to verify checked-out HEAD and current main against expected_head_sha and reject main or Production as a target branch.",
+            "Run focused automation-overlap and repository lifecycle regressions against the candidate tree."
+          ],
+          "assertions": [
+            "OpenAPI Auto Sync retains the shared generated-artifact concurrency group, cancel-in-progress=false, and queue=max.",
+            "Surface Contract Auto Remediation retains the shared generated-artifact concurrency group, cancel-in-progress=false, and queue=max.",
+            "Docs Agent remains pull-request preview-only with read permissions and no repository writer permissions.",
+            "Docs Agent Main Follow-up is registered in the same shared queue and performs mutation only through an explicit expected-head workflow_dispatch path.",
+            "OpenAPI Auto Sync and Surface Contract event jobs only delegate to exact-head writers; their writer jobs reject stale main snapshots.",
+            "All mutating generated-artifact writers reject main and Production as target branches before repository mutation.",
+            "The policy declares required_queue=max for repository-generated-artifacts.",
+            "No direct protected-branch write, force push, provider call, database mutation, migration execution, deployment, or secret expansion is introduced."
+          ],
+          "tests": [
+            {
+              "id": "repository-generated-artifact-queue-overlap-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-automation-overlap-analyzer.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-generated-artifact-lifecycle-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/docs-agent.yml",
+            ".github/workflows/docs-agent-main-followup.yml",
+            ".github/workflows/openapi-auto-sync.yml",
+            ".github/workflows/surface-contract-auto-remediation.yml",
+            "docs/automation-overlap-governance.md",
+            "http-generic-api/scripts/taxonomy/automation-overlap-policy.json",
+            "http-generic-api/test-automation-overlap-analyzer.mjs",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "implemented",
+      "objective": "Fail regression coverage when a governed generated-artifact lifecycle can be silently dropped, mutate from an unpinned event snapshot, or target a protected branch.",
+      "e2e_journeys": [
+        {
+          "id": "generated-artifact-queue-and-lifecycle-ratchet",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Automation Overlap Guard and Repository Tool Lifecycle Governance",
+          "entrypoint": "A pull request changing generated-artifact workflows, overlap policy, or focused governance tests",
+          "terminal_outcome": "The candidate is rejected if any registered repository-generated-artifact workflow drops multi-pending queue protection or reintroduces pull-request mutation, branch-specific work literals, missing expected-head verification, or protected-target mutation.",
+          "steps": [
+            "Read the declared required_queue value and registered workflow inventory from the candidate policy.",
+            "Read each registered workflow source from the same candidate tree.",
+            "Assert the exact concurrency group, cancel-in-progress=false, and queue=max contract across all four workflows.",
+            "Assert Docs Agent pull-request preview remains read-only and branch-name-independent.",
+            "Assert every repository writer uses workflow_dispatch, expected_head_sha, exact checkout/readback, and protected-target rejection.",
+            "Run the real-repository automation overlap analysis and lifecycle guard against the candidate tree."
+          ],
+          "assertions": [
+            "The queue and exact-head ratchet is candidate-local and does not rely on historical run state.",
+            "The regression covers all four registered repository-generated-artifact workflows.",
+            "The existing Work Map writer queue=max ratchet remains intact.",
+            "Pull-request preview and repository mutation remain separated.",
+            "Evidence contains no secrets."
+          ],
+          "tests": [
+            {
+              "id": "repository-generated-artifact-queue-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-automation-overlap-analyzer.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-generated-artifact-lifecycle-ratchet",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/repository-generated-artifact-queue-readiness.json",
+            "http-generic-api/test-automation-overlap-analyzer.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This repository automation governance contract has no provider canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repository automation governance contract performs no Production action or deployment."
+    }
+  ],
+  "secrets_included": false
+}

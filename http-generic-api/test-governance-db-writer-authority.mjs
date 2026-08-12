@@ -17,6 +17,7 @@ assert.throws(
     assert.equal(error?.code, "GOVERNANCE_DB_CONFIG_MISSING");
     assert.equal(error?.details?.governance_identity_required, true);
     assert.equal(error?.details?.runtime_identity_fallback_allowed, false);
+    assert.equal(error?.details?.same_runtime_identity_rejected, true);
     assert.equal(error?.details?.secrets_included, false);
     assert.ok(error?.details?.missing?.includes("GOVERNANCE_DB_USER"));
     assert.ok(error?.details?.missing?.includes("GOVERNANCE_DB_PASSWORD"));
@@ -25,6 +26,25 @@ assert.throws(
     return true;
   },
   "runtime DB credentials must never satisfy the governance writer identity",
+);
+
+assert.throws(
+  () => resolveGovernanceDbConfig({
+    ...runtimeOnly,
+    GOVERNANCE_DB_USER: runtimeOnly.DB_USER,
+    GOVERNANCE_DB_PASSWORD: "separate-governance-secret",
+  }),
+  (error) => {
+    assert.equal(error?.code, "GOVERNANCE_DB_IDENTITY_NOT_DEDICATED");
+    assert.equal(error?.details?.governance_identity_required, true);
+    assert.equal(error?.details?.runtime_identity_fallback_allowed, false);
+    assert.equal(error?.details?.same_runtime_identity_rejected, true);
+    assert.equal(error?.details?.secrets_included, false);
+    assert.doesNotMatch(String(error?.message || ""), /separate-governance-secret|runtime-secret-value/);
+    assert.doesNotMatch(JSON.stringify(error?.details || {}), /separate-governance-secret|runtime-secret-value/);
+    return true;
+  },
+  "copying the ordinary DB_USER into GOVERNANCE_DB_USER must fail closed even with a separate password",
 );
 
 const inheritedEndpoint = resolveGovernanceDbConfig({
@@ -101,6 +121,8 @@ assert.throws(
 const governanceDbSource = readFileSync(new URL("./governanceDb.js", import.meta.url), "utf8");
 assert.match(governanceDbSource, /GOVERNANCE_DB_USER/);
 assert.match(governanceDbSource, /GOVERNANCE_DB_PASSWORD/);
+assert.match(governanceDbSource, /GOVERNANCE_DB_IDENTITY_NOT_DEDICATED/);
+assert.match(governanceDbSource, /same_runtime_identity_rejected: true/);
 assert.match(governanceDbSource, /runtime_identity_fallback_allowed: false/);
 assert.doesNotMatch(governanceDbSource, /GOVERNANCE_DB_USER\s*\|\|\s*(?:env\.)?DB_USER/);
 assert.doesNotMatch(governanceDbSource, /GOVERNANCE_DB_PASSWORD\s*\|\|\s*(?:env\.)?DB_PASSWORD/);

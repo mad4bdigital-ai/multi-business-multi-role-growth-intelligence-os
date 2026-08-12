@@ -2,6 +2,11 @@ name: Surface Contract Auto Remediation
 
 on:
   workflow_dispatch:
+    inputs:
+      expected_head_sha:
+        description: Exact current main SHA to remediate
+        required: true
+        type: string
   schedule:
     - cron: "17 3 * * *"
   push:
@@ -18,22 +23,76 @@ on:
       - "docs/change-documentation-governance.md"
 
 permissions:
-  contents: write
-  pull-requests: write
+  actions: write
+  contents: read
+  pull-requests: read
 
 concurrency:
   group: repository-generated-artifacts-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: false
+  queue: max
 
 jobs:
+  dispatch-exact-main:
+    name: Dispatch exact main remediation
+    if: github.event_name != 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Resolve live main and dispatch exact writer
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_EVENT: ${{ github.event_name }}
+          EVENT_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          expected_head_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [[ "${SOURCE_EVENT}" == "push" && "${expected_head_sha}" != "${EVENT_HEAD_SHA}" ]]; then
+            echo "Surface remediation dispatcher is stale: event=${EVENT_HEAD_SHA}, current_main=${expected_head_sha}. A newer main push owns remediation."
+            exit 0
+          fi
+          gh workflow run surface-contract-auto-remediation.yml \
+            --ref main \
+            -f expected_head_sha="${expected_head_sha}"
+          echo "Dispatched Surface Contract Auto Remediation writer for exact main ${expected_head_sha}."
+
   remediate:
     name: Generate reviewable remediation PR
+    if: github.event_name == 'workflow_dispatch' && github.ref_name == 'main'
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ inputs.expected_head_sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pin exact source and safe target branch
+        id: target
+        shell: bash
+        env:
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "${EXPECTED_HEAD_SHA}"
+          git fetch --no-tags origin main
+          current_head_sha="$(git rev-parse origin/main)"
+          test "${current_head_sha}" = "${EXPECTED_HEAD_SHA}"
+          TARGET_BRANCH="surface-contract-auto/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          case "${TARGET_BRANCH}" in
+            main|Production)
+              echo "Refusing protected target branch ${TARGET_BRANCH}."
+              exit 1
+              ;;
+          esac
+          echo "target_branch=${TARGET_BRANCH}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v6
         with:
@@ -118,7 +177,7 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BRANCH: surface-contract-auto/${{ github.run_id }}-${{ github.run_attempt }}
+          BRANCH: ${{ steps.target.outputs.target_branch }}
           AUTO_MERGE_ELIGIBLE: ${{ steps.remediation.outputs.auto_merge_eligible }}
           MANUAL_REVIEW_COUNT: ${{ steps.remediation.outputs.manual_review_count }}
           REMAINING_QUEUE_ITEMS: ${{ steps.remediation.outputs.remaining_queue_items }}
