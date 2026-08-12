@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6615,
-    "bytes": 58030852,
-    "lines": 1359583,
+    "bytes": 58031119,
+    "lines": 1359590,
     "directories": 249,
     "categories": 13
   },
@@ -10117,9 +10117,9 @@
       "path": ".github/workflows/repository-evaluation.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 4978,
-      "lines": 141,
-      "sha256": "84de0cb532bf6667c6c1bc48d7bead6dd3345ef4a818d15c957e512e7f461289",
+      "bytes": 5245,
+      "lines": 148,
+      "sha256": "39687907d7ec03590638dc7ed4b252c2516b4db10a7c58b10a96ff4d31b41c3b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30744,7 +30744,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "8081a4fc31de0a0f22731c22b3fbfdf0ae10974d7ceb591abf512fbdd0330c10",
+      "sha256": "f405ee4bd683c56469658cd1c4636a44370dbf4abbb720e708b278bfff2c2907",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30909,7 +30909,7 @@
       "extension": ".md",
       "bytes": 44944,
       "lines": 481,
-      "sha256": "bc85c827191f6c3d438f440d38b3e6b0a83c43a35cf98d7a910ed2ee1c383e92",
+      "sha256": "257bd5bab29468b5b903cbf67b7465656751df4fdca00a46dbbcd6ca63ca0620",
       "mode": "644",
       "executable": false,
       "generated": false
