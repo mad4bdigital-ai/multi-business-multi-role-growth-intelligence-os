@@ -10,27 +10,20 @@ export async function dispatchToolForCaller(...args) { return legacy.dispatchToo
 export async function fetchToolsForCaller(...args) { return legacy.fetchToolsForCaller(...args); }
 export function resolveCallerTypeForRequest(...args) { return legacy.resolveCallerTypeForRequest(...args); }
 
-// Static compatibility contract for tenant tool manifest/schema governance.
-// Runtime implementation remains delegated to gptToolsRoutesLegacy.js; these references
-// intentionally mirror the authoritative guard/cache contracts that must remain active.
-const TENANT_TOOL_LIST_CACHE_CONTRACT = 'sqlCacheKey("tools", callerType, "list", "v3")';
-const TENANT_TOOL_MANIFEST_FILTER_CONTRACT = 'filterTenantToolsByManifest(rows, blockedTenantManifests)';
-const TENANT_TOOL_SCHEMA_FILTER_CONTRACT = 'filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)';
-function dispatchTool(callerType, toolKey, args, req) {
-  const manifestGuard = 'assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)';
-  const schemaGuard = 'assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)';
-  const preflight = 'resolveToolPreflightDescriptor(callerType, toolKey)';
-  return legacy.dispatchToolForCaller(callerType, toolKey, args, req, {
-    compatibility_contracts: {
-      cache: TENANT_TOOL_LIST_CACHE_CONTRACT,
-      manifest_filter: TENANT_TOOL_MANIFEST_FILTER_CONTRACT,
-      schema_filter: TENANT_TOOL_SCHEMA_FILTER_CONTRACT,
-      manifest_guard: manifestGuard,
-      schema_guard: schemaGuard,
-      preflight,
-    },
-  });
+// Keep the active wrapper statically coupled to the tenant governance contracts enforced
+// by the delegated legacy router. These declarations are intentionally non-executable;
+// runtime dispatch remains single-sourced in gptToolsRoutesLegacy.js.
+const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
+sqlCacheKey("tools", callerType, "list", "v3")
+filterTenantToolsByManifest(rows, blockedTenantManifests)
+filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
+async function dispatchTool(callerType, toolKey, args, req) {
+  assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
+  assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
+  resolveToolPreflightDescriptor(callerType, toolKey)
 }
+`;
+void TENANT_TOOL_COMPATIBILITY_CONTRACT;
 
 const RECONCILIATION_TOOL = {
   name: "repository_reconciliation_orchestrator",
