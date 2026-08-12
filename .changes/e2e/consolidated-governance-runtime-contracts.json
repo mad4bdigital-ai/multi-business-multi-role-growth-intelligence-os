@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/consolidated-governance-runtime-contracts.json",
       ".github/ops/github-break-glass-branch-create.mjs",
+      ".specify/work-map-schema-classification-registry.json",
       "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
       "docs/governance-db-writer-authority.md",
       "http-generic-api/_legacy/toolsResourceApi.js",
@@ -66,7 +67,8 @@
       "http-generic-api/test-runtime-break-glass-authority-producers.mjs",
       "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
       "http-generic-api/test-runtime-break-glass-reconciliation-closure.mjs",
-      "http-generic-api/test-runtime-break-glass-review-regressions.mjs"
+      "http-generic-api/test-runtime-break-glass-review-regressions.mjs",
+      "http-generic-api/test-work-map-schema-classification.mjs"
     ]
   },
   "merge_contract": {
@@ -96,7 +98,7 @@
           ],
           "assertions": [
             "All changed runtime files are covered by this exact-path E2E contract.",
-            "Canonical registry, collation, deployment attestation, Governance DB readiness, provider certification, repository reconciliation, and break-glass tests execute from committed source.",
+            "Canonical registry, collation, deployment attestation, Governance DB readiness, provider certification, repository reconciliation, Work Map schema classification, and break-glass tests execute from committed source.",
             "Repository reconciliation remains force-push forbidden and mutation authority remains plan-bound with same-cycle readback.",
             "Break-glass state transitions cannot substitute for Git, Production promotion, deployment, or runtime verification evidence.",
             "Governed migration preflight can block incompatible collation policy before the legacy SQL runner is dispatched.",
@@ -114,14 +116,17 @@
             {"id":"runtime-break-glass-authority-producers","runner":"node","working_directory":"http-generic-api","path":"test-runtime-break-glass-authority-producers.mjs","args":[]},
             {"id":"runtime-break-glass-lifecycle","runner":"node","working_directory":"http-generic-api","path":"test-runtime-break-glass-lifecycle.mjs","args":[]},
             {"id":"runtime-break-glass-reconciliation-closure","runner":"node","working_directory":"http-generic-api","path":"test-runtime-break-glass-reconciliation-closure.mjs","args":[]},
-            {"id":"runtime-break-glass-review-regressions","runner":"node","working_directory":"http-generic-api","path":"test-runtime-break-glass-review-regressions.mjs","args":[]}
+            {"id":"runtime-break-glass-review-regressions","runner":"node","working_directory":"http-generic-api","path":"test-runtime-break-glass-review-regressions.mjs","args":[]},
+            {"id":"work-map-schema-classification","runner":"node","working_directory":"http-generic-api","path":"test-work-map-schema-classification.mjs","args":[]}
           ],
           "evidence_paths": [
             ".changes/e2e/consolidated-governance-runtime-contracts.json",
+            ".specify/work-map-schema-classification-registry.json",
             "http-generic-api/test-consolidated-governance-runtime-contracts.mjs",
             "http-generic-api/test-repository-reconciliation-engine-routing.mjs",
             "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
             "http-generic-api/test-runtime-break-glass-review-regressions.mjs",
+            "http-generic-api/test-work-map-schema-classification.mjs",
             "http-generic-api/test-database-collation-policy.mjs",
             "http-generic-api/test-deployment-attestation.mjs"
           ]
