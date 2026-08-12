@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6657,
-    "bytes": 58625138,
-    "lines": 1368605,
+    "bytes": 58625237,
+    "lines": 1368606,
     "directories": 251,
     "categories": 13
   },
@@ -77679,9 +77679,9 @@
       "path": "specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3811,
-      "lines": 84,
-      "sha256": "4433ac94a475330973dfcbe14878f1d3e14cd3242f60ff96ff90422856a0727b",
+      "bytes": 3910,
+      "lines": 85,
+      "sha256": "0e9a04cb00f994deb4fc86c92342a4290984633473cc14b0a8c533752f525245",
       "mode": "644",
       "executable": false,
       "generated": false

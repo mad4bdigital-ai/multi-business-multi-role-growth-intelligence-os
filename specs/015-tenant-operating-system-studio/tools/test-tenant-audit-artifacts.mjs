@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = process.cwd();
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const matrixPath = path.join(ROOT, 'docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.json');
 const snapshotPath = path.join(ROOT, 'docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl');
 const convergencePath = path.join(ROOT, 'specs/015-tenant-operating-system-studio/candidate-convergence.json');
