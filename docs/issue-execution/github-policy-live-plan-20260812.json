@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T16:14:46.520Z",
+  "generated_at": "2026-08-12T22:22:25.757Z",
   "readback": {
     "mode": "readback",
     "target": {
@@ -7,7 +7,7 @@
       "repo": "multi-business-multi-role-growth-intelligence-os",
       "default_branch": "main"
     },
-    "main_sha": "916a30359ce3d36d079b15eeb48e99af3f75b631",
+    "main_sha": "d20dcf5335a4ece2b6e06d10c12c825bea4a2362",
     "branch_protected": false,
     "repository_auto_merge_allowed": false,
     "managed_ruleset_count": 0,
@@ -25,9 +25,9 @@
     ],
     "review_policy_mode": "incomplete",
     "finalizer_identity": {
-      "app_id": 1869309,
-      "installation_id": 153171787,
-      "resolved": true
+      "app_id": null,
+      "installation_id": null,
+      "resolved": false
     },
     "required_checks": [
       "Syntax Check",
@@ -59,8 +59,8 @@
         "Single Owner Review Gate"
       ],
       "direct_push_block_proven": false,
-      "finalizer_app_identity_resolved": true,
-      "finalizer_not_bypass_proven": true,
+      "finalizer_app_identity_resolved": false,
+      "finalizer_not_bypass_proven": false,
       "merge_queue_disabled_or_equivalent": true,
       "auto_merge_disabled": true,
       "server_policy_gate_complete": false
@@ -71,7 +71,9 @@
       "review_thread_resolution_missing",
       "latest_push_approval_missing",
       "required_status_checks_missing",
-      "direct_push_block_unproven"
+      "direct_push_block_unproven",
+      "finalizer_app_identity_unresolved",
+      "finalizer_bypass_posture_unproven"
     ],
     "mutation_executed": false,
     "secrets_included": false
@@ -83,16 +85,16 @@
       "repo": "multi-business-multi-role-growth-intelligence-os",
       "default_branch": "main"
     },
-    "expected_main_sha": "916a30359ce3d36d079b15eeb48e99af3f75b631",
+    "expected_main_sha": "d20dcf5335a4ece2b6e06d10c12c825bea4a2362",
     "desired_ruleset_fingerprint": "b1a3eaf63b096e27b9198dcc1178a5aff989b34957c66ee7ed244a24140d4ea1",
-    "policy_fingerprint": "6a3644c5946c9b479763d3245daf1b37f48908e8fe1511ce2f673c7dbcfdb135",
+    "policy_fingerprint": "1adbe59cbfa09bb03692b9baea0772cf80281d79e083429a2dd0f586794e4e18",
     "review_policy_mode": "single_owner_attestation",
     "single_owner_mode": true,
     "operation": "create_ruleset",
     "existing_ruleset_id": null,
     "preconditions": {
       "policy_state_readable": true,
-      "finalizer_app_identity_resolved": true,
+      "finalizer_app_identity_resolved": false,
       "no_main_bypass_actors": true,
       "managed_ruleset_ambiguity_absent": true,
       "managed_ruleset_repository_owned": true,
