@@ -1,0 +1,377 @@
+openapi: 3.1.0
+info:
+  title: Gemini Evidence Gateway Draft Contract
+  version: 0.1.0
+  description: >-
+    Specification-only contract for governed evidence intake, AI job planning,
+    result inspection, and review. It does not create live routes or authorize
+    provider calls, Google Workspace mutations, database writes, or deployment.
+servers: []
+security:
+  - bearerAuth: []
+paths:
+  /evidence-intakes:
+    post:
+      operationId: createEvidenceIntake
+      summary: Accept a bounded evidence intake and return a durable receipt
+      tags: [Evidence Intake]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateEvidenceIntakeRequest'
+      responses:
+        '202':
+          description: Intake accepted; AI processing may remain pending or disabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceIntakeReceipt'
+        '400': { $ref: '#/components/responses/InvalidRequest' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /evidence-intakes/{intake_id}:
+    get:
+      operationId: getEvidenceIntake
+      summary: Read the authorized intake lifecycle and receipt
+      tags: [Evidence Intake]
+      parameters:
+        - $ref: '#/components/parameters/IntakeId'
+      responses:
+        '200':
+          description: Authorized bounded intake view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceIntakeView'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /evidence/{evidence_id}:
+    get:
+      operationId: getEvidence
+      summary: Read one authorized evidence record and bounded lineage
+      tags: [Evidence]
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+      responses:
+        '200':
+          description: Authorized evidence record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvidenceView'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /evidence/{evidence_id}/ai-jobs:
+    post:
+      operationId: createEvidenceAiJob
+      summary: Request a governed AI analysis job; disabled or policy-blocked states are valid outcomes
+      tags: [AI Jobs]
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAiJobRequest'
+      responses:
+        '202':
+          description: Job created or existing idempotent job returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiJobReceipt'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+  /ai-jobs/{ai_job_id}:
+    get:
+      operationId: getAiJob
+      summary: Read an authorized AI job lifecycle and bounded result reference
+      tags: [AI Jobs]
+      parameters:
+        - $ref: '#/components/parameters/AiJobId'
+      responses:
+        '200':
+          description: Authorized AI job view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AiJobView'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /evidence/{evidence_id}/review-decisions:
+    post:
+      operationId: createEvidenceReviewDecision
+      summary: Apply one authorized human review decision using optimistic concurrency
+      tags: [Review]
+      parameters:
+        - $ref: '#/components/parameters/EvidenceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReviewDecisionRequest'
+      responses:
+        '200':
+          description: Decision persisted and authoritative state read back
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReviewDecisionReceipt'
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/Unprocessable' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    IntakeId:
+      name: intake_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^INTAKE-[A-Za-z0-9_-]{8,80}$' }
+    EvidenceId:
+      name: evidence_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^EVIDENCE-[A-Za-z0-9_-]{8,80}$' }
+    AiJobId:
+      name: ai_job_id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^AIJOB-[A-Za-z0-9_-]{8,80}$' }
+  schemas:
+    CreateEvidenceIntakeRequest:
+      type: object
+      additionalProperties: false
+      required: [source_type, idempotency_key, evidence_type, context_note, secrets_included]
+      properties:
+        source_type:
+          enum: [internal_form, client_link, partner_link, api, google_form, drive_reference]
+        idempotency_key:
+          type: string
+          minLength: 8
+          maxLength: 200
+        evidence_type:
+          enum: [text, link, image, screenshot, audio, video, pdf, document, spreadsheet, other]
+        source_url:
+          type: [string, 'null']
+          format: uri
+          maxLength: 2048
+        file_references:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            additionalProperties: false
+            required: [reference_type, reference]
+            properties:
+              reference_type: { enum: [drive_file_id, connector_file_ref, upload_session_ref] }
+              reference: { type: string, minLength: 4, maxLength: 512 }
+        context_note:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        verbatim_text:
+          type: [string, 'null']
+          maxLength: 20000
+        consent_reference:
+          type: [string, 'null']
+          maxLength: 200
+        declared_sensitivity:
+          enum: [public_reference, internal, client_confidential, restricted, unknown]
+        secrets_included:
+          const: false
+    EvidenceIntakeReceipt:
+      type: object
+      additionalProperties: false
+      required: [intake_id, status, submitted_at, idempotent_replay, secrets_included]
+      properties:
+        intake_id: { type: string }
+        evidence_ids:
+          type: array
+          items: { type: string }
+        ai_job_ids:
+          type: array
+          items: { type: string }
+        status:
+          enum: [accepted, registered, manual_review, policy_blocked, failed]
+        submitted_at: { type: string, format: date-time }
+        idempotent_replay: { type: boolean }
+        secrets_included: { const: false }
+    EvidenceIntakeView:
+      allOf:
+        - $ref: '#/components/schemas/EvidenceIntakeReceipt'
+        - type: object
+          properties:
+            processing_status:
+              enum: [accepted, validating, registered, ai_pending, awaiting_review, completed, blocked, failed]
+            error:
+              anyOf:
+                - $ref: '#/components/schemas/StructuredError'
+                - type: 'null'
+    EvidenceView:
+      type: object
+      additionalProperties: false
+      required: [evidence_id, lifecycle_state, sensitivity, current_version, secrets_included]
+      properties:
+        evidence_id: { type: string }
+        lifecycle_state:
+          enum: [captured, metadata_pending, registered, normalized, routed, quarantine, restricted, ai_pending, manual_review, awaiting_review, validated, rejected, needs_clarification, linked, promoted, archived]
+        sensitivity:
+          enum: [public_reference, internal, client_confidential, restricted, unknown]
+        canonical_file_reference: { type: [string, 'null'] }
+        source_url: { type: [string, 'null'], format: uri }
+        current_ai_result_id: { type: [string, 'null'] }
+        current_version: { type: integer, minimum: 1 }
+        usage_links:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [target_type, target_id, purpose]
+            properties:
+              target_type: { type: string, maxLength: 80 }
+              target_id: { type: string, maxLength: 120 }
+              purpose: { type: string, maxLength: 200 }
+        secrets_included: { const: false }
+    CreateAiJobRequest:
+      type: object
+      additionalProperties: false
+      required: [use_case_key, idempotency_key, requested_mode, secrets_included]
+      properties:
+        use_case_key: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,79}$' }
+        idempotency_key: { type: string, minLength: 8, maxLength: 200 }
+        requested_mode: { enum: [manual_only, shadow, proposed_analysis] }
+        secrets_included: { const: false }
+    AiJobReceipt:
+      type: object
+      additionalProperties: false
+      required: [ai_job_id, status, idempotent_replay, secrets_included]
+      properties:
+        ai_job_id: { type: string }
+        status:
+          enum: [queued, policy_blocked, budget_blocked, manual_only, running, retry_scheduled, outcome_unknown, succeeded, safety_blocked, schema_invalid, semantic_invalid, failed, dead_letter, cancelled]
+        idempotent_replay: { type: boolean }
+        secrets_included: { const: false }
+    AiJobView:
+      allOf:
+        - $ref: '#/components/schemas/AiJobReceipt'
+        - type: object
+          properties:
+            use_case_key: { type: string }
+            model_alias: { type: [string, 'null'] }
+            model_resolved: { type: [string, 'null'] }
+            prompt_version: { type: [string, 'null'] }
+            schema_version: { type: [string, 'null'] }
+            policy_version: { type: [string, 'null'] }
+            ai_result_id: { type: [string, 'null'] }
+            error:
+              anyOf:
+                - $ref: '#/components/schemas/StructuredError'
+                - type: 'null'
+    CreateReviewDecisionRequest:
+      type: object
+      additionalProperties: false
+      required: [decision_id, expected_record_version, decision, rationale, secrets_included]
+      properties:
+        decision_id: { type: string, minLength: 8, maxLength: 120 }
+        expected_record_version: { type: integer, minimum: 1 }
+        decision:
+          enum: [approve, approve_with_changes, reject, reclassify, request_clarification, mark_duplicate, keep_distinct, archive, escalate]
+        rationale: { type: string, minLength: 3, maxLength: 4000 }
+        overrides:
+          type: object
+          maxProperties: 30
+        target_links:
+          type: array
+          maxItems: 30
+          items:
+            type: object
+            additionalProperties: false
+            required: [target_type, target_id, purpose]
+            properties:
+              target_type: { type: string, maxLength: 80 }
+              target_id: { type: string, maxLength: 120 }
+              purpose: { type: string, maxLength: 200 }
+        secrets_included: { const: false }
+    ReviewDecisionReceipt:
+      type: object
+      additionalProperties: false
+      required: [review_decision_id, evidence_id, prior_version, current_version, current_state, secrets_included]
+      properties:
+        review_decision_id: { type: string }
+        evidence_id: { type: string }
+        prior_version: { type: integer, minimum: 1 }
+        current_version: { type: integer, minimum: 1 }
+        current_state: { type: string }
+        usage_link_ids:
+          type: array
+          items: { type: string }
+        secrets_included: { const: false }
+    StructuredError:
+      type: object
+      additionalProperties: false
+      required: [code, message, retryable, trace_id, secrets_included]
+      properties:
+        code: { type: string, pattern: '^[A-Z][A-Z0-9_]{2,100}$' }
+        message: { type: string, minLength: 1, maxLength: 1000 }
+        retryable: { type: boolean }
+        trace_id: { type: string, minLength: 8, maxLength: 120 }
+        remediation: { type: [string, 'null'], maxLength: 1000 }
+        secrets_included: { const: false }
+  responses:
+    InvalidRequest:
+      description: Invalid request contract
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    Unauthenticated:
+      description: Authentication required
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    Forbidden:
+      description: Scope, resource, policy, or capability denied
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    NotFound:
+      description: Resource absent or intentionally concealed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    Conflict:
+      description: Idempotency, current-version, or state conflict
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    Unprocessable:
+      description: Valid transport but invalid context, policy, file, or state
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
+    RateLimited:
+      description: Scope or budget rate limit
+      headers:
+        Retry-After:
+          schema: { type: integer, minimum: 1 }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/StructuredError' }
