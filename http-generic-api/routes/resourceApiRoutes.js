@@ -1,5 +1,4 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import {
   createResourceApiController,
@@ -9,22 +8,10 @@ import { createDefaultResourceApiService } from "../src/infrastructure/resourceA
 import { createResourceApiContextShadowMiddleware } from "../contextKernel/integration/index.js";
 import { materializeWorkspaceBrandCoreAssetTransaction } from "../workspaceBrandCoreAssetMaterialization.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 const requireUserJwt = createUserJwtMiddleware();
 
-function verifyJwt(header) {
-  if (!header?.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(header.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
-
 function requireUser(req, res, next) {
-  const auth = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyJwt(req.headers.authorization);
+  const auth = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!auth?.user_id) {
     return res.status(401).json(errorEnvelope("user_jwt_required", "Sign in required."));
   }
@@ -49,8 +36,8 @@ export function buildResourceApiRoutes(deps = {}) {
       ? createResourceApiContextShadowMiddleware(deps.contextKernelShadow)
       : null;
   const tenantReadHandlers = (handler) => contextKernelResourceShadow
-    ? [requireUser, contextKernelResourceShadow, handler]
-    : [requireUser, handler];
+    ? [requireUserJwt, requireUser, contextKernelResourceShadow, handler]
+    : [requireUserJwt, requireUser, handler];
 
   router.get("/admin/resource-types", requireBackend, requireAdmin, controller.adminResourceTypes);
   router.get("/admin/resource-types/:resourceKey", requireBackend, requireAdmin, controller.adminResourceType);
@@ -100,15 +87,15 @@ export function buildResourceApiRoutes(deps = {}) {
   router.get("/me/workspaces/:tenant_id/resources", ...tenantReadHandlers(controller.tenantCatalog));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey", ...tenantReadHandlers(controller.tenantResourcesList));
   router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", ...tenantReadHandlers(controller.tenantResourceGet));
-  router.post("/me/workspaces/:tenant_id/resources/:resourceKey", requireUser, controller.tenantResourceCreate);
-  router.patch("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceUpdate);
-  router.delete("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUser, controller.tenantResourceArchive);
-  router.post("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/restore", requireUser, controller.tenantResourceRestore);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/permissions", requireUser, controller.tenantResourcePermissions);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/revisions", requireUser, controller.tenantResourceRevisions);
-  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/changes", requireUser, controller.tenantResourceItemChanges);
-  router.get("/me/workspaces/:tenant_id/resource-changes", requireUser, controller.tenantResourceChanges);
-  router.get("/me/workspaces/:tenant_id/operations/:operationId", requireUser, controller.tenantOperationGet);
+  router.post("/me/workspaces/:tenant_id/resources/:resourceKey", requireUserJwt, requireUser, controller.tenantResourceCreate);
+  router.patch("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUserJwt, requireUser, controller.tenantResourceUpdate);
+  router.delete("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId", requireUserJwt, requireUser, controller.tenantResourceArchive);
+  router.post("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/restore", requireUserJwt, requireUser, controller.tenantResourceRestore);
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/permissions", requireUserJwt, requireUser, controller.tenantResourcePermissions);
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/revisions", requireUserJwt, requireUser, controller.tenantResourceRevisions);
+  router.get("/me/workspaces/:tenant_id/resources/:resourceKey/:resourceId/changes", requireUserJwt, requireUser, controller.tenantResourceItemChanges);
+  router.get("/me/workspaces/:tenant_id/resource-changes", requireUserJwt, requireUser, controller.tenantResourceChanges);
+  router.get("/me/workspaces/:tenant_id/operations/:operationId", requireUserJwt, requireUser, controller.tenantOperationGet);
 
   router.get("/gpt/sessions", requireBackend, controller.sessionList);
   router.get("/gpt/sessions/:id", requireBackend, controller.sessionGet);
@@ -121,4 +108,4 @@ export function buildResourceApiRoutes(deps = {}) {
   return router;
 }
 
-export const _testingResourceApiRoutes = { verifyJwt, requireUser, requireUserJwt };
+export const _testingResourceApiRoutes = { requireUser, requireUserJwt };

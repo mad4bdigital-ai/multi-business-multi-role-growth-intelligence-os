@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6647,
-    "bytes": 58520307,
-    "lines": 1367780,
+    "bytes": 58522668,
+    "lines": 1367800,
     "directories": 251,
     "categories": 13
   },
@@ -49647,9 +49647,9 @@
       "path": "http-generic-api/routes/resourceApiRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 7310,
-      "lines": 124,
-      "sha256": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+      "bytes": 7147,
+      "lines": 112,
+      "sha256": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67291,9 +67291,9 @@
       "path": "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 11153,
-      "lines": 246,
-      "sha256": "12011923a0f6e281128ef226009d39afd2ffb51b6d929411fcb74d429c5bafbf",
+      "bytes": 13677,
+      "lines": 278,
+      "sha256": "3bdf529afc1435e92d2e39964eb31cb935e04b5aed270f8a988defdc8d6c1e18",
       "mode": "644",
       "executable": false,
       "generated": false

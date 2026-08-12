@@ -4,18 +4,29 @@ import jwt from "jsonwebtoken";
 import mysql from "mysql2/promise";
 import { _testingWorkspaceResourceRoutes } from "./routes/workspaceResourceRoutes.js";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
+import { _testingResourceApiRoutes } from "./routes/resourceApiRoutes.js";
 
 const workspaceSource = readFileSync(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
 const pluginSource = readFileSync(new URL("./routes/tenantPlatformPluginRoutes.js", import.meta.url), "utf8");
+const resourceSource = readFileSync(new URL("./routes/resourceApiRoutes.js", import.meta.url), "utf8");
 
-for (const [name, source] of [["workspaceResourceRoutes", workspaceSource], ["tenantPlatformPluginRoutes", pluginSource]]) {
+for (const [name, source] of [["workspaceResourceRoutes", workspaceSource], ["tenantPlatformPluginRoutes", pluginSource], ["resourceApiRoutes", resourceSource]]) {
   assert.doesNotMatch(source, /development_fallback_secret_only/, `${name} must not contain a development JWT fallback secret`);
   assert.doesNotMatch(source, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, `${name} must not own an ad-hoc JWT verifier`);
   assert.match(source, /createUserJwtMiddleware/, `${name} must use the canonical User JWT middleware`);
-  assert.match(source, /requireCanonicalUserJwt/, `${name} must parse the bearer token before tenant scope guards`);
+  assert.match(source, /requireCanonicalUserJwt|requireUserJwt/, `${name} must use a canonical User JWT guard before tenant scope handlers`);
+}
+assert.doesNotMatch(resourceSource, /development_fallback_secret_only/, "resourceApiRoutes must not contain a development JWT fallback secret");
+assert.doesNotMatch(resourceSource, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, "resourceApiRoutes must not own an ad-hoc JWT verifier");
+assert.doesNotMatch(resourceSource, /verifyJwt\(/, "resourceApiRoutes must not retain a local bearer verifier");
+assert.match(resourceSource, /const auth = req\.auth\?\.mode === "user_jwt" \? req\.auth : null;/, "resourceApiRoutes must consume only the parsed User JWT principal");
+assert.match(resourceSource, /tenantReadHandlers[\s\S]*requireUserJwt, requireUser/, "tenant resource read routes must run the canonical parser before the normalized guard");
+for (const handler of ["tenantResourceCreate", "tenantResourceUpdate", "tenantResourceArchive", "tenantResourceRestore", "tenantResourcePermissions", "tenantResourceRevisions", "tenantResourceItemChanges", "tenantResourceChanges", "tenantOperationGet"]) {
+  assert.match(resourceSource, new RegExp(`requireUserJwt, requireUser, controller\\.${handler}`), `${handler} must require canonical parsed User JWT output`);
 }
 
-// Stale token claims must never become effective tenant authority. The canonical parser
+// Stale token claims must never become effective tenant authority.
+// The canonical parser
 // establishes identity only; both tenant-facing route families must resolve role/scope from
 // authoritative membership state after parsing.
 assert.match(
@@ -240,6 +251,27 @@ try {
       else process.env[key] = savedDbEnv[key];
     }
   }
+}
+
+{
+  const response = {
+    statusCode: 200,
+    payload: null,
+    status(code) { this.statusCode = code; return this; },
+    json(payload) { this.payload = payload; return this; },
+  };
+  const unparsedRequest = { headers: { authorization: "Bearer any-token" } };
+  let unparsedNext = false;
+  _testingResourceApiRoutes.requireUser(unparsedRequest, response, () => { unparsedNext = true; });
+  assert.equal(unparsedNext, false, "resourceApiRoutes must not accept a bearer token without canonical parser output");
+  assert.equal(response.statusCode, 401);
+  assert.equal(response.payload?.error?.code, "user_jwt_required");
+
+  const parsedRequest = { headers: {}, auth: { mode: "user_jwt", user_id: "user-resource-1", tenant_id: "tenant-resource-1" } };
+  let parsedNext = false;
+  _testingResourceApiRoutes.requireUser(parsedRequest, response, () => { parsedNext = true; });
+  assert.equal(parsedNext, true, "resourceApiRoutes must accept canonical parsed User JWT output");
+  assert.deepEqual(parsedRequest.auth, { mode: "user_jwt", user_id: "user-resource-1", tenant_id: "tenant-resource-1", is_admin: false });
 }
 
 console.log("tenant canonical User JWT route auth tests passed");
