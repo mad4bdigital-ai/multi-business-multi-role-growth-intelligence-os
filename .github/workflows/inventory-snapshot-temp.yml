@@ -5,8 +5,11 @@ on:
     branches:
       - gpt/fix-consolidated-governance-runtime-contracts-20260812
 
+permissions:
+  contents: write
+
 jobs:
-  snapshot:
+  finalize:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -16,15 +19,19 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: "22"
-      - name: Generate repository inventory
+      - name: Remove temporary workflow from target index
+        run: git rm .github/workflows/inventory-snapshot-temp.yml
+      - name: Generate final repository inventory
         run: npm run inventory:write
-      - name: Upload repository inventory snapshot
-        uses: actions/upload-artifact@v4
-        with:
-          name: repository-inventory-${{ github.sha }}
-          path: |
-            docs/repository-inventory.json
-            docs/repository-inventory.md
-            docs/repository-inventory-summary.json
-          if-no-files-found: error
-          retention-days: 1
+      - name: Verify generated repository inventory
+        run: npm run inventory:test
+      - name: Commit final inventory and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add docs/repository-inventory.json docs/repository-inventory.md docs/repository-inventory-summary.json
+          git diff --cached --check
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore(repo): refresh dynamic repository inventory"
+          git push origin HEAD:${GITHUB_REF_NAME}
