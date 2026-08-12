@@ -2,87 +2,9 @@
 
 ## Purpose
 
-The repository inventory is a generated, machine-readable census of every Git-tracked project file. It is designed to grow with the repository rather than relying on manually maintained lists.
+Repository Inventory is the generated census of every Git-tracked project file. It grows from the Git index instead of a manually maintained directory list.
 
-The authoritative complete machine-readable artifact is `docs/repository-inventory.json`. The compact `docs/repository-inventory-summary.json` is intended for low-noise Pull Request review and dashboards, while `docs/repository-inventory.md` is the concise human-readable report generated from the same snapshot.
-
-## What is included
-
-Each inventoried file includes its repository-relative path, normalized category, extension, byte size, counted text lines, SHA-256 content fingerprint, normalized Unix mode, executable marker, and whether it is a generated artifact. The inventory also contains deterministic provenance, totals, extension and category counts, package manifests, and grouped lists for workflows, migrations, API contracts, and tests/specifications. The generated artifacts intentionally do not embed the current commit SHA, branch, or commit date, because those values would make a freshly committed artifact stale immediately after every commit.
-
-Generated inventory and repository-evaluation artifacts are deliberately excluded from the inventory inputs. This prevents self-reference and keeps regeneration deterministic.
-
-## Local commands
-
-```bash
-npm run inventory:write
-npm run inventory:check
-npm run inventory:test
-```
-
-Use `inventory:write` after adding, removing, or modifying tracked repository files. Use `inventory:check` in validation steps; it returns a non-zero exit code when a committed inventory artifact is missing or stale. Use `inventory:test` to validate the artifact schema, deterministic sorting, file count, byte totals, SHA-256 fields, self-exclusion of generated files, and independent classification fixtures.
-
-## Read-only verification
-
-The `Repository Inventory` workflow remains read-only:
-
-```text
-permissions:
-  contents: read
-```
-
-It runs on relevant pull-request and `main` changes and can also be dispatched with an exact governed work-branch identity:
-
-```text
-target_ref=<governed work branch>
-expected_head_sha=<exact 40-character SHA>
-```
-
-An exact-head dispatch verifies both the local checkout and the remote branch head before running the official inventory lifecycle:
-
-```text
-npm ci --ignore-scripts
-npm run inventory:write
-npm run inventory:check
-npm run inventory:test
-git diff --exit-code -- <three inventory outputs>
-```
-
-The verifier never commits, pushes, or receives `contents: write`.
-
-The normal workflow intentionally ignores commits that change only the three generated Inventory artifacts. This prevents a trigger loop. A governed writer therefore performs an explicit exact-head `Repository Inventory` dispatch after a repair instead of relying on an implicit push-triggered run.
-
-## Governed regeneration authority
-
-Repository Inventory does not have a separate writer. It is the `repository_inventory_refresh` recipe of the existing `Governed Generated Artifact Refresh` authority.
-
-The writer accepts:
-
-```text
---recipe auto
---recipe frontend_openapi_refresh
---recipe work_map_self_hosting_bootstrap
---recipe repository_inventory_refresh
-```
-
-`auto` preserves the pre-existing generated-artifact classification behavior. Repository Inventory is selected explicitly because it is cross-cutting and can become stale after changes to almost any tracked file.
-
-For `repository_inventory_refresh`, the writer:
-
-1. pins the exact target branch head;
-2. rejects `main` and `Production` as mutation targets;
-3. installs root dependencies with `npm ci --ignore-scripts`;
-4. runs `inventory:write` twice;
-5. compares SHA-256 hashes of all three generated outputs between passes;
-6. runs `inventory:check` and `inventory:test`;
-7. proves the dirty set is a subset of exactly the three Inventory outputs;
-8. re-reads the exact branch head before commit/push;
-9. creates `docs(inventory): regenerate repository inventory` only when drift exists;
-10. pushes without force;
-11. reads the remote result SHA back;
-12. explicitly dispatches the read-only `Repository Inventory` verifier on that exact SHA.
-
-The bounded outputs are only:
+The canonical outputs are:
 
 ```text
 docs/repository-inventory.json
@@ -90,78 +12,196 @@ docs/repository-inventory-summary.json
 docs/repository-inventory.md
 ```
 
-A clean replay is a no-op: no commit, no push, and no ref movement.
+`repository-inventory.json` is the complete machine-readable inventory. The summary JSON is optimized for low-noise review and dashboards. The Markdown file is the concise human report generated from the same deterministic snapshot.
 
-## Automatic stale-only recovery
+Each inventoried file records its repository-relative path, category, extension, byte size, text-line count, SHA-256 fingerprint, normalized mode, executable marker, and generated-artifact marker. Generated Inventory and repository-evaluation outputs are excluded from Inventory inputs to prevent self-reference.
 
-`Repository Inventory Autofix Dispatch` observes completed `Repository Inventory` runs. It is a dispatcher, not a repository writer.
+## Local lifecycle
 
-Its top-level authority is read-only. The classification job has only:
-
-```text
-actions: read
-contents: read
-pull-requests: read
+```bash
+npm run inventory:write
+npm run inventory:check
+npm run inventory:test
 ```
 
-The final dispatch job receives `actions: write` only so it can call the existing registered writer. It still has `contents: read` and never pushes repository content directly.
+`inventory:write` regenerates the outputs. `inventory:check` fails when committed Inventory differs from deterministic regeneration. `inventory:test` validates schema, deterministic sorting, file count, byte totals, fingerprints, self-exclusion, and classification fixtures.
 
-Automatic repair is eligible only when all of the following are true:
+The generator discovers tracked files through `git ls-files`. New directories, workflows, migrations, contracts, languages, and documentation families therefore enter the Inventory automatically.
 
-- the source `Repository Inventory` run failed;
-- the source event is `pull_request`;
-- exactly one open PR is identified;
-- the PR base is `main`;
-- the PR head belongs to the same repository;
-- the source run SHA still equals the PR head SHA;
-- the branch matches a governed work-branch pattern;
-- the target is neither `main` nor `Production`;
-- the current PR head is `behind_by == 0` relative to `main`;
-- the Inventory generator/test/package control surface is unchanged from trusted `main`;
-- the generated-artifact writer, verifier, dispatcher, and maintenance governance surface are unchanged from trusted `main`;
-- read-only reproduction is deterministic;
-- the official Inventory check and self-test pass after regeneration;
-- the only dirty paths are Inventory outputs.
+## Read-only verifier
 
-If a PR modifies the Inventory automation or its writer/governance control surface, automatic repair is intentionally blocked with `governance_surface_changed_requires_manual_regeneration`. That prevents a privileged `workflow_run` path from executing modified mutation authority. Such PRs must use a separately reviewed/manual governed regeneration path.
+The `Repository Inventory` workflow remains a verifier, not a writer:
 
-A plain workflow failure is never treated as proof of stale Inventory. Installation errors, generator/test failures, malformed outputs, runner failures, control-plane changes, forks, stale PR heads, or additional dirty files all fail closed without writer dispatch.
+```text
+permissions:
+  contents: read
+```
+
+It never commits, pushes, or persists write credentials. A manual exact-head verification accepts:
+
+```text
+target_ref=<governed work branch>
+expected_head_sha=<exact 40-character SHA>
+```
+
+The verifier checks local/remote identity where applicable, installs dependencies, regenerates Inventory, runs `inventory:check` and `inventory:test`, and inspects the three-output diff.
+
+Inventory-only commits are excluded from the normal push/pull-request path filters to prevent trigger loops. The governed writer explicitly dispatches an exact-head read-only verification after a repair.
+
+## Governed regeneration authority
+
+Repository Inventory has no second writer. `repository_inventory_refresh` is a registered recipe of `Governed Generated Artifact Refresh`.
+
+Registered recipes include:
+
+```text
+auto
+frontend_openapi_refresh
+work_map_self_hosting_bootstrap
+repository_inventory_refresh
+```
+
+For `repository_inventory_refresh`, the writer:
+
+1. pins the exact non-protected target branch head;
+2. rejects `main` and `Production`;
+3. installs root dependencies with `npm ci --ignore-scripts`;
+4. generates all three Inventory outputs twice;
+5. compares SHA-256 output identities between passes;
+6. runs `inventory:check` and `inventory:test`;
+7. requires the dirty set to stay inside the exact three-output allowlist;
+8. re-reads the remote branch immediately before mutation;
+9. creates `docs(inventory): regenerate repository inventory` only when needed;
+10. pushes without force;
+11. requires post-push remote readback to equal the generated commit SHA;
+12. dispatches `Repository Inventory` on the resulting exact head.
+
+A clean replay is a no-op: no commit, no push, and no ref movement.
+
+## Ordinary stale-only recovery
+
+`Repository Inventory Autofix Dispatch` observes failed `Repository Inventory` runs. It is a dispatcher, not a repository writer.
+
+Its classification phase is read-only. Its final delegation phase gets `actions: write` only to dispatch the already-trusted writer; it still has no `contents: write` permission and never pushes repository content itself.
+
+Ordinary automatic repair requires all of the following:
+
+- the source run is a failed `pull_request` run;
+- exactly one open same-repository PR is identified;
+- the PR targets `main` from a governed non-protected work branch;
+- source-run SHA still equals current PR head SHA;
+- `behind_by == 0` relative to current `main`;
+- Inventory generator/package contract is unchanged from trusted `main`;
+- writer, verifier, dispatcher, and maintenance-governance authority surfaces are unchanged from trusted `main`;
+- read-only regeneration is deterministic;
+- Inventory checks pass after regeneration;
+- only the three Inventory outputs are dirty.
+
+Forks, stale heads, additional dirty files, runner/setup failures, generator failures, changed mutation authority, or protected targets fail closed without writer dispatch.
+
+## Self-hosting installation boundary
+
+A first installation of `repository_inventory_refresh` is different from an ordinary stale-only repair. The PR necessarily changes the writer/verifier/dispatcher authority that does not yet exist on trusted `main`. Running that candidate mutation authority before merge would defeat the trust boundary.
+
+The verifier therefore supports a narrow **read-only `bootstrap_pending` state** instead of a pre-merge write.
+
+`bootstrap_pending` is allowed only when all of these conditions hold:
+
+- event is `pull_request`;
+- head repository equals the current repository;
+- base is `main`;
+- branch is governed and not `main` or `Production`;
+- checked-out head equals the exact PR head;
+- current `main` is an ancestor of the candidate (`behind_by == 0`);
+- `scripts/repository-inventory.mjs`, root `package.json`, and root `package-lock.json` are byte-unchanged from trusted `main`;
+- the PR includes the governed writer, Inventory verifier, Inventory autofix dispatcher, generated-artifact maintenance tool, and the `repository-inventory-governed-regeneration` E2E contract;
+- deterministic regeneration changes exactly the three Inventory outputs and nothing else in the worktree.
+
+When these conditions hold, the verifier publishes structured evidence with:
+
+```text
+outcome=bootstrap_pending
+inventory_state=self_hosting_bootstrap_pending
+current=false
+trusted_generator_unchanged=true
+behind_by_zero=true
+repository_mutation=false
+protected_branch_mutation=false
+force_push=false
+followup_mode=trusted_post_merge_work_branch
+```
+
+This is an evidence state, not a generated-artifact mutation. The verifier remains `contents: read` and performs no push.
+
+The self-hosting rule is intentionally asymmetric:
+
+```text
+before source authority is trusted on main
+  -> generate + test + prove exact output drift
+  -> publish bootstrap_pending
+  -> no candidate write authority
+
+after source authority is trusted on main
+  -> create a non-protected generated-output work branch from trusted main
+  -> invoke repository_inventory_refresh through the trusted writer
+  -> verify exact resulting head
+  -> merge the generated-output PR through normal branch protection
+```
+
+This avoids both unsafe candidate writes and direct mutation of `main`.
+
+## Post-merge bootstrap procedure
+
+After the source/control PR containing the Inventory recipe has merged to `main`:
+
+1. read and pin the new `main` SHA;
+2. create a governed non-protected branch from that exact SHA;
+3. open a bounded generated-output PR (a temporary change to one Inventory output may be used only to establish the PR before the trusted stale-only writer replaces all outputs);
+4. require the branch authority surface to remain byte-identical to trusted `main`;
+5. invoke `repository_inventory_refresh` through the now-trusted generated-artifact lifecycle;
+6. require deterministic generation, exact three-file write set, exact-head CAS, non-force push, and post-push readback;
+7. dispatch `Repository Inventory` on the generated commit and require it to pass currentness;
+8. remove any temporary bootstrap-only delta before final verification if one was needed to establish the PR;
+9. merge only after the generated-output PR is current and all required checks are green.
+
+A temporary PR-establishment change must not survive the final generated-output tree. If removing it changes the Git index, rerun the trusted Inventory writer on the new exact head before merge.
 
 ## Loop and race prevention
 
-The normal lifecycle is:
+Normal steady-state flow:
 
 ```text
-PR change
-  -> Repository Inventory fails
-  -> Autofix dispatcher proves stale-only
-  -> existing governed writer receives exact SHA
-  -> at most one Inventory-only repair commit
-  -> normal Inventory trigger ignores Inventory-only commit
-  -> writer explicitly dispatches Repository Inventory on the new exact SHA
+PR source change
+  -> Repository Inventory reports stale
+  -> Autofix dispatcher proves stale-only + trusted authority
+  -> governed writer receives exact SHA
+  -> writer creates at most one Inventory-only commit
+  -> normal Inventory path filters ignore that Inventory-only push
+  -> writer explicitly dispatches exact-head Repository Inventory
   -> verifier succeeds
-  -> dispatcher sees source event=workflow_dispatch and takes no action
 ```
 
-Concurrency is grouped by PR, and the writer's exact-head CAS remains the final race guard. If the branch moves during regeneration, the writer blocks rather than rebasing, retrying blindly, force-pushing, or mutating a newer head.
+Concurrency is grouped by PR/target branch and exact-head CAS remains the final race guard. If a branch moves during generation, the writer blocks rather than rebasing blindly, replaying mutation, force-pushing, or touching a newer head.
 
 ## Governance boundaries
 
-The `generated-artifact-refresh` registration in `.github/repository-maintenance-tool-governance.json` owns the three Inventory output patterns. No second mutation tool is introduced.
+The `generated-artifact-refresh` registration in `.github/repository-maintenance-tool-governance.json` owns the three Inventory outputs. No parallel writer is introduced.
 
-The following remain forbidden:
+Forbidden behaviors remain:
 
 - direct mutation of `main`;
-- any mutation of `Production` through this lifecycle;
+- mutation of `Production` through this lifecycle;
 - force push;
-- arbitrary changed paths;
+- arbitrary output paths;
 - pull-request workflow write authority;
+- execution of candidate-modified generated-artifact mutation authority before it is trusted on `main`;
 - bypass of `inventory:check` or `inventory:test`;
-- repair when exact-head identity is stale;
-- automatic repair of a PR that changes the trusted regeneration control surface.
+- automatic repair against a stale PR head;
+- treating setup, dependency, test, or generator failures as ordinary Inventory drift;
+- publishing secrets in evidence.
 
 ## Extension policy
 
-The generator discovers files through `git ls-files`, not through a hard-coded directory allowlist. A new directory, language, workflow, migration, contract, or documentation family is therefore included automatically. Categories are assigned by path heuristics for reporting only; they do not control inclusion.
+Categories are reporting heuristics, not inclusion gates. If a new project surface deserves a dedicated summary section, extend `scripts/repository-inventory.mjs` while preserving deterministic complete coverage.
 
-If a new project surface deserves a dedicated summary section, extend the category or surface heuristics in `scripts/repository-inventory.mjs` while preserving the complete file list in JSON. Changes to the generator or its trusted control surface require manual governed Inventory regeneration for that PR; automatic stale-only recovery resumes for later PRs once the trusted implementation is merged to `main`.
+Changes to the canonical Inventory generator or its root package contract are **not** eligible for the self-hosting `bootstrap_pending` exception described above. Those changes require a separately governed migration of generator trust because the bytes used to prove candidate Inventory would no longer come from the trusted `main` generator.
