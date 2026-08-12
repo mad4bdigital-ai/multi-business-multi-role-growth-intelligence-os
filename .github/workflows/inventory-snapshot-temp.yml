@@ -1,0 +1,30 @@
+name: Inventory Snapshot Temp
+
+on:
+  push:
+    branches:
+      - gpt/fix-consolidated-governance-runtime-contracts-20260812
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - name: Generate repository inventory
+        run: npm run inventory:write
+      - name: Upload repository inventory snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-inventory-${{ github.sha }}
+          path: |
+            docs/repository-inventory.json
+            docs/repository-inventory.md
+            docs/repository-inventory-summary.json
+          if-no-files-found: error
+          retention-days: 1
