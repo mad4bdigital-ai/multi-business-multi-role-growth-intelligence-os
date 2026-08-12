@@ -1,0 +1,2 @@
+PR 6956 final exact-head verification trigger.
+Temporary file; the next commit deletes it so the final tree remains unchanged from governed Work Map convergence.
