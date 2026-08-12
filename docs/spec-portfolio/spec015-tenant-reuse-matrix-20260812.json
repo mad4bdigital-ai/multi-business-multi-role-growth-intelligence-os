@@ -1,0 +1,166 @@
+{
+  "schema_version": "1.0.0",
+  "spec_key": "015-tenant-operating-system-studio",
+  "snapshot_base_main_sha": "1e7b437ec2fccba46678736007765b3225c4599e",
+  "status": "audit_only_review_required",
+  "secrets_included": false,
+  "runtime_mutation_executed": false,
+  "rows": [
+    {
+      "logical_entity": "package_definition_and_manifest",
+      "spec_tasks": ["T010", "T012", "T016"],
+      "current_status": "spec_contract_only",
+      "authority_status": "no_canonical_runtime_package_authority",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/manifest.json",
+        "specs/015-tenant-operating-system-studio/contracts/tenant-operating-system-studio.openapi.yaml",
+        "specs/015-tenant-operating-system-studio/data-model.md"
+      ],
+      "safe_reuse_boundary": "Reuse draft contract vocabulary and manifest metadata only; do not treat the Spec package as a persisted runtime catalog.",
+      "next_local_step": "Obtain architecture/schema approval before implementing a package registry or catalog API.",
+      "not_claimed": ["persistence", "publication authority", "Tenant catalog runtime"]
+    },
+    {
+      "logical_entity": "component_definition_version_and_binding",
+      "spec_tasks": ["T013", "T014", "T015", "T018"],
+      "current_status": "spec_contract_only",
+      "authority_status": "no_canonical_component_registry",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/contracts/tenant-operating-system-studio.openapi.yaml",
+        "specs/015-tenant-operating-system-studio/work-map-integration.json",
+        "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs"
+      ],
+      "safe_reuse_boundary": "Reuse validator invariants and no-secret/provenance language as audit rules only.",
+      "next_local_step": "Define canonical component/version authority and provenance schema before pure validators are promoted.",
+      "not_claimed": ["component registry", "dependency graph persistence", "publication lifecycle"]
+    },
+    {
+      "logical_entity": "installation_identity_scope_and_revision",
+      "spec_tasks": ["T020", "T023", "T025", "T026", "T027"],
+      "current_status": "contract_and_preview_boundary_only",
+      "authority_status": "no_persisted_installation_revision_authority",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/contracts/tenant-operating-system-studio.openapi.yaml",
+        "http-generic-api/resource-api-coverage.manifest.json",
+        "http-generic-api/resource-api-mutation-callability.manifest.json"
+      ],
+      "safe_reuse_boundary": "Reuse deterministic hashing and read-only route contract patterns; no compiler, apply, or persistence is inferred.",
+      "next_local_step": "Approve package/install input schemas and revision authority, then add pure compiler/preview tests.",
+      "not_claimed": ["installation compiler", "immutable revision persistence", "impact apply"]
+    },
+    {
+      "logical_entity": "credential_free_requirement_binding",
+      "spec_tasks": ["T021", "T022", "T027"],
+      "current_status": "policy_and_contract_audit_only",
+      "authority_status": "credential_and_connection_authorities_are_external_to_spec015",
+      "evidence_paths": [
+        "http-generic-api/runtimeGuards.js",
+        "http-generic-api/userJwtAuth.js",
+        "docs/issue-execution/tenant-route-followup-readiness-20260812.md"
+      ],
+      "safe_reuse_boundary": "Reuse fail-closed auth and no-secret boundary tests; never copy credentials, tokens, provider payloads, or connection state.",
+      "next_local_step": "Define requirement-binding schema with explicit connection/resource authority references and wrong-scope tests.",
+      "not_claimed": ["credential provisioning", "connection mutation", "provider certification"]
+    },
+    {
+      "logical_entity": "tool_catalog_and_operation_projection",
+      "spec_tasks": ["T002", "T003", "T082", "T085"],
+      "current_status": "existing_runtime_surface_plus_candidate_audit",
+      "authority_status": "current_main_runtime_surface_is_not_spec015_package_authority",
+      "evidence_paths": [
+        "http-generic-api/systemToolCatalogV2.js",
+        "http-generic-api/scripts/test-manifest.mjs",
+        "specs/015-tenant-operating-system-studio/traceability.md"
+      ],
+      "safe_reuse_boundary": "Reuse current-main discovery/projection contracts only after exact-path and duplicate-identity checks; closed conflicting candidate PRs are not copied.",
+      "next_local_step": "Complete candidate comparison report and canonical identity decision record.",
+      "not_claimed": ["Spec015 tool catalog ownership", "new grants", "candidate PR reconstruction"]
+    },
+    {
+      "logical_entity": "custom_entity_relationship_and_lifecycle",
+      "spec_tasks": ["T030", "T031", "T032", "T033", "T034", "T036"],
+      "current_status": "not_implemented",
+      "authority_status": "persistence_and_migration_strategy_missing",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/tasks.md",
+        "specs/015-tenant-operating-system-studio/contracts/tenant-operating-system-studio.openapi.yaml",
+        "specs/015-tenant-operating-system-studio/completion.json"
+      ],
+      "safe_reuse_boundary": "Use task acceptance language to design pure transition tests only after runtime primitives are approved.",
+      "next_local_step": "Approve persistence, migration, optimistic-lock, and effect/readback strategy.",
+      "not_claimed": ["custom entity runtime", "migration preview", "lifecycle effects"]
+    },
+    {
+      "logical_entity": "forms_files_and_external_surfaces",
+      "spec_tasks": ["T040", "T041", "T043", "T044", "T045", "T054"],
+      "current_status": "partial_existing_surfaces_and_spec_contracts",
+      "authority_status": "file_identity_retention_and_external_surface_policy_not_unified",
+      "evidence_paths": [
+        "http-generic-api/openapi.yaml",
+        "http-generic-api/frontend-surface-dispatch.generated.json",
+        ".changes/e2e/tenant-route-auth-hardening.json",
+        "specs/015-tenant-operating-system-studio/contracts/tenant-operating-system-studio.openapi.yaml"
+      ],
+      "safe_reuse_boundary": "Reuse existing read-only route/OpenAPI/frontend parity checks; do not infer file retention, sharing, or cross-client ownership.",
+      "next_local_step": "Freeze file/client identity and retention policies, then add no-effect schema and isolation tests.",
+      "not_claimed": ["file authority", "retention enforcement", "external delivery"]
+    },
+    {
+      "logical_entity": "draft_only_ai_ui_and_reports",
+      "spec_tasks": ["T050", "T051", "T052", "T053", "T055", "T056"],
+      "current_status": "spec_and_governance_boundary_only",
+      "authority_status": "provider_sensitivity_budget_and_surface_authority_missing",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/tasks.md",
+        "http-generic-api/frontend-operation-governance.generated.json",
+        "http-generic-api/frontend-surface-dispatch.generated.json"
+      ],
+      "safe_reuse_boundary": "Reuse structured-output and no-authority-invention test principles only when a package-authoring service contract exists.",
+      "next_local_step": "Approve provider abstraction, sensitivity/budget policies, redaction, and generated-surface authority.",
+      "not_claimed": ["AI authoring service", "provider binding", "report delivery"]
+    },
+    {
+      "logical_entity": "publication_installation_rollback_and_revocation",
+      "spec_tasks": ["T060", "T061", "T062", "T063", "T064", "T065", "T066"],
+      "current_status": "transition_requirements_only",
+      "authority_status": "CAS_readback_and_runtime_promotion_missing",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/tasks.md",
+        "specs/015-tenant-operating-system-studio/completion.json",
+        "docs/issue-execution/tenant-route-followup-readiness-20260812.md"
+      ],
+      "safe_reuse_boundary": "Add pure transition tables only; never mark activation, rollback, or revocation complete without same-cycle authority readback.",
+      "next_local_step": "Approve evidence registry and compare-and-set/readback contract.",
+      "not_claimed": ["activation", "rollback", "revocation", "production evidence"]
+    },
+    {
+      "logical_entity": "agency_delegation_export_and_handover",
+      "spec_tasks": ["T070", "T071", "T072", "T073", "T074", "T075", "T076"],
+      "current_status": "ownership_contract_boundary_only",
+      "authority_status": "client_tenant_ownership_and_delegation_readback_missing",
+      "evidence_paths": [
+        "specs/015-tenant-operating-system-studio/tasks.md",
+        "specs/015-tenant-operating-system-studio/traceability.md",
+        "docs/issue-execution/tenant-spec-kit-implementation-matrix-20260812.md"
+      ],
+      "safe_reuse_boundary": "Draft ownership/export fields and cross-scope test vectors only after legal and product policy approval.",
+      "next_local_step": "Approve ownership, delegation, revocation, portability, and handover policies.",
+      "not_claimed": ["delegation runtime", "export handover", "post-handover continuity"]
+    },
+    {
+      "logical_entity": "candidate_pr_convergence_evidence",
+      "spec_tasks": ["T080", "T081", "T082", "T083", "T084", "T085"],
+      "current_status": "read_only_evidence_refreshable",
+      "authority_status": "candidate_branches_are_not_runtime_authority",
+      "evidence_paths": [
+        "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl",
+        "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md",
+        "specs/015-tenant-operating-system-studio/candidate-convergence.json",
+        "specs/015-tenant-operating-system-studio/tools/refresh-candidate-pr-readonly-evidence.mjs"
+      ],
+      "safe_reuse_boundary": "Refresh exact state/path evidence and validate duplicate/stale/canonical gates; do not merge or copy candidate artifacts.",
+      "next_local_step": "Review refreshed evidence and approve a separate reconstruction plan per candidate package.",
+      "not_claimed": ["package reconstruction", "runtime integration", "candidate merge"]
+    }
+  ]
+}

@@ -25,8 +25,8 @@
   "specification": {
     "complete": true,
     "review_state": "draft",
-    "file_count_expected": 34,
-    "file_count_recorded": 34,
+    "file_count_expected": 36,
+    "file_count_recorded": 36,
     "functional_requirements": 74,
     "non_functional_requirements": 15,
     "success_criteria": 12,
@@ -51,7 +51,7 @@
   "portfolio_scan": {
     "status": "base_snapshot_complete_with_live_delta_pending_exact_head_ci",
     "observed_at": "2026-08-01T15:48:00Z",
-    "main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+    "main_sha": "1e7b437ec2fccba46678736007765b3225c4599e",
     "registry": "draft-spec-portfolio.json",
     "human_review": "draft-spec-portfolio.md",
     "schema": "contracts/draft-spec-portfolio.schema.json",
@@ -70,7 +70,7 @@
     "new_implementation_children_added_after_initial_scan": [4462],
     "truthfulness_findings_recorded": true,
     "all_base_snapshot_open_drafts_classified": true,
-    "field_level_reuse_matrices_complete": false,
+    "field_level_reuse_matrices_complete": true,
     "canonical_paths_finalized": false,
     "close_or_supersede_actions_executed": false
   },
@@ -186,7 +186,7 @@
   ],
   "blocking_reasons": [
     "work_map_and_architecture_review_pending",
-    "field_level_reuse_matrix_missing",
+    "field_level_reuse_matrix_review_pending",
     "duplicate_spec_011_identity_not_resolved",
     "duplicate_spec_014_identity_not_resolved",
     "duplicate_feature_013_reconciliation_not_resolved",
@@ -210,6 +210,8 @@
     "PR 4460 is the canonical external ChatGPT/MCP integration specification and PR 4462 is its first read-only implementation child; neither creates independent execution authority.",
     "PR 4464 is a Hostinger repository-provenance workstream correction and does not create a new Spec or execution authority.",
     "The MVP E2E journey validates specification, base portfolio, and live delta contracts only and grants no runtime mutation authority.",
+    "The current-main field-level reuse matrix is present as audit evidence; owner review and canonical authority decisions remain pending.",
+    "The candidate PR read-only snapshot was refreshed against current origin/main; candidate reconstruction and runtime integration remain unstarted.",
     "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
   ],
   "secrets_included": false

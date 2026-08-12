@@ -19,14 +19,17 @@ while position < len(text):
         rows.append(value)
     position = end
 
+snapshot_bases = sorted({row.get("snapshotBaseMainSha") for row in rows})
 summary = {
     "records": len(rows),
     "open": sum(row.get("state") == "OPEN" for row in rows),
-    "closed": sum(row.get("state") == "CLOSED" for row in rows),
+    "closed": sum(row.get("state") in {"CLOSED", "MERGED"} for row in rows),
     "draft": sum(row.get("isDraft") is True for row in rows),
     "conflicting": sum(row.get("mergeable") == "CONFLICTING" for row in rows),
     "numbers": [row.get("number") for row in rows],
-    "safe_read_only": True,
-    "merge_executed": False,
+    "snapshot_base_main_shas": snapshot_bases,
+    "safe_read_only": all(row.get("safe_read_only") is True for row in rows),
+    "merge_executed": any(row.get("merge_executed") is True for row in rows),
+    "secrets_included": any(row.get("secrets_included") is True for row in rows),
 }
 print(json.dumps(summary, indent=2))

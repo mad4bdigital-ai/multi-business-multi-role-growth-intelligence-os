@@ -2,7 +2,7 @@
   "schema_version": "1.0.0",
   "spec_key": "015-tenant-operating-system-studio",
   "status": "draft_review_required",
-  "base_main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+  "base_main_sha": "1e7b437ec2fccba46678736007765b3225c4599e",
   "candidates": [
     {
       "pull_request": 3922,
