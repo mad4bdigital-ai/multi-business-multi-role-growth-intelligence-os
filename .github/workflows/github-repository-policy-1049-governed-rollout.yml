@@ -30,18 +30,18 @@ jobs:
       EVIDENCE_DIR: .artifacts/github-repository-policy-1049-readiness
     steps:
       - name: Checkout exact issue-comment event head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
       - name: Execute Production-bound authorization and dry-run
         run: node .github/ops/github-repository-policy-1049-governed-rollout.mjs
       - name: Upload no-secret readiness evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: github-repository-policy-1049-readiness-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
@@ -70,18 +70,18 @@ jobs:
       EVIDENCE_DIR: .artifacts/github-repository-policy-1049-apply
     steps:
       - name: Checkout exact issue-comment event head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
       - name: Execute exactly-once Apply and same-cycle certification
         run: node .github/ops/github-repository-policy-1049-governed-rollout.mjs
       - name: Upload no-secret Apply evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: github-repository-policy-1049-apply-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}
@@ -110,18 +110,18 @@ jobs:
       EVIDENCE_DIR: .artifacts/github-repository-policy-1049-verify
     steps:
       - name: Checkout exact issue-comment event head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
       - name: Verify exact ledger and metadata without Apply
         run: node .github/ops/github-repository-policy-1049-governed-rollout.mjs
       - name: Upload no-secret verification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: github-repository-policy-1049-verify-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}

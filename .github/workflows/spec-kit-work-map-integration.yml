@@ -49,12 +49,12 @@ jobs:
           rm -rf "${repair_root}"
           mkdir -p "${repair_root}"
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           ref: ${{ env.EXPECTED_CHECKED_OUT_SHA }}
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
@@ -172,7 +172,7 @@ jobs:
 
       - name: Upload exact-head Work Map repair candidate
         if: steps.work_map_currentness.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: work-map-repair-candidate-${{ github.event_name == 'pull_request' && github.event.pull_request.number || env.TARGET_PR || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
           path: ${{ runner.temp }}/work-map-repair-candidate
@@ -216,7 +216,7 @@ jobs:
 
       - name: Upload bounded Work Map governance diagnostic
         if: always() && steps.work_map_governance.outputs.exit_code != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: work-map-governance-diagnostic-${{ github.event_name == 'pull_request' && github.event.pull_request.number || env.TARGET_PR || 'main' }}-${{ env.EXPECTED_CHECKED_OUT_SHA }}
           path: ${{ runner.temp }}/work-map-governance-diagnostic

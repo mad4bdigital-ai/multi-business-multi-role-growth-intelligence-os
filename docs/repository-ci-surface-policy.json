@@ -2,13 +2,16 @@
   "schemaVersion": 1,
   "contract": "mad4b.repository-ci-surface-policy.v1",
   "maxWorkflowCount": 160,
+  "warningWorkflowCount": 155,
   "requireOverlapCheck": true,
-  "rationale": "The repository has a large but governed workflow surface. The budget is enforced together with the automation overlap analyzer so growth remains observable and uncoordinated overlap fails the evaluation loop.",
+  "requireActionPinning": true,
+  "rationale": "The repository has a large but governed workflow surface. The budget is enforced together with an early warning threshold, action SHA pinning, and the automation overlap analyzer so growth remains observable and uncoordinated overlap fails the evaluation loop.",
   "owner": "platform-governance",
   "evidence": [
     ".github/workflows/automation-overlap-guard.yml",
     "http-generic-api/scripts/automation-overlap-analyzer.mjs",
-    "docs/automation-overlap-governance.md"
+    "docs/automation-overlap-governance.md",
+    "scripts/repository-evaluation.mjs"
   ],
   "secrets_included": false
 }

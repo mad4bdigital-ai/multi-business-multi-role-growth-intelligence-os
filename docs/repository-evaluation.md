@@ -10,19 +10,22 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Decision | **pass** |
 | Blocking gaps | 0 |
 | Warning or informational gaps | 0 |
-| Input fingerprint | `eadbeb9a1810504662e5dafd5e42bb22abb82707e260b958df6c5ace9c4caad8` |
+| Input fingerprint | `629df874c6f2ce1ead211a4a117e96b62ae815d5d67d6cfa10131c4d8c0f9153` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
 | Inventory files | 6,615 |
-| Inventory bytes | 58,031,119 |
+| Inventory bytes | 58,056,415 |
 | Workflows | 150 |
 | Workflows without explicit permissions | 0 |
 | Broad write permission matches | 0 |
+| Unpinned action references | 0 |
 | Automation overlap check | passed |
 | Workflow budget | 160 |
+| Workflow budget warning | 155 |
+| Workflow budget status | within-budget |
 | Unapproved large files | 0 |
 | Suspected secret files | 0 |
 | Dependency audit mode | not-run |
