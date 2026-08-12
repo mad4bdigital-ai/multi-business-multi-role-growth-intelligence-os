@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "85fffb73d9c83df5e5c160a19da1a37911e581c6a27d104255798e9d953b877c",
+    "ref": null,
+    "source_digest": "4ca3eb5d3aee0902c166f35065f9b4959507407dafc8c61f379b480dc6413297",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -11,7 +11,7 @@
       },
       {
         "file": "frontend-operation-governance.generated.json",
-        "sha256": "b8a09bdacc98cf3865ee07e5d7a59136c55b2113ef0d13521113f7133ab9a538",
+        "sha256": "0a651fbe81ece5667446b2379aaaa47f0e27b5f96ded324b7fb7a15d29962e71",
         "present": true
       },
       {
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "997c7404afc6cbc3a7bc8eef0db3b7dac4dc4b8c656eebcd946753952abdd25a",
+        "sha256": "6ba667f6e04d26960ed55661dace1a5342d6d7f8017f1ef47d589c14727a0f12",
         "present": true
       },
       {
@@ -791,7 +791,7 @@
       },
       {
         "file": "routes/resourceApiRoutes.js",
-        "sha256": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+        "sha256": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
         "present": true
       },
       {
@@ -976,12 +976,12 @@
       },
       {
         "file": "routes/tenantDocsRoutes.js",
-        "sha256": "14a3eb55190fcca12bea748eaa373ec15069cd61681c8d88bcdf359084df9550",
+        "sha256": "714c53b55d8f0a92777fe0cb1c0aea274abf00b56c8c2d253348182848286d10",
         "present": true
       },
       {
         "file": "routes/tenantEvolutionRoutes.js",
-        "sha256": "d971780adb67452cfaa1797848881be622992bade1dcd787dd3539e8737f00bf",
+        "sha256": "0df1182fe74e70bd6f2ffbabc9fec0cf79fef67c6d322900e9ae7f55ccb4a88b",
         "present": true
       },
       {
@@ -1006,7 +1006,7 @@
       },
       {
         "file": "routes/tenantLifecycleRoutes.js",
-        "sha256": "2e43c10c364f15ee289ff00df4d692c377c772a16fc0ee812bab2c3b3fb4c797",
+        "sha256": "7367e06cd3c81a36213b91b0de72abe24508c3e7c1450d1b2ae3a358c705d629",
         "present": true
       },
       {
@@ -21427,7 +21427,7 @@
       "family_key": "tenant-docs",
       "label": "tenant docs",
       "source_file": "routes/tenantDocsRoutes.js",
-      "source_digest": "14a3eb55190fcca12bea748eaa373ec15069cd61681c8d88bcdf359084df9550",
+      "source_digest": "714c53b55d8f0a92777fe0cb1c0aea274abf00b56c8c2d253348182848286d10",
       "mount_prefix": "/",
       "mount_order": 15767,
       "split_from_mixed_scope_file": false,
@@ -21607,7 +21607,7 @@
       "family_key": "tenant-lifecycle",
       "label": "tenant lifecycle",
       "source_file": "routes/tenantLifecycleRoutes.js",
-      "source_digest": "2e43c10c364f15ee289ff00df4d692c377c772a16fc0ee812bab2c3b3fb4c797",
+      "source_digest": "7367e06cd3c81a36213b91b0de72abe24508c3e7c1450d1b2ae3a358c705d629",
       "mount_prefix": "/",
       "mount_order": 15803,
       "split_from_mixed_scope_file": false,
@@ -21632,9 +21632,11 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -21693,10 +21695,12 @@
             "principal": "tenant_user",
             "guard_chain": [
               "requireActiveMembership",
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
               "route:requireActiveMembership",
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -21754,10 +21758,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -21818,10 +21824,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -21882,10 +21890,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -21946,10 +21956,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22010,10 +22022,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22074,10 +22088,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22138,10 +22154,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22202,10 +22220,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22264,9 +22284,11 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -22326,9 +22348,11 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -22386,9 +22410,11 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -22448,9 +22474,11 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt"
             ],
             "configuration_dependencies": [
@@ -22510,10 +22538,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22572,10 +22602,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -22636,10 +22668,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
+              "requireTenantUserJwt",
               "requireUserJwt",
               "requireWorkspaceOwner"
             ],
             "evidence": [
+              "route:requireTenantUserJwt",
               "route:requireUserJwt",
               "route:requireWorkspaceOwner"
             ],
@@ -31723,7 +31757,7 @@
       "family_key": "resource-api.admin",
       "label": "resource api (admin)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+      "source_digest": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,
@@ -32898,7 +32932,7 @@
       "family_key": "resource-api.tenant",
       "label": "resource api (tenant)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+      "source_digest": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,
@@ -33025,10 +33059,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33085,10 +33121,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33145,10 +33183,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33205,10 +33245,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33297,10 +33339,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33389,10 +33433,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33481,10 +33527,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33573,10 +33621,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33633,10 +33683,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33693,10 +33745,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33753,10 +33807,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33813,10 +33869,12 @@
             ],
             "principal": "tenant_user",
             "guard_chain": [
-              "requireUser"
+              "requireUser",
+              "requireUserJwt"
             ],
             "evidence": [
-              "route:requireUser"
+              "route:requireUser",
+              "route:requireUserJwt"
             ],
             "configuration_dependencies": [
               "JWT_SECRET"
@@ -33931,7 +33989,7 @@
       "family_key": "resource-api.unresolved",
       "label": "resource api (unresolved)",
       "source_file": "routes/resourceApiRoutes.js",
-      "source_digest": "059e7708c5c7dcce47bfcb74366c84d8516ad7d2ff9875e29cd3e0ac79a5ac8c",
+      "source_digest": "0b53330cdaf893a35e86e44715b75129b95c2a7f853cbcca01220a09374dc6a6",
       "mount_prefix": "/",
       "mount_order": 16837,
       "split_from_mixed_scope_file": true,
@@ -41780,7 +41838,7 @@
       "family_key": "tenant-evolution",
       "label": "tenant evolution",
       "source_file": "routes/tenantEvolutionRoutes.js",
-      "source_digest": "d971780adb67452cfaa1797848881be622992bade1dcd787dd3539e8737f00bf",
+      "source_digest": "0df1182fe74e70bd6f2ffbabc9fec0cf79fef67c6d322900e9ae7f55ccb4a88b",
       "mount_prefix": "/",
       "mount_order": 17322,
       "split_from_mixed_scope_file": false,

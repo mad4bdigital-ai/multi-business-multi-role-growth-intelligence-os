@@ -5,17 +5,37 @@ import mysql from "mysql2/promise";
 import { _testingWorkspaceResourceRoutes } from "./routes/workspaceResourceRoutes.js";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
 import { _testingResourceApiRoutes } from "./routes/resourceApiRoutes.js";
+import { _testingTenantDocsRoutes } from "./routes/tenantDocsRoutes.js";
+import { _testingTenantEvolutionRoutes } from "./routes/tenantEvolutionRoutes.js";
+import { _testingTenantLifecycleRoutes } from "./routes/tenantLifecycleRoutes.js";
 
 const workspaceSource = readFileSync(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
 const pluginSource = readFileSync(new URL("./routes/tenantPlatformPluginRoutes.js", import.meta.url), "utf8");
 const resourceSource = readFileSync(new URL("./routes/resourceApiRoutes.js", import.meta.url), "utf8");
+const tenantDocsSource = readFileSync(new URL("./routes/tenantDocsRoutes.js", import.meta.url), "utf8");
+const tenantEvolutionSource = readFileSync(new URL("./routes/tenantEvolutionRoutes.js", import.meta.url), "utf8");
+const tenantLifecycleSource = readFileSync(new URL("./routes/tenantLifecycleRoutes.js", import.meta.url), "utf8");
 
-for (const [name, source] of [["workspaceResourceRoutes", workspaceSource], ["tenantPlatformPluginRoutes", pluginSource], ["resourceApiRoutes", resourceSource]]) {
+for (const [name, source] of [
+  ["workspaceResourceRoutes", workspaceSource],
+  ["tenantPlatformPluginRoutes", pluginSource],
+  ["resourceApiRoutes", resourceSource],
+  ["tenantDocsRoutes", tenantDocsSource],
+  ["tenantEvolutionRoutes", tenantEvolutionSource],
+  ["tenantLifecycleRoutes", tenantLifecycleSource],
+]) {
   assert.doesNotMatch(source, /development_fallback_secret_only/, `${name} must not contain a development JWT fallback secret`);
   assert.doesNotMatch(source, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, `${name} must not own an ad-hoc JWT verifier`);
   assert.match(source, /createUserJwtMiddleware/, `${name} must use the canonical User JWT middleware`);
   assert.match(source, /requireCanonicalUserJwt|requireUserJwt/, `${name} must use a canonical User JWT guard before tenant scope handlers`);
 }
+for (const [name, source] of [["tenantDocsRoutes", tenantDocsSource], ["tenantEvolutionRoutes", tenantEvolutionSource], ["tenantLifecycleRoutes", tenantLifecycleSource]]) {
+  assert.doesNotMatch(source, /verifyUserJwt\(/, `${name} must not retain a local bearer verifier`);
+  assert.match(source, /requireCanonicalUserJwt/, `${name} must declare the canonical parser explicitly`);
+}
+assert.match(tenantDocsSource, /const requireTenant = \[requireCanonicalUserJwt, requireTenantUserJwt\]/, "tenant docs routes must parse canonical User JWT before tenant membership resolution");
+assert.match(tenantEvolutionSource, /const requireTenant = \[requireCanonicalUserJwt, requireTenantUserJwt\]/, "tenant evolution routes must parse canonical User JWT before tenant membership resolution");
+assert.match(tenantLifecycleSource, /const requireTenantUserJwt = \[requireCanonicalUserJwt, requireUserJwt\]/, "tenant lifecycle routes must parse canonical User JWT before workspace lifecycle authorization");
 assert.doesNotMatch(resourceSource, /development_fallback_secret_only/, "resourceApiRoutes must not contain a development JWT fallback secret");
 assert.doesNotMatch(resourceSource, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, "resourceApiRoutes must not own an ad-hoc JWT verifier");
 assert.doesNotMatch(resourceSource, /verifyJwt\(/, "resourceApiRoutes must not retain a local bearer verifier");
@@ -110,6 +130,12 @@ try {
 
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireCanonicalUserJwt, "function");
   assert.equal(typeof _testingTenantPlatformPluginRoutes.requireTenantUserJwt, "function");
+  assert.equal(typeof _testingTenantDocsRoutes.requireCanonicalUserJwt, "function");
+  assert.equal(typeof _testingTenantDocsRoutes.requireTenantUserJwt, "function");
+  assert.equal(typeof _testingTenantEvolutionRoutes.requireCanonicalUserJwt, "function");
+  assert.equal(typeof _testingTenantEvolutionRoutes.requireTenantUserJwt, "function");
+  assert.equal(typeof _testingTenantLifecycleRoutes.requireCanonicalUserJwt, "function");
+  assert.equal(typeof _testingTenantLifecycleRoutes.requireUserJwt, "function");
 } finally {
   if (originalSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = originalSecret;
@@ -272,6 +298,27 @@ try {
   _testingResourceApiRoutes.requireUser(parsedRequest, response, () => { parsedNext = true; });
   assert.equal(parsedNext, true, "resourceApiRoutes must accept canonical parsed User JWT output");
   assert.deepEqual(parsedRequest.auth, { mode: "user_jwt", user_id: "user-resource-1", tenant_id: "tenant-resource-1", is_admin: false });
+}
+
+// Route-local tenant guards must consume only canonical parser output; a bearer token
+// without req.auth must never be decoded by the route file itself.
+for (const [name, guard] of [
+  ["tenantDocsRoutes", _testingTenantDocsRoutes.requireTenantUserJwt],
+  ["tenantEvolutionRoutes", _testingTenantEvolutionRoutes.requireTenantUserJwt],
+  ["tenantLifecycleRoutes", _testingTenantLifecycleRoutes.requireUserJwt],
+]) {
+  const response = {
+    statusCode: 200,
+    payload: null,
+    status(code) { this.statusCode = code; return this; },
+    json(payload) { this.payload = payload; return this; },
+  };
+  const request = { headers: { authorization: "Bearer route-local-fallback-must-not-run" } };
+  let passed = false;
+  await guard(request, response, () => { passed = true; });
+  assert.equal(passed, false, `${name} must reject an unparsed bearer token`);
+  assert.equal(response.statusCode, 401, `${name} must fail closed at the canonical auth boundary`);
+  assert.equal(response.payload?.error?.code, "user_jwt_required");
 }
 
 console.log("tenant canonical User JWT route auth tests passed");

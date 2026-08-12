@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6649,
-    "bytes": 58530911,
-    "lines": 1367908,
+    "bytes": 58537630,
+    "lines": 1368011,
     "directories": 251,
     "categories": 13
   },
@@ -217,8 +217,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3156577,
-      "lines": 96943
+      "bytes": 3158809,
+      "lines": 97001
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 327849,
-      "lines": 8544
+      "bytes": 328113,
+      "lines": 8552
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",

@@ -2,7 +2,7 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "tenant-route-auth-hardening",
-  "title": "Tenant resource route canonical User-JWT hardening",
+  "title": "Tenant route-family canonical User-JWT hardening",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
@@ -10,6 +10,9 @@
       ".changes/e2e/tenant-route-auth-hardening.json",
       "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
       "http-generic-api/routes/resourceApiRoutes.js",
+      "http-generic-api/routes/tenantDocsRoutes.js",
+      "http-generic-api/routes/tenantEvolutionRoutes.js",
+      "http-generic-api/routes/tenantLifecycleRoutes.js",
       "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs"
     ]
   },
@@ -20,26 +23,26 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove the local development JWT fallback from the tenant resource route family and require canonical parsed User-JWT output before tenant resource handlers.",
+      "objective": "Remove local development JWT fallbacks from tenant resource, docs, evolution, and lifecycle route families and require canonical parsed User-JWT output before tenant-scoped handlers.",
       "e2e_journeys": [
         {
-          "id": "canonical-resource-route-user-jwt-boundary",
+          "id": "canonical-tenant-route-family-user-jwt-boundary",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "tenant resource API caller",
-          "entrypoint": "tenant resource routes mounted by resourceApiRoutes.js",
-          "terminal_outcome": "An unparsed bearer request is rejected, while a request carrying canonical User-JWT parser output reaches the tenant resource handler without a local verifier or fallback secret.",
+          "actor": "tenant-scoped API caller",
+          "entrypoint": "tenant resource, docs, evolution, and lifecycle routes mounted by their route builders",
+          "terminal_outcome": "An unparsed bearer request is rejected, while a request carrying canonical User-JWT parser output reaches tenant membership, scope, or lifecycle guards without a local verifier or fallback secret.",
           "steps": [
-            "Load resourceApiRoutes.js and confirm it owns no jsonwebtoken verifier or development fallback secret.",
-            "Pass a request with only an Authorization header to the resource route guard and verify a typed 401 user_jwt_required response.",
-            "Pass a request with canonical req.auth mode=user_jwt and verify the guard preserves the parsed principal and continues.",
-            "Run the shared tenant route regression against workspace, platform plugin, and resource route families."
+            "Load all tenant route-family sources and confirm they own no jsonwebtoken verifier or development fallback secret.",
+            "Pass a request with only an Authorization header to each route-local tenant guard and verify a typed 401 user_jwt_required response.",
+            "Pass a request with canonical req.auth mode=user_jwt and verify the normalized tenant guards consume the parsed principal.",
+            "Run the shared tenant route regression against workspace, platform plugin, resource, docs, evolution, and lifecycle route families."
           ],
           "assertions": [
-            "resourceApiRoutes.js contains no development_fallback_secret_only literal.",
-            "resourceApiRoutes.js contains no local verifyJwt helper or jsonwebtoken import.",
-            "Resource route guards consume only req.auth produced by createUserJwtMiddleware().",
-            "An unparsed bearer cannot become tenant authority.",
+            "No covered tenant route file contains the development_fallback_secret_only literal.",
+            "No covered tenant route file owns a local verifyJwt or verifyUserJwt helper or jsonwebtoken import.",
+            "Tenant route guards consume only req.auth produced by createUserJwtMiddleware().",
+            "An unparsed bearer cannot become tenant authority in any covered route family.",
             "The regression exposes no secrets and does not require a live database or provider call."
           ],
           "tests": [
@@ -55,6 +58,9 @@
             ".changes/e2e/tenant-route-auth-hardening.json",
             "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
             "http-generic-api/routes/resourceApiRoutes.js",
+            "http-generic-api/routes/tenantDocsRoutes.js",
+            "http-generic-api/routes/tenantEvolutionRoutes.js",
+            "http-generic-api/routes/tenantLifecycleRoutes.js",
             "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs"
           ]
         }
