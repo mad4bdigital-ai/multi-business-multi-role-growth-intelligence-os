@@ -107,8 +107,32 @@ function containsBranchSpecificLiteral(content) {
 }
 
 function hasAnyWritePermission(content) {
-  return /(?:^|\n)\s*permissions\s*:\s*write-all\b/iu.test(content)
-    || /(?:^|\n)\s*[A-Za-z][A-Za-z-]*\s*:\s*write\b/iu.test(content);
+  const lines = String(content).split(/\r?\n/u);
+  let topLevelPermissions = false;
+  let jobIf = "";
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const indentation = line.match(/^\s*/u)?.[0].length || 0;
+
+    if (indentation === 0 && /^permissions\s*:/u.test(trimmed)) {
+      if (/^permissions\s*:\s*(?:write-all|write)\s*$/iu.test(trimmed)) return true;
+      topLevelPermissions = true;
+      continue;
+    }
+    if (topLevelPermissions) {
+      if (trimmed && indentation === 0) topLevelPermissions = false;
+      else if (indentation > 0 && /:\s*write(?:-all)?\s*$/iu.test(trimmed)) return true;
+    }
+
+    if (indentation <= 2 && /^(?:jobs|[A-Za-z0-9_-]+):/u.test(trimmed)) jobIf = "";
+    if (indentation === 4 && /^if\s*:/u.test(trimmed)) jobIf = trimmed;
+    if (indentation >= 4 && /:\s*write(?:-all)?\s*$/iu.test(trimmed)) {
+      const isPushMainOnly = /github\.event_name\s*==\s*['"]push['"]/iu.test(jobIf)
+        && /github\.ref\s*==\s*['"]refs\/heads\/main['"]/iu.test(jobIf);
+      if (!isPushMainOnly) return true;
+    }
+  }
+  return false;
 }
 
 function hasPullRequestTrigger(content) {
@@ -126,7 +150,7 @@ function hasGitPush(content) {
 function hasApiWrite(content) {
   const ghApiWrite = /\bgh\s+api\b[\s\S]{0,500}?(?:(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)\b|(?:-f|--field|--raw-field)\s+)/iu;
   const curlApiWrite = /\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b[^\n]*api\.github\.com/iu;
-  const ghMutation = /\bgh\s+(?:pr\s+merge|release\s+(?:create|delete|edit|upload)|workflow\s+(?:run|enable|disable))\b/iu;
+  const ghMutation = /\bgh\s+(?:pr\s+merge|workflow\s+(?:run|enable|disable))\b/iu;
   const githubScriptMutation = /github\.rest\.[A-Za-z0-9_.]+\.(?:create|update|delete|merge|dispatch|rerun|cancel|enable|disable)[A-Za-z0-9_]*\s*\(/iu;
   return ghApiWrite.test(content)
     || curlApiWrite.test(content)

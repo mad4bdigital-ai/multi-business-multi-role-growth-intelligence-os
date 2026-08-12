@@ -18,7 +18,7 @@ on:
       - '.github/workflows/local-manager-windows.yml'
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
@@ -88,8 +88,27 @@ jobs:
             dist/Mad4B-Local-Manager-Setup*.sha256.json
           if-no-files-found: error
 
+
+  publish-release:
+    name: Publish public latest EXE release asset
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-windows-exe
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Download Windows EXE artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Mad4B-Local-Manager-Windows-EXE
+          path: dist
+
       - name: Publish public latest EXE release asset
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
