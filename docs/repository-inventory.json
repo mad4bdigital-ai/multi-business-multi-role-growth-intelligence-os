@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6663,
-    "bytes": 58693978,
-    "lines": 1370033,
+    "files": 6666,
+    "bytes": 58701767,
+    "lines": 1370196,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1986,
+      "tests-and-specs": 1987,
       "documentation": 1853,
       "api-runtime": 1323,
       "database-migrations": 767,
       "root-and-other": 221,
-      "ci-workflows": 151,
+      "ci-workflows": 152,
       "api-contracts": 147,
-      "ci-config": 93,
+      "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -27,11 +27,11 @@
     },
     "byExtension": {
       ".md": 2438,
-      ".mjs": 1526,
+      ".mjs": 1528,
       ".js": 928,
       ".sql": 782,
       ".json": 654,
-      ".yml": 153,
+      ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -57,10 +57,10 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3428,
+      "http-generic-api": 3429,
       "docs": 1759,
       "specs": 809,
-      ".github": 244,
+      ".github": 246,
       ".changes": 217,
       "canonicals": 70,
       "local-connector": 23,
@@ -482,6 +482,7 @@
       ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
       ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
+      ".github/workflows/github-repository-policy-readback.yml",
       ".github/workflows/governance-db-privilege-readiness.yml",
       ".github/workflows/governed-command-gateway.yml",
       ".github/workflows/governed-command-registry-validation.yml",
@@ -1988,6 +1989,7 @@
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
       "http-generic-api/test-github-repository-policy-live-apply-authority.mjs",
+      "http-generic-api/test-github-repository-policy-readback-producer.mjs",
       "http-generic-api/test-github-repository-webhook-certification-service.mjs",
       "http-generic-api/test-github-rerun-workflow-response-schema-alignment.mjs",
       "http-generic-api/test-github-rest-endpoint-dispatch-foundation.mjs",
@@ -4039,6 +4041,7 @@
       "http-generic-api/test-github-repository-policy-controller.mjs",
       "http-generic-api/test-github-repository-policy-live-activation-contract.mjs",
       "http-generic-api/test-github-repository-policy-live-apply-authority.mjs",
+      "http-generic-api/test-github-repository-policy-readback-producer.mjs",
       "http-generic-api/test-github-repository-webhook-certification-service.mjs",
       "http-generic-api/test-github-rerun-workflow-response-schema-alignment.mjs",
       "http-generic-api/test-github-rest-endpoint-dispatch-foundation.mjs",
@@ -6030,9 +6033,9 @@
       "path": ".changes/e2e/github-repository-policy-controller.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8902,
-      "lines": 140,
-      "sha256": "d9f18a767e1af8b94fd816a0afdb350963623ed1e7bb16abac3842b233942d27",
+      "bytes": 10036,
+      "lines": 155,
+      "sha256": "9fd6e81005002045e7cf681d7f12713a21e0c5e657bc735a2622d4a58036f689",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8711,6 +8714,17 @@
       "generated": false
     },
     {
+      "path": ".github/ops/github-repository-policy-readback.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 3045,
+      "lines": 67,
+      "sha256": "52f140fac431626b6e790a9df88b1ada5c3972480510764222b1cd3f502a725c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/ops/lib/admin-control-db-request.mjs",
       "category": "ci-config",
       "extension": ".mjs",
@@ -9333,6 +9347,17 @@
       "bytes": 5513,
       "lines": 135,
       "sha256": "1f7ff4b55c538ef7981b309c5a749805e4e40c8becc6217ca4fc0d27c0a6e54f",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/workflows/github-repository-policy-readback.yml",
+      "category": "ci-workflows",
+      "extension": ".yml",
+      "bytes": 1376,
+      "lines": 43,
+      "sha256": "9a3193c62736f1f10a7d815b942f4b10a0f738e6d6ccedf7dd712a0165660871",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31156,7 +31181,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "96fea3829b40f9a89f4328e5aba2be6d4bc9792c4ae67414b9cb179c0811d66b",
+      "sha256": "55735cf75cfe08b7932e94cbe344d9fba5e0861674919cf12053f76e2b5fe6dd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31319,9 +31344,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 45224,
-      "lines": 484,
-      "sha256": "3d71baf252ed836279f60abf1378baae928fbf505cc4625042af0db88dcf977b",
+      "bytes": 45468,
+      "lines": 487,
+      "sha256": "e041bb80078ba85a05b5381576dfcf918f1b1dd6fb98d1b93479ebd89ac1f4d4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -60290,6 +60315,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-github-repository-policy-readback-producer.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 1990,
+      "lines": 35,
+      "sha256": "4569e78916df6c0d87617d7677fee53c396b9015fc4300f5f9430754f9c0977c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-github-repository-webhook-certification-service.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -76839,7 +76875,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "bb408cfb4ed6557501f02f9dec28161ae0361e788069901392e86e7e3275e6a6",
+      "sha256": "2eedce9699911c114c15b90865fdacb1fb6f19f0b3db5fc4cafb68642581f83e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77400,7 +77436,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "b5f3dfe8def5f1a025287bafcd90bdfa2dedfca776dec845663197819f30ac79",
+      "sha256": "2d90f9f29061091176424969b08ecb25e4e888f3a18f8e92c2fb02e2f82000a6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78225,7 +78261,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "2f8dafa89267ec0dcd11576b23e4a32c903086e5734896777c8f83aec165dc36",
+      "sha256": "25a6c1297f86e61be1b73eeb271696c1fcaa678cff3aaafd1fd4615c02fbed31",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78456,7 +78492,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "1dea4516683481927b5f64f91e25399588ce4b3c5ccc57154d9a4079b02b72bc",
+      "sha256": "7ea289f85290c3ef20d8dc5e9a29eb85d4d88fafb4315649cc543ee900954c58",
       "mode": "644",
       "executable": false,
       "generated": false
