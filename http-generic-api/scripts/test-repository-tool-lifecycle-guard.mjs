@@ -296,6 +296,78 @@ jobs:
 );
 assert(writeAllFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
 
+const actionsOnlyPrWorkflow = ".github/workflows/actions-only-pr.yml";
+const actionsOnlyPrFindings = await evaluate(
+  [{ status: "A", path: actionsOnlyPrWorkflow }],
+  {
+    [actionsOnlyPrWorkflow]: `
+on:
+  pull_request:
+permissions:
+  actions: write
+  contents: read
+jobs:
+  inspect:
+    steps:
+      - run: npm run inventory:write
+`,
+  },
+);
+assert(!actionsOnlyPrFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
+const dispatchOnlyWorkflow = ".github/workflows/dispatch-only.yml";
+const dispatchOnlyFindings = await evaluate(
+  [{ status: "A", path: dispatchOnlyWorkflow }],
+  {
+    [dispatchOnlyWorkflow]: `
+on:
+  workflow_run:
+    workflows: [Verifier]
+    types: [completed]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    steps:
+      - run: |
+          payload='{}'
+          gh api \\
+            --method POST \\
+            "repos/example/repo/actions/workflows/governed-writer.yml/dispatches" \\
+            --input - <<<"$payload"
+`,
+  },
+);
+assert(!dispatchOnlyFindings.some((item) => item.code === "UNGUARDED_AUTOMATION_MUTATION"));
+assert(!dispatchOnlyFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
+assert(!dispatchOnlyFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
+
+const mixedDispatchWorkflow = ".github/workflows/mixed-dispatch-mutation.yml";
+const mixedDispatchFindings = await evaluate(
+  [{ status: "A", path: mixedDispatchWorkflow }],
+  {
+    [mixedDispatchWorkflow]: `
+on:
+  workflow_run:
+    workflows: [Verifier]
+    types: [completed]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  dispatch:
+    steps:
+      - run: |
+          gh api --method POST "repos/example/repo/actions/workflows/governed-writer.yml/dispatches" --input - <<<'{}'
+          gh api "repos/example/repo/git/refs/heads/work" --method PATCH -f sha=abc
+`,
+  },
+);
+assert(mixedDispatchFindings.some((item) => item.code === "UNGUARDED_AUTOMATION_MUTATION"));
+assert(mixedDispatchFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
+assert(mixedDispatchFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
+
 const externalTokenWorkflow = ".github/workflows/external-token-push.yml";
 const externalTokenFindings = await evaluate(
   [{ status: "A", path: externalTokenWorkflow }],
@@ -388,6 +460,8 @@ assert.deepEqual(compliantFindings, []);
 console.log(JSON.stringify({
   ok: true,
   gate: "repository_tool_lifecycle_governance",
-  cases: 21,
+  cases: 24,
+  dispatch_only_actions_write_is_not_repository_mutation: true,
+  pull_request_contents_write_detection_is_permission_scoped: true,
   secrets_included: false,
 }));
