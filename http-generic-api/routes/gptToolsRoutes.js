@@ -20,6 +20,10 @@ filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
 async function dispatchTool(callerType, toolKey, args, req) {
   assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
   assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
+  findActiveGrantForTool
+  validateArgsAgainstGrant
+  recordGrantUse
+  admin_scope_grant_dispatch
   resolveToolPreflightDescriptor(callerType, toolKey)
 }
 `;
