@@ -3,20 +3,20 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6608,
-    "bytes": 57974571,
-    "lines": 1358413,
+    "files": 6615,
+    "bytes": 58030804,
+    "lines": 1359582,
     "directories": 249,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1974,
-      "documentation": 1823,
+      "tests-and-specs": 1975,
+      "documentation": 1827,
       "api-runtime": 1322,
       "database-migrations": 767,
-      "root-and-other": 211,
-      "ci-workflows": 149,
+      "root-and-other": 212,
+      "ci-workflows": 150,
       "api-contracts": 147,
       "ci-config": 93,
       "schemas-and-data": 66,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2421,
-      ".mjs": 1514,
+      ".md": 2422,
+      ".mjs": 1516,
       ".js": 925,
       ".sql": 782,
-      ".json": 639,
-      ".yml": 151,
+      ".json": 642,
+      ".yml": 152,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -56,9 +56,9 @@
     },
     "topLevel": {
       "http-generic-api": 3418,
-      "docs": 1729,
+      "docs": 1733,
       "specs": 807,
-      ".github": 242,
+      ".github": 243,
       ".changes": 209,
       "canonicals": 70,
       "local-connector": 23,
@@ -67,7 +67,7 @@
       "schemas": 14,
       "src": 12,
       "edge": 9,
-      "scripts": 4,
+      "scripts": 6,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -186,17 +186,24 @@
         "ci:execution-resolvers",
         "inventory:write",
         "inventory:check",
-        "inventory:test"
+        "inventory:test",
+        "evaluation:write",
+        "evaluation:enforce",
+        "evaluation:check",
+        "evaluation:test",
+        "evaluation:network",
+        "evaluation:environment",
+        "evaluation:loop"
       ],
       "dependencies": 0,
       "devDependencies": 4
     }
   ],
   "surfaces": {
-    "workflows": 149,
+    "workflows": 150,
     "migrations": 767,
     "apiContracts": 147,
-    "testSpecFiles": 2037
+    "testSpecFiles": 2038
   },
   "largestFiles": [
     {

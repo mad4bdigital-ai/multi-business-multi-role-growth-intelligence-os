@@ -1,0 +1,140 @@
+name: Repository Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      include_network:
+        description: Run network-dependent dependency audit
+        required: false
+        default: false
+        type: boolean
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!docs/repository-evaluation.json'
+      - '!docs/repository-evaluation-summary.json'
+      - '!docs/repository-evaluation.md'
+  pull_request:
+    paths:
+      - '**'
+      - '!docs/repository-evaluation.json'
+      - '!docs/repository-evaluation-summary.json'
+      - '!docs/repository-evaluation.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-evaluation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    name: Evaluate repository gaps
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact source revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Install http-generic-api dependencies
+        run: npm ci --ignore-scripts --prefix http-generic-api
+
+      - name: Setup repository-supported .NET SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Run required network dependency and environment probes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_audit() {
+            local label="$1"
+            local output="$2"
+            shift 2
+            set +e
+            "$@" > "$output"
+            local status=$?
+            set -e
+            node - "$label" "$output" "$status" <<'NODE'
+          const fs = require('node:fs');
+          const [label, output, statusText] = process.argv.slice(2);
+          const status = Number(statusText);
+          const report = JSON.parse(fs.readFileSync(output, 'utf8'));
+          const total = Number(report.metadata?.vulnerabilities?.total ?? 0);
+          if (total > 0) {
+            console.error(`${label}: ${total} advisories reported`);
+            process.exit(1);
+          }
+          if (report.error || !report.metadata) {
+            console.warn(`${label}: audit service unavailable or returned no metadata; transport result is recorded but does not mask advisories`);
+            process.exit(0);
+          }
+          if (status !== 0) {
+            console.error(`${label}: audit exited ${status} without a parseable advisory count`);
+            process.exit(1);
+          }
+          console.log(`${label}: audit passed with zero advisories`);
+          NODE
+          }
+          run_audit root "$RUNNER_TEMP/root-npm-audit.json" npm audit --json --omit=dev
+          run_audit http-generic-api "$RUNNER_TEMP/http-generic-api-npm-audit.json" npm audit --prefix http-generic-api --json --omit=dev
+          dotnet --version
+
+      - name: Prepare exact base evaluation when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact_path="docs/repository-evaluation.json"
+          if git show "origin/main:${artifact_path}" > "$RUNNER_TEMP/repository-evaluation-baseline.json" 2>/dev/null; then
+            echo "EVALUATION_BASELINE=$RUNNER_TEMP/repository-evaluation-baseline.json" >> "$GITHUB_ENV"
+          else
+            echo "No committed baseline is available yet."
+          fi
+
+      - name: Run deterministic evaluation loop
+        shell: bash
+        env:
+          INCLUDE_NETWORK: ${{ github.event_name == 'workflow_dispatch' && inputs.include_network || false }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "${INCLUDE_NETWORK}" == "true" ]]; then args+=(--include-network); fi
+          if [[ -n "${EVALUATION_BASELINE:-}" ]]; then args+=(--baseline "${EVALUATION_BASELINE}"); fi
+          node scripts/repository-evaluation.mjs --enforce "${args[@]}"
+          npm run inventory:check
+          npm run inventory:test
+          npm run evaluation:test
+          node scripts/repository-evaluation.mjs --check --enforce "${args[@]}"
+          git diff --exit-code -- \
+            docs/repository-inventory.json \
+            docs/repository-inventory-summary.json \
+            docs/repository-inventory.md \
+            docs/repository-evaluation.json \
+            docs/repository-evaluation-summary.json \
+            docs/repository-evaluation.md
+
+      - name: Upload evaluation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-evaluation-${{ github.sha }}
+          path: |
+            docs/repository-evaluation.json
+            docs/repository-evaluation-summary.json
+            docs/repository-evaluation.md
+          if-no-files-found: error

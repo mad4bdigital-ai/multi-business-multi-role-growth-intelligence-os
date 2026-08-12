@@ -1,15 +1,15 @@
 <!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows. Generated inventory and evaluation artifacts are excluded from the counted inputs to avoid a self-referential write cycle.
 
 ## Snapshot
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,608 |
-| Total bytes | 57,974,571 |
-| Counted text lines | 1,358,413 |
+| Tracked files | 6,615 |
+| Total bytes | 58,030,804 |
+| Counted text lines | 1,359,582 |
 | Directories | 249 |
 | Categories | 13 |
 
@@ -17,12 +17,12 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 1,974 |
-| `documentation` | 1,823 |
+| `tests-and-specs` | 1,975 |
+| `documentation` | 1,827 |
 | `api-runtime` | 1,322 |
 | `database-migrations` | 767 |
-| `root-and-other` | 211 |
-| `ci-workflows` | 149 |
+| `root-and-other` | 212 |
+| `ci-workflows` | 150 |
 | `api-contracts` | 147 |
 | `ci-config` | 93 |
 | `schemas-and-data` | 66 |
@@ -35,12 +35,12 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,421 |
-| `.mjs` | 1,514 |
+| `.md` | 2,422 |
+| `.mjs` | 1,516 |
 | `.js` | 925 |
 | `.sql` | 782 |
-| `.json` | 639 |
-| `.yml` | 151 |
+| `.json` | 642 |
+| `.yml` | 152 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
 | `.cs` | 14 |
@@ -67,10 +67,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 149 |
+| GitHub Actions workflows | 150 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,037 |
+| Test/spec files (paths) | 2,038 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -78,7 +78,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
 | `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 58 | 9 | 0 |
-| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 8 | 0 | 4 |
+| `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 15 | 0 | 4 |
 
 ## Largest tracked files
 
@@ -117,7 +117,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every non-generated tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis; generated inventory and evaluation artifacts are intentionally omitted to keep regeneration deterministic.
 
 ## Regeneration
 
