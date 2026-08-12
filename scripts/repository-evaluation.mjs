@@ -310,6 +310,29 @@ function compareBaseline(current, baseline) {
   };
 }
 
+function applyBaselineLifecycle(evaluation, baseline) {
+  const baselineDiff = compareBaseline({ gaps: evaluation.gaps }, baseline);
+  const gaps = evaluation.gaps.map((gap) => ({
+    ...gap,
+    lifecycle: !baselineDiff.available
+      ? "new"
+      : baselineDiff.newGapIds.includes(gap.gapId)
+        ? "new"
+        : baselineDiff.unchangedGapIds.includes(gap.gapId)
+          ? "unchanged"
+          : "persisting",
+  }));
+  return { ...evaluation, gaps, baselineDiff };
+}
+
+function stripBaselineLifecycle(evaluation) {
+  return {
+    ...evaluation,
+    gaps: evaluation.gaps.map((gap) => ({ ...gap, lifecycle: "new" })),
+    baselineDiff: compareBaseline({ gaps: [] }, null),
+  };
+}
+
 function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = false, includeEnvironment = false, baseline = null } = {}) {
   const inventory = loadInventory();
   // The inventory remains complete, but generated evaluation files are excluded from
@@ -337,10 +360,7 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   const largeFiles = largeFileSignals(evaluationInventory, largeFilePolicy);
   const inputFingerprint = sha256({ inventoryFiles: evaluationInventory.files, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFilePolicy, largeFiles, checks: checks.map(({ id, status, exitCode }) => ({ id, status, exitCode })) });
   const gaps = collectGaps({ inventory: evaluationInventory, checks, workflow, secrets, audit, dotnet, ciSurfacePolicy, dependencyAuditPolicy, largeFileSignals: largeFiles });
-  const baselineDiff = compareBaseline({ gaps }, baseline);
-  for (const gap of gaps) {
-    gap.lifecycle = !baselineDiff.available ? "new" : baselineDiff.newGapIds.includes(gap.gapId) ? "new" : baselineDiff.unchangedGapIds.includes(gap.gapId) ? "unchanged" : "persisting";
-  }
+  const lifecycle = applyBaselineLifecycle({ gaps }, baseline);
   const blockingGapIds = gaps.filter((gap) => gap.blocking && gap.status === "open").map((gap) => gap.gapId);
   const warningGapIds = gaps.filter((gap) => !gap.blocking && gap.status !== "resolved").map((gap) => gap.gapId);
   const gate = { decision: blockingGapIds.length > 0 ? "fail" : warningGapIds.length > 0 ? "warn" : "pass", blockingGapIds, warningGapIds };
@@ -366,9 +386,9 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
     },
     policies: { ciSurface: ciSurfacePolicy, dependencyAudit: dependencyAuditPolicy, largeFiles: largeFilePolicy },
     checks,
-    gaps,
+    gaps: lifecycle.gaps,
     gate,
-    baselineDiff,
+    baselineDiff: lifecycle.baselineDiff,
   };
   return evaluation;
 }
@@ -451,14 +471,15 @@ function main(argv = process.argv.slice(2)) {
     }
   }
   const baseline = options.baseline && existsSync(absolute(options.baseline)) ? readJson(options.baseline) : null;
-  const evaluation = buildEvaluation({ skipChecks: options.skipChecks, includeNetwork: options.includeNetwork, includeEnvironment: options.includeEnvironment, baseline });
+  const deterministicEvaluation = stripBaselineLifecycle(buildEvaluation({ skipChecks: options.skipChecks, includeNetwork: options.includeNetwork, includeEnvironment: options.includeEnvironment, baseline: null }));
+  const evaluation = baseline ? applyBaselineLifecycle(deterministicEvaluation, baseline) : deterministicEvaluation;
   if (options.diff) {
     process.stdout.write(`${JSON.stringify(evaluation.baselineDiff, null, 2)}\n`);
     return;
   }
-  const json = `${JSON.stringify(evaluation, null, 2)}\n`;
-  const markdown = renderMarkdown(evaluation);
-  const summary = `${JSON.stringify(buildSummary(evaluation), null, 2)}\n`;
+  const json = `${JSON.stringify(deterministicEvaluation, null, 2)}\n`;
+  const markdown = renderMarkdown(deterministicEvaluation);
+  const summary = `${JSON.stringify(buildSummary(deterministicEvaluation), null, 2)}\n`;
   const outputs = [[options.outputs.json, json], [options.outputs.markdown, markdown], [options.outputs.summary, summary]];
   const mismatches = writeOrCheck(outputs, outputs);
   if (options.check) {
@@ -476,6 +497,6 @@ function main(argv = process.argv.slice(2)) {
   if (options.enforce && evaluation.gate.decision === "fail") process.exitCode = 1;
 }
 
-export { buildEvaluation, compareBaseline, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken, dependencyPreflight };
+export { buildEvaluation, compareBaseline, applyBaselineLifecycle, stripBaselineLifecycle, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken, dependencyPreflight };
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main();
