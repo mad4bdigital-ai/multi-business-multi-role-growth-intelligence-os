@@ -8,6 +8,9 @@ import { _testingResourceApiRoutes } from "./routes/resourceApiRoutes.js";
 import { _testingTenantDocsRoutes } from "./routes/tenantDocsRoutes.js";
 import { _testingTenantEvolutionRoutes } from "./routes/tenantEvolutionRoutes.js";
 import { _testingTenantLifecycleRoutes } from "./routes/tenantLifecycleRoutes.js";
+import { _testingActivationGuidanceRoutes } from "./routes/activationGuidanceRoutes.js";
+import { _testingDynamicContainerTeamRoutes } from "./routes/dynamicContainerTeamRoutes.js";
+import { _testingRegistryDataManagementRoutes } from "./routes/registryDataManagementRoutes.js";
 
 const workspaceSource = readFileSync(new URL("./routes/workspaceResourceRoutes.js", import.meta.url), "utf8");
 const pluginSource = readFileSync(new URL("./routes/tenantPlatformPluginRoutes.js", import.meta.url), "utf8");
@@ -15,6 +18,13 @@ const resourceSource = readFileSync(new URL("./routes/resourceApiRoutes.js", imp
 const tenantDocsSource = readFileSync(new URL("./routes/tenantDocsRoutes.js", import.meta.url), "utf8");
 const tenantEvolutionSource = readFileSync(new URL("./routes/tenantEvolutionRoutes.js", import.meta.url), "utf8");
 const tenantLifecycleSource = readFileSync(new URL("./routes/tenantLifecycleRoutes.js", import.meta.url), "utf8");
+const activationGuidanceSource = readFileSync(new URL("./routes/activationGuidanceRoutes.js", import.meta.url), "utf8");
+const dynamicContainerTeamSource = readFileSync(new URL("./routes/dynamicContainerTeamRoutes.js", import.meta.url), "utf8");
+const registryDataManagementSource = readFileSync(new URL("./routes/registryDataManagementRoutes.js", import.meta.url), "utf8");
+const tenantInfrastructureSource = readFileSync(new URL("./routes/tenantInfrastructureRoutes.js", import.meta.url), "utf8");
+const supportTicketSource = readFileSync(new URL("./routes/supportTicketRoutes.js", import.meta.url), "utf8");
+const agentSurfaceSource = readFileSync(new URL("./routes/agentSurfaceRoutes.js", import.meta.url), "utf8");
+const repoConflictSource = readFileSync(new URL("./routes/repoConflictIntelligenceRoutes.js", import.meta.url), "utf8");
 
 for (const [name, source] of [
   ["workspaceResourceRoutes", workspaceSource],
@@ -23,19 +33,49 @@ for (const [name, source] of [
   ["tenantDocsRoutes", tenantDocsSource],
   ["tenantEvolutionRoutes", tenantEvolutionSource],
   ["tenantLifecycleRoutes", tenantLifecycleSource],
+  ["activationGuidanceRoutes", activationGuidanceSource],
+  ["dynamicContainerTeamRoutes", dynamicContainerTeamSource],
+  ["registryDataManagementRoutes", registryDataManagementSource],
+  ["tenantInfrastructureRoutes", tenantInfrastructureSource],
+  ["supportTicketRoutes", supportTicketSource],
+  ["agentSurfaceRoutes", agentSurfaceSource],
+  ["repoConflictIntelligenceRoutes", repoConflictSource],
 ]) {
   assert.doesNotMatch(source, /development_fallback_secret_only/, `${name} must not contain a development JWT fallback secret`);
   assert.doesNotMatch(source, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, `${name} must not own an ad-hoc JWT verifier`);
   assert.match(source, /createUserJwtMiddleware/, `${name} must use the canonical User JWT middleware`);
   assert.match(source, /requireCanonicalUserJwt|requireUserJwt/, `${name} must use a canonical User JWT guard before tenant scope handlers`);
 }
-for (const [name, source] of [["tenantDocsRoutes", tenantDocsSource], ["tenantEvolutionRoutes", tenantEvolutionSource], ["tenantLifecycleRoutes", tenantLifecycleSource]]) {
+for (const [name, source] of [
+  ["tenantDocsRoutes", tenantDocsSource],
+  ["tenantEvolutionRoutes", tenantEvolutionSource],
+  ["tenantLifecycleRoutes", tenantLifecycleSource],
+  ["activationGuidanceRoutes", activationGuidanceSource],
+]) {
   assert.doesNotMatch(source, /verifyUserJwt\(/, `${name} must not retain a local bearer verifier`);
   assert.match(source, /requireCanonicalUserJwt/, `${name} must declare the canonical parser explicitly`);
+}
+for (const [name, source] of [
+  ["dynamicContainerTeamRoutes", dynamicContainerTeamSource],
+  ["registryDataManagementRoutes", registryDataManagementSource],
+  ["tenantInfrastructureRoutes", tenantInfrastructureSource],
+  ["supportTicketRoutes", supportTicketSource],
+  ["agentSurfaceRoutes", agentSurfaceSource],
+  ["repoConflictIntelligenceRoutes", repoConflictSource],
+]) {
+  assert.doesNotMatch(source, /verifyUserJwt\(/, `${name} must not retain a local bearer verifier`);
+  assert.match(source, /createUserJwtMiddleware/, `${name} must declare the canonical parser explicitly`);
 }
 assert.match(tenantDocsSource, /const requireTenant = \[requireCanonicalUserJwt, requireTenantUserJwt\]/, "tenant docs routes must parse canonical User JWT before tenant membership resolution");
 assert.match(tenantEvolutionSource, /const requireTenant = \[requireCanonicalUserJwt, requireTenantUserJwt\]/, "tenant evolution routes must parse canonical User JWT before tenant membership resolution");
 assert.match(tenantLifecycleSource, /const requireTenantUserJwt = \[requireCanonicalUserJwt, requireUserJwt\]/, "tenant lifecycle routes must parse canonical User JWT before workspace lifecycle authorization");
+assert.match(activationGuidanceSource, /const requireTenant = \[requireCanonicalUserJwt, requireTenantUserJwt\]/, "activation guidance must parse canonical User JWT before membership lookup");
+assert.match(dynamicContainerTeamSource, /createUserJwtMiddleware/, "dynamic container team must use canonical User JWT parsing");
+assert.match(registryDataManagementSource, /const requireUserJwt = createUserJwtMiddleware\(\)/, "registry data management must use canonical User JWT parsing");
+assert.match(tenantInfrastructureSource, /const requireUserJwt = createUserJwtMiddleware\(\)/, "tenant infrastructure must use canonical User JWT parsing");
+assert.match(supportTicketSource, /const requireUserJwt = createUserJwtMiddleware\(\{ env: deps\.env \|\| process\.env \}\)/, "support ticket tenant routes must use canonical User JWT parsing");
+assert.match(agentSurfaceSource, /const requireUserJwt = createUserJwtMiddleware\(\)/, "agent surface tenant routes must use canonical User JWT parsing");
+assert.match(repoConflictSource, /const requireUserJwt = createUserJwtMiddleware\(\)/, "repo conflict tenant routes must use canonical User JWT parsing");
 assert.doesNotMatch(resourceSource, /development_fallback_secret_only/, "resourceApiRoutes must not contain a development JWT fallback secret");
 assert.doesNotMatch(resourceSource, /import\s+jwt\s+from\s+["']jsonwebtoken["']/, "resourceApiRoutes must not own an ad-hoc JWT verifier");
 assert.doesNotMatch(resourceSource, /verifyJwt\(/, "resourceApiRoutes must not retain a local bearer verifier");
@@ -136,6 +176,9 @@ try {
   assert.equal(typeof _testingTenantEvolutionRoutes.requireTenantUserJwt, "function");
   assert.equal(typeof _testingTenantLifecycleRoutes.requireCanonicalUserJwt, "function");
   assert.equal(typeof _testingTenantLifecycleRoutes.requireUserJwt, "function");
+  assert.equal(typeof _testingActivationGuidanceRoutes.requireTenantUserJwt, "function");
+  assert.equal(typeof _testingDynamicContainerTeamRoutes.requireUserJwt, "function");
+  assert.equal(typeof _testingRegistryDataManagementRoutes.WRITE_ROLES, "object");
 } finally {
   if (originalSecret === undefined) delete process.env.JWT_SECRET;
   else process.env.JWT_SECRET = originalSecret;

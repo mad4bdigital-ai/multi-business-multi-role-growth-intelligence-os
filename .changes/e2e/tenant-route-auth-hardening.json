@@ -9,6 +9,15 @@
     "include": [
       ".changes/e2e/tenant-route-auth-hardening.json",
       "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
+      "docs/issue-execution/tenant-spec-kit-open-scope-audit-20260812.md",
+      "http-generic-api/routes/activationGuidanceRoutes.js",
+      "http-generic-api/routes/agentSurfaceRoutes.js",
+      "http-generic-api/routes/repoConflictIntelligenceRoutes.js",
+      "http-generic-api/routes/dynamicContainerTeamRoutes.js",
+      "http-generic-api/routes/registryDataManagementRoutes.js",
+      "http-generic-api/routes/tenantInfrastructureRoutes.js",
+      "http-generic-api/routes/supportTicketRoutes.js",
+      "http-generic-api/scripts/user-jwt-auth-governance.mjs",
       "http-generic-api/routes/resourceApiRoutes.js",
       "http-generic-api/routes/tenantDocsRoutes.js",
       "http-generic-api/routes/tenantEvolutionRoutes.js",
@@ -21,7 +30,8 @@
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
       "http-generic-api/test-context-kernel-shadow-integration.mjs",
-      "http-generic-api/test-tenant-credential-intake-connection-status.mjs"
+      "http-generic-api/test-tenant-credential-intake-connection-status.mjs",
+      "http-generic-api/test-registry-data-management-service.mjs"
     ]
   },
   "merge_contract": {
@@ -31,7 +41,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Remove local development JWT fallbacks from tenant resource, docs, evolution, and lifecycle route families and require canonical parsed User-JWT output before tenant-scoped handlers.",
+      "objective": "Remove local development JWT fallbacks from every covered Tenant-facing route family, including resource, docs, evolution, lifecycle, activation guidance, agent surfaces, container team, registry data, infrastructure, support ticket, and repository-conflict dry-run routes, and require canonical parsed User-JWT output before tenant-scoped handlers.",
       "e2e_journeys": [
         {
           "id": "canonical-tenant-route-family-user-jwt-boundary",
@@ -44,7 +54,7 @@
             "Load all tenant route-family sources and confirm they own no jsonwebtoken verifier or development fallback secret.",
             "Pass a request with only an Authorization header to each route-local tenant guard and verify a typed 401 user_jwt_required response.",
             "Pass a request with canonical req.auth mode=user_jwt and verify the normalized tenant guards consume the parsed principal.",
-            "Run the shared tenant route regression against workspace, platform plugin, resource, docs, evolution, and lifecycle route families."
+            "Run the shared tenant route regression against workspace, platform plugin, resource, docs, evolution, lifecycle, activation guidance, agent surfaces, container team, registry data, infrastructure, support ticket, and repository-conflict dry-run route families."
           ],
           "assertions": [
             "No covered tenant route file contains the development_fallback_secret_only literal.",
@@ -65,6 +75,15 @@
           "evidence_paths": [
             ".changes/e2e/tenant-route-auth-hardening.json",
             "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
+            "docs/issue-execution/tenant-spec-kit-open-scope-audit-20260812.md",
+            "http-generic-api/routes/activationGuidanceRoutes.js",
+            "http-generic-api/routes/agentSurfaceRoutes.js",
+            "http-generic-api/routes/repoConflictIntelligenceRoutes.js",
+            "http-generic-api/routes/dynamicContainerTeamRoutes.js",
+            "http-generic-api/routes/registryDataManagementRoutes.js",
+            "http-generic-api/routes/tenantInfrastructureRoutes.js",
+            "http-generic-api/routes/supportTicketRoutes.js",
+            "http-generic-api/scripts/user-jwt-auth-governance.mjs",
             "http-generic-api/routes/resourceApiRoutes.js",
             "http-generic-api/routes/tenantDocsRoutes.js",
             "http-generic-api/routes/tenantEvolutionRoutes.js",
@@ -77,7 +96,8 @@
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
             "http-generic-api/test-context-kernel-shadow-integration.mjs",
-            "http-generic-api/test-tenant-credential-intake-connection-status.mjs"
+            "http-generic-api/test-tenant-credential-intake-connection-status.mjs",
+            "http-generic-api/test-registry-data-management-service.mjs"
           ]
         }
       ]

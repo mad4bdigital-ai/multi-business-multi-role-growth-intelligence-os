@@ -7,7 +7,7 @@ const requireCanonicalUserJwt = createUserJwtMiddleware();
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const VALID_MEMBER_ROLES = new Set(["owner", "admin", "editor", "viewer", "operator", "member"]);
 
-function requireUserJwt(req, res, next) {
+function normalizeParsedUserJwt(req, res, next) {
   const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
@@ -15,6 +15,8 @@ function requireUserJwt(req, res, next) {
   req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id || null, is_admin: false };
   return next();
 }
+
+const requireUserJwt = normalizeParsedUserJwt;
 
 function normalizeEmail(value = "") {
   return String(value || "").trim().toLowerCase();
