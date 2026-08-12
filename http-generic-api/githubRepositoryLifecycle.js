@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
+import { githubBranchDeleteConfirmation as canonicalGithubBranchDeleteConfirmation } from "./githubRepositoryLifecycleCore.js";
 import { resolveActivationBootstrapConfig } from "./activationBootstrapConfig.js";
 import { applyUnifiedDiffToText } from "./unifiedDiff.js";
 import { attachRepositoryMutationCoordination, evaluateRepositoryMutationCoordination } from "./repositoryMutationCoordinationTelemetry.js";
@@ -214,11 +215,7 @@ export function summarizeGithubPullRequestApprovals(reviews = [], {
 }
 
 export function githubBranchDeleteConfirmation(branch = "") {
-  const slug = normalizeBranch(branch)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-  return `DELETE_BRANCH_${slug}`;
+  return canonicalGithubBranchDeleteConfirmation(branch);
 }
 
 export async function resolveGithubLifecycleTarget(overrides = {}) {
