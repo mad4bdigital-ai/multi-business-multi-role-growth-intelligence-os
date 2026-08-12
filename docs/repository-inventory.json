@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6598,
-    "bytes": 57928979,
-    "lines": 1357227,
+    "bytes": 57929383,
+    "lines": 1357235,
     "directories": 248,
     "categories": 13
   },
@@ -10487,9 +10487,9 @@
       "path": ".specify/e2e-phase-governance.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 1914,
-      "lines": 64,
-      "sha256": "a60ef32696520894860452a03461d3ba335093e5d25baa3942ff6eb1bd0162b7",
+      "bytes": 2115,
+      "lines": 69,
+      "sha256": "9873d8cb1dc4175a17e2a93f918e7489dd5d07138a614b5c9fdec8457d8b8256",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30564,7 +30564,7 @@
       "extension": ".md",
       "bytes": 4205,
       "lines": 43,
-      "sha256": "870c9e4bc943563a9c4a3c5715ed5b657662e073a9af550d949e165e7869efa5",
+      "sha256": "cd88e67b9f804f8429a880ab1bbbefedd14847c568032c5eec2665fc78bcad24",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30727,9 +30727,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 44059,
-      "lines": 469,
-      "sha256": "bed92400bdb391eb9d3195d3401d46eef3a8a28a28df93c11cf1fdebabe7056c",
+      "bytes": 44262,
+      "lines": 472,
+      "sha256": "79dfc90853602d604b5b58d775f5251a834a7bf4ad67618221a01adb0e79e4d3",
       "mode": "644",
       "executable": false,
       "generated": false
