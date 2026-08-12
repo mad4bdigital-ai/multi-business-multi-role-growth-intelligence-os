@@ -8,19 +8,30 @@
   "scope": {
     "include": [
       ".changes/e2e/repository-gap-hardening.json",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs",
+      "http-generic-api/scripts/test-hostinger-tenant-canary-ci.mjs",
+      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/test-ci-pull-request-recovery-exact-checkout-provenance.mjs",
       "http-generic-api/test-github-repository-policy-1049-governed-rollout.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-pr-target-bridge.mjs",
       "http-generic-api/test-openapi-autofill-missing-routes.mjs",
       "http-generic-api/test-pipeline-connectivity-check.mjs",
+      "http-generic-api/test-spec014-wave1-apply-contract.mjs",
+      "http-generic-api/test-spec014-wave1-runtime-readiness-contract.mjs",
+      "http-generic-api/test-sprint69-1043-apply-contract.mjs",
+      "http-generic-api/test-sprint69-1043-runtime-readiness-contract.mjs",
       "http-generic-api/test-supervisor-runtime-assurance-automation.mjs",
+      "http-generic-api/test-tenant-request-identity-collation-dry-run-contract.mjs",
       "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
-      "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
-      "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+      "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs",
       "scripts/repository-evaluation.mjs",
       "scripts/test-repository-evaluation.mjs"
     ]
   },
   "merge_contract": {
-    "minimum_phase": "resilient"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
@@ -44,29 +55,29 @@
             "Workflow actions are represented by exact commit SHAs with release comments.",
             "Evaluation and inventory checks are deterministic and non-stale.",
             "No repository secret is included in the reports."
+          ],
+          "tests": [
+            {
+              "id": "repository-evaluation-regression",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "scripts/test-repository-evaluation.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-tool-lifecycle-guard-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/repository-evaluation.json",
+            "docs/repository-inventory.json",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "repository-evaluation-regression",
-          "runner": "node",
-          "working_directory": ".",
-          "path": "scripts/test-repository-evaluation.mjs",
-          "args": []
-        },
-        {
-          "id": "repository-tool-lifecycle-guard-regression",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
-          "args": []
-        }
-      ],
-      "evidence_paths": [
-        "docs/repository-evaluation.json",
-        "docs/repository-inventory.json",
-        "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs"
       ]
     },
     {
@@ -90,21 +101,29 @@
             "Environment probes are explicit and distinguish not-run from failed.",
             "Evidence is bounded and secret-free.",
             "Committed artifacts remain deterministic."
+          ],
+          "tests": [
+            {
+              "id": "pipeline-connectivity-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-pipeline-connectivity-check.mjs",
+              "args": []
+            },
+            {
+              "id": "hostinger-evidence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-hostinger-production-release-evidence-r6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/repository-evaluation.yml",
+            "docs/repository-evaluation-loop.md",
+            "http-generic-api/scripts/test-hostinger-production-release-evidence-r6.mjs"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "pipeline-connectivity-contract",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "test-pipeline-connectivity-check.mjs",
-          "args": []
-        }
-      ],
-      "evidence_paths": [
-        ".github/workflows/repository-evaluation.yml",
-        "docs/repository-evaluation-loop.md"
       ]
     },
     {
@@ -130,21 +149,29 @@
             "A non-pin workflow change is not exempted from lifecycle checks.",
             "Exact candidate and base identities remain required.",
             "Findings remain bounded and secret-free."
+          ],
+          "tests": [
+            {
+              "id": "repository-tool-lifecycle-pin-only-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "work-map-diagnostics-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-autofix-validation-diagnostics.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+            "http-generic-api/test-work-map-autofix-validation-diagnostics.mjs"
           ]
         }
-      ],
-      "tests": [
-        {
-          "id": "repository-tool-lifecycle-pin-only-regression",
-          "runner": "node",
-          "working_directory": "http-generic-api",
-          "path": "scripts/test-repository-tool-lifecycle-guard.mjs",
-          "args": []
-        }
-      ],
-      "evidence_paths": [
-        "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
-        "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs"
       ]
     },
     {
