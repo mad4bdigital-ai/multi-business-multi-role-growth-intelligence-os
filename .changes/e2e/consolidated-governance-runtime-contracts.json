@@ -15,6 +15,7 @@
       "http-generic-api/context-kernel-hardcoding-scan.config.json",
       "http-generic-api/databaseCollationPolicyGuard.js",
       "http-generic-api/deploymentAttestation.js",
+      "http-generic-api/generated/frontend-surface-dispatch.generated.json",
       "http-generic-api/governanceDbPrivilegeContract.js",
       "http-generic-api/migrations/1026_sprint69_repository_reconciliation_automation.sql",
       "http-generic-api/migrations/20260810_runtime_break_glass_lifecycle_v1.sql",
@@ -81,7 +82,7 @@
             "Run the consolidated and capability-specific deterministic tests without applying Production grants, migrations, deployment, or force push."
           ],
           "assertions": [
-            "All 45 changed runtime files are covered by this exact-path E2E contract.",
+            "All changed runtime files are covered by this exact-path E2E contract.",
             "Canonical registry, collation, deployment attestation, Governance DB readiness, provider certification, repository reconciliation, and break-glass tests execute from committed source.",
             "Repository reconciliation remains force-push forbidden and mutation authority remains plan-bound with same-cycle readback.",
             "Break-glass state transitions cannot substitute for Git, Production promotion, deployment, or runtime verification evidence.",
