@@ -1,0 +1,42 @@
+name: GitHub Repository Policy Readback
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readback:
+    name: Read current main policy without mutation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    concurrency:
+      group: github-repository-policy-readback
+      cancel-in-progress: false
+    env:
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EXPECTED_MAIN_SHA: ${{ github.sha }}
+      EVIDENCE_DIR: .artifacts/github-repository-policy-readback
+    steps:
+      - name: Checkout exact workflow event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: Execute readback-only policy controller
+        run: node .github/ops/github-repository-policy-readback.mjs
+      - name: Upload no-secret readback evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: github-repository-policy-readback-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30
