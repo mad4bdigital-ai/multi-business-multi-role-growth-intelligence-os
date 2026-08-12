@@ -116,6 +116,6 @@ assert.match(governancePrivileges, /deployment_attestations/);
 const canonicalSchemaGovernance = read("../canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md");
 assert.match(canonicalSchemaGovernance, /semantic and engine-aware/);
 assert.match(canonicalSchemaGovernance, /database_engine_profile_unresolved/);
-assert.match(canonicalSchemaGovernance, /do \*\*not\*\* authorize automatic schema conversion/i);
+assert.match(canonicalSchemaGovernance, /do \*\*not\*\* authorize automatic schema\s+conversion/i);
 
 console.log("consolidated governance/runtime contracts: ok");
