@@ -71,6 +71,8 @@ export const REGISTRY_CACHE_TTL_SECONDS =
   positiveNumberEnv("REGISTRY_CACHE_TTL_SECONDS", 600, { min: 0 });
 export const SQL_CACHE_ENABLED =
   String(process.env.SQL_CACHE_ENABLED || "TRUE").trim().toUpperCase() !== "FALSE";
+export const SQL_CACHE_REQUIRED =
+  String(process.env.SQL_CACHE_REQUIRED || "FALSE").trim().toUpperCase() === "TRUE";
 export const SQL_REGISTRY_CACHE_TTL_SECONDS =
   positiveNumberEnv("SQL_REGISTRY_CACHE_TTL_SECONDS", 60, { min: 0 });
 export const SQL_TOOL_CACHE_TTL_SECONDS =

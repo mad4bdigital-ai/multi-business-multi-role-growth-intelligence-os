@@ -18,6 +18,7 @@ VALUES
     1,
     1,
     JSON_OBJECT(
+      'required', FALSE,
       'key_version', 'v2',
       'max_value_bytes', 1048576,
       'oversize_cooldown_seconds', 300,

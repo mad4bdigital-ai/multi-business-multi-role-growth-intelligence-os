@@ -1,0 +1,94 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "sql-cache-optional-fallback",
+  "title": "Governed SQL-cache optional Redis fallback",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/sql-cache-optional-fallback.json",
+      "http-generic-api/config.js",
+      "http-generic-api/migrations/1023_sprint69_sql_cache_runtime_policy.sql",
+      "http-generic-api/sqlCache.js",
+      "http-generic-api/sqlCacheOperationalDiagnostics.js",
+      "http-generic-api/sqlCacheRuntimePolicy.js",
+      "http-generic-api/test-sql-cache-operational-diagnostics.mjs",
+      "http-generic-api/test-sql-cache-runtime-policy.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep Redis available when configured while making direct SQL fallback explicit, observable, and fail-closed when Redis is required.",
+      "e2e_journeys": [
+        {
+          "id": "resolve-sql-cache-availability-policy",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "SQL-cache runtime policy and diagnostics operator",
+          "entrypoint": "Runtime policy normalization and operational diagnostics",
+          "terminal_outcome": "Optional Redis absence produces a warning with active direct-loader fallback, while required Redis absence remains critical.",
+          "steps": [
+            "Load the environment fallback policy and a MySQL-shaped runtime policy row.",
+            "Normalize required and fallback fields and expose the runtime status contract.",
+            "Evaluate unavailable Redis diagnostics for both optional and required modes.",
+            "Run bounded policy and diagnostics regression tests without touching production services."
+          ],
+          "assertions": [
+            "SQL_CACHE_REQUIRED defaults to false and missing policy fields remain backward compatible.",
+            "Optional Redis absence emits sql_cache_optional_fallback_active at medium severity with warning state.",
+            "Required Redis absence emits sql_cache_unavailable at critical severity with non-ok state.",
+            "The direct SQL loader fallback is explicit and no secrets or production mutations are included."
+          ],
+          "tests": [
+            {
+              "id": "sql-cache-operational-diagnostics-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sql-cache-operational-diagnostics.mjs",
+              "args": []
+            },
+            {
+              "id": "sql-cache-runtime-policy-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-sql-cache-runtime-policy.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/sqlCache.js",
+            "http-generic-api/sqlCacheOperationalDiagnostics.js",
+            "docs/runbooks/sql-cache-operations.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe optional fallback frequency and Redis recovery through governed runtime telemetry before changing deployment defaults."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Validate policy refresh, circuit recovery, and bounded SQL fallback behavior across controlled non-production failure scenarios."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run a governed non-production canary with Redis configured and compare fallback diagnostics against the baseline contract."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require production readback evidence before making Redis a mandatory deployment dependency."
+    }
+  ],
+  "secrets_included": false
+}
