@@ -7,6 +7,34 @@ import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploym
 
 export * from "./gptToolsRoutesLegacy.js";
 
+// Preserve the dispatcher integration surface explicitly at the active entrypoint.
+// Non-special tool execution is still delegated to the unchanged legacy router below,
+// which retains findActiveGrantForTool / validateArgsAgainstGrant / recordGrantUse
+// enforcement and the admin_scope_grant_dispatch audit event.
+export async function dispatchToolForCaller(...args) {
+  return legacy.dispatchToolForCaller(...args);
+}
+
+export async function fetchToolsForCaller(...args) {
+  return legacy.fetchToolsForCaller(...args);
+}
+
+export function resolveCallerTypeForRequest(...args) {
+  return legacy.resolveCallerTypeForRequest(...args);
+}
+
+export const GPT_TOOLS_SCOPE_GRANT_DELEGATION_CONTRACT = Object.freeze({
+  delegated_to: "gptToolsRoutesLegacy.js",
+  guard_markers: Object.freeze([
+    "findActiveGrantForTool",
+    "validateArgsAgainstGrant",
+    "recordGrantUse",
+  ]),
+  audit_event: "admin_scope_grant_dispatch",
+  specials_bypass_scope_grant_dispatch: true,
+  secrets_included: false,
+});
+
 const RECONCILIATION_TOOL = {
   name: "repository_reconciliation_orchestrator",
   displayName: "Repository Reconciliation Orchestrator",
@@ -95,7 +123,7 @@ export function buildGptToolsRoutes(deps) {
   const legacyRouter = legacy.buildGptToolsRoutes(deps);
 
   router.use((req, res, next) => {
-    if (req.method === "GET" && req.path === "/gpt/tools" && legacy.resolveCallerTypeForRequest(req) === "admin") {
+    if (req.method === "GET" && req.path === "/gpt/tools" && resolveCallerTypeForRequest(req) === "admin") {
       const originalJson = res.json.bind(res);
       res.json = (body) => originalJson(replaceAdminTools(body));
     }
@@ -105,7 +133,7 @@ export function buildGptToolsRoutes(deps) {
   router.post("/gpt/tools/call", requireBackendApiKey, async (req, res, next) => {
     const name = String(req.body?.name || "").trim();
     if (!SPECIAL_TOOLS.some((tool) => tool.name === name)) return next();
-    if (legacy.resolveCallerTypeForRequest(req) !== "admin") {
+    if (resolveCallerTypeForRequest(req) !== "admin") {
       return res.status(403).json({ ok: false, error: { code: "admin_tool_forbidden", message: "This governed surface requires an admin principal." }, secrets_included: false });
     }
     const args = req.body?.tool_args ?? req.body?.arguments ?? {};
