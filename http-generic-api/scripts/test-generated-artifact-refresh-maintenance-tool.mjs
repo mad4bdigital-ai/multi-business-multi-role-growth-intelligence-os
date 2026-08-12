@@ -246,7 +246,7 @@ runCheck("repository-inventory-exact-head-verifier", () => {
   assert.match(inventoryWorkflowSource, /Verify local and remote exact-head identity/u);
   assert.match(inventoryWorkflowSource, /git ls-remote --exit-code origin/u);
   assert.match(inventoryWorkflowSource, /npm ci --ignore-scripts/u);
-  assert.match(inventoryWorkflowSource, /npm run inventory:write/u);
+  assert.match(inventoryWorkflowSource, /node scripts\/repository-inventory\.mjs/u);
   assert.match(inventoryWorkflowSource, /npm run inventory:check/u);
   assert.match(inventoryWorkflowSource, /npm run inventory:test/u);
   assert.match(inventoryWorkflowSource, /git diff --exit-code/u);
