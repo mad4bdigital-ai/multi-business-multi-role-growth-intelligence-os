@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6612,
-    "bytes": 58012083,
-    "lines": 1359090,
+    "files": 6615,
+    "bytes": 58015931,
+    "lines": 1359193,
     "directories": 249,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 1975,
-      "documentation": 1824,
+      "documentation": 1827,
       "api-runtime": 1322,
       "database-migrations": 767,
       "root-and-other": 212,
@@ -30,7 +30,7 @@
       ".mjs": 1516,
       ".js": 925,
       ".sql": 782,
-      ".json": 639,
+      ".json": 642,
       ".yml": 152,
       ".yaml": 107,
       ".ts": 15,
@@ -56,7 +56,7 @@
     },
     "topLevel": {
       "http-generic-api": 3418,
-      "docs": 1730,
+      "docs": 1733,
       "specs": 807,
       ".github": 243,
       ".changes": 209,
@@ -29672,6 +29672,28 @@
       "generated": false
     },
     {
+      "path": "docs/repository-ci-surface-policy.json",
+      "category": "documentation",
+      "extension": ".json",
+      "bytes": 611,
+      "lines": 15,
+      "sha256": "449e6c508af840d026dd7d3e2492fbf3cd6bfeb73d74024998b327572ea53136",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/repository-dependency-audit-policy.json",
+      "category": "documentation",
+      "extension": ".json",
+      "bytes": 497,
+      "lines": 14,
+      "sha256": "114e9536f9777d0371259c96906310718dd0b71c86c63551a53b1f0c1c0c9c83",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/repository-evaluation-loop.md",
       "category": "documentation",
       "extension": ".md",
@@ -29689,6 +29711,17 @@
       "bytes": 3444,
       "lines": 38,
       "sha256": "f517b96ee8427d7292f89b0e846bf3557fd01206035eb78bdb12f4750f284474",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/repository-large-file-policy.json",
+      "category": "documentation",
+      "extension": ".json",
+      "bytes": 1215,
+      "lines": 24,
+      "sha256": "fe801cb3a672f784de4a869584858595c54622b75cd18fbe0e0e186b978161de",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -51972,9 +52005,9 @@
       "path": "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 18354,
-      "lines": 519,
-      "sha256": "3fd0589e91a0a9b0bf47a7a67a92e8d6169a58dd4899573e9952c0819c5c5d24",
+      "bytes": 19258,
+      "lines": 543,
+      "sha256": "efde733f5b0bc300688b5bfe364cbfcd81c4e75f16a5cc562f30cc02086ba72a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53193,9 +53226,9 @@
       "path": "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 11246,
-      "lines": 368,
-      "sha256": "fd9c7c20b931b6e6918b1995bd6a5340f15e8fbfc5f809511c749c217341077e",
+      "bytes": 11867,
+      "lines": 394,
+      "sha256": "a9d2b4e531139640c852023c7b1b1fa10e6b9da6de7e1ae34b3843f6997cc878",
       "mode": "644",
       "executable": false,
       "generated": false
