@@ -48,6 +48,7 @@ jobs:
           fi
           [[ "${EVENT_BASE_SHA}" =~ ^[0-9a-f]{40}$ ]]
           gh workflow run docs-agent-main-followup.yml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref main \
             -f expected_head_sha="${expected_head_sha}" \
             -f base_sha="${EVENT_BASE_SHA}"
