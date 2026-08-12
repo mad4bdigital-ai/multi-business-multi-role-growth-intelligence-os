@@ -7,7 +7,7 @@ const routesIndex = readFileSync("routes/index.js", "utf8");
 const migration = readFileSync("migrations/191_sprint66_tenant_credential_intake_connection_status.sql", "utf8");
 
 assert(tenantLifecycleRoute.includes('/me/connections/:connection_id/credential-intake-status'), "tenant-safe router must expose connection_id status path");
-assert(tenantLifecycleRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireUserJwt'), "status route must use tenant user JWT auth, not admin backend key auth");
+assert(tenantLifecycleRoute.includes('router.get("/me/connections/:connection_id/credential-intake-status", requireTenantUserJwt'), "status route must use tenant user JWT auth, not admin backend key auth");
 assert(tenantLifecycleRoute.includes('c.tenant_id = ?'), "tenant callers must be scoped to their tenant_id");
 assert(tenantLifecycleRoute.includes('c.user_id = ?'), "tenant callers must be scoped to their own connection");
 assert(tenantLifecycleRoute.includes('c.connected_at') && tenantLifecycleRoute.includes('c.last_validated_at'), "status route must use live user_app_connections timestamp columns");

@@ -236,6 +236,7 @@ runCheck("pr-workflow-runner-context-availability", () => {
 });
 
 const inventoryWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
+const inventoryGateSource = fs.readFileSync("../scripts/repository-inventory-verification-gate.mjs", "utf8");
 runCheck("repository-inventory-exact-head-verifier", () => {
   assert.match(inventoryWorkflowSource, /workflow_dispatch:/u);
   assert.match(inventoryWorkflowSource, /target_ref:/u);
@@ -243,14 +244,20 @@ runCheck("repository-inventory-exact-head-verifier", () => {
   assert.match(inventoryWorkflowSource, /contents:\s*read/u);
   assert.doesNotMatch(inventoryWorkflowSource, /contents:\s*write/u);
   assert.doesNotMatch(inventoryWorkflowSource, /git\s+push/u);
-  assert.match(inventoryWorkflowSource, /Verify local and remote exact-head identity/u);
-  assert.match(inventoryWorkflowSource, /git ls-remote --exit-code origin/u);
+  assert.match(inventoryWorkflowSource, /scripts\/repository-inventory-verification-gate\.mjs/u);
   assert.match(inventoryWorkflowSource, /npm ci --ignore-scripts/u);
-  assert.match(inventoryWorkflowSource, /node scripts\/repository-inventory\.mjs/u);
-  assert.match(inventoryWorkflowSource, /npm run inventory:check/u);
-  assert.match(inventoryWorkflowSource, /npm run inventory:test/u);
-  assert.match(inventoryWorkflowSource, /git diff --exit-code/u);
-  assert.match(inventoryWorkflowSource, /mad4b\.repository-inventory-exact-head-verification\.v1/u);
+  assert.match(inventoryGateSource, /git\(\["ls-remote", "--exit-code", "origin"/u);
+  assert.match(inventoryGateSource, /scripts\/repository-inventory\.mjs/u);
+  assert.match(inventoryGateSource, /"npm", \["run", "inventory:check"\]/u);
+  assert.match(inventoryGateSource, /"npm", \["run", "inventory:test"\]/u);
+  assert.match(inventoryGateSource, /firstHashes = outputHashes\(\)/u);
+  assert.match(inventoryGateSource, /secondHashes = outputHashes\(\)/u);
+  assert.match(inventoryGateSource, /sameHashes\(firstHashes, secondHashes\)/u);
+  assert.match(inventoryGateSource, /mad4b\.repository-inventory-verification-gate\.v1/u);
+  assert.match(inventoryGateSource, /remote_head_sha_mismatch/u);
+  assert.match(inventoryGateSource, /bootstrap_pending/u);
+  assert.match(inventoryGateSource, /repository_mutation:\s*false/u);
+  assert.match(inventoryGateSource, /force_push:\s*false/u);
 });
 
 const autofixWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory-autofix-dispatch.yml", "utf8");

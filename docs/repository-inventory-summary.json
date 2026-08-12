@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6648,
-    "bytes": 58559549,
-    "lines": 1368139,
+    "files": 6652,
+    "bytes": 58596097,
+    "lines": 1368509,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 1982,
-      "documentation": 1848,
+      "documentation": 1851,
       "api-runtime": 1323,
       "database-migrations": 767,
-      "root-and-other": 216,
+      "root-and-other": 217,
       "ci-workflows": 150,
       "api-contracts": 147,
       "ci-config": 93,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2434,
+      ".md": 2437,
       ".mjs": 1521,
       ".js": 928,
       ".sql": 782,
-      ".json": 649,
+      ".json": 650,
       ".yml": 152,
       ".yaml": 107,
       ".ts": 15,
@@ -58,10 +58,10 @@
     },
     "topLevel": {
       "http-generic-api": 3426,
-      "docs": 1754,
+      "docs": 1757,
       "specs": 807,
       ".github": 243,
-      ".changes": 213,
+      ".changes": 214,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -217,8 +217,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3156577,
-      "lines": 96943
+      "bytes": 3158811,
+      "lines": 97001
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 327849,
-      "lines": 8544
+      "bytes": 328113,
+      "lines": 8552
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",

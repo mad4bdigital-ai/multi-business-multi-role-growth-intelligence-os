@@ -1,25 +1,22 @@
 import { Router } from "express";
 import { randomBytes, randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { getPool } from "../db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const VALID_MEMBER_ROLES = new Set(["owner", "admin", "editor", "viewer", "operator", "member"]);
 
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try { return jwt.verify(authHeader.slice(7), JWT_SECRET); } catch { return null; }
-}
-
-function requireUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
+function normalizeParsedUserJwt(req, res, next) {
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
   req.auth = { mode: "user_jwt", user_id: payload.user_id, tenant_id: payload.tenant_id || null, is_admin: false };
   return next();
 }
+
+const requireUserJwt = normalizeParsedUserJwt;
 
 function normalizeEmail(value = "") {
   return String(value || "").trim().toLowerCase();
@@ -192,8 +189,9 @@ function intakePromotionSummary(connection = {}, intake = {}) {
 
 export function buildTenantLifecycleRoutes() {
   const router = Router();
+  const requireTenantUserJwt = [requireCanonicalUserJwt, requireUserJwt];
 
-  router.get("/me/connections/:connection_id/credential-intake-status", requireUserJwt, async (req, res) => {
+  router.get("/me/connections/:connection_id/credential-intake-status", requireTenantUserJwt, async (req, res) => {
     try {
       const connectionId = String(req.params.connection_id || "").trim();
       if (!connectionId) return res.status(400).json({ ok: false, error: { code: "connection_id_required", message: "connection_id is required." }, secrets_included: false });
@@ -271,7 +269,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_members_list
-  router.get("/me/workspaces/:tenant_id/members", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/members", requireTenantUserJwt, async (req, res) => {
     try {
       const membership = await requireActiveMembership(req, res, req.params.tenant_id);
       if (!membership) return;
@@ -290,7 +288,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_member_update
-  router.patch("/me/workspaces/:tenant_id/members/:user_id", requireUserJwt, async (req, res) => {
+  router.patch("/me/workspaces/:tenant_id/members/:user_id", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -331,7 +329,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_member_remove
-  router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/members/:user_id/remove", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -373,7 +371,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_ownership_transfer
-  router.post("/me/workspaces/:tenant_id/ownership/transfer", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/ownership/transfer", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -414,7 +412,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_create
-  router.post("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/invitations", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -461,7 +459,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_revoke
-  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/revoke", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -486,7 +484,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_resend
-  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/invitations/:invitation_id/resend", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -512,7 +510,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_expire_stale
-  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/invitations/expire-stale", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const authority = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -533,7 +531,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitations_list
-  router.get("/me/workspaces/:tenant_id/invitations", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/invitations", requireTenantUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
       if (!owner) return;
@@ -552,7 +550,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_invitation_accept
-  router.post("/me/invitations/accept", requireUserJwt, async (req, res) => {
+  router.post("/me/invitations/accept", requireTenantUserJwt, async (req, res) => {
     const token = String(req.body?.token || "").trim();
     if (!token) return res.status(400).json({ ok: false, error: { code: "invitation_token_required", message: "Invitation token required." }, secrets_included: false });
     const connection = await getPool().getConnection();
@@ -588,7 +586,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_my_access_requests_list
-  router.get("/me/access-requests", requireUserJwt, async (req, res) => {
+  router.get("/me/access-requests", requireTenantUserJwt, async (req, res) => {
     try {
       const status = String(req.query.status || "all");
       const [rows] = await getPool().query(
@@ -606,7 +604,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_cancel
-  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/cancel", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_cancel
@@ -629,7 +627,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_create
-  router.post("/me/workspaces/:tenant_id/access-requests", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/access-requests", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       await connection.beginTransaction(); // MUTATION_TRANSACTION: workspace_access_request_create
@@ -665,7 +663,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_requests_list
-  router.get("/me/workspaces/:tenant_id/access-requests", requireUserJwt, async (req, res) => {
+  router.get("/me/workspaces/:tenant_id/access-requests", requireTenantUserJwt, async (req, res) => {
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
       if (!owner) return;
@@ -684,7 +682,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_approve
-  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/approve", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/approve", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -716,7 +714,7 @@ export function buildTenantLifecycleRoutes() {
   });
 
   // RESOURCE_API_CALLABILITY_CONTRACT: workspace_access_request_reject
-  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/reject", requireUserJwt, async (req, res) => {
+  router.post("/me/workspaces/:tenant_id/access-requests/:request_id/reject", requireTenantUserJwt, async (req, res) => {
     const connection = await getPool().getConnection();
     try {
       const owner = await requireWorkspaceOwner(req, res, req.params.tenant_id);
@@ -743,6 +741,8 @@ export function buildTenantLifecycleRoutes() {
 }
 
 export const _testingTenantLifecycleRoutes = {
+  requireCanonicalUserJwt,
+  requireUserJwt,
   OWNER_ROLES,
   VALID_MEMBER_ROLES,
   normalizeEmail,

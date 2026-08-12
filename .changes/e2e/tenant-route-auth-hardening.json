@@ -1,0 +1,106 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "tenant-route-auth-hardening",
+  "title": "Tenant route-family canonical User-JWT hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/tenant-route-auth-hardening.json",
+      "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
+      "docs/issue-execution/tenant-spec-kit-open-scope-audit-20260812.md",
+      "http-generic-api/routes/activationGuidanceRoutes.js",
+      "http-generic-api/routes/agentSurfaceRoutes.js",
+      "http-generic-api/routes/repoConflictIntelligenceRoutes.js",
+      "http-generic-api/routes/dynamicContainerTeamRoutes.js",
+      "http-generic-api/routes/registryDataManagementRoutes.js",
+      "http-generic-api/routes/tenantInfrastructureRoutes.js",
+      "http-generic-api/routes/supportTicketRoutes.js",
+      "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+      "http-generic-api/routes/resourceApiRoutes.js",
+      "http-generic-api/routes/tenantDocsRoutes.js",
+      "http-generic-api/routes/tenantEvolutionRoutes.js",
+      "http-generic-api/routes/tenantLifecycleRoutes.js",
+      "http-generic-api/resource-api-coverage.manifest.json",
+      "http-generic-api/resource-api-mutation-callability.manifest.json",
+      "http-generic-api/test-workspace-lifecycle-foundation.mjs",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+      "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
+      "http-generic-api/test-context-kernel-shadow-integration.mjs",
+      "http-generic-api/test-tenant-credential-intake-connection-status.mjs",
+      "http-generic-api/test-registry-data-management-service.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Remove local development JWT fallbacks from every covered Tenant-facing route family, including resource, docs, evolution, lifecycle, activation guidance, agent surfaces, container team, registry data, infrastructure, support ticket, and repository-conflict dry-run routes, and require canonical parsed User-JWT output before tenant-scoped handlers.",
+      "e2e_journeys": [
+        {
+          "id": "canonical-tenant-route-family-user-jwt-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "tenant-scoped API caller",
+          "entrypoint": "tenant resource, docs, evolution, and lifecycle routes mounted by their route builders",
+          "terminal_outcome": "An unparsed bearer request is rejected, while a request carrying canonical User-JWT parser output reaches tenant membership, scope, or lifecycle guards without a local verifier or fallback secret.",
+          "steps": [
+            "Load all tenant route-family sources and confirm they own no jsonwebtoken verifier or development fallback secret.",
+            "Pass a request with only an Authorization header to each route-local tenant guard and verify a typed 401 user_jwt_required response.",
+            "Pass a request with canonical req.auth mode=user_jwt and verify the normalized tenant guards consume the parsed principal.",
+            "Run the shared tenant route regression against workspace, platform plugin, resource, docs, evolution, lifecycle, activation guidance, agent surfaces, container team, registry data, infrastructure, support ticket, and repository-conflict dry-run route families."
+          ],
+          "assertions": [
+            "No covered tenant route file contains the development_fallback_secret_only literal.",
+            "No covered tenant route file owns a local verifyJwt or verifyUserJwt helper or jsonwebtoken import.",
+            "Tenant route guards consume only req.auth produced by createUserJwtMiddleware().",
+            "An unparsed bearer cannot become tenant authority in any covered route family.",
+            "The regression exposes no secrets and does not require a live database or provider call."
+          ],
+          "tests": [
+            {
+              "id": "tenant-route-canonical-user-jwt-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-route-canonical-user-jwt-auth.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/tenant-route-auth-hardening.json",
+            "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
+            "docs/issue-execution/tenant-spec-kit-open-scope-audit-20260812.md",
+            "http-generic-api/routes/activationGuidanceRoutes.js",
+            "http-generic-api/routes/agentSurfaceRoutes.js",
+            "http-generic-api/routes/repoConflictIntelligenceRoutes.js",
+            "http-generic-api/routes/dynamicContainerTeamRoutes.js",
+            "http-generic-api/routes/registryDataManagementRoutes.js",
+            "http-generic-api/routes/tenantInfrastructureRoutes.js",
+            "http-generic-api/routes/supportTicketRoutes.js",
+            "http-generic-api/scripts/user-jwt-auth-governance.mjs",
+            "http-generic-api/routes/resourceApiRoutes.js",
+            "http-generic-api/routes/tenantDocsRoutes.js",
+            "http-generic-api/routes/tenantEvolutionRoutes.js",
+            "http-generic-api/routes/tenantLifecycleRoutes.js",
+            "http-generic-api/resource-api-coverage.manifest.json",
+            "http-generic-api/resource-api-mutation-callability.manifest.json",
+            "http-generic-api/test-workspace-lifecycle-foundation.mjs",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
+            "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
+            "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
+            "http-generic-api/test-context-kernel-shadow-integration.mjs",
+            "http-generic-api/test-tenant-credential-intake-connection-status.mjs",
+            "http-generic-api/test-registry-data-management-service.mjs"
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -30,7 +30,7 @@ assert(routeSource.includes('router.get("/admin/data-tables"'), "admin catalog r
 assert(routeSource.includes('router.post("/admin/data-tables/:table_key/rows"'), "admin create route must exist");
 assert(routeSource.includes('router.get("/me/workspaces/:tenant_id/data-tables"'), "tenant catalog route must exist");
 assert(routeSource.includes("tenant_data_table_write_role_required"), "tenant writes must require role gate");
-assert(routeSource.includes("user_jwt_required"), "tenant routes must require user JWT");
+assert(routeSource.includes("createUserJwtMiddleware"), "tenant routes must use canonical user JWT middleware");
 assert(_testingRegistryDataManagementRoutes.WRITE_ROLES.has("operator"), "operators should be allowed to create/patch tenant rows");
 assert(!_testingRegistryDataManagementRoutes.ARCHIVE_ROLES.has("operator"), "operators must not archive rows by default");
 

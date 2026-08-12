@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,648 |
-| Total bytes | 58,559,549 |
-| Counted text lines | 1,368,139 |
+| Tracked files | 6,652 |
+| Total bytes | 58,596,097 |
+| Counted text lines | 1,368,509 |
 | Directories | 251 |
 | Categories | 13 |
 
@@ -18,10 +18,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Category | Files |
 |---|---:|
 | `tests-and-specs` | 1,982 |
-| `documentation` | 1,848 |
+| `documentation` | 1,851 |
 | `api-runtime` | 1,323 |
 | `database-migrations` | 767 |
-| `root-and-other` | 216 |
+| `root-and-other` | 217 |
 | `ci-workflows` | 150 |
 | `api-contracts` | 147 |
 | `ci-config` | 93 |
@@ -35,11 +35,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,434 |
+| `.md` | 2,437 |
 | `.mjs` | 1,521 |
 | `.js` | 928 |
 | `.sql` | 782 |
-| `.json` | 649 |
+| `.json` | 650 |
 | `.yml` | 152 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -87,9 +87,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,156,577 | 96943 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,158,811 | 97001 |
 | `http-generic-api/openapi.yaml` | api-contracts | 979,336 | 22721 |
-| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 327,849 | 8544 |
+| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 328,113 | 8552 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
