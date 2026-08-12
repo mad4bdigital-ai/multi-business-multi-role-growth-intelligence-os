@@ -1,0 +1,59 @@
+name: Repository Inventory
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '**'
+      - '!docs/repository-inventory.json'
+      - '!docs/repository-inventory.md'
+  pull_request:
+    paths:
+      - '**'
+      - '!docs/repository-inventory.json'
+      - '!docs/repository-inventory.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-inventory-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  inventory:
+    name: Generate and verify repository inventory
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+
+      - name: Install root dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Regenerate inventory artifacts
+        run: npm run inventory:write
+
+      - name: Verify inventory is committed and deterministic
+        run: |
+          npm run inventory:check
+          git diff --exit-code -- docs/repository-inventory.json docs/repository-inventory.md
+
+      - name: Upload inventory artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-inventory-${{ github.sha }}
+          path: |
+            docs/repository-inventory.json
+            docs/repository-inventory.md
+          if-no-files-found: error

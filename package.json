@@ -11,7 +11,9 @@
     "postinstall": "cd http-generic-api && npm ci --omit=dev",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "ci:execution-resolvers": "npm run typecheck && npm test -- --runInBand"
+    "ci:execution-resolvers": "npm run typecheck && npm test -- --runInBand",
+    "inventory:write": "node scripts/repository-inventory.mjs",
+    "inventory:check": "node scripts/repository-inventory.mjs --check"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
