@@ -18,7 +18,7 @@ This evidence package covers the read-only portion of T080-T085. It inspects the
 | #3145 | System Tool Catalog reconciliation helper | Closed draft, conflicting | Test helper only; requires reconstruction if reused |
 | #3159 | System Tool Catalog v2 resolution | Closed draft, conflicting | Must not be copied as-is |
 
-The live snapshot contains **9 candidate PRs**, of which **4 are open**, **4 are closed**, **8 are draft**, and **5 report conflicting mergeability**. The source snapshot is stored in `spec015-candidate-pr-readonly-evidence-20260812.jsonl`.
+The live snapshot contains **9 candidate PRs**, of which **4 are open**, **5 are closed**, **8 are draft**, and **3 report conflicting mergeability**. The snapshot is anchored to current `origin/main` SHA `0c82e88d00f2c25d4a22c5ece72e56d82d2d9625`; the source snapshot is stored in `spec015-candidate-pr-readonly-evidence-20260812.jsonl`.
 
 ## Acceptance evidence
 

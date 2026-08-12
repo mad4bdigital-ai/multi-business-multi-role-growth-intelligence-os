@@ -15,7 +15,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, base Draft portfolio, append-only live delta, Work Map, candidate classification, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
+      "objective": "Provide a repository-native convergence specification whose package, installation, lifecycle, base Draft portfolio, append-only live delta, Work Map, candidate classification, current-main field-level reuse matrix, read-only candidate evidence snapshot, no-secret, and truthful completion contracts validate from the exact candidate tree without granting runtime mutation authority.",
       "e2e_journeys": [
         {
           "id": "spec015-contract-integrity",
@@ -34,7 +34,9 @@
             "Validate PR #3922 and PR #4432 detailed extraction into generic substrate and bounded reference packages.",
             "Validate Spec 016 is an external integration surface and PR #4462 is its read-only implementation child without independent authority.",
             "Validate all 19 Work Maps and 16 schema domains have explicit decisions while Spec 015 runtime implementation remains blocked.",
-            "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns."
+            "Validate completion truthfulness and scan the complete Spec directory for prohibited secret patterns.",
+            "Validate the current-main field-level Tenant reuse matrix covers all 11 logical entities with explicit reuse or blocked status and evidence paths.",
+            "Validate the candidate PR read-only snapshot contains the exact nine candidate identities, one shared current-main base SHA, and no merge or secret execution flags."
           ],
           "assertions": [
             "The base report declares ok=true, primary_draft_specs=12, related_open_drafts=22, total_open_drafts_classified=34, mutation_authority_granted=false, runtime_implementation_claimed=false, and secrets_included=false.",
@@ -45,7 +47,9 @@
             "PR #4460 consumes existing tool, context, capability, operation, package, and readback authorities; PR #4462 stays feature-flagged and read-only.",
             "PR #4464 remains a non-production Hostinger workstream correction and creates no independent authority.",
             "Diverged Draft branches remain reconstruct-on-current-main sources rather than blindly merged canonical Specs.",
-            "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion."
+            "Specification completion cannot be interpreted as runtime, migration, provider, deployment, or Production completion.",
+            "The field-level reuse matrix is audit evidence only; canonical authority and owner review remain pending.",
+            "The candidate snapshot is read-only evidence only; candidate reconstruction, merge, migration, provider, and Production actions remain unexecuted."
           ],
           "tests": [
             {
@@ -61,6 +65,13 @@
               "working_directory": "specs/015-tenant-operating-system-studio",
               "path": "tools/validate-portfolio-live-delta.mjs",
               "args": []
+            },
+            {
+              "id": "validate-spec015-tenant-audit-artifacts",
+              "runner": "node",
+              "working_directory": "specs/015-tenant-operating-system-studio",
+              "path": "tools/test-tenant-audit-artifacts.mjs",
+              "args": []
             }
           ],
           "evidence_paths": [
@@ -75,7 +86,12 @@
             "specs/015-tenant-operating-system-studio/work-map-integration.json",
             "specs/015-tenant-operating-system-studio/completion.json",
             "specs/015-tenant-operating-system-studio/tools/validate-spec.mjs",
-            "specs/015-tenant-operating-system-studio/tools/validate-portfolio-live-delta.mjs"
+            "specs/015-tenant-operating-system-studio/tools/validate-portfolio-live-delta.mjs",
+            "docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.json",
+            "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl",
+            "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md",
+            "specs/015-tenant-operating-system-studio/tools/refresh-candidate-pr-readonly-evidence.mjs",
+            "specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs"
           ]
         }
       ]
