@@ -20,7 +20,8 @@
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
-      "http-generic-api/test-context-kernel-shadow-integration.mjs"
+      "http-generic-api/test-context-kernel-shadow-integration.mjs",
+      "http-generic-api/test-tenant-credential-intake-connection-status.mjs"
     ]
   },
   "merge_contract": {
@@ -75,7 +76,8 @@
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
             "http-generic-api/test-tenant-route-canonical-user-jwt-auth.mjs",
-            "http-generic-api/test-context-kernel-shadow-integration.mjs"
+            "http-generic-api/test-context-kernel-shadow-integration.mjs",
+            "http-generic-api/test-tenant-credential-intake-connection-status.mjs"
           ]
         }
       ]
