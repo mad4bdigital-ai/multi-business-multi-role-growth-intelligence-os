@@ -69,6 +69,7 @@ jobs:
             exit 0
           fi
           gh workflow run openapi-auto-sync.yml \
+            --repo "${GITHUB_REPOSITORY}" \
             --ref main \
             -f expected_head_sha="${expected_head_sha}"
           echo "Dispatched OpenAPI Auto Sync writer for exact main ${expected_head_sha}."
@@ -229,6 +230,7 @@ jobs:
         continue-on-error: true
         uses: peter-evans/create-pull-request@v6
         with:
+          base: main
           branch: ${{ steps.target.outputs.target_branch }}
           delete-branch: true
           title: "Auto-sync repository contracts"
