@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const schema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
-const mainSchema = readFileSync("openapi.yaml", "utf8");
+const testDir = dirname(fileURLToPath(import.meta.url));
+const readRepoFile = (relativePath) => readFileSync(resolve(testDir, relativePath), "utf8");
+const schema = readRepoFile("openapi/openapi.tenant-gpt.auth.yaml");
+const mainSchema = readRepoFile("openapi.yaml");
 
 assert(schema.includes("Tenant Core transport") && schema.includes("operationId: tenantPlatformPluginCatalog"), "Tenant Core schema must describe and expose Platform Plugin capabilities");
 assert(schema.includes("operationId: tenantPlatformPluginCatalog"), "tenant catalog operation must be exposed");
