@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "generatedFrom": "git-index",
   "commit": {
-    "sha": "76e9594629c053d0ff2e72157945f372ea037b19",
+    "sha": "f4c62da418484e07dc521b83f2cf5d25d3b4ffb8",
     "branch": "feature/dynamic-repository-inventory-report",
-    "subject": "feat: add dynamic repository inventory report",
-    "date": "2026-08-12T12:20:19+00:00"
+    "subject": "feat: harden repository inventory integrity checks",
+    "date": "2026-08-12T12:25:29+00:00"
   },
   "totals": {
     "files": 6596,
-    "bytes": 57924648,
-    "lines": 1357170,
+    "bytes": 57925195,
+    "lines": 1357177,
     "directories": 248,
     "categories": 13
   },
@@ -6320,9 +6320,9 @@
       "path": ".github/workflows/ci.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 13737,
-      "lines": 327,
-      "sha256": "352967d8b2eb88639d034918d72ce49ec903e97f031b7e64532e8bb6e7618b63",
+      "bytes": 13870,
+      "lines": 332,
+      "sha256": "afadacafd2a680c0b5724758ebc39f7cde2955b8e9d17b31f166740138a4f27d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -26923,9 +26923,9 @@
       "path": "docs/repository-inventory-guide.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 2614,
-      "lines": 36,
-      "sha256": "3489d1ee89e981fc8c9d671df112b876baa305c6db67cb328cbedd352aa91c57",
+      "bytes": 3028,
+      "lines": 38,
+      "sha256": "b566d94005ce466d37c605c757f6ea3156beb81031439c6ceb87df1201850983",
       "mode": "644",
       "executable": false,
       "generated": false

@@ -1,19 +1,19 @@
 <!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated from the Git index at commit `76e9594629c0`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated from the Git index at commit `f4c62da41848`. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
 
 ## Snapshot
 
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,596 |
-| Total bytes | 57,924,648 |
-| Counted text lines | 1,357,170 |
+| Total bytes | 57,925,195 |
+| Counted text lines | 1,357,177 |
 | Directories | 248 |
 | Categories | 13 |
 | Git branch | `feature/dynamic-repository-inventory-report` |
-| Commit date | 2026-08-12T12:20:19+00:00 |
+| Commit date | 2026-08-12T12:25:29+00:00 |
 
 ## Files by category
 
