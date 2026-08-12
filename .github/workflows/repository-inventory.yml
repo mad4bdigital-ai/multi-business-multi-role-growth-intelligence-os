@@ -103,10 +103,11 @@ jobs:
             --arg target_ref "$TARGET_REF" \
             --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
             --arg actual_head_sha "$actual_sha" \
-            '{contract:$contract,outcome:"passed",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_head_sha,permissions:{contents:"read"},mutation:false,secrets_included:false}' \
+            '{contract:$contract,outcome:"passed",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_sha,permissions:{contents:"read"},mutation:false,secrets_included:false}' \
             > repository-inventory-verification.json
 
       - name: Upload inventory artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: repository-inventory-${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
