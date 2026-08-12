@@ -1,0 +1,208 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "repository-inventory",
+  "deterministic": true,
+  "inputFingerprint": "fce470d412c5faed4f91cd7ff5628dd3401044d2fd067405d4fedce396b50d9d",
+  "inventory": {
+    "files": 6612,
+    "bytes": 58003810,
+    "directories": 249,
+    "categories": 13
+  },
+  "signals": {
+    "workflow": {
+      "workflowCount": 150,
+      "explicitPermissions": 148,
+      "missingExplicitPermissions": 2,
+      "broadWrite": 11,
+      "unpinnedActions": 476
+    },
+    "secrets": {
+      "trackedTextFilesScanned": 6589,
+      "suspectedSecretFiles": [],
+      "placeholderOnlyFiles": [
+        "http-generic-api/test-github-repository-policy-controller.mjs",
+        "http-generic-api/test-sequential-test-progress-report.mjs",
+        "scripts/test-repository-evaluation.mjs"
+      ]
+    },
+    "audit": {
+      "mode": "not-run",
+      "packages": [
+        "http-generic-api/package-lock.json",
+        "package-lock.json"
+      ],
+      "vulnerabilities": null
+    },
+    "dotnet": {
+      "available": false,
+      "status": "not-available",
+      "exitCode": null,
+      "output": ""
+    }
+  },
+  "checks": [
+    {
+      "id": "inventory-check",
+      "command": [
+        "npm",
+        "run",
+        "inventory:check"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "id": "inventory-selftest",
+      "command": [
+        "npm",
+        "run",
+        "inventory:test"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "id": "typecheck",
+      "command": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "id": "root-tests",
+      "command": [
+        "npm",
+        "test",
+        "--",
+        "--runInBand"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    }
+  ],
+  "gaps": [
+    {
+      "gapId": "AUTO-CI-SURFACE-SIZE",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "workflowCount": 150
+      },
+      "impact": "A large workflow surface increases maintenance and overlap risk.",
+      "recommendation": "Consolidate duplicate workflows and keep ownership boundaries explicit.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "DEP-AUDIT-NOT-EVALUATED",
+      "domain": "dependencies",
+      "severity": "medium",
+      "status": "not-evaluated",
+      "blocking": false,
+      "evidence": {
+        "mode": "not-run",
+        "packages": [
+          "http-generic-api/package-lock.json",
+          "package-lock.json"
+        ],
+        "vulnerabilities": null
+      },
+      "impact": "Dependency advisories were not queried in this offline-safe run.",
+      "recommendation": "Run npm run evaluation:network in a network-enabled CI context.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "ENV-DOTNET-NOT-AVAILABLE",
+      "domain": "environment",
+      "severity": "medium",
+      "status": "not-evaluated",
+      "blocking": false,
+      "evidence": {
+        "available": false,
+        "status": "not-available",
+        "exitCode": null,
+        "output": ""
+      },
+      "impact": "Some .NET-dependent validation cannot run in the current environment.",
+      "recommendation": "Install the repository-supported .NET SDK in CI or explicitly mark the check as environment-gated.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "MAINT-LARGE-TRACKED-FILES",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "count": 2,
+        "files": [
+          {
+            "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+            "bytes": 4831654
+          },
+          {
+            "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+            "bytes": 3156577
+          }
+        ]
+      },
+      "impact": "Large generated or source files increase review and change costs.",
+      "recommendation": "Prefer generated artifacts, split oversized sources, or document why each large file is retained.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "SEC-CI-BROAD-WRITE",
+      "domain": "security",
+      "severity": "medium",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "broadWrite": 11
+      },
+      "impact": "Some workflows request write-level authority.",
+      "recommendation": "Replace broad write permissions with least-privilege scopes.",
+      "lifecycle": "new"
+    },
+    {
+      "gapId": "SEC-CI-EXPLICIT-PERMISSIONS",
+      "domain": "security",
+      "severity": "medium",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "workflowCount": 150,
+        "explicitPermissions": 148,
+        "missingExplicitPermissions": 2,
+        "broadWrite": 11,
+        "unpinnedActions": 476
+      },
+      "impact": "Some workflows do not declare an explicit permission boundary.",
+      "recommendation": "Review each workflow and declare the minimum required permissions.",
+      "lifecycle": "new"
+    }
+  ],
+  "gate": {
+    "decision": "warn",
+    "blockingGapIds": [],
+    "warningGapIds": [
+      "AUTO-CI-SURFACE-SIZE",
+      "DEP-AUDIT-NOT-EVALUATED",
+      "ENV-DOTNET-NOT-AVAILABLE",
+      "MAINT-LARGE-TRACKED-FILES",
+      "SEC-CI-BROAD-WRITE",
+      "SEC-CI-EXPLICIT-PERMISSIONS"
+    ]
+  },
+  "baselineDiff": {
+    "available": false,
+    "newGapIds": [],
+    "persistingGapIds": [],
+    "unchangedGapIds": [],
+    "resolvedGapIds": []
+  }
+}

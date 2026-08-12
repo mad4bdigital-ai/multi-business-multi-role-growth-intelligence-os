@@ -14,7 +14,13 @@
     "ci:execution-resolvers": "npm run typecheck && npm test -- --runInBand",
     "inventory:write": "node scripts/repository-inventory.mjs",
     "inventory:check": "node scripts/repository-inventory.mjs --check",
-    "inventory:test": "node scripts/test-repository-inventory.mjs"
+    "inventory:test": "node scripts/test-repository-inventory.mjs",
+    "evaluation:write": "node scripts/repository-evaluation.mjs",
+    "evaluation:enforce": "node scripts/repository-evaluation.mjs --enforce",
+    "evaluation:check": "node scripts/repository-evaluation.mjs --check",
+    "evaluation:test": "node scripts/test-repository-evaluation.mjs",
+    "evaluation:network": "node scripts/repository-evaluation.mjs --include-network",
+    "evaluation:loop": "npm run inventory:check && npm run inventory:test && npm run evaluation:enforce && npm run evaluation:test && npm run evaluation:check -- --enforce"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",

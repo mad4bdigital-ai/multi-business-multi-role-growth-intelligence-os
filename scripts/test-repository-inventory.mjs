@@ -8,7 +8,14 @@ const inventory = JSON.parse(readFileSync(`${root}/docs/repository-inventory.jso
 const summary = JSON.parse(readFileSync(`${root}/docs/repository-inventory-summary.json`, "utf8"));
 const fixtures = JSON.parse(readFileSync(`${root}/scripts/repository-inventory-fixtures.json`, "utf8"));
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" }).split("\0").filter(Boolean);
-const generated = new Set(["docs/repository-inventory.json", "docs/repository-inventory.md", "docs/repository-inventory-summary.json"]);
+const generated = new Set([
+  "docs/repository-inventory.json",
+  "docs/repository-inventory.md",
+  "docs/repository-inventory-summary.json",
+  "docs/repository-evaluation.json",
+  "docs/repository-evaluation.md",
+  "docs/repository-evaluation-summary.json",
+]);
 const expected = tracked.filter((path) => !generated.has(path));
 const paths = inventory.files.map((file) => file.path);
 

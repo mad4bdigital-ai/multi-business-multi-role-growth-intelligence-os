@@ -16,7 +16,14 @@ const outputJson = process.env.INVENTORY_JSON ?? "docs/repository-inventory.json
 const outputMarkdown = process.env.INVENTORY_MARKDOWN ?? "docs/repository-inventory.md";
 const outputSummary = process.env.INVENTORY_SUMMARY ?? "docs/repository-inventory-summary.json";
 const checkOnly = process.argv.includes("--check");
-const generatedPaths = new Set([outputJson, outputMarkdown, outputSummary]);
+const generatedPaths = new Set([
+  outputJson,
+  outputMarkdown,
+  outputSummary,
+  "docs/repository-evaluation.json",
+  "docs/repository-evaluation.md",
+  "docs/repository-evaluation-summary.json",
+]);
 
 function run(command, args) {
   return execFileSync(command, args, { cwd: root, encoding: "utf8" }).trim();
@@ -111,7 +118,7 @@ function fileRows(entries) { return entries.slice(0, 30).map((file) => `| \`${fi
 const markdown = `<!-- GENERATED FILE. Run npm run inventory:write. Do not edit manually. -->
 # Dynamic Repository Inventory
 
-This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows.
+This report is generated deterministically from the Git index. It is intentionally derived from the repository itself so that new files, packages, workflows, migrations, contracts, tests, and documentation appear automatically as the project grows. Generated inventory and evaluation artifacts are excluded from the counted inputs to avoid a self-referential write cycle.
 
 ## Snapshot
 
@@ -159,7 +166,7 @@ ${fileRows([...files].sort((a, b) => b.bytes - a.bytes))}
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every non-generated tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis; generated inventory and evaluation artifacts are intentionally omitted to keep regeneration deterministic.
 
 ## Regeneration
 
