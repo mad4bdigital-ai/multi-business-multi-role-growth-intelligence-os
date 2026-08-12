@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6647,
-    "bytes": 58522668,
-    "lines": 1367800,
+    "files": 6649,
+    "bytes": 58530911,
+    "lines": 1367908,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 1982,
-      "documentation": 1848,
+      "documentation": 1849,
       "api-runtime": 1323,
       "database-migrations": 767,
-      "root-and-other": 215,
+      "root-and-other": 216,
       "ci-workflows": 150,
       "api-contracts": 147,
       "ci-config": 93,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2434,
+      ".md": 2435,
       ".mjs": 1521,
       ".js": 928,
       ".sql": 782,
-      ".json": 648,
+      ".json": 649,
       ".yml": 152,
       ".yaml": 107,
       ".ts": 15,
@@ -58,10 +58,10 @@
     },
     "topLevel": {
       "http-generic-api": 3426,
-      "docs": 1754,
+      "docs": 1755,
       "specs": 807,
       ".github": 243,
-      ".changes": 212,
+      ".changes": 213,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -7740,6 +7740,17 @@
       "bytes": 15033,
       "lines": 277,
       "sha256": "5893f1649fc8328425bdff2b4ece3fcae13aff3a7ecf0a24221331494b2a83f9",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/tenant-route-auth-hardening.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 3066,
+      "lines": 65,
+      "sha256": "413a9dc2183e951b784a7ae5ea58be4c2d828b4d41080ef1e65bb12e7628a95a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -28827,6 +28838,17 @@
       "bytes": 2383,
       "lines": 36,
       "sha256": "29846fd86bbcd9404c31581251b4b601aa09a670dbf290a5e953b24b03510d30",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/issue-execution/tenant-route-followup-readiness-20260812.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 5177,
+      "lines": 43,
+      "sha256": "c5e21508443ee271ad4cae18db7690df72aa629f89d20508a01805097295e113",
       "mode": "644",
       "executable": false,
       "generated": false
