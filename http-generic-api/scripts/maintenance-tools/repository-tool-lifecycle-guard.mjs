@@ -106,30 +106,44 @@ function containsBranchSpecificLiteral(content) {
   return false;
 }
 
-function hasAnyWritePermission(content) {
+function hasContentsWritePermission(content) {
   const lines = String(content).split(/\r?\n/u);
-  let topLevelPermissions = false;
+  let permissionsIndent = null;
+  let permissionsJobIf = "";
   let jobIf = "";
+
+  const isPushMainOnly = (condition) => /github\.event_name\s*==\s*['"]push['"]/iu.test(condition)
+    && /github\.ref\s*==\s*['"]refs\/heads\/main['"]/iu.test(condition);
+
   for (const line of lines) {
     const trimmed = line.trim();
     const indentation = line.match(/^\s*/u)?.[0].length || 0;
 
-    if (indentation === 0 && /^permissions\s*:/u.test(trimmed)) {
-      if (/^permissions\s*:\s*(?:write-all|write)\s*$/iu.test(trimmed)) return true;
-      topLevelPermissions = true;
+    if (indentation === 2 && /^[A-Za-z0-9_-]+:\s*$/u.test(trimmed)) jobIf = "";
+    if (indentation === 4 && /^if\s*:/u.test(trimmed)) jobIf = trimmed;
+
+    if (/^permissions\s*:/u.test(trimmed)) {
+      if (/^permissions\s*:\s*(?:write-all|write)\s*$/iu.test(trimmed)) {
+        if (!isPushMainOnly(jobIf)) return true;
+        continue;
+      }
+      permissionsIndent = indentation;
+      permissionsJobIf = jobIf;
       continue;
     }
-    if (topLevelPermissions) {
-      if (trimmed && indentation === 0) topLevelPermissions = false;
-      else if (indentation > 0 && /:\s*write(?:-all)?\s*$/iu.test(trimmed)) return true;
-    }
 
-    if (indentation <= 2 && /^(?:jobs|[A-Za-z0-9_-]+):/u.test(trimmed)) jobIf = "";
-    if (indentation === 4 && /^if\s*:/u.test(trimmed)) jobIf = trimmed;
-    if (indentation >= 4 && /:\s*write(?:-all)?\s*$/iu.test(trimmed)) {
-      const isPushMainOnly = /github\.event_name\s*==\s*['"]push['"]/iu.test(jobIf)
-        && /github\.ref\s*==\s*['"]refs\/heads\/main['"]/iu.test(jobIf);
-      if (!isPushMainOnly) return true;
+    if (permissionsIndent !== null) {
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      if (indentation <= permissionsIndent) {
+        permissionsIndent = null;
+        permissionsJobIf = "";
+      } else {
+        if (
+          /^contents\s*:\s*write(?:-all)?\s*$/iu.test(trimmed)
+          && !isPushMainOnly(permissionsJobIf)
+        ) return true;
+        continue;
+      }
     }
   }
   return false;
@@ -147,19 +161,33 @@ function hasGitPush(content) {
   return /\bgit\s+push\b/iu.test(content);
 }
 
-function hasApiWrite(content) {
-  const ghApiWrite = /\bgh\s+api\b[\s\S]{0,500}?(?:(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)\b|(?:-f|--field|--raw-field)\s+)/iu;
+function hasNonDelegationApiWrite(content) {
+  const source = String(content);
   const curlApiWrite = /\bcurl\b[^\n]*(?:-X|--request)\s*(?:POST|PUT|PATCH|DELETE)\b[^\n]*api\.github\.com/iu;
-  const ghMutation = /\bgh\s+(?:pr\s+merge|workflow\s+(?:run|enable|disable))\b/iu;
+  const ghMutation = /\bgh\s+(?:pr\s+merge|workflow\s+(?:enable|disable))\b/iu;
   const githubScriptMutation = /github\.rest\.[A-Za-z0-9_.]+\.(?:create|update|delete|merge|dispatch|rerun|cancel|enable|disable)[A-Za-z0-9_]*\s*\(/iu;
-  return ghApiWrite.test(content)
-    || curlApiWrite.test(content)
-    || ghMutation.test(content)
-    || githubScriptMutation.test(content);
+  if (curlApiWrite.test(source) || ghMutation.test(source) || githubScriptMutation.test(source)) return true;
+
+  const starts = [...source.matchAll(/\bgh\s+api\b/giu)].map((match) => match.index);
+  for (let index = 0; index < starts.length; index += 1) {
+    const start = starts[index];
+    const end = starts[index + 1] ?? source.length;
+    const command = source.slice(start, end);
+    const explicitWrite = /(?:--method|-X)\s*(?:POST|PUT|PATCH|DELETE)\b/iu.test(command);
+    const fieldWrite = /(?:^|\s)(?:-f|--field|--raw-field)\s+/mu.test(command);
+    if (!explicitWrite && !fieldWrite) continue;
+
+    const workflowDispatchEndpoint = /(?:repos\/[^\s"']+\/actions\/workflows\/[^\s"']+\/dispatches|actions\/workflows\/[^\s"']+\/dispatches)/iu.test(command);
+    const dangerousMethod = /(?:--method|-X)\s*(?:PUT|PATCH|DELETE)\b/iu.test(command);
+    const postOrImplicitPost = /(?:--method|-X)\s*POST\b/iu.test(command) || (fieldWrite && !dangerousMethod);
+    if (workflowDispatchEndpoint && postOrImplicitPost && !dangerousMethod) continue;
+    return true;
+  }
+  return false;
 }
 
 function hasRepositoryMutation(content) {
-  return hasGitPush(content) || hasApiWrite(content);
+  return hasGitPush(content) || hasNonDelegationApiWrite(content);
 }
 
 function hasForcePush(content) {
@@ -430,7 +458,7 @@ export async function evaluateRepositoryToolLifecycle({ policy, entries, readTex
     if (
       ruleEnabled(policy, "pull_request_workflows_must_not_write_contents")
       && hasPullRequestTrigger(content)
-      && hasAnyWritePermission(content)
+      && hasContentsWritePermission(content)
     ) {
       findings.push(finding(
         "PULL_REQUEST_WRITE_WORKFLOW",
