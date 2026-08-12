@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "spec015-tenant-audit-convergence",
+  "title": "Spec 015 Tenant current-main audit convergence evidence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/spec015-tenant-audit-convergence.json",
+      "specs/015-tenant-operating-system-studio/e2e-phases.json",
+      "specs/015-tenant-operating-system-studio/candidate-convergence.json",
+      "specs/015-tenant-operating-system-studio/manifest.json",
+      "specs/015-tenant-operating-system-studio/completion.json",
+      "specs/015-tenant-operating-system-studio/work-map-integration.json",
+      "specs/015-tenant-operating-system-studio/tools/refresh-candidate-pr-readonly-evidence.mjs",
+      "specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs",
+      "docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.json",
+      "docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.md",
+      "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl",
+      "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md",
+      "docs/spec-portfolio/summarize-candidate-pr-evidence.py"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Validate current-main Tenant reuse and candidate PR evidence as deterministic read-only audit artifacts without reconstructing candidates or granting runtime mutation authority.",
+      "e2e_journeys": [
+        {
+          "id": "spec015-tenant-audit-artifact-integrity",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec 015 convergence reviewer",
+          "entrypoint": "Run the Spec 015 audit artifact regression from the exact candidate tree",
+          "terminal_outcome": "The reuse matrix, candidate snapshot, convergence posture, and no-mutation flags pass deterministic validation against one current-main SHA.",
+          "steps": [
+            "Parse the current-main field-level reuse matrix and verify all 11 logical entity rows have allowed audit statuses and existing evidence paths.",
+            "Parse the nine-record candidate PR snapshot and verify exact identities, shared snapshot base SHA, read-only flags, and no secrets.",
+            "Verify candidate convergence remains draft_review_required and reconstruct-on-current-main rather than blindly merged.",
+            "Run Spec 015 contract validation and the tenant audit artifact regression without database, provider, Cloudflare, or Production access."
+          ],
+          "assertions": [
+            "The reuse matrix is complete as an audit artifact but does not grant canonical authority or runtime readiness.",
+            "All candidate records share the exact current-main base SHA and have safe_read_only=true, merge_executed=false, and secrets_included=false.",
+            "The convergence contract remains draft_review_required with do_not_blind_merge_reconstruct_on_current_main posture.",
+            "No database migration, provider write, Cloudflare change, Production mutation, or candidate merge is executed."
+          ],
+          "tests": [
+            {
+              "id": "validate-spec015-tenant-audit-artifacts",
+              "runner": "node",
+              "working_directory": "specs/015-tenant-operating-system-studio",
+              "path": "tools/test-tenant-audit-artifacts.mjs",
+              "args": []
+            },
+            {
+              "id": "validate-spec015-contract-integrity",
+              "runner": "node",
+              "working_directory": "specs/015-tenant-operating-system-studio",
+              "path": "tools/validate-spec.mjs",
+              "args": ["--only", "all"]
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/spec015-tenant-audit-convergence.json",
+            "specs/015-tenant-operating-system-studio/e2e-phases.json",
+            "specs/015-tenant-operating-system-studio/candidate-convergence.json",
+            "specs/015-tenant-operating-system-studio/manifest.json",
+            "specs/015-tenant-operating-system-studio/completion.json",
+            "specs/015-tenant-operating-system-studio/work-map-integration.json",
+            "specs/015-tenant-operating-system-studio/tools/refresh-candidate-pr-readonly-evidence.mjs",
+            "specs/015-tenant-operating-system-studio/tools/test-tenant-audit-artifacts.mjs",
+            "docs/spec-portfolio/spec015-tenant-reuse-matrix-20260812.json",
+            "docs/spec-portfolio/spec015-candidate-pr-readonly-evidence-20260812.jsonl",
+            "docs/spec-portfolio/spec015-candidate-convergence-readiness-20260812.md"
+          ]
+        }
+      ]
+    }
+  ],
+  "secrets_included": false
+}
