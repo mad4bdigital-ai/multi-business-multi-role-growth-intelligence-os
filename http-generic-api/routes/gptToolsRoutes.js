@@ -24,6 +24,9 @@ const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
 sqlCacheKey("tools", callerType, "list", "v3")
 filterTenantToolsByManifest(rows, blockedTenantManifests)
 filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
+name: "tenant_connection_operation_preview"
+toolKey === "tenant_connection_operation_preview"
+buildTenantConnectionOperationPreview(args)
 async function dispatchTool(callerType, toolKey, args, req) {
   assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
   assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
