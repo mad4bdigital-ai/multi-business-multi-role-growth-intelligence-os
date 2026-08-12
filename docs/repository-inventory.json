@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6648,
-    "bytes": 58557838,
-    "lines": 1368109,
+    "bytes": 58559549,
+    "lines": 1368139,
     "directories": 251,
     "categories": 13
   },
@@ -10179,9 +10179,9 @@
       "path": ".github/workflows/repository-evaluation.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 6800,
-      "lines": 172,
-      "sha256": "9af0d2ee7f619a2c69225ca64fc1bad9ddf38fa569afb047f921cfb219643069",
+      "bytes": 6699,
+      "lines": 171,
+      "sha256": "4a97c8c30a422824fb8cccacb5096dd3af28ba7aaea4f40108d0548b7e7ded6e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -29836,9 +29836,9 @@
       "path": "docs/repository-evaluation-loop.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 5975,
+      "bytes": 6350,
       "lines": 42,
-      "sha256": "c3356bfd7a00caf5256f827ec5f8f478e80c5e9309efaae1eb73d5f64b901695",
+      "sha256": "8b3495cfe8cc476e6a7bf968f4cd85a4181751ce662712a0cc92ab5ec7addc25",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31037,7 +31037,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "bb9d5cfca201c4d865708c830f170d170212ca15d5d37385ccb624a083ee7300",
+      "sha256": "021026c51d74b562e0cafef5d1490c00a2ec8b041cdd5120885a1ef8da6c42c7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31202,7 +31202,7 @@
       "extension": ".md",
       "bytes": 44944,
       "lines": 481,
-      "sha256": "81e6ff6374ff33205a66485adca86a1d7275c32b168eea1d47a81b7ca80cfbb7",
+      "sha256": "c3cc660a2315e956abbf7be52aa2d3b891393da30e98c00a89fe54f19da3f301",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -69590,9 +69590,9 @@
       "path": "scripts/repository-evaluation.mjs",
       "category": "root-and-other",
       "extension": ".mjs",
-      "bytes": 27792,
-      "lines": 482,
-      "sha256": "d28cdda9dc472d200b41898a1b2d13b1afb798ffb6bc2a74330db3eb1ca0d3ec",
+      "bytes": 28555,
+      "lines": 503,
+      "sha256": "9cbe317075641f33c57482a87528b9524733505287d713bc5ac16ce58b19fcd3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -69634,9 +69634,9 @@
       "path": "scripts/test-repository-evaluation.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 3154,
-      "lines": 54,
-      "sha256": "92551c8e8d64883567a20627bdf46fe3c288815ab2b2b5ff5017bffb8e2a837a",
+      "bytes": 3828,
+      "lines": 64,
+      "sha256": "661448be2e5bd158bcbbc03718ffa9d28e62792c1c2b5c4d16f7eed1cc0aa8f9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76687,7 +76687,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "8e86c6f37c27b8e8b650c9eeb94b22c3029790d5772b124aa1b793e3e726c125",
+      "sha256": "1ef84544a572ed2759c690b3fa725a0b7bd72a2fde7694a65014afe0a76e15fb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77248,7 +77248,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "8fb585b467c641ca43180b12623ac31fc5b2daa0904f0e2adba38120b3360fc5",
+      "sha256": "efc251df138b49a1a70c7a425538ef7b96eb307fc6d89940a7d6ea4e6271a352",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78051,7 +78051,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "306ba21fb4f8509d9fea98cecf1cfa5553de606fbd359e6258893833428d8e95",
+      "sha256": "6771a5b09610abcaa5d922ea4dc2cad1f40bfdef84249d4cd83e28109776f2be",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78282,7 +78282,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "144cf3344d59698a2115549bb6678a315436b4289192974ad595216d498a0a0a",
+      "sha256": "2cefab6b6a29ee3ac4c9901bbf534c2534f389f401e1122db60ce5497a485005",
       "mode": "644",
       "executable": false,
       "generated": false
