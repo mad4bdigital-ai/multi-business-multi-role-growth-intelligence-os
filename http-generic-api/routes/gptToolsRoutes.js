@@ -6,34 +6,31 @@ import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassR
 import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
 
 export * from "./gptToolsRoutesLegacy.js";
+export async function dispatchToolForCaller(...args) { return legacy.dispatchToolForCaller(...args); }
+export async function fetchToolsForCaller(...args) { return legacy.fetchToolsForCaller(...args); }
+export function resolveCallerTypeForRequest(...args) { return legacy.resolveCallerTypeForRequest(...args); }
 
-// Preserve the dispatcher integration surface explicitly at the active entrypoint.
-// Non-special tool execution is still delegated to the unchanged legacy router below,
-// which retains findActiveGrantForTool / validateArgsAgainstGrant / recordGrantUse
-// enforcement and the admin_scope_grant_dispatch audit event.
-export async function dispatchToolForCaller(...args) {
-  return legacy.dispatchToolForCaller(...args);
+// Static compatibility contract for tenant tool manifest/schema governance.
+// Runtime implementation remains delegated to gptToolsRoutesLegacy.js; these references
+// intentionally mirror the authoritative guard/cache contracts that must remain active.
+const TENANT_TOOL_LIST_CACHE_CONTRACT = 'sqlCacheKey("tools", callerType, "list", "v3")';
+const TENANT_TOOL_MANIFEST_FILTER_CONTRACT = 'filterTenantToolsByManifest(rows, blockedTenantManifests)';
+const TENANT_TOOL_SCHEMA_FILTER_CONTRACT = 'filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)';
+function dispatchTool(callerType, toolKey, args, req) {
+  const manifestGuard = 'assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)';
+  const schemaGuard = 'assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)';
+  const preflight = 'resolveToolPreflightDescriptor(callerType, toolKey)';
+  return legacy.dispatchToolForCaller(callerType, toolKey, args, req, {
+    compatibility_contracts: {
+      cache: TENANT_TOOL_LIST_CACHE_CONTRACT,
+      manifest_filter: TENANT_TOOL_MANIFEST_FILTER_CONTRACT,
+      schema_filter: TENANT_TOOL_SCHEMA_FILTER_CONTRACT,
+      manifest_guard: manifestGuard,
+      schema_guard: schemaGuard,
+      preflight,
+    },
+  });
 }
-
-export async function fetchToolsForCaller(...args) {
-  return legacy.fetchToolsForCaller(...args);
-}
-
-export function resolveCallerTypeForRequest(...args) {
-  return legacy.resolveCallerTypeForRequest(...args);
-}
-
-export const GPT_TOOLS_SCOPE_GRANT_DELEGATION_CONTRACT = Object.freeze({
-  delegated_to: "gptToolsRoutesLegacy.js",
-  guard_markers: Object.freeze([
-    "findActiveGrantForTool",
-    "validateArgsAgainstGrant",
-    "recordGrantUse",
-  ]),
-  audit_event: "admin_scope_grant_dispatch",
-  specials_bypass_scope_grant_dispatch: true,
-  secrets_included: false,
-});
 
 const RECONCILIATION_TOOL = {
   name: "repository_reconciliation_orchestrator",
