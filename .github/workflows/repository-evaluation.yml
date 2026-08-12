@@ -55,7 +55,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git show "origin/main:docs/repository-evaluation.json" > "$RUNNER_TEMP/repository-evaluation-baseline.json" 2>/dev/null; then
+          artifact_path="docs/repository-evaluation.json"
+          if git show "origin/main:${artifact_path}" > "$RUNNER_TEMP/repository-evaluation-baseline.json" 2>/dev/null; then
             echo "EVALUATION_BASELINE=$RUNNER_TEMP/repository-evaluation-baseline.json" >> "$GITHUB_ENV"
           else
             echo "No committed baseline is available yet."
