@@ -110,13 +110,21 @@ jobs:
 
       - name: Prepare exact base evaluation when available
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
           artifact_path="docs/repository-evaluation.json"
-          if git show "origin/main:${artifact_path}" > "$RUNNER_TEMP/repository-evaluation-baseline.json" 2>/dev/null; then
-            echo "EVALUATION_BASELINE=$RUNNER_TEMP/repository-evaluation-baseline.json" >> "$GITHUB_ENV"
+          baseline_path="$RUNNER_TEMP/repository-evaluation-baseline.json"
+          if [[ "$EVENT_NAME" == "pull_request" && "$PR_BASE_SHA" =~ ^[0-9a-f]{40}$ ]] && git show "$PR_BASE_SHA:$artifact_path" > "$baseline_path" 2>/dev/null; then
+            echo "EVALUATION_BASELINE=$baseline_path" >> "$GITHUB_ENV"
+            echo "Using exact pull-request base evaluation baseline: $PR_BASE_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]] && git show "origin/main:$artifact_path" > "$baseline_path" 2>/dev/null; then
+            echo "EVALUATION_BASELINE=$baseline_path" >> "$GITHUB_ENV"
+            echo "Using fetched main evaluation baseline as bounded fallback."
           else
-            echo "No committed baseline is available yet."
+            echo "No committed baseline is available for this event."
           fi
 
       - name: Run deterministic evaluation loop
@@ -127,6 +135,7 @@ jobs:
           set -euo pipefail
           args=()
           if [[ "${INCLUDE_NETWORK}" == "true" ]]; then args+=(--include-network); fi
+          if [[ -n "${EVALUATION_BASELINE:-}" ]]; then args+=(--baseline "$EVALUATION_BASELINE"); fi
           node scripts/repository-evaluation.mjs --enforce "${args[@]}"
           npm run inventory:check
           npm run inventory:test
