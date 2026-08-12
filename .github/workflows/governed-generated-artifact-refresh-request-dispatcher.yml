@@ -87,6 +87,7 @@ jobs:
           request_source_run_id="$(jq -r '.source_run_id' "${request}")"
           failure_code=""
           failure_detail=""
+          request_skipped="false"
 
           if [[ "${contract}" != "mad4b.governed-generated-artifact-refresh-request.v1" ]]; then
             failure_code="invalid_request_contract"
@@ -100,9 +101,24 @@ jobs:
           elif [[ "${GITHUB_EVENT_NAME}" == "workflow_run" && "${request_source_run_id}" != "${SOURCE_RUN_ID}" ]]; then
             failure_code="request_source_run_mismatch"
             failure_detail="The request source run differs from the triggering workflow run."
+          elif [[ "${request_outcome}" == "skipped" ]]; then
+            request_skipped="true"
           elif [[ "${request_outcome}" != "eligible" ]]; then
             failure_code="${request_reason:-request_not_eligible}"
             failure_detail="The read-only request evaluator did not authorize writer dispatch."
+          fi
+
+          if [[ "${request_skipped}" == "true" ]]; then
+            jq -n \
+              --arg contract "mad4b.governed-generated-artifact-refresh-dispatch.v1" \
+              --arg target_ref "${target_ref}" \
+              --arg expected_head_sha "${expected_head_sha}" \
+              --argjson pr_number "${pr_number}" \
+              --arg reason "${request_reason:-request_skipped}" \
+              '{contract:$contract,outcome:"skipped",target_ref:$target_ref,expected_head_sha:$expected_head_sha,pr_number:$pr_number,reason:$reason,dispatch_requested:false,delegated_run_observed:false,source_of_truth:"structured_report",job_logs_role:"diagnostic_only",consult_job_logs:false,direct_repository_mutation:false,protected_branch_mutation:false,force_push:false,secrets_included:false}' \
+              > "${REPORT_DIR}/dispatch.json"
+            echo "eligible=false" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
           target_branch="${target_ref}"
