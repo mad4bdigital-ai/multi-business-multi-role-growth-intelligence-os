@@ -42,6 +42,7 @@
       "http-generic-api/resourceApiCallabilityGate.js",
       "http-generic-api/routes/gptToolsRoutes.js",
       "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "http-generic-api/routes/index.js",
       "http-generic-api/routes/runtimeVerificationRoutes.js",
       "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "http-generic-api/runtimeBreakGlassLifecycle.js",
