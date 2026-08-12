@@ -34,14 +34,14 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout exact trusted main event
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
 
@@ -51,7 +51,7 @@ jobs:
 
       - name: Download exact Runtime Readiness Artifact
         if: steps.discover.outputs.artifact_found == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: ${{ steps.discover.outputs.artifact_name }}
           path: ${{ env.SOURCE_DIR }}
@@ -65,7 +65,7 @@ jobs:
 
       - name: Upload backfill publication evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sprint69-1043-runtime-readiness-backfill-${{ github.run_id }}
           path: ${{ env.REPORT_DIR }}

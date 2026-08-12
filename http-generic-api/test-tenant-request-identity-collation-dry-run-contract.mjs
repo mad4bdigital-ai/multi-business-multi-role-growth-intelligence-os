@@ -20,7 +20,7 @@ assert.doesNotMatch(workflow, /contents:\s*write|issues:\s*write|pull-requests:\
 assert.match(workflow, /Checkout trusted default branch/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 
 for (const value of [MIGRATION, AUTH_CONFIRM, CHECKSUM, SOURCE_MERGE_SHA]) {
   assert.ok(runner.includes(value), `Dry Run runner is missing pinned value ${value}`);

@@ -28,6 +28,9 @@ const contractNames = [
   "syntax-platform-work-map-schema-intelligence",
   "syntax-work-map-schema-classification",
   "syntax-work-map-schema-classification-contract",
+  "syntax-spec014-final-work-map-binding",
+  "spec014-final-work-map-binding-regression",
+  "work-map-autofix-spec014-binding-convergence-regression",
   "syntax-pipeline-connectivity-check",
   "pipeline-connectivity-check",
   "pipeline-connectivity-regression",
@@ -104,7 +107,7 @@ assert.match(workflow, /failed_validation_contracts_count:\(\$failed_validation_
 assert.match(workflow, /failed_validation_contracts:\$failed_validation_contracts/);
 assert.match(workflow, /failed_validation_contracts_count=\$\{failed_validation_contracts_count\}/);
 assert.match(workflow, /failed_validation_contracts=\$\{failed_validation_contracts\}/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 
 assert.doesNotMatch(validationBlock, /git push/);
 assert.doesNotMatch(validationBlock, /--force/);

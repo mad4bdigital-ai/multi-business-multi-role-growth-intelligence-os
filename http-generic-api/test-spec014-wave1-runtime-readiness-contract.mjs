@@ -49,7 +49,7 @@ assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
 assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
 assert.match(workflow, /ref: main/);
 assert.match(workflow, /persist-credentials: false/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 assert.doesNotMatch(workflow, /^\s{2}apply:/m);
 
 assert.match(guard, /^on:\n  pull_request:/m);
@@ -58,7 +58,7 @@ assert.doesNotMatch(guard, /contents:\s*write|issues:\s*write|pull-requests:\s*w
 assert.match(guard, /ref: \$\{\{ github\.event\.pull_request\.head\.sha \}\}/);
 assert.match(guard, /node --check \.github\/ops\/spec014-wave1-runtime-readiness\.mjs/);
 assert.match(guard, /test-spec014-wave1-runtime-readiness-contract\.mjs/);
-assert.match(guard, /actions\/upload-artifact@v4/);
+assert.match(guard, /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4/);
 
 for (const value of [AUTH_CONFIRM, CHECKSUM, BLOB, SOURCE_MERGE, READINESS_MERGE]) {
   assert.ok(runner.includes(value), `Runner is missing pinned value ${value}.`);

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildEvaluation, compareBaseline, extractSecretMatches, isPlaceholderToken } from "./repository-evaluation.mjs";
+import { buildEvaluation, compareBaseline, dependencyPreflight, extractSecretMatches, isPlaceholderToken } from "./repository-evaluation.mjs";
 
 const taskLike = extractSecretMatches("task-route-authority-resolver.mjs");
 assert.equal(taskLike.length, 0, "task- paths must not be treated as sk- tokens");
@@ -21,6 +21,11 @@ assert.equal(first.gaps.some((gap) => gap.gapId === "SEC-TRACKED-SECRET-SUSPECT"
 assert.ok(["pass", "warn", "fail"].includes(first.gate.decision));
 assert.ok(first.gaps.every((gap) => gap.lifecycle === "new"), "without a baseline, gaps must be marked new");
 assert.ok(["contracted", "not-evaluated"].includes(first.signals.dotnet.status), "default evaluation must not depend on local .NET availability");
+assert.equal(first.signals.workflow.unpinnedActions, 0, "all workflow action references must be pinned to full commit SHAs");
+assert.ok(["within-budget", "near-limit", "exceeded"].includes(first.signals.maintainability.workflowBudgetStatus));
+const missingDependencies = dependencyPreflight("/tmp/repository-evaluation-missing-dependencies");
+assert.equal(missingDependencies.ready, false);
+assert.deepEqual(missingDependencies.missing.sort(), ["root-tests", "typecheck"]);
 const environmentProbe = buildEvaluation({ skipChecks: true, includeEnvironment: true });
 assert.equal(environmentProbe.deterministic, false, "environment probes must be marked non-deterministic");
 assert.ok(["passed", "failed", "not-available"].includes(environmentProbe.signals.dotnet.status));
@@ -43,4 +48,6 @@ console.log(JSON.stringify({
   gate: first.gate,
   secrets_fixture: "passed",
   baseline_fixture: "passed",
+  action_pinning: first.signals.workflow.unpinnedActions === 0 ? "passed" : "failed",
+  dependency_preflight: missingDependencies.ready ? "unexpected-ready" : "passed",
 }, null, 2));

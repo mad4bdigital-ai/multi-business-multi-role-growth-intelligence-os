@@ -46,7 +46,7 @@ jobs:
     steps:
       - name: Resolve and verify exact PR candidate identity
         id: candidate
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           EVENT_NAME: ${{ github.event_name }}
           DISPATCH_PR_NUMBER: ${{ inputs.pull_request_number || '' }}
@@ -125,7 +125,7 @@ jobs:
               ])
               .write();
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ steps.candidate.outputs.candidate_sha }}
           fetch-depth: 0
@@ -144,7 +144,7 @@ jobs:
       - name: Guard governed migration seed placement
         run: node http-generic-api/scripts/migration-placement-guard.mjs
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
@@ -200,7 +200,7 @@ jobs:
     needs: syntax
     steps:
       - name: Re-verify candidate is still the current PR head
-        uses: actions/github-script@v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           VERIFIED_PR_NUMBER: ${{ needs.syntax.outputs.pull_request_number }}
           VERIFIED_CANDIDATE_SHA: ${{ needs.syntax.outputs.candidate_sha }}
@@ -221,7 +221,7 @@ jobs:
             else if (pr.base.ref !== process.env.VERIFIED_BASE_REF) core.setFailed(`Pull request #${prNumber} base ref changed after syntax verification.`);
             else if (pr.base.sha !== process.env.VERIFIED_BASE_SHA) core.setFailed(`Pull request #${prNumber} base SHA changed after syntax verification.`);
 
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ needs.syntax.outputs.candidate_sha }}
           fetch-depth: 0
@@ -234,7 +234,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"
@@ -295,7 +295,7 @@ jobs:
 
       - name: Upload ordered test progress reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unit-integration-test-progress-${{ github.run_id }}
           path: ${{ runner.temp }}/test-suite-reports/*.json
