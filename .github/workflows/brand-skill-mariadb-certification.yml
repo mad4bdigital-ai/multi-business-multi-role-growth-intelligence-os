@@ -57,10 +57,10 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Check out candidate
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -91,7 +91,7 @@ jobs:
 
       - name: Upload disposable certification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: brand-skill-mariadb-certification
           path: http-generic-api/artifacts/brand-skill-mariadb-certification.json
@@ -118,7 +118,7 @@ jobs:
           [[ "${EXPECTED_MIGRATION_SHA256}" =~ ^[0-9a-fA-F]{64}$ ]] || { echo "::error::expected_migration_sha256 must be a SHA-256 digest"; exit 1; }
 
       - name: Check out exact reviewed commit
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ inputs.expected_commit_sha }}
           fetch-depth: 1
@@ -133,7 +133,7 @@ jobs:
           echo "CHECKED_OUT_COMMIT_SHA=${ACTUAL_COMMIT_SHA}" >> "${GITHUB_ENV}"
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -172,7 +172,7 @@ jobs:
           node -e 'const fs=require("fs"); const p="artifacts/brand-skill-staging-preflight.json"; const v=JSON.parse(fs.readFileSync(p,"utf8")); if(!v.ready||v.target_environment!=="staging"||v.statement_count!==3||v.applies_sql!==false||v.records_ledger!==false||v.migration_apply_authorized!==false||v.production_authorized!==false||v.secrets_included!==false) process.exit(1);'
 
       - name: Upload staging preflight evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: brand-skill-staging-read-only-preflight
           path: http-generic-api/artifacts/brand-skill-staging-preflight.json

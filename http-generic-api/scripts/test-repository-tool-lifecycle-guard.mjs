@@ -41,11 +41,17 @@ const policy = {
   },
 };
 
-async function evaluate(entries, contents = {}, selectedPolicy = policy) {
+async function evaluate(entries, contents = {}, selectedPolicy = policy, baseContents = null) {
   return evaluateRepositoryToolLifecycle({
     policy: selectedPolicy,
     entries,
     readText: async (path) => contents[path] || "",
+    readBaseText: baseContents
+      ? async (path) => {
+        if (!(path in baseContents)) throw new Error(`missing base fixture: ${path}`);
+        return baseContents[path];
+      }
+      : null,
   });
 }
 
@@ -313,6 +319,37 @@ jobs:
   },
 );
 assert(writeAllFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
+const pinOnlyWorkflow = ".github/workflows/pre-existing-unsafe.yml";
+const pinOnlyBase = `
+on:
+  pull_request:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git push origin HEAD:gpt/pre-existing-work-branch
+`;
+const pinOnlyCandidate = pinOnlyBase.replace("actions/checkout@v4", "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5");
+const pinOnlyFindings = await evaluate(
+  [{ status: "M", path: pinOnlyWorkflow }],
+  { [pinOnlyWorkflow]: pinOnlyCandidate },
+  policy,
+  { [pinOnlyWorkflow]: pinOnlyBase },
+);
+assert.deepEqual(pinOnlyFindings, [], "action-reference-only changes must not reopen pre-existing lifecycle findings");
+
+const behaviorChangedCandidate = `${pinOnlyCandidate}\n      - run: echo behavior-change\n`;
+const behaviorChangedFindings = await evaluate(
+  [{ status: "M", path: pinOnlyWorkflow }],
+  { [pinOnlyWorkflow]: behaviorChangedCandidate },
+  policy,
+  { [pinOnlyWorkflow]: pinOnlyBase },
+);
+assert(behaviorChangedFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
 
 const externalTokenWorkflow = ".github/workflows/external-token-push.yml";
 const externalTokenFindings = await evaluate(

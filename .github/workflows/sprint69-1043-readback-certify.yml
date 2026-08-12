@@ -29,13 +29,13 @@ jobs:
       EVIDENCE_DIR: .artifacts/sprint69-1043-readback-certification
     steps:
       - name: Checkout trusted default branch
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: main
           fetch-depth: 1
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '22'
 
@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload no-secret readback certification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: sprint69-1043-readback-certification-${{ github.run_id }}
           path: ${{ env.EVIDENCE_DIR }}

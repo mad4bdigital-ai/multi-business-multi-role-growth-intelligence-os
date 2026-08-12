@@ -36,7 +36,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
@@ -197,7 +197,7 @@ jobs:
             > "${REPORT_DIR}/request.json"
 
       - name: Upload exact-head dispatch request
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: governed-production-candidate-dispatch-request-${{ github.run_id }}
           path: ${{ env.REPORT_DIR }}/request.json

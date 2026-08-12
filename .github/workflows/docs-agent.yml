@@ -23,7 +23,7 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           fetch-depth: 0
           repository: ${{ github.event.pull_request.head.repo.full_name }}
@@ -56,7 +56,7 @@ jobs:
           fi
           echo "Docs Agent validated proposed merge ${tested_sha} for base ${EXPECTED_BASE_SHA} and head ${EXPECTED_HEAD_SHA}."
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
@@ -83,7 +83,7 @@ jobs:
           fi
 
       - name: Upload generated documentation preview
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: docs-agent-preview-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
           path: |

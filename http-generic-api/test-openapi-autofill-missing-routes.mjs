@@ -66,7 +66,7 @@ assert(
     || workflow.includes('node scripts/repo-maintenance-sync.mjs --write'),
   'workflow must execute the fail-closed gate directly or through repository maintenance',
 );
-assert(workflow.includes('peter-evans/create-pull-request@v6'), 'workflow must create a PR instead of pushing directly to main');
+assert(workflow.includes('peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6'), 'workflow must create a PR instead of pushing directly to main');
 assert(!workflow.includes('git push origin main'), 'workflow must not push generated contracts directly to main');
 
 const tempRoot = join(tmpdir(), `openapi-autofill-${process.pid}-${Date.now()}`);

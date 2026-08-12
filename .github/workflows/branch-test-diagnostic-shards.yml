@@ -67,9 +67,9 @@ jobs:
       fail_fast: ${{ steps.matrix.outputs.fail_fast }}
     steps:
       - name: Checkout tested ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
       - id: matrix
@@ -147,9 +147,9 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Checkout tested ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -184,7 +184,7 @@ jobs:
           node scripts/run-test-diagnostic-shard.mjs "${args[@]}"
       - name: Upload family diagnostic report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: branch-test-diagnostic-${{ github.run_id }}-${{ matrix.family_slug }}-${{ matrix.shard_index }}
           path: http-generic-api/diagnostic-reports/${{ matrix.family_slug }}-${{ matrix.shard_index }}.json
@@ -200,9 +200,9 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Checkout tested ref
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -215,7 +215,7 @@ jobs:
         run: npm test
       - name: Upload sequential progress reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: branch-test-diagnostic-${{ github.run_id }}-sequential
           path: ${{ runner.temp }}/test-suite-reports/*.json
@@ -232,7 +232,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download diagnostic reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: branch-test-diagnostic-${{ github.run_id }}-*
           path: diagnostic-reports
@@ -357,7 +357,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown);
           NODE
       - name: Upload diagnostic summary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: branch-test-diagnostic-${{ github.run_id }}-summary
           path: |

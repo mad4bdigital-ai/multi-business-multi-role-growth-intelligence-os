@@ -30,9 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
@@ -67,7 +67,7 @@ jobs:
           node -e 'const fs=require("node:fs"); const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(value.ok!==true || value.pinned_validation_base_required!==true || value.exact_candidate_ci_required!==true || value.secrets_included!==false) process.exit(1);' "$RUNNER_TEMP/production-promotion-candidate-contract.json"
 
       - name: Upload contract evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: production-promotion-candidate-contract
           path: ${{ runner.temp }}/production-promotion-candidate-contract.json

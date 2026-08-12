@@ -34,8 +34,9 @@ assert.equal(syntax.status, 0, syntax.stderr || 'Wave 1 Apply runner syntax chec
 
 assert.match(workflow, /^on:\n  issue_comment:\n    types: \[created\]/m);
 assert.doesNotMatch(workflow, /^\s{2}(?:push|pull_request|workflow_dispatch):/m);
-assert.match(workflow, /permissions:\n  contents: read/);
-assert.doesNotMatch(workflow, /contents:\s*write|issues:\s*write|pull-requests:\s*write/);
+assert.match(workflow, /^permissions: \{\}\s*$/m);
+assert.match(workflow, /Spec 014 Wave 1 Migration Apply \(terminally locked\)/);
+assert.match(workflow, /reject-retired-apply/);
 assert.match(workflow, /github\.event\.issue\.number == 6215/);
 assert.match(workflow, /!github\.event\.issue\.pull_request/);
 assert.match(workflow, /\["OWNER","MEMBER","COLLABORATOR"\]/);
@@ -45,14 +46,15 @@ assert.equal(
   false,
   'Apply workflow must not reuse the readiness trigger.',
 );
-assert.match(workflow, /^\s{2}apply:/m);
-assert.equal((workflow.match(/^\s{2}apply:/gm) || []).length, 1);
+assert.doesNotMatch(workflow, /^\s{2}(?:apply|build):/m);
 assert.doesNotMatch(workflow, /gh\s+api|issues:\s*write|comments\/|workflow_dispatch/);
-assert.match(workflow, /BACKEND_API_KEY: \$\{\{ secrets\.BACKEND_API_KEY \}\}/);
-assert.match(workflow, /GH_READ_TOKEN: \$\{\{ github\.token \}\}/);
-assert.match(workflow, /ref: main/);
-assert.match(workflow, /persist-credentials: false/);
-assert.match(workflow, /if: always\(\)[\s\S]*actions\/upload-artifact@v4/);
+assert.doesNotMatch(workflow, /actions\/(?:checkout|upload-artifact|download-artifact)@/);
+assert.match(workflow, /Apply authority: retired/);
+assert.match(workflow, /SQL execution: prohibited/);
+assert.match(workflow, /Retry: prohibited/);
+assert.match(workflow, /Repository checkout: not performed/);
+assert.match(workflow, /Secrets: not requested/);
+assert.match(workflow, /exit 1/);
 
 for (const value of [
   APPLY_CONFIRM,

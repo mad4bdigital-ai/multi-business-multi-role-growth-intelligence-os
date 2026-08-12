@@ -18,7 +18,7 @@ assert.match(workflow, /issues:\s*write/u, "trusted dispatcher must publish its 
 assert.match(workflow, /pull-requests:\s*read/u, "dispatcher must resolve the associated pull request");
 assert.doesNotMatch(workflow, /contents:\s*write/u, "dispatcher must not receive direct contents-write authority");
 assert.doesNotMatch(workflow, /\bgit\s+push\b/u, "dispatcher must not push repository contents directly");
-assert.match(workflow, /uses:\s*actions\/checkout@v5/u, "trusted command workflow must checkout publisher code");
+assert.match(workflow, /uses:\s*actions\/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5/u, "trusted command workflow must checkout publisher code");
 assert.match(workflow, /ref:\s*main/u, "publisher code must be loaded from trusted main");
 assert.match(workflow, /persist-credentials:\s*false/u, "trusted checkout must not persist credentials");
 assert.doesNotMatch(workflow, /pull_request(?:_target)?:/u, "write-capable dispatcher must not be a pull-request workflow");

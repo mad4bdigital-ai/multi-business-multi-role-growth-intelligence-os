@@ -36,14 +36,14 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout exact source revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: '.nvmrc'
           cache: npm
@@ -55,7 +55,7 @@ jobs:
         run: npm ci --ignore-scripts --prefix http-generic-api
 
       - name: Setup repository-supported .NET SDK
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
 
@@ -95,6 +95,18 @@ jobs:
           run_audit root "$RUNNER_TEMP/root-npm-audit.json" npm audit --json --omit=dev
           run_audit http-generic-api "$RUNNER_TEMP/http-generic-api-npm-audit.json" npm audit --prefix http-generic-api --json --omit=dev
           dotnet --version
+
+      - name: Capture structured network and environment evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/repository-evaluation.mjs \
+            --skip-checks \
+            --include-network \
+            --include-environment \
+            --json="$RUNNER_TEMP/repository-evaluation-probes.json" \
+            --markdown="$RUNNER_TEMP/repository-evaluation-probes.md" \
+            --summary="$RUNNER_TEMP/repository-evaluation-probes-summary.json"
 
       - name: Prepare exact base evaluation when available
         shell: bash
@@ -145,7 +157,7 @@ jobs:
           node scripts/repository-evaluation.mjs --diff --baseline "$EVALUATION_BASELINE" > "$RUNNER_TEMP/repository-evaluation-baseline-diff.json"
 
       - name: Upload evaluation artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: repository-evaluation-${{ github.sha }}
           path: |
@@ -153,4 +165,7 @@ jobs:
             docs/repository-evaluation-summary.json
             docs/repository-evaluation.md
             ${{ runner.temp }}/repository-evaluation-baseline-diff.json
+            ${{ runner.temp }}/repository-evaluation-probes.json
+            ${{ runner.temp }}/repository-evaluation-probes.md
+            ${{ runner.temp }}/repository-evaluation-probes-summary.json
           if-no-files-found: warn
