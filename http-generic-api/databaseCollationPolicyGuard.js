@@ -65,7 +65,7 @@ function sqlCollations(sql = "") {
 
 function parseAliases(sql = "") {
   const aliases = new Map();
-  const regex = /\b(?:FROM|JOIN)\s+`?([A-Za-z0-9_]+)`?(?:\s+(?:AS\s+)?`?([A-Za-z0-9_]+)`?)?/gi;
+  const regex = /\b(?:UPDATE|FROM|JOIN)\s+`?([A-Za-z0-9_]+)`?(?:\s+(?:AS\s+)?`?([A-Za-z0-9_]+)`?)?/gi;
   let match;
   while ((match = regex.exec(String(sql)))) {
     const table = normalizeName(match[1]);
