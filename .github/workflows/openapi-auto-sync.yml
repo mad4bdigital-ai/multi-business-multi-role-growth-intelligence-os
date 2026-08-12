@@ -288,9 +288,31 @@ jobs:
             exit 0
           fi
 
-          gh pr merge "${PR_NUMBER}" \
+          if gh pr merge "${PR_NUMBER}" \
             --auto \
             --squash \
             --delete-branch \
-            --match-head-commit "${pr_head_sha}"
-          echo "Registered guarded auto-merge for PR ${PR_NUMBER} at head ${pr_head_sha}."
+            --match-head-commit "${pr_head_sha}"; then
+            echo "Registered guarded auto-merge for PR ${PR_NUMBER} at head ${pr_head_sha}."
+            exit 0
+          else
+            merge_rc=$?
+          fi
+
+          echo "Auto-merge command exited ${merge_rc}; verifying exact-head PR state before treating this as a failure."
+          pr_readback="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+          readback_head_sha="$(jq -r '.head.sha' <<< "${pr_readback}")"
+          readback_base_ref="$(jq -r '.base.ref' <<< "${pr_readback}")"
+          readback_merged_at="$(jq -r '.merged_at // empty' <<< "${pr_readback}")"
+          readback_merge_commit_sha="$(jq -r '.merge_commit_sha // empty' <<< "${pr_readback}")"
+
+          if [[ "${readback_head_sha}" == "${pr_head_sha}" \
+             && "${readback_base_ref}" == "main" \
+             && -n "${readback_merged_at}" \
+             && -n "${readback_merge_commit_sha}" ]]; then
+            echo "Observed PR ${PR_NUMBER} already merged from exact head ${pr_head_sha} while auto-merge registration raced with the merge; accepting verified readback."
+            exit 0
+          fi
+
+          echo "::error::Guarded auto-merge failed and exact-head merged readback was not proven for PR ${PR_NUMBER}: expected_head=${pr_head_sha}, readback_head=${readback_head_sha}, base=${readback_base_ref}, merged_at=${readback_merged_at:-none}, merge_commit=${readback_merge_commit_sha:-none}."
+          exit "${merge_rc}"
