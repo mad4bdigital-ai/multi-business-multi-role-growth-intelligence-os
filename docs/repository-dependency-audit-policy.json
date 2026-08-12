@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "contract": "mad4b.repository-dependency-audit-policy.v1",
+  "ciNetworkAuditRequired": true,
+  "auditCommand": "npm audit --json --omit=dev",
+  "lockfiles": [
+    "package-lock.json",
+    "http-generic-api/package-lock.json"
+  ],
+  "failurePolicy": "A non-zero audit result or advisory findings fail the Repository Evaluation workflow; the deterministic local mode records that CI owns the network probe.",
+  "owner": "platform-governance",
+  "secrets_included": false
+}

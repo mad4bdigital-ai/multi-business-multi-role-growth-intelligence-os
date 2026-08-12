@@ -270,6 +270,32 @@ const mutatingToolFindings = await evaluate(
 assert(mutatingToolFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
 assert(mutatingToolFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
 
+const gatedReleaseWorkflow = ".github/workflows/gated-release-writer.yml";
+const gatedReleaseFindings = await evaluate(
+  [{ status: "A", path: gatedReleaseWorkflow }],
+  {
+    [gatedReleaseWorkflow]: `
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    permissions:
+      contents: read
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - run: gh release upload latest artifact.exe
+`,
+  },
+);
+assert(!gatedReleaseFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
 const writeAllWorkflow = ".github/workflows/write-all-pr.yml";
 const writeAllFindings = await evaluate(
   [{ status: "A", path: writeAllWorkflow }],
