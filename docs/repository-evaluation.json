@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "0cc65f115c67d65d95daa4ea0f9e5606358133f2a543c5ca4d223eaca5dcd086",
+  "inputFingerprint": "90be8153d0566d3ab1149fb886d6768545c8e32aba21e25a2eea28393768ee3c",
   "inventory": {
     "files": 6648,
-    "bytes": 58557838,
+    "bytes": 58559549,
     "directories": 251,
     "categories": 13
   },
@@ -171,7 +171,7 @@
     "warningGapIds": []
   },
   "baselineDiff": {
-    "available": true,
+    "available": false,
     "newGapIds": [],
     "persistingGapIds": [],
     "unchangedGapIds": [],
