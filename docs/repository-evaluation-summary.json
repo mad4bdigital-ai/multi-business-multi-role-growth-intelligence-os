@@ -9,7 +9,7 @@
     "warningGapIds": []
   },
   "baselineDiff": {
-    "available": false,
+    "available": true,
     "newGapIds": [],
     "persistingGapIds": [],
     "unchangedGapIds": [],
