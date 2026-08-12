@@ -49,7 +49,8 @@
     "scripts/repository-inventory-rules.mjs",
     "scripts/repository-inventory-fixtures.json",
     "scripts/test-repository-inventory.mjs",
-    "package.json"
+    "package.json",
+    "specs/**/work-map-integration.json"
   ],
   "ignored_patterns": [
     ".gitignore",
