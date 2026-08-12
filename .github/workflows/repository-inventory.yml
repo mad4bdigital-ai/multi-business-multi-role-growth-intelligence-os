@@ -51,7 +51,7 @@ jobs:
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
 
       - name: Checkout exact source revision
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v5.1.0
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -71,9 +71,9 @@ jobs:
           test "$remote_sha" = "$EXPECTED_HEAD_SHA"
 
       - name: Setup Node.js
-        uses: actions/setup-node@93c42d7a5c0f7d0548b303c4e262dab1e85c38ac # v6.3.0
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: "22"
+          node-version-file: '.nvmrc'
           cache: npm
 
       - name: Install root dependencies
@@ -108,7 +108,7 @@ jobs:
 
       - name: Upload inventory artifacts
         if: always()
-        uses: actions/upload-artifact@b7c16380c3bd7d3c24ee01cb236c66f44182ec2e # v4.7.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: repository-inventory-${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.sha }}
           path: |

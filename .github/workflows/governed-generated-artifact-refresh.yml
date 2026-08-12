@@ -64,14 +64,14 @@ jobs:
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
 
       - name: Checkout exact expected head
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v5.1.0
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ inputs.expected_head_sha }}
           fetch-depth: 0
           persist-credentials: true
 
       - name: Setup Node
-        uses: actions/setup-node@93c42d7a5c0f7d0548b303c4e262dab1e85c38ac # v6.3.0
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: npm
@@ -139,7 +139,7 @@ jobs:
 
       - name: Upload canonical refresh report
         if: always()
-        uses: actions/upload-artifact@b7c16380c3bd7d3c24ee01cb236c66f44182ec2e # v4.7.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: governed-generated-artifact-refresh-${{ github.run_id }}
           path: ${{ env.OUTPUT_DIR }}/
