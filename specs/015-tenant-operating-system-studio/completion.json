@@ -51,7 +51,7 @@
   "portfolio_scan": {
     "status": "base_snapshot_complete_with_live_delta_pending_exact_head_ci",
     "observed_at": "2026-08-01T15:48:00Z",
-    "main_sha": "33f1861f9cb93351e348d191894077f087c35ddd",
+    "main_sha": "047c255ded8366ae2c2b39e6a3051c93a21f7a34",
     "registry": "draft-spec-portfolio.json",
     "human_review": "draft-spec-portfolio.md",
     "schema": "contracts/draft-spec-portfolio.schema.json",

@@ -6,7 +6,7 @@ This matrix executes the **read-only, local-safe** portion of Spec 015 T002–T0
 
 > This is an audit artifact. It does not create a package registry, installation compiler, persistence authority, provider binding, migration, delegation grant, or Production readback.
 
-The snapshot is anchored to `origin/main` at `33f1861f9cb93351e348d191894077f087c35ddd`. Secrets are excluded, no mutation was executed, and candidate PRs remain read-only evidence sources.
+The snapshot is anchored to `origin/main` at `047c255ded8366ae2c2b39e6a3051c93a21f7a34`. Secrets are excluded, no mutation was executed, and candidate PRs remain read-only evidence sources.
 
 ## Field-level reuse matrix
 
