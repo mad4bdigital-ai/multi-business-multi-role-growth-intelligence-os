@@ -1,0 +1,12 @@
+[
+  {"path":"tests/unit/example.test.ts","category":"tests-and-specs","extension":".ts"},
+  {"path":"http-generic-api/test-runtime.mjs","category":"tests-and-specs","extension":".mjs"},
+  {"path":"specs/010-platform/contract.md","category":"tests-and-specs","extension":".md"},
+  {"path":"docs/architecture-guide.md","category":"documentation","extension":".md"},
+  {"path":"http-generic-api/migrations/001_init.sql","category":"database-migrations","extension":".sql"},
+  {"path":"http-generic-api/openapi/routes.yaml","category":"api-contracts","extension":".yaml"},
+  {"path":".github/workflows/ci.yml","category":"ci-workflows","extension":".yml"},
+  {"path":"http-generic-api/schema.sql","category":"schemas-and-data","extension":".sql"},
+  {"path":"apps/local-manager/Program.cs","category":"applications","extension":".cs"},
+  {"path":"README","category":"root-and-other","extension":"[no extension]"}
+]
