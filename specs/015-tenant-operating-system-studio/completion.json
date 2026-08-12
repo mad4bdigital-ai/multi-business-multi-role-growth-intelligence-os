@@ -1,0 +1,216 @@
+{
+  "schema_version": 1,
+  "feature_key": "015-tenant-operating-system-studio",
+  "delivery_mode": "multi_pr",
+  "status": "in_progress",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "handover_continuity": true,
+    "reference_package_validation": true,
+    "draft_spec_portfolio_governance": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": 4456,
+      "branch": "gpt/spec-015-tenant-operating-system-studio-20260801",
+      "role": "convergence_specification",
+      "status": "open_draft"
+    },
+    "implementation_prs": [],
+    "reference_package_prs": [],
+    "closeout_pr": null
+  },
+  "specification": {
+    "complete": true,
+    "review_state": "draft",
+    "file_count_expected": 34,
+    "file_count_recorded": 34,
+    "functional_requirements": 74,
+    "non_functional_requirements": 15,
+    "success_criteria": 12,
+    "user_scenarios": 8,
+    "operation_paths": 16,
+    "acceptance_cases": 50,
+    "risks": 25,
+    "tasks": 74,
+    "e2e_phase_contract": "e2e-phases.json",
+    "implemented_spec_e2e_journeys": 1,
+    "completed_phase0_tasks": ["T001", "T004", "T005", "T007", "T009"]
+  },
+  "convergence": {
+    "candidate_prs": [3922, 4432],
+    "classification_contract": "candidate-convergence.json",
+    "status": "classified_pending_review",
+    "candidate_pr_comments_added": true,
+    "duplicate_spec_identity_resolved": false,
+    "current_main_reconstruction_started": false,
+    "candidate_branches_merged": false
+  },
+  "portfolio_scan": {
+    "status": "base_snapshot_complete_with_live_delta_pending_exact_head_ci",
+    "observed_at": "2026-08-01T15:48:00Z",
+    "main_sha": "464c11803d8cb84ba39863c5e55e05f30dbca8da",
+    "registry": "draft-spec-portfolio.json",
+    "human_review": "draft-spec-portfolio.md",
+    "schema": "contracts/draft-spec-portfolio.schema.json",
+    "open_draft_specs_reviewed": 12,
+    "related_open_drafts_reviewed": 22,
+    "total_open_drafts_classified": 34,
+    "duplicate_numeric_identities": [11, 14],
+    "duplicate_feature_clusters": ["013-system-tool-catalog-v2"],
+    "implementation_trains_registered": [
+      "operation-fabric-stack",
+      "hostinger-storage-workstreams",
+      "system-tool-catalog-v2-reconciliation",
+      "chatgpt-mcp-integration"
+    ],
+    "new_primary_specs_added_after_initial_scan": [4460],
+    "new_implementation_children_added_after_initial_scan": [4462],
+    "truthfulness_findings_recorded": true,
+    "all_base_snapshot_open_drafts_classified": true,
+    "field_level_reuse_matrices_complete": false,
+    "canonical_paths_finalized": false,
+    "close_or_supersede_actions_executed": false
+  },
+  "portfolio_live_delta": {
+    "status": "registered_pending_exact_head_ci",
+    "registry": "draft-spec-portfolio-live-delta.json",
+    "human_review": "draft-spec-portfolio-live-delta.md",
+    "schema": "contracts/draft-spec-portfolio-live-delta.schema.json",
+    "validator": "tools/validate-portfolio-live-delta.mjs",
+    "base_observed_at": "2026-08-01T15:48:00Z",
+    "delta_observed_at": "2026-08-01T15:57:00Z",
+    "added_pull_requests": [4464],
+    "added_related_open_drafts": 1,
+    "current_primary_draft_specs": 12,
+    "current_related_open_drafts": 23,
+    "current_total_open_drafts_classified": 35,
+    "updated_delivery_trains": ["hostinger-storage-workstreams"],
+    "all_current_observed_open_drafts_classified": true
+  },
+  "verification": {
+    "json_parse": "pending_final_head_ci_after_live_delta",
+    "schema_contract_structure": "pending_final_head_ci_after_live_delta",
+    "openapi_contract_structure": "pending_final_head_ci_after_live_delta",
+    "manifest_inventory": "pending_final_head_ci_after_live_delta",
+    "portfolio_base_contract": "pending_final_head_ci_after_live_delta",
+    "portfolio_live_delta_contract": "pending_final_head_ci_after_live_delta",
+    "e2e_phase_contract": "pending_final_head_ci_after_live_delta",
+    "spec_local_contract_integrity": "pending_final_head_ci_after_live_delta",
+    "repository_ci": "pending_final_head_ci_after_live_delta",
+    "e2e_phase_governance": "pending_final_head_ci_after_live_delta",
+    "docs_agent": "pending_final_head_ci_after_live_delta",
+    "repository_tool_lifecycle_governance": "pending_final_head_ci_after_live_delta",
+    "platform_remaining_scope_scorecard": "pending_final_head_ci_after_live_delta",
+    "platform_completion_cleanup_readback": "pending_final_head_ci_after_live_delta",
+    "work_map_review": "pending_pr_review",
+    "traceability_review": "pending_pr_review",
+    "architecture_review": "pending_pr_review",
+    "security_review": "pending_pr_review",
+    "agency_client_ownership_review": "pending_pr_review",
+    "portfolio_disposition_review": "pending_pr_review",
+    "external_integration_review": "pending_pr_review"
+  },
+  "implementation": {
+    "started": false,
+    "package_registry_implemented": false,
+    "installation_compiler_implemented": false,
+    "custom_entities_implemented": false,
+    "forms_and_client_links_implemented": false,
+    "tenant_lifecycles_implemented": false,
+    "file_policy_components_implemented": false,
+    "ai_authoring_implemented": false,
+    "generated_surfaces_implemented": false,
+    "agency_delegation_productized": false,
+    "portability_and_handover_implemented": false,
+    "migrations_applied": false,
+    "runtime_deployed": false,
+    "provider_write_performed": false,
+    "external_send_performed": false,
+    "production_activated": false
+  },
+  "reference_packages": {
+    "evidence_intelligence": {
+      "source_pr": 4432,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.evidence_intelligence_operations"
+    },
+    "retail_commerce": {
+      "source_pr": 3922,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.retail_commerce_operations"
+    },
+    "hostinger_storage": {
+      "source_pr": 4386,
+      "related_open_workstreams": [4455, 4464],
+      "status": "integration_rollup_not_reconstructed_as_package",
+      "target_package_key": "platform.reference.hostinger_storage_operations"
+    },
+    "local_connector_recovery": {
+      "source_pr": 2385,
+      "status": "not_reconstructed",
+      "target_package_key": "platform.reference.local_connector_recovery"
+    }
+  },
+  "external_surfaces": {
+    "chatgpt_mcp": {
+      "source_pr": 4460,
+      "implementation_prs": [4462],
+      "status": "specification_and_read_only_adapter_draft",
+      "authority_posture": "transport_and_tool_projection_only"
+    }
+  },
+  "required_closeout_evidence": [
+    "field_level_current_main_reuse_matrix",
+    "canonical_spec_identity_resolution",
+    "draft_spec_portfolio_disposition_review",
+    "truthful_completion_ledger_reconciliation",
+    "system_tool_catalog_single_canonical_resolution",
+    "external_mcp_tool_projection_and_authority_review",
+    "package_and_component_registry_runtime",
+    "installation_compiler_determinism",
+    "custom_entity_and_lifecycle_runtime",
+    "forms_client_links_and_file_policy_runtime",
+    "ai_draft_only_and_manual_fallback",
+    "generated_surface_authority_and_accessibility",
+    "two_client_brand_isolation",
+    "client_owned_tenant_delegation_and_revocation",
+    "handover_continuity",
+    "reference_package_validation",
+    "migration_apply_and_readback",
+    "backup_restore_and_rollback_rehearsal",
+    "production_canary_and_parity",
+    "post_merge_audit"
+  ],
+  "blocking_reasons": [
+    "work_map_and_architecture_review_pending",
+    "field_level_reuse_matrix_missing",
+    "duplicate_spec_011_identity_not_resolved",
+    "duplicate_spec_014_identity_not_resolved",
+    "duplicate_feature_013_reconciliation_not_resolved",
+    "stale_completion_ledgers_require_reconciliation",
+    "open_related_draft_dispositions_not_approved",
+    "hostinger_repository_provenance_workstream_pending_ci",
+    "package_registry_mapping_open",
+    "custom_entity_persistence_open",
+    "candidate_pr_reconstruction_not_started",
+    "chatgpt_mcp_oauth_tool_catalog_and_public_endpoint_gates_open"
+  ],
+  "notes": [
+    "Specification completion does not authorize implementation, candidate PR merge, migration, provider execution, or Production activation.",
+    "Feature key plus canonical role is the portfolio identity; numeric Spec numbers are not unique authorities.",
+    "The immutable base snapshot classifies 34 Draft PRs as 12 primary Specs and 22 related delivery/repair PRs.",
+    "The append-only live delta adds PR 4464, producing a current classified total of 35 Draft PRs and 23 related Drafts.",
+    "Spec 006 remains workflow/runtime authority; current Spec 011 remains dynamic control-plane authority; Spec 012 remains context authority.",
+    "PRs 3922, 4386, and 4432 are bounded package or service sources, not competing universal parent Specs.",
+    "PRs 2949 and 2950 have distinct subsystem and tenant-application roles and must not compete for numeric Spec 011 identity.",
+    "PRs 3139, 3145, and 3159 form one unresolved System Tool Catalog v2 feature cluster.",
+    "PR 4460 is the canonical external ChatGPT/MCP integration specification and PR 4462 is its first read-only implementation child; neither creates independent execution authority.",
+    "PR 4464 is a Hostinger repository-provenance workstream correction and does not create a new Spec or execution authority.",
+    "The MVP E2E journey validates specification, base portfolio, and live delta contracts only and grants no runtime mutation authority.",
+    "Status remains in_progress until portfolio decisions, runtime, isolation, handover, migration, Production, rollback, and post-merge evidence are complete."
+  ],
+  "secrets_included": false
+}

@@ -1,0 +1,259 @@
+{
+  "schema_version": 1,
+  "feature_key": "015-tenant-operating-system-studio",
+  "review_state": "draft",
+  "registry": {
+    "fingerprint": "f282e53d6620e906ca48ff703e2e0b65c5fde6b10d20194b596c2bd2e687f235",
+    "index_source_hash": "752bc2ef9ed7417689f1644ab9b492009fa4611a2c91e4bf0d2ddf0326d25073",
+    "coverage_source_hash": "0cdfc494f247174aa8badfb019a7ce3aec1df42173f69b0f870ea9d55012159f",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "integrate",
+      "rationale": "Package authoring, installation, client links, agency delegation, review, publication, and activation require existing access and activation authority.",
+      "owner": "platform-team",
+      "integration_points": ["package authoring access", "client links", "agency delegation", "installation activation"],
+      "requirement_refs": ["FR-020", "FR-021", "FR-049", "FR-054", "FR-063", "FR-065"],
+      "task_refs": ["T016", "T041", "T061", "T063", "T071", "T072"],
+      "acceptance_refs": ["AC-010", "AC-011", "AC-012", "AC-020", "AC-032"],
+      "evidence_refs": ["docs/work-maps/activation-access-map.md", "agency-client-ownership.md"],
+      "depends_on": ["policy-authority-map", "platform-resource-graph-map"]
+    },
+    "activation-onboarding-map": {
+      "decision": "integrate",
+      "rationale": "The Studio extends onboarding with Business Profile discovery, package recommendation, configuration requirements, readiness, sample data, and activation gates.",
+      "owner": "platform-team",
+      "integration_points": ["profile discovery", "package recommendation", "installation readiness", "client setup"],
+      "requirement_refs": ["FR-049", "FR-051", "FR-053", "FR-054"],
+      "task_refs": ["T024", "T026", "T061", "T063"],
+      "acceptance_refs": ["AC-008", "AC-030", "AC-031", "AC-032"],
+      "evidence_refs": ["docs/work-maps/activation-onboarding-map.md", "operation-paths.md"],
+      "depends_on": ["activation-access-map", "workflow-task-orchestration-map"]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "integrate",
+      "rationale": "AI authoring and package operational AI use existing governed agent, skill, prompt, model, and plugin eligibility boundaries.",
+      "owner": "platform-team",
+      "integration_points": ["AI authoring assistant", "AI use-case components", "tenant-eligible skills", "no autonomous authority"],
+      "requirement_refs": ["FR-035", "FR-036", "FR-037", "FR-038", "FR-039"],
+      "task_refs": ["T050", "T051", "T052"],
+      "acceptance_refs": ["AC-014", "AC-015"],
+      "evidence_refs": ["docs/work-maps/agent-skill-plugin-map.md", "architecture.md#9-ai-architecture"],
+      "depends_on": ["connector-provider-map", "policy-authority-map"]
+    },
+    "asset-package-map": {
+      "decision": "extend",
+      "rationale": "Solution Packages and components extend existing asset definitions, versions, publications, installations, overrides, extensions, forks, files, and package lifecycle authority.",
+      "owner": "platform-team",
+      "integration_points": ["package catalog", "component catalog", "package versions", "installation revisions", "file policies", "export and fork"],
+      "requirement_refs": ["FR-001", "FR-003", "FR-008", "FR-011", "FR-030", "FR-045", "FR-059", "FR-060"],
+      "task_refs": ["T010", "T011", "T012", "T013", "T014", "T043", "T060", "T074"],
+      "acceptance_refs": ["AC-001", "AC-002", "AC-003", "AC-036", "AC-037", "AC-048"],
+      "evidence_refs": ["docs/work-maps/asset-package-map.md", "data-model.md", "contracts/solution-package.schema.json"],
+      "depends_on": ["platform-resource-graph-map", "data-model-domain-map"]
+    },
+    "commercial-usage-map": {
+      "decision": "integrate",
+      "rationale": "Package publication rights, shared-package usage, quotas, schedules, AI/provider costs, support terms, and client/agency billing attribution require commercial-usage integration.",
+      "owner": "platform-team",
+      "integration_points": ["publication terms", "package usage attribution", "AI/provider cost", "tenant quotas", "support lifecycle"],
+      "requirement_refs": ["FR-046", "FR-069", "NFR-011"],
+      "task_refs": ["T012", "T051", "T060", "T095"],
+      "acceptance_refs": ["AC-040", "AC-049"],
+      "evidence_refs": ["docs/work-maps/commercial-usage-map.md", "concerns.md#c-020--cost-and-quota-abuse"],
+      "depends_on": ["observability-release-map", "policy-authority-map"]
+    },
+    "connector-provider-map": {
+      "decision": "integrate",
+      "rationale": "Packages declare connection requirements but all provider readiness, credentials, dispatch, callbacks, reconciliation, and readback remain in existing connector/provider authorities.",
+      "owner": "platform-team",
+      "integration_points": ["connection requirement components", "installation bindings", "provider certification", "unknown outcome", "handover inventory"],
+      "requirement_refs": ["FR-009", "FR-027", "FR-031", "FR-037", "FR-050", "FR-051", "FR-060"],
+      "task_refs": ["T022", "T043", "T051", "T063", "T074"],
+      "acceptance_refs": ["AC-023", "AC-024", "AC-025", "AC-030", "AC-037"],
+      "evidence_refs": ["docs/work-maps/connector-provider-map.md", "architecture.md"],
+      "depends_on": ["policy-authority-map", "platform-resource-graph-map"]
+    },
+    "data-model-domain-map": {
+      "decision": "extend",
+      "rationale": "Package, component, installation, custom entity, form, lifecycle, UI, report, export, and handover logical entities require field-level classification before migrations.",
+      "owner": "platform-team",
+      "integration_points": ["package and component entities", "installation revisions", "custom entities", "forms", "lifecycles", "portability"],
+      "requirement_refs": ["FR-001", "FR-008", "FR-014", "FR-019", "FR-024", "FR-040", "FR-060"],
+      "task_refs": ["T003", "T007", "T011", "T013", "T020", "T030", "T040", "T053", "T074"],
+      "acceptance_refs": ["AC-001", "AC-016", "AC-017", "AC-047", "AC-048"],
+      "evidence_refs": ["docs/work-maps/data-model-domain-map.md", "data-model.md"],
+      "depends_on": ["migration-lifecycle-map", "platform-resource-graph-map"]
+    },
+    "delivery-support-map": {
+      "decision": "integrate",
+      "rationale": "Package installation, client operation, degraded states, upgrade, support, handover, portability, and retirement require existing delivery and support workflows.",
+      "owner": "platform-team",
+      "integration_points": ["installation support", "degraded package", "upgrade support", "handover", "retirement"],
+      "requirement_refs": ["FR-056", "FR-060", "FR-061", "FR-062", "FR-068"],
+      "task_refs": ["T064", "T065", "T074", "T075", "T076"],
+      "acceptance_refs": ["AC-034", "AC-035", "AC-038", "AC-039"],
+      "evidence_refs": ["docs/work-maps/delivery-support-map.md", "lifecycle-contracts.md"],
+      "depends_on": ["workflow-task-orchestration-map", "execution-log-evidence-map"]
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "Authoring, compilation, validation, publication, installation, activation, transition, upgrade, rollback, export, delegation, and handover each require distinct no-secret evidence.",
+      "owner": "platform-team",
+      "integration_points": ["compiler evidence", "acceptance evidence", "activation readback", "upgrade and rollback evidence", "handover readback"],
+      "requirement_refs": ["FR-025", "FR-053", "FR-054", "FR-058", "FR-060", "FR-071", "FR-074"],
+      "task_refs": ["T015", "T025", "T062", "T063", "T064", "T065", "T074", "T097"],
+      "acceptance_refs": ["AC-002", "AC-029", "AC-032", "AC-035", "AC-040", "AC-050"],
+      "evidence_refs": ["docs/work-maps/execution-log-evidence-map.md", "testing-strategy.md#13-evidence-requirements"],
+      "depends_on": ["observability-release-map", "workflow-task-orchestration-map"]
+    },
+    "migration-lifecycle-map": {
+      "decision": "extend",
+      "rationale": "Custom entity schemas, package registries, installation revisions, compatibility changes, imports, upgrades, and retirements require additive migrations and lifecycle registration.",
+      "owner": "platform-team",
+      "integration_points": ["registry migrations", "custom entity compatibility", "package upgrade migration", "database lifecycle registry", "rollback"],
+      "requirement_refs": ["FR-018", "FR-057", "FR-058", "FR-061", "FR-062", "FR-074"],
+      "task_refs": ["T003", "T032", "T064", "T065", "T096"],
+      "acceptance_refs": ["AC-017", "AC-034", "AC-035", "AC-050"],
+      "evidence_refs": ["docs/work-maps/migration-lifecycle-map.md", "plan.md#migration-posture"],
+      "depends_on": ["data-model-domain-map", "observability-release-map"]
+    },
+    "observability-release-map": {
+      "decision": "integrate",
+      "rationale": "Package health, compiler failures, installation drift, client isolation, provider readiness, acceptance, canary, rollback, handover, and Production parity require explicit observability and release governance.",
+      "owner": "platform-team",
+      "integration_points": ["package and installation health", "drift and reconciliation", "pilot/canary", "rollback", "production closeout"],
+      "requirement_refs": ["FR-054", "FR-062", "FR-069", "FR-071", "FR-072", "FR-074"],
+      "task_refs": ["T062", "T063", "T066", "T090", "T095", "T096", "T097"],
+      "acceptance_refs": ["AC-031", "AC-032", "AC-040", "AC-041", "AC-049", "AC-050"],
+      "evidence_refs": ["docs/work-maps/observability-release-map.md", "checklists/release-readiness.md"],
+      "depends_on": ["execution-log-evidence-map", "commercial-usage-map"]
+    },
+    "platform-resource-graph-map": {
+      "decision": "integrate",
+      "rationale": "Packages, installations, components, entities, files, providers, clients, delegations, ownership, and UI targets require canonical typed resources and relationships.",
+      "owner": "platform-team",
+      "integration_points": ["package ownership", "installation target", "component and entity resources", "delegation", "handover"],
+      "requirement_refs": ["FR-001", "FR-006", "FR-014", "FR-031", "FR-049", "FR-060", "FR-063", "FR-065"],
+      "task_refs": ["T010", "T020", "T030", "T043", "T070", "T071", "T074"],
+      "acceptance_refs": ["AC-008", "AC-009", "AC-010", "AC-011", "AC-013"],
+      "evidence_refs": ["docs/work-maps/platform-resource-graph-map.md", "agency-client-ownership.md"],
+      "depends_on": ["policy-authority-map", "data-model-domain-map"]
+    },
+    "platform-runtime-map": {
+      "decision": "reuse",
+      "rationale": "Reuse the stable runtime kernel for context, authorization, workflows, lifecycles, state, idempotency, outbox, callbacks, retries, compensation, readback, audit, and rollback.",
+      "owner": "platform-team",
+      "integration_points": ["package compiler application service", "lifecycle runtime", "workflow runtime", "installation operations"],
+      "requirement_refs": ["FR-024", "FR-025", "FR-026", "FR-027", "FR-054", "FR-058"],
+      "task_refs": ["T023", "T033", "T034", "T035", "T063", "T065"],
+      "acceptance_refs": ["AC-021", "AC-022", "AC-023", "AC-024", "AC-032", "AC-035"],
+      "evidence_refs": ["docs/work-maps/platform-runtime-map.md", "architecture.md#2-stable-kernel-versus-tenant-authored-data"],
+      "depends_on": ["workflow-task-orchestration-map", "policy-authority-map"]
+    },
+    "policy-authority-map": {
+      "decision": "integrate",
+      "rationale": "Component eligibility, mandatory policy, publication, client links, delegation, sensitivity, AI, files, activation, upgrades, export, handover, and deletion all require existing policy and approval authority.",
+      "owner": "platform-team",
+      "integration_points": ["component eligibility", "mandatory package policy", "publication approval", "delegation", "AI and file policy", "handover"],
+      "requirement_refs": ["FR-007", "FR-021", "FR-028", "FR-036", "FR-046", "FR-054", "FR-060", "FR-065"],
+      "task_refs": ["T012", "T015", "T041", "T052", "T060", "T063", "T072", "T074"],
+      "acceptance_refs": ["AC-006", "AC-007", "AC-012", "AC-014", "AC-032", "AC-037"],
+      "evidence_refs": ["docs/work-maps/policy-authority-map.md", "checklists/security.md"],
+      "depends_on": ["platform-resource-graph-map", "execution-log-evidence-map"]
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "Package development assurance, exact candidate evidence, candidate PR extraction, contract validation, generated artifacts, and truthful completion reuse repository automation without granting runtime authority.",
+      "owner": "platform-team",
+      "integration_points": ["package contract validation", "work packets", "candidate convergence", "exact candidate evidence", "completion gates"],
+      "requirement_refs": ["FR-069", "FR-071", "FR-073", "FR-074"],
+      "task_refs": ["T001", "T004", "T005", "T006", "T082", "T085", "T097"],
+      "acceptance_refs": ["AC-040", "AC-045", "AC-046", "AC-047", "AC-050"],
+      "evidence_refs": ["docs/work-maps/repository-automation-map.md", "candidate-convergence.json"],
+      "depends_on": ["repository-development-map", "execution-log-evidence-map"]
+    },
+    "repository-development-map": {
+      "decision": "integrate",
+      "rationale": "Spec 015 and its child PR sequence define bounded current-main reconstruction, allowed change surfaces, tests, migration posture, and closeout.",
+      "owner": "platform-team",
+      "integration_points": ["child PR sequence", "current-main reconstruction", "candidate branch evidence", "reference package extraction"],
+      "requirement_refs": ["FR-069", "FR-073", "FR-074"],
+      "task_refs": ["T001", "T002", "T003", "T004", "T005", "T006", "T080", "T081", "T082", "T083", "T084", "T085"],
+      "acceptance_refs": ["AC-045", "AC-046", "AC-047", "AC-048", "AC-050"],
+      "evidence_refs": ["docs/work-maps/repository-development-map.md", "plan.md", "tasks.md"],
+      "depends_on": ["repository-automation-map", "observability-release-map"]
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "Conversation memory may assist drafting but cannot provide package scope, client ownership, authority, installation context, or durable runtime facts.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": ["docs/work-maps/session-memory-map.md", "spec.md#3-non-goals"],
+      "non_applicability_evidence": ["All durable package and installation context is explicit, versioned, and scope-bound."],
+      "depends_on": []
+    },
+    "work-map-coverage-matrix": {
+      "decision": "reuse",
+      "rationale": "Reuse the generated coverage matrix and schema classification registry to classify every new logical entity and prevent uncategorized package runtime state.",
+      "owner": "platform-team",
+      "integration_points": ["field-level reuse matrix", "schema classification", "zero uncategorized gate"],
+      "requirement_refs": ["FR-014", "FR-074"],
+      "task_refs": ["T003", "T007", "T030", "T040", "T053", "T074"],
+      "acceptance_refs": ["AC-016", "AC-047", "AC-048"],
+      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", ".specify/work-map-schema-classification-registry.json"],
+      "depends_on": ["data-model-domain-map"]
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "integrate",
+      "rationale": "Package authoring, validation, publication, installation, acceptance, lifecycle, upgrades, rollback, delegation, handover, and reference-pack reconstruction are typed workflows and tasks.",
+      "owner": "platform-team",
+      "integration_points": ["package authoring workflow", "installation workflow", "lifecycle transitions", "upgrade and rollback", "handover", "implementation tasks"],
+      "requirement_refs": ["FR-024", "FR-026", "FR-054", "FR-056", "FR-058", "FR-060", "FR-069"],
+      "task_refs": ["T001", "T023", "T033", "T061", "T062", "T063", "T064", "T065", "T074", "T080", "T083"],
+      "acceptance_refs": ["AC-021", "AC-022", "AC-032", "AC-033", "AC-034", "AC-035", "AC-040"],
+      "evidence_refs": ["docs/work-maps/workflow-task-orchestration-map.md", "operation-paths.md", "tasks.md"],
+      "depends_on": ["platform-runtime-map", "execution-log-evidence-map"]
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-049", "FR-051", "FR-054"], "task_refs": ["T024", "T061", "T063"] },
+    "agents-and-intelligence": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-035", "FR-036", "FR-037", "FR-038"], "task_refs": ["T050", "T051", "T052"] },
+    "assets-and-packages": { "decision": "extend", "owner": "platform-team", "requirement_refs": ["FR-001", "FR-008", "FR-045"], "task_refs": ["T010", "T011", "T013", "T060"] },
+    "brand-and-business": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-049", "FR-063", "FR-067"], "task_refs": ["T020", "T070", "T071"] },
+    "commercial-and-usage": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-046", "FR-069"], "task_refs": ["T012", "T060", "T095"] },
+    "connectors-and-providers": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-031", "FR-037", "FR-050"], "task_refs": ["T022", "T043", "T051"] },
+    "delivery-and-support": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-060", "FR-061", "FR-062"], "task_refs": ["T065", "T074", "T075"] },
+    "execution-and-evidence": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-025", "FR-054", "FR-071", "FR-074"], "task_refs": ["T025", "T063", "T097"] },
+    "governance-and-authority": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-007", "FR-028", "FR-054", "FR-065"], "task_refs": ["T015", "T063", "T072"] },
+    "migrations-and-lifecycle": { "decision": "extend", "owner": "platform-team", "requirement_refs": ["FR-018", "FR-057", "FR-058"], "task_refs": ["T032", "T064", "T065"] },
+    "observability-and-release": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-069", "FR-071", "FR-074"], "task_refs": ["T090", "T095", "T096", "T097"] },
+    "platform-resources-and-graph": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-006", "FR-014", "FR-049", "FR-065"], "task_refs": ["T010", "T020", "T030", "T070"] },
+    "repository-and-development": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-069", "FR-073", "FR-074"], "task_refs": ["T001", "T004", "T005", "T080", "T083"] },
+    "runtime-and-operations": { "decision": "reuse", "owner": "platform-team", "requirement_refs": ["FR-024", "FR-026", "FR-054", "FR-058"], "task_refs": ["T023", "T033", "T063", "T065"] },
+    "tenancy-and-identity": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-049", "FR-063", "FR-064", "FR-065"], "task_refs": ["T020", "T070", "T071", "T072"] },
+    "workflow-and-tasks": { "decision": "integrate", "owner": "platform-team", "requirement_refs": ["FR-024", "FR-026", "FR-056", "FR-060"], "task_refs": ["T033", "T061", "T064", "T074"] }
+  },
+  "implementation_readiness": {
+    "status": "blocked",
+    "ready_for_implementation": false,
+    "blocking_reasons": [
+      "field_level_current_main_reuse_matrix_missing",
+      "duplicate_spec_014_identity_not_resolved",
+      "candidate_pr_3922_extraction_not_reconstructed",
+      "candidate_pr_4432_extraction_not_reconstructed",
+      "custom_entity_persistence_decision_open",
+      "package_registry_mapping_decision_open",
+      "work_map_review_pending"
+    ],
+    "next_ready_slice": "T001-T008_convergence_and_classification"
+  },
+  "secrets_included": false
+}
