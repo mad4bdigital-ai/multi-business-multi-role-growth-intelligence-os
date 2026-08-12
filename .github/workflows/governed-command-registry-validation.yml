@@ -1,0 +1,41 @@
+name: Governed Command Registry Validation
+
+on:
+  pull_request:
+    paths:
+      - '.github/contracts/governed-command-registry.v1.json'
+      - '.github/contracts/governed-command-parameters/**'
+      - '.github/scripts/governed-command-core.mjs'
+      - '.github/scripts/validate-governed-command-registry.mjs'
+      - '.github/scripts/resolve-governed-command.mjs'
+      - '.github/tests/governed-command-gateway.test.mjs'
+      - '.github/workflows/governed-command-gateway.yml'
+      - '.github/workflows/governed-command-registry-validation.yml'
+      - 'docs/governed-command-gateway.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Validate registry, schemas, adapters, and fail-closed invariants
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate registry contract
+        run: node .github/scripts/validate-governed-command-registry.mjs
+
+      - name: Run gateway contract tests
+        run: node --test .github/tests/governed-command-gateway.test.mjs

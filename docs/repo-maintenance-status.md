@@ -66,6 +66,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
+- `.github/workflows/docs-agent-main-followup.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/e2e-contract-reference-integrity.yml`
@@ -80,6 +81,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
 - `.github/workflows/governance-db-privilege-readiness.yml`
+- `.github/workflows/governed-command-gateway.yml`
+- `.github/workflows/governed-command-registry-validation.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`

@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6598,
-    "bytes": 57929383,
-    "lines": 1357235,
-    "directories": 248,
+    "files": 6608,
+    "bytes": 57973122,
+    "lines": 1358389,
+    "directories": 249,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 1974,
-      "documentation": 1822,
+      "documentation": 1823,
       "api-runtime": 1322,
       "database-migrations": 767,
       "root-and-other": 211,
+      "ci-workflows": 149,
       "api-contracts": 147,
-      "ci-workflows": 147,
-      "ci-config": 86,
+      "ci-config": 93,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2420,
-      ".mjs": 1510,
+      ".md": 2421,
+      ".mjs": 1514,
       ".js": 925,
       ".sql": 782,
-      ".json": 636,
-      ".yml": 149,
+      ".json": 639,
+      ".yml": 151,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -56,9 +56,9 @@
     },
     "topLevel": {
       "http-generic-api": 3418,
-      "docs": 1728,
+      "docs": 1729,
       "specs": 807,
-      ".github": 233,
+      ".github": 242,
       ".changes": 209,
       "canonicals": 70,
       "local-connector": 23,
@@ -111,6 +111,7 @@
     ".changes/e2e",
     ".github",
     ".github/contracts",
+    ".github/contracts/governed-command-parameters",
     ".github/contracts/spec014",
     ".github/contracts/spec014/deferred-schema",
     ".github/contracts/spec014/migrations",
@@ -471,6 +472,8 @@
       ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
       ".github/workflows/github-repository-policy-1051-governed-rollout.yml",
       ".github/workflows/governance-db-privilege-readiness.yml",
+      ".github/workflows/governed-command-gateway.yml",
+      ".github/workflows/governed-command-registry-validation.yml",
       ".github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml",
       ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
@@ -1513,6 +1516,7 @@
     "tests": [
       ".github/ops/spec014-wave1-apply.mjs",
       ".github/ops/spec014-wave1-runtime-readiness.mjs",
+      ".github/tests/governed-command-gateway.test.mjs",
       ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs",
       ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
       ".github/tests/spec014/tenant-canary-repository-provenance.mjs",
@@ -3551,6 +3555,7 @@
     "testSpecFiles": [
       ".github/ops/spec014-wave1-apply.mjs",
       ".github/ops/spec014-wave1-runtime-readiness.mjs",
+      ".github/tests/governed-command-gateway.test.mjs",
       ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs",
       ".github/tests/spec014/hostinger-tenant-canary-main-bootstrap.mjs",
       ".github/tests/spec014/tenant-canary-repository-provenance.mjs",
@@ -7921,6 +7926,39 @@
       "generated": false
     },
     {
+      "path": ".github/contracts/governed-command-parameters/production-promotion-request.v1.json",
+      "category": "ci-config",
+      "extension": ".json",
+      "bytes": 1154,
+      "lines": 41,
+      "sha256": "227b23d57ef2a137b545b88f74dd9ba57aba316b2d9be1cd0d75fe02004e7952",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/contracts/governed-command-parameters/spec-kit-work-map-recovery.v1.json",
+      "category": "ci-config",
+      "extension": ".json",
+      "bytes": 440,
+      "lines": 18,
+      "sha256": "b1fe68db22e0cd7d71d5d2a0da44d8622ce3d3e831c75bc52679f49590f54cec",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/contracts/governed-command-registry.v1.json",
+      "category": "ci-config",
+      "extension": ".json",
+      "bytes": 961,
+      "lines": 29,
+      "sha256": "0b1b807d4e363fa1306df39ad73f5726c79e347893e27845f317fd4ba80ddf1b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/contracts/spec014/deferred-schema/deferred-child-parent-fk-readback.sql",
       "category": "ci-config",
       "extension": ".sql",
@@ -8812,6 +8850,50 @@
       "generated": false
     },
     {
+      "path": ".github/scripts/governed-command-core.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 14389,
+      "lines": 341,
+      "sha256": "61d90c7d689eb1ae5b09bff8ef5a164e672d6cb399e98a90158642248191fd92",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/scripts/resolve-governed-command.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 1161,
+      "lines": 37,
+      "sha256": "428e2874835d53d7d443fd4de5270bf09c3632264527574f639a999957f3bce5",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/scripts/validate-governed-command-registry.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 440,
+      "lines": 16,
+      "sha256": "b27f6a0b7277dcc6f1f22e310873d27a3f1fb8fc7c7aad19fa2f6d2040705e42",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/tests/governed-command-gateway.test.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 8088,
+      "lines": 254,
+      "sha256": "3f13e834473a54702bfdda0aff1658363b67e968be6e1d4fd1b1c598b35b4591",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/tests/spec014/hostinger-evidence-publisher-reference-parity.mjs",
       "category": "ci-config",
       "extension": ".mjs",
@@ -8980,9 +9062,9 @@
       "path": ".github/workflows/docs-agent-main-followup.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 4992,
-      "lines": 137,
-      "sha256": "7863ecdd5ef53629a55eef36adab38d932f71a72f673a38baf1c77c49b53f12d",
+      "bytes": 5013,
+      "lines": 138,
+      "sha256": "ee08df2ae810d4f50b049537d11ffb571b85263a12580bf65f0205ac5bf436cf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9137,6 +9219,28 @@
       "bytes": 6967,
       "lines": 163,
       "sha256": "4c2976eddd3d518063c034fed88aba89b3168ac9018a78e257ba7aaf621bb6ec",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/workflows/governed-command-gateway.yml",
+      "category": "ci-workflows",
+      "extension": ".yml",
+      "bytes": 9457,
+      "lines": 229,
+      "sha256": "89f250923c906fedba18253a75c931ce9fe0feddc595423fdad6dc78873bc729",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/workflows/governed-command-registry-validation.yml",
+      "category": "ci-workflows",
+      "extension": ".yml",
+      "bytes": 1334,
+      "lines": 42,
+      "sha256": "a9328dcaa3fcd979c37cf1cfe7972577b4ff4f41747597dc9b948a813d843bd2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9871,9 +9975,9 @@
       "path": ".github/workflows/openapi-auto-sync.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 12133,
-      "lines": 295,
-      "sha256": "bb851645a741c8784dc99a0356858dd0f6bf6fe7e7679ae0ed827e1e998a128f",
+      "bytes": 12198,
+      "lines": 297,
+      "sha256": "1300dc9891a1e79d133fa930410efd20a3bfd1640159fbda7a477a3514995bef",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -28392,6 +28496,17 @@
       "generated": false
     },
     {
+      "path": "docs/governed-command-gateway.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 5590,
+      "lines": 135,
+      "sha256": "3a7ea769ec96aa5c35f265115308ce90fe907e8225edc358c28025d8c437708d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/governed-interactive-policy-questionnaires.md",
       "category": "documentation",
       "extension": ".md",
@@ -29506,9 +29621,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 19078,
-      "lines": 317,
-      "sha256": "af99490e74e11b73b84b326e9ce943810ae50fa57641d01e08212af8a10f75c6",
+      "bytes": 19243,
+      "lines": 320,
+      "sha256": "a7abd8c5faad8a187eb33e214a688ae556b191e6369c1dc1ab41b4d19e3cac70",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30564,7 +30679,7 @@
       "extension": ".md",
       "bytes": 4205,
       "lines": 43,
-      "sha256": "cd88e67b9f804f8429a880ab1bbbefedd14847c568032c5eec2665fc78bcad24",
+      "sha256": "bb899f29bedcf5a231b7ed637ae7ed49dfb0fd43c72966411e09a233a9520773",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30727,9 +30842,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 44262,
-      "lines": 472,
-      "sha256": "79dfc90853602d604b5b58d775f5251a834a7bf4ad67618221a01adb0e79e4d3",
+      "bytes": 44736,
+      "lines": 478,
+      "sha256": "d7472124811769e96a925ca9d2f709e3bf7c33fb2f9a05e727f6aeefb78cfc12",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76104,7 +76219,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "be8bf888814edac2a2d0aa617e768d38211eb1142dfc8ed38ece19670731498c",
+      "sha256": "38df10e5820c95dd1ae6873223dbff9fe414a17d06461cd69a6351581199bf8c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76665,7 +76780,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "216be1a264bcda69c04c3edefe4106de1d2fe6fc84ffb8ffc8e5186b96af064d",
+      "sha256": "324da1770f698a6a7167011676c91b2cb60b4bfa7126ec2b5c58c527c4f07d5b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77468,7 +77583,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "3ed5c2d2414a4af30c7737b4eb598ccc6187b9897859676df040379bc6fff32b",
+      "sha256": "7883b4eecc9bf221cc19bcfad05d240c8eff7d06e272fb4be4f6f858de1227aa",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77699,7 +77814,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "aabde1740dc6972b15e36d7c42ccc2a3bde6e5ff50e69b7a7a4919e0494e0851",
+      "sha256": "c39c061e719549bcc0d7c565e57a738911e7e42e010b02d5053a74359f7362d4",
       "mode": "644",
       "executable": false,
       "generated": false

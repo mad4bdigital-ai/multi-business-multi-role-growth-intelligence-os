@@ -1,0 +1,28 @@
+{
+  "contract": "mad4b.governed-command-registry.v1",
+  "version": 1,
+  "commands": [
+    {
+      "id": "spec_kit_work_map_recovery",
+      "adapter": "spec-kit-work-map-recovery",
+      "authority": "spec-kit-governance",
+      "risk_class": "elevated",
+      "requires_sha_pin": true,
+      "parameter_schema": ".github/contracts/governed-command-parameters/spec-kit-work-map-recovery.v1.json",
+      "audit_policy": "workflow-run-evidence",
+      "permission_profile": "dispatch-only",
+      "enabled": true
+    },
+    {
+      "id": "production_promotion_request",
+      "adapter": "production-promotion-request",
+      "authority": "governed-production",
+      "risk_class": "critical",
+      "requires_sha_pin": true,
+      "parameter_schema": ".github/contracts/governed-command-parameters/production-promotion-request.v1.json",
+      "audit_policy": "workflow-run-evidence",
+      "permission_profile": "dispatch-only",
+      "enabled": true
+    }
+  ]
+}
