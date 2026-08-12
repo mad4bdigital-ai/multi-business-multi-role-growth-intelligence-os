@@ -193,6 +193,46 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
+  spec015-contract-governance:
+    name: Spec 015 Contract Governance
+    runs-on: ubuntu-24.04
+    needs: syntax
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run Spec 015 contract validators
+        working-directory: http-generic-api
+        run: |
+          node test-spec015-contract-validators.mjs
+          node test-spec015-readiness-facade.mjs
+          node test-spec015-runtime-gate-contracts.mjs
+
+      - name: Check Spec 015 contract syntax
+        working-directory: http-generic-api
+        run: |
+          node --check spec015ContractValidators.js
+          node --check spec015ReadinessFacade.js
+          node --check spec015RuntimeGateContracts.js
+
+      - name: Run Spec 015 final closure preflight
+        run: python3 docs/spec-portfolio/spec015-final-closure-preflight.py
+
+      - name: Check Spec 015 diff hygiene
+        run: git diff --check
+
   execution-resolver-gate:
     name: Execution Resolver Gate
     runs-on: ubuntu-24.04
