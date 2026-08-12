@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6649,
-    "bytes": 58538072,
+    "bytes": 58538156,
     "lines": 1368017,
     "directories": 251,
     "categories": 13
@@ -36251,7 +36251,7 @@
       "extension": ".json",
       "bytes": 3158811,
       "lines": 97001,
-      "sha256": "9a89874a4ef999e793eb7ec7ea1e1f2573ecb4ba98b3f58221fbaaf80ad9b460",
+      "sha256": "4f81cab1516c93d003f870f7fbb08a2d0e74653ed1896ba967b857da1bfbfd6f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48503,9 +48503,9 @@
       "path": "http-generic-api/resource-api-coverage.manifest.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 19507,
+      "bytes": 19543,
       "lines": 502,
-      "sha256": "b1f72690b38622e0bc6a6b905284752aa5c2f2ff8acf3dcf738ee9d991286c5d",
+      "sha256": "3539033f54062f0aa7c974baa624912b5ae3cf7f5c9f781f6aba1b0ee36f2fb5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48514,9 +48514,9 @@
       "path": "http-generic-api/resource-api-mutation-callability.manifest.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 10335,
+      "bytes": 10365,
       "lines": 246,
-      "sha256": "0474077faefbeb110a7afbfbd1fe03a88f9e95bcabcc9c1502f9631275f8062f",
+      "sha256": "5c34e33419ce257da93587a0d432bcca2228cbe426c9aaae8acd78a63cfad784",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -68468,9 +68468,9 @@
       "path": "http-generic-api/test-workspace-lifecycle-foundation.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 6653,
+      "bytes": 6671,
       "lines": 74,
-      "sha256": "c28e78fa653817981640fb24f80ad98d5701760fcf36f4cabb19b377b723e53a",
+      "sha256": "39b72e09bc94ea15c3bd9d7e2eec30d739a133cf0c802e5f297631fd427bceff",
       "mode": "644",
       "executable": false,
       "generated": false
