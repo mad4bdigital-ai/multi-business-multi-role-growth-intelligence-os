@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6646,
-    "bytes": 58510244,
-    "lines": 1367698,
+    "files": 6647,
+    "bytes": 58519464,
+    "lines": 1367767,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 1982,
-      "documentation": 1847,
+      "documentation": 1848,
       "api-runtime": 1323,
       "database-migrations": 767,
       "root-and-other": 215,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2433,
+      ".md": 2434,
       ".mjs": 1521,
       ".js": 928,
       ".sql": 782,
@@ -58,7 +58,7 @@
     },
     "topLevel": {
       "http-generic-api": 3426,
-      "docs": 1753,
+      "docs": 1754,
       "specs": 807,
       ".github": 243,
       ".changes": 212,
