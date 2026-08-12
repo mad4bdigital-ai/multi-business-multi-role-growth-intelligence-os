@@ -189,34 +189,38 @@ await expectAuthorityError(
 
 {
   const connection = fakeConnection([
-    { tenant_id: "tenant-a", brand_target_key: "brand-one", link_status: "active", brand_status: "active" },
+    [{ target_key: "brand-one", brand_status: "active" }],
+    [{ tenant_id: "tenant-a", brand_target_key: "brand-one", link_status: "active" }],
   ]);
   const result = await assertGrantResourceInWorkspace(connection, {
     tenantId: "tenant-a",
     resourceType: "brand",
     resourceRef: "brand:brand-one",
   });
-  assert.deepEqual(result, { resource_ref: "brand-one", authority_source: "tenant_brand_links" });
+  assert.deepEqual(result, { resource_ref: "brand-one", authority_source: "brands+tenant_brand_links" });
   assert.deepEqual(connection.queries[0].params, ["brand-one", "brand-one", "brand-one"]);
 }
 
 await expectAuthorityError(
   { tenantId: "tenant-a", resourceType: "brand", resourceRef: "brand-two" },
-  [{ tenant_id: "tenant-b", brand_target_key: "brand-two", link_status: "active", brand_status: "active" }],
+  [[{ target_key: "brand-two", brand_status: "active" }], [{ tenant_id: "tenant-b", brand_target_key: "brand-two", link_status: "active" }]],
   "workspace_resource_cross_tenant"
 );
 
 await expectAuthorityError(
   { tenantId: "tenant-a", resourceType: "brand", resourceRef: "brand-three" },
-  [{ tenant_id: "tenant-a", brand_target_key: "brand-three", link_status: "inactive", brand_status: "active" }],
+  [[{ target_key: "brand-three", brand_status: "active" }], [{ tenant_id: "tenant-a", brand_target_key: "brand-three", link_status: "inactive" }]],
   "workspace_resource_inactive"
 );
 
 await expectAuthorityError(
   { tenantId: "tenant-a", resourceType: "brand", resourceRef: "brand-four" },
   [
-    { tenant_id: "tenant-a", brand_target_key: "brand-four", link_status: "active", brand_status: "active" },
-    { tenant_id: "tenant-a", brand_target_key: "brand-four", link_status: "active", brand_status: "active" },
+    [{ target_key: "brand-four", brand_status: "active" }],
+    [
+      { tenant_id: "tenant-a", brand_target_key: "brand-four", link_status: "active" },
+      { tenant_id: "tenant-a", brand_target_key: "brand-four", link_status: "active" },
+    ],
   ],
   "workspace_resource_ambiguous"
 );

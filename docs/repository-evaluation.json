@@ -2,11 +2,11 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "eadbeb9a1810504662e5dafd5e42bb22abb82707e260b958df6c5ace9c4caad8",
+  "inputFingerprint": "e95cd3773b019ea977b63569608578144a549aa077dcd0eb78be936596fb8004",
   "inventory": {
-    "files": 6615,
-    "bytes": 58031119,
-    "directories": 249,
+    "files": 6647,
+    "bytes": 58520307,
+    "directories": 251,
     "categories": 13
   },
   "signals": {
@@ -15,10 +15,10 @@
       "explicitPermissions": 150,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
-      "unpinnedActions": 480
+      "unpinnedActions": 482
     },
     "secrets": {
-      "trackedTextFilesScanned": 6592,
+      "trackedTextFilesScanned": 6618,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -160,7 +160,7 @@
     "warningGapIds": []
   },
   "baselineDiff": {
-    "available": false,
+    "available": true,
     "newGapIds": [],
     "persistingGapIds": [],
     "unchangedGapIds": [],
