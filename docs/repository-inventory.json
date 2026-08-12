@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6646,
-    "bytes": 58507815,
-    "lines": 1367649,
+    "bytes": 58510244,
+    "lines": 1367698,
     "directories": 251,
     "categories": 13
   },
@@ -66763,9 +66763,9 @@
       "path": "http-generic-api/test-tenant-connection-self-repair-service.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 4985,
-      "lines": 78,
-      "sha256": "13fe1067e2b31dfcfc8c39427ce2700985c0fc7810e65dc6f738cc7c770a4531",
+      "bytes": 7414,
+      "lines": 127,
+      "sha256": "2d8d7e1cf03cd076dac40e1d96814ed09afe6fafabc8c8265bd70bd3b8aebac7",
       "mode": "644",
       "executable": false,
       "generated": false
