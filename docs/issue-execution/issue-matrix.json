@@ -1,0 +1,520 @@
+[
+  {
+    "number": 3809,
+    "title": "Authorize Brand Skills staging read-only preflight",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/3809",
+    "refs": [
+      ".github/workflows/brand-skill-mariadb-certification.yml",
+      "Issue #3809",
+      "PR #4722",
+      "PR #4734",
+      "PR #5059",
+      "docs/runbooks/brand-skill-staging-preflight-dispatch-bridge.md"
+    ],
+    "blockers": [
+      "**Fresh exact authorization and governed fallback trigger are recorded; GitHub Actions has not allocated a runner.**",
+      "- migration blob: `1e90ac74cfff2413ee10abf5986bc2b28bcf5ad7`",
+      "- migration SHA-256: `eca204dcf452875c59d404bf6b67cbbe01b6af41e6afcd3bedd87b31845fb802`",
+      "Governed main-push fallback trigger:",
+      "No new `claiming`, `dispatched`, `completed`, or `failed` marker has been emitted for authorization comment `5162631687`. Unrelated workflows on the trigger commit and other recent `main` commits are also queued without "
+    ]
+  },
+  {
+    "number": 4122,
+    "title": "Governed rollout: Sprint 69 Migration 1006 → 1007",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4122",
+    "refs": [
+      ".github/ops/triggers/sprint69-1006-readiness-trigger.json",
+      "1006_sprint69_agent_capability_evidence_coverage.sql",
+      "1007_sprint69_agent_capability_coverage_admin_tools.sql",
+      "PR #4192",
+      "PR #4722",
+      "PR #4734",
+      "PR #5881",
+      "PR #6265"
+    ],
+    "blockers": [
+      "1. Prove current `Production` runtime parity on `auth.mad4b.com`.",
+      "2. Create a fresh checksum-bound authorization for Migration 1006.",
+      "3. Run Migration 1006 governed dry-run and pre-apply readback.",
+      "5. Apply Migration 1006 exactly once and reconcile ambiguity through readback only.",
+      "7. Run the generalized dependency gate for Migration 1007."
+    ]
+  },
+  {
+    "number": 4216,
+    "title": "Integrated phase: release reliability, migration safety, and Production convergence",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4216",
+    "refs": [
+      "Issue #4122",
+      "PR #3945",
+      "PR #4076",
+      "PR #4178",
+      "PR #4185",
+      "PR #4208",
+      "PR #4211",
+      "PR #4239",
+      "PR #4241",
+      "PR #4244",
+      "PR #4315",
+      "PR #4734",
+      "PR #5621"
+    ],
+    "blockers": [
+      "### 1. Governed migration runner safety",
+      "- Do not execute any migration in this lane.",
+      "### 2. Local Connector Production closure",
+      "### 3. Production promotion convergence",
+      "- Merge controller code only; do not merge Production or deploy from this phase automatically."
+    ]
+  },
+  {
+    "number": 4445,
+    "title": "Program: decompose tenant self-service and managed repair ticket bae08982",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4445",
+    "refs": [
+      "PR #4444",
+      "PR #4483",
+      "PR #4734",
+      "PR #6533",
+      "PR #6544",
+      "PR #6545",
+      "PR #6546"
+    ],
+    "blockers": [
+      "- Production support ticket: `bae08982-cec1-4527-8be2-68d501706345`",
+      "## Historical production baseline imported from prior reports",
+      "- Local Connector tenant execution previously returned `admin_backend_api_key_required`.",
+      "- PR #6545 merged as `e56355a753862b12ecffde1f81e45cb48deaf5ee`: Migration 1043 Runtime Readiness approval transport now satisfies the Admin-shell safety contract without weakening the shell guard.",
+      "### Migration 1043 readiness — verified, Apply not executed"
+    ]
+  },
+  {
+    "number": 4446,
+    "title": "Tenant WordPress and Hostinger provisioning self-repair lifecycle",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4446",
+    "refs": [],
+    "blockers": [
+      "Deliver one tenant-safe, governed lifecycle that can diagnose, plan, approve, execute, verify and recover WordPress/Hostinger operations without exposing secrets or requiring hidden admin-only knowledge for normal delega",
+      "## Historical baseline preserved from prior production reports",
+      "- Require approval for provisioning, destructive, rollback, external write or privileged effects according to policy.",
+      "- Any emergency/break-glass Hostinger mutation must be separately governed and subsequently reconciled Main → Production through repository lifecycle evidence.",
+      "- [ ] Produce exact Production SHA + runtime/provider readback before closure."
+    ]
+  },
+  {
+    "number": 4447,
+    "title": "Brand Core tenant operations: create, assets, profile inheritance, invitations",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4447",
+    "refs": [
+      "Issue #4447",
+      "Issue #6568",
+      "Issue #6585",
+      "PR #6546",
+      "PR #6561",
+      "PR #6569",
+      "PR #6570",
+      "PR #6574",
+      "PR #6577",
+      "PR #6588",
+      "PR #6605",
+      "dynamicContainerProjectionService.js",
+      "http-generic-api/routes/workspaceResourceRoutes.js",
+      "tenantPlatformPluginRoutes.js",
+      "workspaceResourceRoutes.js"
+    ],
+    "blockers": [
+      "## Historical production baseline preserved",
+      "1. The route still contains a local JWT verifier with `process.env.JWT_SECRET || \"development_fallback_secret_only\"`. This must be replaced/hardened to use the canonical fail-closed auth middleware; tenant authority must",
+      "- Revocation/expiry must immediately disappear from effective permission projections.",
+      "- Invitation binds tenant, workspace, brand, recipient, role/permission, inviter, expiry, acceptance state and evidence.",
+      "Each stage must also support typed `blocked` / `failed` states with customer-safe remediation."
+    ]
+  },
+  {
+    "number": 4448,
+    "title": "Growth Audit execution, scheduling, evidence, and tenant report delivery",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4448",
+    "refs": [
+      "PR #6533",
+      "http-generic-api/routes/tenantGrowthControlPlaneRoutes.js"
+    ],
+    "blockers": [
+      "- policy/effect class for any external or mutating step;",
+      "Missing prerequisites must produce `blocked` with remediation, never an empty/partial success report disguised as complete.",
+      "Typed terminal/branch states must include `blocked`, `cancelled`, `partial`, `failed`, and `superseded`.",
+      "### Internal/admin report",
+      "- [ ] Admin/backend principal cannot use tenant-only projection as tenant."
+    ]
+  },
+  {
+    "number": 4450,
+    "title": "Tenant operation monitoring, verification, SLA, and customer-safe readback",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4450",
+    "refs": [
+      "1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql",
+      "PR #6533",
+      "PR #6572",
+      "PR #6689",
+      "PR #6709",
+      "PR #6717",
+      "PR #6724",
+      "README.md",
+      "data-model-domain-map.md",
+      "delivery-support-map.md",
+      "docs/surface-contract-manual-safety-attestations.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/data-model-domain-map.md",
+      "docs/work-maps/delivery-support-map.md",
+      "docs/work-maps/observability-release-map.md",
+      "docs/work-maps/work-map-coverage-matrix.md"
+    ],
+    "blockers": [
+      "Provide continuous, tenant-safe operational visibility across support tickets, managed execution, connections/capabilities, Brand Core, Growth Audit and provider/runtime outcomes. Detect contradictions and stalled condit",
+      "- customer-safe monitoring was weaker than admin diagnostics.",
+      "- tenant and admin dashboard projections;",
+      "- Managed Execution tenant/admin projections and admin dry-run reconciliation from #4449;",
+      "- tenant capability blocked with no remediation path."
+    ]
+  },
+  {
+    "number": 4451,
+    "title": "Tenant and admin self-repair capability discovery and safe execution surfaces",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4451",
+    "refs": [
+      "1052_tenant_platform_plugin_managed_repair_authority.sql",
+      "Issue #4451",
+      "PR #6471",
+      "PR #6546",
+      "PR #6569",
+      "PR #6583",
+      "PR #6609",
+      "PR #6633",
+      "PR #6637",
+      "PR #6645",
+      "PR #6671",
+      "PR #6674",
+      "PR #6677",
+      "PR #6684",
+      "PR #6687",
+      "PR #6689"
+    ],
+    "blockers": [
+      "# Tenant/admin capability discovery and safe self-repair execution — canonical dossier",
+      "Give tenants and admins a trustworthy answer to four questions for any requested operation:",
+      "- tenant Local Connector/device execution could be advertised yet fail with `admin_backend_api_key_required`;",
+      "This is the same class of auth debt found in `workspaceResourceRoutes.js`. Tenant capability discovery/installation/intake must use the canonical fail-closed authentication middleware and must not authenticate production",
+      "- effect class (`read`, `write`, `destructive`, `external_send`, `privileged`, etc.);"
+    ]
+  },
+  {
+    "number": 4957,
+    "title": "P1 recovery integrity: Cloudflare connector returns HTTP 530",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/4957",
+    "refs": [
+      "Node.js",
+      "PR #4960",
+      "PR #4964"
+    ],
+    "blockers": [
+      "The public break-glass connector surface is not reachable through its expected Cloudflare Tunnel path.",
+      "This is separate from Hostinger Production incident #4953:",
+      "- `auth.mad4b.com` is the Hostinger Production control plane and currently serves a stale deployment SHA;",
+      "- `connector.mad4b.com` is an Admin-only recovery surface backed by the managed local Windows connector through Cloudflare Tunnel;",
+      "- it must not host or proxy the Hostinger `http-generic-api` Production application;"
+    ]
+  },
+  {
+    "number": 5021,
+    "title": "P0: investigate protected-main merges that bypass declared Draft/Ready gates (#4386, #5698)",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5021",
+    "refs": [
+      ".github/workflows/retail-commerce-production-schema-baseline-pr-trigger.yml",
+      ".github/workflows/spec-kit-work-map-autofix.yml",
+      "Issue #6426",
+      "PR #4386",
+      "PR #5017",
+      "PR #5029",
+      "PR #5306",
+      "PR #5321",
+      "PR #5420",
+      "PR #5441",
+      "PR #5443",
+      "PR #5491",
+      "PR #5501",
+      "PR #5505",
+      "PR #5682",
+      "PR #5698"
+    ],
+    "blockers": [
+      "This issue records the incident and the required investigation. It does **not** authorize a revert, forward-fix, Production promotion, deployment, provider action, database action, or protected-ref mutation.",
+      "Protected Production remains unchanged:",
+      "- `Production`: `f5c1ae8840b4d4452f2908bb0f23051880bb6896`",
+      "- source/base: `main → Production`",
+      "- canonical canary runner skipped"
+    ]
+  },
+  {
+    "number": 5459,
+    "title": "Collect authoritative Retail Commerce T004 Production schema evidence",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5459",
+    "refs": [
+      ".github/ops/retail-commerce-production-schema-baseline-trigger.json",
+      "PR #5529",
+      "PR #5611",
+      "PR #6099",
+      "PR #6467",
+      "http-generic-api/test-retail-commerce-production-schema-baseline.mjs"
+    ],
+    "blockers": [
+      "The governed runtime fallback is merged and the authoritative one-file Production trigger is open.",
+      "Current trigger:",
+      "- Trigger head: `e65434555a0c56829d0a6bfea5e01b32e6a99182`",
+      "- Changed files: exactly one trigger JSON",
+      "- Production connection attempted: false"
+    ]
+  },
+  {
+    "number": 5872,
+    "title": "P0: close finalization review-state TOCTOU before merge",
+    "labels": [
+      "ci",
+      "tests",
+      "blocked"
+    ],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/5872",
+    "refs": [
+      "Issue #5872",
+      "Issue #6391",
+      "PR #5852",
+      "PR #5886",
+      "PR #6065",
+      "PR #6071",
+      "PR #6079",
+      "PR #6086",
+      "PR #6139",
+      "PR #6187",
+      "PR #6213",
+      "PR #6222",
+      "PR #6347",
+      "PR #6366",
+      "PR #6386",
+      "PR #6394"
+    ],
+    "blockers": [
+      "No Production/provider/Hostinger execution, deployment, credential access, SQL, Migration Apply, database mutation, protected-ref mutation, force push, or external send is authorized by this issue.",
+      "#5886 remains Draft and labeled `ci`, `tests`, and `blocked`. No Ready transition, merge, protected-ref mutation, Production/provider/deployment/credential/SQL/Migration Apply/database/force-push mutation occurred.",
+      "#5872 remains blocked and open. Do not mark #6065 Ready or merge. Repeat exact full ARM after #6071 is independently validated and delivered. Server-side ruleset/bypass proof and independent non-author approval remain se",
+      "The code repair is technically qualified on the current base, but the issue must remain open: #6187 has no review submissions or threads, and still requires independent non-author human approval, server-side ruleset/bypa",
+      "Stale #6187 and temporary validator #6214 were closed without merge. #6213 remains Draft. No Ready, merge, force push, protected-main mutation, Production/provider/Hostinger action, credential read, SQL, migration, datab"
+    ]
+  },
+  {
+    "number": 6046,
+    "title": "RCA: direct main placeholder commit during OAuth validation setup",
+    "labels": [
+      "ci"
+    ],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6046",
+    "refs": [
+      ".github/workflows/spec012-oauth-canonical-deps-bounded-writer.yml",
+      "PR #6017",
+      "PR #6050",
+      "PR #6086",
+      "PR #6124",
+      "PR #6417",
+      "PR #6419",
+      "PR #6420",
+      "PR #6423",
+      "http-generic-api/frontend-surface-dispatch.generated.json"
+    ],
+    "blockers": [
+      "During setup of the read-only post-merge validator for #5937, the intended action was to create a non-protected validation branch from the OAuth merge SHA. A repository file-create call was mistakenly issued against `mai",
+      "1. OAuth canonical merge before the incident: `edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d` from PR #6017.",
+      "The protected-main history advanced by two commits, but the current repository tree is byte-equivalent to the pre-incident OAuth merge tree. No placeholder file remains.",
+      "- No Production, provider, deployment, credential, SQL, Migration Apply, database, Work Map generation, external send, secret, force push, or history rewrite occurred.",
+      "- original OAuth merge: `edfc85f07a0fcac03b7258bb3c36e320b8fd1d3d`"
+    ]
+  },
+  {
+    "number": 6391,
+    "title": "P0 Admin: enforce main review policy and add independent reviewer",
+    "labels": [
+      "ci",
+      "blocked"
+    ],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6391",
+    "refs": [
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+      "Issue #6426",
+      "Issue #6625",
+      "PR #5752",
+      "PR #6394",
+      "PR #6413",
+      "PR #6420",
+      "PR #6423",
+      "PR #6425",
+      "PR #6429",
+      "PR #6502",
+      "PR #6631",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
+      "http-generic-api/scripts/single-owner-review-gate.mjs"
+    ],
+    "blockers": [
+      "Close the administrative delivery blockers preventing the exact green finalization TOCTOU and reviewer-eligibility repair in canonical Draft PR #6413 from entering a separately authorized Ready/merge path.",
+      "- use exact PR identity, compare, reviews, threads, collaborator inventory, and permission readbacks;",
+      "The governed repository automation surface exists at `/admin/repository-automation/{plan,run,status,hygiene-scan}` and requires Backend API Key plus Admin principal. Do not bypass that boundary or invent credentials from",
+      "- state: open, Draft, blocked, unmerged",
+      "- potentially decisive exact-head human reviewers are resolved through `/collaborators/{login}/permission`;"
+    ]
+  },
+  {
+    "number": 6612,
+    "title": "Governed rollout: Migration 1049 GitHub repository policy single-owner mode",
+    "labels": [
+      "blocked"
+    ],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6612",
+    "refs": [
+      ".github/workflows/github-repository-policy-1049-governed-rollout.yml",
+      "1049_github_repository_policy_single_owner_mode.sql",
+      "1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "PR #6613",
+      "PR #6619",
+      "PR #6629",
+      "issue #6628"
+    ],
+    "blockers": [
+      "Control surface for the Production-governed lifecycle of `1049_github_repository_policy_single_owner_mode.sql`.",
+      "- Migration source is present in repository and has been promoted to Production.",
+      "- Migration Apply has **not** been authorized or executed.",
+      "1. Repository-canonical exact migration blob/checksum/statement-count verification on current `Production`.",
+      "2. Runtime parity with the exact current `Production` SHA."
+    ]
+  },
+  {
+    "number": 6625,
+    "title": "P0: govern live GitHub main policy activation authority and producer",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6625",
+    "refs": [
+      ".changes/e2e/github-repository-policy-controller.json",
+      ".github/workflows/github-repository-policy-1050-governed-rollout.yml",
+      "1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "1050_github_repository_policy_live_apply_authority.sql",
+      "PR #6631",
+      "capability-resolution-envelope-apply-authorize.mjs",
+      "http-generic-api/scripts/capability-resolution-envelope-create.mjs"
+    ],
+    "blockers": [
+      "`main` currently remains unprotected (`protected=false`) and #6391 cannot be closed. The repository contains the GitHub Repository Policy Controller and Single Owner Review Gate, and Migration 1049 has a successful no-wr",
+      "This issue records the missing authority/producer path. It does **not** authorize Migration Apply or live GitHub policy mutation.",
+      "- `Production`: `f522a8237c624e420b4c9d008f1547c19531907f`",
+      "Migration 1049 readiness:",
+      "- separate typed Migration Apply confirmation remains required and is currently absent."
+    ]
+  },
+  {
+    "number": 6628,
+    "title": "[tracking] Migration 1050 rollout control after repair merge",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6628",
+    "refs": [
+      "1050_github_repository_policy_controller_bootstrap_repair.sql",
+      "Issue #6628",
+      "PR #6629",
+      "PR #6746",
+      "PR #6816"
+    ],
+    "blockers": [
+      "Reserved control surface for the future Production-governed lifecycle of `1050_github_repository_policy_controller_bootstrap_repair.sql` after the repair PR is merged and promoted.",
+      "No readiness or Apply marker is defined or authorized by this placeholder yet. The repair PR must first establish the final migration blob/checksum/statement count, then a rollout producer can bind those immutable values",
+      "Safety boundary: no SQL, no Production promotion, no deployment, no live GitHub Ruleset apply, no provider mutation, no force push, no secrets.",
+      "The Migration 1050 source blob itself remains `ef84bc6752cccf2fbaf7c71d9dfaadc7e635854a`; this is candidate-source identity only, not rollout authority. Final rollout binding still must wait for a separately governed sou",
+      "## Migration 1050 rollout source progression — final generated head established"
+    ]
+  },
+  {
+    "number": 6813,
+    "title": "Governance DB writer authority blocks governed migration readiness",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6813",
+    "refs": [
+      ".changes/e2e/governance-production-environment-authority-6813.json",
+      "Issue #6813",
+      "PR #6799",
+      "PR #6808",
+      "PR #6811",
+      "PR #6847",
+      "PR #6854",
+      "PR #6855",
+      "PR #6856",
+      "PR #6861",
+      "PR #6862",
+      "PR #6864",
+      "PR #6865",
+      "PR #6877",
+      "capabilityResolutionEnvelopeGuard.js",
+      "docs/governance-db-writer-authority.md"
+    ],
+    "blockers": [
+      "Governed Migration 1050 readiness failed on trusted `main@83ce15fa50d417bfa4a68035d356f4e6361dfdc7` after the shell-safe authorization-envelope repair from PR #6808 was merged.",
+      "- Migration 1050 SQL executed: false",
+      "- governed migration dry-run reached: false",
+      "- provider/external write: false",
+      "- `governedMigrationAuthorizationBootstrap.js`"
+    ]
+  },
+  {
+    "number": 6871,
+    "title": "Governed readiness: remaining tenant runtime lifecycle migration",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6871",
+    "refs": [
+      "PR #6851"
+    ],
+    "blockers": [
+      "Control issue for the Production-bound readiness/dry-run lifecycle of `20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql` introduced by PR #6851 and deployed through `Production@6957f56ead3f720767957dbb7b9b213c",
+      "- migration: `20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql`",
+      "- migration Git blob SHA: `dfd207c5aeba248b25f9db023e324f904b1e5a39`",
+      "- migration SHA-256: `355a4a375a12c50b19ad96299e9b95c67b83bd4835a86832e771824bd2a8ccb0`",
+      "- expected protected Production/runtime SHA: `6957f56ead3f720767957dbb7b9b213cc54ed04e`"
+    ]
+  },
+  {
+    "number": 6913,
+    "title": "Activate governed repository reconciliation apply surface",
+    "labels": [],
+    "url": "https://github.com/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/issues/6913",
+    "refs": [
+      "PR #6817",
+      "PR #6886",
+      "PR #6914",
+      "PR #6916",
+      "PR #6921",
+      "PR #6924",
+      "gptToolsRoutes.js",
+      "spec-kit-work-map-autofix.yml",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json"
+    ],
+    "blockers": [
+      "Track the **separate activation prerequisite** left intentionally open by PR #6817 before `repo.pr.reconcile_and_finalize` can execute mutation through the Admin control plane.",
+      "- Admin `repository_reconciliation_orchestrator` remains dry-run-only;",
+      "- no Admin dispatcher is exposed until canonical capability-envelope + approval-hold validation and positive readback smoke are wired.",
+      "Current Migration 1026 also reasserts `status='planned'` on duplicate-key update and records that separate certification/activation approval is required.",
+      "3. Wire an Admin apply dispatcher only through the exact dry-run plan binding and per-step authorization contract."
+    ]
+  }
+]
