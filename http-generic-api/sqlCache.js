@@ -448,7 +448,10 @@ export function getSqlCacheRuntimeStatus() {
   const runtimePolicy = currentRuntimePolicy();
   return {
     enabled: Boolean(runtimePolicy.enabled),
+    required: Boolean(runtimePolicy.required),
     available: isSqlCacheAvailable(),
+    fallback_mode: "direct_loader",
+    fallback_active: Boolean(runtimePolicy.enabled && !isSqlCacheAvailable() && !runtimePolicy.required),
     redis_enabled: Boolean(REDIS_ENABLED),
     redis_url_configured: Boolean(REDIS_URL_CONFIGURED),
     queue_worker_enabled: Boolean(QUEUE_WORKER_EXPLICITLY_ENABLED),

@@ -83,12 +83,20 @@ export function buildSqlCacheOperationalDiagnostics(status = getSqlCacheRuntimeS
   const alerts = [];
 
   if (status?.enabled === true && status?.available !== true) {
+    const required = status?.required === true || status?.policy?.required === true;
     alerts.push(operationalAlert({
-      code: "sql_cache_unavailable",
-      severity: "critical",
-      title: "SQL cache is enabled but unavailable",
-      summary: "The runtime policy enables SQL cache while the cache transport is not currently available.",
+      code: required ? "sql_cache_unavailable" : "sql_cache_optional_fallback_active",
+      severity: required ? "critical" : "medium",
+      title: required
+        ? "SQL cache is required but unavailable"
+        : "SQL cache is unavailable; direct-loader fallback is active",
+      summary: required
+        ? "The runtime policy requires SQL cache while the cache transport is not currently available."
+        : "Redis is not currently available, so cache reads and writes fail open to the governed direct SQL loader path.",
       evidence: {
+        required,
+        fallback_mode: status?.fallback_mode || "direct_loader",
+        fallback_active: status?.fallback_active !== false,
         redis_enabled: Boolean(status?.redis_enabled),
         redis_url_configured: Boolean(status?.redis_url_configured),
       },
@@ -178,7 +186,10 @@ export function buildSqlCacheOperationalDiagnostics(status = getSqlCacheRuntimeS
     generated_at: new Date().toISOString(),
     runtime: {
       enabled: Boolean(status?.enabled),
+      required: Boolean(status?.required || status?.policy?.required),
       available: Boolean(status?.available),
+      fallback_mode: status?.fallback_mode || "direct_loader",
+      fallback_active: Boolean(status?.fallback_active),
       circuit_open: Boolean(status?.circuit_open),
       circuit_retry_after_ms: safeNumber(status?.circuit_retry_after_ms),
       last_error_code: String(status?.last_error_code || ""),
