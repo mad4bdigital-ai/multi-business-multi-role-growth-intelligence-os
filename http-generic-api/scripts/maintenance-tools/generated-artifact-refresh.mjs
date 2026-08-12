@@ -50,6 +50,7 @@ const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
 ]);
 const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^\.github\/workflows\/spec-kit-work-map-autofix\.yml$/u,
+  /^(?:\.github\/workflows\/(?:governed-generated-artifact-refresh|repository-inventory(?:-autofix-dispatch)?)\.yml|docs\/repository-inventory-guide\.md)$/u,
   /^\.github\/repository-maintenance-tool-governance\.json$/u,
   /^\.changes\/e2e\/(?:work-map-autofix-v2-contract-regression|ci-generated-artifact-evidence-routing)\.json$/u,
   /^docs\/ci-evidence-routing\.md$/u,
