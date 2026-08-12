@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mad4b.governed-command-parameters.production-promotion-request.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "request_pr",
+    "expected_head_sha",
+    "expected_request_head_sha",
+    "release_branch_prefix",
+    "validation_branch_prefix",
+    "validation_base_branch_prefix"
+  ],
+  "properties": {
+    "request_pr": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "expected_head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "expected_request_head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "release_branch_prefix": {
+      "type": "string",
+      "pattern": "^(?!main(?:/|$))(?!Production(?:/|$))[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$"
+    },
+    "validation_branch_prefix": {
+      "type": "string",
+      "pattern": "^(?!main(?:/|$))(?!Production(?:/|$))[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$"
+    },
+    "validation_base_branch_prefix": {
+      "type": "string",
+      "pattern": "^(?!main(?:/|$))(?!Production(?:/|$))[A-Za-z0-9][A-Za-z0-9._/-]{0,79}$"
+    }
+  }
+}

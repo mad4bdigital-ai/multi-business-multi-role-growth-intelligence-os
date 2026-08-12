@@ -1,0 +1,175 @@
+name: Governed Command Gateway
+run-name: Governed Command Gateway · ${{ inputs.command || 'unresolved' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Registered governed command id
+        required: true
+        type: string
+      parameters_json:
+        description: JSON object matching the registered command parameter schema
+        required: true
+        type: string
+      expected_gateway_sha:
+        description: Exact trusted main SHA containing this gateway
+        required: true
+        type: string
+      authorization:
+        description: Exact typed authorization required by the selected allowlisted adapter
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: governed-command-gateway-${{ github.repository }}-${{ inputs.command || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-and-dispatch:
+    name: Resolve registered command and dispatch bounded authority path
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMMAND: ${{ inputs.command }}
+      PARAMETERS_JSON: ${{ inputs.parameters_json }}
+      AUTHORIZATION: ${{ inputs.authorization }}
+      EXPECTED_GATEWAY_SHA: ${{ inputs.expected_gateway_sha }}
+      CURRENT_GATEWAY_SHA: ${{ github.sha }}
+      CURRENT_REF: ${{ github.ref_name }}
+    steps:
+      - name: Checkout exact trusted gateway source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup bounded Node runtime
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Validate command registry contract
+        run: node .github/scripts/validate-governed-command-registry.mjs
+
+      - name: Resolve exact allowlisted dispatch plan
+        env:
+          OUTPUT_PATH: ${{ runner.temp }}/governed-command-plan.json
+        run: node .github/scripts/resolve-governed-command.mjs
+
+      - name: Dispatch only the resolved allowlisted workflow
+        id: dispatch
+        shell: bash
+        env:
+          PLAN_PATH: ${{ runner.temp }}/governed-command-plan.json
+        run: |
+          set -Eeuo pipefail
+          reject() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          test "${CURRENT_REF}" = "main" || reject "gateway must execute from trusted main"
+          test "${CURRENT_GATEWAY_SHA}" = "${EXPECTED_GATEWAY_SHA}" || reject "gateway SHA changed after resolution"
+
+          workflow="$(jq -r '.target_workflow' "${PLAN_PATH}")"
+          target_ref="$(jq -r '.target_ref' "${PLAN_PATH}")"
+          command="$(jq -r '.command' "${PLAN_PATH}")"
+
+          case "${workflow}" in
+            spec-kit-work-map-autofix-recovery-dispatch.yml|governed-production-promotion-request-launcher.yml)
+              ;;
+            *)
+              reject "resolver returned an unregistered workflow target"
+              ;;
+          esac
+
+          test "${workflow}" != "governed-command-gateway.yml" || reject "recursive gateway dispatch is forbidden"
+          test "${target_ref}" = "main" || reject "adapter target ref must remain trusted main"
+
+          payload_path="${RUNNER_TEMP}/governed-command-dispatch-payload.json"
+          jq '{ref:.target_ref,inputs:.inputs}' "${PLAN_PATH}" > "${payload_path}"
+
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+            --input "${payload_path}"
+
+          echo "command=${command}" >> "$GITHUB_OUTPUT"
+          echo "workflow=${workflow}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded dispatch evidence
+        if: always()
+        shell: bash
+        env:
+          PLAN_PATH: ${{ runner.temp }}/governed-command-plan.json
+          EVIDENCE_PATH: ${{ runner.temp }}/governed-command-gateway-evidence.json
+        run: |
+          set -Eeuo pipefail
+          outcome="blocked"
+          if [[ "${{ steps.dispatch.outcome }}" == "success" ]]; then
+            outcome="dispatched"
+          fi
+
+          if [[ -f "${PLAN_PATH}" ]]; then
+            jq \
+              --arg outcome "${outcome}" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg actor "${GITHUB_ACTOR}" \
+              '{
+                contract:"mad4b.governed-command-gateway-evidence.v1",
+                outcome:$outcome,
+                run_id:$run_id,
+                actor:$actor,
+                command:.command,
+                adapter:.adapter,
+                authority:.authority,
+                risk_class:.risk_class,
+                permission_profile:.permission_profile,
+                audit_policy:.audit_policy,
+                target_workflow:.target_workflow,
+                target_ref:.target_ref,
+                input_keys:(.inputs | keys | map(select(. != "confirmation"))),
+                gateway_sha:.evidence.gateway_sha,
+                authorization_verified:.evidence.authorization_verified,
+                sha_pin_verified:.evidence.sha_pin_verified,
+                registry_validated:.evidence.registry_validated,
+                schema_validated:.evidence.schema_validated,
+                direct_production_mutation:false,
+                arbitrary_workflow_execution:false,
+                arbitrary_code_execution:false,
+                authorization_value_included:false,
+                parameter_values_included:false
+              }' "${PLAN_PATH}" > "${EVIDENCE_PATH}"
+          else
+            jq -n \
+              --arg outcome "${outcome}" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg actor "${GITHUB_ACTOR}" \
+              --arg command "${COMMAND}" \
+              '{
+                contract:"mad4b.governed-command-gateway-evidence.v1",
+                outcome:$outcome,
+                run_id:$run_id,
+                actor:$actor,
+                command:$command,
+                resolution_completed:false,
+                authorization_value_included:false,
+                parameter_values_included:false,
+                direct_production_mutation:false
+              }' > "${EVIDENCE_PATH}"
+          fi
+
+      - name: Upload bounded gateway evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: governed-command-gateway-${{ github.run_id }}
+          path: ${{ runner.temp }}/governed-command-gateway-evidence.json
+          if-no-files-found: error
+          retention-days: 30
