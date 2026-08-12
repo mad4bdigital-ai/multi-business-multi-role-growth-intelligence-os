@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { buildEvaluation, compareBaseline, dependencyPreflight, extractSecretMatches, isPlaceholderToken } from "./repository-evaluation.mjs";
+import { applyBaselineLifecycle, buildEvaluation, compareBaseline, dependencyPreflight, extractSecretMatches, isPlaceholderToken, stripBaselineLifecycle } from "./repository-evaluation.mjs";
 
 const taskLike = extractSecretMatches("task-route-authority-resolver.mjs");
 assert.equal(taskLike.length, 0, "task- paths must not be treated as sk- tokens");
@@ -31,6 +31,16 @@ assert.equal(environmentProbe.deterministic, false, "environment probes must be 
 assert.ok(["passed", "failed", "not-available"].includes(environmentProbe.signals.dotnet.status));
 
 const baseline = { gaps: [{ gapId: "OLD-001", status: "open" }, { gapId: "PERSIST-001", status: "open" }] };
+const baselineAware = applyBaselineLifecycle(
+  { gaps: [{ gapId: "PERSIST-001", status: "open" }, { gapId: "NEW-001", status: "open" }] },
+  baseline,
+);
+assert.equal(baselineAware.baselineDiff.available, true);
+assert.equal(baselineAware.gaps.find((gap) => gap.gapId === "PERSIST-001").lifecycle, "unchanged");
+const committed = stripBaselineLifecycle(baselineAware);
+assert.equal(committed.baselineDiff.available, false, "committed artifacts must not depend on PR-only baseline availability");
+assert.ok(committed.gaps.every((gap) => gap.lifecycle === "new"), "committed artifact lifecycle must be baseline-independent");
+
 const current = { gaps: [{ gapId: "PERSIST-001", status: "open" }, { gapId: "NEW-001", status: "open" }] };
 assert.deepEqual(compareBaseline(current, baseline), {
   available: true,

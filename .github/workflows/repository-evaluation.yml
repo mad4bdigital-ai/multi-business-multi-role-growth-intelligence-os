@@ -135,7 +135,6 @@ jobs:
           set -euo pipefail
           args=()
           if [[ "${INCLUDE_NETWORK}" == "true" ]]; then args+=(--include-network); fi
-          if [[ -n "${EVALUATION_BASELINE:-}" ]]; then args+=(--baseline "$EVALUATION_BASELINE"); fi
           node scripts/repository-evaluation.mjs --enforce "${args[@]}"
           npm run inventory:check
           npm run inventory:test
