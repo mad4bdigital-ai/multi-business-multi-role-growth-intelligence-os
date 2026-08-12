@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,656 |
-| Total bytes | 58,655,689 |
-| Counted text lines | 1,369,771 |
+| Tracked files | 6,691 |
+| Total bytes | 58,938,678 |
+| Counted text lines | 1,375,211 |
 | Directories | 251 |
 | Categories | 13 |
 
@@ -17,11 +17,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 1,983 |
+| `tests-and-specs` | 1,993 |
 | `documentation` | 1,851 |
-| `api-runtime` | 1,323 |
-| `database-migrations` | 767 |
-| `root-and-other` | 219 |
+| `api-runtime` | 1,339 |
+| `database-migrations` | 774 |
+| `root-and-other` | 221 |
 | `ci-workflows` | 151 |
 | `api-contracts` | 147 |
 | `ci-config` | 93 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,437 |
-| `.mjs` | 1,523 |
-| `.js` | 928 |
-| `.sql` | 782 |
-| `.json` | 651 |
+| `.mjs` | 1,535 |
+| `.js` | 941 |
+| `.sql` | 789 |
+| `.json` | 654 |
 | `.yml` | 153 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -70,9 +70,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 151 |
-| Database migrations | 767 |
+| Database migrations | 774 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,046 |
+| Test/spec files (paths) | 2,056 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -94,7 +94,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 203,883 | 4369 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,883 | 4369 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
