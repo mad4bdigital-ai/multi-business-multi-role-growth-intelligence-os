@@ -53,6 +53,9 @@ export const ADAPTERS = Object.freeze({
     authority: "spec-kit-governance",
     minimumRiskClass: "elevated",
     parameterKeys: Object.freeze(["pr_number", "expected_head_sha"]),
+    targetPrNumberKey: "pr_number",
+    targetPrHeadShaKey: "expected_head_sha",
+    gatewayShaParameterKey: null,
   }),
   "production-promotion-request": Object.freeze({
     targetWorkflow: "governed-production-promotion-request-launcher.yml",
@@ -68,6 +71,9 @@ export const ADAPTERS = Object.freeze({
       "validation_branch_prefix",
       "validation_base_branch_prefix",
     ]),
+    targetPrNumberKey: "request_pr",
+    targetPrHeadShaKey: "expected_request_head_sha",
+    gatewayShaParameterKey: "expected_head_sha",
   }),
 });
 
@@ -216,6 +222,12 @@ export function validateRegistry(registry, { rootDir = process.cwd(), adapters =
     if (!Array.isArray(adapter.parameterKeys) || adapter.parameterKeys.length === 0) {
       fail(`adapter ${command.adapter} must declare bounded parameter keys`);
     }
+    if (!adapter.parameterKeys.includes(adapter.targetPrNumberKey) || !adapter.parameterKeys.includes(adapter.targetPrHeadShaKey)) {
+      fail(`adapter ${command.adapter} must bind its protected-branch guard to declared parameters`);
+    }
+    if (adapter.gatewayShaParameterKey !== null && !adapter.parameterKeys.includes(adapter.gatewayShaParameterKey)) {
+      fail(`adapter ${command.adapter} gateway SHA binding must reference a declared parameter`);
+    }
 
     const schema = loadParameterSchema(command.parameter_schema, rootDir);
     const schemaProperties = validateParameterSchemaContract(schema, command.parameter_schema);
@@ -266,16 +278,16 @@ export function resolveCommandPlan({
   command: commandId,
   parameters,
   authorization,
-  expectedGatewaySha,
-  currentGatewaySha,
+  expectedHeadSha,
+  currentHeadSha,
   currentRef,
   rootDir = process.cwd(),
   adapters = ADAPTERS,
 }) {
   validateRegistry(registry, { rootDir, adapters });
-  assertExactSha(expectedGatewaySha, "expected_gateway_sha");
-  assertExactSha(currentGatewaySha, "current_gateway_sha");
-  if (expectedGatewaySha !== currentGatewaySha) fail("expected gateway SHA mismatch");
+  assertExactSha(expectedHeadSha, "expected_head_sha");
+  assertExactSha(currentHeadSha, "current_head_sha");
+  if (expectedHeadSha !== currentHeadSha) fail("expected head SHA mismatch");
   if (currentRef !== "main") fail("governed command gateway must execute from trusted main");
 
   if (typeof commandId !== "string") fail("command must be a string");
@@ -288,6 +300,9 @@ export function resolveCommandPlan({
 
   const schema = loadParameterSchema(command.parameter_schema, rootDir);
   validateParameters(schema, parameters, `parameters for ${commandId}`);
+  if (adapter.gatewayShaParameterKey && parameters[adapter.gatewayShaParameterKey] !== currentHeadSha) {
+    fail(`command ${commandId} must pin the same trusted main SHA as the gateway`);
+  }
 
   const boundedInputs = {};
   for (const key of adapter.parameterKeys) boundedInputs[key] = parameters[key];
@@ -304,8 +319,15 @@ export function resolveCommandPlan({
     target_workflow: adapter.targetWorkflow,
     target_ref: adapter.targetRef,
     inputs: boundedInputs,
+    protected_branch_guard: {
+      pr_number: parameters[adapter.targetPrNumberKey],
+      expected_pr_head_sha: parameters[adapter.targetPrHeadShaKey],
+      required_base_ref: "main",
+      require_same_repository: true,
+      forbidden_branches: ["main", "Production"],
+    },
     evidence: {
-      gateway_sha: currentGatewaySha,
+      gateway_sha: currentHeadSha,
       authorization_verified: true,
       sha_pin_verified: true,
       registry_validated: true,

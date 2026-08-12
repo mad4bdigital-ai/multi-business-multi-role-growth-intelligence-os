@@ -102,8 +102,8 @@ test("spec kit command resolves only to the authoritative recovery workflow", ()
     command: "spec_kit_work_map_recovery",
     parameters: { pr_number: "6934", expected_head_sha: SHA_B },
     authorization: "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "main",
     rootDir: ROOT,
   });
@@ -120,8 +120,8 @@ test("unsupported command parameters fail closed", () => {
     command: "spec_kit_work_map_recovery",
     parameters: { pr_number: "6934", expected_head_sha: SHA_B, workflow: "arbitrary.yml" },
     authorization: "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "main",
     rootDir: ROOT,
   }), /unsupported field: workflow/);
@@ -133,11 +133,11 @@ test("stale gateway SHA fails closed", () => {
     command: "spec_kit_work_map_recovery",
     parameters: { pr_number: "6934", expected_head_sha: SHA_B },
     authorization: "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_B,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_B,
     currentRef: "main",
     rootDir: ROOT,
-  }), /expected gateway SHA mismatch/);
+  }), /expected head SHA mismatch/);
 });
 
 test("non-main gateway execution fails closed", () => {
@@ -146,8 +146,8 @@ test("non-main gateway execution fails closed", () => {
     command: "spec_kit_work_map_recovery",
     parameters: { pr_number: "6934", expected_head_sha: SHA_B },
     authorization: "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "feat/not-main",
     rootDir: ROOT,
   }), /trusted main/);
@@ -159,8 +159,8 @@ test("typed authorization mismatch fails closed", () => {
     command: "spec_kit_work_map_recovery",
     parameters: { pr_number: "6934", expected_head_sha: SHA_B },
     authorization: "RECOVER_SOMETHING_ELSE",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "main",
     rootDir: ROOT,
   }), /authorization mismatch/);
@@ -172,8 +172,8 @@ test("unknown commands fail closed", () => {
     command: "arbitrary_command",
     parameters: {},
     authorization: "ANYTHING",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "main",
     rootDir: ROOT,
   }), /unknown command/);
@@ -192,8 +192,8 @@ test("production command resolves only to the existing governed launcher", () =>
       validation_base_branch_prefix: "release/production-validation-base",
     },
     authorization: "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST",
-    expectedGatewaySha: SHA_A,
-    currentGatewaySha: SHA_A,
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
     currentRef: "main",
     rootDir: ROOT,
   });
@@ -210,4 +210,44 @@ test("production command resolves only to the existing governed launcher", () =>
     "validation_base_branch_prefix",
     "validation_branch_prefix",
   ]);
+});
+
+test("reference adapters bind protected-branch guard to the exact target PR head", () => {
+  const specPlan = resolveCommandPlan({
+    registry: registryClone(),
+    command: "spec_kit_work_map_recovery",
+    parameters: { pr_number: "6934", expected_head_sha: SHA_B },
+    authorization: "RECOVER_SPEC_KIT_WORK_MAP_AUTOFIX",
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
+    currentRef: "main",
+    rootDir: ROOT,
+  });
+  assert.deepEqual(specPlan.protected_branch_guard, {
+    pr_number: "6934",
+    expected_pr_head_sha: SHA_B,
+    required_base_ref: "main",
+    require_same_repository: true,
+    forbidden_branches: ["main", "Production"],
+  });
+});
+
+test("production reference command must pin the gateway trusted main SHA", () => {
+  assert.throws(() => resolveCommandPlan({
+    registry: registryClone(),
+    command: "production_promotion_request",
+    parameters: {
+      request_pr: "7000",
+      expected_head_sha: SHA_B,
+      expected_request_head_sha: SHA_B,
+      release_branch_prefix: "release/production-candidate",
+      validation_branch_prefix: "release/production-validation",
+      validation_base_branch_prefix: "release/production-validation-base",
+    },
+    authorization: "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST",
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
+    currentRef: "main",
+    rootDir: ROOT,
+  }), /same trusted main SHA/);
 });

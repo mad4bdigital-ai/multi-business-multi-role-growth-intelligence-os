@@ -46,7 +46,9 @@ The following remain code-owned rather than registry-owned:
 - direct Production mutation prohibition;
 - arbitrary workflow/path execution prohibition;
 - arbitrary shell/code execution prohibition;
-- exact gateway SHA validation.
+- exact gateway SHA validation;
+- same-repository open-PR resolution for the adapter mutation target;
+- explicit rejection when the resolved mutation target branch is `main` or `Production`.
 
 The registry therefore cannot select an arbitrary workflow or shell command. Unknown fields fail validation.
 
@@ -94,10 +96,10 @@ The gateway accepts four inputs:
 
 - `command` — registered command id;
 - `parameters_json` — JSON object matching the registered parameter schema;
-- `expected_gateway_sha` — exact lowercase 40-character SHA of trusted `main` containing the gateway;
+- `expected_head_sha` — exact lowercase 40-character SHA of trusted `main` containing the gateway;
 - `authorization` — exact typed confirmation fixed by the code-side adapter.
 
-The resolver fails closed when the workflow is not executing from `main`, the current workflow SHA does not equal `expected_gateway_sha`, the command is unknown/disabled, authorization differs, the schema is invalid, parameters are incomplete or contain unknown fields, or the adapter does not resolve to a code-allowlisted target.
+The resolver fails closed when the workflow is not executing from `main`, the current workflow SHA does not equal `expected_head_sha`, the command is unknown/disabled, authorization differs, the schema is invalid, parameters are incomplete or contain unknown fields, or the adapter does not resolve to a code-allowlisted target.
 
 ## Evidence
 

@@ -15,8 +15,8 @@ try {
     command: requiredEnv("COMMAND"),
     parameters,
     authorization: requiredEnv("AUTHORIZATION"),
-    expectedGatewaySha: requiredEnv("EXPECTED_GATEWAY_SHA"),
-    currentGatewaySha: requiredEnv("CURRENT_GATEWAY_SHA"),
+    expectedHeadSha: requiredEnv("EXPECTED_HEAD_SHA"),
+    currentHeadSha: requiredEnv("CURRENT_HEAD_SHA"),
     currentRef: requiredEnv("CURRENT_REF"),
   });
 
