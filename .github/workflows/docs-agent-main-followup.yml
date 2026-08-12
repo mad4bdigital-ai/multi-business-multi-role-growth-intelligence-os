@@ -118,6 +118,7 @@ jobs:
         id: create_followup
         uses: peter-evans/create-pull-request@v6
         with:
+          base: main
           branch: ${{ steps.target.outputs.target_branch }}
           delete-branch: true
           title: "Docs agent: impact note for ${{ inputs.expected_head_sha }}"
