@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/spec015-contract-governance.json",
       "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj",
+      "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
       "http-generic-api/scripts/run-github-policy-live-plan.mjs",
       "http-generic-api/spec015ContractValidators.js",
       "http-generic-api/spec015ReadinessFacade.js",
@@ -16,6 +17,7 @@
       "http-generic-api/test-spec015-contract-validators.mjs",
       "http-generic-api/test-spec015-readiness-facade.mjs",
       "http-generic-api/test-spec015-runtime-gate-contracts.mjs",
+      "http-generic-api/test-tenant-connection-self-repair-service.mjs",
       "http-generic-api/test-tenant-platform-plugin-openapi.mjs",
       "http-generic-api/test-tenant-platform-plugin-routes.mjs",
       "http-generic-api/test-workspace-resource-authority-foundation.mjs",
@@ -43,7 +45,7 @@
             "Evaluate valid and invalid tenant, Brand, dependency, binding, lifecycle, ownership, export, AI safety, and compare-and-set inputs.",
             "Compute the deterministic readiness/impact manifest and verify that no validator consumes secrets or performs persistence/provider writes.",
             "Run the runtime gate and repository policy plan regressions with finalizer identity supplied only as non-secret configuration.",
-            "Run the tenant, workspace authority, and sidecar certification contract checks while preserving fail-closed semantics."
+            "Run the tenant connection promotion-order and fail-closed contract checks together with tenant, workspace authority, and sidecar certification checks."
           ],
           "assertions": [
             "Valid contract fixtures pass with stable deterministic output.",
@@ -52,7 +54,8 @@
             "Readiness and impact preview are read-only and do not persist, migrate, dispatch, or mutate a provider.",
             "Runtime-open identity, migration/readback, and provider fail-closed gates remain blocked until authoritative evidence is present.",
             "The policy live-plan runner records finalizer App identity resolution without executing an apply mutation.",
-            "Tenant Platform Plugin and Workspace Resource Authority checks preserve canonical authority and cross-scope rejection."
+            "Tenant Platform Plugin and Workspace Resource Authority checks preserve canonical authority and cross-scope rejection.",
+            "Tenant Connection read-only, certification, binding, provider, preflight, and execute contracts remain ordered and fail closed."
           ],
           "tests": [
             {
@@ -74,6 +77,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-spec015-runtime-gate-contracts.mjs",
+              "args": []
+            },
+            {
+              "id": "tenant-connection-promotion-order-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-connection-self-repair-service.mjs",
               "args": []
             },
             {
@@ -110,6 +120,7 @@
             "http-generic-api/spec015ContractValidators.js",
             "http-generic-api/spec015ReadinessFacade.js",
             "http-generic-api/spec015RuntimeGateContracts.js",
+            "http-generic-api/scripts/manifests/test-manifest-upstream-main.mjs",
             "http-generic-api/scripts/run-github-policy-live-plan.mjs",
             "apps/local-manager-sidecar-certification/Mad4B.LocalManager.SidecarCertification.csproj"
           ]
