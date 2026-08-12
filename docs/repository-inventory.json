@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6615,
-    "bytes": 58030804,
-    "lines": 1359582,
+    "bytes": 58031119,
+    "lines": 1359590,
     "directories": 249,
     "categories": 13
   },
@@ -10117,9 +10117,9 @@
       "path": ".github/workflows/repository-evaluation.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 4978,
-      "lines": 141,
-      "sha256": "84de0cb532bf6667c6c1bc48d7bead6dd3345ef4a818d15c957e512e7f461289",
+      "bytes": 5245,
+      "lines": 148,
+      "sha256": "39687907d7ec03590638dc7ed4b252c2516b4db10a7c58b10a96ff4d31b41c3b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -29642,9 +29642,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 19290,
-      "lines": 321,
-      "sha256": "3498affa4190fdfe985f632b62be5e6f0e6506db89663b8dacb02466ead56052",
+      "bytes": 19338,
+      "lines": 322,
+      "sha256": "58d7a566eea54acc7b80d0b558cc542c007e5a4d44e149adecab0097ee069f46",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30744,7 +30744,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "8081a4fc31de0a0f22731c22b3fbfdf0ae10974d7ceb591abf512fbdd0330c10",
+      "sha256": "f405ee4bd683c56469658cd1c4636a44370dbf4abbb720e708b278bfff2c2907",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30909,7 +30909,7 @@
       "extension": ".md",
       "bytes": 44944,
       "lines": 481,
-      "sha256": "bc85c827191f6c3d438f440d38b3e6b0a83c43a35cf98d7a910ed2ee1c383e92",
+      "sha256": "257bd5bab29468b5b903cbf67b7465656751df4fdca00a46dbbcd6ca63ca0620",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76306,7 +76306,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "b6fcc6cf695008f2b2d1eb5dd47d93e22dedade923cfd9cf3a103077d20fcf02",
+      "sha256": "ece8ec5b65640c711cdc2652518b8688ac2bb8da7c1aa10a347f126e53ee9e6d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76867,7 +76867,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "16fa75ee90689c769dd4675cd6283a27989efc289cbf26ca3504d1ab079557eb",
+      "sha256": "f796e7aae22dc53878d08b83976e01090a841f4f76d3002ec33dba1caf0f83af",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77670,7 +77670,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "2778b4f6b1657c20db8fb593bbea9a065268250b244716025c3e1fc28be5389f",
+      "sha256": "cfee11144438169c27b7694429453b12191336ba2e31ef688616a88668df9629",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77901,7 +77901,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "65db8e79e125f9f476d209a9f61298c8d1f0f24b949da5bf4e4f944197924014",
+      "sha256": "d4cf3bf35e8fa64d3feb3a64d0c6d68dc6a278c689c4b16d0d56133151b3e06f",
       "mode": "644",
       "executable": false,
       "generated": false
