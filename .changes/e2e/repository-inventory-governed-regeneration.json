@@ -9,10 +9,12 @@
     "include": [
       ".changes/e2e/repository-inventory-governed-regeneration.json",
       ".github/repository-maintenance-tool-governance.json",
+      ".github/workflows/ci.yml",
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
       "docs/repository-inventory-guide.md",
+      "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
       "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"
@@ -25,30 +27,36 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Make Repository Inventory regeneration a bounded recipe of the existing governed generated-artifact writer while keeping pull-request verification read-only and resolving the writer's first-install self-hosting cycle without executing candidate mutation authority.",
+      "objective": "Make Repository Inventory regeneration a bounded recipe of the existing governed generated-artifact writer while keeping verification read-only and resolving the writer's first-install self-hosting cycle without executing candidate mutation authority.",
       "e2e_journeys": [
         {
           "id": "regenerate-stale-repository-inventory-through-governed-writer",
           "end_to_end": true,
           "level": "synthetic_runtime",
-          "actor": "repository inventory verifier, trusted dispatcher, and governed generated-artifact writer",
-          "entrypoint": "A same-repository pull request on a governed work branch has stale Repository Inventory outputs, either under already-trusted Inventory authority or while installing that authority for the first time.",
-          "terminal_outcome": "Ordinary stale-only pull requests are delegated to the already-trusted writer. A first-install authority pull request remains read-only, proves deterministic exact-head candidate outputs with the canonical generator unchanged from main, reports bootstrap_pending instead of executing candidate write authority, and requires the generated-output follow-up to run only after the writer has become trusted on main.",
+          "actor": "repository inventory verification gate, CI, trusted dispatcher, and governed generated-artifact writer",
+          "entrypoint": "A same-repository governed work branch has stale Repository Inventory outputs, either under already-trusted Inventory authority or while installing that authority for the first time.",
+          "terminal_outcome": "Ordinary stale-only pull requests are delegated to already-trusted writer authority. A first-install authority branch remains read-only, proves deterministic exact-head candidate outputs with the canonical generator unchanged from main, reports bootstrap_pending rather than executing candidate write authority, and requires the generated-output follow-up only after writer authority has become trusted on main.",
           "steps": [
-            "Run Repository Inventory on the exact pull-request head with contents read only and no persisted checkout credentials.",
-            "Regenerate the three Inventory outputs and run the canonical Inventory check and self-test.",
-            "For an ordinary stale-only PR, require same-repository identity, main base, zero-behind freshness, unchanged trusted authority, deterministic output, and exact three-file drift before delegation.",
-            "For a self-hosting authority installation, require the PR to remain same-repository, main-based, non-protected, exact-head, and zero-behind.",
-            "Require scripts/repository-inventory.mjs, package.json, and package-lock.json to be byte-unchanged from trusted main before bootstrap_pending is allowed.",
-            "Require the authority installation to include the governed writer workflow, Inventory verifier, Inventory autofix dispatcher, and generated-artifact maintenance tool, plus the repository-inventory-governed-regeneration E2E contract.",
+            "Checkout the exact candidate head with read-only repository permission.",
+            "Run the shared Repository Inventory verification gate from both Repository Inventory and CI.",
+            "Generate the three Inventory outputs twice and require identical SHA-256 identities across both passes.",
+            "Run the canonical Inventory check and self-test after generation.",
+            "If committed Inventory is current, report current and continue normally.",
+            "For an ordinary stale-only PR, keep existing fail-closed dispatch rules: same repository, main base, zero-behind freshness, unchanged trusted authority, deterministic exact three-file drift, and trusted writer delegation only.",
+            "For a self-hosting authority installation, permit bootstrap_pending only on pull_request or exact-head workflow_dispatch for a governed non-protected branch whose remote head still equals the expected SHA.",
+            "Require current main to be an ancestor of the exact candidate and require scripts/repository-inventory.mjs, package.json, and package-lock.json to be byte-unchanged from trusted main.",
+            "Require the authority installation to include the governed writer workflow, Inventory verifier, Inventory autofix dispatcher, generated-artifact maintenance tool, and repository-inventory-governed-regeneration E2E contract.",
             "Require deterministic regeneration to dirty exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md and no other worktree path.",
-            "Publish bootstrap_pending as read-only evidence; do not commit, push, dispatch candidate write code, mutate a protected branch, or force-push.",
-            "After source authority merges to main, create a non-protected generated-output work branch from that trusted main, invoke repository_inventory_refresh through the trusted writer, and verify the resulting exact head before the generated-output PR is merged."
+            "Publish bootstrap_pending as read-only evidence from Repository Inventory or CI; do not commit, push, dispatch candidate write code, mutate a protected branch, or force-push.",
+            "After source authority merges to main, create a non-protected generated-output work branch from trusted main, invoke repository_inventory_refresh through the trusted writer, and verify the resulting exact head before the generated-output PR is merged."
           ],
           "assertions": [
+            "Repository Inventory and CI use one shared read-only verification gate for currentness and self-hosting bootstrap decisions.",
+            "The shared gate performs two generation passes and compares SHA-256 identities before claiming deterministic_generation_verified.",
             "Repository Inventory pull-request verification has contents read only and performs no git push.",
             "Repository Inventory regeneration writes exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md.",
-            "The self-hosting bootstrap may report bootstrap_pending only on pull_request, never on push or workflow_dispatch.",
+            "The self-hosting bootstrap may report bootstrap_pending only on pull_request or workflow_dispatch, never on push.",
+            "workflow_dispatch bootstrap_pending requires a governed non-protected branch and remote exact-head equality.",
             "bootstrap_pending requires the canonical Inventory generator and package contract to be unchanged from trusted main.",
             "bootstrap_pending requires behind_by zero and an exact three-output dirty set with no additional worktree changes.",
             "bootstrap_pending is evidence only: repository_mutation, protected_branch_mutation, and force_push remain false.",
@@ -77,9 +85,11 @@
             }
           ],
           "evidence_paths": [
+            ".github/workflows/ci.yml",
             ".github/workflows/governed-generated-artifact-refresh.yml",
             ".github/workflows/repository-inventory-autofix-dispatch.yml",
             ".github/workflows/repository-inventory.yml",
+            "scripts/repository-inventory-verification-gate.mjs",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
             "http-generic-api/test-repository-inventory-self-hosting-bootstrap.mjs"

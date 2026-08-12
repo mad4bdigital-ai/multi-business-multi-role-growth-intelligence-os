@@ -57,19 +57,6 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Verify local and remote exact-head identity
-        if: github.event_name == 'workflow_dispatch'
-        shell: bash
-        env:
-          TARGET_REF: ${{ inputs.target_ref }}
-          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
-        run: |
-          set -euo pipefail
-          local_sha="$(git rev-parse HEAD)"
-          remote_sha="$(git ls-remote --exit-code origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
-          test "$local_sha" = "$EXPECTED_HEAD_SHA"
-          test "$remote_sha" = "$EXPECTED_HEAD_SHA"
-
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -79,116 +66,26 @@ jobs:
       - name: Install root dependencies
         run: npm ci --ignore-scripts
 
-      - name: Regenerate inventory artifacts
-        run: node scripts/repository-inventory.mjs
-
-      - name: Verify inventory currentness or bounded self-hosting bootstrap
-        id: currentness
+      - name: Verify Inventory currentness or bounded self-hosting bootstrap
+        id: inventory
         shell: bash
         env:
           EVENT_NAME: ${{ github.event_name }}
-          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
-          BASE_REF: ${{ github.event.pull_request.base.ref || '' }}
-          EXPECTED_PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           TARGET_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.target_ref || github.head_ref || github.ref_name }}
           EXPECTED_HEAD_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.expected_head_sha || github.event.pull_request.head.sha || github.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
-          npm run inventory:check
-          npm run inventory:test
-
-          outputs=(
-            docs/repository-inventory.json
-            docs/repository-inventory-summary.json
-            docs/repository-inventory.md
-          )
-          actual_sha="$(git rev-parse HEAD)"
-          test "$actual_sha" = "$EXPECTED_HEAD_SHA"
-
-          if git diff --quiet -- "${outputs[@]}"; then
-            jq -cn \
-              --arg contract "mad4b.repository-inventory-exact-head-verification.v1" \
-              --arg event_name "$EVENT_NAME" \
-              --arg target_ref "$TARGET_REF" \
-              --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-              --arg actual_head_sha "$actual_sha" \
-              '{contract:$contract,outcome:"passed",inventory_state:"current",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_head_sha,current:true,bootstrap_pending:false,permissions:{contents:"read"},repository_mutation:false,followup_required:false,secrets_included:false}' \
-              > repository-inventory-verification.json
-            echo "inventory_state=current" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if [[ "$EVENT_NAME" != "pull_request" ]]; then
-            jq -cn \
-              --arg contract "mad4b.repository-inventory-exact-head-verification.v1" \
-              --arg event_name "$EVENT_NAME" \
-              --arg target_ref "$TARGET_REF" \
-              --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-              --arg actual_head_sha "$actual_sha" \
-              '{contract:$contract,outcome:"failed",inventory_state:"stale",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_head_sha,current:false,bootstrap_pending:false,permissions:{contents:"read"},repository_mutation:false,followup_required:true,first_failure:{code:"repository_inventory_stale",diagnostic_tail:"Committed Repository Inventory outputs differ from deterministic regeneration."},secrets_included:false}' \
-              > repository-inventory-verification.json
-            git diff --exit-code -- "${outputs[@]}"
-            exit 1
-          fi
-
-          [[ "$HEAD_REPOSITORY" == "$GITHUB_REPOSITORY" ]]
-          [[ "$BASE_REF" == "main" ]]
-          [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
-          [[ "$TARGET_REF" != "main" && "$TARGET_REF" != "Production" ]]
-          test "$actual_sha" = "$EXPECTED_PR_HEAD_SHA"
-
-          git fetch --no-tags origin main
-          remote_main_sha="$(git rev-parse origin/main)"
-          merge_base_sha="$(git merge-base HEAD origin/main)"
-          test "$merge_base_sha" = "$remote_main_sha"
-
-          # A self-hosting bootstrap may not alter the canonical Inventory generator or package contract.
-          git diff --quiet origin/main...HEAD -- \
-            scripts/repository-inventory.mjs \
-            package.json \
-            package-lock.json
-
-          node <<'NODE'
-          const fs = require('node:fs');
-          const contract = JSON.parse(fs.readFileSync('.changes/e2e/repository-inventory-governed-regeneration.json', 'utf8'));
-          if (contract.feature_key !== 'repository-inventory-governed-regeneration') process.exit(1);
-          if (contract.merge_contract?.minimum_phase !== 'mvp') process.exit(1);
-          NODE
-
-          mapfile -t source_changes < <(git diff --name-only origin/main...HEAD)
-          required_authority_changes=(
-            .github/workflows/governed-generated-artifact-refresh.yml
-            .github/workflows/repository-inventory-autofix-dispatch.yml
-            .github/workflows/repository-inventory.yml
-            http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
-          )
-          for required in "${required_authority_changes[@]}"; do
-            printf '%s\n' "${source_changes[@]}" | grep -Fxq "$required"
-          done
-
-          mapfile -t dirty_outputs < <(git diff --name-only -- "${outputs[@]}")
-          test "${#dirty_outputs[@]}" -eq 3
-          expected_outputs="$(printf '%s\n' "${outputs[@]}" | sort)"
-          actual_outputs="$(printf '%s\n' "${dirty_outputs[@]}" | sort)"
-          test "$actual_outputs" = "$expected_outputs"
-
-          mapfile -t dirty_worktree < <(git status --porcelain --untracked-files=all | sed -E 's/^...//')
-          test "${#dirty_worktree[@]}" -eq 3
-          actual_worktree="$(printf '%s\n' "${dirty_worktree[@]}" | sort)"
-          test "$actual_worktree" = "$expected_outputs"
-
-          dirty_json="$(printf '%s\n' "${dirty_outputs[@]}" | jq -R . | jq -s .)"
-          jq -cn \
-            --arg contract "mad4b.repository-inventory-exact-head-verification.v1" \
-            --arg event_name "$EVENT_NAME" \
-            --arg target_ref "$TARGET_REF" \
-            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-            --arg actual_head_sha "$actual_sha" \
-            --arg trusted_main_sha "$remote_main_sha" \
-            --argjson dirty_files "$dirty_json" \
-            '{contract:$contract,outcome:"bootstrap_pending",inventory_state:"self_hosting_bootstrap_pending",event_name:$event_name,target_ref:$target_ref,expected_head_sha:$expected_head_sha,actual_head_sha:$actual_head_sha,trusted_main_sha:$trusted_main_sha,current:false,bootstrap_pending:true,behind_by_zero:true,trusted_generator_unchanged:true,deterministic_generation_verified:true,dirty_files:$dirty_files,permissions:{contents:"read"},repository_mutation:false,followup_required:true,followup_mode:"trusted_post_merge_work_branch",protected_branch_mutation:false,force_push:false,secrets_included:false}' \
-            > repository-inventory-verification.json
-          echo "inventory_state=self_hosting_bootstrap_pending" >> "$GITHUB_OUTPUT"
+          node scripts/repository-inventory-verification-gate.mjs \
+            --event-name "$EVENT_NAME" \
+            --target-ref "$TARGET_REF" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --head-repository "$HEAD_REPOSITORY" \
+            --base-ref "$BASE_REF" \
+            --repository "$REPOSITORY" \
+            --output repository-inventory-verification.json
 
       - name: Publish bounded Inventory state
         if: always()
