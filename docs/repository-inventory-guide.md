@@ -4,7 +4,7 @@
 
 The repository inventory is a generated, machine-readable census of every Git-tracked project file. It is designed to grow with the repository rather than relying on manually maintained lists.
 
-The authoritative machine-readable artifact is `docs/repository-inventory.json`. The companion `docs/repository-inventory.md` is a concise human-readable report generated from the same snapshot.
+The authoritative complete machine-readable artifact is `docs/repository-inventory.json`. The compact `docs/repository-inventory-summary.json` is intended for low-noise Pull Request review and dashboards, while `docs/repository-inventory.md` is the concise human-readable report generated from the same snapshot.
 
 ## What is included
 
@@ -24,11 +24,11 @@ Use `inventory:write` after adding or removing repository files. Use `inventory:
 
 ## Continuous integration
 
-The `Repository Inventory` workflow runs on pull requests and pushes to `main` when repository content changes, and can also be started manually. It uses the Node version declared by `.nvmrc`, regenerates both artifacts, verifies determinism, and uploads the artifacts for inspection. It has read-only repository permissions.
+The `Repository Inventory` workflow runs on pull requests and pushes to `main` when repository content changes, and can also be started manually. It uses the Node version declared by `.nvmrc`, regenerates the complete JSON, compact summary JSON, and Markdown report, verifies determinism, and uploads all three artifacts for inspection. It has read-only repository permissions.
 
 The main `CI` workflow also runs `inventory:check` and `inventory:test` in its syntax gate. This makes inventory freshness and integrity a required project-quality check, while the dedicated `Repository Inventory` workflow remains responsible for the human-inspectable artifact upload. The two paths are read-only and do not commit or dispatch one another, so this integration does not create an automation loop.
 
-The workflow intentionally ignores changes to the two generated inventory files as triggers. This avoids a second run caused solely by the report update while still requiring the generated files to be committed in the same pull request.
+The workflow intentionally ignores changes to the three generated inventory files as triggers. This avoids a second run caused solely by the report update while still requiring the generated files to be committed in the same pull request.
 
 ## Extension policy
 

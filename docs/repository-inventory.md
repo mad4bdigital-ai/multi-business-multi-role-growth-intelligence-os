@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,598 |
-| Total bytes | 57,926,895 |
-| Counted text lines | 1,357,196 |
+| Total bytes | 57,928,710 |
+| Counted text lines | 1,357,223 |
 | Directories | 248 |
 | Categories | 13 |
 
@@ -70,7 +70,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 147 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files | 2,036 |
+| Test/spec files (paths) | 2,036 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -117,7 +117,7 @@ This report is generated deterministically from the Git index. It is intentional
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis.
 
 ## Regeneration
 

@@ -14,8 +14,9 @@ import { category, extension, isTestOrSpec } from "./repository-inventory-rules.
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const outputJson = process.env.INVENTORY_JSON ?? "docs/repository-inventory.json";
 const outputMarkdown = process.env.INVENTORY_MARKDOWN ?? "docs/repository-inventory.md";
+const outputSummary = process.env.INVENTORY_SUMMARY ?? "docs/repository-inventory-summary.json";
 const checkOnly = process.argv.includes("--check");
-const generatedPaths = new Set([outputJson, outputMarkdown]);
+const generatedPaths = new Set([outputJson, outputMarkdown, outputSummary]);
 
 function run(command, args) {
   return execFileSync(command, args, { cwd: root, encoding: "utf8" }).trim();
@@ -83,8 +84,25 @@ const inventory = {
   directories,
 
   packages,
-  surfaces: { workflows, migrations, apiContracts: contracts, tests },
+  surfaces: { workflows, migrations, apiContracts: contracts, tests, testSpecFiles: tests },
   files,
+};
+
+const largestFiles = [...files].sort((a, b) => b.bytes - a.bytes).slice(0, 20).map(({ path, category, bytes, lines }) => ({ path, category, bytes, lines }));
+const summary = {
+  schemaVersion: 1,
+  generatedFrom: "git-index",
+  deterministic: true,
+  totals: inventory.totals,
+  counts: inventory.counts,
+  packages,
+  surfaces: {
+    workflows: workflows.length,
+    migrations: migrations.length,
+    apiContracts: contracts.length,
+    testSpecFiles: tests.length,
+  },
+  largestFiles,
 };
 
 function rows(entries) { return entries.map(([key, value]) => `| \`${key}\` | ${value.toLocaleString("en-US")} |`).join("\n") || "| none | 0 |"; }
@@ -124,7 +142,7 @@ ${rows(Object.entries(byExtension).slice(0, 40))}
 | GitHub Actions workflows | ${workflows.length.toLocaleString("en-US")} |
 | Database migrations | ${migrations.length.toLocaleString("en-US")} |
 | API/OpenAPI contracts | ${contracts.length.toLocaleString("en-US")} |
-| Test/spec files | ${tests.length.toLocaleString("en-US")} |
+| Test/spec files (paths) | ${tests.length.toLocaleString("en-US")} |
 | package.json manifests | ${packages.length.toLocaleString("en-US")} |
 
 ## Package manifests
@@ -141,7 +159,7 @@ ${fileRows([...files].sort((a, b) => b.bytes - a.bytes))}
 
 ## Complete machine-readable inventory
 
-The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The JSON file is the authoritative artifact for automation and downstream analysis.
+The complete inventory of every tracked file, including category, extension, byte size, line count, SHA-256 content fingerprint, Unix mode, executable marker, and generated-file marker, is available in the repository-inventory.json artifact. The compact repository-inventory-summary.json artifact contains totals, grouped counts, package manifests, surface counts, and the largest files for low-noise review and downstream dashboards. The JSON file is the authoritative artifact for automation and downstream analysis.
 
 ## Regeneration
 
@@ -149,7 +167,8 @@ Run npm run inventory:check to verify that committed artifacts match the current
 `;
 
 const jsonText = `${JSON.stringify(inventory, null, 2)}\n`;
-const outputs = [[outputJson, jsonText], [outputMarkdown, markdown]];
+const summaryText = `${JSON.stringify(summary, null, 2)}\n`;
+const outputs = [[outputJson, jsonText], [outputMarkdown, markdown], [outputSummary, summaryText]];
 const mismatches = outputs.filter(([path, expected]) => {
   try { return readFileSync(`${root}/${path}`, "utf8") !== expected; } catch { return true; }
 });
@@ -163,7 +182,9 @@ if (checkOnly) {
 } else {
   mkdirSync(dirname(`${root}/${outputJson}`), { recursive: true });
   mkdirSync(dirname(`${root}/${outputMarkdown}`), { recursive: true });
+  mkdirSync(dirname(`${root}/${outputSummary}`), { recursive: true });
   writeFileSync(`${root}/${outputJson}`, jsonText);
   writeFileSync(`${root}/${outputMarkdown}`, markdown);
-  console.log(JSON.stringify({ ok: true, files: files.length, bytes: totalBytes, workflows: workflows.length, migrations: migrations.length, contracts: contracts.length, tests: tests.length, outputJson, outputMarkdown }, null, 2));
+  writeFileSync(`${root}/${outputSummary}`, summaryText);
+  console.log(JSON.stringify({ ok: true, files: files.length, bytes: totalBytes, workflows: workflows.length, migrations: migrations.length, contracts: contracts.length, tests: tests.length, outputJson, outputMarkdown, outputSummary }, null, 2));
 }

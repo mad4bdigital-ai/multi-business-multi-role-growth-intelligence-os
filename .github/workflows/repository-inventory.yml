@@ -56,5 +56,6 @@ jobs:
           name: repository-inventory-${{ github.sha }}
           path: |
             docs/repository-inventory.json
+            docs/repository-inventory-summary.json
             docs/repository-inventory.md
           if-no-files-found: error
