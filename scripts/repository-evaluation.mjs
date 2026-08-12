@@ -66,6 +66,19 @@ function commandName() {
   return process.platform === "win32" ? "npm.cmd" : "npm";
 }
 
+function dependencyPreflight(root = ROOT) {
+  const requiredExecutables = [
+    ["root-tests", join(root, "node_modules", ".bin", process.platform === "win32" ? "jest.cmd" : "jest")],
+    ["typecheck", join(root, "node_modules", ".bin", process.platform === "win32" ? "tsc.cmd" : "tsc")],
+  ];
+  const missing = requiredExecutables.filter(([, executable]) => !existsSync(executable)).map(([check]) => check);
+  return {
+    ready: missing.length === 0,
+    missing,
+    recommendation: missing.length === 0 ? "" : "Run npm ci before executing the evaluation loop.",
+  };
+}
+
 function runCheck(id, args, cwd = ROOT, skip = false) {
   const command = commandName();
   if (skip) return { id, command: [command, ...args], status: "not-run", exitCode: null };
@@ -135,15 +148,19 @@ function workflowSignals(inventory) {
   let explicitPermissions = 0;
   let broadWrite = 0;
   let unpinnedActions = 0;
+  const unpinnedActionRefs = [];
   for (const file of workflows) {
     const content = readFileSync(absolute(file.path), "utf8");
     if (/^\s*permissions\s*:/m.test(content)) explicitPermissions += 1;
     if (/^\s*permissions\s*:\s*(?:write-all|write)\s*$/m.test(content)) broadWrite += 1;
     for (const match of content.matchAll(/uses:\s*[^\s@]+@([^\s]+)/g)) {
-      if (!/^[0-9a-f]{40}$/i.test(match[1])) unpinnedActions += 1;
+      if (!/^[0-9a-f]{40}$/i.test(match[1])) {
+        unpinnedActions += 1;
+        if (unpinnedActionRefs.length < 20) unpinnedActionRefs.push({ path: file.path, reference: match[0] });
+      }
     }
   }
-  return { workflowCount: workflows.length, explicitPermissions, missingExplicitPermissions: workflows.length - explicitPermissions, broadWrite, unpinnedActions };
+  return { workflowCount: workflows.length, explicitPermissions, missingExplicitPermissions: workflows.length - explicitPermissions, broadWrite, unpinnedActions, unpinnedActionRefs };
 }
 
 function isPlaceholderToken(token) {
@@ -215,6 +232,7 @@ function collectGaps({ inventory, checks, workflow, secrets, audit, dotnet, ciSu
   }
   if (workflow.missingExplicitPermissions > 0) addGap(gaps, { gapId: "SEC-CI-EXPLICIT-PERMISSIONS", domain: "security", severity: "medium", status: "open", blocking: false, evidence: workflow, impact: "Some workflows do not declare an explicit permission boundary.", recommendation: "Review each workflow and declare the minimum required permissions." });
   if (workflow.broadWrite > 0) addGap(gaps, { gapId: "SEC-CI-BROAD-WRITE", domain: "security", severity: "medium", status: "open", blocking: false, evidence: { broadWrite: workflow.broadWrite }, impact: "Some workflows request write-level authority.", recommendation: "Replace broad write permissions with least-privilege scopes." });
+  if (ciSurfacePolicy.requireActionPinning === true && workflow.unpinnedActions > 0) addGap(gaps, { gapId: "SEC-CI-UNPINNED-ACTIONS", domain: "security", severity: "medium", status: "open", blocking: false, evidence: { unpinnedActions: workflow.unpinnedActions, samples: workflow.unpinnedActionRefs }, impact: "Workflow action references are mutable tags or branches and can drift without review.", recommendation: "Pin every third-party or first-party action reference to a full commit SHA and retain the release tag in a comment." });
   const workflowBudgetExceeded = workflow.workflowCount > Number(ciSurfacePolicy.maxWorkflowCount ?? 100);
   const overlapCheckMissingOrFailed = ciSurfacePolicy.requireOverlapCheck === true && overlapCheck?.status !== "passed";
   if (workflowBudgetExceeded || overlapCheckMissingOrFailed) {
@@ -301,6 +319,10 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
   const dependencyAuditPolicy = readOptionalJson(DEPENDENCY_AUDIT_POLICY_PATH, { ciNetworkAuditRequired: false });
   const largeFilePolicy = readOptionalJson(LARGE_FILE_POLICY_PATH, { files: [] });
   const workflow = workflowSignals(evaluationInventory);
+  const workflowBudget = Number(ciSurfacePolicy.maxWorkflowCount ?? 100);
+  const workflowBudgetWarning = Number(ciSurfacePolicy.warningWorkflowCount ?? workflowBudget);
+  const workflowBudgetStatus = workflow.workflowCount > workflowBudget ? "exceeded" : workflow.workflowCount >= workflowBudgetWarning ? "near-limit" : "within-budget";
+  workflow.budget = { max: workflowBudget, warning: workflowBudgetWarning, status: workflowBudgetStatus };
   const secrets = secretSignals(evaluationInventory);
   const audit = auditSignals(evaluationInventory, includeNetwork);
   const evaluatedBytes = evaluationInventory.files.reduce((total, file) => total + file.bytes, 0);
@@ -334,7 +356,9 @@ function buildEvaluation({ root = ROOT, skipChecks = false, includeNetwork = fal
       audit,
       dotnet,
       maintainability: {
-        workflowBudget: Number(ciSurfacePolicy.maxWorkflowCount ?? 100),
+        workflowBudget: workflowBudget,
+        workflowBudgetWarning,
+        workflowBudgetStatus,
         totalLargeFiles: largeFiles.all.length,
         approvedLargeFiles: largeFiles.approved.length,
         unapprovedLargeFiles: largeFiles.unapproved.length,
@@ -375,8 +399,11 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Workflows | ${evaluation.signals.workflow.workflowCount} |
 | Workflows without explicit permissions | ${evaluation.signals.workflow.missingExplicitPermissions} |
 | Broad write permission matches | ${evaluation.signals.workflow.broadWrite} |
+| Unpinned action references | ${evaluation.signals.workflow.unpinnedActions} |
 | Automation overlap check | ${evaluation.checks.find((check) => check.id === "automation-overlap")?.status ?? "not-run"} |
 | Workflow budget | ${evaluation.signals.maintainability.workflowBudget} |
+| Workflow budget warning | ${evaluation.signals.maintainability.workflowBudgetWarning} |
+| Workflow budget status | ${evaluation.signals.maintainability.workflowBudgetStatus} |
 | Unapproved large files | ${evaluation.signals.maintainability.unapprovedLargeFiles} |
 | Suspected secret files | ${evaluation.signals.secrets.suspectedSecretFiles.length} |
 | Dependency audit mode | ${evaluation.signals.audit.mode} |
@@ -415,8 +442,16 @@ function writeOrCheck(outputs, expected) {
 
 function main(argv = process.argv.slice(2)) {
   const options = parseArgs(argv);
+  if (!options.skipChecks) {
+    const preflight = dependencyPreflight();
+    if (!preflight.ready) {
+      console.error(JSON.stringify({ ok: false, contract: "mad4b.repository-evaluation-preflight.v1", status: "not-evaluated", missing: preflight.missing, recommendation: preflight.recommendation }, null, 2));
+      process.exitCode = 2;
+      return;
+    }
+  }
   const baseline = options.baseline && existsSync(absolute(options.baseline)) ? readJson(options.baseline) : null;
-  const evaluation = buildEvaluation({ skipChecks: options.skipChecks, includeNetwork: options.includeNetwork, baseline });
+  const evaluation = buildEvaluation({ skipChecks: options.skipChecks, includeNetwork: options.includeNetwork, includeEnvironment: options.includeEnvironment, baseline });
   if (options.diff) {
     process.stdout.write(`${JSON.stringify(evaluation.baselineDiff, null, 2)}\n`);
     return;
@@ -441,6 +476,6 @@ function main(argv = process.argv.slice(2)) {
   if (options.enforce && evaluation.gate.decision === "fail") process.exitCode = 1;
 }
 
-export { buildEvaluation, compareBaseline, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken };
+export { buildEvaluation, compareBaseline, renderMarkdown, buildSummary, extractSecretMatches, isPlaceholderToken, dependencyPreflight };
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) main();

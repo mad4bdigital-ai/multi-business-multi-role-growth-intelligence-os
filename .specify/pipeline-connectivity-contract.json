@@ -220,7 +220,7 @@
         "Generate exact-head Work Map repair candidate",
         "work-map-repair-candidate",
         "generated_from_exact_checked_out_head",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
         "Fail closed on stale generated Work Maps"
       ],
       "forbidden_commands": [
@@ -375,7 +375,7 @@
         "test-pipeline-connectivity-check.mjs",
         "docs-agent-runner.mjs --write --mode push",
         "Refuse follow-up mutations outside impact notes",
-        "peter-evans/create-pull-request@v6",
+        "peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6",
         "docs/auto-docs-agent/**",
         "Review is required",
         "queue: max"
@@ -420,7 +420,7 @@
         "test-pipeline-connectivity-check.mjs",
         "repo-maintenance-sync.mjs --write --skip-work-maps",
         "Refuse Work Map mutation outside the governed writer",
-        "peter-evans/create-pull-request@v6",
+        "peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6",
         "queue: max"
       ],
       "forbidden_commands": [

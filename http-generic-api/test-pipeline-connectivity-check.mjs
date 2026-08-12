@@ -358,7 +358,7 @@ jobs:
   assert.ok(!integrationWorkflow.includes("tested_head_sha: process.env.GITHUB_SHA"));
   assert.ok(integrationWorkflow.includes("generated_from_exact_checked_out_head"));
   assert.ok(integrationWorkflow.includes("remote_write_executed: false"));
-  assert.ok(integrationWorkflow.includes("actions/upload-artifact@v4"));
+  assert.ok(integrationWorkflow.includes("actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4"));
   assert.ok(integrationWorkflow.includes("Fail closed on stale generated Work Maps"));
   assert.ok(!integrationWorkflow.includes("git push origin"));
   assert.ok(!integrationWorkflow.includes("git commit"));

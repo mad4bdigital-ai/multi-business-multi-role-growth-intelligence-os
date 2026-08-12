@@ -32,13 +32,13 @@ jobs:
       phase_evaluation_base: ${{ steps.parallel.outputs.phase_evaluation_base }}
     steps:
       - name: Checkout exact candidate tree
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
@@ -118,7 +118,7 @@ jobs:
 
       - name: Upload phase evaluation
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-phase-evaluation-${{ github.run_id }}
           path: |
@@ -133,13 +133,13 @@ jobs:
     needs: evaluate
     steps:
       - name: Checkout exact candidate tree
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"
@@ -203,7 +203,7 @@ jobs:
 
       - name: Upload phase execution evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-phase-execution-${{ github.run_id }}
           path: |
@@ -220,19 +220,19 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout exact candidate tree
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ env.CI_CANDIDATE_SHA }}
           fetch-depth: 0
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
 
       - name: Download structured phase reports
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: e2e-phase-e*-${{ github.run_id }}
           path: ${{ runner.temp }}/e2e-phase-reports
@@ -262,7 +262,7 @@ jobs:
 
       - name: Upload canonical evidence summary
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: e2e-phase-summary-${{ github.run_id }}
           path: |

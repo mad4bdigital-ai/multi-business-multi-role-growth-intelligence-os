@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout exact trusted main tooling
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.base.sha }}
           fetch-depth: 0
@@ -174,7 +174,7 @@ jobs:
           echo "ACCEPTED_MAIN_DRIFT_FILES=${accepted_drift_files}" >> "${GITHUB_ENV}"
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"
@@ -388,7 +388,7 @@ jobs:
       - name: Upload Production schema baseline Artifact
         id: upload
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: retail-commerce-production-schema-baseline-pr-${{ github.event.pull_request.number }}-${{ github.event.pull_request.base.sha }}
           path: ${{ runner.temp }}/retail-commerce-production-schema-baseline

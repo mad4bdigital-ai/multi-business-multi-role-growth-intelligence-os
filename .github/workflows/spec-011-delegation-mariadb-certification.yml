@@ -54,10 +54,10 @@ jobs:
         working-directory: http-generic-api
     steps:
       - name: Check out pull request
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Set up Node.js 22
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 22
           cache: npm
@@ -234,7 +234,7 @@ jobs:
 
       - name: Upload migration preflight evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: spec011-phase5-migration-preflight
           path: http-generic-api/artifacts/spec011-phase5-migration-preflight.json
@@ -243,7 +243,7 @@ jobs:
 
       - name: Upload bounded certification evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: spec011-delegation-mariadb-certification
           path: http-generic-api/artifacts/delegation-mariadb-certification.json
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload Phase 5 structured diagnosis evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: spec011-phase5-validation-ci
           path: http-generic-api/artifacts/spec011-phase5-validation-ci.json

@@ -51,7 +51,7 @@ jobs:
           echo "REPORT_DIR=${report_dir}" >> "${GITHUB_ENV}"
 
       - name: Checkout exact trusted default-branch tooling
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
@@ -252,7 +252,7 @@ jobs:
 
       - name: Upload bounded runtime evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: hostinger-production-runtime-readback-r7-${{ github.run_id }}
           path: ${{ runner.temp }}/hostinger-production-runtime-readback-r7/*

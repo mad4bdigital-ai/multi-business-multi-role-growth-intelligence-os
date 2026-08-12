@@ -9,11 +9,12 @@
 تعمل الحلقة على مراحل ثابتة وقابلة لإعادة التشغيل:
 
 1. قراءة الحالة من Git index وملفات الجرد والاعتماديات وWorkflows.
-2. تشغيل فحوص محددة بمهلة زمنية وتسجيل نتيجة كل فحص، دون تضمين الأسرار أو المخرجات الحساسة.
-3. تحويل النتائج إلى فجوات ذات معرّفات مستقرة مبنية على المجال والقاعدة، لا على ترتيب التنفيذ.
-4. مقارنة الفجوات الحالية بالـ baseline السابق إن وُجد. تحمل الفجوة الحالية lifecycle من `new` أو `unchanged` أو `persisting`، بينما تظهر الفجوات التي اختفت في `resolvedGapIds` داخل baseline diff.
-5. إعادة بناء التقرير والتحقق من أن artifacts committed متطابقة مع التوليد الحالي؛ أي اختلاف يعني أن التوليد غير deterministic.
-6. إصدار قرار البوابة. مع `--enforce` يفشل CI فقط عند فجوة blocking مفتوحة أو فشل فحص حاجز، بينما تبقى الفجوات التحذيرية ظاهرة دون منع الدمج. يظل التقييم المحلي deterministic، في حين يملك CI probes شبكية وبيئية منفصلة للتحقق من dependency advisories و.NET SDK.
+2. إجراء preflight للتبعيات التنفيذية؛ إذا غابت أدوات `jest` أو `tsc` بعد clone نظيف، تُعلن الحالة `not-evaluated` مع توصية `npm ci` بدل تصنيف فشل بيئي كفجوة جودة.
+3. تشغيل فحوص محددة بمهلة زمنية وتسجيل نتيجة كل فحص، دون تضمين الأسرار أو المخرجات الحساسة.
+4. تحويل النتائج إلى فجوات ذات معرّفات مستقرة مبنية على المجال والقاعدة، لا على ترتيب التنفيذ. ويشمل ذلك فحص SHA pinning لمراجع Actions، وحالة اقتراب سطح CI من حد التحذير.
+5. مقارنة الفجوات الحالية بالـ baseline السابق إن وُجد. تحمل الفجوة الحالية lifecycle من `new` أو `unchanged` أو `persisting`، بينما تظهر الفجوات التي اختفت في `resolvedGapIds` داخل baseline diff.
+6. إعادة بناء التقرير والتحقق من أن artifacts committed متطابقة مع التوليد الحالي؛ أي اختلاف يعني أن التوليد غير deterministic.
+7. إصدار قرار البوابة. مع `--enforce` يفشل CI فقط عند فجوة blocking مفتوحة أو فشل فحص حاجز، بينما تبقى الفجوات التحذيرية ظاهرة دون منع الدمج. يظل التقييم المحلي deterministic، في حين يملك CI probes شبكية وبيئية منفصلة للتحقق من dependency advisories و.NET SDK.
 
 ## مصدر الحقيقة
 
@@ -25,7 +26,7 @@
 
 ## المجالات الحالية
 
-يغطي الإصدار الأول سلامة الجرد والتقارير المولدة، typecheck والاختبارات الأساسية، انجراف Workflows، الاعتماديات، توفر أدوات البناء، الملفات الكبيرة ومؤشرات الصيانة، والحالة العامة لبوابة CI. يعتمد حجم سطح CI على `docs/repository-ci-surface-policy.json` مع فحص `automation-overlap-analyzer`، بينما تعتمد الملفات الكبيرة على `docs/repository-large-file-policy.json` التي تتطلب مبررًا ومالكًا لكل ملف مستثنى. يمكن إضافة قواعد جديدة دون تعديل schema الأساسي.
+يغطي الإصدار الأول سلامة الجرد والتقارير المولدة، typecheck والاختبارات الأساسية، انجراف Workflows، SHA pinning لمراجع Actions، الاعتماديات، توفر أدوات البناء، الملفات الكبيرة ومؤشرات الصيانة، والحالة العامة لبوابة CI. يعتمد حجم سطح CI على `docs/repository-ci-surface-policy.json` مع حد warning مبكر وفحص `automation-overlap-analyzer`، بينما تعتمد الملفات الكبيرة على `docs/repository-large-file-policy.json` التي تتطلب مبررًا ومالكًا لكل ملف مستثنى. يمكن إضافة قواعد جديدة دون تعديل schema الأساسي.
 
 ## حدود الأتمتة
 
@@ -33,7 +34,7 @@
 
 ## المخرجات
 
-ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص المحلية. probes الخارجية اختيارية محليًا: `--include-network` لفحص advisories و`--include-environment` لفحص SDK، بينما يفرض Workflow البعيد audit الشبكي و`setup-dotnet@v5` عبر `docs/repository-dependency-audit-policy.json`. يظل ناتج التقييم committed مبنيًا على الوضع deterministic ولا يخلط نتائج runner الخارجية داخله.
+ينتج المحرك `docs/repository-evaluation.json` كمصدر آلي، و`docs/repository-evaluation.md` كتقرير قابل للقراءة، و`docs/repository-evaluation-summary.json` كملخص منخفض الضوضاء. يجب أن تكون جميعها deterministic بالنسبة إلى الحالة المدخلة ونتائج الفحوص المحلية. ويُظهر التقرير عدد مراجع Actions غير المثبتة، وحالة سعة CI (`within-budget`, `near-limit`, `exceeded`) حتى تكون الزيادة المستقبلية قابلة للرصد قبل بلوغ حد المنع. probes الخارجية اختيارية محليًا: `--include-network` لفحص advisories و`--include-environment` لفحص SDK، بينما يفرض Workflow البعيد audit الشبكي و`setup-dotnet@v5` عبر `docs/repository-dependency-audit-policy.json`. يظل ناتج التقييم committed مبنيًا على الوضع deterministic ولا يخلط نتائج runner الخارجية داخله.
 
 ## سياسة الدمج
 

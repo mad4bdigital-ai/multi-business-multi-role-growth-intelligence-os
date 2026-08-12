@@ -32,7 +32,7 @@ jobs:
       - name: Download exact source structured evidence
         id: download
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: frontend-dispatch-verification-evidence-${{ github.event.workflow_run.id }}
           path: ${{ env.SOURCE_DIR }}
@@ -251,7 +251,7 @@ jobs:
 
       - name: Upload canonical dispatch evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: frontend-parity-refresh-dispatch-${{ github.run_id }}
           path: ${{ env.REPORT_DIR }}/

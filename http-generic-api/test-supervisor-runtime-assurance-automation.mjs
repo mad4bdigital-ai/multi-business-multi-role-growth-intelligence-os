@@ -15,7 +15,7 @@ const testManifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 for (const marker of [
   "skip-docs-agent",
   "Upload generated documentation preview",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "Report preview-only PR mode",
   "never commit, push, merge, or authorize Work Map writes",
   "docs/auto-docs-agent/",
@@ -51,7 +51,7 @@ for (const marker of [
   "Pin exact main source and safe target branch",
   "EXPECTED_HEAD_SHA",
   "TARGET_BRANCH=\"docs-agent/${EXPECTED_HEAD_SHA}\"",
-  "peter-evans/create-pull-request@v6",
+  "peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6",
   "docs/auto-docs-agent/**",
   "Review is required",
   "queue: max",
@@ -88,7 +88,7 @@ for (const marker of [
   "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
   "state=consumed recovery_run_id=${RECOVERY_RUN_ID}",
   "work-map-autofix-diagnostics-",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "git check-ref-format --branch",
   "git add -- docs/work-maps",
   "git push origin",
@@ -203,7 +203,7 @@ for (const marker of [
   "npm ci --ignore-scripts",
   "cache-dependency-path: http-generic-api/package-lock.json",
   "behavioral-dry-run.json",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "supervisor-runtime-assurance",
 ]) {
   assert.ok(assurance.includes(marker), `read-only assurance workflow missing ${marker}`);
