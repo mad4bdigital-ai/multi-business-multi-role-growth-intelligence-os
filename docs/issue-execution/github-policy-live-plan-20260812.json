@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T14:39:56.156Z",
+  "generated_at": "2026-08-12T16:14:46.520Z",
   "readback": {
     "mode": "readback",
     "target": {
@@ -25,9 +25,9 @@
     ],
     "review_policy_mode": "incomplete",
     "finalizer_identity": {
-      "app_id": null,
-      "installation_id": null,
-      "resolved": false
+      "app_id": 1869309,
+      "installation_id": 153171787,
+      "resolved": true
     },
     "required_checks": [
       "Syntax Check",
@@ -59,8 +59,8 @@
         "Single Owner Review Gate"
       ],
       "direct_push_block_proven": false,
-      "finalizer_app_identity_resolved": false,
-      "finalizer_not_bypass_proven": false,
+      "finalizer_app_identity_resolved": true,
+      "finalizer_not_bypass_proven": true,
       "merge_queue_disabled_or_equivalent": true,
       "auto_merge_disabled": true,
       "server_policy_gate_complete": false
@@ -71,9 +71,7 @@
       "review_thread_resolution_missing",
       "latest_push_approval_missing",
       "required_status_checks_missing",
-      "direct_push_block_unproven",
-      "finalizer_app_identity_unresolved",
-      "finalizer_bypass_posture_unproven"
+      "direct_push_block_unproven"
     ],
     "mutation_executed": false,
     "secrets_included": false
@@ -94,7 +92,7 @@
     "existing_ruleset_id": null,
     "preconditions": {
       "policy_state_readable": true,
-      "finalizer_app_identity_resolved": false,
+      "finalizer_app_identity_resolved": true,
       "no_main_bypass_actors": true,
       "managed_ruleset_ambiguity_absent": true,
       "managed_ruleset_repository_owned": true,

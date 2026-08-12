@@ -4,11 +4,19 @@ import { runGithubRepositoryPolicyController, GITHUB_REPOSITORY_POLICY_REQUIRED_
 const token = String(process.env.GITHUB_TOKEN || "").trim();
 if (!token) throw new Error("GITHUB_TOKEN is required in the process environment.");
 
+const finalizerAppId = String(process.env.POLICY_FINALIZER_APP_ID || "").trim();
+const finalizerInstallationId = String(process.env.POLICY_FINALIZER_INSTALLATION_ID || "").trim();
 const args = {
   owner: "mad4bdigital-ai",
   repo: "multi-business-multi-role-growth-intelligence-os",
   default_branch: "main",
   required_checks: [...GITHUB_REPOSITORY_POLICY_REQUIRED_CHECKS],
+  action: finalizerAppId || finalizerInstallationId
+    ? {
+      github_app_id: finalizerAppId,
+      github_app_installation_id: finalizerInstallationId,
+    }
+    : {},
 };
 
 const readback = await runGithubRepositoryPolicyController({ ...args, mode: "readback" }, { token });
