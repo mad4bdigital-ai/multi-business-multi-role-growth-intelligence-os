@@ -6,7 +6,7 @@ import {
   runGovernedGeneratedArtifactRefresh,
 } from "./maintenance-tools/generated-artifact-refresh.mjs";
 
-const CONTRACT = "mad4b.generated-artifact-refresh-maintenance-tool-test.v2";
+const CONTRACT = "mad4b.generated-artifact-refresh-maintenance-tool-test.v3";
 const toolPath = "scripts/maintenance-tools/generated-artifact-refresh.mjs";
 const exactSha = "1".repeat(40);
 const checks = [];
@@ -83,6 +83,13 @@ runRejectedCase("confirmation", [
   "--confirmation", "NO",
 ], "typed_confirmation_required");
 
+runRejectedCase("recipe", [
+  "--target-ref", "gpt/example",
+  "--expected-head-sha", exactSha,
+  "--recipe", "arbitrary_writer",
+  "--confirmation", "APPLY_GENERATED_ARTIFACT_REFRESH",
+], "recipe_invalid");
+
 const toolSource = fs.readFileSync(toolPath, "utf8");
 runCheck("tool-exact-head-contract", () => {
   assert.match(toolSource, /expected_head_sha/u);
@@ -90,6 +97,8 @@ runCheck("tool-exact-head-contract", () => {
   assert.match(toolSource, /"git", \["push", "origin"/u);
   assert.match(toolSource, /"main"/u);
   assert.match(toolSource, /"Production"/u);
+  assert.match(toolSource, /postpush_exact_head_readback/u);
+  assert.match(toolSource, /result_head_sha/u);
   assert.match(toolSource, /secrets_included:\s*false/u);
 });
 runCheck("tool-no-force-push", () => {
@@ -140,15 +149,37 @@ runCheck("tool-work-map-self-hosting-bootstrap", () => {
   );
   assert.match(toolSource, /self_hosting_scope_bounded/u);
 });
+runCheck("tool-repository-inventory-refresh", () => {
+  assert.match(toolSource, /repository_inventory_refresh/u);
+  for (const output of [
+    "docs/repository-inventory.json",
+    "docs/repository-inventory-summary.json",
+    "docs/repository-inventory.md",
+  ]) {
+    assert.ok(toolSource.includes(`"${output}"`), `inventory output must be explicitly bounded: ${output}`);
+  }
+  assert.match(toolSource, /"npm", \["ci", "--ignore-scripts"\]/u);
+  assert.match(toolSource, /generate_repository_inventory_first_pass/u);
+  assert.match(toolSource, /generate_repository_inventory_second_pass/u);
+  assert.match(toolSource, /repository_inventory_not_deterministic/u);
+  assert.match(toolSource, /"npm", \["run", "inventory:check"\]/u);
+  assert.match(toolSource, /"npm", \["run", "inventory:test"\]/u);
+  assert.match(toolSource, /docs\(inventory\): regenerate repository inventory/u);
+  assert.match(toolSource, /inventory_already_current/u);
+  assert.match(toolSource, /REPOSITORY_INVENTORY_OUTPUTS\.has\(file\)/u);
+});
 
 const workflowSource = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 runCheck("governed-workflow-dispatch-only", () => {
   assert.match(workflowSource, /workflow_dispatch:/u);
   assert.doesNotMatch(workflowSource, /^\s*pull_request(?:_target)?:/mu);
   assert.match(workflowSource, /expected_head_sha:/u);
+  assert.match(workflowSource, /recipe:/u);
+  assert.match(workflowSource, /repository_inventory_refresh/u);
   assert.match(workflowSource, /actions:\s*write/u);
   assert.match(workflowSource, /contents:\s*write/u);
-  assert.match(workflowSource, /pr-generated-artifact-refresh\.yml\/dispatches/u);
+  assert.match(workflowSource, /pr-generated-artifact-refresh\.yml/u);
+  assert.match(workflowSource, /repository-inventory\.yml/u);
   assert.match(workflowSource, /generated-artifact-refresh-verification-dispatch\.json/u);
   assert.match(workflowSource, /remote_sha[\s\S]*result_sha/u);
 });
@@ -204,6 +235,47 @@ runCheck("pr-workflow-runner-context-availability", () => {
   assert.match(prWorkflowSource, /path:\s*\|[\s\S]*\$\{\{ env\.REPORT_PATH \}\}/u);
 });
 
+const inventoryWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
+runCheck("repository-inventory-exact-head-verifier", () => {
+  assert.match(inventoryWorkflowSource, /workflow_dispatch:/u);
+  assert.match(inventoryWorkflowSource, /target_ref:/u);
+  assert.match(inventoryWorkflowSource, /expected_head_sha:/u);
+  assert.match(inventoryWorkflowSource, /contents:\s*read/u);
+  assert.doesNotMatch(inventoryWorkflowSource, /contents:\s*write/u);
+  assert.doesNotMatch(inventoryWorkflowSource, /git\s+push/u);
+  assert.match(inventoryWorkflowSource, /Verify local and remote exact-head identity/u);
+  assert.match(inventoryWorkflowSource, /git ls-remote --exit-code origin/u);
+  assert.match(inventoryWorkflowSource, /npm ci --ignore-scripts/u);
+  assert.match(inventoryWorkflowSource, /npm run inventory:write/u);
+  assert.match(inventoryWorkflowSource, /npm run inventory:check/u);
+  assert.match(inventoryWorkflowSource, /npm run inventory:test/u);
+  assert.match(inventoryWorkflowSource, /git diff --exit-code/u);
+  assert.match(inventoryWorkflowSource, /mad4b\.repository-inventory-exact-head-verification\.v1/u);
+});
+
+const autofixWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory-autofix-dispatch.yml", "utf8");
+runCheck("repository-inventory-autofix-dispatcher", () => {
+  assert.match(autofixWorkflowSource, /workflow_run:/u);
+  assert.match(autofixWorkflowSource, /Repository Inventory/u);
+  assert.match(autofixWorkflowSource, /SOURCE_CONCLUSION/u);
+  assert.match(autofixWorkflowSource, /SOURCE_EVENT/u);
+  assert.match(autofixWorkflowSource, /source_event_not_pull_request/u);
+  assert.match(autofixWorkflowSource, /fork_pr_not_eligible/u);
+  assert.match(autofixWorkflowSource, /branch_requires_reconciliation/u);
+  assert.match(autofixWorkflowSource, /governance_surface_changed_requires_manual_regeneration/u);
+  assert.match(autofixWorkflowSource, /repository_inventory_stale_only/u);
+  assert.match(autofixWorkflowSource, /dirty_set_exceeds_inventory_outputs/u);
+  assert.match(autofixWorkflowSource, /repository-inventory-regeneration-pr-/u);
+  assert.match(autofixWorkflowSource, /actions:\s*write/u);
+  assert.match(autofixWorkflowSource, /contents:\s*read/u);
+  assert.match(autofixWorkflowSource, /pull-requests:\s*read/u);
+  assert.doesNotMatch(autofixWorkflowSource, /contents:\s*write/u);
+  assert.doesNotMatch(autofixWorkflowSource, /git\s+push/u);
+  assert.match(autofixWorkflowSource, /governed-generated-artifact-refresh\.yml\/dispatches/u);
+  assert.match(autofixWorkflowSource, /recipe:"repository_inventory_refresh"/u);
+  assert.match(autofixWorkflowSource, /confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH"/u);
+});
+
 const publisherWorkflowSource = fs.readFileSync("../.github/workflows/ci-evidence-pr-publisher.yml", "utf8");
 runCheck("trusted-publisher-dispatch-route", () => {
   assert.match(publisherWorkflowSource, /workflow_run\.event == 'workflow_dispatch'/u);
@@ -226,10 +298,13 @@ runCheck("maintenance-tool-registration", () => {
     "^specs/014-governed-hostinger-storage-orchestration/work-map-integration\\.json$",
     "^specs/014-governed-hostinger-storage-orchestration/tasks\\.md$",
     "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
+    "^docs/repository-inventory\\.json$",
+    "^docs/repository-inventory-summary\\.json$",
+    "^docs/repository-inventory\\.md$",
   ]) {
     assert.ok(
       registration?.allowed_changed_path_patterns?.includes(requiredPattern),
-      `Work Map self-hosting bootstrap output must be registered: ${requiredPattern}`,
+      `generated-artifact output must be registered: ${requiredPattern}`,
     );
   }
   assert.equal(registration?.report_contract, "mad4b.governed-generated-artifact-refresh.v1");
@@ -242,6 +317,8 @@ console.log(JSON.stringify({
   exact_head_verification_dispatch: true,
   canonical_auth_repair_registered: true,
   work_map_self_hosting_bootstrap_registered: true,
+  repository_inventory_refresh_registered: true,
+  repository_inventory_autofix_dispatch_registered: true,
   pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,
