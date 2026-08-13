@@ -137,6 +137,9 @@ for (const required of [
 assert.doesNotMatch(mainSourcePinGuard, /gh pr merge/i);
 assert.doesNotMatch(mainSourcePinGuard, /gh pr close/i);
 assert.doesNotMatch(mainSourcePinGuard, /git push/);
+assert.match(mainSourcePinGuard, /gh api[\s\S]*?\| jq --arg main_sha "\$MAIN_SHA"/);
+assert.match(mainSourcePinGuard, /gh api[\s\S]*?\| jq --argjson stale_heads "\$STALE_HEADS"/);
+assert.doesNotMatch(mainSourcePinGuard, /gh api[\s\S]*?--jq --arg(?:json)?\b/);
 
 for (const required of [
   /name: Governed Production Release Source-Pin Gate/,
