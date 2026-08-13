@@ -52494,8 +52494,8 @@
       "bytes": 20297,
       "lines": 372,
       "sha256": "ae0a57eea3138b2d3e2b07f62cad6a7ca52e20498a18f975d5040ba044e2db6a",
-      "mode": "644",
-      "executable": false,
+      "mode": "755",
+      "executable": true,
       "generated": false
     },
     {
