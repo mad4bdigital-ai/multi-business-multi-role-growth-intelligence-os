@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6749,
-    "bytes": 59459402,
-    "lines": 1385983,
+    "bytes": 59459884,
+    "lines": 1385990,
     "directories": 255,
     "categories": 13
   },
@@ -31412,7 +31412,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "001fdb3c02996ea32e6b4dc4d6556e15e608e492099f8c0a815fe484a68fa194",
+      "sha256": "ae72ad8f478f0a99078693134d66fcc6710567bb346ed67452c63765d81c718a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31421,9 +31421,9 @@
       "path": "docs/work-maps/activation-access-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 18768,
-      "lines": 256,
-      "sha256": "bb0134d49e571a7ca411d93c6c719cb6590819af751f946259b168a22ef72be7",
+      "bytes": 18977,
+      "lines": 259,
+      "sha256": "c494cfe07d0f8d30a3f551807956b87479797781b64ff8b261551e034fe36ca6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50275,9 +50275,9 @@
       "path": "http-generic-api/routes/runtimeVerificationRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 1998,
-      "lines": 52,
-      "sha256": "828cc3eaf39ac3709381d404743b0de9e1a898dbd382d881a9e5fee38cc1752a",
+      "bytes": 2271,
+      "lines": 56,
+      "sha256": "6d712d53552412f7dc77e5ab66b13a3f454d47d44ce2280ed341ccb88a12e29f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77568,7 +77568,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "293d55996a0b464e525cbcb71cba44e4957140de41c84078c6efb0e6b3ed4162",
+      "sha256": "7af7b55bb5648d8ca627224be75cc03a4bb074a2efd081d60125c53065a2f4a2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78129,7 +78129,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "4aec7895487660c8dec5491a667e447398edd67aed1f6b91cfa186195620a055",
+      "sha256": "cd8e5b7be093cfd779223461cc42d492ec6896d129fcb4fb5e95e3621cbdaf29",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78954,7 +78954,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "3a3265ace56b16daab87dd493fd192db5e6be0732587408f13efbc824363513f",
+      "sha256": "c8663ec09bcebc23c1f9121b14e839c211643417405c95db9c3e3fa619ce2246",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79185,7 +79185,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "a3ca8ccd582f39c956c19de20003ffdb529e09845348b48150d094d77b64ef53",
+      "sha256": "6a9e8d7c74deb5c01cfbb16ea82fef70dea3e2057c8b0c4570402a7bec23fdfe",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79504,7 +79504,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "364dbb83cee4b4473298360ba257c7676db9df964333cd439f608972168e5c7b",
+      "sha256": "6ac226654a4f831a33dd6a0c85cd49c2a9afe56d704ffab41168607af6d65b5d",
       "mode": "644",
       "executable": false,
       "generated": false

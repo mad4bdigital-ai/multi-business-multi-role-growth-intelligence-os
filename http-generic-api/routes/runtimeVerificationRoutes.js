@@ -46,6 +46,10 @@ export function buildRuntimeVerificationRoutes(deps = {}) {
     }
   });
 
+  // Canonical surface delegates the read-only run, evidence-pagination, parity, and hard-run summary routes to the governed legacy builder.
+  // GET /runtime/verification-runs/:runId/evidence
+  // GET /runtime/parity/:environmentKey?
+  // GET /activation/hard-run/summary
   router.use(legacy.buildRuntimeVerificationRoutes(deps));
   return router;
 }
