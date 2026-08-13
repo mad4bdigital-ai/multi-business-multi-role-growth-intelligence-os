@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6733,
-    "bytes": 59440000,
-    "lines": 1390892,
+    "bytes": 59440197,
+    "lines": 1390894,
     "directories": 255,
     "categories": 13
   },
@@ -192,6 +192,7 @@
         "write-scopes:inventory",
         "write-scopes:inventory:check",
         "write-scopes:inventory:test",
+        "remote-mcp:architecture:test",
         "evaluation:write",
         "evaluation:enforce",
         "evaluation:check",

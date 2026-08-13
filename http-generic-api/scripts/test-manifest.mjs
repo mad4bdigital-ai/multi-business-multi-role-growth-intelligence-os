@@ -39,6 +39,7 @@ const staticDiscoveryCommands = [
   "node test-remote-mcp-readiness.mjs",
   "node test-remote-mcp-dynamic-permission-tree.mjs",
   "node test-remote-mcp-incremental-consent.mjs",
+  "node test-remote-mcp-reference-architecture.mjs",
   "node test-chatgpt-mcp-readonly-runtime.mjs",
   "node test-cms-authority-reconciliation.mjs",
   "node test-remote-mcp-multi-client-profiles.mjs",
