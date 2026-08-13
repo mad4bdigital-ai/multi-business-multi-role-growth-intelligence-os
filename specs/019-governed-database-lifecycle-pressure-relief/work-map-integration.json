@@ -1,0 +1,1394 @@
+{
+  "schema_version": 1,
+  "feature_key": "019-governed-database-lifecycle-pressure-relief",
+  "review_state": "ready_for_implementation",
+  "registry": {
+    "fingerprint": "beb2142beac0b237d7f7d8a7c2eabbf1e813e7189192bbb2ccf141cf84211e7b",
+    "index_source_hash": "9c022edcd341ddff8a13fe5944f799a1c3b951564d13487a663f262f0b3584ab",
+    "coverage_source_hash": "1795508ab000674978a921fcfc4aac036786385e9becf3b27c6f9402070fda8b",
+    "map_count": 19,
+    "domain_count": 16,
+    "uncategorized_count": 0,
+    "taxonomy_gap_cluster_count": 0
+  },
+  "work_map_decisions": {
+    "activation-access-map": {
+      "decision": "extend",
+      "rationale": "Database lifecycle pressure relief extends existing activation-access-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "activation-access-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 22,
+        "matched_terms": [
+          "access",
+          "activation",
+          "admin",
+          "authorization",
+          "authorized",
+          "blocks",
+          "code",
+          "columns",
+          "documentation",
+          "envelope",
+          "http-generic-api",
+          "json",
+          "manually",
+          "plus",
+          "registered",
+          "registry",
+          "result",
+          "session",
+          "surface",
+          "surfaces"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "activation-onboarding-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 30,
+        "matched_terms": [
+          "activation",
+          "authority",
+          "authorization",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "documentation",
+          "domain",
+          "envelope",
+          "evidence",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "inventory",
+          "manually",
+          "migrations",
+          "object",
+          "plus",
+          "raw"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "agent-skill-plugin-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 39,
+        "matched_terms": [
+          "activation",
+          "agent",
+          "agents",
+          "binding",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "documentation",
+          "domain",
+          "engine",
+          "evidence",
+          "execution",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "identity",
+          "intelligence",
+          "inventory",
+          "manually"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "asset-package-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 26,
+        "matched_terms": [
+          "activation",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "documentation",
+          "domain",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "inventory",
+          "manually",
+          "merge",
+          "migrations",
+          "object",
+          "ownership",
+          "plus",
+          "raw",
+          "references",
+          "rows"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "commercial-usage-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 30,
+        "matched_terms": [
+          "activation",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "decision",
+          "documentation",
+          "domain",
+          "eligibility",
+          "evidence",
+          "execution",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "inventory",
+          "manually",
+          "migrations",
+          "object",
+          "plan",
+          "plans"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "connector-provider-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 40,
+        "matched_terms": [
+          "activation",
+          "agents",
+          "binding",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governed",
+          "grant",
+          "http-generic-api",
+          "identity",
+          "intelligence",
+          "inventory",
+          "lifecycle"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "data-model-domain-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing data-model-domain-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "data-model-domain-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 54,
+        "matched_terms": [
+          "activation",
+          "agents",
+          "api",
+          "authority",
+          "classification",
+          "columns",
+          "data",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "execution-plan-events",
+          "execution-plan-mutation-receipts",
+          "execution-plan-steps",
+          "execution-plans",
+          "existing",
+          "governance",
+          "governed-tool-response-chunks",
+          "http-generic-api",
+          "identity"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "delivery-support-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing delivery-support-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "delivery-support-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 35,
+        "matched_terms": [
+          "agents",
+          "allowlist",
+          "artifact",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "inventory",
+          "manually",
+          "migrations",
+          "object",
+          "observability",
+          "output",
+          "plans"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "execution-log-evidence-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing execution-log-evidence-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "execution-log-evidence-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 40,
+        "matched_terms": [
+          "agent",
+          "audit",
+          "authority",
+          "authorization",
+          "blocks",
+          "code",
+          "column",
+          "columns",
+          "coverage",
+          "delivery",
+          "documentation",
+          "envelope",
+          "environment",
+          "evidence",
+          "execution",
+          "governance",
+          "governing",
+          "http-generic-api",
+          "identity",
+          "intelligence"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "migration-lifecycle-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing migration-lifecycle-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "migration-lifecycle-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 32,
+        "matched_terms": [
+          "apply",
+          "authorization",
+          "candidate",
+          "classification",
+          "columns",
+          "coverage",
+          "data",
+          "database",
+          "documentation",
+          "domain",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "inventory",
+          "lifecycle",
+          "manually",
+          "migration",
+          "migrations",
+          "object",
+          "plus"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "observability-release-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing observability-release-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "observability-release-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 45,
+        "matched_terms": [
+          "activation",
+          "agents",
+          "audit",
+          "authority",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governance",
+          "governed",
+          "http-generic-api",
+          "identity",
+          "incident",
+          "intelligence"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "platform-resource-graph-map": {
+      "decision": "extend",
+      "rationale": "Database lifecycle pressure relief extends existing platform-resource-graph-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "platform-resource-graph-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 46,
+        "matched_terms": [
+          "adapter",
+          "agents",
+          "authority",
+          "capability",
+          "classification",
+          "columns",
+          "contract",
+          "coverage",
+          "database",
+          "decision",
+          "delivery",
+          "documentation",
+          "domain",
+          "evidence",
+          "existing",
+          "governance",
+          "governed",
+          "http-generic-api",
+          "intelligence",
+          "inventory"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "platform-runtime-map": {
+      "decision": "extend",
+      "rationale": "Database lifecycle pressure relief extends existing platform-runtime-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "platform-runtime-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 46,
+        "matched_terms": [
+          "agent",
+          "authority",
+          "authorization",
+          "before",
+          "bindings",
+          "blocks",
+          "code",
+          "compatibility",
+          "core",
+          "dependency",
+          "documentation",
+          "engine",
+          "evidence",
+          "execution",
+          "fields",
+          "governed",
+          "http-generic-api",
+          "identity",
+          "input",
+          "intelligence"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "policy-authority-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing policy-authority-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "policy-authority-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 47,
+        "matched_terms": [
+          "activation",
+          "actor",
+          "agents",
+          "authority",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "evidence",
+          "existing",
+          "governance",
+          "governed",
+          "grant",
+          "http-generic-api",
+          "identity",
+          "intelligence",
+          "inventory"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-automation-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing repository-automation-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "repository-automation-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 130,
+        "matched_terms": [
+          "activation",
+          "agent",
+          "api",
+          "apply",
+          "artifact",
+          "authority",
+          "authorization",
+          "authorize",
+          "authorized",
+          "automation",
+          "backfill",
+          "baseline",
+          "blocks",
+          "branch",
+          "build",
+          "canary",
+          "candidate",
+          "change",
+          "chunk",
+          "classification"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "repository-development-map": {
+      "decision": "extend",
+      "rationale": "Database lifecycle pressure relief extends existing repository-development-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "repository-development-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 34,
+        "matched_terms": [
+          "branch",
+          "candidate",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "deployment",
+          "documentation",
+          "domain",
+          "existing",
+          "governed",
+          "http-generic-api",
+          "install",
+          "inventory",
+          "manually",
+          "merge",
+          "migrations",
+          "object",
+          "parity",
+          "plans"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "session-memory-map": {
+      "decision": "not_applicable",
+      "rationale": "This lifecycle contract introduces no object or authority in this platform dimension.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 46,
+        "matched_terms": [
+          "agents",
+          "archive",
+          "authority",
+          "candidates",
+          "canonical",
+          "classification",
+          "columns",
+          "database",
+          "documentation",
+          "domain",
+          "evidence",
+          "execution",
+          "existing",
+          "governance",
+          "http-generic-api",
+          "intelligence",
+          "inventory",
+          "json",
+          "manually",
+          "migrations"
+        ],
+        "candidate": "likely_relevant"
+      },
+      "non_applicability_evidence": [
+        "No lifecycle cleanup entity, mutation path, or policy is introduced for this dimension in PR-A."
+      ]
+    },
+    "work-map-coverage-matrix": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing work-map-coverage-matrix authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "work-map-coverage-matrix receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 38,
+        "matched_terms": [
+          "activation",
+          "agents",
+          "api",
+          "authority",
+          "coverage",
+          "covered",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "governance",
+          "http-generic-api",
+          "identity",
+          "intelligence",
+          "intentionally",
+          "inventory",
+          "json",
+          "lifecycle",
+          "manually",
+          "matrix"
+        ],
+        "candidate": "likely_relevant"
+      }
+    },
+    "workflow-task-orchestration-map": {
+      "decision": "integrate",
+      "rationale": "Database lifecycle pressure relief integrates existing workflow-task-orchestration-map authority without creating a parallel control plane.",
+      "owner": "platform-team",
+      "integration_points": [
+        "workflow-task-orchestration-map receives exact-resource lifecycle planning and bounded evidence only."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Safety Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "generated_relevance": {
+        "score": 51,
+        "matched_terms": [
+          "activation",
+          "agents",
+          "approval",
+          "authority",
+          "binding",
+          "classification",
+          "columns",
+          "coverage",
+          "database",
+          "delivery",
+          "documentation",
+          "domain",
+          "execution",
+          "execution-plan-events",
+          "execution-plan-mutation-receipts",
+          "execution-plan-steps",
+          "execution-plans",
+          "existing",
+          "governance",
+          "governed"
+        ],
+        "candidate": "likely_relevant"
+      }
+    }
+  },
+  "domain_decisions": {
+    "activation-and-onboarding": {
+      "label": "Activation & onboarding",
+      "decision": "reuse",
+      "rationale": "The lifecycle control plane reuses existing activation-and-onboarding governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "activation-and-onboarding participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "agents-and-intelligence": {
+      "label": "Agents & intelligence",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "assets-and-packages": {
+      "label": "Assets & packages",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "brand-and-business": {
+      "label": "Brand & business",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "commercial-and-usage": {
+      "label": "Commercial & usage",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "connectors-and-providers": {
+      "label": "Connectors & providers",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "delivery-and-support": {
+      "label": "Delivery & support",
+      "decision": "integrate",
+      "rationale": "The lifecycle control plane integrates existing delivery-and-support governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "delivery-and-support participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "developer-and-api": {
+      "label": "Developer & API",
+      "decision": "extend",
+      "rationale": "The lifecycle control plane extends existing developer-and-api governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "developer-and-api participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "governance-and-authority": {
+      "label": "Governance & authority",
+      "decision": "extend",
+      "rationale": "The lifecycle control plane extends existing governance-and-authority governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "governance-and-authority participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "migration-and-lifecycle": {
+      "label": "Migration & lifecycle",
+      "decision": "integrate",
+      "rationale": "The lifecycle control plane integrates existing migration-and-lifecycle governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "migration-and-lifecycle participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "observability-and-release": {
+      "label": "Observability & release",
+      "decision": "extend",
+      "rationale": "The lifecycle control plane extends existing observability-and-release governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "observability-and-release participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "platform-resources-and-graph": {
+      "label": "Platform resources & graph",
+      "decision": "extend",
+      "rationale": "The lifecycle control plane extends existing platform-resources-and-graph governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "platform-resources-and-graph participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "repository-and-development": {
+      "label": "Repository & development",
+      "decision": "integrate",
+      "rationale": "The lifecycle control plane integrates existing repository-and-development governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "repository-and-development participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "sessions-and-memory": {
+      "label": "Sessions & memory",
+      "decision": "not_applicable",
+      "rationale": "This database lifecycle contract introduces no model or authority in this domain.",
+      "owner": "platform-team",
+      "integration_points": [],
+      "requirement_refs": [],
+      "task_refs": [],
+      "acceptance_refs": [],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": [],
+      "non_applicability_evidence": [
+        "PR-A defines database lifecycle contracts only and does not change this domain."
+      ]
+    },
+    "tenancy-and-identity": {
+      "label": "Tenancy & identity",
+      "decision": "integrate",
+      "rationale": "The lifecycle control plane integrates existing tenancy-and-identity governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "tenancy-and-identity participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    },
+    "workflow-and-tasks": {
+      "label": "Workflow & tasks",
+      "decision": "integrate",
+      "rationale": "The lifecycle control plane integrates existing workflow-and-tasks governance through exact resource, recipe, receipt, and readback contracts.",
+      "owner": "platform-team",
+      "integration_points": [
+        "workflow-and-tasks participates in the Spec 019 contract boundary."
+      ],
+      "requirement_refs": [
+        "G1-G7 and Security Requirements"
+      ],
+      "task_refs": [
+        "A01-A09",
+        "B01-B08",
+        "C01-C07"
+      ],
+      "acceptance_refs": [
+        "Acceptance Criteria 1-14"
+      ],
+      "evidence_refs": [
+        "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+        "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+      ],
+      "depends_on": []
+    }
+  },
+  "cross_map_dependencies": [
+    {
+      "from": "data-model-domain-map",
+      "to": "policy-authority-map"
+    },
+    {
+      "from": "policy-authority-map",
+      "to": "execution-log-evidence-map"
+    },
+    {
+      "from": "migration-lifecycle-map",
+      "to": "data-model-domain-map"
+    },
+    {
+      "from": "workflow-task-orchestration-map",
+      "to": "delivery-support-map"
+    },
+    {
+      "from": "observability-release-map",
+      "to": "execution-log-evidence-map"
+    }
+  ],
+  "dimension_discovery": {
+    "registry_gap_clusters": {},
+    "new_dimension_candidates": [],
+    "unresolved": [],
+    "no_new_dimensions_rationale": "The existing generated Work Maps and schema domains cover resource identity, lifecycle policy, authority, durable execution, evidence, operations, and delivery; no new dimension is needed for the contract-only PR."
+  },
+  "implementation_readiness": {
+    "status": "ready",
+    "blocking_dimensions": [],
+    "reviewed_by": "platform-team",
+    "evidence_refs": [
+      "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+      "specs/019-governed-database-lifecycle-pressure-relief/plan.md",
+      "specs/019-governed-database-lifecycle-pressure-relief/tasks.md",
+      "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+    ]
+  },
+  "secrets_included": false
+}

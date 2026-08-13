@@ -14,6 +14,8 @@ const GUARD_ENTRYPOINT = `${TOOL_ROOT}/repository-tool-lifecycle-guard.mjs`;
 const FULL_SHA_PATTERN = /^[a-f0-9]{40}$/u;
 const WORK_BRANCH_PATTERN = /(?:^|[^A-Za-z0-9_.-])(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+/iu;
 const WORK_BRANCH_CONTEXT_PATTERN = /(?:\bbranches?\b|\brefs?\/heads\b|\b(?:ref|head|base)\b|\btarget[_-]?branch\b|\bsource[_-]?branch\b|\bdestination[_-]?branch\b|\bgit\s+(?:checkout|switch|push)\b|--ref\b)/iu;
+// These exact case labels are governed prefix contracts, not concrete work-branch refs.
+const GOVERNED_VALIDATION_PREFIX_CASE_LABEL_PATTERN = /^\s*gpt\/validate-production-(?:candidate|base)\)\s*;;\s*$/u;
 const execFileAsync = promisify(execFile);
 const REQUIRED_PROTECTED_BRANCHES = Object.freeze(["main", "Production"]);
 const REQUIRED_RULE_KEYS = Object.freeze([
@@ -88,14 +90,20 @@ function containsBranchSpecificLiteral(content) {
     }
 
     if (/^(?:branches|branches-ignore):/u.test(trimmed)) {
-      if (WORK_BRANCH_PATTERN.test(line)) return true;
+      if (
+        WORK_BRANCH_PATTERN.test(line)
+        && !GOVERNED_VALIDATION_PREFIX_CASE_LABEL_PATTERN.test(line)
+      ) return true;
       branchFilterIndent = indentation;
       continue;
     }
     if (branchFilterIndent !== null) {
       if (!trimmed || trimmed.startsWith('#')) continue;
       if (indentation > branchFilterIndent) {
-        if (WORK_BRANCH_PATTERN.test(line)) return true;
+        if (
+          WORK_BRANCH_PATTERN.test(line)
+          && !GOVERNED_VALIDATION_PREFIX_CASE_LABEL_PATTERN.test(line)
+        ) return true;
         continue;
       }
       branchFilterIndent = null;
@@ -103,6 +111,7 @@ function containsBranchSpecificLiteral(content) {
 
     if (
       WORK_BRANCH_PATTERN.test(line)
+      && !GOVERNED_VALIDATION_PREFIX_CASE_LABEL_PATTERN.test(line)
       && WORK_BRANCH_CONTEXT_PATTERN.test(line)
     ) return true;
   }

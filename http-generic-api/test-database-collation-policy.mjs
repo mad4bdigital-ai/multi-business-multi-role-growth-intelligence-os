@@ -1,71 +1,70 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {
-  assessDatabaseCollationPolicy,
-  detectDatabaseEngineFamily,
-  extractSqlJoinComparisons,
-  loadDatabaseEngineCollationPolicy,
-  resolveDatabaseEngineProfile,
+  detectDatabaseEngine,
+  inspectMigrationCollationSql,
+  loadDatabaseCollationPolicy,
+  normalizeDatabaseEngine,
+  resolveDatabaseCollationPolicy,
+  runDatabaseCollationPreflight,
 } from "./databaseCollationPolicyGuard.js";
 
-const policy = loadDatabaseEngineCollationPolicy();
-assert.equal(policy.contract, "mad4b.database-engine-collation-policy.v1");
-assert.equal(detectDatabaseEngineFamily("11.8.8-MariaDB"), "mariadb");
-assert.equal(detectDatabaseEngineFamily("8.0.42 MySQL Community Server"), "mysql");
-assert.equal(detectDatabaseEngineFamily("PostgreSQL 16.4"), "postgresql");
-assert.equal(detectDatabaseEngineFamily("future-db"), "unknown");
-assert.equal(resolveDatabaseEngineProfile({ version: "11.8.8-MariaDB" }, policy).profile.profile_key, "mariadb_10_10_plus");
-assert.equal(resolveDatabaseEngineProfile({ version: "8.0.42 MySQL Community Server" }, policy).profile.profile_key, "mysql_8_plus");
-assert.equal(resolveDatabaseEngineProfile({ version: "PostgreSQL 16.4" }, policy).profile.profile_key, "postgresql_16_plus");
+const policy = loadDatabaseCollationPolicy();
+assert.equal(policy.secrets_included, false);
+assert.equal(normalizeDatabaseEngine("10.11.8-MariaDB"), "mariadb");
+assert.equal(normalizeDatabaseEngine("8.0.36 MySQL Community Server"), "mysql");
+assert.equal(normalizeDatabaseEngine("SQLite 3"), "unknown");
+assert.equal(resolveDatabaseCollationPolicy("mariadb", policy).rules.required_default_collation, "utf8mb4_unicode_ci");
 
-const joins = extractSqlJoinComparisons("UPDATE agent_skill_grants g JOIN agent_skill_grant_requests r ON r.agent_id = g.agent_id SET g.updated_at=NOW();");
-assert.equal(joins.length, 1);
-assert.equal(joins[0].left.table, "agent_skill_grant_requests");
-assert.equal(joins[0].right.table, "agent_skill_grants");
+const validSql = `CREATE TABLE governed_example (
+  id BIGINT NOT NULL
+) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`;
+const valid = inspectMigrationCollationSql(validSql, { engine: "mariadb", policy });
+assert.equal(valid.ok, true, JSON.stringify(valid));
+assert.equal(valid.ready, true);
 
-const mariadbObservation = async () => ({ version: "11.8.8-MariaDB", character_set_server: "utf8mb4", collation_server: "utf8mb4_uca1400_ai_ci" });
-const mysqlObservation = async () => ({ version: "8.0.42 MySQL Community Server", character_set_server: "utf8mb4", collation_server: "utf8mb4_0900_ai_ci" });
-const postgresObservation = async () => ({ version: "PostgreSQL 16.4" });
+const implicit = inspectMigrationCollationSql("CREATE TABLE governed_example (id BIGINT NOT NULL);", { engine: "mariadb", policy });
+assert.equal(implicit.ok, false);
+assert.equal(implicit.blocked_reason, "collation_policy_violation");
+assert(implicit.issues.some((issue) => issue.code === "migration_table_collation_not_explicit"));
 
-const mariaWrongEngine = await assessDatabaseCollationPolicy("CREATE TABLE x (name VARCHAR(20)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;", { observeDatabase: mariadbObservation });
-assert.equal(mariaWrongEngine.status, "block");
-assert.ok(mariaWrongEngine.findings.some((finding) => finding.code === "database_engine_collation_forbidden"));
-
-const mysqlWrongEngine = await assessDatabaseCollationPolicy("CREATE TABLE x (name VARCHAR(20)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;", { observeDatabase: mysqlObservation });
-assert.equal(mysqlWrongEngine.status, "block");
-
-const postgresMysqlCollation = await assessDatabaseCollationPolicy("CREATE TABLE x (name VARCHAR(20)) COLLATE=utf8mb4_unicode_ci;", { observeDatabase: postgresObservation });
-assert.equal(postgresMysqlCollation.status, "block");
-
-const legacy = await assessDatabaseCollationPolicy("CREATE TABLE x (name VARCHAR(20)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;", { observeDatabase: mariadbObservation });
-assert.equal(legacy.status, "warn");
-
-const mismatchedJoin = await assessDatabaseCollationPolicy(
-  "UPDATE agent_skill_grants g JOIN agent_skill_grant_requests r ON r.agent_id = g.agent_id SET g.updated_at=NOW();",
-  {
-    observeDatabase: mariadbObservation,
-    readColumnContracts: async () => [
-      { table: "agent_skill_grants", column: "agent_id", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci" },
-      { table: "agent_skill_grant_requests", column: "agent_id", charset: "utf8mb4", collation: "utf8mb4_unicode_ci" },
-    ],
-  },
+const wrongDefault = inspectMigrationCollationSql(
+  "CREATE TABLE governed_example (id BIGINT NOT NULL) DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;",
+  { engine: "mysql", policy },
 );
-assert.equal(mismatchedJoin.status, "block");
-assert.ok(mismatchedJoin.findings.some((finding) => finding.code === "join_collation_incompatible"));
+assert.equal(wrongDefault.ok, false);
+assert(wrongDefault.issues.some((issue) => issue.code === "migration_default_charset_not_allowed"));
 
-const matchedJoin = await assessDatabaseCollationPolicy(
-  "UPDATE agent_skill_grants g JOIN agent_skill_grant_requests r ON r.agent_id = g.agent_id SET g.updated_at=NOW();",
-  {
-    observeDatabase: mariadbObservation,
-    readColumnContracts: async () => [
-      { table: "agent_skill_grants", column: "agent_id", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci" },
-      { table: "agent_skill_grant_requests", column: "agent_id", charset: "utf8mb4", collation: "utf8mb4_uca1400_ai_ci" },
-    ],
+const unknown = inspectMigrationCollationSql(validSql, { engine: "sqlite", policy });
+assert.equal(unknown.ok, false);
+assert.equal(unknown.blocked_reason, "database_engine_unknown");
+
+const enginePool = {
+  async query(sql) {
+    assert.match(sql, /VERSION\(\)/u);
+    return [[{ version: "10.11.8-MariaDB", version_comment: "MariaDB Server" }]];
   },
-);
-assert.equal(matchedJoin.status, "pass");
+};
+const detected = await detectDatabaseEngine(enginePool);
+assert.equal(detected.ok, true);
+assert.equal(detected.engine, "mariadb");
 
-const unknown = await assessDatabaseCollationPolicy("SELECT 1;", { observeDatabase: async () => ({ version: "FutureDB 1.0" }) });
-assert.equal(unknown.status, "block");
-assert.equal(unknown.findings[0].code, "database_engine_profile_unresolved");
+const preflight = await runDatabaseCollationPreflight({ pool: enginePool, sql: validSql, migration: "test.sql", policy });
+assert.equal(preflight.ok, true);
+assert.equal(preflight.ready, true);
+assert.equal(preflight.migration, "test.sql");
 
-console.log("database collation policy tests passed");
+const blockedPreflight = await runDatabaseCollationPreflight({
+  pool: { async query() { return [[{ version: "SQLite 3", version_comment: "" }]]; } },
+  sql: validSql,
+  migration: "test.sql",
+  policy,
+});
+assert.equal(blockedPreflight.ok, false);
+assert.equal(blockedPreflight.blocked_reason, "database_engine_unknown");
+
+const runner = fs.readFileSync(new URL("./scripts/governed-migration-runner.mjs", import.meta.url), "utf8");
+assert.match(runner, /runDatabaseCollationPreflight/u);
+assert.match(runner, /collation_policy_not_pass/u);
+
+console.log(JSON.stringify({ ok: true, policy: policy.policy_key, tests: 10, secrets_included: false }));

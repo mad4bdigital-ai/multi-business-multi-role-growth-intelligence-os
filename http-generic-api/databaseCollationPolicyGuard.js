@@ -1,222 +1,137 @@
 import fs from "node:fs";
-import { getPool } from "./db.js";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const POLICY_URL = new URL("./config/database-engine-collation-policy.json", import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const POLICY_PATH = path.join(__dirname, "config", "database-engine-collation-policy.json");
+const POLICY = JSON.parse(fs.readFileSync(POLICY_PATH, "utf8"));
 
-export function loadDatabaseEngineCollationPolicy() {
-  return JSON.parse(fs.readFileSync(POLICY_URL, "utf8"));
+const TEXT = (value) => String(value ?? "").trim();
+const NORMALIZE = (value) => TEXT(value).toLowerCase().replaceAll("-", "_");
+
+function blocked(code, message, details = {}) {
+  return {
+    ok: false,
+    ready: false,
+    blocked_reason: code,
+    message,
+    ...details,
+    secrets_included: false,
+  };
 }
 
-function text(value = "") {
-  return String(value ?? "").trim();
+function passed(details = {}) {
+  return {
+    ok: true,
+    ready: true,
+    blocked_reason: null,
+    ...details,
+    secrets_included: false,
+  };
 }
 
-function normalizeName(value = "") {
-  return text(value).replaceAll("`", "").toLowerCase();
+export function loadDatabaseCollationPolicy() {
+  return JSON.parse(JSON.stringify(POLICY));
 }
 
-function parseSemver(value = "") {
-  const match = text(value).match(/(\d+)\.(\d+)(?:\.(\d+))?/);
-  return match ? [Number(match[1]), Number(match[2]), Number(match[3] || 0)] : [0, 0, 0];
-}
-
-function semverAtLeast(actual, minimum) {
-  const left = parseSemver(actual);
-  const right = parseSemver(minimum);
-  for (let index = 0; index < 3; index += 1) {
-    if (left[index] > right[index]) return true;
-    if (left[index] < right[index]) return false;
-  }
-  return true;
-}
-
-export function detectDatabaseEngineFamily(version = "") {
-  const normalized = text(version).toLowerCase();
-  if (normalized.includes("mariadb")) return "mariadb";
-  if (normalized.includes("postgresql") || normalized.includes("postgres")) return "postgresql";
-  if (/^\d+\.\d+/.test(normalized) || normalized.includes("mysql")) return "mysql";
+export function normalizeDatabaseEngine(value) {
+  const engine = NORMALIZE(value);
+  if (engine.includes("mariadb")) return "mariadb";
+  if (engine.includes("mysql")) return "mysql";
+  if (engine.includes("postgres") || engine === "pgsql") return "postgresql";
   return "unknown";
 }
 
-export function resolveDatabaseEngineProfile(observation = {}, policy = loadDatabaseEngineCollationPolicy()) {
-  const version = text(observation.version || observation.server_version);
-  const engineFamily = text(observation.engine_family || detectDatabaseEngineFamily(version)).toLowerCase();
-  const candidates = (policy.engine_profiles || []).filter((profile) => profile.engine_family === engineFamily);
-  const profile = candidates
-    .filter((candidate) => semverAtLeast(version, candidate.minimum_version))
-    .sort((left, right) => parseSemver(right.minimum_version).join(".").localeCompare(parseSemver(left.minimum_version).join(".")))[0] || null;
+export function resolveDatabaseCollationPolicy(engine, policy = POLICY) {
+  const normalized = normalizeDatabaseEngine(engine);
+  const rules = policy?.engines?.[normalized] || policy?.unknown_engine;
+  if (!rules) return { engine: normalized, rules: null };
+  return { engine: normalized, rules: { ...rules } };
+}
+
+function tableHasExplicitCollation(statement) {
+  return /\b(?:DEFAULT\s+)?CHARSET\s*=\s*[A-Za-z0-9_]+\b/iu.test(statement)
+    && /\b(?:DEFAULT\s+)?COLLATE\s*=\s*[A-Za-z0-9_]+\b/iu.test(statement);
+}
+
+function tableDefault(statement) {
+  const charset = statement.match(/\b(?:DEFAULT\s+)?CHARSET\s*=\s*([A-Za-z0-9_]+)/iu)?.[1] || null;
+  const collation = statement.match(/\b(?:DEFAULT\s+)?COLLATE\s*=\s*([A-Za-z0-9_]+)/iu)?.[1] || null;
+  return { charset, collation };
+}
+
+function normalizeIdentifier(value) {
+  return TEXT(value).replaceAll("`", "").replace(/\s+/gu, " ").trim();
+}
+
+export function inspectMigrationCollationSql(sql, { engine, policy = POLICY } = {}) {
+  const resolved = resolveDatabaseCollationPolicy(engine, policy);
+  const normalizedSql = TEXT(sql);
+  if (!normalizedSql) return blocked("collation_sql_missing", "Collation policy preflight requires migration SQL.");
+  if (resolved.engine === "unknown" || !resolved.rules) {
+    return blocked("database_engine_unknown", "Collation policy cannot evaluate an unknown database engine.", { engine: resolved.engine });
+  }
+
+  const statements = normalizedSql.split(/;\s*(?:\r?\n|$)/u).map((item) => item.trim()).filter(Boolean);
+  const issues = [];
+  const tables = [];
+  for (const statement of statements) {
+    if (!/^CREATE\s+TABLE\b/iu.test(statement)) continue;
+    const name = normalizeIdentifier(statement.match(/^CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([^\s(]+)/iu)?.[1] || "");
+    const defaults = tableDefault(statement);
+    tables.push({ name, ...defaults, explicit: tableHasExplicitCollation(statement) });
+    if (resolved.rules.required_default_charset && defaults.charset && NORMALIZE(defaults.charset) !== NORMALIZE(resolved.rules.required_default_charset)) {
+      issues.push({ code: "migration_default_charset_not_allowed", table: name, value: defaults.charset });
+    }
+    if (resolved.rules.required_default_collation && defaults.collation && !resolved.rules.allowed_default_collations.map(NORMALIZE).includes(NORMALIZE(defaults.collation))) {
+      issues.push({ code: "migration_default_collation_not_allowed", table: name, value: defaults.collation });
+    }
+    if (resolved.rules.required_default_charset && resolved.rules.required_default_collation && !tableHasExplicitCollation(statement)) {
+      issues.push({ code: "migration_table_collation_not_explicit", table: name });
+    }
+  }
+
+  const mixedJoinCollations = [...normalizedSql.matchAll(/\b(?:JOIN|FROM|WHERE)\b[\s\S]{0,240}?\b(?:COLLATE\s+([A-Za-z0-9_]+))/giu)]
+    .map((match) => NORMALIZE(match[1]))
+    .filter(Boolean);
+  if (resolved.rules.reject_mixed_join_key_collations && new Set(mixedJoinCollations).size > 1) {
+    issues.push({ code: "mixed_join_key_collations", collations: [...new Set(mixedJoinCollations)] });
+  }
+
+  return issues.length
+    ? blocked("collation_policy_violation", "Migration SQL violates the selected database collation policy.", { engine: resolved.engine, issues, tables })
+    : passed({ engine: resolved.engine, policy_key: policy.policy_key, tables, issues: [] });
+}
+
+export async function detectDatabaseEngine(pool) {
+  if (!pool || typeof pool.query !== "function") {
+    return blocked("database_engine_pool_missing", "Collation engine detection requires a database pool.");
+  }
+  try {
+    const [rows] = await pool.query("SELECT VERSION() AS version, @@version_comment AS version_comment");
+    const version = TEXT(rows?.[0]?.version);
+    const versionComment = TEXT(rows?.[0]?.version_comment);
+    const engine = normalizeDatabaseEngine(`${version} ${versionComment}`);
+    if (engine === "unknown") return blocked("database_engine_unknown", "Database engine detection returned an unsupported engine.", { version, version_comment: versionComment });
+    return passed({ engine, version, version_comment: versionComment });
+  } catch (cause) {
+    return blocked("database_engine_detection_failed", "Database engine detection failed closed.", { cause_code: cause?.code || null });
+  }
+}
+
+export async function runDatabaseCollationPreflight({ pool, sql, migration, policy = POLICY } = {}) {
+  const detection = await detectDatabaseEngine(pool);
+  if (!detection.ready) {
+    return blocked(detection.blocked_reason, detection.message, { migration: TEXT(migration), detection });
+  }
+  const evaluation = inspectMigrationCollationSql(sql, { engine: detection.engine, policy });
   return {
-    engine_family: engineFamily,
-    version,
-    profile,
-    resolved: Boolean(profile),
-    reason_code: profile ? null : "database_engine_profile_unresolved",
+    ...evaluation,
+    migration: TEXT(migration),
+    detection,
+    policy_key: policy.policy_key,
     secrets_included: false,
   };
 }
 
-function sqlCollations(sql = "") {
-  const out = [];
-  const regex = /\bCOLLATE\s*(?:=\s*)?([A-Za-z0-9_\-.]+)/gi;
-  let match;
-  while ((match = regex.exec(String(sql)))) out.push(match[1]);
-  return [...new Set(out)];
-}
-
-function parseAliases(sql = "") {
-  const aliases = new Map();
-  const regex = /\b(?:UPDATE|FROM|JOIN)\s+`?([A-Za-z0-9_]+)`?(?:\s+(?:AS\s+)?`?([A-Za-z0-9_]+)`?)?/gi;
-  let match;
-  while ((match = regex.exec(String(sql)))) {
-    const table = normalizeName(match[1]);
-    const alias = normalizeName(match[2] || match[1]);
-    if (table && alias && !["on", "where", "set", "inner", "left", "right", "join"].includes(alias)) aliases.set(alias, table);
-    aliases.set(table, table);
-  }
-  return aliases;
-}
-
-export function extractSqlJoinComparisons(sql = "") {
-  const aliases = parseAliases(sql);
-  const comparisons = [];
-  const regex = /(?:\bON\b|\bAND\b|\bWHERE\b)\s+`?([A-Za-z0-9_]+)`?\.`?([A-Za-z0-9_]+)`?\s*=\s*`?([A-Za-z0-9_]+)`?\.`?([A-Za-z0-9_]+)`?/gi;
-  let match;
-  while ((match = regex.exec(String(sql)))) {
-    const leftAlias = normalizeName(match[1]);
-    const rightAlias = normalizeName(match[3]);
-    comparisons.push({
-      left: { alias: leftAlias, table: aliases.get(leftAlias) || leftAlias, column: normalizeName(match[2]) },
-      right: { alias: rightAlias, table: aliases.get(rightAlias) || rightAlias, column: normalizeName(match[4]) },
-    });
-  }
-  return comparisons;
-}
-
-function projectedTableContracts(sql = "") {
-  const contracts = new Map();
-  const regex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?`?([A-Za-z0-9_]+)`?\s*\(([\s\S]*?)\)\s*([^;]*);/gi;
-  let match;
-  while ((match = regex.exec(String(sql)))) {
-    const table = normalizeName(match[1]);
-    const body = match[2];
-    const tail = match[3] || "";
-    const defaultCollation = (tail.match(/\bCOLLATE\s*(?:=\s*)?([A-Za-z0-9_\-.]+)/i) || [])[1] || null;
-    const defaultCharset = (tail.match(/(?:DEFAULT\s+)?CHARSET\s*(?:=\s*)?([A-Za-z0-9_\-.]+)/i) || [])[1] || null;
-    for (const rawLine of body.split(",")) {
-      const line = rawLine.trim();
-      const columnMatch = line.match(/^`?([A-Za-z0-9_]+)`?\s+(?:VAR)?CHAR\b/i);
-      if (!columnMatch) continue;
-      const column = normalizeName(columnMatch[1]);
-      const collation = (line.match(/\bCOLLATE\s+([A-Za-z0-9_\-.]+)/i) || [])[1] || defaultCollation;
-      const charset = (line.match(/\bCHARACTER\s+SET\s+([A-Za-z0-9_\-.]+)/i) || [])[1] || defaultCharset;
-      contracts.set(`${table}.${column}`, { table, column, collation: collation || null, charset: charset || null, source: "projected_ddl" });
-    }
-  }
-  return contracts;
-}
-
-function normalizeObservation(row = {}) {
-  return {
-    version: text(row.version || row.VERSION || row.server_version),
-    engine_family: text(row.engine_family),
-    character_set_server: text(row.character_set_server),
-    collation_server: text(row.collation_server),
-    character_set_connection: text(row.character_set_connection),
-    collation_connection: text(row.collation_connection),
-  };
-}
-
-export async function probeDatabaseRuntimeObservation(deps = {}) {
-  if (typeof deps.observeDatabase === "function") return normalizeObservation(await deps.observeDatabase());
-  const pool = deps.pool || getPool();
-  const [rows] = await pool.query(
-    "SELECT VERSION() AS version, @@character_set_server AS character_set_server, @@collation_server AS collation_server, @@character_set_connection AS character_set_connection, @@collation_connection AS collation_connection",
-  );
-  return normalizeObservation(rows?.[0] || {});
-}
-
-async function readLiveContracts(comparisons, deps = {}) {
-  const projected = deps.projectedContracts || new Map();
-  const wanted = new Map();
-  for (const comparison of comparisons) {
-    for (const side of [comparison.left, comparison.right]) {
-      const key = `${side.table}.${side.column}`;
-      if (!projected.has(key)) wanted.set(key, side);
-    }
-  }
-  if (!wanted.size) return new Map();
-  if (typeof deps.readColumnContracts === "function") {
-    const rows = await deps.readColumnContracts([...wanted.values()]);
-    return new Map((rows || []).map((row) => [`${normalizeName(row.table || row.TABLE_NAME)}.${normalizeName(row.column || row.COLUMN_NAME)}`, {
-      table: normalizeName(row.table || row.TABLE_NAME), column: normalizeName(row.column || row.COLUMN_NAME),
-      collation: text(row.collation || row.COLLATION_NAME) || null, charset: text(row.charset || row.CHARACTER_SET_NAME) || null, source: "live_schema",
-    }]));
-  }
-  const pool = deps.pool || getPool();
-  const tables = [...new Set([...wanted.values()].map((side) => side.table))];
-  const placeholders = tables.map(() => "?").join(",");
-  const [rows] = await pool.query(
-    `SELECT TABLE_NAME, COLUMN_NAME, CHARACTER_SET_NAME, COLLATION_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME IN (${placeholders})`,
-    tables,
-  );
-  return new Map((rows || []).map((row) => [`${normalizeName(row.TABLE_NAME)}.${normalizeName(row.COLUMN_NAME)}`, {
-    table: normalizeName(row.TABLE_NAME), column: normalizeName(row.COLUMN_NAME), collation: text(row.COLLATION_NAME) || null,
-    charset: text(row.CHARACTER_SET_NAME) || null, source: "live_schema",
-  }]));
-}
-
-function sameComparisonContract(left, right) {
-  if (!left || !right) return null;
-  if (!left.collation || !right.collation) return null;
-  return normalizeName(left.collation) === normalizeName(right.collation)
-    && normalizeName(left.charset || "") === normalizeName(right.charset || "");
-}
-
-export async function assessDatabaseCollationPolicy(sql = "", deps = {}) {
-  const policy = deps.policy || loadDatabaseEngineCollationPolicy();
-  const observation = await probeDatabaseRuntimeObservation(deps);
-  const resolved = resolveDatabaseEngineProfile(observation, policy);
-  const findings = [];
-  if (!resolved.resolved) {
-    return { contract: policy.contract, status: "block", engine_family: resolved.engine_family, profile_key: null, findings: [{ code: "database_engine_profile_unresolved" }], observation, secrets_included: false };
-  }
-  const profile = resolved.profile;
-  const collations = sqlCollations(sql);
-  for (const collation of collations) {
-    const lower = collation.toLowerCase();
-    const forbidden = (profile.forbidden_collation_patterns || []).find((pattern) => lower.includes(String(pattern).toLowerCase()));
-    if (forbidden) findings.push({ code: "database_engine_collation_forbidden", collation, pattern: forbidden, severity: "block" });
-    else if ((profile.legacy_compatible_collations || []).map((item) => item.toLowerCase()).includes(lower)) {
-      findings.push({ code: "legacy_compatible_collation", collation, severity: "warn" });
-    }
-  }
-  const projected = projectedTableContracts(sql);
-  const comparisons = extractSqlJoinComparisons(sql);
-  const live = await readLiveContracts(comparisons, { ...deps, projectedContracts: projected });
-  for (const comparison of comparisons) {
-    const leftKey = `${comparison.left.table}.${comparison.left.column}`;
-    const rightKey = `${comparison.right.table}.${comparison.right.column}`;
-    const left = projected.get(leftKey) || live.get(leftKey) || null;
-    const right = projected.get(rightKey) || live.get(rightKey) || null;
-    const compatible = sameComparisonContract(left, right);
-    if (compatible === false) {
-      findings.push({ code: "join_collation_incompatible", severity: "block", left, right });
-    } else if (compatible === null && (left || right)) {
-      findings.push({ code: "join_collation_contract_unprovable", severity: "block", left, right });
-    }
-  }
-  const blocked = findings.some((finding) => finding.severity === "block");
-  const warned = findings.some((finding) => finding.severity === "warn");
-  return {
-    contract: policy.contract,
-    status: blocked ? "block" : warned ? "warn" : "pass",
-    engine_family: resolved.engine_family,
-    profile_key: profile.profile_key,
-    observation,
-    sql_collations: collations,
-    join_comparison_count: comparisons.length,
-    findings,
-    applies_sql: false,
-    secrets_included: false,
-  };
-}
+export const DATABASE_COLLATION_POLICY_PATH = POLICY_PATH;

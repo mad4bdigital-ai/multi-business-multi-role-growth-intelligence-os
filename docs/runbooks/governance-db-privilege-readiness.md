@@ -52,7 +52,7 @@ The readiness probe expects direct table grants for the dedicated principal. Do 
 
 Before the live privilege probe can pass, all of the following must already be true through separately governed operations:
 
-1. The Production database provider capability policy is truthfully `supported` for a dedicated second principal on the same authoritative database and exact direct table-scoped grants.
+1. The Production database provider capability policy is truthfully `supported` for a dedicated Governance database, its independent writer principal, and exact direct table-scoped grants.
 2. The dedicated MariaDB Governance writer principal has been created outside the application runtime.
 3. Only the reviewed table/operation matrix has been granted directly to that principal, with no role or column-grant path.
 4. The repaired source and runtime-readback readiness tooling have been promoted through the normal `main -> Production` lifecycle.
@@ -61,20 +61,21 @@ Before the live privilege probe can pass, all of the following must already be t
 
 The current Hostinger managed Production fails prerequisite 1 and must not skip ahead to credential or GRANT work.
 
-Required dedicated runtime identity after provider remediation:
+Required dedicated Governance database identity after provider remediation:
 
+- `GOVERNANCE_DB_NAME`
 - `GOVERNANCE_DB_USER`
 - `GOVERNANCE_DB_PASSWORD`
 
 The Governance username must be distinct from `DB_USER`. An exact same username is rejected with `GOVERNANCE_DB_IDENTITY_NOT_DEDICATED`.
 
-Physical target fields may use the existing writer-contract fallbacks when appropriate:
+Physical connection fields may use only the bounded host/port fallbacks when appropriate:
 
 - `GOVERNANCE_DB_HOST` -> physical `DB_HOST`
 - `GOVERNANCE_DB_PORT` -> physical `DB_PORT`, then `3306`
-- `GOVERNANCE_DB_NAME` -> physical `DB_NAME`
+- `GOVERNANCE_DB_NAME` -> **no fallback**; it must name the independent Governance database
 
-`GOVERNANCE_DB_NAME` is not a shortcut for moving Governance tables into a second database. A separate datastore requires its own reviewed read/write and transaction design.
+`GOVERNANCE_DB_NAME` must be distinct from `DB_NAME`; the application rejects both a missing Governance database name and a name equal to the ordinary Runtime database. The Governance database must contain only the reviewed Governance-owned tables for the relevant contract, and its writer/readback behavior must be tested independently.
 
 No credential value should be placed in workflow inputs, comments, logs, artifacts, issue text, or public runtime responses.
 

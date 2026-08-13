@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec019/contracts/lifecycle-evidence.schema.json",
+  "title": "Logical and Physical Lifecycle Evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "cycle_id",
+    "plan_id",
+    "policy_version",
+    "plan_fingerprint",
+    "logical",
+    "physical",
+    "secrets_included"
+  ],
+  "properties": {
+    "cycle_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "logical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligible_rows_before",
+        "deleted_rows",
+        "remaining_eligible_rows",
+        "preservation_checks_passed"
+      ],
+      "properties": {
+        "eligible_rows_before": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deleted_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "remaining_eligible_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "logical_bytes_removed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "preservation_checks_passed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "physical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "assessment_status",
+        "execution_allowed"
+      ],
+      "properties": {
+        "assessment_status": {
+          "enum": [
+            "not_run",
+            "safe_to_plan",
+            "blocked",
+            "readback_complete"
+          ]
+        },
+        "data_free_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "estimated_reclaimable_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "execution_allowed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "secrets_included": {
+      "const": false
+    }
+  }
+}

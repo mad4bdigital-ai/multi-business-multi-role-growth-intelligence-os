@@ -27,6 +27,10 @@ on:
         required: true
         type: string
 
+# This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
+env:
+  GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
+
 permissions:
   actions: write
   contents: write
@@ -51,6 +55,7 @@ jobs:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           set -euo pipefail
+          test "$GENERATED_ARTIFACT_AUTHORITY_MODE" = "trusted_writer"
           if [[ "$TARGET_REF" == "main" || "$TARGET_REF" == "Production" ]]; then
             echo "Protected branch mutation is forbidden: $TARGET_REF" >&2
             exit 1

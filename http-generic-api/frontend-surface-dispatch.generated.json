@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "ce1342d2d009125d81e6639d55b67f83e1918181025c0ae5cb2c9749784d015e",
+    "source_digest": "5d555a3bd06e961c306f6e5e8f0093d578d14b58facfe5bcbde0f19b5421038b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "ee65f4fe75941c371a989a3dbfff6e1f6f19435f541ad9296a3165ecccc62434",
+        "sha256": "8819e9be405d9043e8aadf091eeb41f73f2b3392f84efa8b5cf499020497d2c1",
         "present": true
       },
       {
@@ -596,7 +596,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "766eebf25f57ac741dad39539fdd26fabe537b77dac7ae86a8ac018a509f404b",
+        "sha256": "479fc85f27d55e53863f4c35644d1ffc1367ab644ece4324bb3029ad8d71f4bc",
         "present": true
       },
       {
@@ -721,7 +721,7 @@
       },
       {
         "file": "routes/platformEngineRoutes.js",
-        "sha256": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+        "sha256": "8ca4348932b92a7ebe13def206d920088742227db0e9830f657cf84f68f8ae4c",
         "present": true
       },
       {
@@ -806,7 +806,7 @@
       },
       {
         "file": "routes/runtimeVerificationRoutes.js",
-        "sha256": "828cc3eaf39ac3709381d404743b0de9e1a898dbd382d881a9e5fee38cc1752a",
+        "sha256": "d3cf461bdbb9749f8a0a62ca128480aeba84d9c171f5d65225282d9768540059",
         "present": true
       },
       {
@@ -1099,15 +1099,15 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1047,
-    "openapi_documented_count": 1031,
-    "openapi_canonical_documented_count": 714,
-    "openapi_generated_index_count": 317,
+    "operation_count": 1055,
+    "openapi_documented_count": 1039,
+    "openapi_canonical_documented_count": 720,
+    "openapi_generated_index_count": 319,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 317,
+    "openapi_detail_gap_count": 319,
     "auth_parity_counts": {
-      "equivalent": 1031,
+      "equivalent": 1039,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1121,7 +1121,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 4,
-    "untested_operation_count": 1043,
+    "untested_operation_count": 1051,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -15837,7 +15837,7 @@
       "family_key": "runtime-verification",
       "label": "runtime verification",
       "source_file": "routes/runtimeVerificationRoutes.js",
-      "source_digest": "828cc3eaf39ac3709381d404743b0de9e1a898dbd382d881a9e5fee38cc1752a",
+      "source_digest": "d3cf461bdbb9749f8a0a62ca128480aeba84d9c171f5d65225282d9768540059",
       "mount_prefix": "/",
       "mount_order": 14476,
       "split_from_mixed_scope_file": false,
@@ -15915,18 +15915,436 @@
           },
           "mutation_candidate": true,
           "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/verification-runs/{runId}",
+          "signature": "GET /runtime/verification-runs/{runId}",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/verification-runs/{runId}/evidence",
+          "signature": "GET /runtime/verification-runs/{runId}/evidence",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": true,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/parity",
+          "signature": "GET /runtime/parity",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/parity/{environmentKey}",
+          "signature": "GET /runtime/parity/{environmentKey}",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/runtime/readiness/remote-mcp",
+          "signature": "GET /runtime/readiness/remote-mcp",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/activation/hard-run/summary",
+          "signature": "GET /activation/hard-run/summary",
+          "source_file": "routes/runtimeVerificationRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
         }
       ],
       "openapi_gaps": [],
       "openapi_exemptions": [],
-      "openapi_detail_gaps": [],
+      "openapi_detail_gaps": [
+        "GET /runtime/readiness/remote-mcp"
+      ],
       "auth_contract_gaps": [],
       "evidence_routes": [
-        "POST /runtime/verification-runs"
+        "POST /runtime/verification-runs",
+        "GET /runtime/verification-runs/{runId}",
+        "GET /runtime/verification-runs/{runId}/evidence"
       ],
       "tests": [],
       "untested_operations": [
-        "POST /runtime/verification-runs"
+        "POST /runtime/verification-runs",
+        "GET /runtime/verification-runs/{runId}",
+        "GET /runtime/verification-runs/{runId}/evidence",
+        "GET /runtime/parity",
+        "GET /runtime/parity/{environmentKey}",
+        "GET /runtime/readiness/remote-mcp",
+        "GET /activation/hard-run/summary"
       ],
       "resources": [],
       "embedded_ui": false,
@@ -15939,6 +16357,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",
@@ -15966,7 +16385,7 @@
         }
       ],
       "risk": {
-        "score": 11,
+        "score": 12,
         "class": "critical"
       },
       "wave": "F3-admin-workspaces"
@@ -43934,7 +44353,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "766eebf25f57ac741dad39539fdd26fabe537b77dac7ae86a8ac018a509f404b",
+      "source_digest": "479fc85f27d55e53863f4c35644d1ffc1367ab644ece4324bb3029ad8d71f4bc",
       "mount_prefix": "/",
       "mount_order": 17495,
       "split_from_mixed_scope_file": false,
@@ -43943,6 +44362,73 @@
       "group": "agents",
       "scope": "admin",
       "operations": [
+        {
+          "method": "GET",
+          "path": "/gpt/tools",
+          "signature": "GET /gpt/tools",
+          "source_file": "routes/gptToolsRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "backend_or_user",
+            "alternatives": [
+              [
+                "backendBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "authenticated",
+            "guard_chain": [
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY",
+              "JWT_SECRET"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "backendApiKeyAuth"
+              ],
+              [
+                "backendBearerAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": true,
+          "openapi_exempt": false,
+          "openapi_contract_level": "canonical",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
+          "mutation": false
+        },
         {
           "method": "POST",
           "path": "/gpt/tools/call",
@@ -44020,6 +44506,7 @@
       "evidence_routes": [],
       "tests": [],
       "untested_operations": [
+        "GET /gpt/tools",
         "POST /gpt/tools/call"
       ],
       "resources": [
@@ -45433,7 +45920,7 @@
       "family_key": "platform-engine",
       "label": "platform engine",
       "source_file": "routes/platformEngineRoutes.js",
-      "source_digest": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+      "source_digest": "8ca4348932b92a7ebe13def206d920088742227db0e9830f657cf84f68f8ae4c",
       "mount_prefix": "/",
       "mount_order": 17722,
       "split_from_mixed_scope_file": false,
@@ -45798,6 +46285,76 @@
             "rule_id": null
           },
           "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/platform/engines/database-lifecycle/pressure-intelligence",
+          "signature": "GET /platform/engines/database-lifecycle/pressure-intelligence",
+          "source_file": "routes/platformEngineRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
           "mutation": false
         },
         {
@@ -47158,6 +47715,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "GET /platform/engines/database-lifecycle/pressure-intelligence",
         "GET /platform/engines/validator-results",
         "POST /platform/engines/validator-results"
       ],
@@ -47173,6 +47731,7 @@
         "POST /platform/engines/resolve-intent",
         "POST /platform/engines/decision-brief",
         "POST /platform/engines/database-table-lifecycle/decision-brief",
+        "GET /platform/engines/database-lifecycle/pressure-intelligence",
         "POST /platform/engines/database-table-lifecycle/register-plan",
         "GET /platform/engines/database-lifecycle/report-snapshots",
         "GET /platform/engines/database-lifecycle/operational-status",
@@ -94078,6 +94637,7 @@
       "wave": "F3-admin-workspaces",
       "state": "blocked",
       "blockers": [
+        "openapi_detail_contract_gap",
         "test_ownership_gap",
         "surface_policy_decision_required",
         "operation_classification_gap"
@@ -94095,6 +94655,7 @@
         "openapi/brand-core-asset-materialization.yaml",
         "openapi/container-authority-override-governance-smoke.yaml",
         "openapi/container-authority.yaml",
+        "openapi/frontend-runtime-routes.generated.yaml",
         "openapi/hostinger-storage-tenant-runtime.yaml",
         "openapi/openapi-registry-sync.yaml",
         "openapi/sql-cache-policy.yaml",

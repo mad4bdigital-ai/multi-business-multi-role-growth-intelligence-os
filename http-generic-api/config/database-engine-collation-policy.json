@@ -1,69 +1,55 @@
 {
-  "contract": "mad4b.database-engine-collation-policy.v1",
-  "policy_version": 1,
-  "default_semantic_policy": "human_text_default",
-  "semantic_policies": {
-    "human_text_default": {
-      "description": "Human-readable Unicode text with accent/case-insensitive comparison where supported."
+  "schema_version": 1,
+  "policy_key": "database_engine_collation_governance",
+  "default_engine": "unknown",
+  "engines": {
+    "mysql": {
+      "allowed_default_charsets": ["utf8mb4"],
+      "allowed_default_collations": ["utf8mb4_unicode_ci", "utf8mb4_bin"],
+      "required_default_charset": "utf8mb4",
+      "required_default_collation": "utf8mb4_unicode_ci",
+      "binary_collation_allowlist": ["utf8mb4_bin"],
+      "join_key_collation_mode": "uniform",
+      "allow_implicit_collation_conversion": false
     },
-    "join_key_strict": {
-      "description": "Relational identifiers compared across tables must use the same physical comparison contract on both sides of a join."
+    "mariadb": {
+      "allowed_default_charsets": ["utf8mb4"],
+      "allowed_default_collations": ["utf8mb4_unicode_ci", "utf8mb4_bin"],
+      "required_default_charset": "utf8mb4",
+      "required_default_collation": "utf8mb4_unicode_ci",
+      "binary_collation_allowlist": ["utf8mb4_bin"],
+      "join_key_collation_mode": "uniform",
+      "allow_implicit_collation_conversion": false
     },
-    "opaque_identifier": {
-      "description": "Opaque identifiers must preserve byte/case significance and must not inherit human-text folding semantics."
-    },
-    "case_sensitive_text": {
-      "description": "Text where case changes meaning."
-    },
-    "search_folded": {
-      "description": "Search-oriented text may use engine-native Unicode folding when not used as a relational join key."
+    "postgresql": {
+      "allowed_default_charsets": [],
+      "allowed_default_collations": [],
+      "required_default_charset": null,
+      "required_default_collation": null,
+      "binary_collation_allowlist": [],
+      "join_key_collation_mode": "provider_defined",
+      "allow_implicit_collation_conversion": false
     }
   },
-  "engine_profiles": [
-    {
-      "profile_key": "mariadb_10_10_plus",
-      "engine_family": "mariadb",
-      "minimum_version": "10.10.0",
-      "physical": {
-        "human_text_default": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" },
-        "join_key_strict": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" },
-        "opaque_identifier": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
-        "case_sensitive_text": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
-        "search_folded": { "charset": "utf8mb4", "collation": "utf8mb4_uca1400_ai_ci" }
-      },
-      "legacy_compatible_collations": ["utf8mb4_unicode_ci"],
-      "forbidden_collation_patterns": ["utf8mb4_0900_"]
-    },
-    {
-      "profile_key": "mysql_8_plus",
-      "engine_family": "mysql",
-      "minimum_version": "8.0.0",
-      "physical": {
-        "human_text_default": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" },
-        "join_key_strict": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" },
-        "opaque_identifier": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
-        "case_sensitive_text": { "charset": "utf8mb4", "collation": "utf8mb4_bin" },
-        "search_folded": { "charset": "utf8mb4", "collation": "utf8mb4_0900_ai_ci" }
-      },
-      "legacy_compatible_collations": ["utf8mb4_unicode_ci"],
-      "forbidden_collation_patterns": ["utf8mb4_uca1400_"]
-    },
-    {
-      "profile_key": "postgresql_16_plus",
-      "engine_family": "postgresql",
-      "minimum_version": "16.0.0",
-      "physical": {
-        "human_text_default": { "provider": "icu", "locale": "und" },
-        "join_key_strict": { "provider": "icu", "locale": "und" },
-        "opaque_identifier": { "provider": "binary" },
-        "case_sensitive_text": { "provider": "icu", "locale": "und-u-ks-level3" },
-        "search_folded": { "provider": "icu", "locale": "und" }
-      },
-      "legacy_compatible_collations": [],
-      "forbidden_collation_patterns": ["utf8mb4_"]
-    }
-  ],
-  "unknown_engine_policy": "block",
-  "legacy_collation_policy": "warn_unless_join_incompatible",
+  "unknown_engine": {
+    "allowed_default_charsets": [],
+    "allowed_default_collations": [],
+    "required_default_charset": null,
+    "required_default_collation": null,
+    "binary_collation_allowlist": [],
+    "join_key_collation_mode": "blocked",
+    "allow_implicit_collation_conversion": false
+  },
+  "migration_rules": {
+    "require_engine_detection": true,
+    "require_explicit_charset_and_collation_for_new_mariadb_mysql_tables": true,
+    "reject_mixed_join_key_collations": true,
+    "reject_unregistered_collation_exceptions": true,
+    "exception_registry_table": "database_collation_policy_exception_registry",
+    "policy_registry_table": "database_collation_policy_registry",
+    "status_view": "v_database_collation_policy_status",
+    "violations_view": "v_database_collation_policy_violations",
+    "unified_collation_required_key": "database_schema_governance.unified_collation_required"
+  },
   "secrets_included": false
 }

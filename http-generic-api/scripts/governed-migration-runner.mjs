@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-import { execFile } from "node:child_process";
+
+import { createHash, randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
 import { getPool } from "../db.js";
-import { assessDatabaseCollationPolicy } from "../databaseCollationPolicyGuard.js";
+import { runDatabaseCollationPreflight } from "../databaseCollationPolicyGuard.js";
+import { assessLiveIdentifierComparisonContracts } from "../canonicalIdentifierContract.js";
+import {
+  assessMigrationSqlPreflight,
+  extractMigrationReadinessRequirementsFromSql,
+  splitSqlStatements,
+} from "../releaseReadiness.js";
 
-const execFileAsync = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
 const MIGRATIONS_DIR = path.join(API_DIR, "migrations");
-const LEGACY_RUNNER = path.join(__dirname, "governed-migration-runner-legacy.mjs");
 
-// The active wrapper adds engine-aware collation preflight and then delegates
-// execution to the unchanged governed legacy runner. Keep its historically
-// governed allowlist visible at this canonical entrypoint for static contract
-// verification as well as runtime delegation.
-export const GOVERNED_MIGRATION_LEGACY_ALLOWLIST_COMPATIBILITY = Object.freeze([
+const LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS = new Set([
   "051_sprint48_cloudflare_and_self_repair_tools.sql",
   "052_sprint49_local_connector_install_bundle.sql",
   "054_sprint50_admin_device_seed_and_self_repair_tool.sql",
@@ -284,88 +284,410 @@ export const GOVERNED_MIGRATION_LEGACY_ALLOWLIST_COMPATIBILITY = Object.freeze([
   "20260721_repository_authority_capability_bindings_v2.sql",
 ]);
 
-function argValue(name) {
-  const argv = process.argv.slice(2);
-  for (let index = 0; index < argv.length; index += 1) {
-    const item = String(argv[index] || "");
-    if (item === name) return String(argv[index + 1] || "");
-    if (item.startsWith(`${name}=`)) return item.slice(name.length + 1);
+const RUNNER_VERSION = "governed-migration-runner-v3";
+
+function parseArgs(argv = process.argv.slice(2)) {
+  const parsed = { mode: "dry_run", migration: "", confirm: "", recordOnly: false, capabilityEnvelopeId: "" };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = String(argv[i] || "");
+    if (arg === "--dry-run") parsed.mode = "dry_run";
+    else if (arg === "--apply") parsed.mode = "apply";
+    else if (arg === "--record-ledger") parsed.recordOnly = true;
+    else if (arg === "--migration") parsed.migration = String(argv[++i] || "");
+    else if (arg.startsWith("--migration=")) parsed.migration = arg.slice("--migration=".length);
+    else if (arg === "--confirm") parsed.confirm = String(argv[++i] || "");
+    else if (arg.startsWith("--confirm=")) parsed.confirm = arg.slice("--confirm=".length);
+    else if (arg === "--capability-envelope-id") parsed.capabilityEnvelopeId = String(argv[++i] || "");
+    else if (arg.startsWith("--capability-envelope-id=")) parsed.capabilityEnvelopeId = arg.slice("--capability-envelope-id=".length);
+    else throw new Error(`Unsupported argument: ${arg}`);
   }
-  return "";
+  return parsed;
 }
 
-function safeJson(text = "") {
-  try { return JSON.parse(String(text || "").trim()); } catch { return null; }
+function confirmationFor(filename = "", { recordOnly = false } = {}) {
+  const prefix = recordOnly ? "RECORD" : "APPLY";
+  return `${prefix}_${String(filename).replace(/\.sql$/i, "").replace(/[^A-Za-z0-9]+/g, "_").toUpperCase()}`;
 }
 
-async function closeProbePool() {
-  try { await getPool().end(); } catch { /* no-op */ }
+function artifactNames(requirements = {}) {
+  return Object.fromEntries(
+    Object.entries(requirements).map(([key, values]) => [key, Array.isArray(values) ? values.slice(0, 100) : []])
+  );
+}
+
+async function existingSchemaObjects(names = []) {
+  const wanted = [...new Set((names || []).filter(Boolean))];
+  if (!wanted.length) return [];
+  const [rows] = await getPool().query(
+    "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN (?) ORDER BY table_name",
+    [wanted]
+  );
+  return rows.map((row) => row.table_name);
+}
+
+async function applyStatements(statements = []) {
+  const pool = getPool();
+  const results = [];
+  for (const statement of statements) {
+    const [result] = await pool.query(statement);
+    results.push({
+      statement: statement.slice(0, 140),
+      affectedRows: result?.affectedRows ?? null,
+      changedRows: result?.changedRows ?? null,
+      warningStatus: result?.warningStatus ?? null,
+      insertId: result?.insertId ?? null,
+    });
+  }
+  return results;
+}
+
+function sha256(value = "") {
+  return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
+}
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeCapabilityEnvelopeId(value = "") {
+  const id = String(value || "").trim();
+  return UUID_PATTERN.test(id) ? id : "";
+}
+
+async function governedMigrationLedgerSupportsCapabilityEnvelopeColumn() {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT COUNT(*) AS count FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'governed_migration_ledger' AND column_name = 'capability_envelope_id'"
+    );
+    return Number(rows?.[0]?.count || 0) > 0;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return false;
+    throw error;
+  }
+}
+
+async function findLedgerEntry(migration, checksum, mode = "record_only") {
+  try {
+    const [rows] = await getPool().query(
+      "SELECT run_id, migration_file, migration_checksum_sha256, mode, applied_at FROM governed_migration_ledger WHERE migration_file = ? AND migration_checksum_sha256 = ? AND mode = ? ORDER BY applied_at DESC LIMIT 1",
+      [migration, checksum, mode]
+    );
+    return rows?.[0] || null;
+  } catch (error) {
+    if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) return null;
+    throw error;
+  }
+}
+
+async function getMigrationAuthorization(migration, { mode = "dry_run" } = {}) {
+  try {
+    const [rows] = await getPool().query(
+      `SELECT migration_file, authorization_status, authorization_source, policy_key,
+              risk_tier, requires_preflight, requires_confirmation, allow_record_only, allow_apply
+         FROM governed_migration_authorization_registry
+        WHERE migration_file = ?
+        LIMIT 1`,
+      [migration]
+    );
+    const row = rows?.[0] || null;
+    if (!row) {
+      return { authorized: false, source: "db_registry", reason: "migration_not_authorized_in_db_registry" };
+    }
+    if (row.authorization_status !== "authorized") {
+      return { authorized: false, source: "db_registry", reason: `authorization_status_${row.authorization_status}`, row };
+    }
+    if (mode === "apply" && Number(row.allow_apply) !== 1) {
+      return { authorized: false, source: "db_registry", reason: "apply_not_allowed", row };
+    }
+    return { authorized: true, source: "db_registry", row };
+  } catch (error) {
+    if (!/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) throw error;
+    const legacyAuthorized = LEGACY_BOOTSTRAP_ALLOWED_MIGRATIONS.has(migration);
+    return {
+      authorized: legacyAuthorized,
+      source: "legacy_bootstrap_fallback",
+      reason: legacyAuthorized ? "authorization_registry_missing_bootstrap_allowed" : "authorization_registry_missing_and_not_bootstrap_allowed",
+      bootstrap_required: true,
+    };
+  }
+}
+
+async function recordMigrationLedger({
+  migration,
+  checksum,
+  preflight,
+  statement_count,
+  requirements,
+  results,
+  before_schema_objects,
+  after_schema_objects,
+  ledgerMode = "apply",
+  appliedBy = process.env.GOVERNED_MIGRATION_APPLIED_BY || "governed_migration_runner",
+  extraMetadata = {},
+  capabilityEnvelopeId = "",
+}) {
+  const run_id = randomUUID();
+  const normalizedCapabilityEnvelopeId = normalizeCapabilityEnvelopeId(capabilityEnvelopeId);
+  const metadata = {
+    node_version: process.version,
+    platform: process.platform,
+    runner_pid: process.pid,
+    ...extraMetadata,
+  };
+  if (normalizedCapabilityEnvelopeId) {
+    metadata.capability_envelope_id = normalizedCapabilityEnvelopeId;
+  }
+  await getPool().query(
+    `INSERT INTO governed_migration_ledger
+      (run_id, migration_file, migration_checksum_sha256, applied_by, runner_version, mode,
+       statement_count, preflight_status, preflight_risk_count, requirements_json, results_json,
+       before_schema_objects_json, after_schema_objects_json, metadata_json, secrets_included)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      run_id,
+      migration,
+      checksum,
+      appliedBy,
+      RUNNER_VERSION,
+      ledgerMode,
+      statement_count,
+      preflight?.status || "unknown",
+      Number(preflight?.risk_count || 0),
+      JSON.stringify(artifactNames(requirements)),
+      JSON.stringify(results || []),
+      JSON.stringify(before_schema_objects || []),
+      JSON.stringify(after_schema_objects || []),
+      JSON.stringify(metadata),
+    ]
+  );
+  if (normalizedCapabilityEnvelopeId && await governedMigrationLedgerSupportsCapabilityEnvelopeColumn()) {
+    await getPool().query(
+      "UPDATE governed_migration_ledger SET capability_envelope_id = ? WHERE run_id = ?",
+      [normalizedCapabilityEnvelopeId, run_id]
+    );
+  }
+  return { run_id, runner_version: RUNNER_VERSION, recorded: true, capability_envelope_id: normalizedCapabilityEnvelopeId || null };
 }
 
 async function main() {
-  const migration = path.basename(argValue("--migration"));
-  if (!migration) {
-    process.stdout.write(`${JSON.stringify({ ok: false, error: "--migration is required.", applies_sql: false, secrets_included: false }, null, 2)}\n`);
-    process.exitCode = 1;
-    return;
+  const args = parseArgs();
+  const migration = path.basename(args.migration || "");
+  if (!migration) throw new Error("--migration is required.");
+  const capabilityEnvelopeId = normalizeCapabilityEnvelopeId(args.capabilityEnvelopeId);
+  if (args.capabilityEnvelopeId && !capabilityEnvelopeId) {
+    throw new Error("--capability-envelope-id must be a UUID when provided.");
   }
+  const authorization = await getMigrationAuthorization(migration, { mode: args.mode });
+  if (!authorization.authorized) {
+    throw new Error(`Migration is not authorized for governed runner: ${migration} (${authorization.reason})`);
+  }
+
   const migrationPath = path.join(MIGRATIONS_DIR, migration);
   const sql = await fs.readFile(migrationPath, "utf8");
-  const collationPolicyPreflight = await assessDatabaseCollationPolicy(sql);
-  await closeProbePool();
+  const migration_checksum_sha256 = sha256(sql);
+  const preflight = assessMigrationSqlPreflight(migration, sql);
+  const requirements = extractMigrationReadinessRequirementsFromSql(sql);
+  const statements = splitSqlStatements(sql);
+  const statement_count = statements.length;
+  const preflight_statement_count = Number(preflight?.counts?.statements || 0);
+  const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
+  const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
 
-  if (collationPolicyPreflight.status === "block") {
-    process.stdout.write(`${JSON.stringify({
+  if (!collation_preflight.ready) {
+    console.log(JSON.stringify({
       ok: false,
-      mode: argValue("--mode") || "dry_run",
+      mode: args.mode,
       migration,
-      blocked_reason: "database_collation_policy_mismatch",
-      collation_policy_preflight: collationPolicyPreflight,
+      blocked_reason: "collation_policy_not_pass",
+      collation_preflight,
+      preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
       applies_sql: false,
       secrets_included: false,
-    }, null, 2)}\n`);
+    }, null, 2));
     process.exitCode = 2;
     return;
   }
 
-  let childStdout = "";
-  let childStderr = "";
-  let childCode = 0;
-  try {
-    const result = await execFileAsync(process.execPath, [LEGACY_RUNNER, ...process.argv.slice(2)], {
-      cwd: process.cwd(),
-      env: process.env,
-      maxBuffer: 16 * 1024 * 1024,
-    });
-    childStdout = result.stdout || "";
-    childStderr = result.stderr || "";
-  } catch (error) {
-    childStdout = error?.stdout || "";
-    childStderr = error?.stderr || "";
-    childCode = Number(error?.code) || 1;
+  if (preflight_statement_count !== statement_count) {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "preflight_statement_count_mismatch",
+      preflight_statement_count,
+      statement_count,
+      collation_preflight,
+      preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
   }
 
-  const payload = safeJson(childStdout);
-  if (payload && typeof payload === "object") {
-    payload.collation_policy_preflight = collationPolicyPreflight;
-    payload.database_collation_policy_status = collationPolicyPreflight.status;
-    payload.secrets_included = false;
-    process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
-  } else {
-    process.stdout.write(childStdout);
+  if (preflight.status !== "pass") {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "preflight_not_pass",
+      preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
   }
-  if (childStderr) process.stderr.write(childStderr);
-  if (childCode) process.exitCode = childCode;
+
+  if (identifier_contract_preflight.status !== "pass") {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "identifier_comparison_contract_mismatch",
+      collation_preflight,
+      preflight,
+      identifier_contract_preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
+
+  const existingRecordOnlyLedger = args.recordOnly
+    ? await findLedgerEntry(migration, migration_checksum_sha256, "record_only")
+    : null;
+
+  if (args.mode !== "apply") {
+    console.log(JSON.stringify({
+      ok: true,
+      mode: args.recordOnly ? "record_only_dry_run" : "dry_run",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      records_ledger_only: Boolean(args.recordOnly),
+      existing_record_only_ledger: existingRecordOnlyLedger,
+      authorization,
+      collation_preflight,
+      preflight,
+      statement_count: statements.length,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      required_confirmation: confirmationFor(migration, { recordOnly: args.recordOnly }),
+      capability_envelope_id: capabilityEnvelopeId || null,
+      secrets_included: false,
+    }, null, 2));
+    return;
+  }
+
+  const requiredConfirm = confirmationFor(migration, { recordOnly: args.recordOnly });
+  if (args.confirm !== requiredConfirm) {
+    throw new Error(`${args.recordOnly ? "Record-only ledger backfill" : "Apply"} requires --confirm=${requiredConfirm}`);
+  }
+
+  if (args.recordOnly) {
+    if (existingRecordOnlyLedger) {
+      console.log(JSON.stringify({
+        ok: true,
+        mode: "record_only",
+        migration,
+        migration_checksum_sha256,
+        applies_sql: false,
+        recorded: false,
+        duplicate: true,
+        existing_ledger: existingRecordOnlyLedger,
+        collation_preflight,
+        preflight,
+        statement_count,
+        requirements: artifactNames(requirements),
+        before_schema_objects,
+        secrets_included: false,
+      }, null, 2));
+      return;
+    }
+    const ledger = await recordMigrationLedger({
+      migration,
+      checksum: migration_checksum_sha256,
+      preflight,
+      statement_count,
+      requirements,
+      results: [],
+      before_schema_objects,
+      after_schema_objects: before_schema_objects,
+      ledgerMode: "record_only",
+      appliedBy: "governed_migration_runner_backfill",
+      extraMetadata: { record_only_backfill: true, sql_applied_by_this_run: false },
+      capabilityEnvelopeId,
+    });
+    console.log(JSON.stringify({
+      ok: true,
+      mode: "record_only",
+      migration,
+      migration_checksum_sha256,
+      applies_sql: false,
+      recorded: true,
+      preflight,
+      statement_count,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      ledger,
+      secrets_included: false,
+    }, null, 2));
+    return;
+  }
+
+  const results = await applyStatements(statements);
+  const after_schema_objects = await existingSchemaObjects(requirements.schema_objects);
+  const ledger = await recordMigrationLedger({
+    migration,
+    checksum: migration_checksum_sha256,
+    preflight,
+    statement_count,
+    requirements,
+    results,
+    before_schema_objects,
+    after_schema_objects,
+    capabilityEnvelopeId,
+  });
+
+  console.log(JSON.stringify({
+    ok: true,
+    mode: "apply",
+    migration,
+    migration_checksum_sha256,
+    applies_sql: true,
+    preflight,
+    statements_executed: results.length,
+    results,
+    requirements: artifactNames(requirements),
+    before_schema_objects,
+    after_schema_objects,
+    ledger,
+    secrets_included: false,
+  }, null, 2));
 }
 
-main().catch(async (error) => {
-  await closeProbePool();
-  process.stderr.write(`${JSON.stringify({
-    ok: false,
-    error: error?.message || String(error),
-    code: error?.code || "governed_migration_collation_preflight_failed",
-    applies_sql: false,
-    secrets_included: false,
-  }, null, 2)}\n`);
-  process.exitCode = 1;
-});
+async function closePoolQuietly() {
+  try {
+    await getPool().end();
+  } catch {
+  }
+}
+
+main()
+  .then(async () => {
+    await closePoolQuietly();
+  })
+  .catch(async (error) => {
+    console.error(JSON.stringify({ ok: false, error: error?.message || String(error), secrets_included: false }, null, 2));
+    await closePoolQuietly();
+    process.exit(1);
+  });

@@ -1,0 +1,127 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "019-governed-database-lifecycle-pressure-relief",
+  "title": "Governed database lifecycle and pressure relief contracts",
+  "delivery_mode": "multi_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      "specs/019-governed-database-lifecycle-pressure-relief/**",
+      "http-generic-api/databaseLifecyclePressureIntelligence.js",
+      "http-generic-api/scripts/database-lifecycle-pressure-intelligence.mjs",
+      "http-generic-api/routes/platformEngineRoutes.js",
+      "http-generic-api/test-database-lifecycle-pressure-intelligence.mjs",
+      "http-generic-api/test-spec019-database-lifecycle-contract.mjs",
+      "docs/issue-execution/spec019-lifecycle-gap-assessment-20260813.txt"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish a complete, secret-free, contract-only Spec Kit with deterministic safety boundaries and a multi-PR implementation plan.",
+      "e2e_journeys": [
+        {
+          "id": "validate-spec019-governed-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec Kit contract maintainer",
+          "entrypoint": "Spec 019 contract guard",
+          "terminal_outcome": "The lifecycle contract is complete, bounded, secret-free, and does not authorize runtime mutation.",
+          "steps": [
+            "Load the Spec 019 documents and JSON schemas.",
+            "Verify the lifecycle stages, domain decisions, authority boundaries, receipts, readback, and error taxonomy.",
+            "Reject arbitrary SQL, wildcard authority, silent retention, and destructive defaults.",
+            "Report deterministic contract validation without contacting Production."
+          ],
+          "assertions": [
+            "The Spec Kit contains specification, plan, tasks, data model, operations, research, threat model, checklists, contracts, E2E, and Work Map artifacts.",
+            "Engine runs remain plan-only when retention policy is missing.",
+            "Logical cleanup and physical reclaim are separate contracts.",
+            "No secrets or production mutation authority are included."
+          ],
+          "tests": [
+            {
+              "id": "spec019-contract-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec019-database-lifecycle-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Implement read-only pressure observation, domain classification, and deterministic lifecycle planning without database mutation.",
+      "e2e_journeys": [
+        {
+          "id": "validate-spec019-readonly-pressure-intelligence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform admin read-only observer",
+          "entrypoint": "GET /platform/engines/database-lifecycle/pressure-intelligence and pressure intelligence CLI",
+          "terminal_outcome": "The observer receives pressure metrics, largest tables, growth estimate, policy coverage, domain classifications, and immutable review plans; no write or execution authority is produced.",
+          "steps": [
+            "Load bounded table and capacity observations through SELECT-only adapters.",
+            "Normalize and sort table evidence deterministically.",
+            "Classify response chunks, repo audit findings, engine runs, and unknown resources by domain semantics.",
+            "Resolve approved policy metadata or return a blocking policy result.",
+            "Build an immutable fingerprinted review plan with exact resource and recipe requirements.",
+            "Return read-only safety markers and separate logical cleanup versus physical reclaim estimates."
+          ],
+          "assertions": [
+            "Missing quota yields capacity_unknown rather than an invented 100 percent pressure value.",
+            "Reordering candidates does not change plan fingerprint.",
+            "Unknown retention and missing policy fail closed.",
+            "Engine execution runs remain execution_allowed=false without archive policy.",
+            "The collector executes SELECT-only SQL and always returns will_write=false and will_execute=false.",
+            "No secrets are included."
+          ],
+          "tests": [
+            {
+              "id": "spec019-pressure-intelligence-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-lifecycle-pressure-intelligence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseLifecyclePressureIntelligence.js",
+            "http-generic-api/routes/platformEngineRoutes.js",
+            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/operation-paths.md"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add exact authority, durable receipts, bounded execution, reconciliation, and preservation-invariant tests."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the response-chunk pilot in non-production with fixed cutoff, readback, and rollback evidence."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote only after staging/canary/readback, security, performance, migration, and owner approval gates."
+    }
+  ],
+  "secrets_included": false
+}

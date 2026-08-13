@@ -26,6 +26,10 @@ on:
         required: true
         type: string
 
+# The dispatcher delegates to the trusted writer and never owns repository contents-write authority.
+env:
+  INVENTORY_AUTOFIX_AUTHORITY_MODE: read_only_delegator
+
 permissions:
   actions: read
   contents: read
@@ -66,6 +70,7 @@ jobs:
           MANUAL_CONFIRMATION: ${{ inputs.confirmation || '' }}
         run: |
           set -euo pipefail
+          test "$INVENTORY_AUTOFIX_AUTHORITY_MODE" = "read_only_delegator"
 
           emit_ineligible() {
             local reason="$1"
@@ -285,6 +290,7 @@ jobs:
           EXPECTED_HEAD_SHA: ${{ needs.classify.outputs.expected_head_sha }}
         run: |
           set -euo pipefail
+          test "$INVENTORY_AUTOFIX_AUTHORITY_MODE" = "read_only_delegator"
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
           [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]

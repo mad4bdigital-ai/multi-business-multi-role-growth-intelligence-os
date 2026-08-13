@@ -1,9 +1,9 @@
-import { getPool } from "./db.js";
+import { getRuntimePersistencePool } from "./db.js";
 
 export const RUNTIME_PERSISTENCE_IDENTITY_CONTRACT = Object.freeze({
-  identity_env: "DB_USER",
-  mode: "shared_runtime_writer",
-  separated_identity_required: false,
+  identity_env: "RUNTIME_PERSISTENCE_DB_USER",
+  mode: "dedicated_runtime_persistence_writer",
+  separated_identity_required: true,
   secrets_included: false,
 });
 
@@ -103,7 +103,11 @@ function requiredOperationsFor(table, requested = undefined) {
 }
 
 export function resolveRuntimePersistenceExecutor(deps = {}) {
-  return deps.runtimePersistencePool || deps.pool || deps.connection || getPool();
+  return deps.runtimePersistencePool
+    || (typeof deps.runtimePersistencePoolFactory === "function" ? deps.runtimePersistencePoolFactory() : null)
+    || deps.pool
+    || deps.connection
+    || getRuntimePersistencePool();
 }
 
 function cacheKey(deps = {}) {

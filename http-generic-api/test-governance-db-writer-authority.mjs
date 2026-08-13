@@ -18,7 +18,10 @@ assert.throws(
     assert.equal(error?.details?.governance_identity_required, true);
     assert.equal(error?.details?.runtime_identity_fallback_allowed, false);
     assert.equal(error?.details?.same_runtime_identity_rejected, true);
+    assert.equal(error?.details?.same_runtime_database_rejected, true);
+    assert.equal(error?.details?.governance_database_fallback_allowed, false);
     assert.equal(error?.details?.secrets_included, false);
+    assert.ok(error?.details?.missing?.includes("GOVERNANCE_DB_NAME"));
     assert.ok(error?.details?.missing?.includes("GOVERNANCE_DB_USER"));
     assert.ok(error?.details?.missing?.includes("GOVERNANCE_DB_PASSWORD"));
     assert.doesNotMatch(String(error?.message || ""), /runtime-secret-value/);
@@ -31,6 +34,7 @@ assert.throws(
 assert.throws(
   () => resolveGovernanceDbConfig({
     ...runtimeOnly,
+    GOVERNANCE_DB_NAME: "governance_platform",
     GOVERNANCE_DB_USER: runtimeOnly.DB_USER,
     GOVERNANCE_DB_PASSWORD: "separate-governance-secret",
   }),
@@ -39,6 +43,8 @@ assert.throws(
     assert.equal(error?.details?.governance_identity_required, true);
     assert.equal(error?.details?.runtime_identity_fallback_allowed, false);
     assert.equal(error?.details?.same_runtime_identity_rejected, true);
+    assert.equal(error?.details?.same_runtime_database_rejected, true);
+    assert.equal(error?.details?.governance_database_fallback_allowed, false);
     assert.equal(error?.details?.secrets_included, false);
     assert.doesNotMatch(String(error?.message || ""), /separate-governance-secret|runtime-secret-value/);
     assert.doesNotMatch(JSON.stringify(error?.details || {}), /separate-governance-secret|runtime-secret-value/);
@@ -49,18 +55,33 @@ assert.throws(
 
 const inheritedEndpoint = resolveGovernanceDbConfig({
   ...runtimeOnly,
+  GOVERNANCE_DB_NAME: "governance_platform",
   GOVERNANCE_DB_USER: "governance_writer",
   GOVERNANCE_DB_PASSWORD: "governance-secret-value",
   GOVERNANCE_DB_CONNECTION_LIMIT: "99",
 });
 assert.equal(inheritedEndpoint.host, "db.internal");
 assert.equal(inheritedEndpoint.port, 3306);
-assert.equal(inheritedEndpoint.database, "platform");
+assert.equal(inheritedEndpoint.database, "governance_platform");
 assert.equal(inheritedEndpoint.user, "governance_writer");
 assert.equal(inheritedEndpoint.password, "governance-secret-value");
 assert.equal(inheritedEndpoint.connectionLimit, 5, "writer connection limit must remain bounded");
 assert.notEqual(inheritedEndpoint.user, runtimeOnly.DB_USER);
 assert.notEqual(inheritedEndpoint.password, runtimeOnly.DB_PASSWORD);
+
+assert.throws(
+  () => resolveGovernanceDbConfig({
+    ...runtimeOnly,
+    GOVERNANCE_DB_NAME: runtimeOnly.DB_NAME,
+    GOVERNANCE_DB_USER: "governance_writer",
+    GOVERNANCE_DB_PASSWORD: "governance-secret-value",
+  }),
+  (error) => error?.code === "GOVERNANCE_DB_DATABASE_NOT_DEDICATED"
+    && error?.details?.same_runtime_database_rejected === true
+    && error?.details?.governance_database_fallback_allowed === false
+    && error?.details?.secrets_included === false,
+  "a separate governance user must not share the runtime database",
+);
 
 const dedicatedEndpoint = resolveGovernanceDbConfig({
   ...runtimeOnly,
@@ -123,6 +144,8 @@ assert.match(governanceDbSource, /GOVERNANCE_DB_USER/);
 assert.match(governanceDbSource, /GOVERNANCE_DB_PASSWORD/);
 assert.match(governanceDbSource, /GOVERNANCE_DB_IDENTITY_NOT_DEDICATED/);
 assert.match(governanceDbSource, /same_runtime_identity_rejected: true/);
+assert.match(governanceDbSource, /same_runtime_database_rejected: true/);
+assert.match(governanceDbSource, /governance_database_fallback_allowed: false/);
 assert.match(governanceDbSource, /runtime_identity_fallback_allowed: false/);
 assert.doesNotMatch(governanceDbSource, /GOVERNANCE_DB_USER\s*\|\|\s*(?:env\.)?DB_USER/);
 assert.doesNotMatch(governanceDbSource, /GOVERNANCE_DB_PASSWORD\s*\|\|\s*(?:env\.)?DB_PASSWORD/);
