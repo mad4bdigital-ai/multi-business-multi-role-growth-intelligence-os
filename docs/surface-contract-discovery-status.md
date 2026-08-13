@@ -19,10 +19,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Scope
 
-- Migrations with detected surfaces: 474
+- Migrations with detected surfaces: 475
 - Migrations reported here: 80
-- OpenAPI operations detected: 1045
-- OpenAPI paths detected: 1031
+- OpenAPI operations detected: 1043
+- OpenAPI paths detected: 1029
 - Documentation targets checked:
 - `Updating Registry Patch Index.md`
 - `deployment_parity_checklist.md`
@@ -32,9 +32,9 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 ## Coverage Summary
 
-- Documentation complete migrations: 464/474 (97.89%)
-- Documentation gap migrations: 10
-- Gap severity: high=3, medium=2, low=5
+- Documentation complete migrations: 464/475 (97.68%)
+- Documentation gap migrations: 11
+- Gap severity: high=3, medium=2, low=6
 - SQL route coverage in OpenAPI: 31/33 (93.94%)
 - SQL route-like literals exempted from OpenAPI scoring: 676/709
 - SQL routes missing OpenAPI path coverage: 2
@@ -46,7 +46,7 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 |---|---:|---:|
 | plugins | 16 | 13 |
 | tools | 751 | 272 |
-| views | 525 | 213 |
+| views | 531 | 214 |
 | policies | 198 | 137 |
 | routes | 709 | 294 |
 
@@ -54,22 +54,22 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 | Documentation target | Missing migration mentions |
 |---|---:|
-| `Updating Registry Patch Index.md` | 10 |
-| `deployment_parity_checklist.md` | 10 |
-| `docs/ai-docs-agent-governance.md` | 10 |
-| `docs/auto-docs-agent/README.md` | 10 |
-| `docs/change-documentation-governance.md` | 10 |
+| `Updating Registry Patch Index.md` | 11 |
+| `deployment_parity_checklist.md` | 11 |
+| `docs/ai-docs-agent-governance.md` | 11 |
+| `docs/auto-docs-agent/README.md` | 11 |
+| `docs/change-documentation-governance.md` | 11 |
 
 ### Safety Marker Coverage
 
 | Safety marker | Migrations with marker |
 |---|---:|
-| no_provider_call | 466 |
+| no_provider_call | 467 |
 | no_credential_payload_read | 464 |
 | no_raw_secrets | 463 |
-| no_external_send | 464 |
-| no_external_write | 465 |
-| secrets_included_false | 469 |
+| no_external_send | 465 |
+| no_external_write | 466 |
+| secrets_included_false | 470 |
 
 ### Route Classification Coverage
 
@@ -88,10 +88,10 @@ This report automatically discovers new SQL-backed platform surfaces from migrat
 
 Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable queue: `docs/surface-contract-gap-queue.md`.
 
-- Total queue items: 12
+- Total queue items: 13
 - Critical review: 3
 - High review: 2
-- Medium review: 5
+- Medium review: 6
 - Low review: 2
 
 | Migration | Queue class | Score | Severity | Missing docs | OpenAPI gaps | Safety gaps | Remediation actions |
@@ -101,6 +101,7 @@ Machine-readable queue: `docs/surface-contract-gap-queue.json`. Human-readable q
 | `20260812_repository_reconciliation_admin_apply_activation.sql` | critical_review | 862 | high | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260812_resource_surface_policy_decisions_consolidated.sql` | high_review | 592 | medium | 5 | 0 | 6 | document_surface_contract, verify_policy_seed_readiness, verify_readback_view, add_explicit_safety_markers |
 | `20260811_runtime_break_glass_authority_metadata_v1.sql` | high_review | 512 | medium | 5 | 0 | 1 | document_surface_contract, verify_policy_seed_readiness, add_explicit_safety_markers |
+| `20260813_virtual_tool_endpoint_scoped_capability_identity.sql` | medium_review | 394 | low | 5 | 0 | 2 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260812_dynamic_canonical_resource_registry.sql` | medium_review | 392 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `20260810_platform_runtime_registry_drift_reconciliation.sql` | medium_review | 389 | low | 5 | 0 | 5 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |
 | `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql` | medium_review | 358 | low | 5 | 0 | 6 | document_surface_contract, verify_readback_view, add_explicit_safety_markers |

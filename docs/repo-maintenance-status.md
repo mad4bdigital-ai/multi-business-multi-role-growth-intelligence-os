@@ -10,8 +10,8 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 - Source file: `http-generic-api/openapi.yaml`
 - OpenAPI version: `3.1.0`
-- Paths: 615
-- Operations: 566
+- Paths: 616
+- Operations: 567
 - Top-level tags: 36
 
 ## Virtual Admin Tool Contract Notes
@@ -164,6 +164,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
 - `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
+- `.github/workflows/remote-mcp-oauth-path-format-guard.yml`
 - `.github/workflows/repository-evaluation.yml`
 - `.github/workflows/repository-inventory-autofix-dispatch.yml`
 - `.github/workflows/repository-inventory.yml`
@@ -211,6 +212,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 
 ## Maintenance Scripts
 
+- `http-generic-api/scripts/generate-openapi-mutation-policy.mjs`
 - `http-generic-api/scripts/generate-resource-surface-openapi.mjs`
 - `http-generic-api/scripts/openapi-autofill-missing-routes.mjs`
 - `http-generic-api/scripts/openapi-builder-schema-guard.mjs`
