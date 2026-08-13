@@ -8,6 +8,7 @@
 
 process.env.JWT_SECRET = "oauth_route_test_secret_32_characters_long";
 process.env.TENANT_GPT_SSO_SIGNING_SECRET = "tenant_gpt_sso_test_secret_32_characters_long";
+process.env.TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED = "true";
 process.env.GOOGLE_CLIENT_ID = "test-google-client-id.apps.googleusercontent.com";
 process.env.REMOTE_MCP_TRUST_PROXY_HOST_HEADERS = "true";
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+process.env.TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED = "true";
 import { readFileSync } from "node:fs";
 import {
   TENANT_GPT_SSO_SESSION_COOKIE,
@@ -54,6 +55,10 @@ assert.match(cookie, /HttpOnly/iu);
 assert.match(cookie, /Secure/iu);
 assert.equal(parseTenantGptSsoCookie(`other=value; ${cookie}`), token);
 assert.match(buildTenantGptSsoClearCookieHeader(), /Max-Age=0/iu);
+assert.throws(() => buildTenantGptSsoCookieHeader(token, { env: { TENANT_GPT_SSO_COOKIE_MODE: "shared_domain" } }), /trusted-subdomain boundary attestation/iu);
+const hostOnlyCookie = buildTenantGptSsoCookieHeader(token, { env: { TENANT_GPT_SSO_COOKIE_MODE: "host_only" } });
+assert.doesNotMatch(hostOnlyCookie, /Domain=/iu);
+assert.match(hostOnlyCookie, /HttpOnly/iu);
 
 const authRoutes = readFileSync("./routes/authRoutes.js", "utf8");
 const ssoModule = readFileSync("./tenantGptSsoSession.js", "utf8");
@@ -65,7 +70,8 @@ assert.match(authRoutes, /requireConfiguredSsoSigningSecret/u);
 assert.match(authRoutes, /router\.post\("\/oauth\/revoke"/u);
 assert.match(authRoutes, /revokeSsoSessionsForUser/u);
 assert.match(authRoutes, /req\.query\.prompt !== "login"/u);
-assert.match(ssoModule, /Domain=\.mad4b\.com/u);
+assert.match(ssoModule, /\.mad4b\.com/u);
+assert.match(ssoModule, /TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED/u);
 assert.match(ssoModule, /sid: resolvedSid/u);
 assert.match(ssoModule, /idle_expires_at/u);
 assert.match(ssoModule, /tenant_gpt_sso_sessions/u);

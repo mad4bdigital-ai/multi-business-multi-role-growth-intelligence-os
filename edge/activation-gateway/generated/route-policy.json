@@ -1,10 +1,11 @@
 {
-  "content_hash_sha256": "f7551d2afd10978da8c293d76a79b805ad59dfc0a8c6238f3d0260d92c5ca69a",
+  "content_hash_sha256": "5a8742acb112043fd7d7babb9e524aa35ce0f806d48ebc78ddb26e480f9bedec",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
   "oauth_handoff_routes": [
     {
+      "allow_session_cookie": true,
       "allowed_query_parameters": [
         "activation_mode",
         "auth_options",
@@ -38,6 +39,7 @@
       "timeout_ms": 30000
     },
     {
+      "allow_session_cookie": true,
       "allowed_query_parameters": [],
       "method": "POST",
       "operation_ids": [
@@ -49,6 +51,7 @@
       "timeout_ms": 30000
     },
     {
+      "allow_session_cookie": false,
       "allowed_query_parameters": [],
       "method": "POST",
       "operation_ids": [
@@ -591,7 +594,7 @@
     "activation_admin",
     "tenant_activation"
   ],
-  "surface_registry_sha256": "fb750d040863c7408d4a7a27d408d35306f0ea736c056f805fb4e7e9eef8e34b",
+  "surface_registry_sha256": "dc302fe23c45f4e33adf013ad7c7c8ffb9cb5fd907c4f3cc3dea6e6edbf279e6",
   "surface_registry_version": 2,
   "upstream_origin": "https://auth.mad4b.com",
   "warning_budget": [

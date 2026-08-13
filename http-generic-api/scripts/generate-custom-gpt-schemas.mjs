@@ -164,6 +164,7 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
           method,
           path: routePath,
           operation_ids: [operationId],
+          allow_session_cookie: route.allow_session_cookie === true,
           allowed_query_parameters: [...new Set(route.allowed_query_parameters || [])].sort(),
           request_body_limit_bytes: Number(policy.request_body_limit_bytes),
           response_body_limit_bytes: Number(policy.response_body_limit_bytes),

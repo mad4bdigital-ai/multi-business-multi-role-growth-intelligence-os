@@ -885,6 +885,7 @@ gateway_policies:
       - method: GET
         path: /auth/oauth/authorize
         operation_id: tenantGptOAuthAuthorize
+        allow_session_cookie: true
         allowed_query_parameters:
           - activation_mode
           - auth_options
@@ -910,10 +911,12 @@ gateway_policies:
       - method: POST
         path: /auth/oauth/code
         operation_id: tenantGptOAuthCode
+        allow_session_cookie: true
         allowed_query_parameters: []
       - method: POST
         path: /auth/oauth/token
         operation_id: tenantGptOAuthToken
+        allow_session_cookie: false
         allowed_query_parameters: []
     output_file: edge/activation-gateway/generated/route-policy.json
     request_body_limit_bytes: 1048576

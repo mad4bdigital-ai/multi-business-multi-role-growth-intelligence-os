@@ -350,6 +350,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
       assert.equal(String(input), "https://auth.mad4b.com/auth/oauth/token");
       assert.equal(init.method, "POST");
       forwardedBody = Buffer.from(init.body || new ArrayBuffer(0)).toString("utf8");
+      assert.equal(new Headers(init.headers || {}).get("cookie"), null);
       return new Response(JSON.stringify({ access_token: "upstream-access-token", token_type: "Bearer" }), {
         status: 200,
         headers: { "content-type": "application/json" },
@@ -367,7 +368,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
   });
   const response = await handler(new Request("https://activation.mad4b.com/auth/oauth/token", {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
+    headers: { "content-type": "application/x-www-form-urlencoded", cookie: "mad4b_tenant_gpt_sso=must-not-reach-token" },
     body: form.toString(),
   }), validEnv, {});
   assert.equal(response.status, 200);

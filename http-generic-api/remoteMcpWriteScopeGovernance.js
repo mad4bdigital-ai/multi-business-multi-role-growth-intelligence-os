@@ -3,6 +3,7 @@ import {
   getRemoteMcpScopeCatalog,
   REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER,
 } from "./remoteMcpScopeCatalog.js";
+import { evaluateSharedMutationPolicyDecision } from "./sharedMutationPolicy.js";
 
 const WRITE_EFFECT_CLASSES = new Set(["internal_write", "external_write", "destructive"]);
 const WRITE_SCOPE_ACTIVATION_STATUS = new Set(["staging_active", "active"]);
@@ -81,6 +82,7 @@ export function buildRemoteMcpWriteScopeReadback({
     approval_gate_ready: approvalsReady,
     capability_gate_ready: capabilityReady,
     lease_gate_ready: leaseReady,
+    write_scopes: writes.map((scope) => clone(scope)),
     write_scope_count: writes.length,
     default_write_scope_count: writes.filter((scope) => scope.default_request === true).length,
     active_write_scope_count: active ? promotedWrites.length : 0,
@@ -109,35 +111,32 @@ export function evaluateRemoteMcpWriteScopeDecision({
   const governance = buildRemoteMcpWriteScopeReadback({ env, catalog });
   const scopePromoted = isPerScopePromoted(scope);
   const tokenScopeSet = new Set(normalizeScopes(tokenScopes));
-  const checks = [
-    { key: "write_scope_registered", ok: Boolean(scope && isWriteScope(scope)), detail: scope ? scope.scope_key : "unknown_scope" },
-    { key: "inventory", ok: governance.inventory_ready, detail: governance.inventory_ready ? "ready" : "blocked" },
-    { key: "write_scope_enabled", ok: governance.activation_ready && scopePromoted, detail: scopePromoted ? "per_scope_promoted" : (scope?.status || "shadow") },
-    { key: "token_scope", ok: tokenScopeSet.has(scopeKey), detail: scopeKey },
-    { key: "resource_authority", ok: resourceAuthority, detail: resourceAuthority ? "bound" : "unbound" },
-    { key: "operation_eligibility", ok: operationEligible, detail: operationEligible ? "eligible" : "unresolved" },
-    { key: "approval", ok: approvalSatisfied, detail: approvalSatisfied ? "satisfied" : "required" },
-    { key: "capability", ok: capabilitySatisfied, detail: capabilitySatisfied ? "satisfied" : "missing" },
-    { key: "lease", ok: leaseActive, detail: leaseActive ? "active" : "expired" },
-    { key: "environment", ok: environment === "staging" && governance.environment === "staging", detail: environment },
-  ];
-  const failed = checks.filter((check) => !check.ok);
-  return {
-    ok: failed.length === 0,
-    code: failed.length ? "MCP_WRITE_AUTHORIZATION_DENIED" : "MCP_WRITE_AUTHORIZATION_ALLOWED",
-    scope_key: scopeKey || null,
-    effect_class: scope?.effect_class || null,
-    decision_path: checks,
+  const sharedDecision = evaluateSharedMutationPolicyDecision({
+    transport: "mcp",
+    method: "POST",
+    path: `/mcp/tools/${scopeKey || "unregistered"}`,
+    operationId: scopeKey || null,
+    effectClass: scope?.effect_class || null,
+    requiredScope: scopeKey,
+    tokenScopes,
+    resourceAuthority,
+    operationEligible,
+    approvalSatisfied,
+    capabilitySatisfied,
+    leaseActive,
+    environment,
     governance,
+  });
+  return {
+    ...sharedDecision,
+    ok: sharedDecision.ok,
+    code: sharedDecision.ok ? "MCP_WRITE_AUTHORIZATION_ALLOWED" : "MCP_WRITE_AUTHORIZATION_DENIED",
+    scope_key: scopeKey || null,
     scope_promotion: {
       promoted: scopePromoted,
       status: scope?.status || null,
       marker: scope?.promotion_marker || null,
       required_marker: REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER,
     },
-    provider_mutation_allowed: false,
-    production_allowed: false,
-    readback_required: true,
-    secrets_included: false,
   };
 }

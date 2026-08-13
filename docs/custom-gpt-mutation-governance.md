@@ -4,18 +4,18 @@
 
 ## القرار المعماري
 
-يستخدم المشروع حاليًا **مستويين منفصلين لحوكمة التغيير** مع ضوابط مكافئة جزئيًا، وليس policy واحدة transport-independent. يعمل Remote MCP عبر `tools/call` ويطبق قرار write scope fail-closed من `remoteMcpConnectorRuntime.js`. أما Custom GPT OpenAPI فيمر عبر routes المولدة من `openapi.yaml` مع OAuth resource binding وطبقات authorization الخاصة بالمسار، ولا يُعاد توجيه العملية إلى MCP write dispatcher.
+يستخدم المشروع **نقلين مستقلين** لكنهما يستهلكان الآن قرارًا مشتركًا من `sharedMutationPolicy.js`. يعمل Remote MCP عبر `tools/call` ويطبق adapter المشترك من خلال `remoteMcpWriteScopeGovernance.js`. أما Custom GPT OpenAPI فيمر عبر `openApiMutationGovernance.js` المركب قبل routes التسجيل؛ وعند وجود Tenant GPT bearer على mutation، تُرفض العملية fail-closed إذا لم توجد operation policy وscope promoted. لا يُعاد توجيه العملية إلى MCP dispatcher، لكن effect/authority/approval/lease/readback decision path موحد.
 
-> الصياغة المعتمدة: **OpenAPI وRemote MCP مستقلان في النقل، مع فصل أمني موثق؛ لا تُعتبر mutation governance موحدة عبر النقلين حتى يتم بناء adapter مشترك يطبق نفس effect/authority/approval/lease/readback policy على كلا المسارين.**
+> الصياغة المعتمدة: **OpenAPI وRemote MCP مستقلان في النقل، مع shared mutation decision adapter وfail-closed enforcement؛ لا توجد write scope مفعلة، ولذلك لا تسمح طبقة OpenAPI الحالية بأي mutation قبل إضافة registry entry وترقية scope عبر البوابات المستقلة.**
 
 | المجال | Custom GPT OpenAPI | Remote MCP | حالة هذه الدفعة |
 |---|---|---|---|
 | الهوية والموارد | OAuth Tenant GPT، مع host/resource binding وActivation audience | Remote MCP OAuth 2.1 وresource binding | مفعّل في staging |
 | write scopes | لا توجد write scopes مفعلة؛ الجرد 6 scopes في shadow فقط | write decision fail-closed خلف policy MCP | لا activation |
-| approval/capability/lease | يعتمد على route/application authorization الحالي؛ لا يدعي adapter مشترك | `evaluateRemoteMcpWriteScopeDecision` ومسار MCP write governance | فصل موثق |
+| approval/capability/lease | نفس checks المشتركة؛ جميعها fail-closed قبل promotion | نفس checks المشتركة مع MCP-specific response taxonomy | parity contract |
 | provider mutation | غير منفذة ضمن هذه الدفعة | غير منفذة ضمن هذه الدفعة | مغلق |
 | readback | يظل contract route-specific حيث ينطبق | يظل contract MCP-specific حيث ينطبق | لا promotion |
-| readiness | `mutation_governance_ready=false` لهذه الدفعة إذا كان المطلوب transport-independent enforcement | `mutation_governance_ready=true` فقط لمسار MCP المعزول | review required |
+| readiness | `mutation_governance_ready=false` حتى توجد operation registry entries وscope promotion | `mutation_governance_ready=false` لأن scopes shadow | review/staging |
 
 ## تصنيف عمليات OpenAPI ذات الأثر التغييري
 
@@ -25,11 +25,11 @@
 
 ## حدود هذه الدفعة
 
-لم تُفعّل write scopes، ولم تُطبّق migrations، ولم تُنفذ provider mutations، ولم تُعدل Cloudflare أو Hostinger، ولم تُنشر Production، ولم يُدمج PR #7072. لذلك فإن نتيجة القبول الصحيحة هي فصل transport مع إبقاء claim التوحيد الكامل مؤجلًا إلى adapter مشترك ومراجعة مستقلة.
+لم تُفعّل write scopes، ولم تُطبّق migrations، ولم تُنفذ provider mutations، ولم تُعدل Cloudflare أو Hostinger، ولم تُنشر Production، ولم يُدمج PR #7072. لذلك فإن نتيجة القبول الصحيحة هي فصل transport مع shared adapter fail-closed، وإبقاء أي promotion لعملية write مؤجلًا إلى registry تفصيلي ومراجعة مستقلة.
 
 ## شروط الانتقال إلى policy مشتركة
 
-ينبغي إنشاء policy registry يربط `resource + operation_id + effect` بـauthority وrequired scope وapproval وlease وreadback، ثم إضافة adapter OpenAPI وآخر MCP يستهلكان نفس القرار. يجب أن يفشل كل adapter مغلقًا عند غياب registry entry أو عند اختلاف effect أو subject أو resource. بعد ذلك تُضاف اختبارات parity تثبت أن نفس العملية المنطقية تنتج قرارًا متماثلًا عبر النقلين، مع اختبار رفض write route غير مصنفة.
+يبقى استكمال registry التفصيلي الذي يربط `resource + operation_id + effect` بـauthority وrequired scope وapproval وlease وreadback مطلوبًا، لكن enforcement adapter أصبح موجودًا بالفعل ويمنع أي operation غير مسجلة. أضيفت اختبارات parity تثبت تطابق failed checks بين OpenAPI وMCP، واختبار browser-like/cross-host read-only canary. لا يمكن لأي adapter السماح بالكتابة في هذه الدفعة لأن scopes ما زالت `shadow` وprovider mutations محظورة.
 
 ## أدلة المصدر
 

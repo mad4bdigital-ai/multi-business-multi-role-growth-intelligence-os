@@ -9,6 +9,17 @@ export const TENANT_GPT_SSO_SESSION_MIN_TTL_SECONDS = 5 * 60;
 export const TENANT_GPT_SSO_SESSION_DEFAULT_IDLE_TTL_SECONDS = 8 * 60 * 60;
 export const TENANT_GPT_SSO_SESSION_MAX_IDLE_TTL_SECONDS = TENANT_GPT_SSO_SESSION_MAX_TTL_SECONDS;
 export const TENANT_GPT_SSO_SESSION_PURPOSE = "tenant_gpt_sso_session";
+export const TENANT_GPT_SSO_COOKIE_MODE_SHARED = "shared_domain";
+export const TENANT_GPT_SSO_COOKIE_MODE_HOST_ONLY = "host_only";
+
+function resolveCookiePolicy(env = process.env) {
+  const mode = String(env?.TENANT_GPT_SSO_COOKIE_MODE || TENANT_GPT_SSO_COOKIE_MODE_SHARED).trim().toLowerCase();
+  if (![TENANT_GPT_SSO_COOKIE_MODE_SHARED, TENANT_GPT_SSO_COOKIE_MODE_HOST_ONLY].includes(mode)) throw sessionError("tenant_gpt_sso_cookie_mode_invalid", "Unsupported Tenant GPT SSO cookie mode.");
+  if (mode === TENANT_GPT_SSO_COOKIE_MODE_SHARED && String(env?.TENANT_GPT_SSO_TRUST_BOUNDARY_ATTESTED || "").trim().toLowerCase() !== "true") {
+    throw sessionError("tenant_gpt_sso_cookie_trust_boundary_unattested", "Shared-domain SSO cookie requires an explicit trusted-subdomain boundary attestation.");
+  }
+  return { mode, domain: mode === TENANT_GPT_SSO_COOKIE_MODE_SHARED ? ".mad4b.com" : null };
+}
 
 function sessionError(code, message) {
   const error = new Error(message);
@@ -210,13 +221,17 @@ export function parseTenantGptSsoCookie(cookieHeader) {
   return "";
 }
 
-export function buildTenantGptSsoCookieHeader(token, { ttlSeconds } = {}) {
+export function buildTenantGptSsoCookieHeader(token, { ttlSeconds, env = process.env } = {}) {
   const ttl = ttlSeconds === undefined ? TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS : validateTenantGptSsoSessionTtlSeconds(ttlSeconds);
-  return `${TENANT_GPT_SSO_SESSION_COOKIE}=${encodeURIComponent(String(token || ""))}; Max-Age=${ttl}; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax`;
+  const policy = resolveCookiePolicy(env);
+  const domain = policy.domain ? ` Domain=${policy.domain};` : "";
+  return `${TENANT_GPT_SSO_SESSION_COOKIE}=${encodeURIComponent(String(token || ""))}; Max-Age=${ttl};${domain} Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
-export function buildTenantGptSsoClearCookieHeader() {
-  return `${TENANT_GPT_SSO_SESSION_COOKIE}=; Max-Age=0; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax`;
+export function buildTenantGptSsoClearCookieHeader({ env = process.env } = {}) {
+  const policy = resolveCookiePolicy(env);
+  const domain = policy.domain ? ` Domain=${policy.domain};` : "";
+  return `${TENANT_GPT_SSO_SESSION_COOKIE}=; Max-Age=0;${domain} Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
 
 export { sessionId };

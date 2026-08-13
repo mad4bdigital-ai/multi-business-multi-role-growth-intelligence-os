@@ -1313,7 +1313,7 @@ export function buildAuthRoutes(deps) {
         const ssoClaims = jwt.decode(ssoToken);
         try {
           await saveSsoSession({ pool: resolvePool(), claims: ssoClaims, expiresAt: new Date(Number(ssoClaims?.exp || 0) * 1000) });
-          res.setHeader("Set-Cookie", buildTenantGptSsoCookieHeader(ssoToken, { ttlSeconds: ssoSessionTtlSeconds }));
+          res.setHeader("Set-Cookie", buildTenantGptSsoCookieHeader(ssoToken, { ttlSeconds: ssoSessionTtlSeconds, env: authEnv }));
         } catch (error) {
           console.warn("tenant_gpt_sso_session_persistence_unavailable", { code: String(error?.code || "store_unavailable").slice(0, 64), secrets_included: false });
         }
@@ -1561,7 +1561,7 @@ export function buildAuthRoutes(deps) {
     const token = cleanText(req.body?.session_token || req.body?.token || parseTenantGptSsoCookie(req.headers?.cookie), 8192);
     const verified = verifyTenantGptSsoSession(token, { jwtSecret: ssoSigningSecret });
     res.setHeader("Cache-Control", "no-store");
-    res.setHeader("Set-Cookie", buildTenantGptSsoClearCookieHeader());
+    res.setHeader("Set-Cookie", buildTenantGptSsoClearCookieHeader({ env: authEnv }));
     if (!verified.ok) return res.status(200).json({ ok: true, revoked: false, reason: verified.code, secrets_included: false });
     try {
       const revoked = await revokeSsoSession({ pool: resolvePool(), sid: verified.claims.sid });

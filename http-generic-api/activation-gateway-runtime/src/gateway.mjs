@@ -418,7 +418,7 @@ export function createActivationGateway({
         try {
           upstream = await fetchImpl(target, {
             method: request.method,
-            headers: forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie: true }),
+            headers: forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie: oauthHandoff.allow_session_cookie === true }),
             body,
             redirect: "manual",
             signal: controller.signal,
@@ -433,7 +433,7 @@ export function createActivationGateway({
         }
         const responseBody = await boundedResponseBody(upstream, Number(oauthHandoff.response_body_limit_bytes));
         status = upstream.status;
-        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy, { allowOauthSessionCookie: true }) });
+        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy, { allowOauthSessionCookie: oauthHandoff.allow_session_cookie === true }) });
       }
       const { route, allowedMethods } = resolveRoute(indexes, request.method, url.pathname);
 
