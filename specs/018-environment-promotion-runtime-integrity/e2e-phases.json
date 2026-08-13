@@ -20,20 +20,30 @@
       "http-generic-api/productionDeploymentAuthority.js",
       "http-generic-api/hostingerSshDeployExecutor.js",
       "http-generic-api/runtimeIntegrity.js",
+      "http-generic-api/runtimeBreakGlassLifecycle.js",
+      "http-generic-api/runtimeBreakGlassScopeBinding.js",
+      "http-generic-api/runtimeBreakGlassVerificationReadbackService.js",
       "http-generic-api/routes/deploymentInfoRoutes.js",
+      "http-generic-api/routes/runtimeVerificationRoutes.js",
       "http-generic-api/openapi.yaml",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
       "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+      "http-generic-api/migrations/20260810_runtime_break_glass_lifecycle_v1.sql",
+      "http-generic-api/migrations/20260811_runtime_break_glass_authority_metadata_v1.sql",
       "http-generic-api/openapi/production-deployment-authority.yaml",
       "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
       "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
+      "http-generic-api/scripts/runtime-break-glass-capability-envelope-create.mjs",
       "http-generic-api/test-environment-branch-authority.mjs",
       "http-generic-api/test-production-deployment-authority.mjs",
       "http-generic-api/test-production-deployment-openapi-transition.mjs",
       "http-generic-api/test-hostinger-ssh-deploy-executor.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
-      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs"
+      "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
+      "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
+      "http-generic-api/test-runtime-break-glass-review-regressions.mjs",
+      "http-generic-api/test-runtime-break-glass-authority-producers.mjs"
     ]
   },
   "merge_contract": {
@@ -43,7 +53,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Prove the merged environment/deployment authority and bounded runtime-immutability candidate are internally consistent, fail closed on authority or checkout drift, preserve routine local mutation denial, expose runtime integrity separately from service health, and execute without applying migrations or mutating GitHub protected branches or Hostinger production.",
+      "objective": "Prove the merged environment/deployment authority and runtime-immutability foundation plus the bounded break-glass D01-D06 candidate remain internally consistent and fail closed without applying migrations, enabling local runtime mutation, or mutating protected branches or Hostinger production.",
       "e2e_journeys": [
         {
           "id": "spec-018-policy-derived-production-deploy-authority",
@@ -57,18 +67,12 @@
             "Resolve the governed production branch and treat any caller branch only as a compatibility assertion that must match authority.",
             "Read the current Production branch ref through the governed read-only GitHub authority path and compare it with expected_commit_sha.",
             "Reject main, arbitrary branches, invalid SHA, and stale SHA before deploy planning can become eligible.",
-            "Verify the Hostinger deploy executor and caller schemas consume only the policy-derived branch while routine SSH mutation remains blocked by target policy.",
-            "Verify the precise OpenAPI registry owns the deploy-release operation, its path-item contract exposes no caller-selectable branch, and the legacy replacement transition is constrained to the exact historical operation identity/security/request shape.",
-            "Verify Spec 018 completion evidence describes the same no-migration/no-production-mutation boundary."
+            "Verify routine SSH mutation remains blocked by target policy and the precise OpenAPI route contract remains deterministic."
           ],
           "assertions": [
-            "No governed caller schema exposes branch as a selectable production deployment input.",
             "The effective deployment branch is resolved from environment_branch_authority_v1 and is Production.",
             "expected_commit_sha must equal the current same-cycle Production branch head before dispatch.",
-            "Caller branch main or any arbitrary work branch fails before GitHub readback or deploy dispatch.",
-            "Stale expected_commit_sha fails with production_deployment_sha_stale.",
-            "The precise OpenAPI route contract removes caller branch selection and is registered for deterministic root OpenAPI synchronization.",
-            "Legacy root OpenAPI replacement remains fail-closed unless signature, route file, operationId, admin security, consequential flag, and historical required request fields all match the bounded transition.",
+            "Caller branch main or any arbitrary work branch fails before deploy dispatch.",
             "The candidate does not apply migrations, write main or Production, invoke Hostinger mutation, or return secrets."
           ],
           "tests": [
@@ -111,9 +115,6 @@
             "http-generic-api/openapi.yaml",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
-            "http-generic-api/openapi/production-deployment-authority.yaml",
-            "http-generic-api/openapi-route-contracts.d/spec018-production-deployment-authority.yaml",
-            "http-generic-api/scripts/openapi-precise-contract-registry-sync.mjs",
             "http-generic-api/test-production-deployment-authority.mjs",
             "http-generic-api/test-production-deployment-openapi-transition.mjs",
             "http-generic-api/test-hostinger-ssh-deploy-executor.mjs"
@@ -127,22 +128,16 @@
           "entrypoint": "Hostinger production target policy plus public deployment-info diagnostics",
           "terminal_outcome": "Routine local application-code mutation remains denied, tracked checkout drift is detected through read-only Git evidence, and a healthy diagnostic surface can independently report degraded runtime integrity without exposing file paths, file contents, credentials, or secrets.",
           "steps": [
-            "Inventory the existing Hostinger SSH mutation and read-only probe/readback surfaces without creating new mutation authority.",
-            "Verify Production target metadata keeps deployment_allowed=false, ssh_normal_updates_allowed=false, and ssh_break_glass_only=true for routine SSH application-code mutation.",
+            "Verify Production target metadata keeps routine SSH application-code mutation disabled.",
             "Inspect the local checkout using fixed Git argv, shell=false, GIT_OPTIONAL_LOCKS=0, and tracked files only.",
-            "Compare canonical deployed commit evidence with the checkout commit when both are available.",
-            "Classify tracked dirty state, commit mismatch, or unavailable checkout evidence as degraded runtime integrity using bounded reason codes.",
-            "Expose runtime_integrity through deployment-info while leaving the service diagnostic ok state independent.",
-            "Verify untracked runtime metadata is ignored and no modified file path or raw Git output is returned."
+            "Classify tracked dirty state, commit mismatch, or unavailable checkout evidence as degraded runtime integrity.",
+            "Expose runtime_integrity through deployment-info while leaving service diagnostic health independent."
           ],
           "assertions": [
-            "Routine Hostinger SSH application-code mutation remains fail-closed under the existing Production target policy.",
-            "No break-glass authorization or local mutation exception is introduced by phase C.",
-            "Clean tracked checkout plus matching commit can report runtime_integrity.state=verified.",
-            "Tracked dirty checkout reports runtime_integrity.state=degraded with unapproved_dirty_runtime.",
-            "Commit mismatch and unavailable checkout evidence fail closed as degraded integrity.",
-            "deployment-info can return ok=true while runtime_integrity is degraded, proving health and integrity are separate states.",
-            "Runtime integrity evidence is read-only, ignores untracked files, exposes no changed paths or raw content, and includes no secrets."
+            "Routine Hostinger SSH application-code mutation remains fail-closed.",
+            "Tracked dirty checkout reports degraded integrity with unapproved_dirty_runtime.",
+            "deployment-info can return ok=true while runtime_integrity is degraded.",
+            "Runtime integrity evidence is read-only and exposes no changed paths, raw content, or secrets."
           ],
           "tests": [
             {
@@ -168,18 +163,89 @@
             "http-generic-api/test-runtime-gate-deployment-info-parity.mjs",
             "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql"
           ]
+        },
+        {
+          "id": "spec-018-break-glass-lifecycle-d01-d06",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Platform break-glass governance reviewer",
+          "entrypoint": "Spec 018 break-glass persistence contract, governed capability-envelope issuer, run-bound hash-only verification producer, and fail-closed lifecycle planner",
+          "terminal_outcome": "A break-glass incident can become shadow-eligible only when incident, principals, exact paths, pre-change and post-change readback hashes, rollback intent, bounded authorization expiry, governed capability authority, and run-bound runtime verification evidence satisfy the lifecycle; registry sources remain unapplied and no actual runtime mutation is enabled.",
+          "steps": [
+            "Validate the additive incident and audit-event persistence model remains fail-closed with runtime_policy_ready=0 by default and contains no data-seeding DML.",
+            "Compute the canonical incident approval-scope SHA-256 inside a governed issuer that reuses capability_resolution_envelope_ledger, fixes the existing remote_ssh.exec_allowlisted authority umbrella plus a distinct break-glass runtime surface, and rejects caller-supplied authority fingerprints.",
+            "Keep break-glass authority registry metadata in a separate unapplied migration source, require critical dry-run/resource authority/audit/readback, and leave apply disabled until the existing supervisor approval plus dynamic apply-authorization path succeeds.",
+            "Bind approval to the existing capability envelope plus incident, approving/executing principals, target, exact commit, reason, expiry, exact allowed paths, pre-change hashes, rollback plan, and audit correlation.",
+            "Require the incident authorization expiry to be no later than the capability-envelope expiry and attribute approval audit evidence to the approving principal.",
+            "Reject application-root scope, globbing, traversal, shell metacharacters, freeform shell, or non-exact filesystem mutation evidence.",
+            "Require pre-change baseline readback plus post-change SHA-256 hashes and matching persisted post-change readback for every allowed path before LOCAL_PATCH_APPLIED can be eligible.",
+            "For a bound runtime verification run, reload the persisted incident and verified control-plane run, derive exact readback paths from persisted incident authority, reject symlink/realpath escape, and persist only SHA-256 evidence in runtime_verification_evidence_chunks.",
+            "Require persisted post-change readback plus fresh verified runtime evidence with an exact runtime_verification_run_id before RUNTIME_VERIFIED, then retained persisted verification before RECONCILING.",
+            "Allow verified rollback even after authorization expiry, while blocking normal forward progress after expiry.",
+            "Block MAIN_COMMITTED and later lifecycle states in this slice so D07-D13 remain separately governed."
+          ],
+          "assertions": [
+            "The D01 persistence migration is additive and performs no seed, backfill, protected-branch write, provider call, or Hostinger mutation.",
+            "The D03-D06 authority metadata migration is registry-source-only and remains unapplied; it registers no runtime patch executor or mutation route.",
+            "A persisted incident is not mutation-ready merely because the schema or authority metadata sources exist.",
+            "Broad or unrestricted shell/filesystem mutation is never an accepted break-glass substitute.",
+            "The governed envelope issuer computes the canonical scope fingerprint, fixes the critical authority app/capability/runtime/commit bindings, and generic or caller-fingerprinted envelopes remain ineligible.",
+            "Approval cannot outlive the capability envelope and approval events are attributed to the approving principal.",
+            "Pre-change and post-change readback hashes cover every authorized path exactly once and must equal their persisted baselines.",
+            "Run-bound runtime readback derives paths from persisted incident authority, stores hashes only, rejects duplicate evidence and control-plane commit/environment/state drift, and performs no Hostinger mutation.",
+            "RUNTIME_VERIFIED requires fresh verification evidence and RECONCILING is impossible without retained verified runtime evidence.",
+            "D07-D13 transitions remain blocked by BREAK_GLASS_FOLLOWUP_PHASE_REQUIRED.",
+            "The shadow planner and producer tests perform no Hostinger mutation, provider call, protected-branch write, migration apply, or secret-bearing output."
+          ],
+          "tests": [
+            {
+              "id": "spec-018-runtime-break-glass-d01-d06",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-break-glass-lifecycle.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-runtime-break-glass-review-regressions",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-break-glass-review-regressions.mjs",
+              "args": []
+            },
+            {
+              "id": "spec-018-runtime-break-glass-authority-producers",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-break-glass-authority-producers.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/018-environment-promotion-runtime-integrity/spec.md",
+            "specs/018-environment-promotion-runtime-integrity/completion.json",
+            "http-generic-api/runtimeBreakGlassLifecycle.js",
+            "http-generic-api/runtimeBreakGlassScopeBinding.js",
+            "http-generic-api/runtimeBreakGlassVerificationReadbackService.js",
+            "http-generic-api/routes/runtimeVerificationRoutes.js",
+            "http-generic-api/scripts/runtime-break-glass-capability-envelope-create.mjs",
+            "http-generic-api/migrations/20260810_runtime_break_glass_lifecycle_v1.sql",
+            "http-generic-api/migrations/20260811_runtime_break_glass_authority_metadata_v1.sql",
+            "http-generic-api/test-runtime-break-glass-lifecycle.mjs",
+            "http-generic-api/test-runtime-break-glass-review-regressions.mjs",
+            "http-generic-api/test-runtime-break-glass-authority-producers.mjs"
+          ]
         }
       ]
     },
     {
       "id": "operational",
       "status": "planned",
-      "objective": "Complete break-glass lifecycle, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after runtime immutability is merged."
+      "objective": "Complete break-glass D07-D13, canonical-resource resolution, and generated attestation through bounded follow-up pull requests after D01-D06 is merged."
     },
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Prove dirty-runtime detection, break-glass expiry, rollback, reconciliation, provider/readback faults, and no-secret evidence under failure conditions."
+      "objective": "Prove break-glass expiry, rollback, reconciliation, provider/readback faults, and no-secret evidence under failure conditions."
     },
     {
       "id": "canary",

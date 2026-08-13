@@ -7,6 +7,7 @@ import {
   listRuntimeVerificationEvidence,
 } from "../runtimeVerificationService.js";
 import { buildRemoteMcpReadiness } from "../remoteMcpReadiness.js";
+import { recordRuntimeBreakGlassVerificationReadback } from "../runtimeBreakGlassVerificationReadbackService.js";
 
 function actorFromRequest(req) {
   return {
@@ -34,8 +35,27 @@ export function buildRuntimeVerificationRoutes({
 
   router.post("/runtime/verification-runs", ...guards, async (req, res, next) => {
     try {
-      const run = await createRuntimeVerificationRun(req.body || {}, actorFromRequest(req));
-      res.status(201).json({ ok: true, ...run });
+      const input = req.body || {};
+      const run = await createRuntimeVerificationRun(input, actorFromRequest(req));
+      const breakGlassId = String(input.break_glass_id || "").trim();
+      if (!breakGlassId) return res.status(201).json({ ok: true, ...run });
+
+      const readback = await recordRuntimeBreakGlassVerificationReadback({
+        runId: run.run_id,
+        breakGlassId,
+      });
+      if (!readback.matches_post_change_hashes) {
+        return res.status(424).json({
+          ok: false,
+          ...run,
+          runtime_break_glass_readback: readback,
+          error: {
+            code: "runtime_break_glass_readback_hash_mismatch",
+            message: "Run-bound runtime break-glass readback does not match the persisted post-change hashes.",
+          },
+        });
+      }
+      return res.status(201).json({ ok: true, ...run, runtime_break_glass_readback: readback });
     } catch (error) {
       next(error);
     }

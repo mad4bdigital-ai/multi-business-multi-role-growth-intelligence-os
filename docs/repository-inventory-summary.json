@@ -3,18 +3,18 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6716,
-    "bytes": 58966356,
-    "lines": 1376215,
+    "files": 6725,
+    "bytes": 59101302,
+    "lines": 1378645,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2022,
+      "tests-and-specs": 2025,
       "documentation": 1856,
-      "api-runtime": 1328,
-      "database-migrations": 767,
+      "api-runtime": 1332,
+      "database-migrations": 769,
       "root-and-other": 228,
       "ci-workflows": 152,
       "api-contracts": 147,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2459,
-      ".mjs": 1535,
-      ".js": 931,
-      ".sql": 782,
+      ".mjs": 1539,
+      ".js": 934,
+      ".sql": 784,
       ".json": 672,
       ".yml": 154,
       ".yaml": 107,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3440,
+      "http-generic-api": 3449,
       "docs": 1762,
       "specs": 838,
       ".github": 246,
@@ -203,9 +203,9 @@
   ],
   "surfaces": {
     "workflows": 152,
-    "migrations": 767,
+    "migrations": 769,
     "apiContracts": 147,
-    "testSpecFiles": 2085
+    "testSpecFiles": 2088
   },
   "largestFiles": [
     {
@@ -313,8 +313,8 @@
     {
       "path": "docs/work-maps/data-model-domain-map.md",
       "category": "documentation",
-      "bytes": 117364,
-      "lines": 848
+      "bytes": 117617,
+      "lines": 850
     },
     {
       "path": "apps/local-manager-windows/Program.cs",

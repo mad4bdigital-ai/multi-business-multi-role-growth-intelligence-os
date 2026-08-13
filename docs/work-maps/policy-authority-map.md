@@ -366,6 +366,7 @@ flowchart TD
 | `runtime_agent_loop_policy_v1` | 1 |
 | `runtime_app_action_policy_v1` | 1 |
 | `runtime_brand_core_policy_v1` | 1 |
+| `runtime_break_glass_bounded_file_patch_apply_policy_v1` | 1 |
 | `runtime_connector_dispatch_policy_v1` | 1 |
 | `runtime_n8n_workflow_execution_policy_v1` | 1 |
 | `runtime_repo_mutation_policy_v1` | 1 |

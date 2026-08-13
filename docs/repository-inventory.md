@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,716 |
-| Total bytes | 58,966,356 |
-| Counted text lines | 1,376,215 |
+| Tracked files | 6,725 |
+| Total bytes | 59,101,302 |
+| Counted text lines | 1,378,645 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,10 +17,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,022 |
+| `tests-and-specs` | 2,025 |
 | `documentation` | 1,856 |
-| `api-runtime` | 1,328 |
-| `database-migrations` | 767 |
+| `api-runtime` | 1,332 |
+| `database-migrations` | 769 |
 | `root-and-other` | 228 |
 | `ci-workflows` | 152 |
 | `api-contracts` | 147 |
@@ -36,9 +36,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,459 |
-| `.mjs` | 1,535 |
-| `.js` | 931 |
-| `.sql` | 782 |
+| `.mjs` | 1,539 |
+| `.js` | 934 |
+| `.sql` | 784 |
 | `.json` | 672 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
@@ -70,9 +70,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 152 |
-| Database migrations | 767 |
+| Database migrations | 769 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,085 |
+| Test/spec files (paths) | 2,088 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -103,7 +103,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
-| `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
+| `docs/work-maps/data-model-domain-map.md` | documentation | 117,617 | 850 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
