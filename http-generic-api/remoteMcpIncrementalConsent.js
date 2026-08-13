@@ -21,6 +21,8 @@ export function buildRemoteMcpIncrementalConsentRequest({
   resource = null,
   authorizationEndpoint = null,
   redirectUris = [],
+  state = null,
+  codeChallenge = null,
   catalog = getRemoteMcpScopeCatalog(),
 } = {}) {
   const binding = resolveRemoteMcpToolScopeBinding(toolKey, catalog);
@@ -71,6 +73,22 @@ export function buildRemoteMcpIncrementalConsentRequest({
     };
   }
 
+  if (!String(state || "").trim() || !String(codeChallenge || "").trim()) {
+    return {
+      required: true,
+      ok: false,
+      code: "MCP_INCREMENTAL_CONSENT_CONTEXT_REQUIRED",
+      tool_key: toolKey,
+      missing_scopes: missing,
+      current_scopes: current,
+      requested_scopes: mergeRemoteMcpScopes(current, missing),
+      required_parameters: ["redirect_uri", "state", "code_challenge", "code_challenge_method"],
+      pkce_owner: "client",
+      message: "The client must supply a short-lived OAuth state and an S256 code challenge generated from its code verifier.",
+      secrets_included: false,
+    };
+  }
+
   const query = new URLSearchParams();
   if (clientId) query.set("client_id", String(clientId));
   query.set("response_type", "code");
@@ -78,6 +96,8 @@ export function buildRemoteMcpIncrementalConsentRequest({
   if (resource) query.set("resource", String(resource));
   const normalizedRedirectUris = normalizeScopes(redirectUris);
   if (normalizedRedirectUris.length === 1) query.set("redirect_uri", normalizedRedirectUris[0]);
+  query.set("state", String(state).trim());
+  query.set("code_challenge", String(codeChallenge).trim());
   query.set("code_challenge_method", "S256");
   return {
     required: true,
@@ -92,6 +112,7 @@ export function buildRemoteMcpIncrementalConsentRequest({
     redirect_uri_options: normalizedRedirectUris,
     authorization_parameters: Object.fromEntries(query.entries()),
     required_parameters: ["redirect_uri", "state", "code_challenge", "code_challenge_method"],
+    pkce_owner: "client",
     catalog_revision: catalog.revision || null,
     message: "Additional consent is required for this tool. Re-authorize only the missing scope(s).",
     secrets_included: false,

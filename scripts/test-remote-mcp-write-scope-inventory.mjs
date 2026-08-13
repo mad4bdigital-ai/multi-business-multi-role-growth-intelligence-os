@@ -23,6 +23,14 @@ assert.equal(new Set(inventory.write_route_classifications.map((route) => route.
 assert(inventory.write_route_classifications.filter((route) => route.classification === "intentionally_unmapped").every((route) => route.owner && route.reason && route.resource_candidate));
 assert(inventory.sensitive_intentionally_unmapped_write_route_count > 0);
 assert(inventory.write_route_classifications.every((route) => route.provider_mutation_allowed === false));
+assert(inventory.write_route_classifications.every((route) => route.evidence?.static_only === true && route.evidence?.source_line > 0));
+assert(inventory.write_route_classifications.every((route) => route.promotion_prerequisites?.includes("explicit_resource_operation_scope_binding")));
+assert(inventory.write_route_classifications.every((route) => route.evidence_confidence?.authorizes === false));
+assert(inventory.write_route_classifications.every((route) => route.promotion_status === "blocked"));
+assert.equal(inventory.evidence_graph.node_counts.routes, inventory.write_route_count);
+assert.equal(inventory.evidence_graph.edge_counts.route_to_handler_file, inventory.write_route_count);
+assert.equal(inventory.evidence_graph.static_only, true);
+assert.equal(inventory.evidence_graph.execution_edges_are_non_authorizing, true);
 assert(inventory.write_route_classifications.every((route) => route.mapping_status === "blocked" || route.mapping_status === "blocked_until_explicit_binding"));
 assert(inventory.migration_count > 0);
 assert(inventory.registry_evidence_count > 0);

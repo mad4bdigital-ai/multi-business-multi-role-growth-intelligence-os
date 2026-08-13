@@ -35,6 +35,8 @@ function routeInventory(files) {
       const routePath = match[2];
       routes.push({
         route_id: `${path}#${method}:${routePath}:${occurrence}`,
+        source_line: source.slice(0, match.index).split("\n").length,
+        source_offset: match.index,
         method,
         path: routePath,
         file: path,
@@ -142,6 +144,70 @@ function routeOwner(domain) {
   return `${domain.replaceAll("_", "-")}-governance`;
 }
 
+function routeEvidence(route) {
+  const source = read(route.file);
+  const lines = source.split("\n");
+  const start = Math.max(0, Number(route.source_line || 1) - 1);
+  const sourceOffset = Math.max(0, Number(route.source_offset || 0));
+  const remainder = source.slice(sourceOffset);
+  const nextRouteOffset = remainder.slice(1).search(/\n\s*router\.(?:get|post|put|patch|delete)\(/i);
+  const handlerWindow = remainder.slice(0, nextRouteOffset > 0 ? nextRouteOffset : 12000);
+  const signals = {
+    provider: [...new Set((handlerWindow.match(/github|cloudflare|hostinger|axios|fetch\(|request\(|shell|browser|dispatch/gi) || []))].map((value) => value.toLowerCase()),
+    db_registry: [...new Set((handlerWindow.match(/platform_[a-z0-9_]*(?:registry|bindings|catalog|operations?)/gi) || []))],
+    authority: [...new Set((handlerWindow.match(/authority|membership|capability|approval|lease|scope|role|admin/gi) || []))].map((value) => value.toLowerCase()),
+    readback: [...new Set((handlerWindow.match(/SELECT|RETURNING|readback|verify|res\.(?:json|send)|response/gi) || []))].map((value) => value.toLowerCase()),
+    mutation: [...new Set((handlerWindow.match(/insert|update|delete|create|install|deploy|release|execute|dispatch|write/gi) || []))].map((value) => value.toLowerCase()),
+  };
+  const evidenceFlags = {
+    handler_window_present: handlerWindow.length > 0,
+    provider_signal: signals.provider.length > 0,
+    db_registry_signal: signals.db_registry.length > 0,
+    authority_signal: signals.authority.length > 0,
+    readback_signal: signals.readback.length > 0,
+    mutation_signal: signals.mutation.length > 0,
+  };
+  return {
+    file: route.file,
+    source_line: route.source_line,
+    handler_window_lines: [start + 1, Math.min(lines.length, start + handlerWindow.split("\n").length)],
+    evidence_flags: evidenceFlags,
+    signals,
+    static_only: true,
+    secrets_included: false,
+  };
+}
+
+function promotionPrerequisites(domain, evidence) {
+  const prerequisites = [
+    "explicit_resource_operation_scope_binding",
+    "live_resource_authority_binding",
+    "approval_policy_evidence",
+    "capability_envelope_evidence",
+    "lease_evidence",
+    "staging_environment",
+    "same_cycle_readback_contract",
+  ];
+  if (evidence.evidence_flags.provider_signal || ["connector", "github", "cloudflare", "hostinger"].includes(domain)) {
+    prerequisites.push("provider_adapter_allowlist", "provider_idempotency", "provider_rollback_or_compensation");
+  }
+  if (evidence.evidence_flags.db_registry_signal || domain === "platform_control_plane") prerequisites.push("live_db_registry_readback");
+  if (domain === "connector") prerequisites.push("device_capability_and_explicit_user_consent");
+  return [...new Set(prerequisites)];
+}
+
+function evidenceConfidence(classification, evidence) {
+  const flags = evidence.evidence_flags;
+  const strongStaticSignals = Number(flags.authority_signal) + Number(flags.readback_signal) + Number(flags.mutation_signal);
+  if (classification === "shadow_candidate" && strongStaticSignals >= 3) {
+    return { level: "medium_static", basis: "catalog_pattern_plus_handler_signals", authorizes: false };
+  }
+  if (strongStaticSignals > 0) {
+    return { level: "low_static", basis: "handler_window_signals_only", authorizes: false };
+  }
+  return { level: "none", basis: "domain_and_route_shape_only", authorizes: false };
+}
+
 function routeKey(route) {
   return route.route_id || `${route.method}:${route.path}:${route.file}`;
 }
@@ -157,13 +223,19 @@ function buildWriteRouteClassifications(routes, candidates) {
   return routes.map((route) => {
     const key = routeKey(route);
     const candidateScopes = byRoute.get(key) || [];
+    const domain = routeDomain(route);
+    const evidence = routeEvidence(route);
     if (candidateScopes.length) {
       return {
         route_id: route.route_id,
         classification: "shadow_candidate",
         mapping_status: "blocked_until_explicit_binding",
-        domain: routeDomain(route),
+        domain,
         operation_class: routeOperationClass(route),
+        evidence,
+        evidence_confidence: evidenceConfidence("shadow_candidate", evidence),
+        promotion_prerequisites: promotionPrerequisites(domain, evidence),
+        promotion_status: "blocked",
         scope_keys: [...new Set(candidateScopes.map((candidate) => candidate.scope_key))],
         classification_confidence: "catalog_pattern",
         authority_required: true,
@@ -177,8 +249,12 @@ function buildWriteRouteClassifications(routes, candidates) {
       route_id: route.route_id,
       classification: "intentionally_unmapped",
       mapping_status: "blocked",
-      domain: routeDomain(route),
+      domain,
       operation_class: routeOperationClass(route),
+      evidence,
+      evidence_confidence: evidenceConfidence("intentionally_unmapped", evidence),
+      promotion_prerequisites: promotionPrerequisites(domain, evidence),
+      promotion_status: "blocked",
       scope_keys: [],
       resource_candidate: routeDomain(route),
       resource_key: null,
@@ -186,12 +262,38 @@ function buildWriteRouteClassifications(routes, candidates) {
       authority_required: true,
       provider_mutation_allowed: false,
       readback_required: true,
-      owner: routeOwner(routeDomain(route)),
+      owner: routeOwner(domain),
       classification_confidence: "heuristic_requires_manual_confirmation",
       risk_class: unmapped.risk,
       reason: unmapped.reason,
     };
   });
+}
+
+function summarizeEvidenceGraph(classifications) {
+  const domains = new Set(classifications.map((route) => route.domain));
+  const files = new Set(classifications.map((route) => route.evidence?.file));
+  const countFlag = (key) => classifications.filter((route) => route.evidence?.evidence_flags?.[key] === true).length;
+  return {
+    node_counts: {
+      routes: classifications.length,
+      domains: domains.size,
+      handler_files: files.size,
+    },
+    edge_counts: {
+      route_to_handler_file: classifications.length,
+      route_to_domain: classifications.length,
+      route_to_provider_signal: countFlag("provider_signal"),
+      route_to_db_registry_signal: countFlag("db_registry_signal"),
+      route_to_authority_signal: countFlag("authority_signal"),
+      route_to_readback_signal: countFlag("readback_signal"),
+      route_to_mutation_signal: countFlag("mutation_signal"),
+      route_to_explicit_scope_candidate: classifications.filter((route) => route.scope_keys?.length > 0).length,
+    },
+    execution_edges_are_non_authorizing: true,
+    static_only: true,
+    secrets_included: false,
+  };
 }
 
 function dbRegistryInventory(files) {
@@ -229,6 +331,7 @@ const writeSurfaceScopeKeys = new Set(writeSurfaceCandidates.map((candidate) => 
 const writeRouteClassifications = buildWriteRouteClassifications(routeWrites, writeSurfaceCandidates);
 const intentionallyUnmappedRoutes = writeRouteClassifications.filter((route) => route.classification === "intentionally_unmapped");
 const sensitiveIntentionallyUnmappedRoutes = intentionallyUnmappedRoutes.filter((route) => ["critical", "high"].includes(route.risk_class));
+const evidenceGraph = summarizeEvidenceGraph(writeRouteClassifications);
 const writeScopeKeys = new Set(writeScopes.map((scope) => scope.scope_key));
 const migrationScopeKeys = new Set(migrations.flatMap((migration) => migration.write_scopes));
 const dbCatalogFingerprints = new Set(migrations.flatMap((migration) => migration.catalog_fingerprints || []));
@@ -289,6 +392,7 @@ const inventory = {
   route_inventory: routes,
   write_surface_candidates: writeSurfaceCandidates,
   write_route_classifications: writeRouteClassifications,
+  evidence_graph: evidenceGraph,
   migration_inventory: migrations,
   registry_evidence: registries,
   findings,
@@ -342,9 +446,14 @@ Every write route is represented exactly once in 'write_route_classifications':
 
 'unclassified_write_route_count' must remain zero. A zero unclassified count does **not** mean write readiness; the inventory is ready only when blocked intentional mappings, scope bindings, DB evidence, and all governance gates are resolved.
 
+## Evidence graph
+
+The generated artifact includes a static-only evidence graph connecting each route declaration to its handler file, domain, catalog scope candidate, and detected provider, database, authority, readback, and mutation signals. These edges are evidence for review and never authorize execution.
+
 ## Safety boundary
 
-The inventory explicitly keeps provider mutation, migration application, and Production activation disabled. A write scope is not eligible merely because it exists in the catalog; it requires an explicit resource-operation binding, tool binding, approval policy, capability envelope, lease, staging environment, and same-cycle readback.
+The inventory explicitly keeps provider mutation, migration application, and Production activation disabled.
+ A write scope is not eligible merely because it exists in the catalog; it requires an explicit resource-operation binding, tool binding, approval policy, capability envelope, lease, staging environment, and same-cycle readback.
 `;
 
 const jsonText = `${JSON.stringify(inventory, null, 2)}\n`;

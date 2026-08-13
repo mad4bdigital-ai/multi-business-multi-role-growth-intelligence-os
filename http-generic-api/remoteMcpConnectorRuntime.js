@@ -16,6 +16,7 @@ import {
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
 import { buildRemoteMcpAuthorizationDecision } from "./remoteMcpAuthorizationDecision.js";
 import { resolveRemoteMcpToolScopeBinding } from "./remoteMcpScopeCatalog.js";
+import { evaluateRemoteMcpWriteScopeDecision } from "./remoteMcpWriteScopeGovernance.js";
 import { buildRemoteMcpIncrementalConsentRequest } from "./remoteMcpIncrementalConsent.js";
 import { readRemoteMcpOAuthClient } from "./remoteMcpOAuthStore.js";
 import {
@@ -117,7 +118,7 @@ function effectiveRemoteMcpEnv(env = process.env) {
   };
 }
 
-function oauthFailureResponse({ body, headers, env, verification, requiredScopes, incrementalConsent = null }) {
+function oauthFailureResponse({ body, headers, env, verification, requiredScopes, incrementalConsent = null, writeGovernance = null }) {
   const requestId = normalizedString(headerValue(headers, "x-request-id"), 128) || randomUUID();
   const challenge = (verification.status === 401 || verification.code === "MCP_SCOPE_INSUFFICIENT")
     ? [buildRemoteMcpWwwAuthenticate(env, {
@@ -146,6 +147,7 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
           },
           request_id: requestId,
           ...(incrementalConsent ? { incremental_consent: incrementalConsent } : {}),
+          ...(writeGovernance ? { write_governance: writeGovernance } : {}),
           secrets_included: false,
         },
         isError: true,
@@ -250,6 +252,8 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
         resource: resolveRemoteMcpResource(sourceEnv),
         authorizationEndpoint: `${resolveRemoteMcpAuthorizationIssuer(sourceEnv)}/oauth/authorize`,
         redirectUris: client?.redirect_uris || [],
+        state: options.incrementalConsentState || options.oauthState || null,
+        codeChallenge: options.incrementalConsentCodeChallenge || options.codeChallenge || null,
       });
     }
     const decision = buildRemoteMcpAuthorizationDecision({
@@ -260,14 +264,38 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
       effectClass: binding?.effect_class,
       environmentClass: binding?.environment_class,
     });
-    if (!decision.ok) {
+    const writeGovernance = binding?.effect_class && binding.effect_class !== "read_only"
+      ? evaluateRemoteMcpWriteScopeDecision({
+        scopeKey: binding.scope_keys?.[0],
+        tokenScopes: verification.claims?.scope || verification.claims?.scopes || [],
+        resourceAuthority: options.resourceAuthority === true,
+        operationEligible: Boolean(binding.resource_key && binding.operation_key),
+        approvalSatisfied: options.approvalSatisfied === true,
+        capabilitySatisfied: options.capabilitySatisfied === true,
+        leaseActive: options.leaseActive === true,
+        environment: String(sourceEnv.REMOTE_MCP_ENVIRONMENT || "staging").trim().toLowerCase(),
+        env: sourceEnv,
+      })
+      : null;
+    const combinedDecision = writeGovernance
+      ? {
+        ...decision,
+        ok: decision.ok && writeGovernance.ok,
+        code: decision.ok && writeGovernance.ok ? decision.code : writeGovernance.code,
+        status: decision.ok && writeGovernance.ok ? decision.status : 403,
+        message: decision.ok && writeGovernance.ok ? decision.message : "Write governance denied this tools/call operation.",
+        write_governance: writeGovernance,
+      }
+      : decision;
+    if (!combinedDecision.ok) {
       const failure = oauthFailureResponse({
         body: options.body,
         headers: options.headers || {},
         env,
-        verification: { ...verification, code: decision.code, message: decision.message, status: decision.status },
+        verification: { ...verification, code: combinedDecision.code, message: combinedDecision.message, status: combinedDecision.status },
         requiredScopes: requiredScopes || [],
         incrementalConsent,
+        writeGovernance,
       });
       return {
         ...failure,

@@ -7,6 +7,9 @@ const GENERATED_CATALOG = JSON.parse(
 
 const FORBIDDEN_SCOPES = new Set(["admin", "full_access", "tools.execute"]);
 const FORBIDDEN_BARE_SCOPES = new Set(["write"]);
+const WRITE_EFFECT_CLASSES = new Set(["internal_write", "external_write", "destructive"]);
+export const REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER = "per_scope_promotion_v1";
+const PER_SCOPE_PROMOTION_MARKER = REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER;
 const SCOPE_PATTERN = /^[a-z][a-z0-9]*(\.[a-z0-9]+)+$/u;
 
 function clone(value) {
@@ -64,6 +67,12 @@ export function validateRemoteMcpScopeCatalog(catalog = GENERATED_CATALOG) {
     if (!validateScopeKey(key)) errors.push(`invalid_scope:${key || "missing"}`);
     if (seenScopes.has(key)) errors.push(`duplicate_scope:${key}`);
     seenScopes.add(key);
+    const isWriteScope = WRITE_EFFECT_CLASSES.has(String(scope?.effect_class || ""));
+    if (isWriteScope && scope?.default_request === true) errors.push(`write_scope_default_request_forbidden:${key}`);
+    if (isWriteScope && ["active", "staging_active"].includes(String(scope?.status || ""))
+      && String(scope?.promotion_marker || "") !== PER_SCOPE_PROMOTION_MARKER) {
+      errors.push(`write_scope_promotion_marker_required:${key}`);
+    }
   }
 
   const scopeSet = new Set(seenScopes);
@@ -140,6 +149,12 @@ export function getRemoteMcpCatalogReadback(catalog = REMOTE_MCP_SCOPE_CATALOG) 
     unbound_tool_count: (catalog.exported_tool_keys || []).filter((key) => !allToolKeys.has(key)).length,
     unbound_operation_count: (catalog.eligible_operation_keys || []).filter((key) => !boundOperationKeys.has(key)).length,
     validation_errors: validationResult.errors,
+    write_scope_default_request_count: (catalog.scopes || []).filter((scope) => (
+      WRITE_EFFECT_CLASSES.has(String(scope?.effect_class || "")) && scope.default_request === true
+    )).length,
+    active_write_scope_count: (catalog.scopes || []).filter((scope) => (
+      WRITE_EFFECT_CLASSES.has(String(scope?.effect_class || "")) && ["active", "staging_active"].includes(String(scope?.status || ""))
+    )).length,
     secrets_included: false,
   };
 }

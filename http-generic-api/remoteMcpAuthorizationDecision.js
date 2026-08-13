@@ -5,12 +5,12 @@ export function buildRemoteMcpAuthorizationDecision({
   toolKey,
   resourceKey,
   operationKey,
-  effectClass,
-  environmentClass,
-  resourceAuthority = true,
-  approvalSatisfied = true,
-  capabilitySatisfied = true,
-  leaseActive = true,
+  effectClass = "read_only",
+  environmentClass = "all",
+  resourceAuthority = undefined,
+  approvalSatisfied = undefined,
+  capabilitySatisfied = undefined,
+  leaseActive = undefined,
   catalog,
 } = {}) {
   if (!verification?.ok) {
@@ -25,6 +25,11 @@ export function buildRemoteMcpAuthorizationDecision({
   }
 
   const claims = verification.claims || {};
+  const writeEffect = effectClass !== "read_only";
+  const resolvedResourceAuthority = writeEffect ? resourceAuthority === true : resourceAuthority !== false;
+  const resolvedApproval = writeEffect ? approvalSatisfied === true : approvalSatisfied !== false;
+  const resolvedCapability = writeEffect ? capabilitySatisfied === true : capabilitySatisfied !== false;
+  const resolvedLease = writeEffect ? leaseActive === true : leaseActive !== false;
   const decision = explainRemoteMcpPermissionDecision({
     tokenScopes: claims.scope || claims.scopes || [],
     toolKey,
@@ -34,10 +39,10 @@ export function buildRemoteMcpAuthorizationDecision({
     environmentClass,
     subjectActive: verification.subject_active !== false,
     membershipActive: verification.membership_active !== false,
-    resourceAuthority,
-    approvalSatisfied,
-    capabilitySatisfied,
-    leaseActive,
+    resourceAuthority: resolvedResourceAuthority,
+    approvalSatisfied: resolvedApproval,
+    capabilitySatisfied: resolvedCapability,
+    leaseActive: resolvedLease,
     catalog,
   });
   return {
@@ -46,6 +51,8 @@ export function buildRemoteMcpAuthorizationDecision({
     claims_subject: claims.sub || claims.user_id || null,
     tenant_id: claims.tenant_id || null,
     message: decision.ok ? "Authorized." : "The requested MCP operation is not authorized.",
+    write_effect: writeEffect,
+    write_defaults_fail_closed: writeEffect,
     secrets_included: false,
   };
 }

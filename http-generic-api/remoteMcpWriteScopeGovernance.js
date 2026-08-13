@@ -1,8 +1,19 @@
 import { readFileSync } from "node:fs";
-import { getRemoteMcpScopeCatalog } from "./remoteMcpScopeCatalog.js";
+import {
+  getRemoteMcpScopeCatalog,
+  REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER,
+} from "./remoteMcpScopeCatalog.js";
 
 const WRITE_EFFECT_CLASSES = new Set(["internal_write", "external_write", "destructive"]);
-const WRITE_SCOPE_ACTIVATION_STATUS = new Set(["shadow", "staging_active", "active"]);
+const WRITE_SCOPE_ACTIVATION_STATUS = new Set(["staging_active", "active"]);
+
+function isPerScopePromoted(scope) {
+  return Boolean(
+    scope
+    && WRITE_SCOPE_ACTIVATION_STATUS.has(String(scope.status || ""))
+    && String(scope.promotion_marker || "") === REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER,
+  );
+}
 
 function readSmartInventory() {
   try {
@@ -49,11 +60,14 @@ export function buildRemoteMcpWriteScopeReadback({
     .trim().toLowerCase() === "true";
   const leaseReady = String(env.REMOTE_MCP_WRITE_LEASE_READY || "")
     .trim().toLowerCase() === "true";
-  const active = explicitlyEnabled && staging && inventoryReady && approvalsReady && capabilityReady && leaseReady;
+  const globalGatesReady = explicitlyEnabled && staging && inventoryReady && approvalsReady && capabilityReady && leaseReady;
+  const promotedWrites = writes.filter(isPerScopePromoted);
+  const active = globalGatesReady && promotedWrites.length > 0;
   return {
     mode: active ? "staging_active" : "shadow",
     activation_requested: explicitlyEnabled,
     activation_ready: active,
+    global_gates_ready: globalGatesReady,
     inventory_ready: inventoryReady,
     inventory_catalog_fingerprint: inventory?.catalog_fingerprint || null,
     classified_write_surface_count: inventory?.classified_write_surface_count || 0,
@@ -69,8 +83,9 @@ export function buildRemoteMcpWriteScopeReadback({
     lease_gate_ready: leaseReady,
     write_scope_count: writes.length,
     default_write_scope_count: writes.filter((scope) => scope.default_request === true).length,
-    active_write_scope_count: active ? writes.length : 0,
-    shadow_write_scope_count: active ? 0 : writes.length,
+    active_write_scope_count: active ? promotedWrites.length : 0,
+    shadow_write_scope_count: writes.length - (active ? promotedWrites.length : 0),
+    promoted_scope_keys: active ? promotedWrites.map((scope) => scope.scope_key) : [],
     provider_mutation_allowed: false,
     production_allowed: false,
     readback_required: true,
@@ -92,11 +107,12 @@ export function evaluateRemoteMcpWriteScopeDecision({
 } = {}) {
   const scope = scopeCatalog(catalog).find((candidate) => candidate.scope_key === scopeKey);
   const governance = buildRemoteMcpWriteScopeReadback({ env, catalog });
+  const scopePromoted = isPerScopePromoted(scope);
   const tokenScopeSet = new Set(normalizeScopes(tokenScopes));
   const checks = [
     { key: "write_scope_registered", ok: Boolean(scope && isWriteScope(scope)), detail: scope ? scope.scope_key : "unknown_scope" },
     { key: "inventory", ok: governance.inventory_ready, detail: governance.inventory_ready ? "ready" : "blocked" },
-    { key: "write_scope_enabled", ok: governance.activation_ready && WRITE_SCOPE_ACTIVATION_STATUS.has(governance.mode), detail: governance.mode },
+    { key: "write_scope_enabled", ok: governance.activation_ready && scopePromoted, detail: scopePromoted ? "per_scope_promoted" : (scope?.status || "shadow") },
     { key: "token_scope", ok: tokenScopeSet.has(scopeKey), detail: scopeKey },
     { key: "resource_authority", ok: resourceAuthority, detail: resourceAuthority ? "bound" : "unbound" },
     { key: "operation_eligibility", ok: operationEligible, detail: operationEligible ? "eligible" : "unresolved" },
@@ -113,6 +129,12 @@ export function evaluateRemoteMcpWriteScopeDecision({
     effect_class: scope?.effect_class || null,
     decision_path: checks,
     governance,
+    scope_promotion: {
+      promoted: scopePromoted,
+      status: scope?.status || null,
+      marker: scope?.promotion_marker || null,
+      required_marker: REMOTE_MCP_PER_SCOPE_PROMOTION_MARKER,
+    },
     provider_mutation_allowed: false,
     production_allowed: false,
     readback_required: true,

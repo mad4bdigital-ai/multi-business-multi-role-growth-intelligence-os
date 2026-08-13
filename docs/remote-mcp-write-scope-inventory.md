@@ -13,7 +13,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 | Intentionally unmapped write routes (blocked) | 611 |
 | Migrations with governance evidence | 441 |
 | DB catalog fingerprint match | true |
-| Registry evidence entries | 100 |
+| Registry evidence entries | 101 |
 | Write scopes | 6 |
 | Bound write scopes | 0 |
 | Inventory ready | false |
@@ -41,6 +41,11 @@ Every write route is represented exactly once in 'write_route_classifications':
 
 'unclassified_write_route_count' must remain zero. A zero unclassified count does **not** mean write readiness; the inventory is ready only when blocked intentional mappings, scope bindings, DB evidence, and all governance gates are resolved.
 
+## Evidence graph
+
+The generated artifact includes a static-only evidence graph connecting each route declaration to its handler file, domain, catalog scope candidate, and detected provider, database, authority, readback, and mutation signals. These edges are evidence for review and never authorize execution.
+
 ## Safety boundary
 
-The inventory explicitly keeps provider mutation, migration application, and Production activation disabled. A write scope is not eligible merely because it exists in the catalog; it requires an explicit resource-operation binding, tool binding, approval policy, capability envelope, lease, staging environment, and same-cycle readback.
+The inventory explicitly keeps provider mutation, migration application, and Production activation disabled.
+ A write scope is not eligible merely because it exists in the catalog; it requires an explicit resource-operation binding, tool binding, approval policy, capability envelope, lease, staging environment, and same-cycle readback.

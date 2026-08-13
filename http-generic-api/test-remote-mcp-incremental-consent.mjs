@@ -28,6 +28,8 @@ const request = buildRemoteMcpIncrementalConsentRequest({
   resource: "https://mcp.example.test",
   authorizationEndpoint: "https://auth.example.test/auth/mcp/oauth/authorize",
   redirectUris: ["https://claude.ai/api/mcp/auth_callback"],
+  state: "short-lived-state-token",
+  codeChallenge: "s256-code-challenge",
 });
 assert.equal(request.required, true);
 assert.equal(request.mode, "incremental");
@@ -37,9 +39,22 @@ assert.equal(request.authorization_parameters.client_id, "mcp_client");
 assert.equal(request.authorization_parameters.scope, "brands.read");
 assert.equal(request.authorization_parameters.resource, "https://mcp.example.test");
 assert.equal(request.authorization_parameters.redirect_uri, "https://claude.ai/api/mcp/auth_callback");
+assert.equal(request.authorization_parameters.state, "short-lived-state-token");
+assert.equal(request.authorization_parameters.code_challenge, "s256-code-challenge");
+assert.equal(request.authorization_parameters.code_challenge_method, "S256");
+assert.equal(request.pkce_owner, "client");
 assert.deepEqual(request.redirect_uri_options, ["https://claude.ai/api/mcp/auth_callback"]);
 assert.deepEqual(request.required_parameters, ["redirect_uri", "state", "code_challenge", "code_challenge_method"]);
 assert.equal(request.secrets_included, false);
+
+const missingOauthContext = buildRemoteMcpIncrementalConsentRequest({
+  toolKey: "list_accessible_brands",
+  grantedScopes: ["identity.read", "workspaces.read"],
+  clientAllowedScopes: [...REMOTE_MCP_SUPPORTED_SCOPES],
+});
+assert.equal(missingOauthContext.ok, false);
+assert.equal(missingOauthContext.code, "MCP_INCREMENTAL_CONSENT_CONTEXT_REQUIRED");
+assert.equal(missingOauthContext.secrets_included, false);
 
 const alreadyGranted = buildRemoteMcpIncrementalConsentRequest({
   toolKey: "list_accessible_brands",
@@ -103,6 +118,9 @@ const deniedWrite = evaluateRemoteMcpWriteScopeDecision({
 assert.equal(deniedWrite.ok, false);
 assert.equal(deniedWrite.code, "MCP_WRITE_AUTHORIZATION_DENIED");
 assert.equal(deniedWrite.provider_mutation_allowed, false);
+assert.equal(deniedWrite.scope_promotion.promoted, false);
+assert.equal(deniedWrite.scope_promotion.status, "shadow");
+assert.equal(deniedWrite.scope_promotion.required_marker, "per_scope_promotion_v1");
 
 const driftedReadiness = buildRemoteMcpScopeCatalogReadiness({
   env: {

@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "6c312eed83bc1bc612adee18c804765981f47ffb34c17f8f72ba28547100d2d9",
+  "inputFingerprint": "2146a8a543bd9462724560484d1adcbbbb578c8a50429d32742ec03df44eee4c",
   "inventory": {
     "files": 6737,
-    "bytes": 60086022,
+    "bytes": 61018920,
     "directories": 255,
     "categories": 13
   },
@@ -51,9 +51,9 @@
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
       "workflowBudgetStatus": "within-budget",
-      "totalLargeFiles": 2,
+      "totalLargeFiles": 3,
       "approvedLargeFiles": 2,
-      "unapprovedLargeFiles": 0
+      "unapprovedLargeFiles": 1
     }
   },
   "policies": {
@@ -164,11 +164,43 @@
       "exitCode": 0
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "gapId": "MAINT-LARGE-TRACKED-FILES",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "totalLargeFiles": 3,
+        "approved": [
+          {
+            "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+            "bytes": 4831654
+          },
+          {
+            "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+            "bytes": 3161187
+          }
+        ],
+        "unapproved": [
+          {
+            "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "bytes": 1920167
+          }
+        ]
+      },
+      "impact": "Large files without an explicit ownership and rationale policy increase review and change costs.",
+      "recommendation": "Split or generate the file, or add a bounded rationale to the large-file policy.",
+      "lifecycle": "new"
+    }
+  ],
   "gate": {
-    "decision": "pass",
+    "decision": "warn",
     "blockingGapIds": [],
-    "warningGapIds": []
+    "warningGapIds": [
+      "MAINT-LARGE-TRACKED-FILES"
+    ]
   },
   "baselineDiff": {
     "available": false,
