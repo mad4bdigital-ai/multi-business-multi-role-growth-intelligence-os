@@ -1,0 +1,118 @@
+name: Governed Production Release Source-Pin Gate
+
+on:
+  pull_request:
+    branches: [Production]
+    types: [opened, synchronize, reopened, ready_for_review, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: governed-production-release-source-pin-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate-governed-release-source-pin:
+    name: Validate governed Production source pin
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      EVENT_HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+    steps:
+      - name: Checkout exact release candidate
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify governed candidate identity and protected-ref freshness
+        id: verify
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          require_sha() {
+            local label="$1"
+            local value="$2"
+            if [[ ! "$value" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "::error::$label must be an exact lowercase 40-character SHA"
+              exit 1
+            fi
+          }
+
+          require_sha EVENT_HEAD_SHA "$EVENT_HEAD_SHA"
+          require_sha EVENT_BASE_SHA "$EVENT_BASE_SHA"
+          [[ "$EVENT_HEAD_REPOSITORY" == "$REPOSITORY" ]] || {
+            echo "::error::Production release candidate must originate from this repository"
+            exit 1
+          }
+
+          PR_JSON="$RUNNER_TEMP/release-source-pin-pr.json"
+          gh api "/repos/${REPOSITORY}/pulls/${PR_NUMBER}" > "$PR_JSON"
+          [[ "$(jq -r '.state' "$PR_JSON")" == "open" ]] || { echo "::error::release PR is not open"; exit 1; }
+          [[ "$(jq -r '.base.ref' "$PR_JSON")" == "Production" ]] || { echo "::error::release PR must target Production"; exit 1; }
+          [[ "$(jq -r '.head.repo.full_name // ""' "$PR_JSON")" == "$REPOSITORY" ]] || { echo "::error::release PR must originate from this repository"; exit 1; }
+          [[ "$(jq -r '.head.sha' "$PR_JSON")" == "$EVENT_HEAD_SHA" ]] || { echo "::error::release PR head moved after event dispatch"; exit 1; }
+          [[ "$(jq -r '.base.sha' "$PR_JSON")" == "$EVENT_BASE_SHA" ]] || { echo "::error::release PR base moved after event dispatch"; exit 1; }
+          [[ "$(jq -r '.title' "$PR_JSON")" == release:\ promote\ pinned\ main\ * ]] || { echo "::error::release PR title is not governed"; exit 1; }
+
+          BODY="$(jq -r '.body // ""' "$PR_JSON")"
+          [[ "$BODY" == *"governed_promotion_candidate: true"* ]] || { echo "::error::release PR lacks governed promotion marker"; exit 1; }
+          PINNED_MAIN="$(grep -Eo 'pinned main: `[0-9a-f]{40}`' <<<"$BODY" | head -n1 | tr -d '`' | awk '{print $3}')"
+          PINNED_PRODUCTION="$(grep -Eo 'pinned Production: `[0-9a-f]{40}`' <<<"$BODY" | head -n1 | tr -d '`' | awk '{print $3}')"
+          require_sha PINNED_MAIN "$PINNED_MAIN"
+          require_sha PINNED_PRODUCTION "$PINNED_PRODUCTION"
+
+          git fetch --no-tags origin \
+            '+refs/heads/main:refs/remotes/origin/main' \
+            '+refs/heads/Production:refs/remotes/origin/Production'
+          CURRENT_MAIN_SHA="$(git rev-parse refs/remotes/origin/main)"
+          CURRENT_PRODUCTION_SHA="$(git rev-parse refs/remotes/origin/Production)"
+          CURRENT_HEAD_SHA="$(git rev-parse HEAD)"
+          [[ "$CURRENT_HEAD_SHA" == "$EVENT_HEAD_SHA" ]] || { echo "::error::checked-out candidate differs from event head"; exit 1; }
+          [[ "$CURRENT_MAIN_SHA" == "$PINNED_MAIN" ]] || { echo "::error::stale release: pinned main differs from current main"; exit 1; }
+          [[ "$CURRENT_PRODUCTION_SHA" == "$PINNED_PRODUCTION" ]] || { echo "::error::stale release: pinned Production differs from current Production"; exit 1; }
+          [[ "$EVENT_BASE_SHA" == "$CURRENT_PRODUCTION_SHA" ]] || { echo "::error::release PR base is stale relative to Production"; exit 1; }
+          git diff --quiet "$CURRENT_MAIN_SHA" "$EVENT_HEAD_SHA" || { echo "::error::candidate tree differs from current pinned main"; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_MAIN_SHA" "$EVENT_HEAD_SHA" || { echo "::error::candidate does not contain current main ancestry"; exit 1; }
+          git merge-base --is-ancestor "$CURRENT_PRODUCTION_SHA" "$EVENT_HEAD_SHA" || { echo "::error::candidate does not contain current Production ancestry"; exit 1; }
+
+          {
+            echo "main_sha=$CURRENT_MAIN_SHA"
+            echo "production_sha=$CURRENT_PRODUCTION_SHA"
+            echo "candidate_sha=$EVENT_HEAD_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish source-pin gate evidence
+        shell: bash
+        env:
+          MAIN_SHA: ${{ steps.verify.outputs.main_sha }}
+          PRODUCTION_SHA: ${{ steps.verify.outputs.production_sha }}
+          CANDIDATE_SHA: ${{ steps.verify.outputs.candidate_sha }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$RUNNER_TEMP/governed-production-release-source-pin"
+          jq -n \
+            --arg contract "mad4b.governed-production-release-source-pin-gate.v1" \
+            --arg main_sha "$MAIN_SHA" \
+            --arg production_sha "$PRODUCTION_SHA" \
+            --arg candidate_sha "$CANDIDATE_SHA" \
+            --argjson release_pr "$PR_NUMBER" \
+            '{contract:$contract,ok:true,release_pr:$release_pr,main_sha:$main_sha,production_sha:$production_sha,candidate_sha:$candidate_sha,candidate_tree_matches_main:true,source_pin_freshness_preserved:true,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false}' \
+            > "$RUNNER_TEMP/governed-production-release-source-pin/report.json"
+
+      - name: Upload source-pin gate evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governed-production-release-source-pin-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/governed-production-release-source-pin/report.json
+          if-no-files-found: error
+          retention-days: 30

@@ -295,6 +295,7 @@ jobs:
               --repo "$REPOSITORY" \
               --ref main \
               --field expected_main_sha="$MAIN_SHA" \
+              --field expected_head_sha="$MAIN_SHA" \
               --field expected_production_sha="$PRODUCTION_SHA" \
               --field release_branch="$RELEASE_BRANCH" \
               --field validation_branch="$VALIDATION_BRANCH" \
@@ -361,7 +362,7 @@ jobs:
               --repo "$REPOSITORY" \
               --ref "$VALIDATION_BRANCH" \
               --field expected_main_sha="$MAIN_SHA" \
-              --field expected_candidate_sha="$CANDIDATE_SHA" \
+              --field expected_head_sha="$CANDIDATE_SHA" \
               --field expected_candidate_ref="$VALIDATION_BRANCH" \
               --field expected_validation_base_sha="$VALIDATION_BASE_SHA" \
               --field expected_validation_base_ref="$VALIDATION_BASE_BRANCH" \
@@ -563,6 +564,7 @@ jobs:
           - evidence digest: \`sha256:$EVIDENCE_DIGEST\`
           - tree policy: exact pinned-main tree
           - protected refs stable throughout validation: yes
+          - governed_promotion_candidate: true
 
           Exact Full CI and all required supporting workflows succeeded on the exact candidate. Validation PR #$VALIDATION_PR is closed without merge after evidence readback.
 
