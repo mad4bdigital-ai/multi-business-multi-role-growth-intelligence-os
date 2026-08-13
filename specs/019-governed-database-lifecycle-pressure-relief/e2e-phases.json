@@ -17,7 +17,7 @@
     ]
   },
   "merge_contract": {
-    "minimum_phase": "operational"
+    "minimum_phase": "mvp"
   },
   "phases": [
     {
