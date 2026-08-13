@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "feature_key": "003-activation-operational-count-integrity",
+  "title": "Activation Operational Count Integrity",
+  "status": "complete",
+  "delivery_mode": "single_pr",
+  "last_updated_at": "2026-08-14T00:00:00Z",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 1896,
+        "role": "core_implementation_and_closeout",
+        "status": "merged",
+        "merge_sha": "4dc9f60cd538aab2698178f862693c208145d682",
+        "merged_at": "2026-06-23T09:45:40Z"
+      }
+    ],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "ci": {
+      "status": "pass",
+      "head_sha": "1602f5b244ea0049170d1a7c495686746f620e68",
+      "checks_passed": 4,
+      "checks_total": 4,
+      "checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ],
+      "source": "PR #1896 checks on reviewed head"
+    },
+    "release_readiness": {
+      "status": "pass",
+      "scope": "bounded implementation and governed merge",
+      "production_mutation": false,
+      "migration_apply": false,
+      "provider_mutation": false,
+      "deployment": false,
+      "source": "PR #1896 requirements/security checklist and governed production verification ledger"
+    },
+    "post_merge_record": {
+      "status": "recorded",
+      "source_pr": 1896,
+      "merge_commit_sha": "4dc9f60cd538aab2698178f862693c208145d682",
+      "note": "Post-merge evidence is recorded in the merged PR and governed production verification ledger; no branch mutation was required."
+    }
+  },
+  "secrets_included": false
+}

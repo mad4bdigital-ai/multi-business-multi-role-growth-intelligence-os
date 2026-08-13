@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6812,
-    "bytes": 61926231,
-    "lines": 1453620,
+    "files": 6814,
+    "bytes": 61929654,
+    "lines": 1453734,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2047,
+      "tests-and-specs": 2049,
       "documentation": 1863,
       "api-runtime": 1370,
       "database-migrations": 777,
@@ -30,7 +30,7 @@
       ".mjs": 1567,
       ".js": 958,
       ".sql": 792,
-      ".json": 688,
+      ".json": 690,
       ".yml": 157,
       ".yaml": 107,
       ".ts": 15,
@@ -59,7 +59,7 @@
     "topLevel": {
       "http-generic-api": 3519,
       "docs": 1770,
-      "specs": 838,
+      "specs": 840,
       ".github": 249,
       ".changes": 228,
       "canonicals": 70,
@@ -2870,6 +2870,7 @@
       "specs/002-tenant-gpt-pipeline-continuity/checklists/release-readiness.md",
       "specs/002-tenant-gpt-pipeline-continuity/checklists/requirements.md",
       "specs/002-tenant-gpt-pipeline-continuity/checklists/security.md",
+      "specs/002-tenant-gpt-pipeline-continuity/completion.json",
       "specs/002-tenant-gpt-pipeline-continuity/data-model.md",
       "specs/002-tenant-gpt-pipeline-continuity/manifest.json",
       "specs/002-tenant-gpt-pipeline-continuity/plan.md",
@@ -2880,6 +2881,7 @@
       "specs/002-tenant-gpt-pipeline-continuity/traceability.md",
       "specs/003-activation-operational-count-integrity/README.md",
       "specs/003-activation-operational-count-integrity/checklists/requirements.md",
+      "specs/003-activation-operational-count-integrity/completion.json",
       "specs/003-activation-operational-count-integrity/plan.md",
       "specs/003-activation-operational-count-integrity/spec.md",
       "specs/003-activation-operational-count-integrity/tasks.md",
@@ -4982,6 +4984,7 @@
       "specs/002-tenant-gpt-pipeline-continuity/checklists/release-readiness.md",
       "specs/002-tenant-gpt-pipeline-continuity/checklists/requirements.md",
       "specs/002-tenant-gpt-pipeline-continuity/checklists/security.md",
+      "specs/002-tenant-gpt-pipeline-continuity/completion.json",
       "specs/002-tenant-gpt-pipeline-continuity/data-model.md",
       "specs/002-tenant-gpt-pipeline-continuity/manifest.json",
       "specs/002-tenant-gpt-pipeline-continuity/plan.md",
@@ -4992,6 +4995,7 @@
       "specs/002-tenant-gpt-pipeline-continuity/traceability.md",
       "specs/003-activation-operational-count-integrity/README.md",
       "specs/003-activation-operational-count-integrity/checklists/requirements.md",
+      "specs/003-activation-operational-count-integrity/completion.json",
       "specs/003-activation-operational-count-integrity/plan.md",
       "specs/003-activation-operational-count-integrity/spec.md",
       "specs/003-activation-operational-count-integrity/tasks.md",
@@ -30251,7 +30255,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "8c98b32efec70d05d0f37a819957f3b7e8e89c2d999bc1f54323fa3974b1898c",
+      "sha256": "e75a98c4f9cdda2965bea6ddc2afaf097ce5bfda9160806ee234755d97e12be9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49028,7 +49032,7 @@
       "extension": ".json",
       "bytes": 1929181,
       "lines": 58335,
-      "sha256": "af1036d9e5bbcfa92d5b6dcae0c2a276be6ac36a4b2b404815e20214bd71b85d",
+      "sha256": "c7083d80ed0c352ece5a03a29cfa494ba46cc76d0b44cb25a3fdc8d5ecd9804e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -71782,6 +71786,17 @@
       "generated": false
     },
     {
+      "path": "specs/002-tenant-gpt-pipeline-continuity/completion.json",
+      "category": "tests-and-specs",
+      "extension": ".json",
+      "bytes": 1687,
+      "lines": 57,
+      "sha256": "5bfc4e3f41f574f0696e997f1e21242551ac39061ffdb6df6713b7898bc96783",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "specs/002-tenant-gpt-pipeline-continuity/data-model.md",
       "category": "tests-and-specs",
       "extension": ".md",
@@ -71887,6 +71902,17 @@
       "bytes": 840,
       "lines": 18,
       "sha256": "d21cbf046524c9c0908866d89613499065a6178e93419851b96047460c939408",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "specs/003-activation-operational-count-integrity/completion.json",
+      "category": "tests-and-specs",
+      "extension": ".json",
+      "bytes": 1736,
+      "lines": 57,
+      "sha256": "a860e1d923a37ae57d3a7d57204dcba4b34bf3ad3f3cc73ac3f3536fdd443415",
       "mode": "644",
       "executable": false,
       "generated": false
