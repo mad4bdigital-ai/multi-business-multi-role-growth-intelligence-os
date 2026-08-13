@@ -9,7 +9,7 @@ const SHA = "a".repeat(40);
 const BRANCH = "fix/authority-write-boundary";
 const REPO_URI = "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os";
 
-function envelopeRow(operationIntent = "repo_patch_apply") {
+function envelopeRow(operationIntent = "repo_patch_apply", capabilityKey = "repo_patch_apply") {
   return {
     envelope_id: "envelope-write-boundary",
     tenant_id: "tenant-1",
@@ -18,7 +18,7 @@ function envelopeRow(operationIntent = "repo_patch_apply") {
     workspace_key: "workspace-key",
     brand_key: null,
     app_key: "github",
-    capability_key: "repo_patch_apply",
+    capability_key: capabilityKey,
     operation_intent: operationIntent,
     risk_class: "high",
     selected_source_tier: "platform_managed_fallback",
@@ -83,7 +83,7 @@ function binding(status = "active") {
   };
 }
 
-function boundaryHarness(initialStatus = "active", operationIntent = "repo_patch_apply") {
+function boundaryHarness(initialStatus = "active", operationIntent = "repo_patch_apply", capabilityKey = "repo_patch_apply") {
   let liveBinding = binding(initialStatus);
   let envelopeReads = 0;
   let bindingReads = 0;
@@ -94,7 +94,7 @@ function boundaryHarness(initialStatus = "active", operationIntent = "repo_patch
       if (/capability_resolution_envelope_ledger/.test(statement)) {
         envelopeReads += 1;
         assert.deepEqual(params, ["envelope-write-boundary"]);
-        return [[envelopeRow(operationIntent)]];
+        return [[envelopeRow(operationIntent, capabilityKey)]];
       }
       if (/FROM platform_resource_authority_bindings/.test(statement)) {
         bindingReads += 1;
@@ -210,6 +210,19 @@ for (const intent of REPOSITORY_PATCH_MUTATION_INTENTS) {
   assert.equal(harness.providerCalls.length, 0, "unsupported repository mutation intents must fail before provider transport");
 }
 
+{
+  const harness = boundaryHarness("active", "repo_patch_apply", "different_capability");
+  await assert.rejects(
+    () => harness.checkedFetch(
+      "https://api.github.com/repos/mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os/git/trees",
+      { method: "POST", body: "{}" },
+    ),
+    (error) => error.code === "capability_resolution_envelope_capability_mismatch"
+      && error.details?.write_boundary_phase === "pre_first_provider_write",
+  );
+  assert.equal(harness.providerCalls.length, 0, "unsupported capability keys must fail before provider transport");
+}
+
 const publicLifecycle = readFileSync(new URL("./githubRepositoryLifecycle.js", import.meta.url), "utf8");
 const routes = readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const policyMigration = readFileSync(new URL("./migrations/234_sprint67_repo_patch_capability_envelope_requirement.sql", import.meta.url), "utf8");
@@ -217,6 +230,7 @@ assert.match(publicLifecycle, /createRepositoryAuthorityCheckedFetch/);
 assert.match(publicLifecycle, /pre_first_provider_write/);
 assert.match(publicLifecycle, /pre_ref_update/);
 assert.match(publicLifecycle, /resolveCapabilityExecutionEnvelope/);
+assert.match(publicLifecycle, /acceptedCapabilityKeys:\s*\["repo_patch_apply"\]/);
 assert.match(routes, /from "\.\.\/githubRepositoryLifecycle\.js"/);
 assert.doesNotMatch(routes, /githubRepositoryLifecycleCore\.js/, "runtime routes must not bypass the authority-checked public lifecycle module");
 
