@@ -60,6 +60,12 @@
               "path": "test-production-write-authority-degradation.mjs",
               "args": []
             }
+          ],
+          "evidence_paths": [
+            "http-generic-api/dynamicAuditRuntime.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
           ]
         },
         {
@@ -89,6 +95,12 @@
               "path": "test-production-write-authority-degradation.mjs",
               "args": []
             }
+          ],
+          "evidence_paths": [
+            "http-generic-api/dynamicAuditRuntime.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
           ]
         },
         {
@@ -120,6 +132,12 @@
               "path": "test-production-write-authority-degradation.mjs",
               "args": []
             }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openApiEndpointInventorySync.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
           ]
         }
       ]
