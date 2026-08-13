@@ -10,6 +10,8 @@
       ".changes/e2e/runtime-persistence-third-database-readiness.json",
       "docs/durable-governed-response-chunks.md",
       "docs/runbooks/runtime-persistence-third-database-activation.md",
+      "http-generic-api/frontend-operation-governance.generated.json",
+      "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/package.json",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
@@ -95,6 +97,8 @@
           "evidence_paths": [
             "docs/durable-governed-response-chunks.md",
             "docs/runbooks/runtime-persistence-third-database-activation.md",
+            "http-generic-api/frontend-operation-governance.generated.json",
+            "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
             "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
