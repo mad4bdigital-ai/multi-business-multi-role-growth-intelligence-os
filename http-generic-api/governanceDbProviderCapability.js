@@ -36,8 +36,8 @@ export function evaluateGovernanceDbProviderCapability({
       provider_key: null,
       provider_mode: null,
       checks: {
-        second_principal_same_database_via_managed_control_plane: false,
-        exact_direct_table_grants_via_managed_control_plane: false,
+        independent_governance_database_via_managed_control_plane: false,
+        exact_direct_table_grants_on_governance_database_via_managed_control_plane: false,
         dedicated_governance_writer_contract_v1: false,
       },
       remediation_required: true,
@@ -54,10 +54,10 @@ export function evaluateGovernanceDbProviderCapability({
     ? entry.capabilities
     : {};
   const checks = {
-    second_principal_same_database_via_managed_control_plane:
-      capabilities.second_principal_same_database_via_managed_control_plane === true,
-    exact_direct_table_grants_via_managed_control_plane:
-      capabilities.exact_direct_table_grants_via_managed_control_plane === true,
+    independent_governance_database_via_managed_control_plane:
+      capabilities.independent_governance_database_via_managed_control_plane === true,
+    exact_direct_table_grants_on_governance_database_via_managed_control_plane:
+      capabilities.exact_direct_table_grants_on_governance_database_via_managed_control_plane === true,
     dedicated_governance_writer_contract_v1:
       capabilities.dedicated_governance_writer_contract_v1 === true,
   };
