@@ -27,7 +27,7 @@
 
 أصبح registry يحدد marker الخاص بكل surface، مع `order_operation_ids` توافقية لعدم إعادة ترتيب العمليات القديمة دون داعٍ. عند إضافة operation جديدة إلى source OpenAPI، يجب أن تمر عبر candidate policy؛ route بلا marker أو exclusion record معتمد لا تُسقط بصمت، بل تفشل عملية generation عندما يثبتها candidate selector. ويُرفض multi-surface marker افتراضيًا إلا للعمليتين allowlisted `listSystemTools` و`callSystemTool`. يخضع كل artifact إلى builder validation وresponse-object validation وoperation-budget checks، وتظهر تجاوزات warning budget داخل provenance metadata بدل الاكتفاء برسالة console.
 
-تم تحديث اختبارات `test-openapi-split-governance.mjs` و`test-openapi-split-regeneration-parity.mjs` و`test-tenant-activation-session-alias.mjs` لتتحقق من marker selectors، وعدم تسريب markers إلى artifacts، وتساوي عدد العمليات الفعلي مع source classification.
+تم تحديث اختبارات `test-openapi-split-governance.mjs` و`test-openapi-split-regeneration-parity.mjs` و`test-tenant-activation-session-alias.mjs` لتتحقق من marker selectors، وعدم تسريب markers إلى artifacts، وcandidate exclusions، وshared marker allowlist، وsource/registry fingerprints، وone-client Activation authority contract. كما تختبر gateway policies warning budget وprovenance، وتثبت gateway runtime named-cookie filtering.
 
 ## auth.mad4b.com وactivation.mad4b.com
 
@@ -37,11 +37,11 @@
 
 ## تقليل إعادة تسجيل الدخول والاحتفاظ الآمن
 
-أضيفت وحدة `tenantGptSsoSession.js` لجلسة SSO موقعة ومحدودة. cookie اسمها `mad4b_tenant_gpt_sso` وتستخدم `Domain=.mad4b.com` و`Path=/` و`HttpOnly` و`Secure` و`SameSite=Lax`. المدة الافتراضية والحد الأقصى **30 يومًا**، بينما access-token نفسه لا يزال short-lived وفق profile الحالي وبحد أقصى **3600 ثانية**. تتضمن الجلسة `sid` عشوائيًا، ويدعم المسار persistent active/revoked lookup، و`POST /auth/oauth/revoke`، وinvalidation لكل جلسات المستخدم بعد password reset. migration الجلسات additive وغير مطبقة؛ وعند غياب store لا يصدر المسار cookie قابلة لإعادة الاستخدام. لم تتم معالجة الحاجة إلى إعادة الدخول عبر تمديد bearer token إلى أيام.
+أضيفت وحدة `tenantGptSsoSession.js` لجلسة SSO موقعة ومحدودة. تستخدم الجلسة secret مستقلًا إلزاميًا هو `TENANT_GPT_SSO_SIGNING_SECRET` بحد أدنى 32 حرفًا، بينما تبقى `JWT_SECRET` منفصلة لتوقيع code/access tokens. cookie اسمها `mad4b_tenant_gpt_sso` وتستخدم `Domain=.mad4b.com` و`Path=/` و`HttpOnly` و`Secure` و`SameSite=Lax`. المدة المطلقة والحد الأقصى **30 يومًا**، مع idle timeout افتراضي 8 ساعات يعاد ضبطه عند استخدام authorization-code flow، بينما access-token نفسه لا يزال short-lived وبحد أقصى **3600 ثانية**. تتضمن الجلسة `sid` عشوائيًا، وpersistent active/revoked lookup، و`POST /auth/oauth/revoke`، وinvalidation لكل جلسات المستخدم بعد password reset. migration الجلسات additive وغير مطبقة؛ وعند غياب store لا يصدر المسار cookie قابلة لإعادة الاستخدام. لم تتم معالجة الحاجة إلى إعادة الدخول عبر تمديد bearer token إلى أيام.
 
 يظهر خيار Continue with existing session فقط إذا كانت الجلسة صالحة، ومربوطة بالـclient، وتغطي scopes المطلوبة. عند استخدام `prompt=login` لا يسمح المسار بالـsilent reuse. وعند إصدار authorization code من جلسة SSO يعاد فحص المستخدم والعضوية والـtenant في قاعدة البيانات؛ لذلك لا تكفي cookie قديمة إذا أصبحت العضوية revoked أو أصبح الحساب inactive. إذا طلب المسار scope غير موجود في الجلسة، يعيد `incremental_consent_required` بدل منح scope بصمت.
 
-أضيف أيضًا مسار refresh-token rotation لـTenant GPT، لكنه **staged ومغلق افتراضيًا** عبر `TENANT_GPT_REFRESH_TOKENS_ENABLED=true`. عند تفعيله بعد تجهيز قاعدة البيانات، يكون refresh token opaque ومخزنًا كـhash، ومدته 30 يومًا، ويُدار بالـrotation مع ربط client/resource/user/tenant وفحص active membership. لا يطيل ذلك access-token الذي يبقى ساعة واحدة كحد أقصى. لا تعلن metadata `refresh_token` إلا عند `tenantGptRefreshReady` الذي يفحص flag ووجود جدول grants وJWT secret وtransaction probe، وتعرض `refresh_ready` وسبب الجاهزية دون أسرار.
+أضيف أيضًا مسار refresh-token rotation لـTenant GPT، لكنه **staged ومغلق افتراضيًا** عبر `TENANT_GPT_REFRESH_TOKENS_ENABLED=true`. عند تفعيله بعد تجهيز قاعدة البيانات، يكون refresh token opaque ومخزنًا كـhash، ومدته 30 يومًا، ويُدار بالـrotation مع ربط client/resource/user/tenant وفحص active membership. لا يطيل ذلك access-token الذي يبقى ساعة واحدة كحد أقصى. لا تعلن metadata `refresh_token` إلا عند `tenantGptRefreshReady` الذي يفحص flag ووجود جدول grants وrequired indexes وJWT secret وtransaction probe، وتعرض `refresh_ready` وسبب الجاهزية دون أسرار.
 
 ## قاعدة البيانات والحدود التشغيلية
 

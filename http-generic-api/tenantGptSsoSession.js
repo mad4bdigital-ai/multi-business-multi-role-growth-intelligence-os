@@ -6,6 +6,8 @@ export const TENANT_GPT_SSO_SESSION_COOKIE = "mad4b_tenant_gpt_sso";
 export const TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const TENANT_GPT_SSO_SESSION_MAX_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const TENANT_GPT_SSO_SESSION_MIN_TTL_SECONDS = 5 * 60;
+export const TENANT_GPT_SSO_SESSION_DEFAULT_IDLE_TTL_SECONDS = 8 * 60 * 60;
+export const TENANT_GPT_SSO_SESSION_MAX_IDLE_TTL_SECONDS = TENANT_GPT_SSO_SESSION_MAX_TTL_SECONDS;
 export const TENANT_GPT_SSO_SESSION_PURPOSE = "tenant_gpt_sso_session";
 
 function sessionError(code, message) {
@@ -32,6 +34,20 @@ export function validateTenantGptSsoSessionTtlSeconds(value) {
     );
   }
   return ttlSeconds;
+}
+
+export function validateTenantGptSsoSessionIdleTtlSeconds(value) {
+  const ttlSeconds = finiteInteger(value);
+  if (ttlSeconds === null || ttlSeconds < TENANT_GPT_SSO_SESSION_MIN_TTL_SECONDS || ttlSeconds > TENANT_GPT_SSO_SESSION_MAX_IDLE_TTL_SECONDS) {
+    throw sessionError("tenant_gpt_sso_session_idle_ttl_invalid", `Tenant GPT SSO idle TTL must be an integer between ${TENANT_GPT_SSO_SESSION_MIN_TTL_SECONDS} and ${TENANT_GPT_SSO_SESSION_MAX_IDLE_TTL_SECONDS}.`);
+  }
+  return ttlSeconds;
+}
+
+export function resolveTenantGptSsoSessionIdleTtlSeconds(env = process.env) {
+  const configured = String(env?.TENANT_GPT_SSO_SESSION_IDLE_TTL_SECONDS || "").trim();
+  if (!configured) return TENANT_GPT_SSO_SESSION_DEFAULT_IDLE_TTL_SECONDS;
+  return validateTenantGptSsoSessionIdleTtlSeconds(configured);
 }
 
 export function resolveTenantGptSsoSessionTtlSeconds(env = process.env) {
@@ -70,6 +86,7 @@ export function issueTenantGptSsoSession({
   ttlSeconds,
   nowSeconds,
   sid,
+  idleTtlSeconds,
 } = {}) {
   const userId = text(user_id, 64);
   const tenantId = text(tenant_id, 64);
@@ -78,6 +95,7 @@ export function issueTenantGptSsoSession({
   if (!userId || !tenantId || !clientId || !resolvedSid) throw sessionError("tenant_gpt_sso_session_claims_invalid", "Tenant GPT SSO session requires user_id, tenant_id, client_id, and sid.");
   const ttl = ttlSeconds === undefined ? TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS : validateTenantGptSsoSessionTtlSeconds(ttlSeconds);
   const issuedAt = finiteInteger(nowSeconds) ?? Math.floor(Date.now() / 1000);
+  const idleTtl = idleTtlSeconds === undefined ? TENANT_GPT_SSO_SESSION_DEFAULT_IDLE_TTL_SECONDS : validateTenantGptSsoSessionIdleTtlSeconds(idleTtlSeconds);
   return jwt.sign({
     purpose: TENANT_GPT_SSO_SESSION_PURPOSE,
     version: 1,
@@ -87,6 +105,7 @@ export function issueTenantGptSsoSession({
     email: text(email, 255) || null,
     client_id: clientId,
     scopes: normalizeScopes(scopes),
+    idle_expires_at: issuedAt + idleTtl,
     iat: issuedAt,
   }, requireSecret(jwtSecret), { expiresIn: ttl });
 }
@@ -104,6 +123,8 @@ export function verifyTenantGptSsoSession(value, {
       clockTimestamp: finiteInteger(nowSeconds) ?? undefined,
     });
     if (claims?.purpose !== TENANT_GPT_SSO_SESSION_PURPOSE || claims?.version !== 1) return { ok: false, code: "session_purpose_invalid" };
+    const now = finiteInteger(nowSeconds) ?? Math.floor(Date.now() / 1000);
+    if (!Number.isInteger(Number(claims.idle_expires_at)) || now >= Number(claims.idle_expires_at)) return { ok: false, code: "session_idle_expired" };
     const userId = text(claims.user_id, 64);
     const tenantId = text(claims.tenant_id, 64);
     const clientId = text(claims.client_id, 191);

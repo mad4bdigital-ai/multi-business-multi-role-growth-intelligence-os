@@ -37,6 +37,7 @@ import {
   parseTenantGptSsoCookie,
   persistTenantGptSsoSession,
   resolveTenantGptSsoSessionTtlSeconds,
+  resolveTenantGptSsoSessionIdleTtlSeconds,
   revokeTenantGptSsoSessionBySid,
   revokeTenantGptSsoSessionsForUser,
   verifyTenantGptSsoSession,
@@ -48,6 +49,16 @@ function requireConfiguredJwtSecret(env = process.env) {
   if (secret.length < 32) {
     const error = new Error("A configured JWT_SECRET with at least 32 characters is required.");
     error.code = "oauth_jwt_secret_unavailable";
+    throw error;
+  }
+  return secret;
+}
+
+function requireConfiguredSsoSigningSecret(env = process.env) {
+  const secret = String(env?.TENANT_GPT_SSO_SIGNING_SECRET || "").trim();
+  if (secret.length < 32) {
+    const error = new Error("A dedicated TENANT_GPT_SSO_SIGNING_SECRET with at least 32 characters is required.");
+    error.code = "tenant_gpt_sso_session_secret_unavailable";
     throw error;
   }
   return secret;
@@ -768,14 +779,16 @@ export function buildAuthRoutes(deps) {
   const oauthGoogleClient = deps?.googleClient || googleClient;
   const authEnv = deps?.env || process.env;
   const jwtSecret = requireConfiguredJwtSecret(authEnv);
+  const ssoSigningSecret = requireConfiguredSsoSigningSecret(authEnv);
   const ssoSessionTtlSeconds = resolveTenantGptSsoSessionTtlSeconds(authEnv);
+  const ssoSessionIdleTtlSeconds = resolveTenantGptSsoSessionIdleTtlSeconds(authEnv);
   const checkSsoSession = deps?.isTenantGptSsoSessionActive || isTenantGptSsoSessionActive;
   const saveSsoSession = deps?.persistTenantGptSsoSession || persistTenantGptSsoSession;
   const revokeSsoSession = deps?.revokeTenantGptSsoSessionBySid || revokeTenantGptSsoSessionBySid;
   const revokeSsoSessionsForUser = deps?.revokeTenantGptSsoSessionsForUser || revokeTenantGptSsoSessionsForUser;
 
   async function reusableSsoSession(cookieValue, expectedClientId) {
-    const verified = verifyTenantGptSsoSession(cookieValue, { jwtSecret, expectedClientId });
+    const verified = verifyTenantGptSsoSession(cookieValue, { jwtSecret: ssoSigningSecret, expectedClientId });
     if (!verified.ok) return verified;
     const active = await checkSsoSession({ pool: resolvePool(), sid: verified.claims.sid });
     if (!active?.ok || active.active !== true) return { ok: false, code: active?.code || "session_revoked" };
@@ -1292,9 +1305,10 @@ export function buildAuthRoutes(deps) {
           tenant_id: payload.tenant_id,
           email: payload.email,
           client_id: resourceProfile.client_id,
-          scopes: requestedScopes,
-          jwtSecret: jwtSecret,
+          scopes: [...new Set([...(ssoSession.ok ? ssoSession.claims.scopes : []), ...requestedScopes])].sort(),
+          jwtSecret: ssoSigningSecret,
           ttlSeconds: ssoSessionTtlSeconds,
+          idleTtlSeconds: ssoSessionIdleTtlSeconds,
         });
         const ssoClaims = jwt.decode(ssoToken);
         try {
@@ -1545,7 +1559,7 @@ export function buildAuthRoutes(deps) {
   // ── POST /auth/oauth/revoke ─────────────────────────────────────────────────
   router.post("/oauth/revoke", async (req, res) => {
     const token = cleanText(req.body?.session_token || req.body?.token || parseTenantGptSsoCookie(req.headers?.cookie), 8192);
-    const verified = verifyTenantGptSsoSession(token, { jwtSecret });
+    const verified = verifyTenantGptSsoSession(token, { jwtSecret: ssoSigningSecret });
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Set-Cookie", buildTenantGptSsoClearCookieHeader());
     if (!verified.ok) return res.status(200).json({ ok: true, revoked: false, reason: verified.code, secrets_included: false });

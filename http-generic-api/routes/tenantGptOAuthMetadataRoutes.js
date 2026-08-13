@@ -111,6 +111,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       refresh_readiness: {
         enabled: refreshReady.enabled,
         migration_present: refreshReady.migration_present,
+        indexes_present: refreshReady.indexes_present === true,
         secret_ready: refreshReady.secret_ready === true,
         transaction_probe_ready: refreshReady.transaction_probe_ready === true,
         reason: refreshReady.reason,

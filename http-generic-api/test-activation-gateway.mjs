@@ -46,6 +46,11 @@ const calculatedHash = await policyHash(policy, webcrypto);
 assert.equal(calculatedHash, policy.content_hash_sha256, "generated policy content hash must verify");
 assert.equal(policy.upstream_origin, "https://auth.mad4b.com");
 assert.equal(policy.public_host, "activation.mad4b.com");
+assert.equal(policy.surface_registry_version, 2);
+assert.match(policy.source_openapi_sha256 || "", /^[a-f0-9]{64}$/u);
+assert.match(policy.surface_registry_sha256 || "", /^[a-f0-9]{64}$/u);
+assert.equal(Array.isArray(policy.warning_budget), true);
+assert.equal(policy.warning_budget.every((entry) => typeof entry.exceeded === "boolean"), true);
 assert.equal(policy.routes.some((route) => route.path === "/tenant/activation/session-context"), true);
 assert.equal(policy.routes.some((route) => route.path === "/activation/session-context"), true);
 assert.deepEqual(
@@ -308,7 +313,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
         status: 200,
         headers: {
           "content-type": "application/json",
-          "set-cookie": "never-forward=true",
+          "set-cookie": "mad4b_tenant_gpt_sso=approved-token; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax",
           "x-internal-debug": "hidden",
         },
       });
@@ -321,7 +326,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
     "https://activation.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed",
     {
       headers: {
-        cookie: "session=oauth-handoff-cookie",
+        cookie: "session=must-not-forward; mad4b_tenant_gpt_sso=oauth-handoff-cookie; other=must-not-forward",
         authorization: "Bearer tenant-token",
         "x-request-id": "oauth-request-001",
       },
@@ -331,8 +336,8 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
   assert.equal(upstreamRequest.url, "https://auth.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed");
   assert.equal(upstreamRequest.method, "GET");
   assert.equal(upstreamRequest.headers.get("authorization"), "Bearer tenant-token");
-  assert.equal(upstreamRequest.headers.get("cookie"), "session=oauth-handoff-cookie");
-  assert.equal(response.headers.get("set-cookie"), "never-forward=true");
+  assert.equal(upstreamRequest.headers.get("cookie"), "mad4b_tenant_gpt_sso=oauth-handoff-cookie");
+  assert.equal(response.headers.get("set-cookie"), "mad4b_tenant_gpt_sso=approved-token; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax");
   assert.equal(response.headers.get("x-internal-debug"), null);
 }
 

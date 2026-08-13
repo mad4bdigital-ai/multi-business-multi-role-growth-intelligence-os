@@ -16,6 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_ROOT = path.resolve(__dirname, "..");
 const REPO_ROOT = path.resolve(API_ROOT, "..");
 const SURFACE_REGISTRY_PATH = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
+const SOURCE_OPENAPI_PATH = path.join(API_ROOT, "openapi.yaml");
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 
 function fail(message, details = []) {
@@ -176,9 +177,19 @@ function generateGatewayPolicies(registry, schemaOutputDir, artifactOutputDir) {
       throw new Error(`${policyKey}: duplicate OAuth handoff route`);
     }
 
+    const warningBudget = members.map(({ surfaceKey, surface }) => {
+      const schemaPath = path.join(schemaOutputDir, surface.output_file);
+      const doc = YAML.parse(fs.readFileSync(schemaPath, "utf8"));
+      const operationCount = collectDocOperations(doc).length;
+      const warningLimit = Number(surface.warning_operation_limit || surface.hard_operation_limit || 30);
+      return { surface: surfaceKey, operation_count: operationCount, warning_limit: warningLimit, exceeded: operationCount > warningLimit };
+    }).sort((a, b) => a.surface.localeCompare(b.surface));
     const payload = {
       manifest_version: 1,
       surface_registry_version: Number(registry.version),
+      source_openapi_sha256: sha256(fs.readFileSync(SOURCE_OPENAPI_PATH, "utf8")),
+      surface_registry_sha256: sha256(fs.readFileSync(SURFACE_REGISTRY_PATH, "utf8")),
+      warning_budget: warningBudget,
       policy_key: policyKey,
       public_host: policy.public_host,
       upstream_origin: policy.upstream_origin,

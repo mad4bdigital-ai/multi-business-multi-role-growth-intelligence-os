@@ -1,5 +1,5 @@
 {
-  "content_hash_sha256": "d4b36387c0be1c4ce7318590ee2aec259a7475fb8121757550e3f62534ac30bf",
+  "content_hash_sha256": "f7551d2afd10978da8c293d76a79b805ad59dfc0a8c6238f3d0260d92c5ca69a",
   "deployment_signature_required": true,
   "manifest_version": 1,
   "mutation_stale_policy": "deny",
@@ -585,11 +585,27 @@
   ],
   "secrets_included": false,
   "signature_algorithm": "Ed25519",
+  "source_openapi_sha256": "2bbfc6ddfdd77f5536fa4255f58bb3d2d71efd544dc3779b8d300a6704fad4c6",
   "source_registry": "canonicals/openapi/custom-gpt-surfaces.yaml",
   "source_surfaces": [
     "activation_admin",
     "tenant_activation"
   ],
-  "surface_registry_version": 1,
-  "upstream_origin": "https://auth.mad4b.com"
+  "surface_registry_sha256": "fb750d040863c7408d4a7a27d408d35306f0ea736c056f805fb4e7e9eef8e34b",
+  "surface_registry_version": 2,
+  "upstream_origin": "https://auth.mad4b.com",
+  "warning_budget": [
+    {
+      "exceeded": false,
+      "operation_count": 9,
+      "surface": "activation_admin",
+      "warning_limit": 16
+    },
+    {
+      "exceeded": false,
+      "operation_count": 15,
+      "surface": "tenant_activation",
+      "warning_limit": 26
+    }
+  ]
 }

@@ -10,10 +10,10 @@ export function tenantGptRefreshTokensEnabled(env = process.env) {
 export async function tenantGptRefreshReady(env = process.env, pool = getPool()) {
   const enabled = tenantGptRefreshTokensEnabled(env);
   const secretReady = String(env?.JWT_SECRET || "").trim().length >= 32;
-  if (!enabled) return { ready: false, enabled: false, migration_present: false, secret_ready: secretReady, transaction_probe_ready: false, reason: "flag_disabled" };
-  if (!secretReady) return { ready: false, enabled: true, migration_present: false, secret_ready: false, transaction_probe_ready: false, reason: "jwt_secret_unavailable" };
+  if (!enabled) return { ready: false, enabled: false, migration_present: false, indexes_present: false, secret_ready: secretReady, transaction_probe_ready: false, reason: "flag_disabled" };
+  if (!secretReady) return { ready: false, enabled: true, migration_present: false, indexes_present: false, secret_ready: false, transaction_probe_ready: false, reason: "jwt_secret_unavailable" };
   if (!pool || typeof pool.query !== "function") {
-    return { ready: false, enabled: true, migration_present: false, secret_ready: true, transaction_probe_ready: false, reason: "pool_unavailable" };
+    return { ready: false, enabled: true, migration_present: false, indexes_present: false, secret_ready: true, transaction_probe_ready: false, reason: "pool_unavailable" };
   }
   try {
     const [rows] = await pool.query(
@@ -24,6 +24,14 @@ export async function tenantGptRefreshReady(env = process.env, pool = getPool())
         LIMIT 1`,
     );
     const migrationPresent = Boolean(rows?.[0]?.present);
+    const [indexRows] = await pool.query(
+      `SELECT COUNT(DISTINCT index_name) AS index_count
+         FROM information_schema.statistics
+        WHERE table_schema = DATABASE()
+          AND table_name = 'tenant_gpt_oauth_grants'
+          AND index_name IN ('PRIMARY', 'uq_tenant_gpt_oauth_grants_refresh_hash', 'idx_tenant_gpt_oauth_grants_client_status', 'idx_tenant_gpt_oauth_grants_subject_status', 'idx_tenant_gpt_oauth_grants_resource')`,
+    );
+    const indexesPresent = Number(indexRows?.[0]?.index_count || 0) >= 5;
     let transactionProbeReady = false;
     if (pool.getConnection) {
       const connection = await pool.getConnection();
@@ -38,18 +46,20 @@ export async function tenantGptRefreshReady(env = process.env, pool = getPool())
       transactionProbeReady = true;
     }
     return {
-      ready: migrationPresent && transactionProbeReady,
+      ready: migrationPresent && indexesPresent && transactionProbeReady,
       enabled: true,
       migration_present: migrationPresent,
+      indexes_present: indexesPresent,
       secret_ready: true,
       transaction_probe_ready: transactionProbeReady,
-      reason: migrationPresent && transactionProbeReady ? "ready" : "migration_or_transaction_not_ready",
+      reason: migrationPresent && indexesPresent && transactionProbeReady ? "ready" : "migration_indexes_or_transaction_not_ready",
     };
   } catch (error) {
     return {
       ready: false,
       enabled: true,
       migration_present: false,
+      indexes_present: false,
       secret_ready: secretReady,
       transaction_probe_ready: false,
       reason: String(error?.code || "readiness_check_failed").slice(0, 64),
@@ -115,14 +125,15 @@ export async function createTenantGptOAuthGrant({
   return { grant_id: grantId, refresh_token: refreshToken, refresh_expires_at: refreshExpiresAt };
 }
 
-export async function readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool = getPool() } = {}) {
+export async function readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool = getPool(), forUpdate = false } = {}) {
   const [rows] = await pool.query(
     `SELECT grant_id, access_jti, refresh_token_hash, client_id, user_id, tenant_id,
             resource, scopes_json, status, access_expires_at, refresh_expires_at
        FROM tenant_gpt_oauth_grants
       WHERE refresh_token_hash = ?
         AND status = 'active'
-        AND refresh_expires_at > NOW()`,
+        AND refresh_expires_at > NOW()
+      LIMIT 1${forUpdate ? " FOR UPDATE" : ""}`,
     [sha256(refreshToken)],
   );
   return grantFromRow(rows?.[0]);
@@ -138,7 +149,7 @@ export async function rotateTenantGptOAuthGrant({
   const transactional = Boolean(pool?.getConnection);
   try {
     if (transactional) await connection.beginTransaction();
-    const current = await readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool: connection });
+    const current = await readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool: connection, forUpdate: transactional });
     if (!current) {
       if (transactional) await connection.rollback();
       return null;
