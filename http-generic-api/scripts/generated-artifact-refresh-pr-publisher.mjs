@@ -28,6 +28,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/014-governed-hostinger-storage-orchestration/tasks.md",
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+  "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ]);
 const WORK_MAP_SELF_HOSTING_TRIGGER_PATHS = new Set([
   ".github/workflows/spec-kit-work-map-autofix.yml",
