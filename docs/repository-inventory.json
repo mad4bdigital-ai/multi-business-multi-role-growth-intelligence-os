@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6817,
-    "bytes": 61950414,
-    "lines": 1453955,
+    "files": 6818,
+    "bytes": 61952936,
+    "lines": 1453977,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2049,
-      "documentation": 1866,
+      "documentation": 1867,
       "api-runtime": 1370,
       "database-migrations": 777,
       "root-and-other": 233,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2470,
+      ".md": 2471,
       ".mjs": 1567,
       ".js": 958,
       ".sql": 792,
@@ -58,7 +58,7 @@
     },
     "topLevel": {
       "http-generic-api": 3519,
-      "docs": 1773,
+      "docs": 1774,
       "specs": 840,
       ".github": 249,
       ".changes": 228,
@@ -29623,6 +29623,17 @@
       "generated": false
     },
     {
+      "path": "docs/p3-p4-deferred-matrix-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 2522,
+      "lines": 22,
+      "sha256": "bdea0e19e3c0412c72d63ba03774be170d38fe2b39b59e141b1d4f1ac8d4fe02",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/platform-adapter-contract-kernel.md",
       "category": "documentation",
       "extension": ".md",
@@ -30277,7 +30288,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "e13786007cd4a6ab2e64ca66aebcada5d30dbd5b2dd5fed675ab1b4b94de681f",
+      "sha256": "61e2816a48789bf1c7732f4d2f5872b64d47c906845e006d2b4551dcac0775bb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49065,7 +49076,7 @@
       "extension": ".json",
       "bytes": 1929181,
       "lines": 58335,
-      "sha256": "5e0cca1eac26ed19bda819fae394b4a3942f45bdd7b9ed55404a6847440c917b",
+      "sha256": "a302c3afc2280bbfe11dd42ac023d668ebbd7d4d31b9d4d82c080aed8d34f92e",
       "mode": "644",
       "executable": false,
       "generated": false
