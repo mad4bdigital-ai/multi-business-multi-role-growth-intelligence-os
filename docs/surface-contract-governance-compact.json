@@ -1,11 +1,11 @@
 {
   "ok": false,
   "schema_version": "surface-contract-governance-compact-v1",
-  "docs_completion_percent": 98.72,
+  "docs_completion_percent": 97.89,
   "docs_complete_count": 464,
-  "docs_gap_count": 6,
-  "queue_items": 7,
-  "blocking_new_item_count": 5,
+  "docs_gap_count": 10,
+  "queue_items": 12,
+  "blocking_new_item_count": 10,
   "gate_ok": false,
   "top_actionable": [
     {
@@ -17,20 +17,38 @@
     {
       "migration_file": "20260810_github_issue_comment_exact_response_parity.sql",
       "queue_class": "critical_review",
-      "score": 908,
+      "score": 907,
       "next_step": "classify route-like strings, then add OpenAPI contract or false-positive exemption"
+    },
+    {
+      "migration_file": "20260812_repository_reconciliation_admin_apply_activation.sql",
+      "queue_class": "critical_review",
+      "score": 862,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260812_resource_surface_policy_decisions_consolidated.sql",
+      "queue_class": "high_review",
+      "score": 592,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
+    },
+    {
+      "migration_file": "20260811_runtime_break_glass_authority_metadata_v1.sql",
+      "queue_class": "high_review",
+      "score": 512,
+      "next_step": "add targeted patch-index, parity, and governance documentation"
     }
   ],
   "openapi_missing_sql_route_count": 2,
   "openapi_exempt_sql_route_count": 676,
   "total_sql_route_like_count": 709,
-  "safety_marker_gap_migrations": 2,
+  "safety_marker_gap_migrations": 5,
   "trend_quality_gate": {
     "ok": false,
     "schema_version": "surface-contract-trend-quality-gate-v1",
     "rule": "any unbaselined future queue item blocks promotion; legacy baseline backlog remains visible but non-blocking",
-    "blocking_new_item_count": 5,
-    "warning_new_item_count": 5
+    "blocking_new_item_count": 10,
+    "warning_new_item_count": 10
   },
   "safety": {
     "executes_provider_calls": false,
