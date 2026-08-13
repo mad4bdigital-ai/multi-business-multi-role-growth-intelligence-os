@@ -3,18 +3,18 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6757,
-    "bytes": 59580858,
-    "lines": 1388377,
+    "files": 6759,
+    "bytes": 59603884,
+    "lines": 1388782,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2033,
+      "tests-and-specs": 2034,
       "documentation": 1857,
       "api-runtime": 1345,
-      "database-migrations": 774,
+      "database-migrations": 775,
       "root-and-other": 231,
       "ci-workflows": 154,
       "api-contracts": 147,
@@ -27,9 +27,9 @@
     },
     "byExtension": {
       ".md": 2460,
-      ".mjs": 1550,
+      ".mjs": 1551,
       ".js": 943,
-      ".sql": 789,
+      ".sql": 790,
       ".json": 676,
       ".yml": 156,
       ".yaml": 107,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3475,
+      "http-generic-api": 3477,
       "docs": 1763,
       "specs": 838,
       ".github": 248,
@@ -1159,6 +1159,7 @@
       "http-generic-api/migrations/20260812_repository_reconciliation_admin_apply_activation.sql",
       "http-generic-api/migrations/20260812_resource_surface_policy_decisions_consolidated.sql",
       "http-generic-api/migrations/20260812_runtime_break_glass_reconciliation_closure_v1.sql",
+      "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
       "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "http-generic-api/migrations/202_sprint67_policy_only_runtime_policy_target_rules.sql",
       "http-generic-api/migrations/202_sprint68_admin_workspace_authority_tools.sql",
@@ -2745,6 +2746,7 @@
       "http-generic-api/test-validator-result-log-foundation.mjs",
       "http-generic-api/test-verify-runtime-profile.mjs",
       "http-generic-api/test-virtual-tool-capability-projection.mjs",
+      "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
       "http-generic-api/test-virtual-tool-export-shadow-alignment.mjs",
       "http-generic-api/test-virtual-tool-single-file-mutation-classification.mjs",
       "http-generic-api/test-wordpress-application-password-auth-contract.mjs",
@@ -4843,6 +4845,7 @@
       "http-generic-api/test-validator-result-log-foundation.mjs",
       "http-generic-api/test-verify-runtime-profile.mjs",
       "http-generic-api/test-virtual-tool-capability-projection.mjs",
+      "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
       "http-generic-api/test-virtual-tool-export-shadow-alignment.mjs",
       "http-generic-api/test-virtual-tool-single-file-mutation-classification.mjs",
       "http-generic-api/test-wordpress-application-password-auth-contract.mjs",
@@ -44197,6 +44200,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+      "category": "database-migrations",
+      "extension": ".sql",
+      "bytes": 21515,
+      "lines": 378,
+      "sha256": "701537932b947424c0fb19634bcb2202e9e3042e9a261508d1ea21aff80f4953",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "category": "database-migrations",
       "extension": ".sql",
@@ -69063,6 +69077,17 @@
       "bytes": 2913,
       "lines": 66,
       "sha256": "e24db1483a5f79829be3932fd3023da6c977b5bbbc7f1a500079809f6234e334",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 1511,
+      "lines": 27,
+      "sha256": "eacec568c223f53724886d2561fa31ba146112e5f3e327308a759eef6b799f23",
       "mode": "644",
       "executable": false,
       "generated": false
