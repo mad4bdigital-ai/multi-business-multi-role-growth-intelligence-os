@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6816,
-    "bytes": 61947200,
-    "lines": 1453928,
+    "files": 6817,
+    "bytes": 61950414,
+    "lines": 1453955,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2049,
-      "documentation": 1865,
+      "documentation": 1866,
       "api-runtime": 1370,
       "database-migrations": 777,
       "root-and-other": 233,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2469,
+      ".md": 2470,
       ".mjs": 1567,
       ".js": 958,
       ".sql": 792,
@@ -58,7 +58,7 @@
     },
     "topLevel": {
       "http-generic-api": 3519,
-      "docs": 1772,
+      "docs": 1773,
       "specs": 840,
       ".github": 249,
       ".changes": 228,
@@ -29612,6 +29612,17 @@
       "generated": false
     },
     {
+      "path": "docs/p2-completion-matrix-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 3214,
+      "lines": 27,
+      "sha256": "1078947f81909e8881aa64ab7de73abae52eaa4c0224402ae816a937d8656f87",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/platform-adapter-contract-kernel.md",
       "category": "documentation",
       "extension": ".md",
@@ -30266,7 +30277,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "85c6fc5d103c2a588cc140d3f73ea9f0be960ef7a74ad5b70df0ae2929741eee",
+      "sha256": "e13786007cd4a6ab2e64ca66aebcada5d30dbd5b2dd5fed675ab1b4b94de681f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49054,7 +49065,7 @@
       "extension": ".json",
       "bytes": 1929181,
       "lines": 58335,
-      "sha256": "ff5c36f032bc86bf9c6efebc1e4e0c281c2e1a2f26edef96b72a890f7016a430",
+      "sha256": "5e0cca1eac26ed19bda819fae394b4a3942f45bdd7b9ed55404a6847440c917b",
       "mode": "644",
       "executable": false,
       "generated": false
