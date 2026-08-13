@@ -46,7 +46,7 @@ jobs:
             args+=(--base-sha "$COLLATION_BASE_SHA")
           fi
           report="$RUNNER_TEMP/mariadb-collation-ci-guard.json"
-          npm run database:collation:check -- "${args[@]}" | tee "$report"
+          node scripts/mariadb-collation-ci-guard.mjs "${args[@]}" | tee "$report"
           jq -r '"MariaDB collation CI guard: " + ((.ok // false) | tostring) + " | files_checked=" + ((.files_checked // 0) | tostring) + " | policy=" + (.policy_key // "unknown")' "$report" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Verify dynamic repository inventory
