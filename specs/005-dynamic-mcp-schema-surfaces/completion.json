@@ -10,26 +10,43 @@
     "post_merge_audit": true
   },
   "delivery": {
-    "implementation_prs": [],
-    "closeout_pr": {
-      "number": "current",
-      "branch": "gpt/spec-kit-005-dynamic-mcp-schema-surfaces-20260625",
-      "role": "implementation",
-      "status": "current_pr"
-    }
+    "implementation_prs": [
+      {
+        "number": 7072,
+        "status": "merged",
+        "merge_sha": "7ac689df76561f7591c183257a9052a4c96e3bf8"
+      },
+      {
+        "number": 7107,
+        "branch": "agent/track-c-surfaces-mcp-gpt-frontend",
+        "status": "draft_in_progress"
+      }
+    ],
+    "closeout_pr": null
   },
   "evidence": {
-    "local_validation": {
-      "status": "pass",
-      "tests": "536/536",
-      "architecture_validation": "173/173",
-      "schema_guard": "pass",
-      "canonical_check": "pass"
-    },
-    "production_rollout": {
-      "status": "pending",
-      "reason": "Activation Gateway deployment, DNS/TLS, dual-run, real tenant-JWT validation, rollback rehearsal, and post-merge audit remain intentionally deferred."
-    }
+    "track_c_projection_contracts": "implemented",
+    "caller_identity_widening_denied": true,
+    "tenant_workspace_binding_checks": true,
+    "public_projection_only": true,
+    "runtime_binding_to_track_a": "pending",
+    "readiness_binding_to_track_b": "pending",
+    "validated_head": "183c4da19ab9e2673ac4092c59097ed93f963723",
+    "e2e_phase_governance": "pass",
+    "e2e_reference_integrity": "pass",
+    "frontend_surface_dispatch": "pass",
+    "branch_diagnostic_shards": "pass",
+    "declared_e2e_tests": "9/9",
+    "generated_artifacts_modified_by_track_c": false,
+    "current_head_validation": "pending_after_ledger_reconciliation"
   },
+  "blocking_reasons": [
+    "track_b_not_landed",
+    "track_a_not_landed",
+    "runtime_surface_binding_pending",
+    "principal_differential_live_acceptance_pending",
+    "integration_refresh_pending",
+    "production_closeout_pending"
+  ],
   "secrets_included": false
 }
