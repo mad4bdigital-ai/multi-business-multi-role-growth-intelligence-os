@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,737 |
-| Total bytes | 61,018,920 |
-| Counted text lines | 1,436,625 |
+| Total bytes | 61,036,370 |
+| Counted text lines | 1,436,949 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -88,8 +88,8 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,920,167 | 58053 |
-| `http-generic-api/openapi.yaml` | api-contracts | 979,336 | 22721 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,920,239 | 58056 |
+| `http-generic-api/openapi.yaml` | api-contracts | 982,699 | 22796 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |

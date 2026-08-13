@@ -34,13 +34,15 @@ function outputPath(file) {
 
 function collectOperations(doc) {
   const operations = [];
+  let sourceIndex = 0;
   for (const [pathKey, pathItem] of Object.entries(doc.paths || {})) {
     for (const [method, operation] of Object.entries(pathItem || {})) {
       if (!METHOD_NAMES.has(method)) continue;
       const primaryTag = Array.isArray(operation.tags) && operation.tags.length > 0
         ? operation.tags[0]
         : "untagged";
-      operations.push({ pathKey, pathItem, method, operation, primaryTag });
+      operations.push({ pathKey, pathItem, method, operation, primaryTag, sourceIndex });
+      sourceIndex += 1;
     }
   }
   return operations;
@@ -218,8 +220,77 @@ function applyTenantOAuthEndpointOverride(doc, surface) {
   }
 }
 
+function pathMatchesPrefix(pathKey, prefix) {
+  const normalizedPath = String(pathKey || "");
+  const normalizedPrefix = String(prefix || "").replace(/\/+$/u, "") || "/";
+  return normalizedPath === normalizedPrefix || normalizedPath.startsWith(`${normalizedPrefix}/`);
+}
+
+function orderSelectedOperations(entries, surface = {}) {
+  const orderIds = Array.isArray(surface.selector?.order_operation_ids) ? surface.selector.order_operation_ids : [];
+  if (!orderIds.length) return entries;
+  const rank = new Map(orderIds.map((operationId, index) => [operationId, index]));
+  return [...entries].sort((left, right) => {
+    const leftOperationId = tenantOperationId(left.operation);
+    const rightOperationId = tenantOperationId(right.operation);
+    const leftRank = rank.has(leftOperationId) ? rank.get(leftOperationId) : Number.MAX_SAFE_INTEGER;
+    const rightRank = rank.has(rightOperationId) ? rank.get(rightOperationId) : Number.MAX_SAFE_INTEGER;
+    if (leftRank !== rightRank) return leftRank - rightRank;
+    return Number(left.sourceIndex || 0) - Number(right.sourceIndex || 0);
+  });
+}
+
+function cloneOperationEntries(entries, surface = {}) {
+  return orderSelectedOperations(entries, surface).map((entry) => {
+    const operation = clone(entry.operation);
+    if (surface.auth_profile === "tenant_oauth" && operation?.["x-tenant-gpt-operationId"]) {
+      operation.operationId = operation["x-tenant-gpt-operationId"];
+      delete operation["x-tenant-gpt-operationId"];
+    }
+    return { ...entry, operation };
+  });
+}
+
+function selectCoverageOperations(sourceOperations, surfaceKey, surface) {
+  const coverage = surface.selector?.coverage || {};
+  const selected = sourceOperations.filter((entry) => {
+    const includeTags = Array.isArray(coverage.include_tags) ? coverage.include_tags : [];
+    const includePrefixes = Array.isArray(coverage.include_path_prefixes) ? coverage.include_path_prefixes : [];
+    const tagMatch = includeTags.length > 0 && includeTags.includes(entry.primaryTag);
+    const prefixMatch = includePrefixes.length > 0 && includePrefixes.some((prefix) => pathMatchesPrefix(entry.pathKey, prefix));
+    if (includeTags.length === 0 && includePrefixes.length === 0) return false;
+    if (!tagMatch && !prefixMatch) return false;
+    if (Array.isArray(coverage.exclude_path_prefixes) && coverage.exclude_path_prefixes.some((prefix) => pathMatchesPrefix(entry.pathKey, prefix))) return false;
+    if (coverage.respect_source_exclusions !== false && (entry.operation?.["x-custom-gpt-exclude"] === true || entry.operation?.["x-gpt-action-exclude"] === true)) return false;
+    return true;
+  });
+  if (selected.length === 0) throw new Error(`${surfaceKey}: coverage selector matched no source operations`);
+  return selected;
+}
+
+function validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface) {
+  const markers = new Set(surface.selector?.source_markers || []);
+  if (!markers.size) return;
+  if (!markers.has(surfaceKey)) throw new Error(`${surfaceKey}: source_markers must include the surface key`);
+  if (!surface.selector?.coverage) return;
+  const coverage = selectCoverageOperations(sourceOperations, surfaceKey, surface);
+  const missingMarkers = coverage.filter((entry) => !(entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey));
+  const markerOnly = sourceOperations.filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(surfaceKey));
+  const outsideCoverage = markerOnly.filter((entry) => !coverage.some((candidate) => candidate.pathKey === entry.pathKey && candidate.method === entry.method));
+  if (missingMarkers.length > 0 || outsideCoverage.length > 0) {
+    const missing = missingMarkers.map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`).join(", ");
+    const extra = outsideCoverage.map((entry) => `${entry.method.toUpperCase()} ${entry.pathKey}`).join(", ");
+    throw new Error(`${surfaceKey}: source marker coverage drift; missing=[${missing}] outside_coverage=[${extra}]`);
+  }
+}
+
 function selectOperations(sourceOperations, surfaceKey, surface) {
   const selector = surface.selector || {};
+  if (Array.isArray(selector.source_markers)) {
+    validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface);
+    const markerSet = new Set(selector.source_markers);
+    return cloneOperationEntries(sourceOperations.filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).some((marker) => markerSet.has(marker))), surface);
+  }
   if (Array.isArray(selector.operation_ids)) {
     const byId = new Map(sourceOperations.map((entry) => [entry.operation?.operationId, entry]));
     const missing = selector.operation_ids.filter((id) => !byId.has(id));
@@ -250,7 +321,7 @@ function selectOperations(sourceOperations, surfaceKey, surface) {
       .filter((entry) => !respectExclusions || (entry.operation?.["x-custom-gpt-exclude"] !== true && entry.operation?.["x-gpt-action-exclude"] !== true))
       .map((entry) => ({ ...entry, operation: clone(entry.operation) }));
   }
-  throw new Error(`${surfaceKey}: selector must define operation_ids, tenant_operation_ids, or include_tags`);
+  throw new Error(`${surfaceKey}: selector must define source_markers, operation_ids, tenant_operation_ids, or include_tags`);
 }
 
 function applySecurityProfile(doc, sourceDoc, surface) {
@@ -297,6 +368,7 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
       if (Array.isArray(entry.pathItem.parameters)) paths[entry.pathKey].parameters = clone(entry.pathItem.parameters);
     }
     paths[entry.pathKey][entry.method] = clone(entry.operation);
+    delete paths[entry.pathKey][entry.method]["x-custom-gpt-surfaces"];
   }
   const doc = clone(sourceDoc);
   doc.info = {

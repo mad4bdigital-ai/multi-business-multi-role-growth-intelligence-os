@@ -24,6 +24,7 @@ import {
   buildTenantGptOAuthTokenRequestBindingGuard,
 } from "../tenantGptOAuthTokenExchangeBindingGuard.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./tenantGptOAuthTokenExchangeRoutes.js";
+import { tenantGptRefreshTokensEnabled } from "../tenantGptOAuthGrantStore.js";
 
 function resourceHost(resource) {
   try {
@@ -101,7 +102,7 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       authorization_endpoint: "https://auth.mad4b.com/auth/oauth/authorize",
       token_endpoint: "https://auth.mad4b.com/auth/oauth/token",
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code"],
+      grant_types_supported: ["authorization_code", ...(tenantGptRefreshTokensEnabled(env) ? ["refresh_token"] : [])],
       token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
       scopes_supported: TENANT_GPT_SCOPE_LINKS,
       resource_parameter_supported: true,

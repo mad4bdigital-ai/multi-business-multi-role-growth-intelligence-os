@@ -56,6 +56,9 @@ const orchestrator = readFileSync("scripts/generate-custom-gpt-schemas.mjs", "ut
 
 assert.equal(registry.version, 1);
 assert.equal(GENERATED_SURFACES.length, 4, "registry must define four generated Core/Activation surfaces");
+for (const surface of GENERATED_SURFACES) {
+  assert.deepEqual(surface.selector?.source_markers, [surface.surfaceKey], `${surface.surfaceKey} must use its source marker as the selector`);
+}
 assert.equal(registry.surfaces.admin_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.tenant_core.server_url, "https://auth.mad4b.com");
 assert.equal(registry.surfaces.activation_admin.server_url, "https://activation.mad4b.com");
@@ -77,6 +80,15 @@ for (const requiredPath of [
 }
 for (const requiredAlias of ["activateSession", "listTools", "callTool", "writeSessionTurn", "endSession"]) {
   assert(mainText.includes(`x-tenant-gpt-operationId: ${requiredAlias}`), `tenant alias must be declared in main OpenAPI: ${requiredAlias}`);
+}
+
+const knownSurfaceKeys = new Set(GENERATED_SURFACES.map((surface) => surface.surfaceKey));
+const sourceMarkedOperations = collectOperations(YAML.parse(mainText)).filter((entry) => Array.isArray(entry.operation?.["x-custom-gpt-surfaces"]));
+assert(sourceMarkedOperations.length > 0, "source OpenAPI must contain dynamic Custom GPT surface markers");
+for (const entry of sourceMarkedOperations) {
+  for (const marker of entry.operation["x-custom-gpt-surfaces"]) {
+    assert(knownSurfaceKeys.has(marker), `source marker must reference a generated surface: ${marker}`);
+  }
 }
 
 for (const surface of GENERATED_SURFACES) {
@@ -120,12 +132,15 @@ assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.au
 assert.equal(tenantActivation.components.securitySchemes.userBearerAuth.flows.authorizationCode.tokenUrl, "https://activation.mad4b.com/auth/oauth/token");
 
 assert(splitScript.includes("SURFACE_REGISTRY_FILE"), "split generator must read the canonical surface registry");
+assert(splitScript.includes("source_markers"), "split generator must support source marker selectors");
+assert(splitScript.includes("validateSourceMarkerCoverage"), "split generator must validate source marker coverage");
 assert(splitScript.includes("validateGeneratedDoc"), "split generator must validate generated operations against the source OpenAPI");
 assert(splitScript.includes("validateUniqueTenantAliases"), "split generator must reject duplicate tenant aliases");
 assert(splitScript.includes("selector.operation_ids") && splitScript.includes("selector.tenant_operation_ids") && splitScript.includes("selector.include_tags"));
 assert(orchestrator.includes("generateGatewayPolicies"), "orchestrator must generate gateway policy from Activation surfaces");
 assert(orchestrator.includes("materializeCanonicalCopies"), "orchestrator must materialize canonical-copy surfaces");
 assert(!splitScript.includes("YAML.parse(fs.readFileSync(tenantPath"), "generated tenant artifacts must never become source-of-truth");
+assert(!splitScript.includes("remoteMcp"), "Custom GPT splitter must remain independent from Remote MCP runtime");
 
 const promotionReadModels = loadYaml("session-insight-promotion-read-models.yaml");
 

@@ -13,8 +13,7 @@ surfaces:
       summary: Admin and system MCP facades without Activation routes.
       description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
     selector:
-      include_tags: [admin-control, system-layer]
-      respect_source_exclusions: true
+      source_markers: [admin_core]
 
   activation_admin:
     mode: generated_from_openapi
@@ -29,16 +28,7 @@ surfaces:
       summary: Admin/service Activation orchestration and read surfaces.
       description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
     selector:
-      operation_ids:
-        - getActivationHardRunSummary
-        - readActivationAwareness
-        - readActivationOperationalAttention
-        - readActivationDynamicTabDetail
-        - acknowledgeActivationRun
-        - runLegacyFullHardActivation
-        - runHardActivation
-        - getActivationSessionContext
-        - getActivationPlatformAccess
+      source_markers: [activation_admin]
 
   tenant_core:
     mode: generated_from_openapi
@@ -52,7 +42,8 @@ surfaces:
       summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
       description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
     selector:
-      tenant_operation_ids:
+      source_markers: [tenant_core]
+      order_operation_ids:
         - getMeWorkspacesTenantIdResources
         - getMeWorkspacesTenantIdResourcesResourceKey
         - postMeWorkspacesTenantIdResourcesResourceKey
@@ -100,7 +91,8 @@ surfaces:
       summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads.
       description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com.
     selector:
-      tenant_operation_ids:
+      source_markers: [tenant_activation]
+      order_operation_ids:
         - activateSession
         - readTenantActivationOperationalAttention
         - readTenantActivationAwareness

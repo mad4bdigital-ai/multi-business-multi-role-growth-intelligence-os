@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6737,
-    "bytes": 61018920,
-    "lines": 1436625,
+    "bytes": 61036370,
+    "lines": 1436949,
     "directories": 255,
     "categories": 13
   },
@@ -227,14 +227,14 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1920167,
-      "lines": 58053
+      "bytes": 1920239,
+      "lines": 58056
     },
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 979336,
-      "lines": 22721
+      "bytes": 982699,
+      "lines": 22796
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",

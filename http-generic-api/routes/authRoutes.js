@@ -29,6 +29,13 @@ import {
   isDuplicateEntryError,
   recoverGoogleJitIdentityAfterDuplicate,
 } from "../tenantGptGoogleJitRecovery.js";
+import {
+  buildTenantGptSsoCookieHeader,
+  issueTenantGptSsoSession,
+  parseTenantGptSsoCookie,
+  resolveTenantGptSsoSessionTtlSeconds,
+  verifyTenantGptSsoSession,
+} from "../tenantGptSsoSession.js";
 
 // Default fallback secret for development if missing.
 const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
@@ -535,6 +542,7 @@ function buildOAuthAuthorizeHtml({
   requestedScope = "",
   oauthClientId = TENANT_GPT_OAUTH_CLIENT_ID,
   oauthResource = "",
+  ssoAvailable = false,
 }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
@@ -580,6 +588,7 @@ function buildOAuthAuthorizeHtml({
   <main>
     <h1>Growth Intelligence Platform</h1>
     <p>Sign in or create your workspace to continue securely in ChatGPT.</p>
+    ${ssoAvailable ? '<button class="submit" id="continue-session" type="button">Continue with existing session</button><p class="hint">Your active Mad4B session will be reused without asking you to sign in again.</p>' : ''}
     <nav aria-label="Sign-in options">
       ${showGoogle ? '<button type="button" data-panel="google">Google</button>' : ''}
       ${showEmail ? '<button type="button" data-panel="email">Existing account</button>' : ''}
@@ -618,6 +627,7 @@ function buildOAuthAuthorizeHtml({
     const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const OAUTH_CLIENT_ID = ${JSON.stringify(String(oauthClientId || TENANT_GPT_OAUTH_CLIENT_ID))};
     const OAUTH_RESOURCE = ${JSON.stringify(String(oauthResource || ""))};
+    const SSO_AVAILABLE = ${JSON.stringify(ssoAvailable === true)};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
@@ -644,6 +654,9 @@ function buildOAuthAuthorizeHtml({
       const payload = Object.fromEntries(new FormData(form).entries());
       await issueOAuthCode({ kind, ...payload });
     }
+    document.getElementById("continue-session")?.addEventListener("click", async () => {
+      try { await issueOAuthCode(null); } catch (err) { showError(err.message); }
+    });
     document.getElementById("login-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       try { await submitCredentials("login", event.currentTarget); } catch (err) { showError(err.message); }
@@ -736,6 +749,8 @@ export function buildAuthRoutes(deps) {
   const requireBackendApiKey = deps?.requireBackendApiKey;
   const resolvePool = typeof deps?.getPool === "function" ? deps.getPool : getPool;
   const oauthGoogleClient = deps?.googleClient || googleClient;
+  const authEnv = deps?.env || process.env;
+  const ssoSessionTtlSeconds = resolveTenantGptSsoSessionTtlSeconds(authEnv);
 
   async function registerUserCredential(input = {}) {
     const { email: rawEmail, password, display_name, tenant_display_name } = input;
@@ -1098,6 +1113,15 @@ export function buildAuthRoutes(deps) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
+    const authorizeSso = verifyTenantGptSsoSession(parseTenantGptSsoCookie(req.headers?.cookie), {
+      jwtSecret: authEnv.JWT_SECRET || JWT_SECRET,
+      expectedClientId: resourceProfile.client_id,
+    });
+    const authorizeRequestedScopes = requestedScope ? requestedScope.split(/\s+/u).filter(Boolean) : [];
+    const ssoAvailable = req.query.prompt !== "login"
+      && authorizeSso.ok
+      && authorizeRequestedScopes.every((scope) => authorizeSso.claims.scopes.includes(scope));
+
     res.setHeader("cache-control", "no-store");
     return res
       .status(200)
@@ -1110,6 +1134,7 @@ export function buildAuthRoutes(deps) {
         requestedScope,
         oauthClientId: resourceProfile.client_id,
         oauthResource: resourceProfile.resource,
+        ssoAvailable,
       }));
   });
 
@@ -1127,8 +1152,16 @@ export function buildAuthRoutes(deps) {
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
-      if (!redirect_uri || (!token && !credential)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token or credential are required." } });
+      const requestedScopes = requested_scope ? requested_scope.split(/\s+/u).filter(Boolean) : [];
+      const ssoCookie = parseTenantGptSsoCookie(req.headers?.cookie);
+      const ssoSession = (!token && !credential && req.body?.prompt !== "login")
+        ? verifyTenantGptSsoSession(ssoCookie, {
+          jwtSecret: authEnv.JWT_SECRET || JWT_SECRET,
+          expectedClientId: resourceProfile.client_id,
+        })
+        : { ok: false, code: "session_not_requested" };
+      if (!redirect_uri || (!token && !credential && !ssoSession.ok)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token, credential, or a valid SSO session are required." } });
       }
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
@@ -1149,9 +1182,34 @@ export function buildAuthRoutes(deps) {
       }
 
       stage = "identity_resolution";
-      const payload = token
-        ? jwt.verify(token, JWT_SECRET)
-        : await resolveTenantGptOAuthCredential(credential);
+      let payload;
+      if (ssoSession.ok) {
+        if (requestedScopes.some((scope) => !ssoSession.claims.scopes.includes(scope))) {
+          return res.status(400).json({ ok: false, error: { code: "incremental_consent_required", message: "The requested scope is not covered by the existing SSO session." } });
+        }
+        const pool = resolvePool();
+        const [userRows] = await pool.query(
+          `SELECT user_id, email, display_name, status FROM \`users\` WHERE user_id = ? LIMIT 1`,
+          [ssoSession.claims.user_id],
+        );
+        const activeUser = userRows?.[0];
+        if (!activeUser || activeUser.status !== "active") {
+          return res.status(401).json({ ok: false, error: { code: "session_subject_inactive", message: "The SSO session subject is no longer active." } });
+        }
+        const membership = await fetchJwtClientMembership(pool, activeUser.user_id, ssoSession.claims.tenant_id);
+        if (!membership || membership.status !== "active") {
+          return res.status(403).json({ ok: false, error: { code: "session_membership_inactive", message: "The SSO session workspace membership is no longer active." } });
+        }
+        payload = {
+          user_id: activeUser.user_id,
+          email: activeUser.email,
+          tenant_id: membership.tenant_id,
+        };
+      } else {
+        payload = token
+          ? jwt.verify(token, JWT_SECRET)
+          : await resolveTenantGptOAuthCredential(credential);
+      }
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
@@ -1184,6 +1242,19 @@ export function buildAuthRoutes(deps) {
         redirect_uri: canonicalRedirectUri,
         expires_at: codeExpiresAt,
       });
+
+      if (payload.tenant_id) {
+        const ssoToken = issueTenantGptSsoSession({
+          user_id: payload.user_id,
+          tenant_id: payload.tenant_id,
+          email: payload.email,
+          client_id: resourceProfile.client_id,
+          scopes: requestedScopes,
+          jwtSecret: authEnv.JWT_SECRET || JWT_SECRET,
+          ttlSeconds: ssoSessionTtlSeconds,
+        });
+        res.setHeader("Set-Cookie", buildTenantGptSsoCookieHeader(ssoToken, { ttlSeconds: ssoSessionTtlSeconds }));
+      }
 
       return res.status(200).json({
         ok: true,
