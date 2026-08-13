@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 6756,
+  "file_count": 6760,
   "route_count": 1071,
   "write_route_count": 650,
   "classified_write_surface_count": 38,
@@ -8878,8 +8878,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-authorization-server:0",
-      "source_line": 99,
-      "source_offset": 3741,
+      "source_line": 101,
+      "source_offset": 3918,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -8887,8 +8887,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
-      "source_line": 123,
-      "source_offset": 4944,
+      "source_line": 135,
+      "source_offset": 5680,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",

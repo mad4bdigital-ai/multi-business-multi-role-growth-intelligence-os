@@ -47,13 +47,13 @@
 
 أضيفت migration additive باسم `http-generic-api/migrations/20260813_tenant_gpt_oauth_grants_v1.sql` لإنشاء `tenant_gpt_oauth_grants` مع hash وstatus وresource وtenant/user bindings وrefresh expiry وrotation metadata. **لم يتم تطبيق migration**، ولذلك لا ينبغي تفعيل `TENANT_GPT_REFRESH_TOKENS_ENABLED` في بيئة لا تحتوي الجدول وتحققًا مستقلاً من readiness.
 
-لم يتم تفعيل أي write scope، ولم تُنفذ provider mutation، ولم تُعدل Cloudflare أو Hostinger، ولم يُنشر Production، ولم يتم merge لأي PR. الجرد الحالي ما زال fail-closed ويصنف **650 write routes**، مع **612 intentionally-unmapped candidates** و6 shadow write scopes وعدم منح أي authorization تلقائي؛ الزيادة route lifecycle إضافية لمسار SSO revoke. ويثبت `docs/custom-gpt-mutation-governance.md` أن OpenAPI وRemote MCP لهما transport planes منفصلة مع shared mutation decision adapter fail-closed. لا توجد operation registry entries promoted ولا write scope مفعلة، ولذلك لا تسمح طبقة OpenAPI الحالية بأي mutation. كما يثبت `test-tenant-gpt-oauth-browser-canary.mjs` authorize/code cross-host round-trip read-only، مع حجب session cookie عن token route.
+لم يتم تفعيل أي write scope، ولم تُنفذ provider mutation، ولم تُعدل Cloudflare أو Hostinger، ولم يُنشر Production، ولم يتم merge لأي PR. الجرد الحالي ما زال fail-closed ويصنف **650 write routes**، مع **612 intentionally-unmapped candidates** و6 shadow write scopes وعدم منح أي authorization تلقائي؛ الزيادة route lifecycle إضافية لمسار SSO revoke. ويثبت `docs/custom-gpt-mutation-governance.md` أن OpenAPI وRemote MCP لهما transport planes منفصلة مع shared mutation decision adapter fail-closed. يوجد الآن `openapi/openapi-mutation-policy.generated.json` يحصي **29/29 mutation operations accounted-for**؛ جميعها `unbound` عمدًا، ولذلك لا تسمح طبقة OpenAPI الحالية بأي mutation. يعرض `tenantGptOperationalReadiness.js` blocking checks موحدة بدل ادعاء production readiness، ويثبت `test-tenant-gpt-oauth-browser-canary.mjs` authorize/code cross-host round-trip read-only مع حجب session cookie عن token route. كما يحدد `tenant-gpt-secret-and-canary-runbook.md` خطوات التشغيل الخارجية دون تنفيذها ضمن هذه الدفعة.
 
 ## التحقق والاختبارات
 
 نجحت حزمة Custom GPT schema tests بعدد **531 اختبارًا ناجحًا و0 فشل**. كما نجحت اختبارات OpenAPI registry governance وregeneration parity وTenant Activation alias وSSO session وrefresh retention، واختبارات Tenant GPT OAuth token binding/exchange، وRemote MCP OAuth 2.1، وSpec 012 T031/T033.
 
-نجحت `npm run evaluation:loop`. القرار النهائي هو `warn` بلا blocking gaps؛ التحذيرات الموجودة هي `AUTO-CI-SURFACE-SIZE` و`MAINT-LARGE-TRACKED-FILES` وهي تحذيرات صيانة مسبقة وليست فشلًا في contract أو OAuth readiness. كما نجحت checks الخاصة بـrepository inventory وwrite-scope inventory وreference architecture.
+نجحت `npm run evaluation:loop`. القرار النهائي هو `warn` بلا blocking gaps؛ التحذيرات الموجودة هي `AUTO-CI-SURFACE-SIZE` و`MAINT-LARGE-TRACKED-FILES` وهي تحذيرات صيانة مسبقة وليست فشلًا في contract أو OAuth readiness. كما نجحت checks الخاصة بـrepository inventory وwrite-scope inventory وreference architecture وoperational readiness contracts.
 
 ## الملفات الأساسية
 
@@ -74,6 +74,10 @@
 | `http-generic-api/openApiMutationGovernance.js` | OpenAPI fail-closed middleware لTenant GPT bearer mutations |
 | `http-generic-api/test-custom-gpt-mutation-governance-contract.mjs` | contract test للـshared adapter وtransport parity |
 | `http-generic-api/test-tenant-gpt-oauth-browser-canary.mjs` | browser-like cross-host read-only OAuth canary |
+| `http-generic-api/openapi/openapi-mutation-policy.generated.json` | 29/29 OpenAPI mutation operations accounted-for and unbound |
+| `http-generic-api/tenantGptOperationalReadiness.js` | unified external/live readiness evidence contract |
+| `http-generic-api/trustedIngressContract.js` | production fail-closed ingress attestation contract |
+| `docs/tenant-gpt-secret-and-canary-runbook.md` | secret rotation, DB, ingress, and external canary runbook |
 | `docs/custom-gpt-mutation-governance.md` | policy decision وacceptance boundary لمسارات OpenAPI وMCP |
 
 ## الخطوة التشغيلية التالية المقترحة

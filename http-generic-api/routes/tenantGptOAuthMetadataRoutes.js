@@ -25,6 +25,8 @@ import {
 } from "../tenantGptOAuthTokenExchangeBindingGuard.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./tenantGptOAuthTokenExchangeRoutes.js";
 import { tenantGptRefreshReady } from "../tenantGptOAuthGrantStore.js";
+import { assertTrustedIngressReadyForProduction } from "../trustedIngressContract.js";
+import { buildTenantGptOperationalReadiness } from "../tenantGptOperationalReadiness.js";
 
 function resourceHost(resource) {
   try {
@@ -97,7 +99,15 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   // Existing Tenant GPT/Activation authorization-server metadata remains
   // unchanged for backwards compatibility.
   router.get("/.well-known/oauth-authorization-server", async (_req, res) => {
-    const refreshReady = await tenantGptRefreshReady(env, typeof deps.getPool === "function" ? deps.getPool() : null);
+    let trustedIngress;
+    try {
+      trustedIngress = assertTrustedIngressReadyForProduction(env);
+    } catch (error) {
+      return res.status(error.status || 503).json({ ok: false, error: { code: error.code || "TRUSTED_INGRESS_ATTESTATION_REQUIRED", message: error.message }, trusted_ingress: error.details || null, secrets_included: false });
+    }
+    const pool = typeof deps.getPool === "function" ? deps.getPool() : null;
+    const refreshReady = await tenantGptRefreshReady(env, pool);
+    const operationalReadiness = await buildTenantGptOperationalReadiness({ env, pool });
     res.status(200).json({
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
       authorization_endpoint: "https://auth.mad4b.com/auth/oauth/authorize",
@@ -108,6 +118,8 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
       scopes_supported: TENANT_GPT_SCOPE_LINKS,
       resource_parameter_supported: true,
       refresh_ready: refreshReady.ready,
+      trusted_ingress: trustedIngress,
+      operational_readiness: operationalReadiness,
       refresh_readiness: {
         enabled: refreshReady.enabled,
         migration_present: refreshReady.migration_present,
@@ -121,6 +133,12 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
   });
 
   router.get("/.well-known/oauth-protected-resource", (req, res) => {
+    let trustedIngress;
+    try {
+      trustedIngress = assertTrustedIngressReadyForProduction(env);
+    } catch (error) {
+      return res.status(error.status || 503).json({ ok: false, error: { code: error.code || "TRUSTED_INGRESS_ATTESTATION_REQUIRED", message: error.message }, trusted_ingress: error.details || null, secrets_included: false });
+    }
     const requestHost = resolveRemoteMcpEffectiveRequestHost(req, env);
     if (!requestHost) return notFound(res, "OAUTH_RESOURCE_NOT_FOUND");
 
@@ -128,15 +146,15 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
     if (mcpHost && requestHost === mcpHost) {
       if (!remoteMcpEnabled(env) && !remoteMcpOAuthEnabled(env)) return notFound(res, "MCP_DISABLED");
       res.setHeader("Cache-Control", "public, max-age=300");
-      return res.status(200).json(buildRemoteMcpProtectedResourceMetadata(env));
+      return res.status(200).json({ ...buildRemoteMcpProtectedResourceMetadata(env), trusted_ingress: trustedIngress });
     }
 
     if (requestHost === resourceHost(TENANT_GPT_CORE_RESOURCE)) {
-      return res.status(200).json(tenantProtectedResourceMetadata(TENANT_GPT_CORE_RESOURCE));
+      return res.status(200).json({ ...tenantProtectedResourceMetadata(TENANT_GPT_CORE_RESOURCE), trusted_ingress: trustedIngress });
     }
 
     if (requestHost === resourceHost(TENANT_GPT_ACTIVATION_RESOURCE)) {
-      return res.status(200).json(tenantProtectedResourceMetadata(TENANT_GPT_ACTIVATION_RESOURCE));
+      return res.status(200).json({ ...tenantProtectedResourceMetadata(TENANT_GPT_ACTIVATION_RESOURCE), trusted_ingress: trustedIngress });
     }
 
     return notFound(res, "OAUTH_RESOURCE_NOT_FOUND");

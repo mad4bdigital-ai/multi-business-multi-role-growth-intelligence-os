@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,750 |
-| Total bytes | 61,216,806 |
-| Counted text lines | 1,439,975 |
+| Tracked files | 6,754 |
+| Total bytes | 61,233,565 |
+| Counted text lines | 1,440,310 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,031 |
+| `tests-and-specs` | 2,033 |
 | `documentation` | 1,860 |
-| `api-runtime` | 1,344 |
+| `api-runtime` | 1,346 |
 | `database-migrations` | 770 |
 | `root-and-other` | 229 |
 | `ci-workflows` | 152 |
@@ -36,8 +36,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,464 |
-| `.mjs` | 1,545 |
-| `.js` | 942 |
+| `.mjs` | 1,547 |
+| `.js` | 944 |
 | `.sql` | 785 |
 | `.json` | 677 |
 | `.yml` | 154 |
@@ -72,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 152 |
 | Database migrations | 770 |
 | API/OpenAPI contracts | 148 |
-| Test/spec files (paths) | 2,094 |
+| Test/spec files (paths) | 2,096 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -88,7 +88,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,922,440 | 58125 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,922,441 | 58125 |
 | `http-generic-api/openapi.yaml` | api-contracts | 982,699 | 22796 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |

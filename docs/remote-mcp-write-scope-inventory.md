@@ -5,7 +5,7 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 
 | Metric | Value |
 |---|---:|
-| Tracked files scanned | 6756 |
+| Tracked files scanned | 6760 |
 | Routes discovered | 1071 |
 | Write routes discovered | 650 |
 | Classified write-surface candidates | 38 |

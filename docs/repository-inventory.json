@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6750,
-    "bytes": 61216806,
-    "lines": 1439975,
+    "files": 6754,
+    "bytes": 61233565,
+    "lines": 1440310,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2031,
+      "tests-and-specs": 2033,
       "documentation": 1860,
-      "api-runtime": 1344,
+      "api-runtime": 1346,
       "database-migrations": 770,
       "root-and-other": 229,
       "ci-workflows": 152,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2464,
-      ".mjs": 1545,
-      ".js": 942,
+      ".mjs": 1547,
+      ".js": 944,
       ".sql": 785,
       ".json": 677,
       ".yml": 154,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3467,
+      "http-generic-api": 3471,
       "docs": 1767,
       "specs": 838,
       ".github": 246,
@@ -2508,6 +2508,7 @@
       "http-generic-api/test-session-summary-autosweep.mjs",
       "http-generic-api/test-session-summary-service.mjs",
       "http-generic-api/test-session-summary-surface-authority-recovery.mjs",
+      "http-generic-api/test-shared-mutation-policy.mjs",
       "http-generic-api/test-shared-reconciliation-continuation-policy.mjs",
       "http-generic-api/test-shared-reconciliation-engine.mjs",
       "http-generic-api/test-sheets-range-drift.mjs",
@@ -2628,6 +2629,7 @@
       "http-generic-api/test-tenant-gpt-customer-safe-resource-escalation.mjs",
       "http-generic-api/test-tenant-gpt-google-jit-recovery.mjs",
       "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-browser-canary.mjs",
       "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
       "http-generic-api/test-tenant-gpt-oauth-pkce.mjs",
       "http-generic-api/test-tenant-gpt-oauth-refresh-concurrency.mjs",
@@ -4604,6 +4606,7 @@
       "http-generic-api/test-session-summary-autosweep.mjs",
       "http-generic-api/test-session-summary-service.mjs",
       "http-generic-api/test-session-summary-surface-authority-recovery.mjs",
+      "http-generic-api/test-shared-mutation-policy.mjs",
       "http-generic-api/test-shared-reconciliation-continuation-policy.mjs",
       "http-generic-api/test-shared-reconciliation-engine.mjs",
       "http-generic-api/test-sheets-range-drift.mjs",
@@ -4724,6 +4727,7 @@
       "http-generic-api/test-tenant-gpt-customer-safe-resource-escalation.mjs",
       "http-generic-api/test-tenant-gpt-google-jit-recovery.mjs",
       "http-generic-api/test-tenant-gpt-oauth-authorization-code-store.mjs",
+      "http-generic-api/test-tenant-gpt-oauth-browser-canary.mjs",
       "http-generic-api/test-tenant-gpt-oauth-operation-correlation.mjs",
       "http-generic-api/test-tenant-gpt-oauth-pkce.mjs",
       "http-generic-api/test-tenant-gpt-oauth-refresh-concurrency.mjs",
@@ -28485,9 +28489,9 @@
       "path": "docs/custom-gpt-openapi-oauth-delivery.md",
       "category": "api-contracts",
       "extension": ".md",
-      "bytes": 13922,
-      "lines": 92,
-      "sha256": "edd3a2b5002c0271c521cb5b1c47a9294f5024b2470dd36b7dc0055169101ac7",
+      "bytes": 14742,
+      "lines": 96,
+      "sha256": "57229cd798da9f915e3cfb4258ef76c0fe8d2712ab665817885e84d7c31343d0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30014,9 +30018,9 @@
       "path": "docs/previous-report-implementation-audit.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 8426,
+      "bytes": 8621,
       "lines": 62,
-      "sha256": "cb029a2230a92709fa804b2d8ac76169adf216c1cb6e8b7dcf1963f01ad964c5",
+      "sha256": "46f1730aa26d1d544488cda5e9ff3de5e679ea6a158f9192b2e124542b5c8eb7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30115,7 +30119,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "f65e8803443376b4385f9f0ca2f568e466f13e98a64df59a0c4a42760aa24de5",
+      "sha256": "79e6770d18faea12f8a335667f1b261018131b880c23f059e09410d5f059e981",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -46764,6 +46768,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/openApiMutationGovernance.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 3648,
+      "lines": 81,
+      "sha256": "d88068840463b1fe7f0947c13276b7b6d2d7f3a560df27ca776dccf2b92cfd90",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/openClaudeBridgeRuntime.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -48659,9 +48674,9 @@
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 1922440,
+      "bytes": 1922441,
       "lines": 58125,
-      "sha256": "70cf620bee7257d880c7b5e2d4985c9507ff6eac5db145db0b1af49d1ceaa4df",
+      "sha256": "aa5c2640b50728ad0abdce900da004960732c36b82e8d52cbba2e153f19dca52",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50727,9 +50742,9 @@
       "path": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 5938,
-      "lines": 147,
-      "sha256": "0168bdf5e7785f699aae42a5f730e1dcd727ae478899904accbe7a09490f9ccd",
+      "bytes": 7150,
+      "lines": 165,
+      "sha256": "bb06f139155a1837d6e442815f8f65f2605defe9f4f6652dee0a2777e3a23b75",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54789,6 +54804,17 @@
       "bytes": 72137,
       "lines": 1879,
       "sha256": "bcd362e5242f160bea351d149fce93f27fe31843bdf36d5c9a05a532b09dfde8",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/sharedMutationPolicy.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 4149,
+      "lines": 88,
+      "sha256": "9cc27560bb8415b6e59f45df8e649a64b290f6c47a230ae996ab4016b34124ba",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -66421,6 +66447,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-shared-mutation-policy.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3169,
+      "lines": 76,
+      "sha256": "4499b6fb6db189cee43253556e237eda02bbc39d9bca43046c086cea124e95cf",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-shared-reconciliation-continuation-policy.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -67736,6 +67773,17 @@
       "bytes": 11890,
       "lines": 341,
       "sha256": "1506180a07dff90d9c8a493bbb1b7a83d4f2bb4225ec10ef68c59bd5ef0be0c0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-tenant-gpt-oauth-browser-canary.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 3565,
+      "lines": 68,
+      "sha256": "c38a621d5d2bf81d8d500d72869c71f83530f4f24f0ea71fca8ff2468f4148c3",
       "mode": "644",
       "executable": false,
       "generated": false

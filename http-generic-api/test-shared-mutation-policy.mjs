@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import jwt from "jsonwebtoken";
 import { buildRemoteMcpWriteScopeReadback, evaluateRemoteMcpWriteScopeDecision } from "./remoteMcpWriteScopeGovernance.js";
-import { createOpenApiMutationGovernanceMiddleware } from "./openApiMutationGovernance.js";
+import { createOpenApiMutationGovernanceMiddleware, resolveOperationPolicy } from "./openApiMutationGovernance.js";
 import { buildOpenApiMutationGovernanceDecision } from "./sharedMutationPolicy.js";
 
 const secret = "shared-mutation-policy-test-secret-32-chars";
@@ -47,6 +47,9 @@ assert.equal(openApi.ok, false);
 assert.equal(mcp.ok, false);
 assert.deepEqual(openApi.failed_checks, mcp.decision_path.filter((check) => !check.ok).map((check) => check.key));
 assert.equal(openApi.governance.shadow_write_scope_count, mcp.governance.shadow_write_scope_count);
+const registeredOpenApiMutation = resolveOperationPolicy("POST", "/me/workspaces/tenant-1/resources/foo");
+assert.equal(registeredOpenApiMutation?.policy_status, "unbound");
+assert.equal(registeredOpenApiMutation?.required_scope, null);
 
 let nextCalled = false;
 let responseStatus = null;
@@ -63,6 +66,8 @@ createOpenApiMutationGovernanceMiddleware({ env })({
 assert.equal(nextCalled, false);
 assert.equal(responseStatus, 403);
 assert.equal(responseBody.error.code, "OPENAPI_MUTATION_GOVERNANCE_DENIED");
+assert.equal(responseBody.mutation_governance.operation_policy?.policy_status, "unbound");
+assert.ok(responseBody.mutation_governance.failed_checks.includes("shared_policy_registered"));
 
 let readNext = false;
 createOpenApiMutationGovernanceMiddleware({ env })({ method: "GET", path: "/me/workspaces/tenant-1/resources/foo", headers: { authorization: `Bearer ${token}` } }, {}, () => { readNext = true; });

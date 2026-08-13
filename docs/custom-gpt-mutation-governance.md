@@ -29,7 +29,7 @@
 
 ## شروط الانتقال إلى policy مشتركة
 
-يبقى استكمال registry التفصيلي الذي يربط `resource + operation_id + effect` بـauthority وrequired scope وapproval وlease وreadback مطلوبًا، لكن enforcement adapter أصبح موجودًا بالفعل ويمنع أي operation غير مسجلة. أضيفت اختبارات parity تثبت تطابق failed checks بين OpenAPI وMCP، واختبار browser-like/cross-host read-only canary. لا يمكن لأي adapter السماح بالكتابة في هذه الدفعة لأن scopes ما زالت `shadow` وprovider mutations محظورة.
+أصبح registry مولدًا فعليًا في `openapi/openapi-mutation-policy.generated.json`، ويحصي 29/29 mutation operations كـ`accounted_for`. تبقى entries جميعها `unbound` عمدًا، ولذلك يمنع enforcement adapter أي write قبل مراجعة resource-operation-effect وربط scope مستقل وترقيته. أضيفت اختبارات parity تثبت تطابق failed checks بين OpenAPI وMCP، واختبار browser-like/cross-host read-only canary، و`tenantGptOperationalReadiness.js` الذي يعرض blocking checks دون إعلان production readiness. لا يمكن لأي adapter السماح بالكتابة في هذه الدفعة لأن scopes ما زالت `shadow` وprovider mutations محظورة.
 
 ## أدلة المصدر
 
@@ -41,6 +41,9 @@
 | `canonicals/openapi/custom-gpt-surfaces.yaml` | registry وcandidate policy وsurface separation |
 | `docs/write-scope-inventory.md` | الجرد الموحد للـwrite routes والـshadow scopes |
 | `http-generic-api/test-openapi-split-governance.mjs` | اختبار استقلال وتوليد الأسطح |
+| `http-generic-api/openapi/openapi-mutation-policy.generated.json` | registry لجميع 29 mutation operations مع unbound fail-closed status |
+| `http-generic-api/tenantGptOperationalReadiness.js` | تجميع readiness للـDB/ingress/canary/client evidence |
+| `docs/tenant-gpt-secret-and-canary-runbook.md` | خطوات التشغيل الخارجي والتدوير دون تنفيذ ضمن الدفعة |
 
 ## References
 

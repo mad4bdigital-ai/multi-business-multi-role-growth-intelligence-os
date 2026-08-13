@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6750,
-    "bytes": 61216806,
-    "lines": 1439975,
+    "files": 6754,
+    "bytes": 61233565,
+    "lines": 1440310,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2031,
+      "tests-and-specs": 2033,
       "documentation": 1860,
-      "api-runtime": 1344,
+      "api-runtime": 1346,
       "database-migrations": 770,
       "root-and-other": 229,
       "ci-workflows": 152,
@@ -27,8 +27,8 @@
     },
     "byExtension": {
       ".md": 2464,
-      ".mjs": 1545,
-      ".js": 942,
+      ".mjs": 1547,
+      ".js": 944,
       ".sql": 785,
       ".json": 677,
       ".yml": 154,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3467,
+      "http-generic-api": 3471,
       "docs": 1767,
       "specs": 838,
       ".github": 246,
@@ -209,7 +209,7 @@
     "workflows": 152,
     "migrations": 770,
     "apiContracts": 148,
-    "testSpecFiles": 2094
+    "testSpecFiles": 2096
   },
   "largestFiles": [
     {
@@ -227,7 +227,7 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1922440,
+      "bytes": 1922441,
       "lines": 58125
     },
     {

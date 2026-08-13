@@ -36,12 +36,14 @@ export function evaluateSharedMutationPolicyDecision({
   leaseActive = false,
   environment = "staging",
   governance = null,
+  operationPolicy = null,
 } = {}) {
   const scopeKey = String(requiredScope || "").trim() || null;
   const scope = scopeKey ? (governance?.write_scopes || []).find((candidate) => candidate.scope_key === scopeKey) : null;
   const tokenScopeSet = new Set(normalizeScopes(tokenScopes));
   const checks = [
-    { key: "shared_policy_registered", ok: Boolean(scopeKey && scope && WRITE_EFFECT_CLASSES.has(String(scope.effect_class || ""))), detail: scopeKey || "unregistered_operation" },
+    { key: "operation_registry", ok: Boolean(operationPolicy), detail: operationPolicy?.policy_status || "unregistered_operation" },
+    { key: "shared_policy_registered", ok: Boolean(scopeKey && scope && WRITE_EFFECT_CLASSES.has(String(scope.effect_class || ""))), detail: scopeKey || "unbound_operation" },
     { key: "inventory", ok: governance?.inventory_ready === true, detail: governance?.inventory_ready === true ? "ready" : "blocked" },
     { key: "write_scope_enabled", ok: governance?.activation_ready === true && String(scope?.status || "") !== "shadow", detail: scope?.status || "shadow" },
     { key: "token_scope", ok: Boolean(scopeKey && tokenScopeSet.has(scopeKey)), detail: scopeKey || "unregistered_operation" },
@@ -62,6 +64,7 @@ export function evaluateSharedMutationPolicyDecision({
     path: String(path || ""),
     effect_class: effectClass,
     required_scope: scopeKey,
+    operation_policy: operationPolicy || null,
     decision_path: checks,
     failed_checks: failed.map((check) => check.key),
     governance: governance || null,
