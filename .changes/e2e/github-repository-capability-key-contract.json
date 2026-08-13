@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "feature_key": "github-repository-capability-key-contract",
+  "title": "GitHub repository write capability-key contract",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/githubRepositoryLifecycle.js",
+      "http-generic-api/test-repository-authority-write-boundary.mjs",
+      ".changes/e2e/github-repository-capability-key-contract.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Bind every GitHub repository provider write to the exact repo_patch_apply capability key while preserving existing app, intent, resource, commit, approval, and dispatch guards.",
+      "e2e_journeys": [
+        {
+          "id": "github-write-capability-key-to-provider-boundary",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_repository_mutation_executor",
+          "entrypoint": "createRepositoryAuthorityCheckedFetch GitHub provider write boundary",
+          "terminal_outcome": "A GitHub write with repo_patch_apply is authorized only when the envelope capability key, app key, intent, resource, commit, and dispatch state all match; a different capability key is rejected before provider transport.",
+          "steps": [
+            "Construct a repository write envelope with the GitHub app key and repo_patch_apply capability key.",
+            "Validate the exact repository resource, branch, expected commit, dispatch, approval, blocking-gap, and secret-free constraints.",
+            "Allow the provider write only after the complete envelope resolves successfully.",
+            "Construct an otherwise valid envelope with a different capability key.",
+            "Reject the mismatched capability before any provider request is sent."
+          ],
+          "assertions": [
+            "The GitHub write boundary passes acceptedCapabilityKeys=[repo_patch_apply] to the envelope resolver.",
+            "A capability key other than repo_patch_apply returns capability_resolution_envelope_capability_mismatch.",
+            "Capability mismatch produces zero provider transport calls.",
+            "Existing accepted app and operation-intent allowlists remain enforced.",
+            "Existing resource, commit, readiness, dispatch, approval, blocking-gap, and no-secret guards remain enforced.",
+            "The regression is exercised through the public authority-checked lifecycle module rather than the unguarded core module."
+          ],
+          "tests": [
+            {
+              "id": "repository-authority-capability-key-boundary-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-authority-write-boundary.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/githubRepositoryLifecycle.js",
+            "http-generic-api/githubRepositoryLifecycleCore.js",
+            "http-generic-api/capabilityResolutionEnvelopeGuard.js",
+            "http-generic-api/test-repository-authority-write-boundary.mjs",
+            "http-generic-api/test-capability-envelope-lifecycle-tool.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the exact capability-key contract in governed non-production repository mutation operations without broadening provider or database authority."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Reconcile capability envelope and repository authority evidence after source, branch, or commit drift."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate one non-production repository mutation surface with the exact capability key and no provider transport on mismatch."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify production readback only after separately authorized deployment and exact-head validation."
+    }
+  ]
+}
+
