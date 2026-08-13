@@ -7,6 +7,7 @@
   "scope": {
     "include": [
       "http-generic-api/**",
+      ".github/workflows/ci.yml",
       "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
       ".changes/e2e/collation-governance-runtime-persistence-wiring.json"
     ]
@@ -30,6 +31,7 @@
           "steps": [
             "Detect the active database engine through the governed pool.",
             "Evaluate migration DDL against the engine-aware charset and collation policy.",
+            "For a first push whose CI event carries an all-zero before SHA, omit that invalid diff base and evaluate the parent of the exact head instead.",
             "Reject unknown engines, implicit defaults, or mixed join-key collations before apply.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
             "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
@@ -37,6 +39,7 @@
           "assertions": [
             "Unknown or undetected database engines never reach migration apply.",
             "MariaDB/MySQL new-table DDL requires explicit utf8mb4 and policy-approved collation.",
+            "An all-zero CI before SHA never reaches git diff as a base revision; the collation guard falls back to the exact head parent.",
             "Runtime persistence uses RUNTIME_PERSISTENCE_DB_* identity rather than DB_USER fallback.",
             "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation."
           ],
@@ -46,6 +49,13 @@
               "runner": "node",
               "working_directory": "http-generic-api",
               "path": "test-database-collation-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "mariadb-collation-ci-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
               "args": []
             },
             {
@@ -73,6 +83,9 @@
           "evidence_paths": [
             "http-generic-api/config/database-engine-collation-policy.json",
             "http-generic-api/databaseCollationPolicyGuard.js",
+            "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+            ".github/workflows/ci.yml",
             "http-generic-api/scripts/governed-migration-runner.mjs",
             "http-generic-api/db.js",
             "http-generic-api/runtimePersistenceWriteAuthority.js",

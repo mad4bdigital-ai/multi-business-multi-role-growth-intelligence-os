@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   evaluateSqlFiles,
   resolveSqlFiles,
@@ -24,6 +25,23 @@ const validFiles = resolveSqlFiles({
   },
 });
 assert.deepEqual(validFiles, ["http-generic-api/migrations/valid.sql"]);
+
+const zeroBaseFiles = resolveSqlFiles({
+  baseSha: "0".repeat(40),
+  headSha: "b".repeat(40),
+  gitFn: (args) => {
+    assert.deepEqual(args, ["diff", "--name-only", `${"b".repeat(40)}^`, "b".repeat(40), "--"]);
+    return "http-generic-api/migrations/valid.sql\n";
+  },
+});
+assert.deepEqual(zeroBaseFiles, ["http-generic-api/migrations/valid.sql"]);
+
+const ciWorkflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+assert.match(
+  ciWorkflow,
+  /COLLATION_BASE_SHA.*\^0\{40\}\$/,
+  "CI must not pass an all-zero event.before SHA to the collation diff guard",
+);
 
 const valid = evaluateSqlFiles(validFiles, {
   policy,

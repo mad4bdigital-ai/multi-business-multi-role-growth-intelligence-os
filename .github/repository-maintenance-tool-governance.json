@@ -55,6 +55,7 @@
         "^specs/014-retail-commerce-operations-growth-os/work-map-integration\\.json$",
         "^specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration\\.json$",
         "^specs/018-environment-promotion-runtime-integrity/work-map-integration\\.json$",
+        "^specs/019-governed-database-lifecycle-pressure-relief/work-map-integration\\.json$",
         "^docs/repository-inventory\\.json$",
         "^docs/repository-inventory-summary\\.json$",
         "^docs/repository-inventory\\.md$"
