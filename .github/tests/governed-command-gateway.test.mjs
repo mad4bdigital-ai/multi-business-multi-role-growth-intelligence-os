@@ -190,6 +190,7 @@ test("production command resolves only to the existing governed launcher", () =>
       release_branch_prefix: "release/production-candidate",
       validation_branch_prefix: "release/production-validation",
       validation_base_branch_prefix: "release/production-validation-base",
+      review_mode: "ai_policy",
     },
     authorization: "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST",
     expectedHeadSha: SHA_A,
@@ -201,15 +202,38 @@ test("production command resolves only to the existing governed launcher", () =>
   assert.equal(plan.target_workflow, "governed-production-promotion-request-launcher.yml");
   assert.equal(plan.target_ref, "main");
   assert.equal(plan.evidence.direct_production_mutation, false);
+  assert.equal(plan.inputs.review_mode, "ai_policy");
   assert.deepEqual(Object.keys(plan.inputs).sort(), [
     "confirmation",
     "expected_head_sha",
     "expected_request_head_sha",
     "release_branch_prefix",
     "request_pr",
+    "review_mode",
     "validation_base_branch_prefix",
     "validation_branch_prefix",
   ]);
+});
+
+test("AI policy review mode is restricted to registered values", () => {
+  assert.throws(() => resolveCommandPlan({
+    registry: registryClone(),
+    command: "production_promotion_request",
+    parameters: {
+      request_pr: "7000",
+      expected_head_sha: SHA_A,
+      expected_request_head_sha: SHA_B,
+      release_branch_prefix: "release/production-candidate",
+      validation_branch_prefix: "release/production-validation",
+      validation_base_branch_prefix: "release/production-validation-base",
+      review_mode: "autonomous_merge",
+    },
+    authorization: "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST",
+    expectedHeadSha: SHA_A,
+    currentHeadSha: SHA_A,
+    currentRef: "main",
+    rootDir: ROOT,
+  }), /does not match its required pattern/);
 });
 
 test("reference adapters bind protected-branch guard to the exact target PR head", () => {
@@ -243,6 +267,7 @@ test("production reference command must pin the gateway trusted main SHA", () =>
       release_branch_prefix: "release/production-candidate",
       validation_branch_prefix: "release/production-validation",
       validation_base_branch_prefix: "release/production-validation-base",
+      review_mode: "ai_policy",
     },
     authorization: "AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST",
     expectedHeadSha: SHA_A,

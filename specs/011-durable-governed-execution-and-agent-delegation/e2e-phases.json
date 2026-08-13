@@ -23,7 +23,9 @@
       "http-generic-api/test-spec011-goal-filtered-operational-intelligence.mjs",
       "http-generic-api/test-spec011-t141-readiness-canary-contract.mjs",
       "http-generic-api/test-spec011-t141-readiness-canary-schema.mjs",
+      "http-generic-api/test-delegation-execution-policy-runtime.mjs",
       "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json",
+      "specs/011-durable-governed-execution-and-agent-delegation/tasks.md",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-closeout.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle-delivery.json",
       "specs/011-durable-governed-execution-and-agent-delegation/phase6-managed-delivery-lifecycle.md",
@@ -141,6 +143,39 @@
             "specs/011-durable-governed-execution-and-agent-delegation/phase7-evidence-auto-closeout-delivery.json",
             "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-authoritative-evidence.schema.json",
             "specs/011-durable-governed-execution-and-agent-delegation/schemas/phase7-closeout-change-set.schema.json"
+          ]
+        },
+        {
+          "id": "t141-live-delegation-lifecycle-remains-fail-closed",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Delegation lifecycle governance reviewer",
+          "entrypoint": "delegation execution policy runtime contract plus the Spec011 task and completion evidence",
+          "terminal_outcome": "The policy layer can exercise bounded delegation decisions, but T141 remains open and no live delegation grant create, inspect, revoke, expire, migration apply, production write, runtime activation, or secret-bearing operation becomes eligible without separately authorized Production lifecycle and readback evidence.",
+          "steps": [
+            "Evaluate bounded delegation modes, self-approval denial, drift pause, separation-of-duties, and no-widening renewal rules using synthetic inputs.",
+            "Read the task ledger and completion evidence to confirm T141 remains pending while migration, Production verification, and post-merge audit requirements are incomplete.",
+            "Reject any inference that default-off or disposable certification closes the governed Production lifecycle."
+          ],
+          "assertions": [
+            "T141 is pending while governed Production lifecycle mutations and same-cycle readback have not been separately authorized and recorded.",
+            "The synthetic policy test performs no migration apply, grant mutation, production write, provider call, runtime activation, or secret disclosure.",
+            "A task ledger state inconsistent with completion evidence fails the CI contract."
+          ],
+          "tests": [
+            {
+              "id": "spec011-delegation-execution-policy-runtime",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-delegation-execution-policy-runtime.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/test-delegation-execution-policy-runtime.mjs",
+            "specs/011-durable-governed-execution-and-agent-delegation/tasks.md",
+            "specs/011-durable-governed-execution-and-agent-delegation/completion.json",
+            "specs/011-durable-governed-execution-and-agent-delegation/e2e-phases.json"
           ]
         },
         {
