@@ -43,10 +43,21 @@ for (const required of [
   /secrets_included: false/,
   /\.head\.repo\.full_name \/\/ ""/,
   /request PR must originate from this repository/,
+  /run \$run_id is waiting for required approval; keeping governed review surfaces open/,
+  /source-pinned main moved during convergence/,
+  /refusing to build against an unapproved main/,
 ]) {
   assert.match(launcher, required);
 }
 assert.doesNotMatch(launcher, /headRepositoryOwner/);
+
+const waitRunSuccessBlock = launcher.match(/wait_run_success\(\) \{[\s\S]*?\n\s+\}\n\n\s+close_surface\(\)/)?.[0] ?? "";
+assert.ok(waitRunSuccessBlock, "launcher must expose a bounded run wait contract");
+assert.match(
+  waitRunSuccessBlock,
+  /conclusion.*action_required[\s\S]*?keeping governed review surfaces open/,
+  "action_required must remain approval-pending instead of closing governed review surfaces",
+);
 
 const spec011DispatchBlock =
   launcher.match(
