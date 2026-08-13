@@ -61,11 +61,22 @@ function resolvedEffect(resolved, projection) {
   ).toLowerCase();
 }
 
-function bindingMismatch(toolArguments, context) {
+function normalizeProjectionResult(value) {
+  const result = sanitize(value);
+  if (!plainObject(result)) return result;
+  if (Array.isArray(result.workspaces) && result.count === undefined) result.count = result.workspaces.length;
+  if (Array.isArray(result.brands) && result.count === undefined) result.count = result.brands.length;
+  return result;
+}
+
+function bindingMismatch(toolArguments, context, result) {
   for (const key of BINDING_KEYS) {
     const requested = text(toolArguments?.[key], 256);
+    if (!requested) continue;
     const authoritative = text(context?.[key], 256);
-    if (requested && authoritative && requested !== authoritative) return key;
+    if (authoritative && requested !== authoritative) return key;
+    const projected = text(plainObject(result) ? result[key] : "", 256);
+    if (projected && requested !== projected) return key;
   }
   return null;
 }
@@ -145,17 +156,17 @@ export async function consumeRemoteMcpGovernedSurface({
     return failure("MCP_WRITE_SURFACE_NOT_ENABLED", "This Remote MCP surface exposes governed read-only projections only.");
   }
 
-  const mismatchedBinding = bindingMismatch(toolArguments, resolved.context);
+  const result = normalizeProjectionResult(projection.result);
+  if (result === undefined || result === null) {
+    return failure("MCP_SURFACE_PROJECTION_INVALID", "The authoritative projection result is invalid.");
+  }
+
+  const mismatchedBinding = bindingMismatch(toolArguments, resolved.context, result);
   if (mismatchedBinding) {
     return failure(
       "MCP_SURFACE_BINDING_MISMATCH",
       `The authoritative projection is not bound to the requested ${mismatchedBinding}.`,
     );
-  }
-
-  const result = sanitize(projection.result);
-  if (result === undefined || result === null) {
-    return failure("MCP_SURFACE_PROJECTION_INVALID", "The authoritative projection result is invalid.");
   }
 
   return {
