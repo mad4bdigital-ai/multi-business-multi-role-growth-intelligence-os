@@ -42,7 +42,7 @@ jobs:
         run: |
           set -euo pipefail
           args=(--head-sha "$COLLATION_HEAD_SHA")
-          if [[ "$COLLATION_BASE_SHA" =~ ^[0-9a-fA-F]{40}$ ]]; then
+          if [[ "$COLLATION_BASE_SHA" =~ ^[0-9a-fA-F]{40}$ && ! "$COLLATION_BASE_SHA" =~ ^0{40}$ ]]; then
             args+=(--base-sha "$COLLATION_BASE_SHA")
           fi
           report="$RUNNER_TEMP/mariadb-collation-ci-guard.json"

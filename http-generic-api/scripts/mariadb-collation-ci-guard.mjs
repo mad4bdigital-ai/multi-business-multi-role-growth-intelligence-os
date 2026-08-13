@@ -17,7 +17,8 @@ const SQL_FILE_PATTERNS = [
 ];
 
 function isSha(value = "") {
-  return /^[0-9a-f]{40}$/iu.test(String(value || "").trim());
+  const normalized = String(value || "").trim();
+  return /^[0-9a-f]{40}$/iu.test(normalized) && !/^0{40}$/u.test(normalized);
 }
 
 function isSqlFile(file = "") {
