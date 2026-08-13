@@ -9,7 +9,12 @@
     "include": [
       ".changes/e2e/governed-production-promotion-approval-aware.json",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
-      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json"
     ]
   },
   "merge_contract": {
@@ -56,7 +61,12 @@
           "evidence_paths": [
             ".changes/e2e/governed-production-promotion-approval-aware.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
-            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs",
+            "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+            "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+            "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+            "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json"
           ]
         }
       ]

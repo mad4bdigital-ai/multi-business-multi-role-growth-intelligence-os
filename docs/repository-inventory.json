@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6716,
-    "bytes": 58969083,
-    "lines": 1376261,
+    "bytes": 58969971,
+    "lines": 1376271,
     "directories": 255,
     "categories": 13
   },
@@ -6338,9 +6338,9 @@
       "path": ".changes/e2e/governed-production-promotion-approval-aware.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4743,
-      "lines": 87,
-      "sha256": "5454bd475f638209918f47fce6826ed252b7d56ae5065aec6fe318bba301fd9d",
+      "bytes": 5631,
+      "lines": 97,
+      "sha256": "356a3478a6dc7fd9d62ef116a3fb5f0573b703282b4dea014857926293b7d68d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77180,7 +77180,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "d86beea3574a6afe471ac66168b529ebb90d7d9859d0b219b31dd4b8d852328f",
+      "sha256": "189278ee769b4ee676f09d1588762fb51d669c5c47303ddb1a7b5068b30c9abd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77741,7 +77741,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "4f444f6f4e99d6304deb6c6c7b65e76457a613dacc0d1c6e298097927b23d0be",
+      "sha256": "84d9fbd00ab95b90af70c422540c78c1ba1cc2fb468531d61424346139af27b6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78566,7 +78566,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "075e3b3a18a56afb6c8c062c0e51778b416563a113fe45ff23e2fce189c27bb3",
+      "sha256": "dd88a6fa4a86e5be0e467eecf5d10082059e795ad95499eca1590e2717c1ba82",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78797,7 +78797,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "09ed4c70809e6d15ba290f914f0b6cf8828ae3f781feab67f6267eb16cc64de3",
+      "sha256": "b2f7373efbda531ab65d1d52b3c004bc9770063a3f7a7b55e6915bad50c7e9ad",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79116,7 +79116,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "ad8f45d2af1d0ee69d9c8dafd0b68bf00453f102e068a8d6a7291d73d422a6b2",
+      "sha256": "f29ff92fa6443b72be10ba5cd51c19292c296630cc6d4a30527f57e2a249df25",
       "mode": "644",
       "executable": false,
       "generated": false
