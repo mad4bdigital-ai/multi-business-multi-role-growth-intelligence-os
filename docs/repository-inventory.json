@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6814,
-    "bytes": 61930921,
-    "lines": 1453763,
+    "bytes": 61933488,
+    "lines": 1453811,
     "directories": 255,
     "categories": 13
   },
@@ -79865,7 +79865,7 @@
       "extension": ".md",
       "bytes": 2936,
       "lines": 38,
-      "sha256": "81262ed6e035d53029b628bfb3307758674234a02caf6f756e998d102a7cff09",
+      "sha256": "ad977a3a2ceb915267690610cb316d4698637e14a77bb2ebcd698f1e5aabad6f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79874,9 +79874,9 @@
       "path": "specs/018-environment-promotion-runtime-integrity/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 3375,
-      "lines": 102,
-      "sha256": "b403d303e8eff0cc6efe6c680564bf7a948fb160c91ae46bd094e9d2847568ce",
+      "bytes": 5942,
+      "lines": 150,
+      "sha256": "17825425ee7974fe259af1162cb6f6247a07f9839b4aef4a1c87ebc5758efa43",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79942,7 +79942,7 @@
       "extension": ".md",
       "bytes": 6161,
       "lines": 98,
-      "sha256": "5e3e4f4c84bb7c446d5707d053fc458bbfd7af5e848c3d8165e34bdd6da4d980",
+      "sha256": "af4b541876f04b1beeb437a98c81b01dfee610a67efba3f1b27a814cd0c034e7",
       "mode": "644",
       "executable": false,
       "generated": false
