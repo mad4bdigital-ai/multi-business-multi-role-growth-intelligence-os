@@ -126,13 +126,13 @@ jobs:
           done < <(jq -c '.[]' <<<"$RELEASE_PRS")
 
           LAUNCHER_RUN_IDS="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?status=in_progress&per_page=100" \
-            --jq --arg main_sha "$MAIN_SHA" '[.workflow_runs[] | select(.head_branch == "main" and .head_sha != $main_sha) | .id]')"
+            | jq --arg main_sha "$MAIN_SHA" '[.workflow_runs[] | select(.head_branch == "main" and .head_sha != $main_sha) | .id]')"
           BUILDER_RUN_IDS="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-candidate.yml/runs?status=in_progress&per_page=100" \
-            --jq --arg main_sha "$MAIN_SHA" '[.workflow_runs[] | select(.head_branch == "main" and .head_sha != $main_sha) | .id]')"
+            | jq --arg main_sha "$MAIN_SHA" '[.workflow_runs[] | select(.head_branch == "main" and .head_sha != $main_sha) | .id]')"
           EXACT_RUN_IDS="$(gh api "/repos/${REPOSITORY}/actions/workflows/production-promotion-exact-candidate-validation.yml/runs?status=in_progress&per_page=100" \
-            --jq --argjson stale_heads "$STALE_HEADS" '[.workflow_runs[] | select(.head_sha as $head | ($stale_heads | index($head)) != null) | .id]')"
+            | jq --argjson stale_heads "$STALE_HEADS" '[.workflow_runs[] | select(.head_sha as $head | ($stale_heads | index($head)) != null) | .id]')"
           DESCENDANT_RUN_IDS="$(gh api "/repos/${REPOSITORY}/actions/runs?status=in_progress&per_page=100" \
-            --jq --argjson stale_heads "$STALE_HEADS" '[.workflow_runs[] | select(.head_sha as $head | ($stale_heads | index($head)) != null) | .id]')"
+            | jq --argjson stale_heads "$STALE_HEADS" '[.workflow_runs[] | select(.head_sha as $head | ($stale_heads | index($head)) != null) | .id]')"
           ALL_RUN_IDS="$(jq -n \
             --argjson launcher "$LAUNCHER_RUN_IDS" \
             --argjson builder "$BUILDER_RUN_IDS" \

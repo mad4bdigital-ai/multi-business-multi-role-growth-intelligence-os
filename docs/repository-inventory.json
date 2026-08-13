@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6807,
-    "bytes": 61939190,
-    "lines": 1454274,
+    "files": 6812,
+    "bytes": 61947224,
+    "lines": 1454430,
     "directories": 255,
     "categories": 13
   },
@@ -13,9 +13,9 @@
     "byCategory": {
       "tests-and-specs": 2047,
       "documentation": 1863,
-      "api-runtime": 1366,
+      "api-runtime": 1370,
       "database-migrations": 777,
-      "root-and-other": 232,
+      "root-and-other": 233,
       "ci-workflows": 155,
       "api-contracts": 151,
       "ci-config": 94,
@@ -30,7 +30,7 @@
       ".mjs": 1567,
       ".js": 958,
       ".sql": 792,
-      ".json": 683,
+      ".json": 688,
       ".yml": 157,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3515,
+      "http-generic-api": 3519,
       "docs": 1770,
       "specs": 838,
       ".github": 249,
-      ".changes": 227,
+      ".changes": 228,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -6423,9 +6423,9 @@
       "path": ".changes/e2e/governed-production-promotion-approval-aware.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 9704,
-      "lines": 152,
-      "sha256": "a23c0a30cac12a5391baf8523924f6d4a57d2244f56cbca9459a7c3775e9a9b1",
+      "bytes": 9888,
+      "lines": 153,
+      "sha256": "5fb811ba9289e4fa5e6d2e6b0c74c7c6e7bca94cd0d05c667ab08a09b9242259",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -6910,6 +6910,17 @@
       "bytes": 5461,
       "lines": 74,
       "sha256": "72b71bb23cb997b73cbb24a87fb42005e6a7e3bd8bd0439fa5f823ae29ceda0b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/remote-mcp-oauth-path-format-guard.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 5821,
+      "lines": 120,
+      "sha256": "4bb5e901d1403866cf7132455f0ad912f5be47e5dbc25c976efbe820b5c2ed08",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9747,7 +9758,7 @@
       "extension": ".yml",
       "bytes": 10502,
       "lines": 189,
-      "sha256": "1d8eacb62702aad551b36795487192636ac5e88b41c41f566ca2612874aeaaa7",
+      "sha256": "b510aaec7591e776554eeb5f9fa2678b978eab2d8a44a3f4ce79736bfe45e737",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30240,7 +30251,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "3522602fa4e1a948c18ad7ad2122c89781f06b10f49e41bf8a22bb16453739a0",
+      "sha256": "8c98b32efec70d05d0f37a819957f3b7e8e89c2d999bc1f54323fa3974b1898c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32974,6 +32985,28 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/activation-surfaces/exclusions/platform_resource_scope_bindings.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 455,
+      "lines": 8,
+      "sha256": "f2f0d52b33039792ca3b4bca9b7856184011d17aaf85242c3f2bb8284f21034f",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/platform_tool_scope_bindings.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 416,
+      "lines": 8,
+      "sha256": "450ee412dbe26fc4283890969cecc1d008bdddee9f625542b4aa61f42f8f08b2",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/activation-surfaces/exclusions/provider_authorization_states.json",
       "category": "api-runtime",
       "extension": ".json",
@@ -33046,6 +33079,28 @@
       "bytes": 404,
       "lines": 8,
       "sha256": "637c2754f44b12fd75fd2340177fa3ba17c30899a62974f916e742f77f6007a4",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/tenant_gpt_oauth_grants.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 443,
+      "lines": 8,
+      "sha256": "12b73c3a418af31d15622f681aa0f704af08f3894e59d134df6dd8e8e5b00e16",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/exclusions/tenant_gpt_sso_sessions.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 455,
+      "lines": 8,
+      "sha256": "de715eaeb7726d9bc5109cf70d4afe4dadfc0e3b058f059f1c7e05b4051e163b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48973,7 +49028,7 @@
       "extension": ".json",
       "bytes": 1929181,
       "lines": 58335,
-      "sha256": "118a887ed49452a13d5f8a61e2afeedc910b2391e655e138a1635a55ab322a5c",
+      "sha256": "af1036d9e5bbcfa92d5b6dcae0c2a276be6ac36a4b2b404815e20214bd71b85d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -65317,9 +65372,9 @@
       "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 13276,
-      "lines": 326,
-      "sha256": "9e5fced6a2ba19218af64106bcbe2fa9b85ccfc93711d000d27b133988f9058d",
+      "bytes": 13536,
+      "lines": 329,
+      "sha256": "3e226a4d6790c2d4778e97f7b1f02b6ff04b1787cf7e1915ac414ea1cf4b0253",
       "mode": "644",
       "executable": false,
       "generated": false
