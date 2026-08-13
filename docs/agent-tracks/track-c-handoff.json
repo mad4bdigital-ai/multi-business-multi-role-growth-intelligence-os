@@ -14,5 +14,13 @@
     "Adapter",
     "Readback",
     "Surface Projection"
-  ]
+  ],
+  "track_a_dependency": "runtime contracts",
+  "track_b_dependency": "readiness evidence",
+  "projection_only": true,
+  "generated_artifacts_modified": false,
+  "evidence": {
+    "openapi_schema_parity": "specs/005-dynamic-mcp-schema-surfaces/evidence/track-c-openapi-schema-parity-20260814.json",
+    "host_tenant_isolation": "specs/017-remote-mcp-host-isolation-oauth-readiness/evidence/track-c-host-tenant-isolation-20260814.json"
+  }
 }
