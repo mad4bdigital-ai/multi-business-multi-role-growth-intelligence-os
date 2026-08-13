@@ -13,6 +13,14 @@ const certifiedReleaseCut = readFileSync(
   new URL("../.github/workflows/production-certified-release-cut-validation.yml", import.meta.url),
   "utf8",
 );
+const exactCandidateValidation = readFileSync(
+  new URL("../.github/workflows/production-promotion-exact-candidate-validation.yml", import.meta.url),
+  "utf8",
+);
+const mainSourcePinGuard = readFileSync(
+  new URL("../.github/workflows/governed-production-main-source-pin-guard.yml", import.meta.url),
+  "utf8",
+);
 
 for (const required of [
   /group: governed-production-promotion-convergence-\$\{\{ github\.repository \}\}/,
@@ -61,6 +69,60 @@ for (const required of [
   assert.match(launcher, required);
 }
 assert.doesNotMatch(launcher, /headRepositoryOwner/);
+
+for (const required of [
+  /resolve_exact_validation_run\(\)/,
+  /resolve_exact_validation_run\([\s\S]*workflow_dispatch/,
+  /gh workflow run production-promotion-exact-candidate-validation\.yml/,
+  /--ref "\$VALIDATION_BRANCH"/,
+  /--field expected_main_sha="\$MAIN_SHA"/,
+  /--field expected_candidate_sha="\$CANDIDATE_SHA"/,
+  /--field expected_validation_base_sha="\$VALIDATION_BASE_SHA"/,
+  /--field confirmation=VALIDATE_EXACT_PRODUCTION_CANDIDATE/,
+]) {
+  assert.match(launcher, required);
+}
+
+for (const required of [
+  /workflow_dispatch:/,
+  /expected_main_sha:/,
+  /expected_candidate_sha:/,
+  /expected_validation_base_sha:/,
+  /VALIDATE_EXACT_PRODUCTION_CANDIDATE/,
+  /github\.event\.pull_request\.number \|\| inputs\.expected_candidate_sha/,
+  /source-pinned refs moved before exact-CI dispatch/,
+  /source-pinned refs moved during exact-CI execution/,
+]) {
+  assert.match(exactCandidateValidation, required);
+}
+assert.doesNotMatch(exactCandidateValidation, /contents:\s*write/);
+
+for (const required of [
+  /push:\s*\n\s+branches: \[main\]/,
+  /actions:\s*write/,
+  /contents:\s*read/,
+  /governed-production-promotion-request-launcher\.yml\/runs\?status=in_progress/,
+  /\.head_sha != \$main_sha/,
+  /gh run cancel "\$run_id"/,
+  /--base Production/,
+  /release\/governed-production-candidate-\*/,
+  /pinned main: `\(\?<sha>\[0-9a-f\]\{40\}\)`/,
+  /source_pin_guard=true/,
+  /gh pr close "\$pr_number"/,
+  /mad4b\.governed-production-main-source-pin-guard\.v1/,
+  /guard_scope:"main_push"/,
+  /closed_stale_release_pr_numbers/,
+  /merge_executed:false/,
+  /deployment_executed:false/,
+  /migration_executed:false/,
+  /provider_call_executed:false/,
+  /credential_payload_read:false/,
+  /secrets_included:false/,
+]) {
+  assert.match(mainSourcePinGuard, required);
+}
+assert.doesNotMatch(mainSourcePinGuard, /gh pr merge/i);
+assert.doesNotMatch(mainSourcePinGuard, /git push/);
 
 const waitRunSuccessBlock = launcher.match(/wait_run_success\(\) \{[\s\S]*?\n\s+\}\n\n\s+close_surface\(\)/)?.[0] ?? "";
 assert.ok(waitRunSuccessBlock, "launcher must expose a bounded run wait contract");

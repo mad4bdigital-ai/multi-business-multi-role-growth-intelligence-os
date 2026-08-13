@@ -190,6 +190,27 @@ jobs:
             return 1
           }
 
+          resolve_exact_validation_run() {
+            local earliest="$1"
+            local expected_head_sha="$2"
+            local run_id=""
+
+            for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
+              run_id="$(gh run list \
+                --repo "$REPOSITORY" \
+                --workflow production-promotion-exact-candidate-validation.yml \
+                --limit 100 \
+                --json databaseId,event,headSha,createdAt,status,conclusion \
+                --jq "(map(select(.event == \\"workflow_dispatch\\" and .createdAt >= \\"$earliest\\" and .headSha == \\"$expected_head_sha\\" and (.status != \\"completed\\" or .conclusion == \\"success\\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty" 2>/dev/null || true)"
+              if [[ -n "$run_id" ]]; then
+                printf '%s' "$run_id"
+                return 0
+              fi
+              sleep "$RUN_DISCOVERY_INTERVAL_SECONDS"
+            done
+            return 1
+          }
+
           wait_run_success() {
             local run_id="$1"
             local label="$2"
@@ -336,7 +357,17 @@ jobs:
               continue
             fi
 
-            EXACT_RUN_ID="$(resolve_run production-promotion-exact-candidate-validation.yml "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+            gh workflow run production-promotion-exact-candidate-validation.yml \
+              --repo "$REPOSITORY" \
+              --ref "$VALIDATION_BRANCH" \
+              --field expected_main_sha="$MAIN_SHA" \
+              --field expected_candidate_sha="$CANDIDATE_SHA" \
+              --field expected_candidate_ref="$VALIDATION_BRANCH" \
+              --field expected_validation_base_sha="$VALIDATION_BASE_SHA" \
+              --field expected_validation_base_ref="$VALIDATION_BASE_BRANCH" \
+              --field confirmation=VALIDATE_EXACT_PRODUCTION_CANDIDATE
+
+            EXACT_RUN_ID="$(resolve_exact_validation_run "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
             if [[ -z "$EXACT_RUN_ID" ]] || ! wait_run_success "$EXACT_RUN_ID" "exact candidate validation"; then
               close_surface "$RELEASE_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"
               close_surface "$VALIDATION_PR" "STALE_PRODUCTION_CANDIDATE attempt=$attempt reason=exact_validation_failed_or_missing merge_executed=false deployment_executed=false"

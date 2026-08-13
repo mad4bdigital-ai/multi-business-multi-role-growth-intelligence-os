@@ -1,0 +1,129 @@
+name: Governed Production Main Source-Pin Guard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      expected_main_sha:
+        description: Optional exact main SHA for an auditable read-only guard rerun
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: governed-production-main-source-pin-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  invalidate-outdated-promotion-runs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      MAIN_SHA: ${{ github.sha }}
+      EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha || '' }}
+    steps:
+      - name: Verify current main source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF_NAME" == "main" ]] || { echo "::error::source-pin guard must execute from main"; exit 1; }
+          [[ "$MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::main SHA must be an exact lowercase SHA"; exit 1; }
+          READBACK_MAIN="$(gh api "/repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$READBACK_MAIN" == "$MAIN_SHA" ]] || { echo "::error::main moved before source-pin guard readback"; exit 1; }
+          if [[ -n "$EXPECTED_MAIN_SHA" && "$EXPECTED_MAIN_SHA" != "$MAIN_SHA" ]]; then
+            echo "::error::manual source-pin guard SHA does not match current main"
+            exit 1
+          fi
+
+      - name: Cancel only outdated governed promotion launcher runs
+        id: invalidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_DIR="$RUNNER_TEMP/governed-production-main-source-pin"
+          mkdir -p "$REPORT_DIR"
+          STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          RUN_IDS="$(gh api "/repos/${REPOSITORY}/actions/workflows/governed-production-promotion-request-launcher.yml/runs?status=in_progress&per_page=100" \
+            --jq --arg main_sha "$MAIN_SHA" '[.workflow_runs[] | select(.head_branch == "main" and .head_sha != $main_sha) | .id]')"
+          CANCELLED='[]'
+          while IFS= read -r run_id; do
+            [[ -n "$run_id" ]] || continue
+            if gh run cancel "$run_id" --repo "$REPOSITORY"; then
+              CANCELLED="$(jq --argjson run_id "$run_id" '. + [$run_id]' <<<"$CANCELLED")"
+            else
+              echo "::notice::outdated promotion launcher run $run_id completed before cancellation could be applied"
+            fi
+          done < <(jq -r '.[]' <<<"$RUN_IDS")
+          RELEASE_PRS="$(gh pr list \
+            --repo "$REPOSITORY" \
+            --state open \
+            --base Production \
+            --limit 100 \
+            --json number,title,body,headRefName,headRefOid)"
+          STALE_RELEASES='[]'
+          CLOSED_RELEASES='[]'
+          while IFS= read -r pr; do
+            [[ -n "$pr" ]] || continue
+            pr_number="$(jq -r '.number' <<<"$pr")"
+            title="$(jq -r '.title' <<<"$pr")"
+            head_ref="$(jq -r '.headRefName' <<<"$pr")"
+            head_sha="$(jq -r '.headRefOid' <<<"$pr")"
+            pinned_main="$(jq -r 'try (.body | capture("pinned main: `(?<sha>[0-9a-f]{40})`").sha) catch ""' <<<"$pr")"
+            if [[ "$title" != release:\ promote\ pinned\ main\ * \
+              || "$head_ref" != release/governed-production-candidate-* \
+              || ! "$head_sha" =~ ^[0-9a-f]{40}$ \
+              || ! "$pinned_main" =~ ^[0-9a-f]{40}$ \
+              || "$pinned_main" == "$MAIN_SHA" ]]; then
+              continue
+            fi
+            STALE_RELEASES="$(jq --argjson pr_number "$pr_number" --arg pinned_main "$pinned_main" --arg head_sha "$head_sha" '. + [{pr_number:$pr_number,pinned_main_sha:$pinned_main,head_sha:$head_sha}]' <<<"$STALE_RELEASES")"
+            reason="STALE_PRODUCTION_CANDIDATE main_before=${pinned_main} main_after=${MAIN_SHA} source_pin_guard=true merge_executed=false deployment_executed=false"
+            gh pr comment "$pr_number" --repo "$REPOSITORY" --body "$reason"
+            gh pr close "$pr_number" --repo "$REPOSITORY"
+            CLOSED_RELEASES="$(jq --argjson pr_number "$pr_number" '. + [$pr_number]' <<<"$CLOSED_RELEASES")"
+          done < <(jq -c '.[]' <<<"$RELEASE_PRS")
+          stale_candidates_closed="false"
+          if [[ "$(jq 'length' <<<"$CLOSED_RELEASES")" != "0" ]]; then
+            stale_candidates_closed="true"
+          fi
+          jq -n \
+            --arg contract "mad4b.governed-production-main-source-pin-guard.v1" \
+            --arg main_sha "$MAIN_SHA" \
+            --arg started_at "$STARTED_AT" \
+            --argjson outdated_launcher_run_ids "$RUN_IDS" \
+            --argjson cancelled_launcher_run_ids "$CANCELLED" \
+            --argjson stale_release_prs "$STALE_RELEASES" \
+            --argjson closed_stale_release_pr_numbers "$CLOSED_RELEASES" \
+            --argjson stale_candidates_closed "$stale_candidates_closed" \
+            '{contract:$contract,ok:true,current_main_sha:$main_sha,guard_scope:"main_push",outdated_launcher_run_ids:$outdated_launcher_run_ids,cancelled_launcher_run_ids:$cancelled_launcher_run_ids,stale_release_prs:$stale_release_prs,closed_stale_release_pr_numbers:$closed_stale_release_pr_numbers,stale_candidates_closed:$stale_candidates_closed,merge_executed:false,deployment_executed:false,migration_executed:false,provider_call_executed:false,credential_payload_read:false,secrets_included:false,started_at:$started_at}' \
+            > "$REPORT_DIR/report.json"
+          echo "report=$REPORT_DIR/report.json" >> "$GITHUB_OUTPUT"
+
+      - name: Upload source-pin guard evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governed-production-main-source-pin-${{ github.run_id }}
+          path: ${{ steps.invalidate.outputs.report }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish source-pin decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="${{ steps.invalidate.outputs.report }}"
+          cancelled_count="$(jq '.cancelled_launcher_run_ids | length' "$report")"
+          closed_release_count="$(jq '.closed_stale_release_pr_numbers | length' "$report")"
+          if [[ "$cancelled_count" == "0" && "$closed_release_count" == "0" ]]; then
+            echo "::notice::main source pin remains current; no governed promotion invalidation was required"
+          else
+            echo "::notice::invalidated $cancelled_count outdated launcher run(s) and closed $closed_release_count stale release PR(s); a new exact-head promotion request is required"
+          fi

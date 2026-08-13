@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6722,
-    "bytes": 59019103,
-    "lines": 1377181,
+    "bytes": 59025645,
+    "lines": 1377329,
     "directories": 255,
     "categories": 13
   },
@@ -9666,9 +9666,9 @@
       "path": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 31447,
-      "lines": 622,
-      "sha256": "f745c8c9fd98d7c26dd3d0a9dc385f4dd758a00f1a45f33170c741ecf99238cd",
+      "bytes": 32984,
+      "lines": 653,
+      "sha256": "26ea0b4d6d39c5ed3a304953e4361d0b8a005dfee616c6bc2a59d847b348cf3e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -10381,9 +10381,9 @@
       "path": ".github/workflows/production-promotion-exact-candidate-validation.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 9916,
-      "lines": 248,
-      "sha256": "1bed8390b2009486e6ba13a01f5ac51257dc7a157085b7fe3dd74c676245d34e",
+      "bytes": 12401,
+      "lines": 300,
+      "sha256": "289b5bac9da0b0586277ff06de823efc2fb056689a78c424b695dcf23a98b560",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31393,7 +31393,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "62d5c928b06fbcc77aa4dcedc9d616ac1ab3e46870fa5817fe7b1688be435785",
+      "sha256": "3eae0adc868943227c0b3fbb0da6830c4079c931362d9d56e3eef4d1d1da24ed",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31556,9 +31556,9 @@
       "path": "docs/work-maps/repository-automation-map.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 45468,
-      "lines": 487,
-      "sha256": "de8e2a1f56e5b433988f4a0e2adb5d8c66354645d6f745fe9886e0787bb91d78",
+      "bytes": 45781,
+      "lines": 490,
+      "sha256": "e4f7912882bf5e2fd53770b2aab2dfe0d2d2917404cb988977788fe8b34a06ed",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64545,9 +64545,9 @@
       "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 9330,
-      "lines": 220,
-      "sha256": "ddd124fd973cb8d47d1d213f4c7a327e4051771962143d2a7112f4a88087eef8",
+      "bytes": 11537,
+      "lines": 282,
+      "sha256": "49d92e210d9cdd9b3a04e608fdcbde58afe938b2e8ec6d0dc670e2a90310049b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77252,7 +77252,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "b2a97e4c082399d8ebfe29141d035be6f3667ad7a5526a53adf5960d4ff6a611",
+      "sha256": "396e27e8f93a0fd4309552fa1a289a30e82326802c28d715f80a5d004d4940e9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77813,7 +77813,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "2906a11a708713b3bd214af29425fdc7ff6ff3d0a66f430abbb702b4580d346a",
+      "sha256": "6b51a538f80ba3a7dbb834af103983d1d37a2f19daa58b8b59a39cc28efcf5f3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78638,7 +78638,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "7f5f67081d2c4d25bf19d78c7efb6dc823d1fe4156f13405286b345541419633",
+      "sha256": "591731649f51f1541697684b05b11e9b63457cfe96b52320ff54d69947bbc3c9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78869,7 +78869,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "2259cd248294689adff37d2a79290e6e0c908c9668b8470faa68b2521a61535f",
+      "sha256": "c523d3f6e98da52c07e9df7993ea14d9e827bb43a015ddb961ca8a51edc26452",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79188,7 +79188,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "2c771969c02b43ea8109ade97fa6bbb4277fc0b101fac651ff11112a3190f3d3",
+      "sha256": "679d56a03b7aaffce71af36d1e6dfd82f7fbddd63ffd678a5dcc44e0dc752c1b",
       "mode": "644",
       "executable": false,
       "generated": false
