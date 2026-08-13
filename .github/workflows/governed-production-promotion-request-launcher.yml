@@ -151,16 +151,16 @@ jobs:
             local filter=""
 
             if [[ -n "$expected_head_sha" ]]; then
-              filter="map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\"))[0].databaseId // empty"
+              filter="(map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\" and (.status != \"completed\" or .conclusion == \"success\" or .conclusion == \"action_required\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty"
             else
-              filter="map(select(.createdAt >= \"$earliest\"))[0].databaseId // empty"
+              filter="(map(select(.createdAt >= \"$earliest\" and (.status != \"completed\" or .conclusion == \"success\" or .conclusion == \"action_required\"))) | sort_by(.createdAt, .databaseId) | last | .databaseId) // empty"
             fi
 
             gh run list \
               --repo "$REPOSITORY" \
               --workflow "$workflow" \
               --limit 100 \
-              --json databaseId,headSha,createdAt \
+              --json databaseId,headSha,createdAt,status,conclusion \
               --jq "$filter" 2>/dev/null || true
           }
 
