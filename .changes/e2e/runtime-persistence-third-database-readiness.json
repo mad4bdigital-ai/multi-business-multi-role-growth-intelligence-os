@@ -1,0 +1,130 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "runtime-persistence-third-database-readiness",
+  "title": "Runtime Persistence Third Database Readiness",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/runtime-persistence-third-database-readiness.json",
+      "docs/durable-governed-response-chunks.md",
+      "docs/runbooks/runtime-persistence-third-database-activation.md",
+      "http-generic-api/package.json",
+      "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-runtime-persistence-operational-readiness.mjs"
+    ],
+    "exclude": [
+      "feat/spec015-tenant-audit-convergence"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Add a deterministic, read-only readiness contract for a dedicated third persistence database while preserving safe degradation and separating runtime data, governance authority, migration authority, and durable response persistence.",
+      "e2e_journeys": [
+        {
+          "id": "third-database-runtime-persistence-readiness",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Runtime persistence readiness verifier",
+          "entrypoint": "runtime-persistence:readiness",
+          "terminal_outcome": "The verifier reports blocked when RUNTIME_PERSISTENCE_DB_* is incomplete, reports ready only when the dedicated table authority and 16-column transport schema are both ready, and never executes a grant, migration, provider call, external write, or credential payload read.",
+          "steps": [
+            "Resolve only the presence of RUNTIME_PERSISTENCE_DB_HOST, RUNTIME_PERSISTENCE_DB_NAME, RUNTIME_PERSISTENCE_DB_USER, and RUNTIME_PERSISTENCE_DB_PASSWORD without returning values.",
+            "Fail closed with runtime_persistence_configuration_missing when the dedicated configuration is incomplete and never fall back to DB_USER.",
+            "When configuration is supplied by the runtime, inspect direct table-scoped SELECT, INSERT, UPDATE, and DELETE readiness for governed_tool_response_chunks.",
+            "Inspect the current 16-column transport schema contract without issuing DDL or applying migration SQL.",
+            "Return ready only when both authority and schema are ready; otherwise return blocked with bounded no-secret evidence.",
+            "Keep migration 1048 as a separately governed apply step and keep Production grants, secret writes, provider mutations, and deployment outside this source PR.",
+            "Exclude feat/spec015-tenant-audit-convergence from the scope and recommendations."
+          ],
+          "assertions": [
+            "A third persistence database is represented by RUNTIME_PERSISTENCE_DB_* and is not conflated with DB_* or GOVERNANCE_DB_*.",
+            "The readiness probe never exposes credential values and always emits secrets_included=false.",
+            "Missing dedicated configuration fails closed and fallback_to_db_user is false.",
+            "The required durable chunk authority is exactly SELECT, INSERT, UPDATE, and DELETE on governed_tool_response_chunks.",
+            "The readiness probe performs no grant, migration apply, SQL mutation, provider call, external write, or deployment.",
+            "Migration 1048 is the bounded transport-only migration path; migration apply remains blocked pending explicit governed authorization.",
+            "Safe degradation remains covered by the existing production write-authority regression test.",
+            "No path under feat/spec015-tenant-audit-convergence is modified or recommended."
+          ],
+          "tests": [
+            {
+              "id": "third-database-readiness-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-operational-readiness.mjs",
+              "args": []
+            },
+            {
+              "id": "transport-schema-recovery-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-transport-response-chunk-schema-recovery.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-write-authority-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-write-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "production-safe-degradation-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-write-authority-degradation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "docs/durable-governed-response-chunks.md",
+            "docs/runbooks/runtime-persistence-third-database-activation.md",
+            "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
+            "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
+            "http-generic-api/test-runtime-persistence-write-authority.mjs",
+            "http-generic-api/test-transport-response-chunk-schema-recovery.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Activate the third persistence database and prove schema and direct table privileges in Production without exposing credentials.",
+      "blockers": [
+        "A third persistence database and restricted runtime user must be created by the authorized hosting/DB administrator.",
+        "Migration 1048 requires governed preflight, dry-run, explicit apply confirmation, and same-cycle schema readback.",
+        "RUNTIME_PERSISTENCE_DB_* secrets must be configured through the hosting secret manager without being committed or returned.",
+        "Production privilege readback and runtime durable recovery smoke are not performed by this source PR."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Extend the bounded write-authority readback to the selected dynamic audit and OpenAPI inventory tables after a separate Production authority decision."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "No external provider write canary is introduced; the source slice is read-only and database-bound."
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Treat durable response persistence as Production-ready only after exact source promotion, migration readback, restricted privilege readback, secret configuration, and recovery smoke pass.",
+      "blockers": [
+        "No Production database grant or migration apply is authorized by this source PR.",
+        "No Production credentials are available to this execution context.",
+        "No deployment or provider mutation is introduced by this source PR."
+      ]
+    }
+  ]
+}

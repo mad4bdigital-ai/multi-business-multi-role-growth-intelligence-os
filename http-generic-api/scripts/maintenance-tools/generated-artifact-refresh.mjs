@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const CONTRACT = "mad4b.governed-generated-artifact-refresh.v1";
+const INVENTORY_SELF_HOSTING_CONTRACT = "mad4b.repository-inventory-self-hosting.v1";
 const CONFIRMATION = "APPLY_GENERATED_ARTIFACT_REFRESH";
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/u;
 const TARGET_BRANCH_PATTERN = /^(?:gpt|fix|feat|chore|docs|release)\/[A-Za-z0-9._/-]+$/u;
@@ -456,6 +457,7 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     outcome: firstFailure ? "blocked" : "passed",
     recipe_request: args.recipe || AUTO_RECIPE,
     recipe,
+    self_hosting_contract: recipe === REPOSITORY_INVENTORY_RECIPE ? INVENTORY_SELF_HOSTING_CONTRACT : null,
     target_ref: args.target_ref || null,
     expected_head_sha: args.expected_head_sha || null,
     result_head_sha: resultHeadSha,
