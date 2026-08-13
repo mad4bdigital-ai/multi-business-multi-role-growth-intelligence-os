@@ -4,7 +4,7 @@
   "feature_key": "005-dynamic-mcp-schema-surfaces",
   "title": "Dynamic MCP schema and governed surface projections",
   "delivery_mode": "multi_pr",
-  "current_phase": "operational",
+  "current_phase": "mvp",
   "scope": {
     "include": [
       "specs/005-dynamic-mcp-schema-surfaces/e2e-phases.json",
@@ -74,8 +74,8 @@
     },
     {
       "id": "operational",
-      "status": "implemented",
-      "objective": "Keep public projections deterministic, tenant-bound, no-secret, and dependent on upstream authority/readiness contracts while generated artifacts remain reserved for final integration."
+      "status": "planned",
+      "objective": "Bind the public projection consumer to the Track A runtime contract after Tracks B and A land, then validate exact-head repository and protocol parity without changing generated artifacts on this branch."
     },
     {
       "id": "resilient",
