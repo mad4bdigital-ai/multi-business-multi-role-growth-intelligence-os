@@ -1,0 +1,87 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "database-lifecycle-pressure-intelligence",
+  "title": "Read-only database lifecycle pressure intelligence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/database-lifecycle-pressure-intelligence.json",
+      "http-generic-api/databaseLifecyclePressureIntelligence.js",
+      "http-generic-api/scripts/database-lifecycle-pressure-intelligence.mjs",
+      "http-generic-api/routes/platformEngineRoutes.js",
+      "http-generic-api/test-database-lifecycle-pressure-intelligence.mjs",
+      "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Expose bounded pressure evidence, domain classification, and deterministic review plans without database mutation.",
+      "e2e_journeys": [
+        {
+          "id": "collect-readonly-pressure-and-plan",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform admin read-only observer",
+          "entrypoint": "Pressure intelligence collector and admin GET route",
+          "terminal_outcome": "The system returns deterministic pressure evidence and blocked/ready-for-review plans with no write or execution authority.",
+          "steps": [
+            "Read bounded information_schema table metrics through SELECT-only queries.",
+            "Normalize capacity, growth, largest tables, policy coverage, and reclaim estimates.",
+            "Classify TTL, supersession, lineage-sensitive, and unknown resources.",
+            "Resolve policy metadata or return a fail-closed blocker.",
+            "Fingerprint a candidate plan after canonical sorting."
+          ],
+          "assertions": [
+            "Missing capacity quota is reported as capacity_unknown.",
+            "Candidate ordering does not change plan fingerprint.",
+            "Unknown policy and wildcard resource URIs are blocked.",
+            "The output always carries will_write=false, will_execute=false, and no_delete=true.",
+            "The collector SQL is SELECT-only and secrets_included=false."
+          ],
+          "tests": [
+            {
+              "id": "database-lifecycle-pressure-intelligence-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-lifecycle-pressure-intelligence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/databaseLifecyclePressureIntelligence.js",
+            "http-generic-api/routes/platformEngineRoutes.js",
+            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Integrate pressure evidence with durable read-only snapshots and policy coverage telemetry without enabling mutation."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Validate unknown database outcomes, concurrent writers, policy refresh, and domain preservation invariants before mutation work."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run a non-production observation canary and compare pressure/growth evidence against baseline."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require production readback, security, performance, and owner evidence before any later mutation PR."
+    }
+  ],
+  "secrets_included": false
+}

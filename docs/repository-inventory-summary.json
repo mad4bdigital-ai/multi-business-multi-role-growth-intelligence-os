@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6708,
-    "bytes": 58883353,
-    "lines": 1374546,
+    "files": 6712,
+    "bytes": 58922016,
+    "lines": 1375420,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2020,
+      "tests-and-specs": 2021,
       "documentation": 1855,
-      "api-runtime": 1326,
+      "api-runtime": 1328,
       "database-migrations": 767,
-      "root-and-other": 225,
+      "root-and-other": 226,
       "ci-workflows": 152,
       "api-contracts": 147,
       "ci-config": 94,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2458,
-      ".mjs": 1532,
-      ".js": 930,
+      ".mjs": 1534,
+      ".js": 931,
       ".sql": 782,
-      ".json": 669,
+      ".json": 670,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3436,
+      "http-generic-api": 3439,
       "docs": 1761,
       "specs": 838,
       ".github": 246,
-      ".changes": 221,
+      ".changes": 222,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -205,7 +205,7 @@
     "workflows": 152,
     "migrations": 767,
     "apiContracts": 147,
-    "testSpecFiles": 2083
+    "testSpecFiles": 2084
   },
   "largestFiles": [
     {
@@ -217,8 +217,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3158811,
-      "lines": 97001
+      "bytes": 3161187,
+      "lines": 97073
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 328113,
-      "lines": 8552
+      "bytes": 329163,
+      "lines": 8576
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
