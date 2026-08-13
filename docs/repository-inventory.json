@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6814,
-    "bytes": 61929654,
-    "lines": 1453734,
+    "bytes": 61930873,
+    "lines": 1453763,
     "directories": 255,
     "categories": 13
   },
@@ -77511,7 +77511,7 @@
       "extension": ".md",
       "bytes": 1275,
       "lines": 18,
-      "sha256": "046749db4a4f68921a8b25f4d6df97d84247e7f491d8bf4f5f29aba519f0425f",
+      "sha256": "09120fd6206fafb6d342bb5980fd5112ea891ad25f7cbefa992e04430e7a5474",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77520,9 +77520,9 @@
       "path": "specs/013-system-tool-catalog-v2/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 935,
-      "lines": 45,
-      "sha256": "9b2fee307d5b02cc7eca773e9cfb3af67cc76b3a0c9ab7fffb170cd62d79663b",
+      "bytes": 2154,
+      "lines": 74,
+      "sha256": "8af9d4861baac4a1769174ee4bac31a95365d014de7aa83f80284fa91174ffa8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77610,7 +77610,7 @@
       "extension": ".md",
       "bytes": 1029,
       "lines": 24,
-      "sha256": "e5804308d3367fb4445aa09ce71c1f41abb299b089e215c345752251985aa446",
+      "sha256": "10f2a4fe027de62a9a4b8fb894ad47ae1d2647084d78c2836ec1401119c01872",
       "mode": "644",
       "executable": false,
       "generated": false
