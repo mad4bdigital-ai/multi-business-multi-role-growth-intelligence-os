@@ -202,6 +202,11 @@ jobs:
                   if [[ "$conclusion" == "success" ]]; then
                     return 0
                   fi
+                  if [[ "$conclusion" == "action_required" ]]; then
+                    echo "::warning::$label run $run_id is waiting for required approval; keeping governed review surfaces open"
+                    sleep "$RUN_POLL_INTERVAL_SECONDS"
+                    continue
+                  fi
                   echo "::warning::$label run $run_id completed with conclusion $conclusion"
                   return 1
                 fi
@@ -239,6 +244,12 @@ jobs:
             PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
             require_sha MAIN_SHA "$MAIN_SHA"
             require_sha PRODUCTION_SHA "$PRODUCTION_SHA"
+            if [[ "$MAIN_SHA" != "$EXPECTED_HEAD_SHA" ]]; then
+              echo "::error::source-pinned main moved during convergence: expected=$EXPECTED_HEAD_SHA actual=$MAIN_SHA"
+              echo "::error::refresh the request PR pin and dispatch a new governed convergence; refusing to build against an unapproved main"
+              echo "::endgroup::"
+              break
+            fi
 
             MAIN_SHORT="${MAIN_SHA:0:12}"
             PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
