@@ -3,9 +3,9 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6748,
-    "bytes": 59458358,
-    "lines": 1385962,
+    "files": 6749,
+    "bytes": 59459402,
+    "lines": 1385983,
     "directories": 255,
     "categories": 13
   },
@@ -13,7 +13,7 @@
     "byCategory": {
       "tests-and-specs": 2031,
       "documentation": 1856,
-      "api-runtime": 1342,
+      "api-runtime": 1343,
       "database-migrations": 774,
       "root-and-other": 230,
       "ci-workflows": 152,
@@ -30,7 +30,7 @@
       ".mjs": 1546,
       ".js": 943,
       ".sql": 789,
-      ".json": 674,
+      ".json": 675,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3470,
+      "http-generic-api": 3471,
       "docs": 1762,
       "specs": 838,
       ".github": 246,
@@ -32051,6 +32051,17 @@
       "bytes": 1156,
       "lines": 34,
       "sha256": "6d89e40cda606c0e7d747db437ffd17de753a41683b5fce592a63bd46641dbeb",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/activation-surfaces/canonical_resource_registry.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 1044,
+      "lines": 21,
+      "sha256": "cfd6ed101b6415929eb1dea1735402251d3f248edaefa859e610406f07976b00",
       "mode": "644",
       "executable": false,
       "generated": false
