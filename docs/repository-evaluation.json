@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "fe9d35eb247cb9b61524c805d43b2fac8ac4afa9ddb5c43bc3997689c06963e3",
+  "inputFingerprint": "19597728e1ab6c537512af7b10f72af2b282720733b68190e2c20dc4db5a0e3a",
   "inventory": {
     "files": 6822,
-    "bytes": 61989445,
+    "bytes": 61990926,
     "directories": 255,
     "categories": 13
   },
@@ -186,7 +186,7 @@
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1929181
+            "bytes": 1930662
           }
         ]
       },

@@ -244,6 +244,6 @@ const tasks = await readFile(new URL("../specs/011-durable-governed-execution-an
 for (const task of ["T142", "T143", "T144", "T145", "T146", "T147", "T148", "T149"]) {
   assert.match(tasks, new RegExp(`- \\[x\\] ${task} `));
 }
-assert.match(tasks, /- \[ \] T141 /);
+assert.match(tasks, /- \[x\] T141 /);
 
 console.log("delegation execution policy runtime tests passed");

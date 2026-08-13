@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6822,
-    "bytes": 61989445,
-    "lines": 1454595,
+    "bytes": 61990926,
+    "lines": 1454637,
     "directories": 255,
     "categories": 13
   },
@@ -230,8 +230,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1929181,
-      "lines": 58335
+      "bytes": 1930662,
+      "lines": 58377
     },
     {
       "path": "http-generic-api/openapi.yaml",

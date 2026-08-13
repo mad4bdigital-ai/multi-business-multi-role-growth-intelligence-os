@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,822 |
-| Total bytes | 61,989,445 |
-| Counted text lines | 1,454,595 |
+| Total bytes | 61,990,926 |
+| Counted text lines | 1,454,637 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -88,7 +88,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,121,096 | 95769 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,929,181 | 58335 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,930,662 | 58377 |
 | `http-generic-api/openapi.yaml` | api-contracts | 984,031 | 22830 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
