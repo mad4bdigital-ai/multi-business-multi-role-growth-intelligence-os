@@ -1,1 +1,6 @@
-{"schema_version":1,"track":"C"}
+{
+  "schema_version": 1,
+  "track": "C",
+  "branch": "agent/track-c-surfaces-mcp-gpt-frontend",
+  "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19"
+}
