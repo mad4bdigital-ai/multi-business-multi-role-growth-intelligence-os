@@ -1,0 +1,82 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "019-governed-database-lifecycle-pressure-relief",
+  "title": "Governed database lifecycle and pressure relief contracts",
+  "delivery_mode": "multi_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "specs/019-governed-database-lifecycle-pressure-relief/**",
+      "http-generic-api/test-spec019-database-lifecycle-contract.mjs",
+      "docs/issue-execution/spec019-lifecycle-gap-assessment-20260813.txt"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Publish a complete, secret-free, contract-only Spec Kit with deterministic safety boundaries and a multi-PR implementation plan.",
+      "e2e_journeys": [
+        {
+          "id": "validate-spec019-governed-contracts",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec Kit contract maintainer",
+          "entrypoint": "Spec 019 contract guard",
+          "terminal_outcome": "The lifecycle contract is complete, bounded, secret-free, and does not authorize runtime mutation.",
+          "steps": [
+            "Load the Spec 019 documents and JSON schemas.",
+            "Verify the lifecycle stages, domain decisions, authority boundaries, receipts, readback, and error taxonomy.",
+            "Reject arbitrary SQL, wildcard authority, silent retention, and destructive defaults.",
+            "Report deterministic contract validation without contacting Production."
+          ],
+          "assertions": [
+            "The Spec Kit contains specification, plan, tasks, data model, operations, research, threat model, checklists, contracts, E2E, and Work Map artifacts.",
+            "Engine runs remain plan-only when retention policy is missing.",
+            "Logical cleanup and physical reclaim are separate contracts.",
+            "No secrets or production mutation authority are included."
+          ],
+          "tests": [
+            {
+              "id": "spec019-contract-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-spec019-database-lifecycle-contract.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/019-governed-database-lifecycle-pressure-relief/spec.md",
+            "specs/019-governed-database-lifecycle-pressure-relief/contracts/lifecycle-plan.schema.json",
+            "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Implement read-only pressure observation and deterministic lifecycle planning after contract approval."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add exact authority, durable receipts, bounded execution, reconciliation, and preservation-invariant tests."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the response-chunk pilot in non-production with fixed cutoff, readback, and rollback evidence."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Promote only after staging/canary/readback, security, performance, migration, and owner approval gates."
+    }
+  ],
+  "secrets_included": false
+}

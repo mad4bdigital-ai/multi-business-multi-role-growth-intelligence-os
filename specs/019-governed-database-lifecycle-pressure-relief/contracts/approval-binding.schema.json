@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec019/contracts/approval-binding.schema.json",
+  "title": "Plan-Bound Typed Approval",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "approval_id",
+    "plan_id",
+    "plan_fingerprint",
+    "resource_uri",
+    "recipe_key",
+    "approved_by",
+    "approved_at",
+    "expires_at",
+    "risk_class"
+  ],
+  "properties": {
+    "approval_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "resource_uri": {
+      "type": "string",
+      "pattern": "^mysql://[^/]+/[^*]+$"
+    },
+    "recipe_key": {
+      "type": "string",
+      "pattern": "^database\\.[a-z0-9_.-]+$"
+    },
+    "approved_by": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "risk_class": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "destructive",
+        "plan_only"
+      ]
+    }
+  }
+}

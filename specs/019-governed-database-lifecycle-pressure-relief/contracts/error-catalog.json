@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "feature_key": "019-governed-database-lifecycle-pressure-relief",
+  "errors": [
+    {
+      "code": "DATABASE_LIFECYCLE_POLICY_MISSING",
+      "class": "policy",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_RESOURCE_NOT_REGISTERED",
+      "class": "authority",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_RESOURCE_AUTHORITY_REQUIRED",
+      "class": "authority",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_RECIPE_NOT_EXECUTABLE",
+      "class": "policy",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_PLAN_FINGERPRINT_MISMATCH",
+      "class": "integrity",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_PLAN_STALE",
+      "class": "integrity",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_CUTOFF_MISMATCH",
+      "class": "integrity",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_BATCH_LIMIT_EXCEEDED",
+      "class": "safety",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_PRESERVATION_INVARIANT_FAILED",
+      "class": "safety",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_READBACK_MISMATCH",
+      "class": "reconciliation",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_PHYSICAL_RECLAIM_UNSAFE",
+      "class": "safety",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_INSUFFICIENT_RECLAIM_HEADROOM",
+      "class": "capacity",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_CONCURRENT_WRITER_DETECTED",
+      "class": "concurrency",
+      "retryable": false
+    },
+    {
+      "code": "DATABASE_MUTATION_RECEIPT_REQUIRED",
+      "class": "durability",
+      "retryable": false
+    }
+  ],
+  "secrets_included": false
+}

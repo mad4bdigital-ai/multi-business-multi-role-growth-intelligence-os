@@ -1,0 +1,103 @@
+{
+  "schema_version": 1,
+  "feature_key": "019-governed-database-lifecycle-pressure-relief",
+  "title": "Governed Database Lifecycle and Pressure Relief",
+  "status": "specification_only",
+  "delivery_mode": "multi_pr",
+  "requirements": {
+    "migration": true,
+    "production_verification": true,
+    "post_merge_audit": true,
+    "protected_user_path_smoke": false,
+    "rollback_verification": true
+  },
+  "delivery": {
+    "specification_pr": {
+      "number": null,
+      "branch": "gpt/019-governed-database-lifecycle-pressure-relief-20260813",
+      "role": "specification_and_contracts",
+      "status": "current_pr"
+    },
+    "implementation_prs": [
+      {
+        "number": null,
+        "branch": null,
+        "role": "read_only_pressure_intelligence",
+        "status": "planned"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "authority_and_durable_mutation_readiness",
+        "status": "planned"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "response_chunk_ttl_pilot",
+        "status": "planned"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "repo_audit_supersession_adapter",
+        "status": "planned"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "jobrunner_and_policy_bound_autopilot",
+        "status": "planned"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "engine_run_archive_thin",
+        "status": "separate_project"
+      },
+      {
+        "number": null,
+        "branch": null,
+        "role": "physical_reclaim",
+        "status": "separate_high_risk_project"
+      }
+    ],
+    "closeout_pr": {
+      "number": null,
+      "branch": null,
+      "role": "completion",
+      "status": "pending"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "status": "contracts_only_no_runtime_mutation",
+      "read_only_current_main_lifecycle_foundation": true,
+      "arbitrary_sql_surface": false,
+      "production_mutation": false,
+      "migration_applied": false,
+      "production_deployed": false,
+      "secrets_included": false
+    },
+    "ci": {
+      "status": "pending",
+      "head_sha": null
+    },
+    "release_readiness": {
+      "status": "pending"
+    },
+    "migration": {
+      "status": "not_created_in_pr_a",
+      "paths": [
+        "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql"
+      ]
+    },
+    "production_verification": {
+      "status": "not_run"
+    },
+    "post_merge_audit": {
+      "status": "pending"
+    }
+  },
+  "secrets_included": false
+}

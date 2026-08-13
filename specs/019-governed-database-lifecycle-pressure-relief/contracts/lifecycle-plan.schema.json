@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec019/contracts/lifecycle-plan.schema.json",
+  "title": "Governed Database Lifecycle Plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_id",
+    "resource_uri",
+    "resource_version",
+    "recipe_key",
+    "policy_version",
+    "cutoff_at",
+    "candidate_rows",
+    "estimated_payload_bytes",
+    "estimated_reclaimable_bytes",
+    "risk_class",
+    "batch_size",
+    "max_batches",
+    "preservation_rules",
+    "authority_requirement",
+    "requires_typed_confirmation",
+    "requires_same_cycle_readback",
+    "plan_fingerprint"
+  ],
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resource_uri": {
+      "type": "string",
+      "pattern": "^mysql://[^/]+/[^*]+$"
+    },
+    "resource_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "recipe_key": {
+      "type": "string",
+      "pattern": "^database\\.[a-z0-9_.-]+$"
+    },
+    "policy_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cutoff_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "candidate_rows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "estimated_payload_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "estimated_reclaimable_bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "risk_class": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "destructive",
+        "plan_only"
+      ]
+    },
+    "batch_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5000
+    },
+    "max_batches": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000
+    },
+    "preservation_rules": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "authority_requirement": {
+      "const": "exact_resource_and_recipe"
+    },
+    "requires_typed_confirmation": {
+      "const": true
+    },
+    "requires_same_cycle_readback": {
+      "const": true
+    },
+    "plan_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    }
+  }
+}
