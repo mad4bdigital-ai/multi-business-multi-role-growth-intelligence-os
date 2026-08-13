@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "feature_key": "collation-governance-runtime-persistence-wiring",
+  "title": "Engine-aware collation governance and dedicated runtime persistence wiring",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/**",
+      "canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md",
+      ".changes/e2e/collation-governance-runtime-persistence-wiring.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Block unsupported or conflicting database collations before migration apply and route governed response chunk persistence through an independently configured runtime persistence pool.",
+      "e2e_journeys": [
+        {
+          "id": "governance-preflight-to-dedicated-chunk-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_runtime_operator",
+          "entrypoint": "Governed migration preflight and governed tool response chunk persistence",
+          "terminal_outcome": "Supported collation DDL passes policy, unsupported or implicit DDL is blocked, and chunk persistence fails closed without dedicated runtime persistence configuration.",
+          "steps": [
+            "Detect the active database engine through the governed pool.",
+            "Evaluate migration DDL against the engine-aware charset and collation policy.",
+            "Reject unknown engines, implicit defaults, or mixed join-key collations before apply.",
+            "Resolve the dedicated runtime persistence pool for governed response chunks.",
+            "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
+          ],
+          "assertions": [
+            "Unknown or undetected database engines never reach migration apply.",
+            "MariaDB/MySQL new-table DDL requires explicit utf8mb4 and policy-approved collation.",
+            "Runtime persistence uses RUNTIME_PERSISTENCE_DB_* identity rather than DB_USER fallback.",
+            "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation."
+          ],
+          "tests": [
+            {
+              "id": "database-collation-policy-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-database-collation-policy.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-persistence-wiring-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "runtime-persistence-privilege-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-write-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "governed-chunk-store-dedicated-authority",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-tool-response-chunk-store.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/database-engine-collation-policy.json",
+            "http-generic-api/databaseCollationPolicyGuard.js",
+            "http-generic-api/scripts/governed-migration-runner.mjs",
+            "http-generic-api/db.js",
+            "http-generic-api/runtimePersistenceWriteAuthority.js",
+            "http-generic-api/governedToolResponseChunkStore.js",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/server.js",
+            "http-generic-api/test-database-collation-policy.mjs",
+            "http-generic-api/test-runtime-persistence-wiring.mjs",
+            "http-generic-api/test-runtime-persistence-write-authority.mjs",
+            "http-generic-api/test-governed-tool-response-chunk-store.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Provision and read back separate Hostinger runtime persistence identity and grants after explicit infrastructure approval."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add runtime persistence outage recovery and collation drift reconciliation evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Exercise one non-production tenant with the dedicated runtime persistence identity and governed collation readback."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify production grants and schema readback only after approved Hostinger provisioning and redeployment."
+    }
+  ]
+}

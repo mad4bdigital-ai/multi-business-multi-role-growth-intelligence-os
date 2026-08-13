@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,672 |
-| Total bytes | 58,736,403 |
-| Counted text lines | 1,370,975 |
+| Tracked files | 6,677 |
+| Total bytes | 58,757,810 |
+| Counted text lines | 1,371,459 |
 | Directories | 251 |
 | Categories | 13 |
 
@@ -17,11 +17,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 1,988 |
+| `tests-and-specs` | 1,990 |
 | `documentation` | 1,854 |
-| `api-runtime` | 1,324 |
+| `api-runtime` | 1,326 |
 | `database-migrations` | 767 |
-| `root-and-other` | 224 |
+| `root-and-other` | 225 |
 | `ci-workflows` | 152 |
 | `api-contracts` | 147 |
 | `ci-config` | 94 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,439 |
-| `.mjs` | 1,529 |
-| `.js` | 929 |
+| `.mjs` | 1,531 |
+| `.js` | 930 |
 | `.sql` | 782 |
-| `.json` | 657 |
+| `.json` | 659 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -72,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 152 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,051 |
+| Test/spec files (paths) | 2,053 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -94,7 +94,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 203,883 | 4369 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 204,096 | 4372 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
@@ -108,7 +108,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
 | `deployment_parity_checklist.md` | documentation | 109,207 | 571 |
-| `http-generic-api/server.js` | api-runtime | 107,153 | 3307 |
+| `http-generic-api/server.js` | api-runtime | 107,240 | 3308 |
 | `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 105,919 | 3292 |
 | `http-generic-api/routes/systemLayerRoutes.js` | api-runtime | 103,931 | 2644 |
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |

@@ -397,7 +397,7 @@ await assert.rejects(
     && err?.details?.cause_code === "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
 );
 
-const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
+const dbEnvKeys = ["RUNTIME_PERSISTENCE_DB_HOST", "RUNTIME_PERSISTENCE_DB_NAME", "RUNTIME_PERSISTENCE_DB_USER", "RUNTIME_PERSISTENCE_DB_PASSWORD"];
 const previousDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
 for (const key of dbEnvKeys) delete process.env[key];
 try {
@@ -410,7 +410,7 @@ try {
     }, { now }),
     (err) => err?.code === "response_chunk_persistence_unavailable"
       && err?.status === 503
-      && err?.details?.cause_code === "DB_CONFIG_MISSING"
+      && err?.details?.cause_code === "RUNTIME_PERSISTENCE_DB_CONFIG_MISSING"
       && err?.details?.secrets_included === false,
   );
 } finally {
