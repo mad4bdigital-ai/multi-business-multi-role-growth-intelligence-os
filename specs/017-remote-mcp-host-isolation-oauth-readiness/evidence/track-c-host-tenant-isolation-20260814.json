@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "track": "C",
+  "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "wrong_host": {
+    "route": "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+    "test": "http-generic-api/test-remote-mcp-host-isolation.mjs",
+    "canonical_host_positive_case": true,
+    "denied_host_classes": ["auth_host", "activation_host", "unknown_host", "multi_value_host"],
+    "denial_status": 404,
+    "denial_code": "MCP_RESOURCE_NOT_FOUND",
+    "database_work_before_denial": false,
+    "secrets_included": false
+  },
+  "metadata_scope_isolation": {
+    "test": "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+    "unknown_host_denied": true,
+    "remote_mcp_and_tenant_scope_sets_are_distinct": true
+  },
+  "tenant_projection_isolation": {
+    "source": "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+    "test": "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs",
+    "standalone_node22_status": "pass",
+    "authoritative_tenant_identity_only": true,
+    "caller_identity_widening_denied": true,
+    "cross_tenant_raw_readback_suppressed": true,
+    "secret_projection_suppressed": true,
+    "alternate_authority_created": false,
+    "alternate_connection_selector_created": false
+  },
+  "repository_validation": {
+    "full_host_test_executed_in_connector_session": false,
+    "reason": "The connector session has no complete executable repository checkout."
+  }
+}
