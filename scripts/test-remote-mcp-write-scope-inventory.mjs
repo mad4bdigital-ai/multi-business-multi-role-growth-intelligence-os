@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { getRemoteMcpCatalogFingerprint } from "../http-generic-api/remoteMcpScopeCatalog.js";
+
+const root = new URL("..", import.meta.url).pathname.replace(/\/$/, "");
+const inventory = JSON.parse(readFileSync(`${root}/http-generic-api/remote-mcp-write-scope-inventory.generated.json`, "utf8"));
+const catalog = JSON.parse(readFileSync(`${root}/http-generic-api/remote-mcp-scope-catalog.generated.json`, "utf8"));
+
+assert.equal(inventory.schema_version, 1);
+assert.equal(inventory.generated_from, "git-index-and-runtime-catalog");
+assert.equal(inventory.catalog_fingerprint, getRemoteMcpCatalogFingerprint(catalog));
+assert.equal(inventory.db_catalog_fingerprint_match, true, "DB catalog fingerprint must match runtime catalog");
+assert(inventory.db_catalog_fingerprints.includes(inventory.catalog_fingerprint));
+assert(inventory.file_count > 0);
+assert(inventory.route_count > 0);
+assert(inventory.write_route_count > 0);
+assert(inventory.migration_count > 0);
+assert(inventory.registry_evidence_count > 0);
+assert.equal(inventory.write_scope_count, 6);
+assert.equal(inventory.bound_write_scope_count, 0);
+assert.equal(inventory.readiness.inventory_ready, false, "unbound shadow write scopes must remain blocked");
+assert.equal(inventory.readiness.write_activation_allowed, false);
+assert.equal(inventory.readiness.provider_mutation_allowed, false);
+assert.equal(inventory.readiness.production_allowed, false);
+assert.equal(inventory.readiness.migration_apply_allowed, false);
+assert.equal(inventory.readiness.secrets_included, false);
+
+const routePaths = new Set(inventory.route_inventory.map((route) => route.path));
+for (const expectedPath of ["/github", "/cloudflare", "/hostinger"]) {
+  assert(routePaths.has(expectedPath), `expected provider route missing from inventory: ${expectedPath}`);
+}
+assert(inventory.route_inventory.some((route) => route.path.includes("assets")), "asset route surface missing");
+assert(inventory.route_inventory.some((route) => route.path.includes("approval") || route.path.includes("grant-request")), "approval route surface missing");
+assert(inventory.registry_evidence.some((entry) => entry.registries.includes("platform_resource_authority_bindings")));
+for (const scope of inventory.write_scopes) {
+  assert.equal(scope.default_request, false, `${scope.scope_key} must not be a default request`);
+  assert.equal(scope.status, "shadow", `${scope.scope_key} must remain shadow`);
+  assert.equal(scope.tool_bound, false, `${scope.scope_key} must not be exposed before binding`);
+}
+
+console.log(`remote MCP write-scope inventory self-test passed: ${inventory.write_scope_count} shadow scopes, ${inventory.write_route_count} write routes observed`);

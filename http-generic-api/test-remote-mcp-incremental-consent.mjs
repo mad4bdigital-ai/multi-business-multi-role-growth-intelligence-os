@@ -10,6 +10,10 @@ import {
 import {
   buildRemoteMcpScopeCatalogReadiness,
 } from "./remoteMcpScopeCatalogReadiness.js";
+import {
+  buildRemoteMcpWriteScopeReadback,
+  evaluateRemoteMcpWriteScopeDecision,
+} from "./remoteMcpWriteScopeGovernance.js";
 
 assert.deepEqual(REMOTE_MCP_SCOPES, ["identity.read", "workspaces.read", "brands.read", "permissions.read"]);
 assert(REMOTE_MCP_SUPPORTED_SCOPES.includes("sessions.read"));
@@ -68,6 +72,34 @@ assert.equal(catalogReadiness.catalog_ready, true);
 assert.equal(catalogReadiness.fingerprint_match, true);
 assert.equal(catalogReadiness.drift_detected, false);
 assert.equal(catalogReadiness.default_write_scope_count, 0);
+assert.equal(catalogReadiness.write_governance.write_scope_count, 6);
+assert.equal(catalogReadiness.write_governance.mode, "shadow");
+assert.equal(catalogReadiness.write_governance.activation_ready, false);
+assert.equal(catalogReadiness.write_governance.inventory_ready, false);
+
+const writeReadback = buildRemoteMcpWriteScopeReadback({
+  env: {
+    REMOTE_MCP_ENVIRONMENT: "staging",
+    REMOTE_MCP_WRITE_SCOPES_ENABLED: "true",
+    REMOTE_MCP_WRITE_APPROVALS_READY: "true",
+    REMOTE_MCP_WRITE_CAPABILITY_ENVELOPE_READY: "true",
+    REMOTE_MCP_WRITE_LEASE_READY: "true",
+  },
+});
+assert.equal(writeReadback.activation_ready, false, "inventory must gate activation");
+const deniedWrite = evaluateRemoteMcpWriteScopeDecision({
+  scopeKey: "github.write",
+  tokenScopes: ["github.write"],
+  resourceAuthority: true,
+  operationEligible: true,
+  approvalSatisfied: true,
+  capabilitySatisfied: true,
+  leaseActive: true,
+  environment: "staging",
+});
+assert.equal(deniedWrite.ok, false);
+assert.equal(deniedWrite.code, "MCP_WRITE_AUTHORIZATION_DENIED");
+assert.equal(deniedWrite.provider_mutation_allowed, false);
 
 const driftedReadiness = buildRemoteMcpScopeCatalogReadiness({
   env: {

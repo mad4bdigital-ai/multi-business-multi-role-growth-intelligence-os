@@ -8,6 +8,7 @@ import {
   remoteMcpDynamicClientRegistrationEnabled,
   resolveRemoteMcpAllowedRedirectOrigins,
 } from "./remoteMcpOAuthProfile.js";
+import { buildRemoteMcpWriteScopeReadback } from "./remoteMcpWriteScopeGovernance.js";
 
 export function buildRemoteMcpScopeCatalogReadiness({ env = process.env, catalog = getRemoteMcpScopeCatalog() } = {}) {
   const catalogReadback = getRemoteMcpCatalogReadback(catalog);
@@ -17,6 +18,7 @@ export function buildRemoteMcpScopeCatalogReadiness({ env = process.env, catalog
   const scopes = Array.isArray(catalog.scopes) ? catalog.scopes : [];
   const writeScopes = scopes.filter((scope) => scope.effect_class !== "read_only");
   const redirectOrigins = [...resolveRemoteMcpAllowedRedirectOrigins(env)];
+  const writeGovernance = buildRemoteMcpWriteScopeReadback({ env, catalog });
   const dcrEnabled = remoteMcpDynamicClientRegistrationEnabled(env);
   const redirectPolicyReady = redirectOrigins.length > 0 || envFlag(env.REMOTE_MCP_OAUTH_ALLOW_LOOPBACK);
   return {
@@ -31,6 +33,7 @@ export function buildRemoteMcpScopeCatalogReadiness({ env = process.env, catalog
     write_scope_count: writeScopes.length,
     default_write_scope_count: writeScopes.filter((scope) => scope.default_request === true).length,
     catalog_ready: catalogReadback.catalog_ready && (!fingerprintRequired || fingerprintMatch),
+    write_governance: writeGovernance,
     dcr: {
       enabled: dcrEnabled,
       redirect_policy_ready: redirectPolicyReady,

@@ -77,7 +77,12 @@ VALUES
   ('sessions.read','Read sessions','Read bounded session projections.','read_only','low',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
   ('executions.read','Read executions','Read authorized execution evidence.','read_only','medium',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
   ('approvals.read','Read approvals','Read approval holds.','read_only','low',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
-  ('approvals.request','Request approvals','Request an approval hold without deciding it.','internal_write','medium',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('approvals.request','Request approvals','Request an approval hold without deciding it.','internal_write','medium',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('assets.create','Create assets','Create an authorized workspace asset after approval and readback.','internal_write','high',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('assets.update','Update assets','Update an authorized workspace asset after approval and readback.','internal_write','high',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('github.write','Write GitHub','Perform a governed GitHub mutation in staging only after approval and readback.','external_write','high',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('cloudflare.write','Write Cloudflare','Perform a governed Cloudflare mutation in staging only after approval and readback.','external_write','high',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
+  ('hostinger.deploy','Deploy Hostinger','Perform a governed Hostinger staging deployment after approval and readback.','external_write','critical',0,1,'shadow','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
   ('connections.read','Read connections','Read connection metadata without secrets.','read_only','medium',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
   ('github.read','Read GitHub','Read governed GitHub metadata.','read_only','medium',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
   ('cloudflare.read','Read Cloudflare','Read governed Cloudflare metadata.','read_only','medium',0,1,'active','acbfb1351fdf2fb4932d85fc1a034917d06c574c'),
@@ -90,7 +95,13 @@ INSERT INTO platform_resource_scope_bindings
   (resource_key, operation_key, scope_key, tenant_allowed, admin_allowed, approval_required, capability_class, environment_class, effect_class, status, source_revision)
 VALUES
   ('workspaces','list','workspaces.read',1,1,0,'read_only','all','read_only','active','remote-mcp-scope-catalog-v1'),
-  ('brands','list','brands.read',1,1,0,'read_only','all','read_only','active','remote-mcp-scope-catalog-v1')
+  ('brands','list','brands.read',1,1,0,'read_only','all','read_only','active','remote-mcp-scope-catalog-v1'),
+  ('approvals','request','approvals.request',1,1,1,'approval_request','staging','internal_write','shadow','remote-mcp-scope-catalog-v1'),
+  ('assets','create','assets.create',1,1,1,'asset_write','staging','internal_write','shadow','remote-mcp-scope-catalog-v1'),
+  ('assets','update','assets.update',1,1,1,'asset_write','staging','internal_write','shadow','remote-mcp-scope-catalog-v1'),
+  ('github','write','github.write',0,1,1,'github_write','staging','external_write','shadow','remote-mcp-scope-catalog-v1'),
+  ('cloudflare','write','cloudflare.write',0,1,1,'cloudflare_write','staging','external_write','shadow','remote-mcp-scope-catalog-v1'),
+  ('hostinger','deploy','hostinger.deploy',0,1,1,'hostinger_deploy','staging','external_write','shadow','remote-mcp-scope-catalog-v1')
 ON DUPLICATE KEY UPDATE
   scope_key=VALUES(scope_key), tenant_allowed=VALUES(tenant_allowed), admin_allowed=VALUES(admin_allowed), approval_required=VALUES(approval_required),
   capability_class=VALUES(capability_class), environment_class=VALUES(environment_class), effect_class=VALUES(effect_class), status=VALUES(status), source_revision=VALUES(source_revision);
@@ -114,7 +125,7 @@ INSERT INTO platform_scope_catalog_revisions
 VALUES
   ('remote-mcp-scope-catalog-v1',
    'acbfb1351fdf2fb4932d85fc1a034917d06c574c',
-   '7696f62ab97a36bdc8c33c8e2e5f25212a2de0222a5a0351501460d1de5eebaf',
+   '7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2',
    CURRENT_TIMESTAMP,
    'remote-mcp-scope-catalog-v1',
    'active',

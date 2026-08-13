@@ -5,7 +5,8 @@ const GENERATED_CATALOG = JSON.parse(
   readFileSync(new URL("./remote-mcp-scope-catalog.generated.json", import.meta.url), "utf8"),
 );
 
-const FORBIDDEN_SCOPES = new Set(["admin", "full_access", "write", "tools.execute"]);
+const FORBIDDEN_SCOPES = new Set(["admin", "full_access", "tools.execute"]);
+const FORBIDDEN_BARE_SCOPES = new Set(["write"]);
 const SCOPE_PATTERN = /^[a-z][a-z0-9]*(\.[a-z0-9]+)+$/u;
 
 function clone(value) {
@@ -26,7 +27,7 @@ function fingerprint(value) {
 
 function validateScopeKey(scopeKey) {
   const normalized = String(scopeKey || "").trim();
-  if (!SCOPE_PATTERN.test(normalized) || FORBIDDEN_SCOPES.has(normalized)) return false;
+  if (!SCOPE_PATTERN.test(normalized) || FORBIDDEN_SCOPES.has(normalized) || FORBIDDEN_BARE_SCOPES.has(normalized)) return false;
   return !normalized.split(".").some((segment) => FORBIDDEN_SCOPES.has(segment));
 }
 
