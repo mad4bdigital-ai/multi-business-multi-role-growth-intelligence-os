@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6708,
-    "bytes": 58880258,
+    "bytes": 58880251,
     "lines": 1374470,
     "directories": 255,
     "categories": 13
@@ -78758,9 +78758,9 @@
       "path": "specs/019-governed-database-lifecycle-pressure-relief/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 2617,
+      "bytes": 2610,
       "lines": 104,
-      "sha256": "9ca57d57a1e01fcb081f97ab6a9129344e8235a08ae2c214f14fa92e0a881a28",
+      "sha256": "681e7480af5c5a53f8c47fc8bb0c3a5e2309f1a23ba8fe95c5ee9c94718628a7",
       "mode": "644",
       "executable": false,
       "generated": false
