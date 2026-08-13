@@ -3563,6 +3563,30 @@ paths:
         configuration_dependencies:
           - BACKEND_API_KEY
           - JWT_SECRET
+  /platform/engines/database-lifecycle/pressure-intelligence:
+    get:
+      operationId: getPlatformEnginesDatabaseLifecyclePressureIntelligence2152a1d5
+      summary: GET /platform/engines/database-lifecycle/pressure-intelligence (runtime operation index)
+      description: Machine-generated operation presence and authentication index. Request and response schemas require a reviewed canonical contract before frontend dispatch.
+      tags:
+        - runtime-route-index
+      security:
+        - adminBearerAuth: []
+        - backendApiKeyAuth: []
+      responses:
+        default:
+          description: Runtime response shape is not yet captured by a reviewed canonical schema.
+      x-contract-completeness: operation-index-only
+      x-source-file: routes/platformEngineRoutes.js
+      x-mad4b-runtime-auth:
+        profile: admin_backend
+        principal: admin
+        guard_chain:
+          - requireAdmin
+          - requireAdminPrincipal
+          - requireBackendApiKey
+        configuration_dependencies:
+          - BACKEND_API_KEY
   /platform/engines/validator-results:
     get:
       operationId: getPlatformEnginesValidatorResults23f43b0f
