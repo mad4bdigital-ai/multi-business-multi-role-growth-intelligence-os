@@ -229,6 +229,7 @@ function makeOwnershipPool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -258,6 +259,7 @@ function makeOwnershipPool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -279,6 +281,7 @@ function makeOwnershipPool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -305,6 +308,7 @@ function makeOwnershipPool({
   const pool = makeOwnershipPool({ workspaceOwnershipType: "company", connectionRows: rows });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",

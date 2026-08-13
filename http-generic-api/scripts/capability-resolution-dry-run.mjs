@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { getPool } from "../db.js";
+import { closeGovernancePool } from "../governanceDb.js";
+import { resolvePlatformResourceAuthorityPool } from "../platformResourceAuthorityStore.js";
 
 const POLICY_KEY = "dynamic_capability_resolution_policy_v1";
 const SOURCE_TIER_POLICY_KEY = "dynamic_capability_source_tiers_v1";
@@ -679,8 +681,12 @@ export function authorityStatus({
   };
 }
 
-export async function runCapabilityResolutionDryRun(args = parseArgs()) {
+export async function runCapabilityResolutionDryRun(args = parseArgs(), deps = {}) {
   const pool = getPool();
+  const authorityPool = resolvePlatformResourceAuthorityPool({
+    governancePool: deps.governancePool,
+    authorityStorePool: deps.authorityStorePool,
+  });
   const policyConfig = await loadRuntimeConfig(pool, POLICY_KEY);
   const sourceTierConfig = await loadRuntimeConfig(pool, SOURCE_TIER_POLICY_KEY);
   const policy = policyConfig?.json || {};
@@ -698,7 +704,7 @@ export async function runCapabilityResolutionDryRun(args = parseArgs()) {
   const workspaceGrantPrincipalId = principal.principal_id;
   const userPrincipalId = principal.principal_type === "user" ? principal.principal_id : "";
   const grants = await loadWorkspaceGrants(pool, { tenantId, userId: workspaceGrantPrincipalId, workspaceId, workspaceKey: workspace?.workspace_key || args.workspaceKey, brandKey, appKey: args.appKey });
-  const platformResourceAuthorityBindings = await loadPlatformResourceAuthorityBindings(pool, {
+  const platformResourceAuthorityBindings = await loadPlatformResourceAuthorityBindings(authorityPool, {
     tenantId,
     workspaceId,
     principal,
@@ -856,10 +862,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     .then(async (result) => {
       process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
       await getPool().end().catch(() => {});
+      await closeGovernancePool().catch(() => {});
     })
     .catch(async (err) => {
       process.stdout.write(`${JSON.stringify({ ok: false, error: { code: err.code || "capability_resolution_failed", message: err.message, details: err.details || undefined }, secrets_included: false }, null, 2)}\n`);
       await getPool().end().catch(() => {});
+      await closeGovernancePool().catch(() => {});
       process.exitCode = 1;
     });
 }

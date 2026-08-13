@@ -336,6 +336,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -371,6 +372,7 @@ function makePool({
   const pool = makePool({ membershipRole: "owner" });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",

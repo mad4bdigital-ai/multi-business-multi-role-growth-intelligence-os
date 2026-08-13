@@ -162,7 +162,10 @@ const repositoryWriterPool = {
       repositoryBindingId = params[0];
       return [{ affectedRows: 1 }];
     }
-    if (/FROM platform_resource_authority_bindings/.test(sql)) {
+    if (/FROM platform_resource_authority_bindings/.test(sql) && /WHERE status='active'/.test(sql)) {
+      return [[]];
+    }
+    if (/FROM platform_resource_authority_bindings/.test(sql) && /WHERE binding_id/.test(sql)) {
       return [[{
         binding_id: repositoryBindingId,
         tenant_id: repositoryTenantId,
@@ -199,8 +202,8 @@ const repositoryBinding = await createRepositoryMutationAuthorityBindingV6({
   writerPool: repositoryWriterPool,
 });
 assert.equal(repositoryBinding.created, true);
-assert.equal(repositoryWriterCalls, 2, "repository binding insert and exact readback must share the Governance writer");
-assert.equal(repositoryReadQueries.length, 2, "runtime reader should only validate recipe and existing binding state");
+assert.equal(repositoryWriterCalls, 3, "repository duplicate lookup, insert, and exact readback must share the Governance writer");
+assert.equal(repositoryReadQueries.length, 1, "runtime reader must not read platform_resource_authority_bindings; only recipe/provider validation remains");
 assert.equal(repositoryBinding.binding.tenant_id, repositoryTenantId);
 assert.equal(repositoryBinding.binding.resource_uri, "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os");
 assert.equal(repositoryBinding.binding.recipe_key, "repo.pr.comment_advisory");
@@ -210,6 +213,9 @@ const repositoryMismatchWriter = {
     if (/INSERT INTO platform_resource_authority_bindings/.test(sql)) {
       repositoryBindingId = params[0];
       return [{ affectedRows: 1 }];
+    }
+    if (/FROM platform_resource_authority_bindings/.test(sql) && /WHERE status='active'/.test(sql)) {
+      return [[]];
     }
     return [[{
       binding_id: repositoryBindingId,

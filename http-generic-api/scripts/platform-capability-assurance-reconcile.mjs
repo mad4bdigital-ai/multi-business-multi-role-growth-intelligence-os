@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { getPool } from "../db.js";
+import { resolvePlatformResourceAuthorityPool } from "../platformResourceAuthorityStore.js";
 import { reconcileVirtualToolCapabilities } from "../platformVirtualToolCapabilityReconciler.js";
 
 function parseArgs(argv = process.argv.slice(2)) {
@@ -118,19 +119,6 @@ const UPSERTS = [
    SELECT envelope_id,CONCAT('envelope:',envelope_id,':decision'),'decision_evidence','active'
      FROM capability_resolution_envelope_ledger
    ON DUPLICATE KEY UPDATE status='active'`,
-  `INSERT INTO platform_evidence_events
-     (evidence_id,evidence_type,subject_type,subject_key,binding_id,source_system,source_ref,evidence_status,
-      reason_code,payload_hash,evidence_json,observed_at,expires_at,revoked_at,secrets_included)
-   SELECT CONCAT('authority-binding:',binding_id,':state'),'resource_binding_state','resource_binding',binding_id,binding_id,
-          'platform_resource_authority_bindings',resource_uri,
-          CASE WHEN status='active' AND (expires_at IS NULL OR expires_at>CURRENT_TIMESTAMP) THEN 'passed'
-               WHEN status='revoked' THEN 'revoked' WHEN status='expired' THEN 'expired' ELSE 'blocked' END,
-          CONCAT('binding_',status),SHA2(CONCAT(binding_id,'|',status,'|',permission_level,'|',COALESCE(expires_at,'')),256),
-          JSON_OBJECT('resource_type',resource_type,'permission_level',permission_level,'status',status,'secrets_included',false),
-          created_at,expires_at,CASE WHEN status='revoked' THEN updated_at ELSE NULL END,0
-     FROM platform_resource_authority_bindings
-   ON DUPLICATE KEY UPDATE evidence_status=VALUES(evidence_status),reason_code=VALUES(reason_code),payload_hash=VALUES(payload_hash),
-     evidence_json=VALUES(evidence_json),expires_at=VALUES(expires_at),revoked_at=VALUES(revoked_at),updated_at=CURRENT_TIMESTAMP`,
   `INSERT INTO platform_capability_certifications
      (certification_id,capability_key,certification_type,environment,subject_type,subject_key,certification_status,
       evidence_id,source_registry,source_key,certified_at,expires_at,metadata_json,secrets_included)
@@ -186,8 +174,54 @@ const UPSERTS = [
                        WHERE g.capability_key=d.capability_key AND g.gap_key=d.gap_key)`
 ];
 
+async function reconcilePlatformAuthorityBindingEvidence(connection, authorityPool) {
+  const [bindings] = await authorityPool.query(
+    `SELECT binding_id, resource_uri, status, permission_level, expires_at, created_at, updated_at
+       FROM platform_resource_authority_bindings`,
+  );
+  for (const binding of bindings || []) {
+    const evidenceId = `authority-binding:${binding.binding_id}:state`;
+    const expiresAt = binding.expires_at || null;
+    const evidenceStatus = binding.status === "active"
+      && (!expiresAt || new Date(expiresAt).getTime() > Date.now())
+      ? "passed"
+      : binding.status === "revoked" ? "revoked" : binding.status === "expired" ? "expired" : "blocked";
+    const payload = JSON.stringify({
+      resource_type: "platform_resource_authority",
+      permission_level: binding.permission_level,
+      status: binding.status,
+      secrets_included: false,
+    });
+    const payloadHashInput = `${binding.binding_id}|${binding.status}|${binding.permission_level}|${expiresAt || ""}`;
+    await connection.query(
+      `INSERT INTO platform_evidence_events
+        (evidence_id,evidence_type,subject_type,subject_key,binding_id,source_system,source_ref,evidence_status,
+         reason_code,payload_hash,evidence_json,observed_at,expires_at,revoked_at,secrets_included)
+       VALUES (?, 'resource_binding_state', 'resource_binding', ?, ?, 'platform_resource_authority_bindings', ?, ?, ?, SHA2(?,256), ?, ?, ?, ?, 0)
+       ON DUPLICATE KEY UPDATE evidence_status=VALUES(evidence_status),reason_code=VALUES(reason_code),payload_hash=VALUES(payload_hash),
+         evidence_json=VALUES(evidence_json),expires_at=VALUES(expires_at),revoked_at=VALUES(revoked_at),updated_at=CURRENT_TIMESTAMP`,
+      [
+        evidenceId,
+        binding.binding_id,
+        binding.binding_id,
+        binding.resource_uri,
+        evidenceStatus,
+        `binding_${binding.status}`,
+        payloadHashInput,
+        payload,
+        binding.created_at || new Date(),
+        expiresAt,
+        binding.status === "revoked" ? binding.updated_at : null,
+      ],
+    );
+  }
+}
+
 export async function reconcilePlatformCapabilityAssurance(args = parseArgs(), deps = {}) {
   const pool = deps.pool || getPool();
+  const authorityPool = resolvePlatformResourceAuthorityPool({
+    authorityStorePool: deps.authorityStorePool,
+  });
   const tables = [
     "platform_plugin_capabilities",
     "platform_capability_source_links",
@@ -216,6 +250,7 @@ export async function reconcilePlatformCapabilityAssurance(args = parseArgs(), d
   try {
     await connection.beginTransaction();
     for (const sql of UPSERTS) await connection.query(sql);
+    await reconcilePlatformAuthorityBindingEvidence(connection, authorityPool);
     await reconcileVirtualToolCapabilities(connection);
     await connection.query(
       `UPDATE capability_resolution_envelope_ledger
