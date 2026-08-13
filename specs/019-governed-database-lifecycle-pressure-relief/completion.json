@@ -2,7 +2,7 @@
   "schema_version": 1,
   "feature_key": "019-governed-database-lifecycle-pressure-relief",
   "title": "Governed Database Lifecycle and Pressure Relief",
-  "status": "specification_only",
+  "status": "in_progress",
   "delivery_mode": "multi_pr",
   "requirements": {
     "migration": true,
