@@ -222,6 +222,30 @@
       "rule_id": "first_candidate_selection",
       "line": 3464,
       "reason": "Fixed body data is parsed from the same unique registry authority row as the path parameters, preserving bounded registry authority."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 13,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 94,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 261,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 348,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
     }
   ]
 }

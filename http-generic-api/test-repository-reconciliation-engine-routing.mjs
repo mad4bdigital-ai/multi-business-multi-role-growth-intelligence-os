@@ -183,6 +183,8 @@ assert.match(migration, /'automatic_activation_allowed',FALSE/);
 assert.match(migration, /`status`='planned'/);
 
 const adminRoutes = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
-assert.match(adminRoutes, /repository_reconciliation_admin_surface_dry_run_only/);
+assert.match(adminRoutes, /runRepositoryReconciliationAdminSurface/);
+assert.match(adminRoutes, /enum: \["dry_run", "apply"\]/);
+assert.doesNotMatch(adminRoutes, /repository_reconciliation_admin_surface_dry_run_only/);
 
 console.log("repository reconciliation engine routing tests passed");

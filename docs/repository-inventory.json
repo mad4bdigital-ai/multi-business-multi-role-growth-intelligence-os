@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6748,
-    "bytes": 59456966,
-    "lines": 1385936,
+    "bytes": 59458358,
+    "lines": 1385962,
     "directories": 255,
     "categories": 13
   },
@@ -31289,9 +31289,9 @@
       "path": "docs/surface-contract-manual-safety-attestations.json",
       "category": "documentation",
       "extension": ".json",
-      "bytes": 18625,
+      "bytes": 18659,
       "lines": 439,
-      "sha256": "bbe74320f1f3995e6bef815e904d862287c4c1342e6c75eb5754037e4a65bd04",
+      "sha256": "74ea5e1080748f95d852ef49639bb3ba577c4c8f1e53a2e1ef205ddb5840d261",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34842,9 +34842,9 @@
       "path": "http-generic-api/context-kernel-hardcoding-scan.config.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 9733,
-      "lines": 228,
-      "sha256": "ac0189bd4d249eb0e5e2217dc6f7d66c00580d11e23601799d92714b5887ba92",
+      "bytes": 10955,
+      "lines": 252,
+      "sha256": "3f9879096598bfb8953561272943bab41494a936f8282a3d70aa52b487478552",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -65488,9 +65488,9 @@
       "path": "http-generic-api/test-repository-reconciliation-engine-routing.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7177,
-      "lines": 189,
-      "sha256": "e8004349a574db1e3aa757fcd039b59b4eaa756ac84aee3cfc82f28cfb645334",
+      "bytes": 7313,
+      "lines": 191,
+      "sha256": "7e7e0082f142ce787ec1774f40b3cfee35f3297e05c48bfa4b7323c672795837",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67382,7 +67382,7 @@
       "extension": ".mjs",
       "bytes": 12821,
       "lines": 192,
-      "sha256": "89fe8a278f156a55da49b8713c27b52be7705f581ec11352ee758e38300b7a71",
+      "sha256": "e49e6bf18eefe9792a1e619cd184e446d6bfaf74a218c3c43e83b0d2fb5765a7",
       "mode": "644",
       "executable": false,
       "generated": false
