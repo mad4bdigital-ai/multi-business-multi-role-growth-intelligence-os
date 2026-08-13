@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6720,
-    "bytes": 59010586,
-    "lines": 1376962,
+    "files": 6722,
+    "bytes": 59017570,
+    "lines": 1377165,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2023,
+      "tests-and-specs": 2024,
       "documentation": 1857,
-      "api-runtime": 1329,
+      "api-runtime": 1330,
       "database-migrations": 767,
       "root-and-other": 229,
       "ci-workflows": 152,
@@ -27,7 +27,7 @@
     },
     "byExtension": {
       ".md": 2460,
-      ".mjs": 1537,
+      ".mjs": 1539,
       ".js": 931,
       ".sql": 782,
       ".json": 673,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3442,
+      "http-generic-api": 3444,
       "docs": 1763,
       "specs": 838,
       ".github": 246,
@@ -2218,6 +2218,7 @@
       "http-generic-api/test-managed-git-remote-transport.mjs",
       "http-generic-api/test-managed-git-repository-credential-binding.mjs",
       "http-generic-api/test-managed-git-worker-migration.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
@@ -4306,6 +4307,7 @@
       "http-generic-api/test-managed-git-remote-transport.mjs",
       "http-generic-api/test-managed-git-repository-credential-binding.mjs",
       "http-generic-api/test-managed-git-worker-migration.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
       "http-generic-api/test-memory-scope-links-foundation.mjs",
       "http-generic-api/test-memory-scope-links-migration.mjs",
       "http-generic-api/test-migrate-sql-adapter.mjs",
@@ -6980,9 +6982,9 @@
       "path": ".changes/e2e/runtime-persistence-third-database-readiness.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 9830,
-      "lines": 162,
-      "sha256": "5d1116bdba099d324e9aaba1f5b26c5a38feb71a291124072178915d034d3ab3",
+      "bytes": 10080,
+      "lines": 166,
+      "sha256": "1cdd61d3bb3da046f4e31fbc83e572dfcbd956189826313241c39cdb5dfd4589",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52770,6 +52772,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 4612,
+      "lines": 144,
+      "sha256": "54015bdf6d04faa00e6d2060c0fdc680030638fae76ac659a8e68c162b2bdee7",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/scripts/migration-1048-readiness-issue-publisher.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
@@ -63039,6 +63052,17 @@
       "bytes": 972,
       "lines": 24,
       "sha256": "3ebbe798864c01c6e06d8eaad80449be792fb35207faed11ed4d87924c1f5e71",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-mariadb-collation-ci-guard.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2122,
+      "lines": 55,
+      "sha256": "e9aad09492a7804a2325b5bc857c8943d470b3d4c11c7f80c0c7a36683ee50e6",
       "mode": "644",
       "executable": false,
       "generated": false
