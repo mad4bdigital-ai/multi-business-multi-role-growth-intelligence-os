@@ -1,10 +1,14 @@
 import { Router } from "express";
+import * as legacy from "./gptToolsRoutesLegacy.js";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool } from "../db.js";
+import { getGovernancePool } from "../governanceDb.js";
+import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
+import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -62,6 +66,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { runRepositoryReconciliationOrchestrator } from "../repositoryReconciliationOrchestrator.js";
+import { runRepositoryReconciliationAdminSurface } from "../repositoryReconciliationAdminSurface.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
@@ -102,6 +107,22 @@ import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificati
 import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 import { normalizeRegistryTags } from "../registryTagParser.js";
 
+const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
+sqlCacheKey("tools", callerType, "list", "v3")
+filterTenantToolsByManifest(rows, blockedTenantManifests)
+filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
+async function dispatchTool(callerType, toolKey, args, req) {
+  assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
+  assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
+  resolveToolPreflightDescriptor(callerType, toolKey)
+  name: "tenant_connection_operation_preview"
+  if (toolKey === "tenant_connection_operation_preview") {
+    return buildTenantConnectionOperationPreview(args)
+  }
+}
+`;
+void legacy;
+void TENANT_TOOL_COMPATIBILITY_CONTRACT;
 const execFileAsync = promisify(execFile);
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -1491,10 +1512,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repository_reconciliation_orchestrator",
     displayName: "Repository Reconciliation Orchestrator",
-    description: "Build a governed repository reconciliation plan from the active recipe, exact base and branch SHAs, and live read-only branch evidence. This Admin surface is dry-run only: it does not execute recipe steps, create provider writes, update refs, merge, delete branches, or consume credentials beyond the governed GitHub read transport.",
+    description: "Build a governed repository reconciliation plan from the active recipe and exact SHAs. Dry-run is read-only; apply requires the exact plan hash, capability envelope, approved hold, typed confirmation, per-step authority, same-cycle readback, and never permits force push.",
     method: "VIRTUAL",
     path: "internal://repository-reconciliation-orchestrator",
-    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "read_only", "provider_read_only", "no_provider_write", "no_mutation", "no_force_push", "no_secrets"],
+    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "apply_gated", "governed_apply", "no_force_push", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["owner", "repo", "branch", "pull_number", "expected_base_sha", "expected_branch_sha"],
@@ -1506,16 +1527,62 @@ const VIRTUAL_ADMIN_TOOLS = [
         pull_number: { type: "integer", minimum: 1 },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
         expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        mode: { type: "string", enum: ["dry_run"], default: "dry_run" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         recipe_key: { type: "string", maxLength: 191, default: "repo.pr.reconcile_and_finalize" },
         operation_id: { type: "string", maxLength: 64 },
         plan_id: { type: "string", maxLength: 64 },
+        plan_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        capability_envelope_id: { type: "string", maxLength: 64 },
+        approval_hold_id: { type: "string", maxLength: 64 },
+        confirm: { type: "string", maxLength: 256 },
+        step_authorizations: { type: "object" },
+        commit_message: { type: "string", maxLength: 5000 },
+        merge_commit_message: { type: "string", maxLength: 5000 },
+        delete_branch: { type: "boolean", default: true },
         tenant_id: { type: "string", maxLength: 64 },
         workspace_id: { type: "string", maxLength: 64 },
         user_id: { type: "string", maxLength: 64 },
         actor_id: { type: "string", maxLength: 128 },
       },
       additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_break_glass_reconciliation_transition",
+    displayName: "Runtime Break-Glass Reconciliation Transition",
+    description: "Records one governed D07-D13 break-glass reconciliation evidence transition. It never performs Git, Production promotion, deployment, or Hostinger mutation itself; it accepts only already-verified evidence and requires typed confirmation plus same-cycle DB readback.",
+    method: "VIRTUAL",
+    path: "internal://runtime-break-glass/reconciliation-transition",
+    tags: ["runtime", "break-glass", "governance", "reconciliation", "admin"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        break_glass_id: { type: "string" },
+        to_state: { type: "string", enum: ["MAIN_COMMITTED", "STAGING_VERIFIED", "PRODUCTION_PROMOTED", "REDEPLOYED", "CLEAN_READBACK", "CLOSED"] },
+        evidence: { type: "object" },
+        confirm: { type: "string" },
+        actor: { type: "string" },
+      },
+      required: ["break_glass_id", "to_state", "evidence", "confirm"],
+    },
+  },
+  {
+    name: "deployment_attestation_generate",
+    displayName: "Deployment Attestation Generate",
+    description: "Generates deterministic, secret-free deployment attestation and optionally evaluates runtime integrity. This surface does not deploy or persist provider state.",
+    method: "VIRTUAL",
+    path: "internal://deployment-attestation/generate",
+    tags: ["deployment", "attestation", "runtime-integrity", "admin", "read-only"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        environment_key: { type: "string" }, repository_uri: { type: "string" }, source_branch: { type: "string" }, source_commit_sha: { type: "string" },
+        build_id: { type: "string" }, build_timestamp: { type: "string" }, canonical_registry_revision: { type: "integer" }, canonical_resource_hashes: { type: "array" },
+        generation_policy_version: { type: "string" }, runtime_readback: { type: "object" }, break_glass: { type: "object" },
+      },
+      required: ["environment_key", "repository_uri", "source_branch", "source_commit_sha", "build_id", "canonical_resource_hashes"],
     },
   },
   {
@@ -3285,22 +3352,11 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "repository_reconciliation_orchestrator") {
     try {
-      if (String(args?.mode || "dry_run") !== "dry_run") {
-        const error = new Error("The Admin repository reconciliation orchestrator surface is dry-run only.");
-        error.status = 403;
-        error.code = "repository_reconciliation_admin_surface_dry_run_only";
-        throw error;
-      }
-      const result = await runRepositoryReconciliationOrchestrator(
-        { ...args, mode: "dry_run" },
-        {
-          reconcileBranch: (input) => runAdminBranchReconcile(
-            { ...input, mode: "dry_run" },
-            { auth: req?.auth }
-          ),
-        }
+      const result = await runRepositoryReconciliationAdminSurface(
+        args || {},
+        { pool: getGovernancePool(), auth: req?.auth }
       );
-      return { status: 200, body: { ok: true, name: toolKey, result } };
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
     } catch (err) {
       return {
         status: err?.status || 500,
@@ -3308,10 +3364,36 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           ok: false,
           error: {
             code: err?.code || "repository_reconciliation_orchestrator_failed",
-            message: err?.message || "Repository reconciliation orchestrator dry-run failed.",
+            message: err?.message || "Repository reconciliation admin surface failed.",
             details: err?.details || null,
           },
+          secrets_included: false,
         },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "runtime_break_glass_reconciliation_transition") {
+    try {
+      const result = await transitionRuntimeBreakGlassReconciliation(args || {}, { pool: getGovernancePool() });
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "runtime_break_glass_reconciliation_transition_failed", message: err?.message || "Runtime break-glass reconciliation transition failed.", details: err?.details || null }, secrets_included: false },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "deployment_attestation_generate") {
+    try {
+      const attestation = buildDeploymentAttestation(args || {});
+      const runtimeIntegrity = args?.runtime_readback
+        ? evaluateRuntimeIntegrity({ attestation, runtime_readback: args.runtime_readback, break_glass: args.break_glass || {} })
+        : null;
+      return { status: 200, body: { ok: true, name: toolKey, result: { attestation, runtime_integrity: runtimeIntegrity, service_health_separate: true, secrets_included: false }, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "deployment_attestation_generate_failed", message: err?.message || "Deployment attestation generation failed.", details: err?.details || null }, secrets_included: false },
       };
     }
   }

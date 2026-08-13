@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,722 |
-| Total bytes | 59,019,103 |
-| Counted text lines | 1,377,181 |
+| Tracked files | 6,755 |
+| Total bytes | 59,509,497 |
+| Counted text lines | 1,386,905 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,11 +17,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,024 |
+| `tests-and-specs` | 2,033 |
 | `documentation` | 1,857 |
-| `api-runtime` | 1,330 |
-| `database-migrations` | 767 |
-| `root-and-other` | 229 |
+| `api-runtime` | 1,345 |
+| `database-migrations` | 774 |
+| `root-and-other` | 231 |
 | `ci-workflows` | 152 |
 | `api-contracts` | 147 |
 | `ci-config` | 94 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,460 |
-| `.mjs` | 1,539 |
-| `.js` | 931 |
-| `.sql` | 782 |
-| `.json` | 673 |
+| `.mjs` | 1,550 |
+| `.js` | 943 |
+| `.sql` | 789 |
+| `.json` | 676 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -70,9 +70,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 152 |
-| Database migrations | 767 |
+| Database migrations | 774 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,087 |
+| Test/spec files (paths) | 2,096 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -87,14 +87,15 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,148,159 | 96652 |
 | `http-generic-api/openapi.yaml` | api-contracts | 979,336 | 22721 |
-| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
+| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 328,218 | 8553 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 204,096 | 4372 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 209,004 | 4454 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
@@ -103,7 +104,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
-| `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
+| `docs/work-maps/data-model-domain-map.md` | documentation | 118,205 | 854 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
@@ -115,7 +116,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |
 | `http-generic-api/registry.js` | api-runtime | 96,496 | 2451 |
 | `http-generic-api/execution.js` | api-runtime | 93,620 | 2881 |
-| `http-generic-api/repositoryGovernanceV6.js` | api-runtime | 91,761 | 1043 |
 
 ## Complete machine-readable inventory
 
