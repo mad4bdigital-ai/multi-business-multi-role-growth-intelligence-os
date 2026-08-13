@@ -7,6 +7,7 @@
   "scope": {
     "include": [
       "http-generic-api/**",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".changes/e2e/governance-db-authority-store-isolation.json"
     ]
   },
@@ -36,6 +37,7 @@
           ],
           "assertions": [
             "Production provider capability recognizes the independent two-database contract without performing provider mutation.",
+            "Promotion run resolution selects the newest eligible exact-head workflow run and excludes completed failure/skip runs.",
             "Authority reads and writes select the explicit Governance DB pool.",
             "A missing or Runtime-equal Governance database name fails closed before connection creation.",
             "A missing or ambiguous authority binding does not fall back to the Runtime DB.",
@@ -101,7 +103,8 @@
             "http-generic-api/test-platform-resource-authority-store.mjs",
             "http-generic-api/test-platform-resource-authority-write-authority.mjs",
             "http-generic-api/test-platform-resource-recipe-capability.mjs",
-            "http-generic-api/test-repository-governance-v6.mjs"
+            "http-generic-api/test-repository-governance-v6.mjs",
+            ".github/workflows/governed-production-promotion-request-launcher.yml"
           ]
         }
       ]
