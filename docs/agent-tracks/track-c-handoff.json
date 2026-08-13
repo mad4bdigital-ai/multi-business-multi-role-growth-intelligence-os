@@ -30,5 +30,12 @@
     "frontend_dispatch_check": "pending_complete_checkout",
     "path_guard": "pending_complete_checkout",
     "merge_ready": false
-  }
+  },
+  "live_acceptance": {
+    "live_client_used": false,
+    "dcr_executed": false,
+    "oauth_client_acceptance_executed": false,
+    "claim": "DCR, OAuth client acceptance, and live-client acceptance were not executed because they require separate approval and an isolated environment."
+  },
+  "merge_order": ["B", "A", "C", "integration"]
 }
