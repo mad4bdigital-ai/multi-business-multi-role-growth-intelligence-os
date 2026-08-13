@@ -8,11 +8,14 @@
   "scope": {
     "include": [
       ".changes/e2e/runtime-persistence-third-database-readiness.json",
+      ".github/workflows/ci.yml",
       "docs/durable-governed-response-chunks.md",
       "docs/runbooks/runtime-persistence-third-database-activation.md",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/package.json",
+      "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+      "http-generic-api/test-mariadb-collation-ci-guard.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
@@ -54,12 +57,20 @@
             "Missing dedicated configuration fails closed and fallback_to_db_user is false.",
             "The required durable chunk authority is exactly SELECT, INSERT, UPDATE, and DELETE on governed_tool_response_chunks.",
             "The readiness probe requires utf8mb4 and utf8mb4_unicode_ci for the persistence database/table and relational text columns, with only the documented JSON-like exception policy.",
+            "The MariaDB CI guard checks changed migration/schema SQL and fails closed on missing explicit charset/collation, disallowed defaults, or mixed join-key collations without connecting to a database.",
             "The readiness probe performs no grant, migration apply, SQL mutation, provider call, external write, or deployment.",
             "Migration 1048 is the bounded transport-only migration path; migration apply remains blocked pending explicit governed authorization.",
             "Safe degradation remains covered by the existing production write-authority regression test.",
             "No path under feat/spec015-tenant-audit-convergence is modified or recommended."
           ],
           "tests": [
+            {
+              "id": "mariadb-collation-ci-guard-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-mariadb-collation-ci-guard.mjs",
+              "args": []
+            },
             {
               "id": "third-database-readiness-contract",
               "runner": "node",
@@ -103,6 +114,8 @@
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
+            "http-generic-api/scripts/mariadb-collation-ci-guard.mjs",
+            "http-generic-api/test-mariadb-collation-ci-guard.mjs",
             "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
             "http-generic-api/test-runtime-persistence-write-authority.mjs",
             "http-generic-api/test-transport-response-chunk-schema-recovery.mjs"

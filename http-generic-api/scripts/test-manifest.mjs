@@ -47,6 +47,7 @@ const staticDiscoveryCommands = [
   "node test-database-lifecycle-operational-status.mjs",
   "node test-database-lifecycle-scheduler-admin-aliases.mjs",
   "node test-database-lifecycle-scheduler-snapshot-runner.mjs",
+  "node test-mariadb-collation-ci-guard.mjs",
   "node test-dynamic-capability-enforcement-shadow.mjs",
   "node test-dynamic-capability-projection-preview.mjs",
   "node test-dynamic-container-projection-apply-tool.mjs",

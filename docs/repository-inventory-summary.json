@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6720,
-    "bytes": 59006842,
-    "lines": 1376896,
+    "bytes": 59010586,
+    "lines": 1376962,
     "directories": 255,
     "categories": 13
   },
@@ -146,6 +146,7 @@
         "manifest:deployment",
         "supervisor:readiness",
         "runtime-persistence:readiness",
+        "database:collation:check",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",

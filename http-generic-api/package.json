@@ -37,6 +37,7 @@
     "manifest:deployment": "node scripts/generate-deployment-manifest.mjs",
     "supervisor:readiness": "node scripts/supervisor-runtime-readiness.mjs",
     "runtime-persistence:readiness": "node scripts/runtime-persistence-operational-readiness.mjs",
+    "database:collation:check": "node scripts/mariadb-collation-ci-guard.mjs",
     "supervisor:readiness:live": "node --env-file=.env scripts/supervisor-runtime-readiness.mjs --live",
     "supervisor:certify": "node scripts/supervisor-behavioral-certification.mjs",
     "supervisor:certify:live": "node --env-file=.env scripts/supervisor-behavioral-certification.mjs --apply --confirm=APPLY_SUPERVISOR_BEHAVIORAL_CERTIFICATION",
