@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec019/contracts/authority-binding.schema.json",
+  "title": "Exact Database Resource Authority Binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "authority_binding_id",
+    "resource_type",
+    "resource_uri",
+    "recipe_key",
+    "principal_id",
+    "expires_at",
+    "policy_revision"
+  ],
+  "properties": {
+    "authority_binding_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "resource_type": {
+      "const": "database_table"
+    },
+    "resource_uri": {
+      "type": "string",
+      "pattern": "^mysql://[^/]+/[^*]+$"
+    },
+    "recipe_key": {
+      "type": "string",
+      "pattern": "^database\\.[a-z0-9_.-]+$"
+    },
+    "principal_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "expires_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy_revision": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
