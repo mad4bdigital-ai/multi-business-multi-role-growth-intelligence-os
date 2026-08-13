@@ -4,18 +4,21 @@
 
 ## Summary
 
-- Triaged items: 7
-- Gate candidates: 2
+- Triaged items: 12
+- Gate candidates: 5
 - New-gap gate: fail
-- Blocking new items: 5
+- Blocking new items: 10
 
 ## Class counts
 
-- new_surface_immediate_review: 2
-- safety_marker_review: 4
+- new_surface_immediate_review: 5
+- safety_marker_review: 6
 - standard_backlog_review: 1
 
 ## Immediate review candidates
 
 - `20260808_github_issue_comment_dispatch_parity.sql` — critical_review, score 909; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
-- `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 908; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260810_github_issue_comment_exact_response_parity.sql` — critical_review, score 907; next: classify route-like strings, then add OpenAPI contract or false-positive exemption
+- `20260812_repository_reconciliation_admin_apply_activation.sql` — critical_review, score 862; next: add targeted patch-index, parity, and governance documentation
+- `20260812_resource_surface_policy_decisions_consolidated.sql` — high_review, score 592; next: add targeted patch-index, parity, and governance documentation
+- `20260811_runtime_break_glass_authority_metadata_v1.sql` — high_review, score 512; next: add targeted patch-index, parity, and governance documentation
