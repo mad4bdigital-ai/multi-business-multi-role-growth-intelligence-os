@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6757,
-    "bytes": 59572747,
-    "lines": 1388265,
+    "bytes": 59578750,
+    "lines": 1388354,
     "directories": 255,
     "categories": 13
   },
@@ -36744,7 +36744,7 @@
       "extension": ".json",
       "bytes": 3148159,
       "lines": 96652,
-      "sha256": "2d2d91d543ad304383ae22ae84957e98af86727fddbc8160a16f5fa09764709a",
+      "sha256": "0a9f248a22f3c6dd42d68d9deeb76b2304b2bdf113a9088d10d097879f39f4f7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -50327,9 +50327,9 @@
       "path": "http-generic-api/routes/runtimeVerificationRoutes.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 2271,
-      "lines": 56,
-      "sha256": "6d712d53552412f7dc77e5ab66b13a3f454d47d44ce2280ed341ccb88a12e29f",
+      "bytes": 2531,
+      "lines": 65,
+      "sha256": "cac796171481acead5ee85842e29a7bec3955d03bd2b824e10a5dc21f992805a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79202,9 +79202,9 @@
       "path": "specs/018-environment-promotion-runtime-integrity/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 2672,
-      "lines": 88,
-      "sha256": "382a20e1270a8f3a017c34cc88b8c662e4560e2c09377d2ab0c3a8611c2512b8",
+      "bytes": 3375,
+      "lines": 102,
+      "sha256": "b403d303e8eff0cc6efe6c680564bf7a948fb160c91ae46bd094e9d2847568ce",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79224,9 +79224,9 @@
       "path": "specs/018-environment-promotion-runtime-integrity/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 12399,
-      "lines": 196,
-      "sha256": "a128e54b8745906050c0f36f4fa5d91ea77ab32c92a058ae8700ff8c7502b5c3",
+      "bytes": 17439,
+      "lines": 262,
+      "sha256": "c9da2d740bcfb168fdfff352ba08c625b6132eae53a0c8dbdc742a4f1a3ef061",
       "mode": "644",
       "executable": false,
       "generated": false

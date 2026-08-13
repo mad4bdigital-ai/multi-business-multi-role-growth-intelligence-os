@@ -35,6 +35,12 @@
         "number": 6876,
         "branch": "gpt/018-runtime-immutability-20260810",
         "role": "runtime_immutability_c01_c06",
+        "status": "merged"
+      },
+      {
+        "number": 6886,
+        "branch": "gpt/018-break-glass-lifecycle-20260810",
+        "role": "break_glass_lifecycle_d01_d06",
         "status": "current_pr"
       }
     ],
@@ -47,16 +53,22 @@
   },
   "evidence": {
     "implementation": {
-      "status": "environment_and_deploy_authority_merged_runtime_immutability_candidate",
+      "status": "environment_deploy_authority_and_runtime_immutability_merged_break_glass_d01_d06_candidate",
       "runtime_authority_foundation_merged": true,
       "production_deploy_binding_merged": true,
       "caller_branch_selection_removed_from_governed_schemas": true,
       "same_cycle_production_head_readback_merged": true,
       "routine_ssh_application_code_mutation_default_denied": true,
-      "runtime_integrity_readback_candidate": true,
-      "tracked_dirty_runtime_detection_candidate": true,
-      "service_health_separate_from_runtime_integrity_candidate": true,
-      "break_glass_lifecycle_implemented": false,
+      "runtime_integrity_readback_merged": true,
+      "tracked_dirty_runtime_detection_merged": true,
+      "service_health_separate_from_runtime_integrity_merged": true,
+      "break_glass_persistence_candidate": true,
+      "break_glass_lifecycle_d01_d06_candidate": true,
+      "break_glass_governed_scope_issuer_candidate": true,
+      "break_glass_run_bound_readback_producer_candidate": true,
+      "break_glass_authority_metadata_candidate": true,
+      "break_glass_runtime_mutation_enabled": false,
+      "break_glass_d07_d13_implemented": false,
       "migration_applied": false,
       "production_deployed": false,
       "hostinger_mutated": false,
@@ -70,10 +82,12 @@
       "status": "pending"
     },
     "migration": {
-      "status": "source_present_not_applied",
+      "status": "sources_present_not_applied",
       "paths": [
         "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
-        "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql"
+        "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
+        "http-generic-api/migrations/20260810_runtime_break_glass_lifecycle_v1.sql",
+        "http-generic-api/migrations/20260811_runtime_break_glass_authority_metadata_v1.sql"
       ]
     },
     "production_verification": {
