@@ -2,7 +2,7 @@
   "schema_version": 1,
   "spec_key": "019-governed-database-lifecycle-pressure-relief",
   "spec_version": "0.1.0",
-  "status": "specification_only",
+  "status": "implementation_in_progress",
   "scope": "platform_database",
   "created_at": "2026-08-13",
   "owner": "platform-team",
@@ -74,17 +74,15 @@
     "contracts/compatibility.md"
   ],
   "implementation_artifacts": [
-    "http-generic-api/databaseLifecyclePressureInspector.js",
-    "http-generic-api/databaseLifecyclePlanner.js",
-    "http-generic-api/databaseLifecycleDomainAdapters.js",
-    "http-generic-api/databaseLifecycleExecutor.js",
-    "http-generic-api/test-database-lifecycle-pressure-inspector.mjs",
-    "http-generic-api/test-database-lifecycle-planner.mjs",
-    "http-generic-api/test-database-lifecycle-executor.mjs"
+    "http-generic-api/databaseLifecyclePressureIntelligence.js",
+    "http-generic-api/scripts/database-lifecycle-pressure-intelligence.mjs",
+    "http-generic-api/routes/platformEngineRoutes.js",
+    "http-generic-api/test-database-lifecycle-pressure-intelligence.mjs",
+    "http-generic-api/test-spec019-database-lifecycle-contract.mjs"
   ],
   "implementation_state": {
     "specification_and_contracts": "implemented_in_current_pr",
-    "read_only_pressure_intelligence": "planned",
+    "read_only_pressure_intelligence": "implemented_read_only_non_production",
     "exact_database_resource_authority": "planned",
     "durable_mutation_receipt_readiness": "planned",
     "response_chunk_ttl_pilot": "planned_non_production",
@@ -94,9 +92,9 @@
     "live_apply_dispatch": "disabled"
   },
   "public_api_boundary": {
-    "status": "contract_only",
-    "pressure_inspection_surface": "planned",
-    "planning_surface": "planned",
+    "status": "read_only_contract_and_runtime_non_production",
+    "pressure_inspection_surface": "implemented_read_only",
+    "planning_surface": "implemented_read_only",
     "mutation_surface": "disabled",
     "provider_dispatch": false,
     "runtime_authority": false
