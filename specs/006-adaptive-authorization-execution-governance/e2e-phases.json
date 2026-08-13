@@ -1,0 +1,116 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "006-adaptive-authorization-execution-governance",
+  "title": "Adaptive authorization runtime persistence and endpoint-scoped capability identity remediation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+      "http-generic-api/routes/gptToolsRoutes.js",
+      "http-generic-api/scripts/governed-migration-runner.mjs",
+      "http-generic-api/scripts/test-manifest.mjs",
+      "http-generic-api/test-connect-routes.mjs",
+      "http-generic-api/test-runtime-persistence-wiring.mjs",
+      "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prove that GPT dispatch receives dedicated runtime-persistence dependencies explicitly and that endpoint-scoped capability identity, readback contracts, and capability debts remain deterministic, shadow-only, and fail-closed.",
+      "e2e_journeys": [
+        {
+          "id": "006-runtime-persistence-and-capability-identity-remediation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed runtime verification",
+          "entrypoint": "Run the exact pull-request regression and contract suite against the authored head.",
+          "terminal_outcome": "GPT dispatch uses the dedicated runtime persistence pool path; endpoint identity is tool+parent-action+endpoint scoped; ambiguous or partial mappings remain blocked; no provider or external mutation occurs.",
+          "steps": [
+            "Resolve the exact pull-request head and validate runtime dependency threading through canonical GPT dispatch and internal callers.",
+            "Validate endpoint-scoped identity projection, explicit github_pr_ci readback mapping, bounded exports, readback contracts, and fail-closed debt projection.",
+            "Run deterministic collation, runtime-persistence, Governance DB, transport recovery, GPT route, and repository contract regressions.",
+            "Confirm all outputs remain secret-free and that migration apply is disabled in the contract evidence."
+          ],
+          "assertions": [
+            "The dedicated runtime persistence pool is passed explicitly and no bare chunkPersistenceDeps lexical dependency remains.",
+            "Capability identity is resolved by tool_key, parent_action_key, and endpoint_key; missing, ambiguous, and partial identity findings remain explicit and blocking.",
+            "The github_pr_ci readback capability is mapped explicitly and readback contracts remain pending/shadow until separately certified.",
+            "No provider call, external write, database privilege mutation, Production mutation, or secret disclosure is authorized by this contract."
+          ],
+          "tests": [
+            {
+              "id": "006-runtime-persistence-wiring",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-runtime-persistence-wiring.mjs",
+              "args": []
+            },
+            {
+              "id": "006-endpoint-scoped-capability-identity",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-virtual-tool-endpoint-scoped-capability-identity.mjs",
+              "args": []
+            },
+            {
+              "id": "006-gpt-connect-route-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-connect-routes.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+            "http-generic-api/routes/gptToolsRoutes.js",
+            "http-generic-api/scripts/governed-migration-runner.mjs",
+            "http-generic-api/test-runtime-persistence-wiring.mjs",
+            "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
+            "http-generic-api/test-connect-routes.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Establish live runtime and database readback evidence only after separately authorized operational verification.",
+      "blockers": [
+        "No live runtime endpoint or database privilege readback is performed by this pull request.",
+        "Hostinger configuration, database grants, migrations, and Production changes require separate operational approval."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "blocked",
+      "objective": "Define resilience and recovery journeys only after live non-production evidence is separately authorized.",
+      "blockers": [
+        "No external provider, queue, database, or Production mutation authority exists in this pull request."
+      ]
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Define a non-production canary only after governed promotion authority and exact release evidence exist.",
+      "blockers": [
+        "No canary activation or enforcement cutover is authorized."
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Define Production readback only after explicit promotion authority and immutable release evidence exist.",
+      "blockers": [
+        "No Production promotion, deployment, or runtime mutation is authorized."
+      ]
+    }
+  ],
+  "secrets_included": false
+}

@@ -666,7 +666,7 @@ section("connect api auth scope");
     assert("GPT tools dispatch calls governed policy preflight",
       gptToolsSource.includes("evaluateGptToolDispatchPreflight") &&
       gptToolsSource.includes("assertPreflightAllowed(await evaluateGptToolDispatchPreflight") &&
-      gptToolsSource.includes("dispatchToolImpl(callerType, toolKey, args, req)"));
+      gptToolsSource.includes("dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps)"));
     assert("repo_patch_apply runs policy preflight before GitHub writes",
       gptToolsSource.includes("evaluateRepoPatchApplyPreflight") &&
       gptToolsSource.includes("loadRepoPatchBranchCompare") &&
