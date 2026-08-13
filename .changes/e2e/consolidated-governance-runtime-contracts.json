@@ -56,6 +56,7 @@
       "http-generic-api/scripts/resource-api-coverage-audit.mjs",
       "http-generic-api/scripts/runtime-break-glass-capability-envelope-create.mjs",
       "http-generic-api/scripts/test-resource-api-callability-gate.mjs",
+      "http-generic-api/test-resource-api-callability-gate.mjs",
       "http-generic-api/test-canonical-resource-registry.mjs",
       "http-generic-api/test-consolidated-governance-runtime-contracts.mjs",
       "http-generic-api/test-database-collation-policy.mjs",
@@ -106,6 +107,7 @@
           ],
           "tests": [
             {"id":"consolidated-governance-runtime-contracts","runner":"node","working_directory":"http-generic-api","path":"test-consolidated-governance-runtime-contracts.mjs","args":[]},
+            {"id":"resource-api-callability-gate","runner":"node","working_directory":"http-generic-api","path":"test-resource-api-callability-gate.mjs","args":[]},
             {"id":"canonical-resource-registry","runner":"node","working_directory":"http-generic-api","path":"test-canonical-resource-registry.mjs","args":[]},
             {"id":"database-collation-policy","runner":"node","working_directory":"http-generic-api","path":"test-database-collation-policy.mjs","args":[]},
             {"id":"deployment-attestation","runner":"node","working_directory":"http-generic-api","path":"test-deployment-attestation.mjs","args":[]},
@@ -122,6 +124,7 @@
           "evidence_paths": [
             ".changes/e2e/consolidated-governance-runtime-contracts.json",
             ".specify/work-map-schema-classification-registry.json",
+            "http-generic-api/test-resource-api-callability-gate.mjs",
             "http-generic-api/test-consolidated-governance-runtime-contracts.mjs",
             "http-generic-api/test-repository-reconciliation-engine-routing.mjs",
             "http-generic-api/test-runtime-break-glass-lifecycle.mjs",

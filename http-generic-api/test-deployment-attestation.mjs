@@ -4,7 +4,7 @@ import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "./deployme
 const productionSha = "a".repeat(40);
 const resourceSha = "b".repeat(64);
 const attestation = buildDeploymentAttestation({
-  attestation_id: "11111111-1111-4111-8111-111111111111",
+  attestation_id: "attestation-fixture-20260812",
   environment_key: "production",
   repository_uri: "github://mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os",
   source_branch: "Production",

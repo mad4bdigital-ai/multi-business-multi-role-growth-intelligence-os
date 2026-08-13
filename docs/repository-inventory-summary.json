@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6748,
-    "bytes": 59444546,
-    "lines": 1385700,
+    "bytes": 59453351,
+    "lines": 1385880,
     "directories": 255,
     "categories": 13
   },
@@ -259,14 +259,14 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 208124,
-      "lines": 4438
+      "bytes": 209004,
+      "lines": 4454
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "category": "api-runtime",
-      "bytes": 203883,
-      "lines": 4369
+      "bytes": 203999,
+      "lines": 4368
     },
     {
       "path": "http-generic-api/supportTicketService.js",

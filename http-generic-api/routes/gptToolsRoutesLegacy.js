@@ -62,6 +62,7 @@ import {
 } from "../capabilityResolutionEnvelopeGuard.js";
 import { runAdminBranchReconcile, runGithubBranchFastForwardSmoke, runGithubBranchFastForwardToBase, runGithubBranchMergeCommitCreate } from "../adminBranchReconciliationAdapter.js";
 import { runRepositoryReconciliationOrchestrator } from "../repositoryReconciliationOrchestrator.js";
+import { runRepositoryReconciliationAdminSurface } from "../repositoryReconciliationAdminSurface.js";
 import { applyGithubExistingBlobChangeSet, applyGithubRepositoryChangeSet, deleteGithubBranchRef, finalizeGithubPullRequest, getGithubPullRequestCiGate } from "../githubRepositoryLifecycle.js";
 import { runGithubBranchCleanupSweep } from "../githubBranchCleanupSweep.js";
 import { runGithubSupersededBranchCleanup } from "../githubSupersededBranchCleanup.js";
@@ -1491,10 +1492,10 @@ const VIRTUAL_ADMIN_TOOLS = [
   {
     name: "repository_reconciliation_orchestrator",
     displayName: "Repository Reconciliation Orchestrator",
-    description: "Build a governed repository reconciliation plan from the active recipe, exact base and branch SHAs, and live read-only branch evidence. This Admin surface is dry-run only: it does not execute recipe steps, create provider writes, update refs, merge, delete branches, or consume credentials beyond the governed GitHub read transport.",
+    description: "Build a governed repository reconciliation plan from the active recipe and exact SHAs. Dry-run is read-only; apply requires the exact plan hash, capability envelope, approved hold, typed confirmation, per-step authority, same-cycle readback, and never permits force push.",
     method: "VIRTUAL",
     path: "internal://repository-reconciliation-orchestrator",
-    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "read_only", "provider_read_only", "no_provider_write", "no_mutation", "no_force_push", "no_secrets"],
+    tags: ["admin", "repository", "reconciliation", "orchestrator", "dry_run", "apply_gated", "governed_apply", "no_force_push", "no_secrets"],
     inputSchema: {
       type: "object",
       required: ["owner", "repo", "branch", "pull_number", "expected_base_sha", "expected_branch_sha"],
@@ -1506,10 +1507,18 @@ const VIRTUAL_ADMIN_TOOLS = [
         pull_number: { type: "integer", minimum: 1 },
         expected_base_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
         expected_branch_sha: { type: "string", pattern: "^[0-9a-fA-F]{40}$" },
-        mode: { type: "string", enum: ["dry_run"], default: "dry_run" },
+        mode: { type: "string", enum: ["dry_run", "apply"], default: "dry_run" },
         recipe_key: { type: "string", maxLength: 191, default: "repo.pr.reconcile_and_finalize" },
         operation_id: { type: "string", maxLength: 64 },
         plan_id: { type: "string", maxLength: 64 },
+        plan_sha256: { type: "string", pattern: "^[0-9a-fA-F]{64}$" },
+        capability_envelope_id: { type: "string", maxLength: 64 },
+        approval_hold_id: { type: "string", maxLength: 64 },
+        confirm: { type: "string", maxLength: 256 },
+        step_authorizations: { type: "object" },
+        commit_message: { type: "string", maxLength: 5000 },
+        merge_commit_message: { type: "string", maxLength: 5000 },
+        delete_branch: { type: "boolean", default: true },
         tenant_id: { type: "string", maxLength: 64 },
         workspace_id: { type: "string", maxLength: 64 },
         user_id: { type: "string", maxLength: 64 },
@@ -3284,22 +3293,11 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   }
   if (callerType === "admin" && toolKey === "repository_reconciliation_orchestrator") {
     try {
-      if (String(args?.mode || "dry_run") !== "dry_run") {
-        const error = new Error("The Admin repository reconciliation orchestrator surface is dry-run only.");
-        error.status = 403;
-        error.code = "repository_reconciliation_admin_surface_dry_run_only";
-        throw error;
-      }
-      const result = await runRepositoryReconciliationOrchestrator(
-        { ...args, mode: "dry_run" },
-        {
-          reconcileBranch: (input) => runAdminBranchReconcile(
-            { ...input, mode: "dry_run" },
-            { auth: req?.auth }
-          ),
-        }
+      const result = await runRepositoryReconciliationAdminSurface(
+        args || {},
+        { pool: getGovernancePool(), auth: req?.auth }
       );
-      return { status: 200, body: { ok: true, name: toolKey, result } };
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
     } catch (err) {
       return {
         status: err?.status || 500,
@@ -3307,9 +3305,10 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           ok: false,
           error: {
             code: err?.code || "repository_reconciliation_orchestrator_failed",
-            message: err?.message || "Repository reconciliation orchestrator dry-run failed.",
+            message: err?.message || "Repository reconciliation admin surface failed.",
             details: err?.details || null,
           },
+          secrets_included: false,
         },
       };
     }

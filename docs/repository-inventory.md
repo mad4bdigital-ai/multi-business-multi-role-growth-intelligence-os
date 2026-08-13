@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,748 |
-| Total bytes | 59,444,546 |
-| Counted text lines | 1,385,700 |
+| Total bytes | 59,453,351 |
+| Counted text lines | 1,385,880 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -94,8 +94,8 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 208,124 | 4438 |
-| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,883 | 4369 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 209,004 | 4454 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
