@@ -7,26 +7,26 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Metric | Value |
 |---|---:|
-| Decision | **pass** |
+| Decision | **warn** |
 | Blocking gaps | 0 |
-| Warning or informational gaps | 0 |
-| Input fingerprint | `fe744d4996bddd8b6065783601239cf1a27714b7faff160f4fad080986cde58b` |
+| Warning or informational gaps | 1 |
+| Input fingerprint | `6ac603d4fb9f38e234cfba8a4f35afc94842f53653d7efb25350056e28a5578e` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
-| Inventory files | 6,757 |
-| Inventory bytes | 59,579,332 |
-| Workflows | 154 |
+| Inventory files | 6,812 |
+| Inventory bytes | 61,947,224 |
+| Workflows | 155 |
 | Workflows without explicit permissions | 0 |
 | Broad write permission matches | 0 |
 | Unpinned action references | 0 |
 | Automation overlap check | passed |
 | Workflow budget | 160 |
 | Workflow budget warning | 155 |
-| Workflow budget status | within-budget |
-| Unapproved large files | 0 |
+| Workflow budget status | near-limit |
+| Unapproved large files | 1 |
 | Suspected secret files | 0 |
 | Dependency audit mode | not-run |
 | CI dependency audit contract | required |
@@ -46,7 +46,7 @@ This report is generated from the dynamic Repository Inventory and deterministic
 
 | Gap | Domain | Severity | Status | Lifecycle | Blocking |
 |---|---|---|---|---|---|
-| none | — | — | — | — |
+| `MAINT-LARGE-TRACKED-FILES` | maintainability | low | open | new | no |
 
 ## Loop contract
 
