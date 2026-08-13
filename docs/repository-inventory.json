@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6748,
-    "bytes": 59453351,
-    "lines": 1385880,
+    "bytes": 59456966,
+    "lines": 1385936,
     "directories": 255,
     "categories": 13
   },
@@ -6374,9 +6374,9 @@
       "path": ".changes/e2e/governed-production-promotion-approval-aware.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4420,
-      "lines": 85,
-      "sha256": "5e118b73da94ee452979161fd337d1010945fef1d202270ec65215280040e3a8",
+      "bytes": 5631,
+      "lines": 97,
+      "sha256": "356a3478a6dc7fd9d62ef116a3fb5f0573b703282b4dea014857926293b7d68d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9696,9 +9696,9 @@
       "path": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 29508,
-      "lines": 583,
-      "sha256": "747d1dc5a22648d19021f6a04afdddb36b50eb6ad72da1e3cd99ea91101feb6c",
+      "bytes": 31447,
+      "lines": 622,
+      "sha256": "f745c8c9fd98d7c26dd3d0a9dc385f4dd758a00f1a45f33170c741ecf99238cd",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31412,7 +31412,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "8638a973202703317b602d4562d0348711be185e863cc3c6a0cfb0180418bffa",
+      "sha256": "001fdb3c02996ea32e6b4dc4d6556e15e608e492099f8c0a815fe484a68fa194",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31577,7 +31577,7 @@
       "extension": ".md",
       "bytes": 45468,
       "lines": 487,
-      "sha256": "c06dbe5ed923384ec08294fa9553883a9c3d512153aa3f70a5a3952d74b0e968",
+      "sha256": "e8b81f9977cbaad9e4a2fcb97d802082626be28f2f535e1738457e1394d4ecd6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64795,9 +64795,9 @@
       "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8865,
-      "lines": 215,
-      "sha256": "8d2a52060c3e9218a76e7d3a5cce807e907fa20b226951d36531e89cb89dd7fe",
+      "bytes": 9330,
+      "lines": 220,
+      "sha256": "ddd124fd973cb8d47d1d213f4c7a327e4051771962143d2a7112f4a88087eef8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77557,7 +77557,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "43177602d7bcf1c11fee79ecf8326d5f8b501b451668e6493196a9362e8feae6",
+      "sha256": "293d55996a0b464e525cbcb71cba44e4957140de41c84078c6efb0e6b3ed4162",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78118,7 +78118,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "52f9a1bda38efa84c3c48653e2521ddb667d7a7efcee14324fda6409ccb3feea",
+      "sha256": "4aec7895487660c8dec5491a667e447398edd67aed1f6b91cfa186195620a055",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78943,7 +78943,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "6a1f10ef19927fd26bf2a79d68795a28e09b72ec2e30050ad21e756016f8e1fb",
+      "sha256": "3a3265ace56b16daab87dd493fd192db5e6be0732587408f13efbc824363513f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79174,7 +79174,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "35e8c15e8742e46c7414b044b33f46369c09edc6812de5df8e19d97fb05f2e4b",
+      "sha256": "a3ca8ccd582f39c956c19de20003ffdb529e09845348b48150d094d77b64ef53",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79493,7 +79493,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "b526399843eca0a6f0d81eb902f72bbf33268839b7c69ceabed0e6054323e9ef",
+      "sha256": "364dbb83cee4b4473298360ba257c7676db9df964333cd439f608972168e5c7b",
       "mode": "644",
       "executable": false,
       "generated": false
