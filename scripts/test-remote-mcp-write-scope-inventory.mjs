@@ -14,6 +14,16 @@ assert(inventory.db_catalog_fingerprints.includes(inventory.catalog_fingerprint)
 assert(inventory.file_count > 0);
 assert(inventory.route_count > 0);
 assert(inventory.write_route_count > 0);
+assert.equal(inventory.classified_write_route_count, inventory.write_route_count, "every write route must have an explicit classification");
+assert.equal(inventory.unclassified_write_route_count, 0);
+assert.equal(inventory.intentionally_unmapped_write_route_count, 611);
+assert.equal(inventory.write_route_classifications.filter((route) => route.classification === "shadow_candidate").length, 38);
+assert(inventory.write_route_classifications.every((route) => route.route_id));
+assert.equal(new Set(inventory.write_route_classifications.map((route) => route.route_id)).size, inventory.write_route_count);
+assert(inventory.write_route_classifications.filter((route) => route.classification === "intentionally_unmapped").every((route) => route.owner && route.reason && route.resource_candidate));
+assert(inventory.sensitive_intentionally_unmapped_write_route_count > 0);
+assert(inventory.write_route_classifications.every((route) => route.provider_mutation_allowed === false));
+assert(inventory.write_route_classifications.every((route) => route.mapping_status === "blocked" || route.mapping_status === "blocked_until_explicit_binding"));
 assert(inventory.migration_count > 0);
 assert(inventory.registry_evidence_count > 0);
 assert.equal(inventory.write_scope_count, 6);

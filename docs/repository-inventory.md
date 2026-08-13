@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,733 |
-| Total bytes | 59,440,197 |
-| Counted text lines | 1,390,894 |
+| Tracked files | 6,737 |
+| Total bytes | 60,086,022 |
+| Counted text lines | 1,404,097 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,025 |
-| `documentation` | 1,857 |
-| `api-runtime` | 1,339 |
+| `tests-and-specs` | 2,026 |
+| `documentation` | 1,858 |
+| `api-runtime` | 1,341 |
 | `database-migrations` | 768 |
 | `root-and-other` | 229 |
 | `ci-workflows` | 152 |
@@ -35,11 +35,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,460 |
-| `.mjs` | 1,539 |
-| `.js` | 938 |
+| `.md` | 2,461 |
+| `.mjs` | 1,540 |
+| `.js` | 939 |
 | `.sql` | 783 |
-| `.json` | 676 |
+| `.json` | 677 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -72,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 152 |
 | Database migrations | 768 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,088 |
+| Test/spec files (paths) | 2,089 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -88,8 +88,8 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,003,798 | 25838 |
 | `http-generic-api/openapi.yaml` | api-contracts | 979,336 | 22721 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 394,959 | 13151 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |

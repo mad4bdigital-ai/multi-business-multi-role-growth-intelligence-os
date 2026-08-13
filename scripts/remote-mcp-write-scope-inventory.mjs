@@ -29,8 +29,18 @@ function routeInventory(files) {
   for (const path of files.filter((candidate) => candidate.startsWith("http-generic-api/routes/") && candidate.endsWith(".js"))) {
     const source = read(path);
     const pattern = /router\.(get|post|put|patch|delete)\(\s*["'`]([^"'`]+)["'`]/g;
+    let occurrence = 0;
     for (const match of source.matchAll(pattern)) {
-      routes.push({ method: match[1].toUpperCase(), path: match[2], file: path, write: ["POST", "PUT", "PATCH", "DELETE"].includes(match[1].toUpperCase()) });
+      const method = match[1].toUpperCase();
+      const routePath = match[2];
+      routes.push({
+        route_id: `${path}#${method}:${routePath}:${occurrence}`,
+        method,
+        path: routePath,
+        file: path,
+        write: ["POST", "PUT", "PATCH", "DELETE"].includes(method),
+      });
+      occurrence += 1;
     }
   }
   return routes;
@@ -77,6 +87,7 @@ function classifyWriteSurfaces(routes, catalog) {
     .filter((rule) => rule.methods.has(route.method) && rule.pattern.test(`${route.path} ${route.file}`))
     .map((rule) => ({
       scope_key: rule.scope_key,
+      route_id: route.route_id,
       method: route.method,
       path: route.path,
       file: route.file,
@@ -84,6 +95,103 @@ function classifyWriteSurfaces(routes, catalog) {
       provider_mutation_allowed: false,
       readback_required: true,
     })));
+}
+
+function unmappedRouteReason(route) {
+  const value = `${route.path} ${route.file}`.toLowerCase();
+  if (/connector|shell|browser|fetch-upload|gcloud|n8n|\bps\b|\bwin\b|file/i.test(value)) return { reason: "connector_or_local_execution_requires_device_capability", risk: "critical" };
+  if (/credential|secret|token|oauth|auth/i.test(value)) return { reason: "credential_or_identity_mutation_requires_security_contract", risk: "critical" };
+  if (/release|deploy|migration|bootstrap|control-plane|platform/i.test(value)) return { reason: "platform_control_plane_requires_explicit_capability_and_change_control", risk: "critical" };
+  if (/agent|skill|workflow|planner|execution|job|session/i.test(value)) return { reason: "agent_or_execution_state_requires_authority_binding", risk: "high" };
+  if (/support|ticket|approval|hold/i.test(value)) return { reason: "support_or_human_review_requires_approval_binding", risk: "high" };
+  if (/tenant|workspace|brand|customer|commercial/i.test(value)) return { reason: "tenant_domain_write_requires_resource_authority_binding", risk: "high" };
+  if (/registry|schema|catalog|route|policy/i.test(value)) return { reason: "registry_mutation_requires_live_schema_and_policy_contract", risk: "high" };
+  if (/webhook|callback|trigger/i.test(value)) return { reason: "event_ingress_requires_signature_and_replay_contract", risk: "high" };
+  return { reason: "unclassified_surface_requires_manual_owner_mapping", risk: "medium" };
+}
+
+function routeDomain(route) {
+  const value = `${route.path} ${route.file}`.toLowerCase();
+  const domains = [
+    ["github", /github|repository|repo-conflict/],
+    ["cloudflare", /cloudflare|(?:^|\/)dns(?:\/|$)|\bcf\b/],
+    ["hostinger", /hostinger|hosting|ssh|deploy|release/],
+    ["connector", /connector|browser|shell|file|gcloud|n8n/],
+    ["approvals", /approval|hold|grant-request|decision/],
+    ["support", /support|ticket/],
+    ["assets", /asset|upload|media/],
+    ["identity", /auth|identity|membership|user|tenant/],
+    ["agent_execution", /agent|skill|workflow|planner|execution|job|session/],
+    ["platform_control_plane", /platform|admin|bootstrap|control-plane|registry|schema/],
+  ];
+  return domains.find(([, pattern]) => pattern.test(value))?.[0] || "application_domain";
+}
+
+function routeOperationClass(route) {
+  const value = String(route.path || "").toLowerCase();
+  if (/decision|decide|approve|reject/.test(value)) return "decision";
+  if (/dispatch|execute|invoke|run|shell|browser/.test(value)) return "execute";
+  if (/deploy|release|publish|promote/.test(value)) return "deploy";
+  if (/grant|request|install|register|create|upload|append/.test(value) || route.method === "POST") return "create_or_request";
+  if (route.method === "DELETE") return "delete";
+  if (["PUT", "PATCH"].includes(route.method)) return "update";
+  return "write_unknown";
+}
+
+function routeOwner(domain) {
+  return `${domain.replaceAll("_", "-")}-governance`;
+}
+
+function routeKey(route) {
+  return route.route_id || `${route.method}:${route.path}:${route.file}`;
+}
+
+function buildWriteRouteClassifications(routes, candidates) {
+  const byRoute = new Map();
+  for (const candidate of candidates) {
+    const key = routeKey(candidate);
+    const current = byRoute.get(key) || [];
+    current.push(candidate);
+    byRoute.set(key, current);
+  }
+  return routes.map((route) => {
+    const key = routeKey(route);
+    const candidateScopes = byRoute.get(key) || [];
+    if (candidateScopes.length) {
+      return {
+        route_id: route.route_id,
+        classification: "shadow_candidate",
+        mapping_status: "blocked_until_explicit_binding",
+        domain: routeDomain(route),
+        operation_class: routeOperationClass(route),
+        scope_keys: [...new Set(candidateScopes.map((candidate) => candidate.scope_key))],
+        classification_confidence: "catalog_pattern",
+        authority_required: true,
+        provider_mutation_allowed: false,
+        readback_required: true,
+        owner: "remote-mcp-governance",
+      };
+    }
+    const unmapped = unmappedRouteReason(route);
+    return {
+      route_id: route.route_id,
+      classification: "intentionally_unmapped",
+      mapping_status: "blocked",
+      domain: routeDomain(route),
+      operation_class: routeOperationClass(route),
+      scope_keys: [],
+      resource_candidate: routeDomain(route),
+      resource_key: null,
+      operation_key: null,
+      authority_required: true,
+      provider_mutation_allowed: false,
+      readback_required: true,
+      owner: routeOwner(routeDomain(route)),
+      classification_confidence: "heuristic_requires_manual_confirmation",
+      risk_class: unmapped.risk,
+      reason: unmapped.reason,
+    };
+  });
 }
 
 function dbRegistryInventory(files) {
@@ -118,6 +226,9 @@ const registries = dbRegistryInventory(files);
 const routeWrites = routes.filter((route) => route.write);
 const writeSurfaceCandidates = classifyWriteSurfaces(routeWrites, catalog);
 const writeSurfaceScopeKeys = new Set(writeSurfaceCandidates.map((candidate) => candidate.scope_key));
+const writeRouteClassifications = buildWriteRouteClassifications(routeWrites, writeSurfaceCandidates);
+const intentionallyUnmappedRoutes = writeRouteClassifications.filter((route) => route.classification === "intentionally_unmapped");
+const sensitiveIntentionallyUnmappedRoutes = intentionallyUnmappedRoutes.filter((route) => ["critical", "high"].includes(route.risk_class));
 const writeScopeKeys = new Set(writeScopes.map((scope) => scope.scope_key));
 const migrationScopeKeys = new Set(migrations.flatMap((migration) => migration.write_scopes));
 const dbCatalogFingerprints = new Set(migrations.flatMap((migration) => migration.catalog_fingerprints || []));
@@ -138,6 +249,7 @@ if (!registries.some((entry) => entry.registries.includes("platform_resource_aut
   findings.push({ severity: "high", code: "RESOURCE_AUTHORITY_REGISTRY_MISSING" });
 }
 if (!routeWrites.length) findings.push({ severity: "medium", code: "NO_WRITE_ROUTES_DISCOVERED" });
+if (intentionallyUnmappedRoutes.length) findings.push({ severity: "high", code: "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED", count: intentionallyUnmappedRoutes.length, sensitive_count: sensitiveIntentionallyUnmappedRoutes.length });
 if (!dbCatalogFingerprints.has(catalogFingerprint)) findings.push({ severity: "high", code: dbCatalogFingerprints.size ? "DB_CATALOG_FINGERPRINT_MISMATCH" : "DB_CATALOG_FINGERPRINT_MISSING", catalog_fingerprint: catalogFingerprint });
 for (const scope of writeScopes) {
   if (!writeSurfaceScopeKeys.has(scope.scope_key)) findings.push({ severity: "medium", code: "WRITE_SCOPE_NO_ROUTE_CANDIDATE", scope_key: scope.scope_key });
@@ -156,7 +268,10 @@ const inventory = {
   route_count: routes.length,
   write_route_count: routeWrites.length,
   classified_write_surface_count: writeSurfaceCandidates.length,
-  unclassified_write_route_count: routeWrites.length - new Set(writeSurfaceCandidates.map((candidate) => `${candidate.method}:${candidate.path}:${candidate.file}`)).size,
+  classified_write_route_count: writeRouteClassifications.length,
+  unclassified_write_route_count: writeRouteClassifications.filter((route) => !route.classification).length,
+  intentionally_unmapped_write_route_count: intentionallyUnmappedRoutes.length,
+  sensitive_intentionally_unmapped_write_route_count: sensitiveIntentionallyUnmappedRoutes.length,
   migration_count: migrations.length,
   registry_evidence_count: registries.length,
   write_scope_count: writeScopes.length,
@@ -173,6 +288,7 @@ const inventory = {
   })),
   route_inventory: routes,
   write_surface_candidates: writeSurfaceCandidates,
+  write_route_classifications: writeRouteClassifications,
   migration_inventory: migrations,
   registry_evidence: registries,
   findings,
@@ -187,7 +303,7 @@ const inventory = {
 };
 
 const findingLines = findings.length
-  ? findings.map((finding) => "- **" + finding.severity + "** `" + finding.code + "`" + (finding.scope_key ? " — `" + finding.scope_key + "`" : "")).join("\n")
+  ? findings.map((finding) => "- **" + finding.severity + "** `" + finding.code + "`" + (finding.scope_key ? " — `" + finding.scope_key + "`" : "") + (finding.count !== undefined ? " — count: " + finding.count : "") + (finding.sensitive_count !== undefined ? " — sensitive: " + finding.sensitive_count : "")).join("\n")
   : "No findings.";
 
 const markdown = `<!-- GENERATED FILE. Run npm run write-scopes:inventory. -->
@@ -201,6 +317,8 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 | Routes discovered | ${inventory.route_count} |
 | Write routes discovered | ${inventory.write_route_count} |
 | Classified write-surface candidates | ${inventory.classified_write_surface_count} |
+| Classified write routes | ${inventory.classified_write_route_count} |
+| Intentionally unmapped write routes (blocked) | ${inventory.intentionally_unmapped_write_route_count} |
 | Migrations with governance evidence | ${inventory.migration_count} |
 | DB catalog fingerprint match | ${inventory.db_catalog_fingerprint_match} |
 | Registry evidence entries | ${inventory.registry_evidence_count} |
@@ -212,6 +330,17 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 ## Findings
 
 ${findingLines}
+
+## Classification contract
+
+Every write route is represented exactly once in 'write_route_classifications':
+
+| Classification | Meaning | Execution status |
+|---|---|---|
+| 'shadow_candidate' | Heuristic/catalog-owned surface candidate requiring explicit resource-operation-scope binding | Blocked until binding, authority, approval, capability, lease, and readback exist |
+| 'intentionally_unmapped' | Route is inventoried but not proven to belong to the Remote MCP write surface | Blocked; owner and machine-readable reason are required |
+
+'unclassified_write_route_count' must remain zero. A zero unclassified count does **not** mean write readiness; the inventory is ready only when blocked intentional mappings, scope bindings, DB evidence, and all governance gates are resolved.
 
 ## Safety boundary
 

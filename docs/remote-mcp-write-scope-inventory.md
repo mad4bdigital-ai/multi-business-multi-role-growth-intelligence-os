@@ -5,10 +5,12 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 
 | Metric | Value |
 |---|---:|
-| Tracked files scanned | 6739 |
+| Tracked files scanned | 6743 |
 | Routes discovered | 1070 |
 | Write routes discovered | 649 |
 | Classified write-surface candidates | 38 |
+| Classified write routes | 649 |
+| Intentionally unmapped write routes (blocked) | 611 |
 | Migrations with governance evidence | 441 |
 | DB catalog fingerprint match | true |
 | Registry evidence entries | 100 |
@@ -25,7 +27,19 @@ This artifact is generated from the Git index, the Remote MCP scope catalog, app
 - **high** `WRITE_SCOPE_UNBOUND` — `github.write`
 - **high** `WRITE_SCOPE_UNBOUND` — `cloudflare.write`
 - **high** `WRITE_SCOPE_UNBOUND` — `hostinger.deploy`
+- **high** `INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED` — count: 611 — sensitive: 611
 - **medium** `WRITE_SCOPE_NO_ROUTE_CANDIDATE` — `assets.update`
+
+## Classification contract
+
+Every write route is represented exactly once in 'write_route_classifications':
+
+| Classification | Meaning | Execution status |
+|---|---|---|
+| 'shadow_candidate' | Heuristic/catalog-owned surface candidate requiring explicit resource-operation-scope binding | Blocked until binding, authority, approval, capability, lease, and readback exist |
+| 'intentionally_unmapped' | Route is inventoried but not proven to belong to the Remote MCP write surface | Blocked; owner and machine-readable reason are required |
+
+'unclassified_write_route_count' must remain zero. A zero unclassified count does **not** mean write readiness; the inventory is ready only when blocked intentional mappings, scope bindings, DB evidence, and all governance gates are resolved.
 
 ## Safety boundary
 

@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6733,
-    "bytes": 59440197,
-    "lines": 1390894,
+    "files": 6737,
+    "bytes": 60086022,
+    "lines": 1404097,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2025,
-      "documentation": 1857,
-      "api-runtime": 1339,
+      "tests-and-specs": 2026,
+      "documentation": 1858,
+      "api-runtime": 1341,
       "database-migrations": 768,
       "root-and-other": 229,
       "ci-workflows": 152,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2460,
-      ".mjs": 1539,
-      ".js": 938,
+      ".md": 2461,
+      ".mjs": 1540,
+      ".js": 939,
       ".sql": 783,
-      ".json": 676,
+      ".json": 677,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3454,
-      "docs": 1763,
+      "http-generic-api": 3457,
+      "docs": 1764,
       "specs": 838,
       ".github": 246,
       ".changes": 224,
@@ -2386,6 +2386,7 @@
       "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
       "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
       "http-generic-api/test-remote-mcp-readiness.mjs",
+      "http-generic-api/test-remote-mcp-reference-architecture.mjs",
       "http-generic-api/test-remote-runtime-catalog-probe.mjs",
       "http-generic-api/test-remote-runtime-dispatch-dry-run.mjs",
       "http-generic-api/test-remote-runtime-local-readonly-execute.mjs",
@@ -4476,6 +4477,7 @@
       "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
       "http-generic-api/test-remote-mcp-oauth21-routes.mjs",
       "http-generic-api/test-remote-mcp-readiness.mjs",
+      "http-generic-api/test-remote-mcp-reference-architecture.mjs",
       "http-generic-api/test-remote-runtime-catalog-probe.mjs",
       "http-generic-api/test-remote-runtime-dispatch-dry-run.mjs",
       "http-generic-api/test-remote-runtime-local-readonly-execute.mjs",
@@ -30051,12 +30053,23 @@
       "generated": false
     },
     {
+      "path": "docs/remote-mcp-write-governance-reference-architecture.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 15113,
+      "lines": 143,
+      "sha256": "fb614467f983dc78955c457d6cf3b4d088e3b3254ee62f1c1006ff151508312f",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/remote-mcp-write-scope-inventory.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 1537,
-      "lines": 33,
-      "sha256": "fd68baf1feb1fb95f878d1607104b0fde48c6eaac8fcdbdf93d4562dbcf67284",
+      "bytes": 2504,
+      "lines": 47,
+      "sha256": "85616cf12054b3683dba30173b2438a3e8fa50958e527f74753f3fa762ee8507",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48564,12 +48577,23 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/remote-mcp-write-governance-reference-architecture.generated.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 6246,
+      "lines": 78,
+      "sha256": "b465e20c21dded50c9ce03b52865a63ee989dd58bc8456ad07149f27c3e5140f",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 394959,
-      "lines": 13151,
-      "sha256": "dd7a23b8553c1099a1034259827812752020f1f2431201a442aa85fc600fbc4d",
+      "bytes": 1003798,
+      "lines": 25838,
+      "sha256": "1164e4e6c6a85a0bbc105f901835284e7eb1ea9ca150d419c59702207d86239e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48674,6 +48698,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/remoteMcpReferenceArchitecture.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 3813,
+      "lines": 93,
+      "sha256": "d84ce4b988062c35ac1b0f9306edb3c2e1af4b1e5079818ac9d2a125719db1ce",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/remoteMcpRequestHost.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -48721,9 +48756,9 @@
       "path": "http-generic-api/remoteMcpWriteScopeGovernance.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 5307,
-      "lines": 118,
-      "sha256": "7d1348b6d6d8e20d8c5cce9182ff8a5c0cb14784b0efa75ad1e0711499d1a8b6",
+      "bytes": 5699,
+      "lines": 122,
+      "sha256": "220c8d7d20e93b70bacd75ec793cf22d7bd2b9bf2344be4c2fa287285a11585b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64924,9 +64959,9 @@
       "path": "http-generic-api/test-remote-mcp-incremental-consent.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 4855,
-      "lines": 114,
-      "sha256": "48c8abf0d4061abc584c3f8c6a1a93e48405877a0d1e2c7039a4c3e9ac2233b1",
+      "bytes": 5116,
+      "lines": 117,
+      "sha256": "d835a973a447777f2da6e9013e0986c84440f40dccf0d019b3afc30c4fe9d551",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64971,6 +65006,17 @@
       "bytes": 2655,
       "lines": 72,
       "sha256": "74464960439bc4eaa873da8cc245b6068e37a5a3bb7097c11c8752e81294fdc2",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-remote-mcp-reference-architecture.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2143,
+      "lines": 42,
+      "sha256": "fd9ecb70be83abc9e26ef7ca6e3d1782a644e0536a3cfc27189e261933980007",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70248,9 +70294,9 @@
       "path": "scripts/remote-mcp-write-scope-inventory.mjs",
       "category": "root-and-other",
       "extension": ".mjs",
-      "bytes": 12124,
-      "lines": 241,
-      "sha256": "14a523191cca7931ad46f426465849124b09b2735e07e16eb26823afc2e36c77",
+      "bytes": 19038,
+      "lines": 370,
+      "sha256": "ea9816c0b415468ed7248a446fc9fc2e0de4316fa822dbc535ee0f2179420d12",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -70314,9 +70360,9 @@
       "path": "scripts/test-remote-mcp-write-scope-inventory.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 2765,
-      "lines": 42,
-      "sha256": "cac749edb433de7ef3dea35fc27eb545fd17d4a7525969846ff834d47609d1dd",
+      "bytes": 3902,
+      "lines": 52,
+      "sha256": "d69b2a72d72c5358276d8826ed907f84036efdd85d17b72eacc72ce41a032d51",
       "mode": "644",
       "executable": false,
       "generated": false

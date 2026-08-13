@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6733,
-    "bytes": 59440197,
-    "lines": 1390894,
+    "files": 6737,
+    "bytes": 60086022,
+    "lines": 1404097,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2025,
-      "documentation": 1857,
-      "api-runtime": 1339,
+      "tests-and-specs": 2026,
+      "documentation": 1858,
+      "api-runtime": 1341,
       "database-migrations": 768,
       "root-and-other": 229,
       "ci-workflows": 152,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2460,
-      ".mjs": 1539,
-      ".js": 938,
+      ".md": 2461,
+      ".mjs": 1540,
+      ".js": 939,
       ".sql": 783,
-      ".json": 676,
+      ".json": 677,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3454,
-      "docs": 1763,
+      "http-generic-api": 3457,
+      "docs": 1764,
       "specs": 838,
       ".github": 246,
       ".changes": 224,
@@ -209,7 +209,7 @@
     "workflows": 152,
     "migrations": 768,
     "apiContracts": 147,
-    "testSpecFiles": 2088
+    "testSpecFiles": 2089
   },
   "largestFiles": [
     {
@@ -225,16 +225,16 @@
       "lines": 97073
     },
     {
+      "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "category": "api-runtime",
+      "bytes": 1003798,
+      "lines": 25838
+    },
+    {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
       "bytes": 979336,
       "lines": 22721
-    },
-    {
-      "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-      "category": "api-runtime",
-      "bytes": 394959,
-      "lines": 13151
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
