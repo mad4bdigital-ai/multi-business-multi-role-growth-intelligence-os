@@ -28,17 +28,26 @@
           "terminal_outcome": "Authority writes, scoped reads, recipe resolution, and repository readback use the Governance DB source without a Runtime DB fallback.",
           "steps": [
             "Configure an isolated Governance DB pool and a distinct Runtime DB pool.",
+            "Reject missing or Runtime-equal Governance database names before pool creation.",
             "Exercise authority write and same-source readback contracts.",
             "Resolve a platform resource capability through the Governance authority source.",
             "Verify governed repository readback fails closed when the authority source is unavailable or mismatched."
           ],
           "assertions": [
             "Authority reads and writes select the explicit Governance DB pool.",
+            "A missing or Runtime-equal Governance database name fails closed before connection creation.",
             "A missing or ambiguous authority binding does not fall back to the Runtime DB.",
             "Scoped authority resolution remains tenant and workspace bounded.",
             "Repository governance readback preserves fail-closed binding validation."
           ],
           "tests": [
+            {
+              "id": "governance-db-writer-identity-and-database-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
             {
               "id": "authority-store-same-source-regression",
               "runner": "node",
@@ -69,11 +78,13 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/governanceDb.js",
             "http-generic-api/platformResourceAuthorityStore.js",
             "http-generic-api/platformResourceAuthorityGrantTool.js",
             "http-generic-api/platformResourceRecipeCapability.js",
             "http-generic-api/repositoryGovernanceV6.js",
             "http-generic-api/repositoryTenantIntelligenceV2.js",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
             "http-generic-api/test-platform-resource-authority-store.mjs",
             "http-generic-api/test-platform-resource-authority-write-authority.mjs",
             "http-generic-api/test-platform-resource-recipe-capability.mjs",
