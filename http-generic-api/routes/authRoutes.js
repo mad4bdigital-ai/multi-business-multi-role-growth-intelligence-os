@@ -29,9 +29,40 @@ import {
   isDuplicateEntryError,
   recoverGoogleJitIdentityAfterDuplicate,
 } from "../tenantGptGoogleJitRecovery.js";
+import {
+  buildTenantGptSsoClearCookieHeader,
+  buildTenantGptSsoCookieHeader,
+  isTenantGptSsoSessionActive,
+  issueTenantGptSsoSession,
+  parseTenantGptSsoCookie,
+  persistTenantGptSsoSession,
+  resolveTenantGptSsoSessionTtlSeconds,
+  resolveTenantGptSsoSessionIdleTtlSeconds,
+  revokeTenantGptSsoSessionBySid,
+  revokeTenantGptSsoSessionsForUser,
+  verifyTenantGptSsoSession,
+} from "../tenantGptSsoSession.js";
+import { validateTenantGptPkceChallenge, verifyTenantGptPkce } from "../tenantGptOAuthPkce.js";
 
-// Default fallback secret for development if missing.
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+function requireConfiguredJwtSecret(env = process.env) {
+  const secret = String(env?.JWT_SECRET || "").trim();
+  if (secret.length < 32) {
+    const error = new Error("A configured JWT_SECRET with at least 32 characters is required.");
+    error.code = "oauth_jwt_secret_unavailable";
+    throw error;
+  }
+  return secret;
+}
+
+function requireConfiguredSsoSigningSecret(env = process.env) {
+  const secret = String(env?.TENANT_GPT_SSO_SIGNING_SECRET || "").trim();
+  if (secret.length < 32) {
+    const error = new Error("A dedicated TENANT_GPT_SSO_SIGNING_SECRET with at least 32 characters is required.");
+    error.code = "tenant_gpt_sso_session_secret_unavailable";
+    throw error;
+  }
+  return secret;
+}
 
 // The client ID shouldn't strictly be required in development for testing,
 // but validation logic will use it if provided.
@@ -232,7 +263,7 @@ function issueTenantGptAccessToken(payload, {
     claims.scope_links = TENANT_GPT_SCOPE_LINKS;
   }
 
-  return jwt.sign(claims, JWT_SECRET, { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
+  return jwt.sign(claims, requireConfiguredJwtSecret(process.env), { expiresIn: USER_TOKEN_TTL_SECONDS, jwtid });
 }
 
 async function fetchActiveUserForJwtClient(pool, { user_id, email }) {
@@ -535,6 +566,9 @@ function buildOAuthAuthorizeHtml({
   requestedScope = "",
   oauthClientId = TENANT_GPT_OAUTH_CLIENT_ID,
   oauthResource = "",
+  ssoAvailable = false,
+  codeChallenge = "",
+  codeChallengeMethod = "S256",
 }) {
   const signInOptions = Array.isArray(activationContext?.sign_in_options)
     ? activationContext.sign_in_options
@@ -580,6 +614,7 @@ function buildOAuthAuthorizeHtml({
   <main>
     <h1>Growth Intelligence Platform</h1>
     <p>Sign in or create your workspace to continue securely in ChatGPT.</p>
+    ${ssoAvailable ? '<button class="submit" id="continue-session" type="button">Continue with existing session</button><p class="hint">Your active Mad4B session will be reused without asking you to sign in again.</p>' : ''}
     <nav aria-label="Sign-in options">
       ${showGoogle ? '<button type="button" data-panel="google">Google</button>' : ''}
       ${showEmail ? '<button type="button" data-panel="email">Existing account</button>' : ''}
@@ -618,6 +653,9 @@ function buildOAuthAuthorizeHtml({
     const OAUTH_SCOPE = ${JSON.stringify(String(requestedScope || ""))};
     const OAUTH_CLIENT_ID = ${JSON.stringify(String(oauthClientId || TENANT_GPT_OAUTH_CLIENT_ID))};
     const OAUTH_RESOURCE = ${JSON.stringify(String(oauthResource || ""))};
+    const CODE_CHALLENGE = ${JSON.stringify(String(codeChallenge || ""))};
+    const CODE_CHALLENGE_METHOD = ${JSON.stringify(String(codeChallengeMethod || "S256"))};
+    const SSO_AVAILABLE = ${JSON.stringify(ssoAvailable === true)};
     const INITIAL_PANEL = ${JSON.stringify(initialPanel)};
     const errorBox = document.getElementById("error");
     function showError(message){ errorBox.textContent = message || "Sign-in failed."; }
@@ -631,7 +669,7 @@ function buildOAuthAuthorizeHtml({
       const codeRes = await fetch("/auth/oauth/code", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, activation_context: ACTIVATION_CONTEXT })
+        body: JSON.stringify({ credential, redirect_uri: REDIRECT_URI, state: STATE, scope: OAUTH_SCOPE, oauth_client_id: OAUTH_CLIENT_ID, oauth_resource: OAUTH_RESOURCE, code_challenge: CODE_CHALLENGE, code_challenge_method: CODE_CHALLENGE_METHOD, activation_context: ACTIVATION_CONTEXT })
       });
       const codeData = await codeRes.json();
       if (!codeRes.ok || !codeData.redirect_to) {
@@ -644,6 +682,9 @@ function buildOAuthAuthorizeHtml({
       const payload = Object.fromEntries(new FormData(form).entries());
       await issueOAuthCode({ kind, ...payload });
     }
+    document.getElementById("continue-session")?.addEventListener("click", async () => {
+      try { await issueOAuthCode(null); } catch (err) { showError(err.message); }
+    });
     document.getElementById("login-form")?.addEventListener("submit", async (event) => {
       event.preventDefault();
       try { await submitCredentials("login", event.currentTarget); } catch (err) { showError(err.message); }
@@ -736,6 +777,23 @@ export function buildAuthRoutes(deps) {
   const requireBackendApiKey = deps?.requireBackendApiKey;
   const resolvePool = typeof deps?.getPool === "function" ? deps.getPool : getPool;
   const oauthGoogleClient = deps?.googleClient || googleClient;
+  const authEnv = deps?.env || process.env;
+  const jwtSecret = requireConfiguredJwtSecret(authEnv);
+  const ssoSigningSecret = requireConfiguredSsoSigningSecret(authEnv);
+  const ssoSessionTtlSeconds = resolveTenantGptSsoSessionTtlSeconds(authEnv);
+  const ssoSessionIdleTtlSeconds = resolveTenantGptSsoSessionIdleTtlSeconds(authEnv);
+  const checkSsoSession = deps?.isTenantGptSsoSessionActive || isTenantGptSsoSessionActive;
+  const saveSsoSession = deps?.persistTenantGptSsoSession || persistTenantGptSsoSession;
+  const revokeSsoSession = deps?.revokeTenantGptSsoSessionBySid || revokeTenantGptSsoSessionBySid;
+  const revokeSsoSessionsForUser = deps?.revokeTenantGptSsoSessionsForUser || revokeTenantGptSsoSessionsForUser;
+
+  async function reusableSsoSession(cookieValue, expectedClientId) {
+    const verified = verifyTenantGptSsoSession(cookieValue, { jwtSecret: ssoSigningSecret, expectedClientId });
+    if (!verified.ok) return verified;
+    const active = await checkSsoSession({ pool: resolvePool(), sid: verified.claims.sid });
+    if (!active?.ok || active.active !== true) return { ok: false, code: active?.code || "session_revoked" };
+    return verified;
+  }
 
   async function registerUserCredential(input = {}) {
     const { email: rawEmail, password, display_name, tenant_display_name } = input;
@@ -959,7 +1017,7 @@ export function buildAuthRoutes(deps) {
       ...identity,
       token: jwt.sign(
         { user_id: identity.user_id, email: identity.email, tenant_id: identity.tenant_id || null },
-        JWT_SECRET,
+        jwtSecret,
         { expiresIn: "7d" }
       ),
     };
@@ -1029,7 +1087,7 @@ export function buildAuthRoutes(deps) {
             client: "admin_assistant",
             reason: cleanText(reason, 120) || "admin_assistant_jwt_client",
           },
-          JWT_SECRET,
+          jwtSecret,
           { expiresIn, jwtid: randomUUID() }
         );
 
@@ -1069,6 +1127,15 @@ export function buildAuthRoutes(deps) {
     const state = String(req.query.state || "");
     const requestedScope = cleanTenantGptRequestedScope(req.query.scope);
     const requestedResource = String(req.query.resource || "").trim();
+    let pkce;
+    try {
+      pkce = validateTenantGptPkceChallenge({
+        codeChallenge: req.query.code_challenge,
+        codeChallengeMethod: req.query.code_challenge_method,
+      });
+    } catch (error) {
+      return res.status(400).type("text/plain").send(error.message);
+    }
     const resourceProfile = resolveTenantGptOAuthResourceProfile({
       clientId: oauthClientId,
       requestHost: tenantGptRequestHostFromHeaders(req.headers),
@@ -1098,6 +1165,12 @@ export function buildAuthRoutes(deps) {
       return res.status(400).type("text/plain").send("OAuth redirect_uri is not allowed for the Tenant GPT client.");
     }
 
+    const authorizeSso = await reusableSsoSession(parseTenantGptSsoCookie(req.headers?.cookie), resourceProfile.client_id);
+    const authorizeRequestedScopes = requestedScope ? requestedScope.split(/\s+/u).filter(Boolean) : [];
+    const ssoAvailable = req.query.prompt !== "login"
+      && authorizeSso.ok
+      && authorizeRequestedScopes.every((scope) => authorizeSso.claims.scopes.includes(scope));
+
     res.setHeader("cache-control", "no-store");
     return res
       .status(200)
@@ -1110,6 +1183,9 @@ export function buildAuthRoutes(deps) {
         requestedScope,
         oauthClientId: resourceProfile.client_id,
         oauthResource: resourceProfile.resource,
+        ssoAvailable,
+        codeChallenge: pkce.code_challenge,
+        codeChallengeMethod: pkce.code_challenge_method,
       }));
   });
 
@@ -1117,8 +1193,14 @@ export function buildAuthRoutes(deps) {
     const requestId = randomUUID();
     let stage = "request_validation";
     try {
-      const { token, credential, redirect_uri, state, oauth_client_id, oauth_resource } = req.body || {};
+      const { token, credential, redirect_uri, state, oauth_client_id, oauth_resource, code_challenge, code_challenge_method } = req.body || {};
       const requested_scope = cleanTenantGptRequestedScope(req.body?.scope);
+      let pkce;
+      try {
+        pkce = validateTenantGptPkceChallenge({ codeChallenge: code_challenge, codeChallengeMethod: code_challenge_method });
+      } catch (error) {
+        return res.status(400).json({ ok: false, error: { code: error.code, message: error.message } });
+      }
       const resourceProfile = resolveTenantGptOAuthResourceProfile({
         clientId: oauth_client_id || TENANT_GPT_OAUTH_CLIENT_ID,
         requestHost: tenantGptRequestHostFromHeaders(req.headers),
@@ -1127,8 +1209,13 @@ export function buildAuthRoutes(deps) {
       const activation_context = req.body?.activation_context && typeof req.body.activation_context === "object"
         ? parseActivationContext(req.body.activation_context)
         : {};
-      if (!redirect_uri || (!token && !credential)) {
-        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token or credential are required." } });
+      const requestedScopes = requested_scope ? requested_scope.split(/\s+/u).filter(Boolean) : [];
+      const ssoCookie = parseTenantGptSsoCookie(req.headers?.cookie);
+      const ssoSession = (!token && !credential && req.body?.prompt !== "login")
+        ? await reusableSsoSession(ssoCookie, resourceProfile.client_id)
+        : { ok: false, code: "session_not_requested" };
+      if (!redirect_uri || (!token && !credential && !ssoSession.ok)) {
+        return res.status(400).json({ ok: false, error: { code: "missing_fields", message: "redirect_uri and either token, credential, or a valid SSO session are required." } });
       }
       if (!state) {
         return res.status(400).json({ ok: false, error: { code: "missing_state", message: "state is required." } });
@@ -1149,9 +1236,34 @@ export function buildAuthRoutes(deps) {
       }
 
       stage = "identity_resolution";
-      const payload = token
-        ? jwt.verify(token, JWT_SECRET)
-        : await resolveTenantGptOAuthCredential(credential);
+      let payload;
+      if (ssoSession.ok) {
+        if (requestedScopes.some((scope) => !ssoSession.claims.scopes.includes(scope))) {
+          return res.status(400).json({ ok: false, error: { code: "incremental_consent_required", message: "The requested scope is not covered by the existing SSO session." } });
+        }
+        const pool = resolvePool();
+        const [userRows] = await pool.query(
+          `SELECT user_id, email, display_name, status FROM \`users\` WHERE user_id = ? LIMIT 1`,
+          [ssoSession.claims.user_id],
+        );
+        const activeUser = userRows?.[0];
+        if (!activeUser || activeUser.status !== "active") {
+          return res.status(401).json({ ok: false, error: { code: "session_subject_inactive", message: "The SSO session subject is no longer active." } });
+        }
+        const membership = await fetchJwtClientMembership(pool, activeUser.user_id, ssoSession.claims.tenant_id);
+        if (!membership || membership.status !== "active") {
+          return res.status(403).json({ ok: false, error: { code: "session_membership_inactive", message: "The SSO session workspace membership is no longer active." } });
+        }
+        payload = {
+          user_id: activeUser.user_id,
+          email: activeUser.email,
+          tenant_id: membership.tenant_id,
+        };
+      } else {
+        payload = token
+          ? jwt.verify(token, jwtSecret)
+          : await resolveTenantGptOAuthCredential(credential);
+      }
       if (!payload.user_id) {
         return res.status(400).json({ ok: false, error: { code: "invalid_token", message: "User token is missing user_id." } });
       }
@@ -1169,9 +1281,11 @@ export function buildAuthRoutes(deps) {
           scope: requested_scope || null,
           client_id: resourceProfile.client_id,
           resource: resourceProfile.resource,
+          code_challenge: pkce.code_challenge,
+          code_challenge_method: pkce.code_challenge_method,
           activation_context,
         },
-        JWT_SECRET,
+        jwtSecret,
         { expiresIn: OAUTH_CODE_TTL_SECONDS, jwtid: codeJti }
       );
       stage = "authorization_code_store";
@@ -1184,6 +1298,26 @@ export function buildAuthRoutes(deps) {
         redirect_uri: canonicalRedirectUri,
         expires_at: codeExpiresAt,
       });
+
+      if (payload.tenant_id) {
+        const ssoToken = issueTenantGptSsoSession({
+          user_id: payload.user_id,
+          tenant_id: payload.tenant_id,
+          email: payload.email,
+          client_id: resourceProfile.client_id,
+          scopes: [...new Set([...(ssoSession.ok ? ssoSession.claims.scopes : []), ...requestedScopes])].sort(),
+          jwtSecret: ssoSigningSecret,
+          ttlSeconds: ssoSessionTtlSeconds,
+          idleTtlSeconds: ssoSessionIdleTtlSeconds,
+        });
+        const ssoClaims = jwt.decode(ssoToken);
+        try {
+          await saveSsoSession({ pool: resolvePool(), claims: ssoClaims, expiresAt: new Date(Number(ssoClaims?.exp || 0) * 1000) });
+          res.setHeader("Set-Cookie", buildTenantGptSsoCookieHeader(ssoToken, { ttlSeconds: ssoSessionTtlSeconds, env: authEnv }));
+        } catch (error) {
+          console.warn("tenant_gpt_sso_session_persistence_unavailable", { code: String(error?.code || "store_unavailable").slice(0, 64), secrets_included: false });
+        }
+      }
 
       return res.status(200).json({
         ok: true,
@@ -1304,7 +1438,7 @@ export function buildAuthRoutes(deps) {
         });
       }
 
-      const codePayload = jwt.verify(code, JWT_SECRET);
+      const codePayload = jwt.verify(code, jwtSecret);
       tokenLogContext.code_redirect_uri = safeOAuthRedirectEvidence(codePayload.redirect_uri);
       tokenLogContext.code_jti_present = Boolean(codePayload.jti);
       tokenLogContext.user_id_present = Boolean(codePayload.user_id);
@@ -1419,6 +1553,21 @@ export function buildAuthRoutes(deps) {
       return res.status(200).json(legacyAuthResponse(await loginUserCredential(req.body || {})));
     } catch (err) {
       return sendAuthRouteFailure(res, err, "login_failed");
+    }
+  });
+
+  // ── POST /auth/oauth/revoke ─────────────────────────────────────────────────
+  router.post("/oauth/revoke", async (req, res) => {
+    const token = cleanText(req.body?.session_token || req.body?.token || parseTenantGptSsoCookie(req.headers?.cookie), 8192);
+    const verified = verifyTenantGptSsoSession(token, { jwtSecret: ssoSigningSecret });
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Set-Cookie", buildTenantGptSsoClearCookieHeader({ env: authEnv }));
+    if (!verified.ok) return res.status(200).json({ ok: true, revoked: false, reason: verified.code, secrets_included: false });
+    try {
+      const revoked = await revokeSsoSession({ pool: resolvePool(), sid: verified.claims.sid });
+      return res.status(200).json({ ok: true, revoked, sid: verified.claims.sid, secrets_included: false });
+    } catch (error) {
+      return res.status(503).json({ ok: false, error: { code: "sso_revocation_store_unavailable", message: "SSO session revocation is temporarily unavailable." }, secrets_included: false });
     }
   });
 
@@ -1546,7 +1695,13 @@ export function buildAuthRoutes(deps) {
         connection.release();
       }
 
-      return res.status(200).json({ ok: true, message: "Password has been reset. You can sign in with the new password.", secrets_included: false });
+      let ssoRevocation = { ok: true, revoked: 0 };
+      try {
+        ssoRevocation.revoked = await revokeSsoSessionsForUser({ pool: resolvePool(), userId: reset.user_id });
+      } catch {
+        ssoRevocation = { ok: false, revoked: 0, code: "sso_revocation_store_unavailable" };
+      }
+      return res.status(200).json({ ok: true, message: "Password has been reset. You can sign in with the new password.", sso_revocation: ssoRevocation, secrets_included: false });
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "password_reset_failed", message: err.message }, secrets_included: false });
     }

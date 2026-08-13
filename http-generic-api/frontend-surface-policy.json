@@ -256,6 +256,15 @@
       "evidence_refs": ["routes/authRoutes.js"]
     },
     {
+      "rule_id": "public-sso-session-revoke-auth",
+      "operation": "POST /auth/oauth/revoke",
+      "source_file": "routes/authRoutes.js",
+      "profile": "public",
+      "owner": "identity-platform",
+      "rationale": "The SSO revocation endpoint is intentionally reachable without a bearer middleware because it accepts the current SSO cookie or a submitted session token, validates it server-side, clears the cookie, and returns an idempotent secret-free result.",
+      "evidence_refs": ["routes/authRoutes.js", "tenantGptSsoSession.js", "test-tenant-gpt-sso-session.mjs", "openapi.yaml"]
+    },
+    {
       "rule_id": "public-status-auth",
       "operations": [
         "GET /status.html",

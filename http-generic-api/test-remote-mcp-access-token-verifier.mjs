@@ -98,6 +98,8 @@ function activePool({ active = true, subjectActiveCount = 1, grant = {} } = {}) 
   assert.equal(result.ok, false);
   assert.equal(result.status, 403);
   assert.equal(result.code, "MCP_SCOPE_INSUFFICIENT");
+  assert.deepEqual(result.claims.missing_scopes, ["brands.read"]);
+  assert.equal(result.claims.auth_mode, "remote_mcp_oauth_2_1_scope_insufficient");
 }
 
 {

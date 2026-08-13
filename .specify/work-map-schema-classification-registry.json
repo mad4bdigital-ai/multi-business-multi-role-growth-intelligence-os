@@ -17,6 +17,23 @@
   ],
   "rules": [
     {
+      "rule_key": "remote_mcp_scope_catalog_governance",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "platform_scope_catalog_revisions",
+          "platform_scope_implications"
+        ]
+      },
+      "domain": "Governance & authority",
+      "existing_map_refs": [
+        "policy-authority-map",
+        "platform-resource-graph-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Remote MCP scope-catalog revisions and implication edges are metadata-only authorization-governance records. They document source and catalog fingerprints and explicit scope implication relationships; they never activate write scopes or authorize provider mutations."
+    },
+    {
       "rule_key": "canonical_identifier_registries",
       "scope": "governed_family",
       "match": {

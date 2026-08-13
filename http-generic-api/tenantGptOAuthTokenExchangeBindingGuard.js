@@ -34,6 +34,12 @@ function text(value, max = 512) {
   return String(value || "").trim().slice(0, max);
 }
 
+function normalizeEffectiveScope(value) {
+  const allowed = new Set(TENANT_GPT_SCOPE.split(/\s+/u).filter(Boolean));
+  const requested = Array.isArray(value) ? value : String(value || "").split(/\s+/u);
+  return [...new Set(requested.map((scope) => text(scope, 512)).filter((scope) => allowed.has(scope)))].sort().join(" ");
+}
+
 function invalidCodeClaim(code, message) {
   const error = new Error(message);
   error.name = "JsonWebTokenError";
@@ -105,6 +111,7 @@ function issueTenantGptAccessToken(payload, {
   resource,
   expiresIn,
   jwtSecret,
+  scope,
 } = {}) {
   const userId = text(payload?.user_id, BINDING_LIMITS.user_id);
   const tenantId = text(payload?.tenant_id, BINDING_LIMITS.tenant_id);
@@ -125,7 +132,7 @@ function issueTenantGptAccessToken(payload, {
       sub: `tenant:${tenantId}:user:${userId}`,
       user_id: userId,
       tenant_id: tenantId,
-      scope: TENANT_GPT_SCOPE,
+      scope: normalizeEffectiveScope(scope === undefined ? payload?.scope : scope),
       purpose: "tenant_gpt_access",
     },
     jwtSecret,

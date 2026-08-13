@@ -3922,6 +3922,40 @@ paths:
               schema:
                 $ref: '../specs/010-unified-platform-frontend/contracts/ui-surface-catalog.schema.json'
         '503': { description: Dispatch artifact missing or invalid }
+  /auth/oauth/revoke:
+    post:
+      operationId: revokeAuthOAuthSsoSession
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      summary: Revoke the current Tenant GPT SSO session
+      description: Revokes the SSO session represented by the submitted session token or trusted SSO cookie and always returns a secret-free idempotent response.
+      tags: [auth, system-layer]
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                session_token: { type: string, maxLength: 8192 }
+                token: { type: string, maxLength: 8192 }
+      responses:
+        '200':
+          description: Session revocation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, revoked, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  revoked: { type: boolean }
+                  sid: { type: string }
+                  reason: { type: string }
+                  secrets_included: { type: boolean, const: false }
+        '503': { description: SSO persistence unavailable }
   # BEGIN RESOURCE API COVERAGE
   /admin/resource-types:
     get:
@@ -4318,6 +4352,7 @@ paths:
   /me/workspaces/{tenant_id}/resources:
     get:
       operationId: getMeWorkspacesTenantIdResources
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources"
       tags: [resource-api]
       security:
@@ -4346,6 +4381,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}:
     get:
       operationId: getMeWorkspacesTenantIdResourcesResourceKey
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
       security:
@@ -4377,6 +4413,7 @@ paths:
         '409': { description: Operation conflicts with lifecycle or policy }
     post:
       operationId: postMeWorkspacesTenantIdResourcesResourceKey
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: true
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}"
       tags: [resource-api]
@@ -4407,6 +4444,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}:
     get:
       operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
@@ -4442,6 +4480,7 @@ paths:
         '409': { description: Operation conflicts with lifecycle or policy }
     patch:
       operationId: patchMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "PATCH /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
@@ -4473,6 +4512,7 @@ paths:
         '409': { description: Operation conflicts with lifecycle or policy }
     delete:
       operationId: deleteMeWorkspacesTenantIdResourcesResourceKeyResourceId
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "DELETE /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}"
       tags: [resource-api]
       security:
@@ -4500,6 +4540,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore:
     post:
       operationId: postMeWorkspacesTenantIdResourcesResourceKeyResourceIdRestore
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: true
       summary: "POST /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/restore"
       tags: [resource-api]
@@ -4533,6 +4574,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions:
     get:
       operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdPermissions
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/permissions"
       tags: [resource-api]
       security:
@@ -4569,6 +4611,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions:
     get:
       operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdRevisions
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/revisions"
       tags: [resource-api]
       security:
@@ -4605,6 +4648,7 @@ paths:
   /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes:
     get:
       operationId: getMeWorkspacesTenantIdResourcesResourceKeyResourceIdChanges
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resources/{resourceKey}/{resourceId}/changes"
       tags: [resource-api]
       security:
@@ -4641,6 +4685,7 @@ paths:
   /me/workspaces/{tenant_id}/resource-changes:
     get:
       operationId: getMeWorkspacesTenantIdResourceChanges
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/resource-changes"
       tags: [resource-api]
       security:
@@ -4669,6 +4714,7 @@ paths:
   /me/workspaces/{tenant_id}/operations/{operationId}:
     get:
       operationId: getMeWorkspacesTenantIdOperationsOperationId
+      x-custom-gpt-surfaces: [tenant_core]
       summary: "GET /me/workspaces/{tenant_id}/operations/{operationId}"
       tags: [resource-api]
       security:
@@ -5196,6 +5242,7 @@ paths:
     get:
       tags: [activation, runtime-verification]
       operationId: getActivationHardRunSummary
+      x-custom-gpt-surfaces: [activation_admin]
       summary: Read compact hard activation summary
       description: >
         Returns a summary-first activation status and registry counts without loading the full hard activation evidence graph.
@@ -7055,6 +7102,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readActivationAwareness
+      x-custom-gpt-surfaces: [activation_admin]
       x-openai-isConsequential: false
       summary: Read complete activation awareness manifests
       description: Returns Dynamic Tabs and Dashboard manifests, attention summaries, completeness, freshness, awareness index, snapshot metadata, and governed detail references without silently omitting surfaces.
@@ -7097,6 +7145,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readActivationOperationalAttention
+      x-custom-gpt-surfaces: [activation_admin]
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read unified operational alerts
@@ -7369,6 +7418,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: readActivationDynamicTabDetail
+      x-custom-gpt-surfaces: [activation_admin]
       x-openai-isConsequential: false
       summary: Read one authorized Dynamic Tab detail page
       parameters:
@@ -7416,6 +7466,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: acknowledgeActivationRun
+      x-custom-gpt-surfaces: [activation_admin]
       x-openai-isConsequential: false
       summary: Record consumer acknowledgement for an activation run
       parameters:
@@ -7803,6 +7854,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: getTenantGrowthDashboard
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Read the tenant growth cockpit
       description: Returns the active workspace, business context, relevant Dynamic Tabs, typed cards, growth guidance, and up to three next-best actions. Tenant and user identity come only from the signed JWT.
@@ -7845,6 +7897,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: getTenantGrowthDashboardTab
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Read one tenant dashboard tab
       parameters:
@@ -7885,6 +7938,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: getTenantDashboardPreferences
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Read tenant dashboard preferences
       responses:
@@ -7915,6 +7969,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: updateTenantDashboardPreferences
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: true
       summary: Replace tenant dashboard preferences
       description: Replaces the signed-in user's dashboard state. Tenant and user identifiers are never accepted from the request body.
@@ -7949,6 +8004,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: getTenantGrowthDigest
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Read a compact tenant growth digest
       parameters:
@@ -7997,6 +8053,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: previewTenantGrowthAction
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Preview a governed growth action
       description: Resolves action readiness and expected business outcome without executing a provider or writing business data.
@@ -8046,6 +8103,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: recordTenantGrowthRecommendationFeedback
+      x-custom-gpt-surfaces: [tenant_core]
       x-openai-isConsequential: false
       summary: Record recommendation feedback or outcome
       parameters:
@@ -8107,6 +8165,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: readTenantActivationOperationalAttention
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: true
       x-openai-isConsequential: false
       summary: Read tenant-scoped operational alerts
@@ -8152,6 +8211,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: readTenantActivationAwareness
+      x-custom-gpt-surfaces: [tenant_activation]
       x-openai-isConsequential: false
       summary: Read signed-in tenant activation awareness
       description: Tenant scope is resolved from the signed user JWT and active membership. Client-supplied tenant identity is not trusted.
@@ -8193,6 +8253,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: readTenantResolutionProblemCards
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: Read tenant self-healing problem cards
@@ -8215,6 +8276,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: listTenantResolutionCases
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: List tenant resolution cases
@@ -8261,6 +8323,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: createTenantResolutionCase
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Create or return a tenant resolution case
@@ -8299,6 +8362,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: getTenantResolutionCase
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: Read one tenant resolution case
@@ -8333,6 +8397,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: transitionTenantResolutionCase
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Transition a tenant resolution case
@@ -8384,6 +8449,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: runTenantResolutionDiagnosticAction
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Run a tenant resolution diagnostic action
@@ -8531,6 +8597,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: previewTenantTaskSourceRepair
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Preview a tenant task source repair
@@ -8643,6 +8710,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: applyTenantTaskSourceRepair
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Apply an approved tenant task source repair
@@ -8767,6 +8835,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: readTenantActivationDynamicTabDetail
+      x-custom-gpt-surfaces: [tenant_activation]
       x-openai-isConsequential: false
       summary: Read one tenant-authorized Dynamic Tab detail page
       parameters:
@@ -8820,6 +8889,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: runLegacyFullHardActivation
+      x-custom-gpt-surfaces: [activation_admin]
       x-openai-isConsequential: false
       summary: Run legacy full hard activation response
       description: Compatibility route for callers that require the previous fully hydrated Dynamic Tabs, Operational Intelligence, and Dashboard payload. New callers should use /activation/hard-run with response_profile=full only when necessary.
@@ -8847,6 +8917,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: runHardActivation
+      x-custom-gpt-surfaces: [activation_admin]
       x-openai-isConsequential: false
       summary: Run evidence-first hard activation with complete awareness
       description: >
@@ -8881,6 +8952,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getActivationSessionContext
+      x-custom-gpt-surfaces: [activation_admin]
       summary: Read previous session history and platform scope context
       description: >
         Hard activation layer that reads prior user session envelopes as a
@@ -8991,6 +9063,7 @@ paths:
     get:
       tags: [activation]
       operationId: getTenantActivationSessionContext
+      x-custom-gpt-surfaces: [tenant_activation]
       x-tenant-gpt-operationId: activateSession
       x-openai-isConsequential: false
       summary: Open or reuse the signed tenant user's Activation session context
@@ -9051,6 +9124,7 @@ paths:
     get:
       tags: [activation, session-archive]
       operationId: listTenantActivationSessions
+      x-custom-gpt-surfaces: [tenant_activation]
       x-tenant-gpt-operationId: listSessions
       x-openai-isConsequential: false
       summary: List the signed tenant user's safe Activation session metadata
@@ -9110,6 +9184,7 @@ paths:
     post:
       tags: [activation, session-archive]
       operationId: writeTenantActivationSessionTurns
+      x-custom-gpt-surfaces: [tenant_activation]
       x-tenant-gpt-operationId: writeGptSessionTurns
       x-openai-isConsequential: true
       summary: Append a bounded conversational exchange to the active tenant session archive
@@ -9202,6 +9277,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: getActivationPlatformAccess
+      x-custom-gpt-surfaces: [activation_admin]
       summary: Read platform-wide activation access and registry counts
       description: >
         Hard activation evidence for admin/service sessions. Returns explicit
@@ -11432,6 +11508,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listSystemConnectors
+      x-custom-gpt-surfaces: [admin_core]
       summary: List connector systems visible to the current principal
       description: Principal-aware facade over connected_systems. Tenant users are automatically scoped to their tenant; admin principals can inspect all tenants.
       parameters:
@@ -11475,6 +11552,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getSystemConnector
+      x-custom-gpt-surfaces: [admin_core]
       summary: Get one connector system visible to the current principal
       description: Principal-aware connector registry read. Tenant users can only read systems in their tenant; admins can read any system.
       parameters:
@@ -11503,6 +11581,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listSystemTools
+      x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: listTools
       summary: List MCP-style system tools visible to the current principal
       description: Lists fixed OpenAPI-compatible tools available through the auth-host system layer. Tool calls are governed by principal context. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
@@ -11531,6 +11610,7 @@ paths:
       tags: [system-layer]
       security: [adminBearerAuth: [], backendApiKeyAuth: []]
       operationId: getSystemToolCatalogObservability
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Read System Tool Catalog V2 observability and descriptor parity
       description: Returns bounded no-secret Catalog V2 counters and descriptor/runtime handler parity evidence. Admin/service authentication is required.
@@ -11566,6 +11646,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: getSystemToolDescriptor
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Read one visible System Layer tool descriptor
       description: Resolves one stable tool name against the principal-scoped Catalog V2 projection. A hidden tool is indistinguishable from an absent tool.
@@ -11606,6 +11687,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: resolveSystemToolCapability
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Resolve intent or a stable selector against visible System Layer tools
       description: Read-only discovery over the principal-scoped Catalog V2 projection. The response never grants execution authority and routes a unique match to capability preview.
@@ -11659,6 +11741,7 @@ paths:
       tags: [system-layer]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: callSystemTool
+      x-custom-gpt-surfaces: [admin_core, tenant_core]
       x-tenant-gpt-operationId: callTool
       x-openai-isConsequential: false
       summary: Call a governed MCP-style system tool
@@ -11716,6 +11799,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemConnectors
+      x-custom-gpt-surfaces: [admin_core]
       summary: List connector systems from the system registry
       description: Read-only admin facade over the connected_systems table. Use this before choosing connector-specific actions or MCP-style tool calls.
       parameters:
@@ -11757,6 +11841,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminSystemConnector
+      x-custom-gpt-surfaces: [admin_core]
       summary: Get one connector system from the system registry
       description: Returns one connected_systems row plus its installation summary. This is a governed alternative to raw DB inspection for connector inventory.
       parameters:
@@ -11784,6 +11869,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listAdminSystemTools
+      x-custom-gpt-surfaces: [admin_core]
       summary: List MCP-style system layer tools
       description: Lists fixed OpenAPI-compatible tools available through the admin system layer. This behaves like a small MCP tools/list facade over governed platform registries. Results are bounded and page-aware; oversized responses return response_chunked=true, chunk_id, page.next_cursor, cache TTL metadata, and require response_chunk_read before fallback. Chunk payloads are persisted to governed MySQL storage before chunk_id is returned, and response_chunk_read can recover after in-process cache loss or process restart. Optional max_chars, chunk_ttl_ms, and chunk_ttl_minutes controls are backward compatible.
       responses:
@@ -11808,6 +11894,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: callAdminSystemTool
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Call an MCP-style system layer tool
       description: >-
@@ -11874,6 +11961,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTabs
+      x-custom-gpt-surfaces: [admin_core]
       summary: Read simulated Google Auth Platform tabs
       description: Returns governed DB-backed tab state for the platform-controlled Google Auth Platform and APIs & Services console simulation.
       parameters:
@@ -11908,6 +11996,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminGoogleAuthPlatformTab
+      x-custom-gpt-surfaces: [admin_core]
       summary: Read one simulated Google Auth Platform tab
       description: Returns one governed tab state, such as overview, branding, audience, clients, data_access, verification_center, settings, or api_credentials.
       parameters:
@@ -11970,6 +12059,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getAdminApisServicesCredentials
+      x-custom-gpt-surfaces: [admin_core]
       summary: Read simulated APIs & Services Credentials tab
       description: Returns the governed APIs & Services Credentials tab and linked platform credential-client registry records.
       parameters:
@@ -12022,6 +12112,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listAdminTools
+      x-custom-gpt-surfaces: [admin_core]
       summary: List admin platform tools from the governed registry
       description: "Returns paginated DB-backed and virtual Admin tools. Use limit/cursor/q/tag for bounded discovery; clients unable to send query parameters should call admin_tool_catalog_search through callAdminTool. Read all response chunks before fallback. Repository lifecycle mutations remain capability-gated and require same-cycle readback."
       x-runtime-governance:
@@ -12162,6 +12253,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: callAdminTool
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Execute any admin platform tool by name
       description: "Executes a governed DB-backed or virtual Admin tool returned by listAdminTools. Pass tool arguments in tool_args according to the returned inputSchema. Use admin_tool_catalog_search when the client cannot send list pagination/search parameters. DB-backed path parameters are substituted automatically. The virtual growth_intelligence_pilot_run tool resolves tenant, Brand Core, Business Activity, route/workflow/engine compatibility, and governed-dispatch evidence from SQL authority; persists only to internal Growth Intelligence registries; creates approval holds; performs same-cycle readback; and rejects provider writes, external sends, live execution, and secrets. Virtual tools `growth_intelligence_insight_decide`, `growth_intelligence_action_decide`, and `growth_intelligence_readiness_refresh` remain catalog-backed behind this dispatcher, add no dedicated public path, record internal review/readiness only, and never dispatch execution or perform provider writes. `repository_advisory_comment_approval_hold_create` and `repository_advisory_comment_approval_hold_approve` create or approve one plan-bound hold with typed confirmation; separate system-layer apply/readback tools are still required for any GitHub comment. The Admin-only virtual tool `response_chunk_durable_recovery_smoke` remains behind this dispatcher and adds no dedicated public path; it requires `RUN_RESPONSE_CHUNK_DURABLE_RECOVERY_SMOKE`, writes one TTL-bounded no-secret smoke row, evicts only its own in-process cache entry, requires MySQL recovery, verifies SHA-256/UTF-8/exact Arabic and emoji reconstruction/cursor policy/sliding expiry, returns bounded evidence without raw payload, and performs no provider call, credential read, external write, or process restart."
@@ -12225,6 +12317,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: listDeviceTools
+      x-custom-gpt-surfaces: [admin_core]
       summary: List device-tagged tools (MCP-style local device control surface)
       description: "Returns the device-tagged subset of the admin or tenant tool registry. Use this MCP-style facade to control local device apps (n8n, browser, files, Windows, Cloudflare) primarily from auth.mad4b.com instead of the direct connector.mad4b.com schema."
       responses:
@@ -12263,6 +12356,7 @@ paths:
       tags: [admin-control]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: callDeviceTool
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Execute a device-tagged tool by name (MCP-style dispatch)
       description: "Dispatches a device-tagged tool through the auth.mad4b.com facade. Rejects tool keys not tagged 'device' with 403. Reuses the gpt/tools dispatcher so audit, admin scope-grant resolution, and grant_dispatch logging keep working."
@@ -12668,6 +12762,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getLocalConnectorInstallBundle
+      x-custom-gpt-surfaces: [admin_core]
       summary: Resolve or download a local connector installer
       description: "Generate a pre-filled Windows .bat installer for the local connector stack (cloudflared + Node.js service via NSSM). Reads cf_token and connector_secret from local_connector_user_configs in DB for the given user_id + device_id. Falls back to server env only if no DB row exists. The default JSON mode returns metadata before credential lookup. The installer is generated only when format=bat is requested on the authenticated route and is never uploaded to shared or public storage. User saves the .bat and runs as Administrator â€” cloudflared and NSSM are installed automatically if missing. Both services auto-restart on failure and reboot."
       parameters:
@@ -12734,6 +12829,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: repairLocalConnector
+      x-custom-gpt-surfaces: [admin_core]
       x-openai-isConsequential: false
       summary: Diagnose local connector health and return a secure installer handoff
       x-runtime-governance:
@@ -12825,6 +12921,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listDnsRecords
+      x-custom-gpt-surfaces: [admin_core]
       summary: List DNS records for a zone
       description: Lists all DNS records for the specified zone via Cloudflare API. Defaults to mad4b.com.
       parameters:
@@ -13204,6 +13301,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: listSchemaImportJobs
+      x-custom-gpt-surfaces: [admin_core]
       summary: List schema import jobs with optional action_key filter
       parameters:
         - name: action_key
@@ -14870,6 +14968,7 @@ paths:
       tags: [admin-control]
       security: [{ adminBearerAuth: [] }, { backendApiKeyAuth: [] }]
       operationId: getPlatformDataSourceCensus
+      x-custom-gpt-surfaces: [admin_core]
       summary: SQL data-source census across platform tables
       description: "Returns row counts and last-write timestamps for every SQL table mapped in the platform registry (brands, actions, endpoints, plugins, execution_log, etc.) plus the Sheets mirror configuration. Use to verify SQL is the runtime authority, find empty tables that may need seeding, and audit migration completeness."
       responses:
@@ -15781,6 +15880,7 @@ paths:
         - backendBearerAuth: []
         - backendApiKeyAuth: []
       operationId: listLocalGatewayTools
+      x-custom-gpt-surfaces: [tenant_core]
       summary: List tenant-safe local gateway tools
       description: "Returns local gateway tool descriptors available to the authenticated caller. Caller and tenant context are derived from the validated credential; include_planned defaults to false."
       parameters:
@@ -17885,6 +17985,7 @@ paths:
       tags:
         - platform-plugins
       operationId: tenantPlatformPluginCredentialIntakeSessionCreate
+      x-custom-gpt-surfaces: [tenant_core]
       summary: Create a tenant-safe credential intake session
       description: Creates a short-lived single-use intake URL for a tenant-enabled integration. Identity comes only from the signed JWT. Owners/admins only. Unknown fields, credentials, custom schemas, arbitrary metadata, tenant_id, and user_id are rejected.
       requestBody:
@@ -20972,6 +21073,7 @@ paths:
     get:
       tags: [platform-plugins]
       operationId: tenantPlatformPluginCatalog
+      x-custom-gpt-surfaces: [tenant_core]
       summary: List installable Platform Base plugins for this tenant
       description: Tenant-facing catalog. Tenant/user IDs come from auth; no secrets are returned.
       parameters:
@@ -21007,6 +21109,7 @@ paths:
       x-openai-isConsequential: true
       tags: [platform-plugins]
       operationId: tenantPlatformPluginInstall
+      x-custom-gpt-surfaces: [tenant_core]
       summary: Install a Platform Base plugin for this tenant
       description: Installs a Platform Base plugin for the signed-in tenant. Tenant/user IDs come from auth; no secrets are accepted.
       requestBody:
@@ -21065,6 +21168,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: verifyTenantTaskSourceRepair
+      x-custom-gpt-surfaces: [tenant_activation]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Verify an applied tenant task source repair
@@ -21145,6 +21249,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: listTenantSkillApprovals
+      x-custom-gpt-surfaces: [tenant_core]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: false
       summary: List tenant skill approval items
@@ -21260,6 +21365,7 @@ paths:
       security:
         - userJwtAuth: []
       operationId: decideTenantSkillApproval
+      x-custom-gpt-surfaces: [tenant_core]
       x-custom-gpt-exclude: false
       x-openai-isConsequential: true
       summary: Decide a tenant skill approval
@@ -21355,6 +21461,7 @@ paths:
       tags: [session-archive]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: writeGptSessionTurn
+      x-custom-gpt-surfaces: [tenant_core]
       x-tenant-gpt-operationId: writeSessionTurn
       x-openai-isConsequential: false
       summary: Append one turn to a customer_sessions archive
@@ -21402,6 +21509,7 @@ paths:
       tags: [session-archive]
       security: [backendBearerAuth: [], backendApiKeyAuth: []]
       operationId: endGptSession
+      x-custom-gpt-surfaces: [tenant_core]
       x-tenant-gpt-operationId: endSession
       x-openai-isConsequential: false
       summary: Close a customer_sessions archive
@@ -22249,6 +22357,7 @@ paths:
       tags:
         - platform-plugins
       operationId: tenantPlatformPluginResolve
+      x-custom-gpt-surfaces: [tenant_core]
       summary: Resolve tenant readiness for a Platform Plugin action/tool in one exact workspace
       description: Checks tenant plugin readiness without executing actions or returning secrets. The exact workspace_id is mandatory and is resolved as the canonical personal or company Root Workspace. Without brand_ref, personal workspaces may resolve only the authenticated owner's personal connection and company workspaces may resolve only company-workspace connections. When an exact brand_ref is supplied, the Root Workspace remains personal or company while connection ownership is narrowed to that Brand. Brand-scoped resolution requires the existing Root Workspace authority plus tenant owner/admin authority or an exact effective Brand grant at operate or stronger. A Brand child workspace id is not a substitute for the Root Workspace, and caller-supplied Brand identity cannot widen tenant, user, Workspace, or Brand authority.
       security:

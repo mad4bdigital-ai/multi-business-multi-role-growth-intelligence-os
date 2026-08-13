@@ -184,10 +184,11 @@ export function buildActivationHostGatewayRoutes({
     // three Tenant GPT OAuth handoff operations may enter the shared authRoutes
     // router on this host. Login, registration, admin, and every other auth
     // route remain unavailable through activation.mad4b.com.
-    delete req.headers.cookie;
-
     const oauthHandoff = tenantGptOAuthHandoff(req.method, pathname);
     if (oauthHandoff) {
+      // Cookie forwarding is limited to the browser-facing authorize/code handoff.
+      // The token endpoint and every non-handoff route remain cookie-free.
+      if (routeKey(req.method, pathname) === "POST /auth/oauth/token") delete req.headers.cookie;
       req.activationHostGateway = {
         host,
         enforced: true,
@@ -197,6 +198,8 @@ export function buildActivationHostGatewayRoutes({
       };
       return next();
     }
+
+    delete req.headers.cookie;
 
     if (isAuthPath(pathname) || !isActivationHostAllowedPath(pathname, req.method)) {
       return res.status(404).json(errorResponse(

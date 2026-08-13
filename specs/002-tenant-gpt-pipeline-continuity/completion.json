@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "feature_key": "002-tenant-gpt-pipeline-continuity",
+  "title": "Tenant GPT Pipeline Continuity",
+  "status": "complete",
+  "delivery_mode": "single_pr",
+  "last_updated_at": "2026-08-14T00:00:00Z",
+  "requirements": {
+    "migration": false,
+    "production_verification": false,
+    "post_merge_audit": false
+  },
+  "delivery": {
+    "implementation_prs": [
+      {
+        "number": 1891,
+        "role": "core_implementation_and_closeout",
+        "status": "merged",
+        "merge_sha": "40f5e7f96ae3972c2310c894704632e961636241",
+        "merged_at": "2026-06-23T06:09:34Z"
+      }
+    ],
+    "closeout_pr": null
+  },
+  "evidence": {
+    "ci": {
+      "status": "pass",
+      "head_sha": "554c2a3d379392b72e4459dbd5b38240e9d158f6",
+      "checks_passed": 4,
+      "checks_total": 4,
+      "checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ],
+      "source": "PR #1891 checks on reviewed head"
+    },
+    "release_readiness": {
+      "status": "pass",
+      "scope": "bounded implementation and governed merge",
+      "production_mutation": false,
+      "migration_apply": false,
+      "provider_mutation": false,
+      "deployment": false,
+      "source": "PR #1891 requirements/security checklists and governed execution log"
+    },
+    "post_merge_record": {
+      "status": "recorded",
+      "source_pr": 1891,
+      "merge_commit_sha": "40f5e7f96ae3972c2310c894704632e961636241",
+      "note": "Post-merge evidence is recorded in the merged PR and governed execution log; no branch mutation was required."
+    }
+  },
+  "secrets_included": false
+}

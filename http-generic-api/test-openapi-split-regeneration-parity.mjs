@@ -45,6 +45,10 @@ const adminCore = loadSurface("admin_core");
 const adminActivation = loadSurface("activation_admin");
 const tenantCore = loadSurface("tenant_core");
 const tenantActivation = loadSurface("tenant_activation");
+for (const [label, doc] of [["admin core", adminCore], ["admin Activation", adminActivation], ["tenant core", tenantCore], ["tenant Activation", tenantActivation]]) {
+  const leakedMarker = Object.values(doc.paths || {}).some((pathItem) => Object.values(pathItem || {}).some((operation) => operation?.["x-custom-gpt-surfaces"]));
+  assert.equal(leakedMarker, false, `${label} artifact must not expose source-only surface markers`);
+}
 const splitScript = readFileSync("scripts/split-openapi.mjs", "utf8");
 const orchestrator = readFileSync("scripts/generate-custom-gpt-schemas.mjs", "utf8");
 

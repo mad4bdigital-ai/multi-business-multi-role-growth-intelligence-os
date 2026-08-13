@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "architecture_revision": "remote-mcp-write-governance-reference-architecture-v1",
+  "status": "shadow_staging_design",
+  "default_policy": {
+    "write_scope_default_request": false,
+    "provider_mutation_allowed": false,
+    "migration_apply_allowed": false,
+    "production_allowed": false,
+    "secrets_included": false
+  },
+  "layers": [
+    {"id":"L0","name":"inventory_and_canonical_sources","inputs":["git_index","routes","migrations","db_registry_references","scope_catalog"],"outputs":["inventory_fingerprint","route_candidates","db_evidence","drift_status"]},
+    {"id":"L1","name":"transport_and_oauth","inputs":["oauth_request","pkce","access_token"],"outputs":["verified_subject","granted_scopes","client_context"]},
+    {"id":"L2","name":"resource_operation_catalog","inputs":["resource_key","operation_key","scope_key","effect_class","environment_class"],"outputs":["normalized_operation_intent"]},
+    {"id":"L3","name":"subject_tenant_context","inputs":["user_id","tenant_id","membership","resource_audience"],"outputs":["subject_context"]},
+    {"id":"L4","name":"authority_and_policy","inputs":["resource_authority","operation_eligibility","tenant_admin_policy"],"outputs":["authority_verdict"]},
+    {"id":"L5","name":"governance_gates","inputs":["approval","capability_envelope","lease","environment","idempotency_key"],"outputs":["typed_authorization_decision"]},
+    {"id":"L6","name":"execution_broker","inputs":["authorized_operation_intent"],"outputs":["dry_run_or_provider_result"],"provider_mutation_allowed":false},
+    {"id":"L7","name":"provider_adapters","inputs":["provider_policy","authorized_operation_intent"],"outputs":["provider_evidence"],"provider_mutation_allowed":false},
+    {"id":"L8","name":"readback_and_evidence","inputs":["provider_result","expected_identity","expected_fingerprint"],"outputs":["readback_verdict","evidence_refs"]},
+    {"id":"L9","name":"readiness_and_drift","inputs":["catalog_fingerprint","db_fingerprint","inventory_status","schema_status"],"outputs":["readiness_status","drift_status"]}
+  ],
+  "decision_contract": {
+    "required_fields":["request_id","client_id","subject","tenant_id","resource_key","operation_key","scope_key","environment","idempotency_key","catalog_revision","catalog_fingerprint"],
+    "decision_fields":["ok","code","scope_key","effect_class","decision_path","governance","provider_mutation_allowed","production_allowed","readback_required","secrets_included"],
+    "required_gates":["inventory","scope_registration","resource_authority","operation_eligibility","approval","capability","lease","environment","readback"],
+    "deny_codes":["MCP_WRITE_AUTHORIZATION_DENIED","MCP_CATALOG_DRIFT","MCP_READBACK_INSUFFICIENT","MCP_RESOURCE_AUTHORITY_MISSING"]
+  },
+  "db_contract": {
+    "scope_catalog":"platform_oauth_scope_registry",
+    "catalog_revision":"platform_scope_catalog_revisions",
+    "resource_operation_bindings":"platform_resource_scope_bindings",
+    "tool_bindings":"platform_tool_scope_bindings",
+    "scope_implications":"platform_scope_implications",
+    "resource_authority":"platform_resource_authority_bindings",
+    "approval":"approval_holds",
+    "evidence":["execution_log_unified","output_artifacts","sink_dispatch_log","agent_chain_events"],
+    "migration_mode":"additive_idempotent_shadow_only"
+  },
+  "lifecycle": [
+    {"status":"shadow","tools_list_write_export":false,"tools_call_write":false,"provider_mutation_allowed":false},
+    {"status":"staging_ready","tools_list_write_export":false,"tools_call_write":"dry_run_or_approval_challenge","provider_mutation_allowed":false},
+    {"status":"staging_active","tools_list_write_export":"allow_list_only","tools_call_write":"all_gates_required","provider_mutation_allowed":"staging_adapter_only"},
+    {"status":"active","tools_list_write_export":"promotion_required","tools_call_write":"change_control_required","provider_mutation_allowed":"not_default"},
+    {"status":"blocked","tools_list_write_export":false,"tools_call_write":false,"provider_mutation_allowed":false}
+  ],
+  "shadow_write_scopes":[
+    {"scope_key":"approvals.request","resource_key":"approvals","operation_key":"request","effect_class":"internal_write","risk_class":"medium","environment":"staging"},
+    {"scope_key":"assets.create","resource_key":"assets","operation_key":"create","effect_class":"internal_write","risk_class":"high","environment":"staging"},
+    {"scope_key":"assets.update","resource_key":"assets","operation_key":"update","effect_class":"internal_write","risk_class":"high","environment":"staging"},
+    {"scope_key":"github.write","resource_key":"github","operation_key":"write","effect_class":"external_write","risk_class":"high","environment":"staging"},
+    {"scope_key":"cloudflare.write","resource_key":"cloudflare","operation_key":"write","effect_class":"external_write","risk_class":"high","environment":"staging"},
+    {"scope_key":"hostinger.deploy","resource_key":"hostinger","operation_key":"deploy","effect_class":"external_write","risk_class":"critical","environment":"staging"}
+  ],
+  "provider_adapters":[
+    {"provider":"internal_assets","scope_key":"assets.create/update","mutation_allowed":false,"readback":"asset_identity_and_version_fingerprint"},
+    {"provider":"approval_service","scope_key":"approvals.request","mutation_allowed":false,"readback":"hold_id_and_pending_state"},
+    {"provider":"github","scope_key":"github.write","mutation_allowed":false,"readback":"commit_ref_or_pr_state"},
+    {"provider":"cloudflare","scope_key":"cloudflare.write","mutation_allowed":false,"readback":"object_id_and_etag"},
+    {"provider":"hostinger","scope_key":"hostinger.deploy","mutation_allowed":false,"readback":"deployment_id_and_health"}
+  ],
+  "acceptance_invariants":[
+    "no_default_write_scope",
+    "shadow_write_scope_is_not_exported",
+    "unbound_route_is_not_an_mcp_tool",
+    "catalog_db_fingerprint_must_match",
+    "missing_approval_denies",
+    "missing_capability_denies",
+    "missing_lease_denies",
+    "non_staging_environment_denies",
+    "insufficient_readback_does_not_complete",
+    "provider_adapter_cannot_override_decision",
+    "production_is_not_allowed_by_default"
+  ],
+  "secrets_included": false
+}

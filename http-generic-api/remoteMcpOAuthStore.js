@@ -246,6 +246,27 @@ export async function readRemoteMcpGrantByAccessJti(accessJti, { pool = getPool(
   return grantFromRow(row);
 }
 
+export async function readRemoteMcpActiveGrantScopesForSubject({
+  pool = getPool(),
+  clientId,
+  userId,
+  tenantId = null,
+  resource,
+} = {}) {
+  const [rows] = await pool.query(
+    `SELECT scopes_json
+       FROM remote_mcp_oauth_grants
+      WHERE client_id = ?
+        AND user_id = ?
+        AND tenant_id <=> ?
+        AND resource = ?
+        AND status = 'active'
+        AND refresh_expires_at > NOW()`,
+    [clientId, userId, tenantId, resource],
+  );
+  return [...new Set((rows || []).flatMap((row) => parseJsonArray(row.scopes_json)))];
+}
+
 export async function readRemoteMcpGrantByRefreshToken(refreshToken, { pool = getPool() } = {}) {
   const [rows] = await pool.query(
     `SELECT grant_id, access_jti, refresh_token_hash, client_id, user_id, tenant_id,
