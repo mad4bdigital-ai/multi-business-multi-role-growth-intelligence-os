@@ -3,15 +3,15 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6759,
-    "bytes": 59603884,
-    "lines": 1388782,
+    "files": 6760,
+    "bytes": 59609688,
+    "lines": 1388899,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2034,
+      "tests-and-specs": 2035,
       "documentation": 1857,
       "api-runtime": 1345,
       "database-migrations": 775,
@@ -30,7 +30,7 @@
       ".mjs": 1551,
       ".js": 943,
       ".sql": 790,
-      ".json": 676,
+      ".json": 677,
       ".yml": 156,
       ".yaml": 107,
       ".ts": 15,
@@ -59,7 +59,7 @@
     "topLevel": {
       "http-generic-api": 3477,
       "docs": 1763,
-      "specs": 838,
+      "specs": 839,
       ".github": 248,
       ".changes": 227,
       "canonicals": 70,
@@ -2963,6 +2963,7 @@
       "specs/006-adaptive-authorization-execution-governance/data-model.md",
       "specs/006-adaptive-authorization-execution-governance/deep-design-index.md",
       "specs/006-adaptive-authorization-execution-governance/deep-design-task-breakdown.md",
+      "specs/006-adaptive-authorization-execution-governance/e2e-phases.json",
       "specs/006-adaptive-authorization-execution-governance/end-to-end-flows.md",
       "specs/006-adaptive-authorization-execution-governance/formal-decision-model.md",
       "specs/006-adaptive-authorization-execution-governance/handoff-report-2026-06-29.md",
@@ -5062,6 +5063,7 @@
       "specs/006-adaptive-authorization-execution-governance/data-model.md",
       "specs/006-adaptive-authorization-execution-governance/deep-design-index.md",
       "specs/006-adaptive-authorization-execution-governance/deep-design-task-breakdown.md",
+      "specs/006-adaptive-authorization-execution-governance/e2e-phases.json",
       "specs/006-adaptive-authorization-execution-governance/end-to-end-flows.md",
       "specs/006-adaptive-authorization-execution-governance/formal-decision-model.md",
       "specs/006-adaptive-authorization-execution-governance/handoff-report-2026-06-29.md",
@@ -58624,9 +58626,9 @@
       "path": "http-generic-api/test-connect-routes.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 83076,
+      "bytes": 83089,
       "lines": 1281,
-      "sha256": "e73b4efa3e72b280578cba6b4e58800a89dafe133fb8e951a24eff701dbd7b3a",
+      "sha256": "9db0ff1bd097288d57bfcd603d76138b26de73fb7c91ee8ef3bf036dadfa7ca3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -72454,6 +72456,17 @@
       "bytes": 10338,
       "lines": 209,
       "sha256": "b809ccf7725d41c9e58d3939ddcbdebd8aaea669930691e17171fe3ec62c3d7d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "specs/006-adaptive-authorization-execution-governance/e2e-phases.json",
+      "category": "tests-and-specs",
+      "extension": ".json",
+      "bytes": 5791,
+      "lines": 117,
+      "sha256": "64b55a86a79db5636f03116b13ca1ae6b137ca67576df71e4f945ec91103a682",
       "mode": "644",
       "executable": false,
       "generated": false
