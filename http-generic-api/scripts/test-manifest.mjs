@@ -69,6 +69,7 @@ const staticDiscoveryCommands = [
   "node test-github-issue-comment-exact-response-parity.mjs",
   "node test-github-pr-create-rest-fallback.mjs",
   "node test-governance-db-writer-authority.mjs",
+  "node test-runtime-persistence-operational-readiness.mjs",
   "node test-governed-migration-authorization-bootstrap.mjs",
   "node test-tenant-platform-plugin-1052-governed-readiness.mjs",
   "node test-governed-migration-dependency-gate.mjs",
