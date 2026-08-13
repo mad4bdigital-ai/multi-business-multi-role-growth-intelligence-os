@@ -216,6 +216,8 @@ jobs:
         working-directory: http-generic-api
         env:
           FORCE_ROUTE_RUNTIME_TESTS: "true"
+          JWT_SECRET: "ci-test-jwt-secret-32-characters-minimum-0001"
+          TENANT_GPT_SSO_SIGNING_SECRET: "ci-test-sso-signing-secret-32-characters-minimum-0001"
           DEPLOYMENT_BRANCH: "${{ github.head_ref || github.ref_name }}"
           DEPLOYMENT_COMMIT_SHA: "${{ github.event.pull_request.head.sha || github.sha }}"
         run: |
