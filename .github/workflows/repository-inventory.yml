@@ -26,6 +26,7 @@ on:
       - '!docs/repository-inventory.md'
 
 # This verifier is read-only; generated-artifact writes remain delegated to the trusted writer workflow.
+# Contract: mad4b.repository-inventory-self-hosting.v1; inventory artifacts are regenerated only on the exact governed work head.
 env:
   INVENTORY_AUTHORITY_MODE: read_only_verifier
 

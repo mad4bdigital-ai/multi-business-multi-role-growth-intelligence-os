@@ -27,6 +27,7 @@ on:
         type: string
 
 # The dispatcher delegates to the trusted writer and never owns repository contents-write authority.
+# Contract: mad4b.repository-inventory-self-hosting.v1; only stale inventory on an exact same-repository work head is eligible.
 env:
   INVENTORY_AUTOFIX_AUTHORITY_MODE: read_only_delegator
 
