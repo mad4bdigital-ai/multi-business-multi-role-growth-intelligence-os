@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
-import { getGovernancePool } from "./governanceDb.js";
+import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import {
@@ -94,7 +94,7 @@ export async function validateRepositoryPrincipalScopeV6(args = {}, { auth = {},
   return { ...scope, validated: true, secrets_included: false };
 }
 
-export async function resolveRepositoryAuthorityBindingV6({ scope, repoRef, recipeKey = REPOSITORY_PR_RECONCILE_RECIPE_KEY, mode = "read_only", pool = getPool() } = {}) {
+export async function resolveRepositoryAuthorityBindingV6({ scope, repoRef, recipeKey = REPOSITORY_PR_RECONCILE_RECIPE_KEY, mode = "read_only", authorityStorePool = null } = {}) {
   const clauses = ["status = 'active'", "resource_type = 'github_repo'", "resource_uri = ?", "(recipe_key = ? OR recipe_key IS NULL)", "(expires_at IS NULL OR expires_at > NOW())"];
   const params = [repoRef.resource_uri, recipeKey];
   if (scope?.tenant_id) { clauses.push("tenant_id = ?"); params.push(scope.tenant_id); }
@@ -103,7 +103,8 @@ export async function resolveRepositoryAuthorityBindingV6({ scope, repoRef, reci
   else clauses.push("workspace_id IS NULL");
   if (scope?.user_id) { clauses.push("(user_id IS NULL OR user_id = ?)"); params.push(scope.user_id); }
   else clauses.push("user_id IS NULL");
-  const [rows] = await pool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [rows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
   const binding = rows?.[0] || null;
   if (!binding) return { ok: false, reason_code: "blocked_missing_platform_resource_authority_binding", provider_calls_made: 0, secrets_included: false };
   const allowedModes = safeJson(binding.allowed_modes_json, []);
@@ -445,7 +446,7 @@ const MUTATION_PERMISSION_BY_RECIPE = {
 
 export async function createRepositoryMutationAuthorityBindingV6(
   args = {},
-  { auth = {}, readPool = null, writerPool = null } = {},
+  { auth = {}, readPool = null, writerPool = null, authorityStorePool = null } = {},
 ) {
   if (!isAdmin(auth)) { const err = new Error("Repository mutation authority binding creation is admin-only."); err.status = 403; err.code = "repository_mutation_binding_admin_required"; throw err; }
   const repoRef = normalizeGithubRepoRef(args);
@@ -474,7 +475,8 @@ export async function createRepositoryMutationAuthorityBindingV6(
   const candidate = { authority_source: authoritySource, source_system_id: sourceSystemId || null, source_installation_id: sourceInstallationId || null };
   const provider = await validateRepositoryProviderBindingV6({ binding: candidate, scope, pool: runtimeReadPool });
   if (!provider.ok) { const err = new Error("Repository provider binding validation failed."); err.status = 409; err.code = provider.reason_code || "repository_provider_binding_invalid"; err.details = provider; throw err; }
-  const [existing] = await runtimeReadPool.query(
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool, writerPool });
+  const [existing] = await authorityPool.query(
     `SELECT * FROM platform_resource_authority_bindings
       WHERE status='active' AND tenant_id=? AND COALESCE(workspace_id,'')=COALESCE(?,'') AND COALESCE(user_id,'')=COALESCE(?,'')
         AND resource_type='github_repo' AND resource_uri=? AND recipe_key=? AND permission_level=?
@@ -483,7 +485,7 @@ export async function createRepositoryMutationAuthorityBindingV6(
   );
   if (existing.length) return { ok: true, tool: "platform_repository_mutation_authority_binding_create_v6", classification: "repository_mutation_authority_binding_already_active", binding: { ...existing[0], resource_ref_json: undefined, allowed_modes_json: safeJson(existing[0].allowed_modes_json, []), secrets_included: false }, created: false, provider, secrets_included: false };
 
-  const governanceWriterPool = writerPool || getGovernancePool();
+  const governanceWriterPool = authorityPool;
   const bindingId = randomUUID();
   await governanceWriterPool.query(
     `INSERT INTO platform_resource_authority_bindings
@@ -926,7 +928,7 @@ async function recoverRepositoryMutationReadbackV6({ repoRef, run, item, token }
   return { ok: false, action: item.action, reason_code: "repository_mutation_unknown_outcome_readback_not_supported", recovered_from_unknown_outcome: false, secrets_included: false };
 }
 
-export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {} } = {}) {
+export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {}, authorityStorePool = null } = {}) {
   const runId = s(args.run_id);
   if (!runId) { const err = new Error("run_id is required."); err.status = 400; err.code = "repository_mutation_run_id_required"; throw err; }
   const run = await loadMutationRunV6(runId);
@@ -936,7 +938,8 @@ export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {} 
   if (!item) { const err = new Error("Repository mutation plan item is unavailable for readback."); err.status = 409; err.code = "repository_mutation_readback_plan_item_missing"; throw err; }
   if (run.status === "readback_verified") return { ok: true, tool: "tenant_repository_mutation_readback_v6", classification: "repository_mutation_readback_already_verified", run: mutationRunPublicV6(run), provider_calls_made: 0, mutations_executed: false, secrets_included: false };
   if (run.status === "failed_prewrite" || (run.status === "dispatching" && !run.provider_write_started_at)) return { ok: false, tool: "tenant_repository_mutation_readback_v6", classification: "repository_mutation_no_provider_write_to_read_back", run: mutationRunPublicV6(run), provider_calls_made: 0, mutations_executed: false, secrets_included: false };
-  const [[binding]] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1`, [run.binding_id]);
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [[binding]] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id=? AND status='active' AND (expires_at IS NULL OR expires_at>NOW()) LIMIT 1`, [run.binding_id]);
   if (!binding) { const err = new Error("Repository mutation authority binding is unavailable for readback."); err.status = 409; err.code = "repository_mutation_readback_binding_missing"; throw err; }
   const scope = { tenant_id: row.tenant_id || null, workspace_id: row.workspace_id || null, user_id: row.user_id || null, principal_type: row.user_id ? "user" : "tenant", validated: true };
   if (binding.tenant_id !== scope.tenant_id || s(binding.workspace_id) !== s(scope.workspace_id) || s(binding.user_id) !== s(scope.user_id) || binding.resource_uri !== row.resource_uri || binding.recipe_key !== item.action) { const err = new Error("Repository mutation readback binding no longer matches the plan scope and action."); err.status = 403; err.code = "repository_mutation_readback_binding_mismatch"; throw err; }
@@ -956,9 +959,10 @@ export async function tenantRepositoryMutationReadbackV6(args = {}, { auth = {} 
   const updated = await loadMutationRunV6(runId);
   return { ok: readback.ok, tool: "tenant_repository_mutation_readback_v6", classification: readback.ok ? "repository_mutation_readback_verified" : "repository_mutation_readback_unverified", run: mutationRunPublicV6(updated), evidence, provider_calls_made: 1, mutations_executed: false, secrets_included: false };
 }
-async function findRepositoryGovernanceV6ReadinessBinding(repoRef, { pool = getPool() } = {}) {
+async function findRepositoryGovernanceV6ReadinessBinding(repoRef, { authorityStorePool = null } = {}) {
   if (!repoRef?.resource_uri) return null;
-  const [rows] = await pool.query(
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [rows] = await authorityPool.query(
     `SELECT *
        FROM platform_resource_authority_bindings
       WHERE status = 'active'

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6668,
-    "bytes": 58718786,
-    "lines": 1370578,
+    "bytes": 58724230,
+    "lines": 1370709,
     "directories": 251,
     "categories": 13
   },
@@ -295,8 +295,8 @@
     {
       "path": "http-generic-api/releaseReadiness.js",
       "category": "api-runtime",
-      "bytes": 134992,
-      "lines": 2591
+      "bytes": 135154,
+      "lines": 2593
     },
     {
       "path": "schemas/operations.schema.json",
@@ -325,8 +325,8 @@
     {
       "path": "http-generic-api/platformResourceRecipeCapability.js",
       "category": "api-runtime",
-      "bytes": 112202,
-      "lines": 2722
+      "bytes": 112474,
+      "lines": 2727
     }
   ]
 }

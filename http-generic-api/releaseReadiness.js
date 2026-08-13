@@ -15,6 +15,7 @@
  */
 
 import { getPool } from "./db.js";
+import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
 import { randomUUID } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -2066,7 +2067,8 @@ async function checkRepositoryIntelligenceV2Readiness() {
         secrets_included: false,
       };
     }
-    const [bindingRows] = await getPool().query(
+    const authorityPool = resolvePlatformResourceAuthorityPool();
+    const [bindingRows] = await authorityPool.query(
       `SELECT COUNT(*) AS active_real_bindings
          FROM platform_resource_authority_bindings
         WHERE status = 'active'

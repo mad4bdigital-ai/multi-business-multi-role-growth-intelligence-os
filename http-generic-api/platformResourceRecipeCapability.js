@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
 import { getGitHubAppInstallationToken } from "./githubAppAuth.js";
 import { markCapabilityEnvelopeReferenced, resolveCapabilityExecutionEnvelope } from "./capabilityResolutionEnvelopeGuard.js";
 import { buildGoogleDriveMultipartRelatedJsonPayload } from "./providerTransportEncoderRegistry.js";
@@ -2171,7 +2172,7 @@ function modeAllowedByBinding(binding = {}, mode = "read_only") {
   return false;
 }
 
-async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mode = "read_only") {
+async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mode = "read_only", deps = {}) {
   const options = args.options && typeof args.options === "object" ? args.options : {};
   const scope = {
     tenant_id: args.tenant_id || options.tenant_id || null,
@@ -2197,6 +2198,10 @@ async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mod
     const [membershipRows] = await getPool().query("SELECT id FROM memberships WHERE user_id = ? AND tenant_id = ? AND status = 'active' LIMIT 1", [scope.user_id, scope.tenant_id]);
     if (!membershipRows.length) return { required: true, granted: false, decision: "blocked_user_tenant_membership_missing", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
   }
+  const authorityPool = resolvePlatformResourceAuthorityPool({
+    authorityStorePool: deps.authorityStorePool,
+    governancePool: deps.governancePool,
+  });
   const clauses = ["status = 'active'", "resource_type = ?", "resource_uri = ?", "(recipe_key = ? OR recipe_key IS NULL)", "(expires_at IS NULL OR expires_at > NOW())"];
   const params = [resourceType, resourceUri, recipeKey];
   if (scope.tenant_id) { clauses.push("tenant_id = ?"); params.push(scope.tenant_id); } else clauses.push("tenant_id IS NULL");
@@ -2204,7 +2209,7 @@ async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mod
   if (scope.user_id) { clauses.push("(user_id IS NULL OR user_id = ?)"); params.push(scope.user_id); } else clauses.push("user_id IS NULL");
   let rows = [];
   try {
-    [rows] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
+    [rows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
   } catch (error) {
     if (/ER_NO_SUCH_TABLE|doesn't exist/i.test(String(error?.message || ""))) return { required: true, granted: false, decision: "blocked_authority_binding_table_missing", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
     throw error;
@@ -2346,7 +2351,7 @@ export async function runGovernedResource(args = {}, deps = {}) {
   const manifestApplyRequested = applyRequested && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY && !graphProjectionApplyRequested;
   const graphProjectionDryRunRequested = mode === "graph_projection_dry_run" && recipe.recipe_key === ARTIFACT_EXPORT_RECONCILE_RECIPE_KEY;
   const blockedReasons = plan.policy_decision?.blocked_reasons || [];
-  const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode);
+  const authorityBinding = await resolvePlatformResourceAuthorityBinding(plan, args, mode, deps);
   if (mode !== "plan" && authorityBinding.required && !authorityBinding.granted) {
     return {
       ok: false,
