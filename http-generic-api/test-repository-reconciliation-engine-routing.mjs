@@ -177,7 +177,7 @@ const migration = fs.readFileSync(new URL("./migrations/1026_sprint69_repository
 assert.match(migration, /'build_resolution_commit','engine_internal','reconcile_branch','github_detached_resolution_commit_create'/);
 assert.match(migration, /'create_merge_commit','engine_internal','build_resolution_commit','github_branch_merge_commit_create'/);
 assert.match(migration, /'resolution_commit_source_step','build_resolution_commit'/);
-assert.match(migration, /'resolution_commit_source_path','resolution\.commit\.sha'/);
+assert.match(migration, /'resolution_commit_source_path'\s*,\s*'resolution\.commit_sha'/);
 assert.doesNotMatch(migration, /'build_resolution_commit','installed_tool_call','repo_patch_batch_apply'/);
 assert.match(migration, /'automatic_activation_allowed',FALSE/);
 assert.match(migration, /`status`='planned'/);

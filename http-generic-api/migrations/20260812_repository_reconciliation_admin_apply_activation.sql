@@ -46,7 +46,11 @@ UPDATE execution_policies
          '$.per_step_plan_authority_required', TRUE,
          '$.force_push_allowed', FALSE,
          '$.migration_apply_allowed', FALSE,
-         '$.automatic_activation_allowed', FALSE
+         '$.automatic_activation_allowed', FALSE,
+         '$.resolution_commit_source', JSON_OBJECT(
+           'resolution_commit_source_path', 'resolution.commit_sha',
+           'resolution_commit_source_step', 'build_resolution_commit'
+         )
        ),
        notes = 'Repository reconciliation apply is active only through the governed admin surface and remains fail-closed on stale refs, authority drift, CI gaps, replay, or readback failure.',
        updated_at = CURRENT_TIMESTAMP

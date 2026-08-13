@@ -5,6 +5,9 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool } from "../db.js";
+import { getGovernancePool } from "../governanceDb.js";
+import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
+import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -1516,6 +1519,44 @@ const VIRTUAL_ADMIN_TOOLS = [
         actor_id: { type: "string", maxLength: 128 },
       },
       additionalProperties: false,
+    },
+  },
+  {
+    name: "runtime_break_glass_reconciliation_transition",
+    displayName: "Runtime Break-Glass Reconciliation Transition",
+    description: "Records one governed D07-D13 break-glass reconciliation evidence transition. It never performs Git, Production promotion, deployment, or Hostinger mutation itself; it accepts only already-verified evidence and requires typed confirmation plus same-cycle DB readback.",
+    method: "VIRTUAL",
+    path: "internal://runtime-break-glass/reconciliation-transition",
+    tags: ["runtime", "break-glass", "governance", "reconciliation", "admin"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        break_glass_id: { type: "string" },
+        to_state: { type: "string", enum: ["MAIN_COMMITTED", "STAGING_VERIFIED", "PRODUCTION_PROMOTED", "REDEPLOYED", "CLEAN_READBACK", "CLOSED"] },
+        evidence: { type: "object" },
+        confirm: { type: "string" },
+        actor: { type: "string" },
+      },
+      required: ["break_glass_id", "to_state", "evidence", "confirm"],
+    },
+  },
+  {
+    name: "deployment_attestation_generate",
+    displayName: "Deployment Attestation Generate",
+    description: "Generates deterministic, secret-free deployment attestation and optionally evaluates runtime integrity. This surface does not deploy or persist provider state.",
+    method: "VIRTUAL",
+    path: "internal://deployment-attestation/generate",
+    tags: ["deployment", "attestation", "runtime-integrity", "admin", "read-only"],
+    inputSchema: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        environment_key: { type: "string" }, repository_uri: { type: "string" }, source_branch: { type: "string" }, source_commit_sha: { type: "string" },
+        build_id: { type: "string" }, build_timestamp: { type: "string" }, canonical_registry_revision: { type: "integer" }, canonical_resource_hashes: { type: "array" },
+        generation_policy_version: { type: "string" }, runtime_readback: { type: "object" }, break_glass: { type: "object" },
+      },
+      required: ["environment_key", "repository_uri", "source_branch", "source_commit_sha", "build_id", "canonical_resource_hashes"],
     },
   },
   {
@@ -3312,6 +3353,31 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
             details: err?.details || null,
           },
         },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "runtime_break_glass_reconciliation_transition") {
+    try {
+      const result = await transitionRuntimeBreakGlassReconciliation(args || {}, { pool: getGovernancePool() });
+      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "runtime_break_glass_reconciliation_transition_failed", message: err?.message || "Runtime break-glass reconciliation transition failed.", details: err?.details || null }, secrets_included: false },
+      };
+    }
+  }
+  if (callerType === "admin" && toolKey === "deployment_attestation_generate") {
+    try {
+      const attestation = buildDeploymentAttestation(args || {});
+      const runtimeIntegrity = args?.runtime_readback
+        ? evaluateRuntimeIntegrity({ attestation, runtime_readback: args.runtime_readback, break_glass: args.break_glass || {} })
+        : null;
+      return { status: 200, body: { ok: true, name: toolKey, result: { attestation, runtime_integrity: runtimeIntegrity, service_health_separate: true, secrets_included: false }, secrets_included: false } };
+    } catch (err) {
+      return {
+        status: err?.status || 500,
+        body: { ok: false, error: { code: err?.code || "deployment_attestation_generate_failed", message: err?.message || "Deployment attestation generation failed.", details: err?.details || null }, secrets_included: false },
       };
     }
   }

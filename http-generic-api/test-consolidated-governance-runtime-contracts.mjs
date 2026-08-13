@@ -39,17 +39,19 @@ assert.match(activationMigration, /force_push_allowed/);
 assert.match(activationMigration, /v_repository_reconciliation_apply_readiness/);
 
 const collationPolicy = JSON.parse(read("./config/database-engine-collation-policy.json"));
-assert.equal(collationPolicy.contract, "mad4b.database-engine-collation-policy.v1");
-assert.ok(collationPolicy.engine_profiles.some((profile) => profile.engine_family === "mariadb"));
-assert.ok(collationPolicy.engine_profiles.some((profile) => profile.engine_family === "mysql"));
-assert.ok(collationPolicy.engine_profiles.some((profile) => profile.engine_family === "postgresql"));
-assert.equal(collationPolicy.unknown_engine_policy, "block");
+assert.equal(collationPolicy.policy_key, "database_engine_collation_governance");
+assert.equal(collationPolicy.default_engine, "unknown");
+for (const engine of ["mariadb", "mysql", "postgresql"]) {
+  assert.ok(collationPolicy.engines?.[engine], `missing canonical collation profile: ${engine}`);
+}
+assert.equal(collationPolicy.unknown_engine?.join_key_collation_mode, "blocked");
+assert.equal(collationPolicy.migration_rules?.require_engine_detection, true);
 
 const migrationRunner = read("./scripts/governed-migration-runner.mjs");
-const collGuardIndex = migrationRunner.indexOf("assessDatabaseCollationPolicy(sql)");
-const legacyExecIndex = migrationRunner.indexOf("execFileAsync(process.execPath");
-assert.ok(collGuardIndex > -1 && legacyExecIndex > collGuardIndex, "collation preflight must run before legacy SQL runner dispatch");
-assert.match(migrationRunner, /database_collation_policy_mismatch/);
+const collGuardIndex = migrationRunner.indexOf("runDatabaseCollationPreflight");
+const collGuardBlockIndex = migrationRunner.indexOf('if (!collation_preflight.ready)');
+assert.ok(collGuardIndex > -1 && collGuardBlockIndex > collGuardIndex, "collation preflight must be resolved before any apply path");
+assert.match(migrationRunner, /blocked_reason: "collation_policy_not_pass"/);
 assert.match(migrationRunner, /applies_sql: false/);
 
 const activation = read("./activationDynamicEvidence.js");
@@ -114,8 +116,8 @@ assert.match(governancePrivileges, /runtime_verification_evidence_chunks/);
 assert.match(governancePrivileges, /deployment_attestations/);
 
 const canonicalSchemaGovernance = read("../canonicals/direct_instructions_registry_patch/15_schema_repair_governance.md");
-assert.match(canonicalSchemaGovernance, /semantic and engine-aware/);
-assert.match(canonicalSchemaGovernance, /database_engine_profile_unresolved/);
-assert.match(canonicalSchemaGovernance, /do \*\*not\*\* authorize automatic schema\s+conversion/i);
+assert.match(canonicalSchemaGovernance, /engine-aware policy/i);
+assert.match(canonicalSchemaGovernance, /unknown or undetected engine is blocked/i);
+assert.match(canonicalSchemaGovernance, /Automatic additive reconciliation/i);
 
 console.log("consolidated governance/runtime contracts: ok");

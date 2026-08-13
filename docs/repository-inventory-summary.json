@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6716,
-    "bytes": 58966356,
-    "lines": 1376215,
+    "files": 6748,
+    "bytes": 59457574,
+    "lines": 1386121,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2022,
+      "tests-and-specs": 2031,
       "documentation": 1856,
-      "api-runtime": 1328,
-      "database-migrations": 767,
-      "root-and-other": 228,
+      "api-runtime": 1342,
+      "database-migrations": 774,
+      "root-and-other": 230,
       "ci-workflows": 152,
       "api-contracts": 147,
       "ci-config": 94,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2459,
-      ".mjs": 1535,
-      ".js": 931,
-      ".sql": 782,
-      ".json": 672,
+      ".mjs": 1546,
+      ".js": 943,
+      ".sql": 789,
+      ".json": 674,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3440,
+      "http-generic-api": 3470,
       "docs": 1762,
       "specs": 838,
       ".github": 246,
-      ".changes": 224,
+      ".changes": 226,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -203,9 +203,9 @@
   ],
   "surfaces": {
     "workflows": 152,
-    "migrations": 767,
+    "migrations": 774,
     "apiContracts": 147,
-    "testSpecFiles": 2085
+    "testSpecFiles": 2094
   },
   "largestFiles": [
     {
@@ -229,8 +229,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 329163,
-      "lines": 8576
+      "bytes": 328218,
+      "lines": 8553
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -259,8 +259,14 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 204096,
-      "lines": 4372
+      "bytes": 208124,
+      "lines": 4438
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "category": "api-runtime",
+      "bytes": 203883,
+      "lines": 4369
     },
     {
       "path": "http-generic-api/supportTicketService.js",
@@ -313,20 +319,14 @@
     {
       "path": "docs/work-maps/data-model-domain-map.md",
       "category": "documentation",
-      "bytes": 117364,
-      "lines": 848
+      "bytes": 118205,
+      "lines": 854
     },
     {
       "path": "apps/local-manager-windows/Program.cs",
       "category": "applications",
       "bytes": 112920,
       "lines": 2024
-    },
-    {
-      "path": "http-generic-api/platformResourceRecipeCapability.js",
-      "category": "api-runtime",
-      "bytes": 112466,
-      "lines": 2727
     }
   ]
 }
