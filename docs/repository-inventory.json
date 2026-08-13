@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6668,
-    "bytes": 58724230,
-    "lines": 1370709,
+    "files": 6671,
+    "bytes": 58731872,
+    "lines": 1370868,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1987,
-      "documentation": 1853,
-      "api-runtime": 1323,
+      "tests-and-specs": 1988,
+      "documentation": 1854,
+      "api-runtime": 1324,
       "database-migrations": 767,
       "root-and-other": 223,
       "ci-workflows": 152,
@@ -26,9 +26,9 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2438,
-      ".mjs": 1528,
-      ".js": 928,
+      ".md": 2439,
+      ".mjs": 1529,
+      ".js": 929,
       ".sql": 782,
       ".json": 656,
       ".yml": 154,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3429,
-      "docs": 1759,
+      "http-generic-api": 3431,
+      "docs": 1760,
       "specs": 809,
       ".github": 246,
       ".changes": 219,
@@ -2319,6 +2319,7 @@
       "http-generic-api/test-platform-relationship-integrity.mjs",
       "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
       "http-generic-api/test-platform-resource-authority-grant-tool.mjs",
+      "http-generic-api/test-platform-resource-authority-store.mjs",
       "http-generic-api/test-platform-resource-authority-tags-contract.mjs",
       "http-generic-api/test-platform-resource-authority-write-authority.mjs",
       "http-generic-api/test-platform-resource-context-resolver.mjs",
@@ -4371,6 +4372,7 @@
       "http-generic-api/test-platform-relationship-integrity.mjs",
       "http-generic-api/test-platform-resource-authority-branch-commit-scope.mjs",
       "http-generic-api/test-platform-resource-authority-grant-tool.mjs",
+      "http-generic-api/test-platform-resource-authority-store.mjs",
       "http-generic-api/test-platform-resource-authority-tags-contract.mjs",
       "http-generic-api/test-platform-resource-authority-write-authority.mjs",
       "http-generic-api/test-platform-resource-context-resolver.mjs",
@@ -29768,6 +29770,17 @@
       "generated": false
     },
     {
+      "path": "docs/platform-resource-authority-store.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 2867,
+      "lines": 31,
+      "sha256": "26ae26f9e308b54f3f739558550ef95ac235e0463198785dc722e9c599123aab",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/platform-resource-context.md",
       "category": "documentation",
       "extension": ".md",
@@ -47775,6 +47788,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/platformResourceAuthorityStore.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 2303,
+      "lines": 64,
+      "sha256": "19f88f1fe2fd81f53a2053fe30d294845399b9d0b8eb8ca2b3584d7c4f6b1383",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/platformResourceContextResolver.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -63962,6 +63986,17 @@
       "bytes": 11469,
       "lines": 229,
       "sha256": "bd30079c6fe0c3fe9bfcb7f6df33d8c539f31e602ca7a2ebb91f746df21a2a16",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-platform-resource-authority-store.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2472,
+      "lines": 64,
+      "sha256": "19e32764ee887dc34d5aff14fb757858fa32e0e38729a43ca16df15cf3b1295f",
       "mode": "644",
       "executable": false,
       "generated": false
