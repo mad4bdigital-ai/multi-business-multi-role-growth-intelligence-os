@@ -493,5 +493,27 @@
     "runtime_authority_granted": false,
     "remaining_scope": "Separately authorize an approved-environment live dry-run, migration apply, and same-cycle readback. Governed readiness, brand-authority and connection-access persistence adapters, callback worker handoff, provider code exchange, atomic authorize/reconnect runtime composition, context resolution, two-stage readiness, OpenAPI exposure, low-risk reads, governed writes, EC3-EC5 execution-capsule runtime integration, production verification, post-merge audit, rollback certification, and final closeout remain pending."
   },
+  "current_main_observation": {
+    "main_head": "069b116d20aa4216cfe25acb9144bceb8e00ca2d",
+    "status": "recorded_slices_revalidated_default_off",
+    "focused_tests_passed": [
+      "test-context-kernel-connection-ownership-persistence.mjs",
+      "test-context-kernel-connection-ownership-migration-preflight.mjs",
+      "test-context-kernel-provider-consent-core.mjs",
+      "test-context-kernel-provider-consent-readiness-boundary.mjs",
+      "test-context-kernel-authenticated-provider-consent-use-cases.mjs",
+      "test-context-kernel-provider-authorization-state-consolidation.mjs",
+      "test-execution-capsule-contract.mjs",
+      "test-execution-capsule-shadow-adapter.mjs",
+      "test-execution-capsule-selected-read-pilot.mjs"
+    ],
+    "runtime_authority": false,
+    "route_mounted": false,
+    "feature_flag_enabled": false,
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "production_promotion_authorized": false
+  },
   "secrets_included": false
 }
