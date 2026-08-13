@@ -13,7 +13,8 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-connect-routes.mjs",
       "http-generic-api/test-runtime-persistence-wiring.mjs",
-      "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs"
+      "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
+      "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml"
     ]
   },
   "merge_contract": {
@@ -73,7 +74,8 @@
             "http-generic-api/scripts/governed-migration-runner.mjs",
             "http-generic-api/test-runtime-persistence-wiring.mjs",
             "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
-            "http-generic-api/test-connect-routes.mjs"
+            "http-generic-api/test-connect-routes.mjs",
+            "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml"
           ]
         }
       ]
