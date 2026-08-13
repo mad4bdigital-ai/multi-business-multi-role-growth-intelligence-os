@@ -50,8 +50,8 @@ for (const required of [
   /run \$run_id is waiting for required approval; keeping governed review surfaces open/,
   /source-pinned main moved during convergence/,
   /refusing to build against an unapproved main/,
-  /validation branch prefix must use the governed gpt\/validate-production-candidate prefix/,
-  /validation base branch prefix must use the governed gpt\/validate-production-base prefix/,
+  /validation branch prefix must use the governed candidate namespace/,
+  /validation base branch prefix must use the governed base namespace/,
 ]) {
   assert.match(launcher, required);
 }

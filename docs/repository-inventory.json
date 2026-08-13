@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6708,
-    "bytes": 58881764,
-    "lines": 1374489,
+    "bytes": 58883353,
+    "lines": 1374546,
     "directories": 255,
     "categories": 13
   },
@@ -9612,9 +9612,9 @@
       "path": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 29550,
+      "bytes": 29508,
       "lines": 583,
-      "sha256": "408b97d33e615c845727ab22eef9bed369469215443f187e85f84e8394d57ee3",
+      "sha256": "747d1dc5a22648d19021f6a04afdddb36b50eb6ad72da1e3cd99ea91101feb6c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31317,7 +31317,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "70d1fe5f0b5e42161a8f6e79a1d5ec00f73e5b179509e917337e7c0179f4497e",
+      "sha256": "648573450cfbd75c58a0fc24582399c658cd9c4a142a3ee056ffd23e186994fc",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31482,7 +31482,7 @@
       "extension": ".md",
       "bytes": 45468,
       "lines": 487,
-      "sha256": "cd47aeff28a29af2fda61a6f70f635f5126612afd4283b34be6c580f9e078191",
+      "sha256": "991d4d74a0030fa9d7a134ce682dfa2e2cc596872fa51ab40a09cbb15ee67320",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52611,9 +52611,9 @@
       "path": "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 20485,
-      "lines": 579,
-      "sha256": "fa9b9fb1d2ae7a7806e798d1ff13734193e48a7f3f72925239cbc0c0068ae8df",
+      "bytes": 20934,
+      "lines": 588,
+      "sha256": "40037e71456ab66c9a184dabf5a5cca7db1d868ba872904bcb23d04677c7c94e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53843,9 +53843,9 @@
       "path": "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 13686,
-      "lines": 449,
-      "sha256": "a95f46e0e61463b8a5bfb7308866a64d160c93fbb0777826e343be9eac140bf0",
+      "bytes": 14912,
+      "lines": 497,
+      "sha256": "03754c14a73f9077b8dc708b73d60727b34a49c96191cb2dcb3a5e0eb26dacc0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64403,9 +64403,9 @@
       "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8909,
+      "bytes": 8865,
       "lines": 215,
-      "sha256": "2a1232a2993df8675f9f2ab3ba70c76d2455375d16d46771db0d1af281a1497b",
+      "sha256": "8d2a52060c3e9218a76e7d3a5cce807e907fa20b226951d36531e89cb89dd7fe",
       "mode": "644",
       "executable": false,
       "generated": false
