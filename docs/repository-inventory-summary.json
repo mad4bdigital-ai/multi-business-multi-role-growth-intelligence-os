@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6754,
-    "bytes": 61233565,
-    "lines": 1440310,
+    "files": 6761,
+    "bytes": 61272585,
+    "lines": 1441137,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2033,
-      "documentation": 1860,
-      "api-runtime": 1346,
+      "tests-and-specs": 2035,
+      "documentation": 1861,
+      "api-runtime": 1348,
       "database-migrations": 770,
       "root-and-other": 229,
       "ci-workflows": 152,
-      "api-contracts": 148,
+      "api-contracts": 150,
       "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2464,
-      ".mjs": 1547,
-      ".js": 944,
+      ".md": 2465,
+      ".mjs": 1550,
+      ".js": 946,
       ".sql": 785,
-      ".json": 677,
+      ".json": 678,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3471,
-      "docs": 1767,
+      "http-generic-api": 3477,
+      "docs": 1768,
       "specs": 838,
       ".github": 246,
       ".changes": 224,
@@ -160,6 +160,7 @@
         "verify",
         "activation-gateway:bundle:sync",
         "activation-gateway:bundle:check",
+        "ci:path-guard",
         "outbox:status",
         "outbox:dry-run",
         "outbox:run-once",
@@ -208,8 +209,8 @@
   "surfaces": {
     "workflows": 152,
     "migrations": 770,
-    "apiContracts": 148,
-    "testSpecFiles": 2096
+    "apiContracts": 150,
+    "testSpecFiles": 2098
   },
   "largestFiles": [
     {

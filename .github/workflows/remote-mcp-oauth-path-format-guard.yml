@@ -1,0 +1,122 @@
+name: Remote MCP OAuth Path Format Guard
+
+on:
+  pull_request:
+    paths:
+      - "http-generic-api/openapi.yaml"
+      - "http-generic-api/openapi/**"
+      - "http-generic-api/routes/**"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+      - "http-generic-api/scripts/ci-path-format-guard.mjs"
+      - "http-generic-api/openapi/source-operation-coverage.baseline.json"
+      - "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      - "http-generic-api/test-trusted-ingress-contract.mjs"
+      - "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs"
+      - "http-generic-api/test-shared-mutation-policy.mjs"
+      - "http-generic-api/sharedMutationPolicy.js"
+      - "http-generic-api/openApiMutationGovernance.js"
+      - "http-generic-api/trustedIngressContract.js"
+      - "http-generic-api/openapi/openapi-mutation-policy.generated.json"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
+      - "scripts/remote-mcp-write-scope-inventory.mjs"
+      - "scripts/test-remote-mcp-write-scope-inventory.mjs"
+      - "docs/remote-mcp-write-scope-inventory.md"
+      - "edge/activation-gateway/**"
+      - ".github/workflows/remote-mcp-oauth-path-format-guard.yml"
+  push:
+    branches: [main]
+    paths:
+      - "http-generic-api/openapi.yaml"
+      - "http-generic-api/openapi/**"
+      - "http-generic-api/routes/**"
+      - "http-generic-api/package.json"
+      - "http-generic-api/package-lock.json"
+      - "http-generic-api/scripts/split-openapi.mjs"
+      - "http-generic-api/scripts/generate-custom-gpt-schemas.mjs"
+      - "http-generic-api/scripts/generate-openapi-mutation-policy.mjs"
+      - "http-generic-api/scripts/ci-path-format-guard.mjs"
+      - "http-generic-api/openapi/source-operation-coverage.baseline.json"
+      - "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+      - "http-generic-api/test-trusted-ingress-contract.mjs"
+      - "http-generic-api/test-custom-gpt-mutation-governance-contract.mjs"
+      - "http-generic-api/test-shared-mutation-policy.mjs"
+      - "http-generic-api/sharedMutationPolicy.js"
+      - "http-generic-api/openApiMutationGovernance.js"
+      - "http-generic-api/trustedIngressContract.js"
+      - "http-generic-api/openapi/openapi-mutation-policy.generated.json"
+      - "canonicals/openapi/custom-gpt-surfaces.yaml"
+      - "scripts/remote-mcp-write-scope-inventory.mjs"
+      - "scripts/test-remote-mcp-write-scope-inventory.mjs"
+      - "docs/remote-mcp-write-scope-inventory.md"
+      - "edge/activation-gateway/**"
+      - ".github/workflows/remote-mcp-oauth-path-format-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: remote-mcp-oauth-path-format-guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  path-format-guard:
+    name: Remote MCP OAuth path format and coverage guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        run: npm ci
+        working-directory: http-generic-api
+
+      - name: Verify path guard workflow contract
+        run: node test-remote-mcp-oauth-path-format-guard.mjs
+        working-directory: http-generic-api
+
+      - name: Verify canonical path markers, exclusions, registry, and inventory
+        run: npm run ci:path-guard
+        working-directory: http-generic-api
+
+      - name: Verify generated Custom GPT surface registry and artifacts
+        run: npm run schemas:check
+        working-directory: http-generic-api
+
+      - name: Verify operation registry freshness
+        working-directory: http-generic-api
+        run: |
+          node scripts/generate-openapi-mutation-policy.mjs
+          git diff --exit-code -- openapi/openapi-mutation-policy.generated.json
+
+      - name: Verify write-scope inventory classification
+        run: |
+          npm run write-scopes:inventory:check
+          npm run write-scopes:inventory:test
+
+      - name: Verify trusted ingress contract
+        run: node test-trusted-ingress-contract.mjs
+        working-directory: http-generic-api
+
+      - name: Verify mutation governance contract
+        run: node test-custom-gpt-mutation-governance-contract.mjs
+        working-directory: http-generic-api
+
+      - name: Verify shared mutation parity
+        run: node test-shared-mutation-policy.mjs
+        working-directory: http-generic-api
+
+      - name: Verify activation gateway bundle parity
+        run: npm run activation-gateway:bundle:check
+        working-directory: http-generic-api

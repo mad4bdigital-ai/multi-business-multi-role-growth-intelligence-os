@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6754,
-    "bytes": 61233565,
-    "lines": 1440310,
+    "files": 6761,
+    "bytes": 61272585,
+    "lines": 1441137,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2033,
-      "documentation": 1860,
-      "api-runtime": 1346,
+      "tests-and-specs": 2035,
+      "documentation": 1861,
+      "api-runtime": 1348,
       "database-migrations": 770,
       "root-and-other": 229,
       "ci-workflows": 152,
-      "api-contracts": 148,
+      "api-contracts": 150,
       "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2464,
-      ".mjs": 1547,
-      ".js": 944,
+      ".md": 2465,
+      ".mjs": 1550,
+      ".js": 946,
       ".sql": 785,
-      ".json": 677,
+      ".json": 678,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3471,
-      "docs": 1767,
+      "http-generic-api": 3477,
+      "docs": 1768,
       "specs": 838,
       ".github": 246,
       ".changes": 224,
@@ -417,6 +417,7 @@
         "verify",
         "activation-gateway:bundle:sync",
         "activation-gateway:bundle:check",
+        "ci:path-guard",
         "outbox:status",
         "outbox:dry-run",
         "outbox:run-once",
@@ -1436,6 +1437,7 @@
       "http-generic-api/openapi/hostinger-storage-tenant-runtime.yaml",
       "http-generic-api/openapi/local-connector-uninstall.yaml",
       "http-generic-api/openapi/managed-git-workers.yaml",
+      "http-generic-api/openapi/openapi-mutation-policy.generated.json",
       "http-generic-api/openapi/openapi-registry-sync.yaml",
       "http-generic-api/openapi/openapi.custom-gpt.activation-admin.yaml",
       "http-generic-api/openapi/openapi.custom-gpt.auth-dispatcher.yaml",
@@ -1471,6 +1473,7 @@
       "http-generic-api/openapi/tenant-requests.openapi.yaml",
       "http-generic-api/openapi/typed-catalogs.yaml",
       "http-generic-api/openapi/workspace-lifecycle-mutations.openapi.yaml",
+      "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
       "http-generic-api/scripts/generate-resource-surface-openapi.mjs",
       "http-generic-api/scripts/openapi-autofill-missing-routes.mjs",
       "http-generic-api/scripts/openapi-builder-schema-guard.mjs",
@@ -2642,6 +2645,7 @@
       "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
       "http-generic-api/test-tenant-gpt-operating-guide-tools.mjs",
       "http-generic-api/test-tenant-gpt-operating-guide.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
       "http-generic-api/test-tenant-gpt-sso-session.mjs",
       "http-generic-api/test-tenant-growth-control-plane-projection.mjs",
       "http-generic-api/test-tenant-growth-dashboard.mjs",
@@ -2731,6 +2735,7 @@
       "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
       "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
       "http-generic-api/test-travel-activity-pack-reference.mjs",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
       "http-generic-api/test-upstream-response-parser.mjs",
       "http-generic-api/test-user-app-connection-credential-decrypt-compat.mjs",
       "http-generic-api/test-user-brand-skill-entitlement.mjs",
@@ -4740,6 +4745,7 @@
       "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
       "http-generic-api/test-tenant-gpt-operating-guide-tools.mjs",
       "http-generic-api/test-tenant-gpt-operating-guide.mjs",
+      "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
       "http-generic-api/test-tenant-gpt-sso-session.mjs",
       "http-generic-api/test-tenant-growth-control-plane-projection.mjs",
       "http-generic-api/test-tenant-growth-dashboard.mjs",
@@ -4829,6 +4835,7 @@
       "http-generic-api/test-transport-response-chunk-schema-recovery.mjs",
       "http-generic-api/test-transport-response-schema-1048-governed-rollout.mjs",
       "http-generic-api/test-travel-activity-pack-reference.mjs",
+      "http-generic-api/test-trusted-ingress-contract.mjs",
       "http-generic-api/test-upstream-response-parser.mjs",
       "http-generic-api/test-user-app-connection-credential-decrypt-compat.mjs",
       "http-generic-api/test-user-brand-skill-entitlement.mjs",
@@ -28478,9 +28485,9 @@
       "path": "docs/custom-gpt-mutation-governance.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 5739,
-      "lines": 50,
-      "sha256": "3a4aeacc5db36e59763a8e15e04d139fac7f8409187640adf16b7ab5b88436de",
+      "bytes": 6326,
+      "lines": 53,
+      "sha256": "e7163e6c479cbb1b08fd2cf4bc35f22489f7e392cb7167e287d0aa9467e32d5f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30119,7 +30126,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "79e6770d18faea12f8a335667f1b261018131b880c23f059e09410d5f059e981",
+      "sha256": "12ef4cdcfa339aef064ba368111f84da3dc65ca4c514fce3e8e17d009077ac97",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31385,6 +31392,17 @@
       "bytes": 8883,
       "lines": 178,
       "sha256": "bde9ed2b8021c62802747f012f9a73ae47f7938015ddbc8c3ec8e19261104d49",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/tenant-gpt-secret-and-canary-runbook.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 4634,
+      "lines": 45,
+      "sha256": "6b6bfb8e9316e1f745a57a5030f6950513ae958f312b93d0729f6f9d15d3c117",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -47065,6 +47083,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+      "category": "api-contracts",
+      "extension": ".json",
+      "bytes": 22370,
+      "lines": 543,
+      "sha256": "34bf3dc9c6f909f7a649764dfc9b0a07523cdd1b29130f3d8118e4a2c37f7588",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/openapi/openapi-registry-sync.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
@@ -47596,9 +47625,9 @@
       "path": "http-generic-api/package.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 6639,
-      "lines": 82,
-      "sha256": "19683617a1bb88a55f4c52028d9aca057b1b78342c66349a9cf58f2bbbce77ce",
+      "bytes": 6701,
+      "lines": 83,
+      "sha256": "6c0b4b997da9e6dc2a70b38936357a0fa0de14916869ecfb1cb3b1c454e8a039",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48676,7 +48705,7 @@
       "extension": ".json",
       "bytes": 1922441,
       "lines": 58125,
-      "sha256": "aa5c2640b50728ad0abdce900da004960732c36b82e8d52cbba2e153f19dca52",
+      "sha256": "d2a8e6257ae15fa036f96cc1ddc23caffa639ddc3db37bf4ac0e804d8fda25b7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52527,6 +52556,17 @@
       "bytes": 3710,
       "lines": 100,
       "sha256": "36d65098285d331fdae4cef7061ac4f76d7c7088ee4dd664bf4968fb1bd3e47a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/generate-openapi-mutation-policy.mjs",
+      "category": "api-contracts",
+      "extension": ".mjs",
+      "bytes": 2931,
+      "lines": 57,
+      "sha256": "4eb0b70efe06c56fde8fae6a52608cd6fdba462941daf98672b3f44fc6a4abf6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -56498,6 +56538,17 @@
       "bytes": 6288,
       "lines": 165,
       "sha256": "db76623403130e1510fabd28fad28465864e038465ff2671025c605de295be1a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/tenantGptOperationalReadiness.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 3015,
+      "lines": 72,
+      "sha256": "b41c5b97cda633551135eabb06be23cc9da1753dbfaf07502b8ed0b96cc9d366",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -67921,6 +67972,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-tenant-gpt-operational-readiness.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2486,
+      "lines": 47,
+      "sha256": "7368c1e6318328d68ba5553b2084ddd2220a5a86d267ef5c3b0d3d7dba37bbec",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-tenant-gpt-sso-session.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -68900,6 +68962,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-trusted-ingress-contract.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 1389,
+      "lines": 23,
+      "sha256": "4bf350fba9557b531095baf3bc3009219a4194fc2b989f8ead532605767767ce",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-upstream-response-parser.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -69533,6 +69606,17 @@
       "bytes": 1427,
       "lines": 44,
       "sha256": "ecf9baea4ed9f076a583336d9bfa06030fd18dffa6a1fac3fcc587c2452359be",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/trustedIngressContract.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1546,
+      "lines": 36,
+      "sha256": "e6dd38f79ab08f98ed1ebfc51542789cdd496c5d93b74eb0e1b43f13a490599c",
       "mode": "644",
       "executable": false,
       "generated": false

@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,754 |
-| Total bytes | 61,233,565 |
-| Counted text lines | 1,440,310 |
+| Tracked files | 6,761 |
+| Total bytes | 61,272,585 |
+| Counted text lines | 1,441,137 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,033 |
-| `documentation` | 1,860 |
-| `api-runtime` | 1,346 |
+| `tests-and-specs` | 2,035 |
+| `documentation` | 1,861 |
+| `api-runtime` | 1,348 |
 | `database-migrations` | 770 |
 | `root-and-other` | 229 |
 | `ci-workflows` | 152 |
-| `api-contracts` | 148 |
+| `api-contracts` | 150 |
 | `ci-config` | 94 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,11 +35,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,464 |
-| `.mjs` | 1,547 |
-| `.js` | 944 |
+| `.md` | 2,465 |
+| `.mjs` | 1,550 |
+| `.js` | 946 |
 | `.sql` | 785 |
-| `.json` | 677 |
+| `.json` | 678 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -71,15 +71,15 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---:|
 | GitHub Actions workflows | 152 |
 | Database migrations | 770 |
-| API/OpenAPI contracts | 148 |
-| Test/spec files (paths) | 2,096 |
+| API/OpenAPI contracts | 150 |
+| Test/spec files (paths) | 2,098 |
 | package.json manifests | 2 |
 
 ## Package manifests
 
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 58 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 59 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 19 | 0 | 4 |
 
 ## Largest tracked files

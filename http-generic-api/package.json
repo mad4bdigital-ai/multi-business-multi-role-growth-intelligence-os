@@ -51,6 +51,7 @@
     "verify": "node verify-runtime.mjs",
     "activation-gateway:bundle:sync": "node scripts/sync-activation-gateway-runtime-bundle.mjs --write",
     "activation-gateway:bundle:check": "node scripts/sync-activation-gateway-runtime-bundle.mjs --check",
+    "ci:path-guard": "node scripts/ci-path-format-guard.mjs",
     "outbox:status": "node scripts/platform-outbox-worker.mjs --action=status",
     "outbox:dry-run": "node scripts/platform-outbox-worker.mjs --action=dry-run",
     "outbox:run-once": "node scripts/platform-outbox-worker.mjs --action=run-once --apply",
