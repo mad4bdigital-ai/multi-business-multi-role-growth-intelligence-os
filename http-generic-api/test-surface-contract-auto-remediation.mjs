@@ -96,7 +96,7 @@ assert(reconciliationItem, "manual registry should include the repository reconc
 const reconciliationSource = readFileSync(`migrations/${reconciliationItem.migration_file}`, "utf8");
 const reconciliationValidation = validateManualAttestation({ item: reconciliationItem, source: reconciliationSource });
 assert.equal(reconciliationValidation.valid, true, `repository reconciliation attestation should validate: ${reconciliationValidation.reasons.join(", ")}`);
-assert.equal(reconciliationValidation.actual.migration_sha256, "288babca148977b93d172e8a9cfe2681070a506fe3b7cf43b1d48ab498f609f2");
+assert.equal(reconciliationValidation.actual.migration_sha256, "6111029cd9dd026da815f2a4816cadb2e37d9a8a39fc2a51806034a31778e667");
 assert.equal(reconciliationValidation.actual.statement_count, 14);
 assert.equal(reconciliationValidation.actual.preflight_status, "pass");
 assert.equal(reconciliationValidation.actual.preflight_risk_count, 0);

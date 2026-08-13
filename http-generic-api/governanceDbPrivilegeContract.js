@@ -1,11 +1,21 @@
 export const GOVERNANCE_DB_PRIVILEGE_MATRIX = Object.freeze({
   capability_resolution_envelope_ledger: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
-  approval_holds: Object.freeze(["INSERT"]),
+  approval_holds: Object.freeze(["SELECT", "INSERT"]),
   governed_migration_authorization_registry: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   capability_apply_authorization_policy_registry: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   runtime_dispatch_certification_registry: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
   governed_migration_ledger: Object.freeze(["SELECT"]),
   platform_resource_authority_bindings: Object.freeze(["SELECT", "INSERT"]),
+  platform_resource_recipes: Object.freeze(["SELECT"]),
+  platform_resource_recipe_steps: Object.freeze(["SELECT"]),
+  repository_operation_leases: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  repository_mutation_plans_v6: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  repository_mutation_runs_v6: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  runtime_break_glass_incidents: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
+  runtime_break_glass_audit_events: Object.freeze(["SELECT", "INSERT"]),
+  runtime_verification_runs: Object.freeze(["SELECT"]),
+  runtime_verification_evidence_chunks: Object.freeze(["SELECT", "INSERT"]),
+  deployment_attestations: Object.freeze(["SELECT", "INSERT", "UPDATE"]),
 });
 
 const ALLOWED_GLOBAL_PRIVILEGES = new Set(["USAGE"]);
