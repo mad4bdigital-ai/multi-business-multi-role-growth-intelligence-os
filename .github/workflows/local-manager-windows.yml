@@ -18,7 +18,7 @@ on:
       - '.github/workflows/local-manager-windows.yml'
 
 permissions:
-  contents: write
+  contents: read
   actions: read
 
 jobs:
@@ -27,10 +27,10 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
         with:
           dotnet-version: '8.0.x'
 
@@ -80,7 +80,7 @@ jobs:
           }
 
       - name: Upload EXE artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: Mad4B-Local-Manager-Windows-EXE
           path: |
@@ -88,8 +88,27 @@ jobs:
             dist/Mad4B-Local-Manager-Setup*.sha256.json
           if-no-files-found: error
 
+
+  publish-release:
+    name: Publish public latest EXE release asset
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-windows-exe
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release metadata
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+
+      - name: Download Windows EXE artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: Mad4B-Local-Manager-Windows-EXE
+          path: dist
+
       - name: Publish public latest EXE release asset
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

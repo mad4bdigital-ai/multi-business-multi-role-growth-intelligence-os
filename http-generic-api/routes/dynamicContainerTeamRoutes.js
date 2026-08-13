@@ -1,14 +1,12 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
 import { randomUUID } from "node:crypto";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import {
   listCoWorkspaces,
   listContainerTeam,
   removeContainerTeamMember,
   setContainerTeamMember
 } from "../dynamicContainerTeamService.js";
-
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
 
 function requestId(req) {
   return String(req.headers["x-request-id"] || req.headers["x-correlation-id"] || randomUUID());
@@ -26,22 +24,20 @@ function errorResponse(req,res,error) {
   });
 }
 
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !String(authHeader).startsWith("Bearer ")) return null;
-  try { return jwt.verify(String(authHeader).slice(7),JWT_SECRET); } catch { return null; }
+function createRequireUserJwt() {
+  const requireCanonicalUserJwt = createUserJwtMiddleware();
+  return function withCanonicalUserJwt(req,res,next) {
+    return requireCanonicalUserJwt(req,res,() => {
+      req.containerTeamPrincipal={
+        userId:String(req.auth.user_id),
+        tenantId:req.auth.tenant_id ? String(req.auth.tenant_id) : null,
+      };
+      return next();
+    });
+  };
 }
 
-function requireUserJwt(req,res,next) {
-  const payload=req.auth?.mode === "user_jwt" ? req.auth : verifyUserJwt(req.headers.authorization);
-  if(!payload?.user_id) {
-    return res.status(401).json({
-      error:{ code:"user_jwt_required",message:"Sign in with a user JWT to manage workspace or brand teams.",details:[],requestId:requestId(req) },
-      secretsIncluded:false
-    });
-  }
-  req.containerTeamPrincipal={ userId:String(payload.user_id),tenantId:payload.tenant_id ? String(payload.tenant_id) : null };
-  return next();
-}
+const requireUserJwt = createRequireUserJwt();
 
 function assertAllowedKeys(value,allowed,location="body") {
   const unknown=Object.keys(value || {}).filter(key => !allowed.has(key));
@@ -162,5 +158,5 @@ export function buildDynamicContainerTeamRoutes() {
 }
 
 export const _testingDynamicContainerTeamRoutes={
-  verifyUserJwt,assertAllowedKeys,teamContext,memberInput,errorResponse
+  requireUserJwt,assertAllowedKeys,teamContext,memberInput,errorResponse
 };

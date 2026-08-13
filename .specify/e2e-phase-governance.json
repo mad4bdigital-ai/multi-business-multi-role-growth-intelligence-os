@@ -44,7 +44,20 @@
     "http-generic-api/scripts/ci-evidence-*.mjs",
     "http-generic-api/scripts/test-ci-evidence-*.mjs",
     "http-generic-api/scripts/test-e2e-parallel-*.mjs",
-    "http-generic-api/scripts/bounded-diagnostic-evidence.mjs"
+    "http-generic-api/scripts/bounded-diagnostic-evidence.mjs",
+    "scripts/repository-inventory.mjs",
+    "scripts/repository-inventory-rules.mjs",
+    "scripts/repository-inventory-fixtures.json",
+    "scripts/test-repository-inventory.mjs",
+    "scripts/repository-evaluation.mjs",
+    "scripts/test-repository-evaluation.mjs",
+    "scripts/repository-evaluation-rules.mjs",
+    "package.json",
+    "**/package.json",
+    "**/package-lock.json",
+    "http-generic-api/scripts/maintenance-tools/repository-tool-lifecycle-guard.mjs",
+    "http-generic-api/scripts/test-repository-tool-lifecycle-guard.mjs",
+    "specs/**/work-map-integration.json"
   ],
   "ignored_patterns": [
     ".gitignore",

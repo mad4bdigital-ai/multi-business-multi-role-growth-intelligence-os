@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { _testingTenantPlatformPluginRoutes } from "./routes/tenantPlatformPluginRoutes.js";
 import { createCredentialIntakeSessionRecord } from "./routes/credentialIntakeRoutes.js";
 import { buildTenantPlatformPluginEligibility } from "./tenantPlatformPluginEligibility.js";
@@ -219,7 +221,7 @@ import { buildTenantPlatformPluginEligibility } from "./tenantPlatformPluginElig
 }
 
 {
-  const routes = readFileSync("routes/tenantPlatformPluginRoutes.js", "utf8");
+  const routes = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "routes/tenantPlatformPluginRoutes.js"), "utf8");
   assert(routes.includes("/tenant/platform/plugins/catalog"), "tenant catalog route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/install"), "tenant install route must be mounted");
   assert(routes.includes("/tenant/platform/plugins/resolve"), "tenant resolve route must be mounted");
@@ -242,7 +244,7 @@ import { buildTenantPlatformPluginEligibility } from "./tenantPlatformPluginElig
 }
 
 {
-  const index = readFileSync("routes/index.js", "utf8");
+  const index = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), "routes/index.js"), "utf8");
   assert(index.includes("buildTenantPlatformPluginRoutes"), "tenant Platform Plugin routes must be imported and mounted");
   const tenantMount = index.indexOf("app.use(buildTenantPlatformPluginRoutes())");
   const adminMount = index.indexOf("app.use(buildPlatformPluginRoutes");

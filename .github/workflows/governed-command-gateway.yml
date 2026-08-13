@@ -1,0 +1,228 @@
+name: Governed Command Gateway
+run-name: Governed Command Gateway · ${{ inputs.command || 'unresolved' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Registered governed command id
+        required: true
+        type: string
+      parameters_json:
+        description: JSON object matching the registered command parameter schema
+        required: true
+        type: string
+      expected_head_sha:
+        description: Exact trusted main SHA containing this gateway
+        required: true
+        type: string
+      authorization:
+        description: Exact typed authorization required by the selected allowlisted adapter
+        required: true
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: governed-command-gateway-${{ github.repository }}-${{ inputs.command || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  resolve-and-dispatch:
+    name: Resolve registered command and dispatch bounded authority path
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMMAND: ${{ inputs.command }}
+      PARAMETERS_JSON: ${{ inputs.parameters_json }}
+      AUTHORIZATION: ${{ inputs.authorization }}
+      EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+      CURRENT_HEAD_SHA: ${{ github.sha }}
+      CURRENT_REF: ${{ github.ref_name }}
+    steps:
+      - name: Checkout exact trusted gateway source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Setup bounded Node runtime
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Validate command registry contract
+        run: node .github/scripts/validate-governed-command-registry.mjs
+
+      - name: Resolve exact allowlisted dispatch plan
+        env:
+          OUTPUT_PATH: ${{ runner.temp }}/governed-command-plan.json
+        run: node .github/scripts/resolve-governed-command.mjs
+
+      - name: Revalidate exact non-protected mutation target
+        id: target
+        shell: bash
+        env:
+          PLAN_PATH: ${{ runner.temp }}/governed-command-plan.json
+        run: |
+          set -Eeuo pipefail
+          reject() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          [[ "${EXPECTED_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]] || reject "expected_head_sha must be exact"
+          [[ "${CURRENT_HEAD_SHA}" =~ ^[0-9a-f]{40}$ ]] || reject "current_head_sha must be exact"
+          test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}" || reject "expected_head_sha no longer matches current_head_sha"
+          test "${CURRENT_REF}" = "main" || reject "gateway must execute from trusted main"
+
+          pr_number="$(jq -r '.protected_branch_guard.pr_number' "${PLAN_PATH}")"
+          expected_pr_head_sha="$(jq -r '.protected_branch_guard.expected_pr_head_sha' "${PLAN_PATH}")"
+          required_base_ref="$(jq -r '.protected_branch_guard.required_base_ref' "${PLAN_PATH}")"
+          [[ "${pr_number}" =~ ^[1-9][0-9]*$ ]] || reject "adapter target PR must be a positive integer"
+          [[ "${expected_pr_head_sha}" =~ ^[0-9a-f]{40}$ ]] || reject "adapter target PR head must be exact"
+          test "${required_base_ref}" = "main" || reject "adapter target PR base policy must remain main"
+
+          pr_json="$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            -H 'X-GitHub-Api-Version: 2022-11-28' \
+            "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}")"
+
+          state="$(jq -r '.state' <<<"${pr_json}")"
+          head_repository="$(jq -r '.head.repo.full_name' <<<"${pr_json}")"
+          target_branch="$(jq -r '.head.ref' <<<"${pr_json}")"
+          current_pr_head_sha="$(jq -r '.head.sha' <<<"${pr_json}")"
+          base_ref="$(jq -r '.base.ref' <<<"${pr_json}")"
+
+          test "${state}" = "open" || reject "adapter target PR must remain open"
+          test "${head_repository}" = "${GITHUB_REPOSITORY}" || reject "cross-repository adapter target is forbidden"
+          test "${base_ref}" = "${required_base_ref}" || reject "adapter target PR base moved"
+          test "${current_pr_head_sha}" = "${expected_pr_head_sha}" || reject "adapter target PR head moved"
+          if [[ "${target_branch}" == "main" || "${target_branch}" == "Production" ]]; then
+            reject "protected target branch mutation is forbidden"
+          fi
+
+          echo "target_branch=${target_branch}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch only the resolved allowlisted workflow
+        id: dispatch
+        shell: bash
+        env:
+          PLAN_PATH: ${{ runner.temp }}/governed-command-plan.json
+          TARGET_BRANCH: ${{ steps.target.outputs.target_branch }}
+        run: |
+          set -Eeuo pipefail
+          reject() {
+            echo "::error::$1"
+            exit 1
+          }
+
+          test "${CURRENT_HEAD_SHA}" = "${EXPECTED_HEAD_SHA}" || reject "expected_head_sha changed after target validation"
+          target_branch="${TARGET_BRANCH}"
+          if [[ "${target_branch}" == "main" || "${target_branch}" == "Production" ]]; then
+            reject "protected target branch mutation is forbidden"
+          fi
+
+          workflow="$(jq -r '.target_workflow' "${PLAN_PATH}")"
+          target_ref="$(jq -r '.target_ref' "${PLAN_PATH}")"
+          command="$(jq -r '.command' "${PLAN_PATH}")"
+
+          case "${workflow}" in
+            spec-kit-work-map-autofix-recovery-dispatch.yml|governed-production-promotion-request-launcher.yml)
+              ;;
+            *)
+              reject "resolver returned an unregistered workflow target"
+              ;;
+          esac
+
+          test "${workflow}" != "governed-command-gateway.yml" || reject "recursive gateway dispatch is forbidden"
+          test "${target_ref}" = "main" || reject "adapter workflow source ref must remain trusted main"
+
+          payload_path="${RUNNER_TEMP}/governed-command-dispatch-payload.json"
+          jq '{ref:.target_ref,inputs:.inputs}' "${PLAN_PATH}" > "${payload_path}"
+
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/dispatches" \
+            --input "${payload_path}"
+
+          echo "command=${command}" >> "$GITHUB_OUTPUT"
+          echo "workflow=${workflow}" >> "$GITHUB_OUTPUT"
+          echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded dispatch evidence
+        if: always()
+        shell: bash
+        env:
+          PLAN_PATH: ${{ runner.temp }}/governed-command-plan.json
+          EVIDENCE_PATH: ${{ runner.temp }}/governed-command-gateway-evidence.json
+          RESOLVED_TARGET_BRANCH: ${{ steps.target.outputs.target_branch }}
+        run: |
+          set -Eeuo pipefail
+          outcome="blocked"
+          if [[ "${{ steps.dispatch.outcome }}" == "success" ]]; then
+            outcome="dispatched"
+          fi
+
+          if [[ -f "${PLAN_PATH}" ]]; then
+            jq \
+              --arg outcome "${outcome}" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg actor "${GITHUB_ACTOR}" \
+              --arg target_branch "${RESOLVED_TARGET_BRANCH}" \
+              '{
+                contract:"mad4b.governed-command-gateway-evidence.v1",
+                outcome:$outcome,
+                run_id:$run_id,
+                actor:$actor,
+                command:.command,
+                adapter:.adapter,
+                authority:.authority,
+                risk_class:.risk_class,
+                permission_profile:.permission_profile,
+                audit_policy:.audit_policy,
+                target_workflow:.target_workflow,
+                target_ref:.target_ref,
+                mutation_target_branch:$target_branch,
+                input_keys:(.inputs | keys | map(select(. != "confirmation"))),
+                gateway_sha:.evidence.gateway_sha,
+                authorization_verified:.evidence.authorization_verified,
+                sha_pin_verified:.evidence.sha_pin_verified,
+                registry_validated:.evidence.registry_validated,
+                schema_validated:.evidence.schema_validated,
+                direct_production_mutation:false,
+                arbitrary_workflow_execution:false,
+                arbitrary_code_execution:false,
+                authorization_value_included:false,
+                parameter_values_included:false
+              }' "${PLAN_PATH}" > "${EVIDENCE_PATH}"
+          else
+            jq -n \
+              --arg outcome "${outcome}" \
+              --arg run_id "${GITHUB_RUN_ID}" \
+              --arg actor "${GITHUB_ACTOR}" \
+              --arg command "${COMMAND}" \
+              '{
+                contract:"mad4b.governed-command-gateway-evidence.v1",
+                outcome:$outcome,
+                run_id:$run_id,
+                actor:$actor,
+                command:$command,
+                resolution_completed:false,
+                authorization_value_included:false,
+                parameter_values_included:false,
+                direct_production_mutation:false
+              }' > "${EVIDENCE_PATH}"
+          fi
+
+      - name: Upload bounded gateway evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: governed-command-gateway-${{ github.run_id }}
+          path: ${{ runner.temp }}/governed-command-gateway-evidence.json
+          if-no-files-found: error
+          retention-days: 30

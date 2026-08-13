@@ -3,6 +3,18 @@ import { TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS, assertNoSecretBearingFie
 
 assert.equal(TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS.length, 9);
 
+const promotionOrder = [
+  "tenant_connection_effective_credential_plan_view",
+  "tenant_connection_validate_adapter_smoke",
+  "tenant_connection_binding_refresh",
+  "tenant_connection_resolver_refresh",
+  "tenant_connection_readback_certification",
+  "tenant_connection_recertification_policy",
+  "tenant_connection_provider_grant_refresh",
+  "tenant_connection_bounded_mutation_preflight",
+  "tenant_connection_bounded_mutation_execute",
+];
+
 const requiredToolKeys = new Set([
   "tenant_connection_validate_adapter_smoke",
   "tenant_connection_effective_credential_plan_view",
@@ -14,6 +26,43 @@ const requiredToolKeys = new Set([
   "tenant_connection_readback_certification",
   "tenant_connection_recertification_policy",
 ]);
+
+assert.deepEqual([...requiredToolKeys].sort(), [...promotionOrder].sort());
+assert.deepEqual(
+  TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS.map((route) => route.tool_key),
+  [
+    "tenant_connection_validate_adapter_smoke",
+    "tenant_connection_effective_credential_plan_view",
+    "tenant_connection_binding_refresh",
+    "tenant_connection_provider_grant_refresh",
+    "tenant_connection_resolver_refresh",
+    "tenant_connection_bounded_mutation_preflight",
+    "tenant_connection_bounded_mutation_execute",
+    "tenant_connection_readback_certification",
+    "tenant_connection_recertification_policy",
+  ],
+);
+
+const routeByKey = new Map(TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS.map((route) => [route.tool_key, route]));
+for (const readOnlyKey of ["tenant_connection_effective_credential_plan_view", "tenant_connection_validate_adapter_smoke"]) {
+  assert.equal(routeByKey.get(readOnlyKey).provider_write_allowed, false);
+  assert.equal(routeByKey.get(readOnlyKey).requires_operator_approval, false);
+}
+for (const governedWriteKey of [
+  "tenant_connection_binding_refresh",
+  "tenant_connection_provider_grant_refresh",
+  "tenant_connection_resolver_refresh",
+  "tenant_connection_readback_certification",
+  "tenant_connection_recertification_policy",
+]) {
+  assert.equal(routeByKey.get(governedWriteKey).requires_operator_approval, true);
+  assert.equal(routeByKey.get(governedWriteKey).requires_readback, true);
+}
+assert.equal(routeByKey.get("tenant_connection_bounded_mutation_preflight").provider_write_allowed, false);
+assert.equal(routeByKey.get("tenant_connection_bounded_mutation_execute").provider_write_allowed, true);
+assert.equal(routeByKey.get("tenant_connection_bounded_mutation_execute").requires_preflight_id, true);
+assert.equal(routeByKey.get("tenant_connection_bounded_mutation_execute").requires_live_execution_approval, true);
+assert.equal(routeByKey.get("tenant_connection_bounded_mutation_execute").publish_or_destructive_default_blocked, true);
 
 for (const route of TENANT_CONNECTION_SELF_REPAIR_ROUTE_CONTRACTS) {
   assert.ok(requiredToolKeys.has(route.tool_key), `unexpected route ${route.tool_key}`);

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "contract": "mad4b.repository-large-file-policy.v1",
+  "thresholdBytes": 1048576,
+  "owner": "platform-governance",
+  "files": [
+    {
+      "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+      "classification": "canonical-schema-source",
+      "owner": "api-platform",
+      "rationale": "The file is the canonical imported WordPress API schema and is consumed by the repository OpenAPI and compatibility governance. Splitting it would change the generated contract boundary.",
+      "review": "Keep generated-contract checks and schema linting authoritative; revisit only with a versioned schema partition plan."
+    },
+    {
+      "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+      "classification": "generated-runtime-dispatch-artifact",
+      "owner": "frontend-platform",
+      "rationale": "The file is a generated dispatch registry consumed by frontend governance and runtime surface checks. It is retained as a single deterministic artifact for atomic parity checks.",
+      "review": "Regenerate through the registered frontend dispatch writer and split only with an equivalent parity contract."
+    }
+  ],
+  "secrets_included": false
+}

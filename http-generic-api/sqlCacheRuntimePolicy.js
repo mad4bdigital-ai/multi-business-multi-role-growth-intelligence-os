@@ -2,6 +2,7 @@ import { getPool } from "./db.js";
 import {
   SQL_CACHE_CIRCUIT_BREAKER_SECONDS,
   SQL_CACHE_ENABLED,
+  SQL_CACHE_REQUIRED,
   SQL_CACHE_KEY_VERSION,
   SQL_CACHE_MAX_VALUE_BYTES,
   SQL_CACHE_OVERSIZE_COOLDOWN_SECONDS,
@@ -17,6 +18,7 @@ const TABLE = "sql_cache_runtime_policies";
 const POLICY_KEY = SQL_CACHE_RUNTIME_POLICY_CONFIG_KEY || "sql_cache_policy_v2";
 const ALLOWED_FIELDS = new Set([
   "enabled",
+  "required",
   "key_version",
   "max_value_bytes",
   "oversize_cooldown_seconds",
@@ -150,6 +152,7 @@ function envPolicy() {
     policy_key: POLICY_KEY,
     revision: 0,
     enabled: Boolean(SQL_CACHE_ENABLED),
+    required: Boolean(SQL_CACHE_REQUIRED),
     key_version: normalizeKey(SQL_CACHE_KEY_VERSION),
     max_value_bytes: asInteger(
       SQL_CACHE_MAX_VALUE_BYTES,
@@ -190,6 +193,7 @@ export function normalizeSqlCacheRuntimePolicy(value = {}, { strict = true } = {
   const fallback = envPolicy();
   return {
     enabled: asBoolean(value.enabled, fallback.enabled),
+    required: asBoolean(value.required, fallback.required),
     key_version: normalizeKey(value.key_version, fallback.key_version),
     max_value_bytes: asInteger(
       value.max_value_bytes,
@@ -301,6 +305,7 @@ export function ensureSqlCacheRuntimePolicyRefresh() {
 function configurable(value) {
   return {
     enabled: value.enabled,
+    required: value.required,
     key_version: value.key_version,
     max_value_bytes: value.max_value_bytes,
     oversize_cooldown_seconds: value.oversize_cooldown_seconds,

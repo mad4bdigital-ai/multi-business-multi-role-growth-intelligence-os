@@ -1,4 +1,5 @@
 import { resolveGovernanceDbConfig } from "./governanceDb.js";
+import { assertGovernanceDbProviderCapability } from "./governanceDbProviderCapability.js";
 import { loadEnvironmentBranchAuthority } from "./environmentBranchAuthority.js";
 
 function text(value = "") {
@@ -46,8 +47,18 @@ export function assertGovernanceProductionEnvironmentAuthority(authority = {}) {
 }
 
 export async function resolveGovernanceProductionPreflight({ env = process.env } = {}, deps = {}) {
-  // Validate the dedicated Governance writer identity first. This resolves only
-  // configuration and never opens a database connection or returns credentials.
+  // Provider capability is evaluated before credential readiness. A provider that
+  // cannot represent the dedicated-principal + exact-table-grant contract must
+  // fail closed without asking operators to copy or broaden runtime credentials.
+  const assertProviderCapability =
+    deps.assertGovernanceDbProviderCapability || assertGovernanceDbProviderCapability;
+  const providerCapability = assertProviderCapability({
+    environment: "Production",
+    policy: deps.governanceDbProviderPolicy,
+  });
+
+  // Validate the dedicated Governance writer identity only after the provider can
+  // represent it. This resolves configuration only and never opens a DB connection.
   const governanceConfig = resolveGovernanceDbConfig(env);
   const loadAuthority = deps.loadEnvironmentBranchAuthority || loadEnvironmentBranchAuthority;
   const authority = await loadAuthority(deps.environmentAuthorityDeps || {});
@@ -57,9 +68,19 @@ export async function resolveGovernanceProductionPreflight({ env = process.env }
     contract: "mad4b.governance-production-preflight.v1",
     status: "preflight_ready",
     ready: true,
+    provider_capability: {
+      contract: providerCapability.contract,
+      provider_key: providerCapability.provider_key,
+      provider_mode: providerCapability.provider_mode,
+      supported: providerCapability.ready === true,
+      checks: providerCapability.checks,
+      remediation_required: false,
+      secrets_included: false,
+    },
     governance_db: {
       identity_configured: true,
       runtime_identity_fallback_allowed: false,
+      same_runtime_identity_rejected: true,
       host_configured: Boolean(governanceConfig.host),
       database_configured: Boolean(governanceConfig.database),
       connection_limit: governanceConfig.connectionLimit,

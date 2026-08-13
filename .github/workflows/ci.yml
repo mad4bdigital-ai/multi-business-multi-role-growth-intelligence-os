@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, Production]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}-local-connector-v18
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -15,7 +18,7 @@ jobs:
     name: Syntax Check
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -26,9 +29,36 @@ jobs:
       - name: Guard governed migration seed placement
         run: node http-generic-api/scripts/migration-placement-guard.mjs
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
+
+      - name: Verify dynamic repository inventory
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          TARGET_REF: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          BASE_REF: ${{ github.event.pull_request.base.ref || 'main' }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          REPORT="$RUNNER_TEMP/repository-inventory-verification.json"
+          node scripts/repository-inventory-verification-gate.mjs \
+            --event-name "$EVENT_NAME" \
+            --target-ref "$TARGET_REF" \
+            --expected-head-sha "$EXPECTED_HEAD_SHA" \
+            --head-repository "$HEAD_REPOSITORY" \
+            --base-ref "$BASE_REF" \
+            --repository "$REPOSITORY" \
+            --output "$REPORT"
+          jq -r '
+            "Repository Inventory CI gate: " + (.outcome // "unknown") +
+            " | state=" + (.inventory_state // "unknown") +
+            " | current=" + ((.current // false) | tostring) +
+            " | followup_required=" + ((.followup_required // false) | tostring)
+          ' "$REPORT" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Guard centralized fail-closed user JWT auth
         working-directory: http-generic-api
@@ -80,16 +110,21 @@ jobs:
     runs-on: ubuntu-24.04
     needs: syntax
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"
           cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Setup repository-supported .NET SDK
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          dotnet-version: "8.0.x"
 
       - name: Install dependencies
         working-directory: http-generic-api
@@ -154,7 +189,7 @@ jobs:
 
       - name: Upload ordered test progress reports
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unit-integration-test-progress-${{ github.run_id }}
           path: ${{ runner.temp }}/test-suite-reports/*.json
@@ -193,17 +228,57 @@ jobs:
         working-directory: http-generic-api
         run: node scripts/interruption-readiness.mjs --ci --skip-dependencies --skip-merge --skip-worktree --verify-evidence "$RUNNER_TEMP/interruption-readiness-baseline.json"
 
+  spec015-contract-governance:
+    name: Spec 015 Contract Governance
+    runs-on: ubuntu-24.04
+    needs: syntax
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: http-generic-api/package-lock.json
+
+      - name: Install HTTP API dependencies
+        working-directory: http-generic-api
+        run: npm ci
+
+      - name: Run Spec 015 contract validators
+        working-directory: http-generic-api
+        run: |
+          node test-spec015-contract-validators.mjs
+          node test-spec015-readiness-facade.mjs
+          node test-spec015-runtime-gate-contracts.mjs
+
+      - name: Check Spec 015 contract syntax
+        working-directory: http-generic-api
+        run: |
+          node --check spec015ContractValidators.js
+          node --check spec015ReadinessFacade.js
+          node --check spec015RuntimeGateContracts.js
+
+      - name: Run Spec 015 final closure preflight
+        run: python3 docs/spec-portfolio/spec015-final-closure-preflight.py
+
+      - name: Check Spec 015 diff hygiene
+        run: git diff --check
+
   execution-resolver-gate:
     name: Execution Resolver Gate
     runs-on: ubuntu-24.04
     needs: syntax
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"
@@ -232,12 +307,12 @@ jobs:
     runs-on: ubuntu-24.04
     needs: syntax
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: "npm"

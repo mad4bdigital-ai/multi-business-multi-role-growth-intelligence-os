@@ -124,8 +124,8 @@ jobs:
       run:
         working-directory: http-generic-api
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: npm
@@ -161,12 +161,12 @@ jobs:
       contents: read
       issues: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Classify and ingest SQL operational signal
         id: classify
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
           GUARD_RESULT: ${{ needs.guard.result }}
@@ -261,7 +261,7 @@ jobs:
 
       - name: Open, update, or resolve the OpenAPI guard incident
         continue-on-error: true
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           GUARD_RESULT: ${{ needs.guard.result }}
           OUTCOME_CLASSIFICATION: ${{ steps.classify.outputs.outcome_classification }}

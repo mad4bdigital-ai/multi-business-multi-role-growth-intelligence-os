@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "feature_key": "017-remote-mcp-host-isolation-oauth-readiness",
-  "review_state": "draft",
+  "review_state": "ready_for_implementation",
   "registry": {
-    "fingerprint": "a81ee9b600874ff6b2b6065e9eb3c682985d0c8af878cca7fe0b3cb2ea7077af",
-    "index_source_hash": "d88bed6fc713fedb9aa67f6c251543f0660a057d6a61a35bcce39c0efe9bea55",
-    "coverage_source_hash": "049247ffa881f5d4d500c8c2c15f825f1d2b427a347d59c3af9eef2ce36e25d1",
+    "fingerprint": "9f2d4a53ad3a3bf274d79846cbde23e4c44f51fdcf970949fab4651338565176",
+    "index_source_hash": "e79420c286e864bde62a43d14e97751438401f8c9f97a22888a29c97aa41da68",
+    "coverage_source_hash": "1795508ab000674978a921fcfc4aac036786385e9becf3b27c6f9402070fda8b",
     "map_count": 19,
     "domain_count": 16,
     "uncategorized_count": 0,
@@ -16,191 +16,477 @@
       "decision": "reuse",
       "rationale": "Remote MCP OAuth, MCP, and DCR enable/disable sequencing reuses the existing activation and access boundary rather than creating a parallel activation authority.",
       "owner": "platform-team",
-      "integration_points": ["Remote MCP OAuth/MCP/DCR enable-disable boundary", "rollback disable ordering"],
-      "requirement_refs": ["FR-020", "FR-022"],
-      "task_refs": ["T8.7", "T8.10", "T8.11", "T8.17"],
-      "acceptance_refs": ["US6", "Success criteria 12"],
-      "evidence_refs": ["docs/work-maps/activation-access-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "Remote MCP OAuth/MCP/DCR enable-disable boundary",
+        "rollback disable ordering"
+      ],
+      "requirement_refs": [
+        "FR-020",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T8.7",
+        "T8.10",
+        "T8.11",
+        "T8.17"
+      ],
+      "acceptance_refs": [
+        "US6",
+        "Success criteria 12"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/activation-access-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "activation-onboarding-map": {
       "decision": "not_applicable",
       "rationale": "The feature does not change tenant or Brand onboarding flows; it only preserves existing Tenant GPT and Activation OAuth compatibility while hardening Remote MCP routing.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/activation-onboarding-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/activation-onboarding-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "agent-skill-plugin-map": {
       "decision": "reuse",
       "rationale": "Remote MCP is a governed client integration surface, so ChatGPT and other MCP client acceptance reuse the existing agent, skill, and plugin integration boundaries without expanding tool authority.",
       "owner": "platform-team",
-      "integration_points": ["Remote MCP client integration", "ChatGPT Developer mode acceptance", "tool authority preservation"],
-      "requirement_refs": ["FR-020", "FR-021"],
-      "task_refs": ["T8.12", "T8.13", "T8.14", "T8.15"],
-      "acceptance_refs": ["US1", "US6"],
-      "evidence_refs": ["docs/work-maps/agent-skill-plugin-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "Remote MCP client integration",
+        "ChatGPT Developer mode acceptance",
+        "tool authority preservation"
+      ],
+      "requirement_refs": [
+        "FR-020",
+        "FR-021"
+      ],
+      "task_refs": [
+        "T8.12",
+        "T8.13",
+        "T8.14",
+        "T8.15"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/agent-skill-plugin-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "asset-package-map": {
       "decision": "not_applicable",
       "rationale": "The feature does not create, mutate, package, or govern assets or release packages; its source scope is Remote MCP routing, OAuth metadata, readiness, tests, and configuration.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/asset-package-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/asset-package-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "commercial-usage-map": {
       "decision": "not_applicable",
       "rationale": "The feature does not change pricing, billing, quotas, subscriptions, metering, or commercial usage policy.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/commercial-usage-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/commercial-usage-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "connector-provider-map": {
       "decision": "reuse",
       "rationale": "Remote MCP resource and OAuth issuer connectivity, reverse-proxy routing, and client registration reuse existing connector and provider governance while preserving explicit host and provider authority boundaries.",
       "owner": "platform-team",
-      "integration_points": ["resource/issuer connectivity", "reverse-proxy routing contract", "OAuth client registration boundary"],
-      "requirement_refs": ["FR-008", "FR-009", "FR-020", "FR-021"],
-      "task_refs": ["T8.2", "T8.8", "T8.9"],
-      "acceptance_refs": ["US1", "US6"],
-      "evidence_refs": ["docs/work-maps/connector-provider-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "resource/issuer connectivity",
+        "reverse-proxy routing contract",
+        "OAuth client registration boundary"
+      ],
+      "requirement_refs": [
+        "FR-008",
+        "FR-009",
+        "FR-020",
+        "FR-021"
+      ],
+      "task_refs": [
+        "T8.2",
+        "T8.8",
+        "T8.9"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/connector-provider-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "data-model-domain-map": {
       "decision": "reuse",
       "rationale": "The specification reuses the existing governed OAuth client, authorization-code, and grant persistence model and requires readback rather than introducing an unclassified persistence model.",
       "owner": "platform-team",
-      "integration_points": ["existing OAuth persistence schema", "three-table readiness readback"],
-      "requirement_refs": ["FR-014", "FR-016", "FR-019"],
-      "task_refs": ["T5.7", "T8.3", "T8.4"],
-      "acceptance_refs": ["US4", "US5"],
-      "evidence_refs": ["docs/work-maps/data-model-domain-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "existing OAuth persistence schema",
+        "three-table readiness readback"
+      ],
+      "requirement_refs": [
+        "FR-014",
+        "FR-016",
+        "FR-019"
+      ],
+      "task_refs": [
+        "T5.7",
+        "T8.3",
+        "T8.4"
+      ],
+      "acceptance_refs": [
+        "US4",
+        "US5"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/data-model-domain-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "delivery-support-map": {
       "decision": "reuse",
       "rationale": "Live acceptance and rollback require bounded operator handoff and support evidence, while the specification deliberately avoids creating a new delivery or support subsystem.",
       "owner": "platform-team",
-      "integration_points": ["live acceptance handoff", "rollback and operator recovery evidence"],
-      "requirement_refs": ["FR-021", "FR-022"],
-      "task_refs": ["T8.12", "T8.15", "T8.17", "T8.18"],
-      "acceptance_refs": ["US6", "Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/delivery-support-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "live acceptance handoff",
+        "rollback and operator recovery evidence"
+      ],
+      "requirement_refs": [
+        "FR-021",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T8.12",
+        "T8.15",
+        "T8.17",
+        "T8.18"
+      ],
+      "acceptance_refs": [
+        "US6",
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/delivery-support-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "execution-log-evidence-map": {
       "decision": "extend",
       "rationale": "Remote MCP adds host-denial, OAuth readiness, DCR, revocation, and exact-head evidence requirements that extend the existing no-secret execution and evidence contract.",
       "owner": "platform-team",
-      "integration_points": ["wrong-host denial evidence", "OAuth readiness evidence", "DCR/revocation evidence", "exact-head source and live evidence"],
-      "requirement_refs": ["FR-017", "FR-021", "NFR-003", "NFR-007"],
-      "task_refs": ["T5.8", "T5.9", "T7.9", "T8.18"],
-      "acceptance_refs": ["US2", "US5", "US6"],
-      "evidence_refs": ["docs/work-maps/execution-log-evidence-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "wrong-host denial evidence",
+        "OAuth readiness evidence",
+        "DCR/revocation evidence",
+        "exact-head source and live evidence"
+      ],
+      "requirement_refs": [
+        "FR-017",
+        "FR-021",
+        "NFR-003",
+        "NFR-007"
+      ],
+      "task_refs": [
+        "T5.8",
+        "T5.9",
+        "T7.9",
+        "T8.18"
+      ],
+      "acceptance_refs": [
+        "US2",
+        "US5",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/execution-log-evidence-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "migration-lifecycle-map": {
       "decision": "reuse",
       "rationale": "The canonical Remote MCP OAuth migration remains separately governed and must be applied and read back through the existing migration lifecycle rather than source execution.",
       "owner": "platform-team",
-      "integration_points": ["governed OAuth migration application", "post-migration schema readback", "rollback without table destruction"],
-      "requirement_refs": ["FR-019", "FR-020", "FR-022"],
-      "task_refs": ["T8.3", "T8.4", "T8.17"],
-      "acceptance_refs": ["US6", "Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/migration-lifecycle-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "governed OAuth migration application",
+        "post-migration schema readback",
+        "rollback without table destruction"
+      ],
+      "requirement_refs": [
+        "FR-019",
+        "FR-020",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T8.3",
+        "T8.4",
+        "T8.17"
+      ],
+      "acceptance_refs": [
+        "US6",
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/migration-lifecycle-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "observability-release-map": {
       "decision": "extend",
       "rationale": "Remote MCP readiness separates source, routing, schema, secret, OAuth, DCR, client, and production states and adds bounded observability and rollback evidence to the release contract.",
       "owner": "platform-team",
-      "integration_points": ["no-secret readiness endpoint", "routing readiness", "canary acceptance", "rollback evidence"],
-      "requirement_refs": ["FR-015", "FR-016", "FR-021", "FR-022", "NFR-006", "NFR-007"],
-      "task_refs": ["T5.1", "T5.9", "T8.11", "T8.18"],
-      "acceptance_refs": ["US5", "US6"],
-      "evidence_refs": ["docs/work-maps/observability-release-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "no-secret readiness endpoint",
+        "routing readiness",
+        "canary acceptance",
+        "rollback evidence"
+      ],
+      "requirement_refs": [
+        "FR-015",
+        "FR-016",
+        "FR-021",
+        "FR-022",
+        "NFR-006",
+        "NFR-007"
+      ],
+      "task_refs": [
+        "T5.1",
+        "T5.9",
+        "T8.11",
+        "T8.18"
+      ],
+      "acceptance_refs": [
+        "US5",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/observability-release-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "platform-resource-graph-map": {
       "decision": "reuse",
       "rationale": "Remote MCP authorization must preserve explicit tenant, workspace, Brand, resource, and grant relationships, reusing the existing resource graph as authority rather than model or host arguments.",
       "owner": "platform-team",
-      "integration_points": ["tenant/workspace/Brand isolation", "resource-bound authorization context"],
-      "requirement_refs": ["FR-002", "FR-021", "NFR-001"],
-      "task_refs": ["T7.6", "T8.16"],
-      "acceptance_refs": ["US1", "Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/platform-resource-graph-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "tenant/workspace/Brand isolation",
+        "resource-bound authorization context"
+      ],
+      "requirement_refs": [
+        "FR-002",
+        "FR-021",
+        "NFR-001"
+      ],
+      "task_refs": [
+        "T7.6",
+        "T8.16"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/platform-resource-graph-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "platform-runtime-map": {
       "decision": "extend",
       "rationale": "Canonical host admission, centralized effective-host resolution, fail-closed MCP routing, and explicit protected-resource metadata routing directly extend the shared platform runtime.",
       "owner": "platform-team",
-      "integration_points": ["effective-host resolver", "MCP canonical-host guard", "protected-resource host router", "admin readiness route"],
-      "requirement_refs": ["FR-001", "FR-002", "FR-003", "FR-005", "FR-007", "FR-015"],
-      "task_refs": ["T2.1", "T2.6", "T3.1", "T4.1", "T5.1"],
-      "acceptance_refs": ["US1", "US2", "US3", "US5"],
-      "evidence_refs": ["docs/work-maps/platform-runtime-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "effective-host resolver",
+        "MCP canonical-host guard",
+        "protected-resource host router",
+        "admin readiness route"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-002",
+        "FR-003",
+        "FR-005",
+        "FR-007",
+        "FR-015"
+      ],
+      "task_refs": [
+        "T2.1",
+        "T2.6",
+        "T3.1",
+        "T4.1",
+        "T5.1"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "US2",
+        "US3",
+        "US5"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/platform-runtime-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "policy-authority-map": {
       "decision": "extend",
       "rationale": "Trusted proxy host handling, explicit resource-host admission, scope isolation, and no-secret operator readiness extend fail-closed authority policy without making client-provided host values authoritative.",
       "owner": "platform-team",
-      "integration_points": ["trusted proxy authority boundary", "explicit resource-host authority", "cross-resource scope isolation", "admin-only readiness authority"],
-      "requirement_refs": ["FR-005", "FR-006", "FR-008", "FR-009", "FR-010", "FR-015"],
-      "task_refs": ["T2.2", "T2.5", "T4.1", "T5.1"],
-      "acceptance_refs": ["US2", "US3", "US5"],
-      "evidence_refs": ["docs/work-maps/policy-authority-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "trusted proxy authority boundary",
+        "explicit resource-host authority",
+        "cross-resource scope isolation",
+        "admin-only readiness authority"
+      ],
+      "requirement_refs": [
+        "FR-005",
+        "FR-006",
+        "FR-008",
+        "FR-009",
+        "FR-010",
+        "FR-015"
+      ],
+      "task_refs": [
+        "T2.2",
+        "T2.5",
+        "T4.1",
+        "T5.1"
+      ],
+      "acceptance_refs": [
+        "US2",
+        "US3",
+        "US5"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/policy-authority-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "repository-automation-map": {
       "decision": "reuse",
       "rationale": "Exact-head CI, regression evidence, generated contract checks, and separately governed live actions reuse repository automation as evidence without authorizing deployment or provider mutation.",
       "owner": "platform-team",
-      "integration_points": ["exact-head CI evidence", "targeted regression evidence", "governed live-action separation"],
-      "requirement_refs": ["FR-020", "FR-021", "NFR-010"],
-      "task_refs": ["T7.1", "T7.9", "T7.10"],
-      "acceptance_refs": ["US6", "Success criteria 10", "Success criteria 12"],
-      "evidence_refs": ["docs/work-maps/repository-automation-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "exact-head CI evidence",
+        "targeted regression evidence",
+        "governed live-action separation"
+      ],
+      "requirement_refs": [
+        "FR-020",
+        "FR-021",
+        "NFR-010"
+      ],
+      "task_refs": [
+        "T7.1",
+        "T7.9",
+        "T7.10"
+      ],
+      "acceptance_refs": [
+        "US6",
+        "Success criteria 10",
+        "Success criteria 12"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/repository-automation-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "repository-development-map": {
       "decision": "reuse",
       "rationale": "The source change uses existing repository development contracts for environment documentation, targeted tests, and exact-head validation while keeping production mutation outside the source branch.",
       "owner": "platform-team",
-      "integration_points": [".env.example Remote MCP contract", "targeted regression suite", "exact-head source validation"],
-      "requirement_refs": ["FR-018", "FR-020", "NFR-008"],
-      "task_refs": ["T6.1", "T6.5", "T7.1", "T7.10"],
-      "acceptance_refs": ["Success criteria 9", "Success criteria 10", "Success criteria 12"],
-      "evidence_refs": ["docs/work-maps/repository-development-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        ".env.example Remote MCP contract",
+        "targeted regression suite",
+        "exact-head source validation"
+      ],
+      "requirement_refs": [
+        "FR-018",
+        "FR-020",
+        "NFR-008"
+      ],
+      "task_refs": [
+        "T6.1",
+        "T6.5",
+        "T7.1",
+        "T7.10"
+      ],
+      "acceptance_refs": [
+        "Success criteria 9",
+        "Success criteria 10",
+        "Success criteria 12"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/repository-development-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "session-memory-map": {
       "decision": "not_applicable",
       "rationale": "The feature does not change session-memory storage, retrieval, summarization, or memory authority semantics.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/session-memory-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/session-memory-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "work-map-coverage-matrix": {
       "decision": "not_applicable",
       "rationale": "The generated coverage matrix is registry evidence for this manifest, not a runtime integration surface changed by Remote MCP host isolation.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "workflow-task-orchestration-map": {
       "decision": "not_applicable",
       "rationale": "The feature does not alter workflow or task orchestration semantics; rollout steps remain separately governed operational actions rather than workflow-engine behavior.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/workflow-task-orchestration-map.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/workflow-task-orchestration-map.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     }
   },
@@ -210,11 +496,28 @@
       "decision": "reuse",
       "rationale": "Remote MCP enablement and rollback reuse existing activation boundaries while this specification explicitly avoids changing onboarding flows or silently enabling runtime features.",
       "owner": "platform-team",
-      "integration_points": ["Remote MCP feature-flag activation boundary", "rollback disable sequence"],
-      "requirement_refs": ["FR-020", "FR-022"],
-      "task_refs": ["T8.7", "T8.10", "T8.11", "T8.17"],
-      "acceptance_refs": ["US6", "Success criteria 12"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "Remote MCP feature-flag activation boundary",
+        "rollback disable sequence"
+      ],
+      "requirement_refs": [
+        "FR-020",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T8.7",
+        "T8.10",
+        "T8.11",
+        "T8.17"
+      ],
+      "acceptance_refs": [
+        "US6",
+        "Success criteria 12"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "agents-and-intelligence": {
@@ -222,8 +525,13 @@
       "decision": "not_applicable",
       "rationale": "The feature supports MCP clients but does not change agent reasoning, model intelligence, skill selection, or agent persistence semantics.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "assets-and-packages": {
@@ -231,8 +539,13 @@
       "decision": "not_applicable",
       "rationale": "The feature does not add or modify asset, media, package, or artifact persistence domains.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "brand-and-business": {
@@ -240,11 +553,23 @@
       "decision": "reuse",
       "rationale": "Tenant, workspace, and Brand isolation remain part of live acceptance, reusing existing Brand and business authority without adding a new Brand data model.",
       "owner": "platform-team",
-      "integration_points": ["tenant/workspace/Brand isolation acceptance"],
-      "requirement_refs": ["FR-021", "NFR-001"],
-      "task_refs": ["T8.16"],
-      "acceptance_refs": ["Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "tenant/workspace/Brand isolation acceptance"
+      ],
+      "requirement_refs": [
+        "FR-021",
+        "NFR-001"
+      ],
+      "task_refs": [
+        "T8.16"
+      ],
+      "acceptance_refs": [
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "commercial-and-usage": {
@@ -252,8 +577,13 @@
       "decision": "not_applicable",
       "rationale": "The feature does not change billing, subscriptions, metering, quotas, pricing, or commercial usage data.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "connectors-and-providers": {
@@ -261,11 +591,31 @@
       "decision": "reuse",
       "rationale": "Remote MCP resource, OAuth issuer, reverse proxy, and registered client connectivity reuse existing connector/provider boundaries with exact host and origin policy.",
       "owner": "platform-team",
-      "integration_points": ["resource and issuer connectivity", "reverse-proxy trust boundary", "registered OAuth client boundary"],
-      "requirement_refs": ["FR-008", "FR-009", "FR-013", "FR-020"],
-      "task_refs": ["T8.2", "T8.8", "T8.9"],
-      "acceptance_refs": ["US1", "US4", "US6"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "resource and issuer connectivity",
+        "reverse-proxy trust boundary",
+        "registered OAuth client boundary"
+      ],
+      "requirement_refs": [
+        "FR-008",
+        "FR-009",
+        "FR-013",
+        "FR-020"
+      ],
+      "task_refs": [
+        "T8.2",
+        "T8.8",
+        "T8.9"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "US4",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "delivery-and-support": {
@@ -273,8 +623,13 @@
       "decision": "not_applicable",
       "rationale": "The feature defines rollout and rollback evidence but does not add delivery-support records, queues, tickets, or support-domain persistence.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "developer-and-api": {
@@ -282,11 +637,35 @@
       "decision": "extend",
       "rationale": "The feature adds and hardens HTTP API behavior for MCP host admission, OAuth protected-resource metadata, authorization-server metadata, and an admin readiness surface.",
       "owner": "platform-team",
-      "integration_points": ["MCP HTTP route", "protected-resource metadata route", "authorization-server metadata", "admin readiness route"],
-      "requirement_refs": ["FR-001", "FR-005", "FR-012", "FR-015", "FR-016"],
-      "task_refs": ["T3.1", "T4.1", "T5.1", "T5.9"],
-      "acceptance_refs": ["US1", "US2", "US3", "US5"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "MCP HTTP route",
+        "protected-resource metadata route",
+        "authorization-server metadata",
+        "admin readiness route"
+      ],
+      "requirement_refs": [
+        "FR-001",
+        "FR-005",
+        "FR-012",
+        "FR-015",
+        "FR-016"
+      ],
+      "task_refs": [
+        "T3.1",
+        "T4.1",
+        "T5.1",
+        "T5.9"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "US2",
+        "US3",
+        "US5"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "governance-and-authority": {
@@ -294,11 +673,33 @@
       "decision": "extend",
       "rationale": "Host trust, resource identity, cross-resource metadata isolation, admin readiness, and separately governed live mutations extend authority governance while remaining fail closed.",
       "owner": "platform-team",
-      "integration_points": ["effective-host authority", "resource identity", "metadata isolation", "separate live authorization boundaries"],
-      "requirement_refs": ["FR-003", "FR-006", "FR-009", "FR-020", "NFR-010"],
-      "task_refs": ["T2.2", "T4.1", "T7.10"],
-      "acceptance_refs": ["US2", "US3", "US6"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "effective-host authority",
+        "resource identity",
+        "metadata isolation",
+        "separate live authorization boundaries"
+      ],
+      "requirement_refs": [
+        "FR-003",
+        "FR-006",
+        "FR-009",
+        "FR-020",
+        "NFR-010"
+      ],
+      "task_refs": [
+        "T2.2",
+        "T4.1",
+        "T7.10"
+      ],
+      "acceptance_refs": [
+        "US2",
+        "US3",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "migration-and-lifecycle": {
@@ -306,11 +707,31 @@
       "decision": "reuse",
       "rationale": "Existing Remote MCP OAuth persistence migration and rollback lifecycle are reused; source changes may inspect readiness but may not apply schema mutations.",
       "owner": "platform-team",
-      "integration_points": ["canonical OAuth migration", "schema readback", "non-destructive rollback"],
-      "requirement_refs": ["FR-014", "FR-019", "FR-020", "FR-022"],
-      "task_refs": ["T5.7", "T8.3", "T8.4", "T8.17"],
-      "acceptance_refs": ["US4", "US6"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "canonical OAuth migration",
+        "schema readback",
+        "non-destructive rollback"
+      ],
+      "requirement_refs": [
+        "FR-014",
+        "FR-019",
+        "FR-020",
+        "FR-022"
+      ],
+      "task_refs": [
+        "T5.7",
+        "T8.3",
+        "T8.4",
+        "T8.17"
+      ],
+      "acceptance_refs": [
+        "US4",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "observability-and-release": {
@@ -318,11 +739,34 @@
       "decision": "extend",
       "rationale": "The admin no-secret readiness contract and staged live acceptance add explicit source, routing, schema, OAuth, DCR, canary, and rollback evidence to release observability.",
       "owner": "platform-team",
-      "integration_points": ["no-secret readiness", "staged live readiness", "canary evidence", "rollback evidence"],
-      "requirement_refs": ["FR-015", "FR-016", "FR-017", "FR-021", "NFR-006", "NFR-007"],
-      "task_refs": ["T5.1", "T5.9", "T8.11", "T8.18"],
-      "acceptance_refs": ["US5", "US6"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "no-secret readiness",
+        "staged live readiness",
+        "canary evidence",
+        "rollback evidence"
+      ],
+      "requirement_refs": [
+        "FR-015",
+        "FR-016",
+        "FR-017",
+        "FR-021",
+        "NFR-006",
+        "NFR-007"
+      ],
+      "task_refs": [
+        "T5.1",
+        "T5.9",
+        "T8.11",
+        "T8.18"
+      ],
+      "acceptance_refs": [
+        "US5",
+        "US6"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "platform-resources-and-graph": {
@@ -330,11 +774,27 @@
       "decision": "reuse",
       "rationale": "Remote MCP remains resource-bound and tenant/workspace/Brand isolated, reusing the platform resource graph rather than deriving authority from request hosts or model arguments.",
       "owner": "platform-team",
-      "integration_points": ["resource-bound token context", "tenant/workspace/Brand isolation"],
-      "requirement_refs": ["FR-002", "FR-021", "NFR-001"],
-      "task_refs": ["T7.6", "T8.16"],
-      "acceptance_refs": ["US1", "Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "resource-bound token context",
+        "tenant/workspace/Brand isolation"
+      ],
+      "requirement_refs": [
+        "FR-002",
+        "FR-021",
+        "NFR-001"
+      ],
+      "task_refs": [
+        "T7.6",
+        "T8.16"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "repository-and-development": {
@@ -342,11 +802,31 @@
       "decision": "reuse",
       "rationale": "Environment documentation, deterministic host-routing tests, exact-head CI, and no-mutation source evidence reuse repository development governance.",
       "owner": "platform-team",
-      "integration_points": ["Remote MCP environment contract", "host-routing regression tests", "exact-head CI"],
-      "requirement_refs": ["FR-018", "FR-020", "NFR-008"],
-      "task_refs": ["T6.1", "T7.1", "T7.9", "T7.10"],
-      "acceptance_refs": ["Success criteria 9", "Success criteria 10", "Success criteria 12"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "Remote MCP environment contract",
+        "host-routing regression tests",
+        "exact-head CI"
+      ],
+      "requirement_refs": [
+        "FR-018",
+        "FR-020",
+        "NFR-008"
+      ],
+      "task_refs": [
+        "T6.1",
+        "T7.1",
+        "T7.9",
+        "T7.10"
+      ],
+      "acceptance_refs": [
+        "Success criteria 9",
+        "Success criteria 10",
+        "Success criteria 12"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "sessions-and-memory": {
@@ -354,8 +834,13 @@
       "decision": "not_applicable",
       "rationale": "The feature does not alter session, conversation, or memory persistence and does not use memory state as OAuth or host authority.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     },
     "tenancy-and-identity": {
@@ -363,11 +848,28 @@
       "decision": "reuse",
       "rationale": "OAuth bearer identity, scopes, grants, tenant context, and cross-tenant denial reuse existing tenancy and identity authority while host routing remains a separate admission boundary.",
       "owner": "platform-team",
-      "integration_points": ["bearer identity and scope validation", "tenant context", "cross-tenant denial"],
-      "requirement_refs": ["FR-002", "FR-021", "NFR-001"],
-      "task_refs": ["T7.6", "T8.16"],
-      "acceptance_refs": ["US1", "Success criteria 11"],
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
+      "integration_points": [
+        "bearer identity and scope validation",
+        "tenant context",
+        "cross-tenant denial"
+      ],
+      "requirement_refs": [
+        "FR-002",
+        "FR-021",
+        "NFR-001"
+      ],
+      "task_refs": [
+        "T7.6",
+        "T8.16"
+      ],
+      "acceptance_refs": [
+        "US1",
+        "Success criteria 11"
+      ],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
       "depends_on": []
     },
     "workflow-and-tasks": {
@@ -375,8 +877,13 @@
       "decision": "not_applicable",
       "rationale": "The feature does not change workflow/task persistence or orchestration; operational rollout steps remain separately governed outside source execution.",
       "owner": "platform-team",
-      "evidence_refs": ["docs/work-maps/work-map-coverage-matrix.md", "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"],
-      "non_applicability_evidence": ["specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"],
+      "evidence_refs": [
+        "docs/work-maps/work-map-coverage-matrix.md",
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md"
+      ],
+      "non_applicability_evidence": [
+        "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md#scope"
+      ],
       "depends_on": []
     }
   },
@@ -388,10 +895,9 @@
     "no_new_dimensions_rationale": "Current generated Work Maps and classified schema domains cover the Remote MCP host-isolation and OAuth-readiness scope; no additional platform dimension is required by this specification."
   },
   "implementation_readiness": {
-    "status": "blocked",
+    "status": "ready",
     "blocking_dimensions": [],
-    "blocking_reasons": ["formal_spec_review_pending"],
-    "reviewed_by": "pending-formal-review",
+    "reviewed_by": "platform-team",
     "evidence_refs": [
       "specs/017-remote-mcp-host-isolation-oauth-readiness/spec.md",
       "specs/017-remote-mcp-host-isolation-oauth-readiness/plan.md",

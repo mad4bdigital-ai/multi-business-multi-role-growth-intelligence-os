@@ -1,0 +1,53 @@
+name: Governed Remaining Tenant Runtime Migration Readiness
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    name: Authorize and dry-run remaining tenant runtime migration
+    if: >-
+      github.event.issue.number == 6871 &&
+      !github.event.issue.pull_request &&
+      github.event.comment.body == 'AUTHORIZE_GOVERNED_MIGRATION_20260810_REMAINING_TENANT_RUNTIME_LIFECYCLE_GAP_CLOSURE' &&
+      contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    concurrency:
+      group: remaining-tenant-runtime-migration-readiness
+      cancel-in-progress: false
+    env:
+      RUNTIME_BASE_URL: https://auth.mad4b.com
+      BACKEND_API_KEY: ${{ secrets.BACKEND_API_KEY }}
+      GH_READ_TOKEN: ${{ github.token }}
+      REPOSITORY: mad4bdigital-ai/multi-business-multi-role-growth-intelligence-os
+      CONTROL_ISSUE: '6871'
+      EVIDENCE_DIR: .artifacts/remaining-tenant-runtime-migration-readiness
+
+    steps:
+      - name: Checkout exact issue-comment event head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+
+      - name: Execute Production-bound authorization bootstrap and dry-run
+        run: node .github/ops/remaining-tenant-runtime-migration-governed-readiness.mjs
+
+      - name: Upload no-secret readiness evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: remaining-tenant-runtime-migration-readiness-${{ github.run_id }}
+          path: ${{ env.EVIDENCE_DIR }}
+          if-no-files-found: error
+          retention-days: 30

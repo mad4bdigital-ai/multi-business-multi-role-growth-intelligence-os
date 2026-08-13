@@ -41,11 +41,17 @@ const policy = {
   },
 };
 
-async function evaluate(entries, contents = {}, selectedPolicy = policy) {
+async function evaluate(entries, contents = {}, selectedPolicy = policy, baseContents = null) {
   return evaluateRepositoryToolLifecycle({
     policy: selectedPolicy,
     entries,
     readText: async (path) => contents[path] || "",
+    readBaseText: baseContents
+      ? async (path) => {
+        if (!(path in baseContents)) throw new Error(`missing base fixture: ${path}`);
+        return baseContents[path];
+      }
+      : null,
   });
 }
 
@@ -157,6 +163,24 @@ jobs:
 );
 assert(!repositoryShellPathFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
 
+const spec015PreflightWorkflow = ".github/workflows/spec015-preflight.yml";
+const spec015PreflightFindings = await evaluate(
+  [{ status: "A", path: spec015PreflightWorkflow }],
+  {
+    [spec015PreflightWorkflow]: `
+ on:
+   pull_request:
+ permissions:
+   contents: read
+ jobs:
+   preflight:
+     steps:
+       - run: python3 docs/spec-portfolio/spec015-final-closure-preflight.py
+ `,
+  },
+);
+assert(!spec015PreflightFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
+
 const docsBranchContextWorkflow = ".github/workflows/docs-branch-context.yml";
 const docsBranchContextFindings = await evaluate(
   [{ status: "A", path: docsBranchContextWorkflow }],
@@ -252,6 +276,32 @@ const mutatingToolFindings = await evaluate(
 assert(mutatingToolFindings.some((item) => item.code === "MISSING_EXPECTED_HEAD_GUARD"));
 assert(mutatingToolFindings.some((item) => item.code === "MISSING_PROTECTED_BRANCH_GUARD"));
 
+const gatedReleaseWorkflow = ".github/workflows/gated-release-writer.yml";
+const gatedReleaseFindings = await evaluate(
+  [{ status: "A", path: gatedReleaseWorkflow }],
+  {
+    [gatedReleaseWorkflow]: `
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  build:
+    permissions:
+      contents: read
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - run: gh release upload latest artifact.exe
+`,
+  },
+);
+assert(!gatedReleaseFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
 const writeAllWorkflow = ".github/workflows/write-all-pr.yml";
 const writeAllFindings = await evaluate(
   [{ status: "A", path: writeAllWorkflow }],
@@ -269,6 +319,37 @@ jobs:
   },
 );
 assert(writeAllFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
+
+const pinOnlyWorkflow = ".github/workflows/pre-existing-unsafe.yml";
+const pinOnlyBase = `
+on:
+  pull_request:
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: git push origin HEAD:gpt/pre-existing-work-branch
+`;
+const pinOnlyCandidate = pinOnlyBase.replace("actions/checkout@v4", "actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5");
+const pinOnlyFindings = await evaluate(
+  [{ status: "M", path: pinOnlyWorkflow }],
+  { [pinOnlyWorkflow]: pinOnlyCandidate },
+  policy,
+  { [pinOnlyWorkflow]: pinOnlyBase },
+);
+assert.deepEqual(pinOnlyFindings, [], "action-reference-only changes must not reopen pre-existing lifecycle findings");
+
+const behaviorChangedCandidate = `${pinOnlyCandidate}\n      - run: echo behavior-change\n`;
+const behaviorChangedFindings = await evaluate(
+  [{ status: "M", path: pinOnlyWorkflow }],
+  { [pinOnlyWorkflow]: behaviorChangedCandidate },
+  policy,
+  { [pinOnlyWorkflow]: pinOnlyBase },
+);
+assert(behaviorChangedFindings.some((item) => item.code === "PULL_REQUEST_WRITE_WORKFLOW"));
 
 const externalTokenWorkflow = ".github/workflows/external-token-push.yml";
 const externalTokenFindings = await evaluate(
@@ -362,6 +443,6 @@ assert.deepEqual(compliantFindings, []);
 console.log(JSON.stringify({
   ok: true,
   gate: "repository_tool_lifecycle_governance",
-  cases: 21,
+  cases: 22,
   secrets_included: false,
 }));

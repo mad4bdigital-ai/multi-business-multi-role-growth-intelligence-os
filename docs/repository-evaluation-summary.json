@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "repository-evaluation",
+  "deterministic": true,
+  "inputFingerprint": "1743ab8ba09e7a946c0f3f7e690470b8767564a232ef0c641522d1b103ca5132",
+  "gate": {
+    "decision": "pass",
+    "blockingGapIds": [],
+    "warningGapIds": []
+  },
+  "baselineDiff": {
+    "available": false,
+    "newGapIds": [],
+    "persistingGapIds": [],
+    "unchangedGapIds": [],
+    "resolvedGapIds": []
+  },
+  "gapCounts": {
+    "total": 0,
+    "bySeverity": {
+      "critical": 0,
+      "high": 0,
+      "medium": 0,
+      "low": 0,
+      "info": 0
+    },
+    "byDomain": {}
+  },
+  "topGaps": []
+}

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 process.env.SQL_CACHE_ENABLED = "TRUE";
+process.env.SQL_CACHE_REQUIRED = "FALSE";
 process.env.SQL_CACHE_KEY_VERSION = "v2";
 process.env.SQL_CACHE_MAX_VALUE_BYTES = "1048576";
 process.env.SQL_CACHE_POLICY_REFRESH_SECONDS = "15";
@@ -48,7 +49,10 @@ assert.equal(healthy.persistence, "process_lifetime_counters");
 
 const degraded = buildSqlCacheOperationalDiagnostics({
   enabled: true,
+  required: true,
   available: false,
+  fallback_mode: "direct_loader",
+  fallback_active: false,
   redis_enabled: true,
   redis_url_configured: true,
   circuit_open: true,
@@ -68,7 +72,7 @@ const degraded = buildSqlCacheOperationalDiagnostics({
     bypasses: 0,
     single_flight_joins: 0,
   },
-  policy: { revision: 1, source: "last_known_good", stale: true, last_error_code: "db_timeout" },
+  policy: { revision: 1, required: true, source: "last_known_good", stale: true, last_error_code: "db_timeout" },
 }, {
   minimum_read_samples: 20,
   low_hit_ratio: 0.4,
@@ -88,6 +92,42 @@ for (const code of [
   assert.equal(alertCodes.has(code), true, `missing alert ${code}`);
 }
 assert.equal(degraded.alerts.every((item) => item.secrets_included === false), true);
+
+const optionalFallback = buildSqlCacheOperationalDiagnostics({
+  enabled: true,
+  required: false,
+  available: false,
+  fallback_mode: "direct_loader",
+  fallback_active: true,
+  redis_enabled: false,
+  redis_url_configured: false,
+  circuit_open: false,
+  circuit_retry_after_ms: 0,
+  last_error_code: "",
+  in_flight_count: 0,
+  oversize_cooldown_count: 0,
+  single_flight_enabled: true,
+  counters: {
+    hits: 0,
+    misses: 0,
+    stores: 0,
+    oversize_skips: 0,
+    unavailable_skips: 0,
+    circuit_open_skips: 0,
+    errors: 0,
+    bypasses: 0,
+    single_flight_joins: 0,
+  },
+  policy: { revision: 1, required: false, source: "environment_fallback", stale: false },
+});
+assert.equal(optionalFallback.monitoring_state, "warning");
+assert.equal(optionalFallback.ok, true);
+assert.deepEqual(
+  optionalFallback.alerts.map((item) => [item.code, item.severity]),
+  [["sql_cache_optional_fallback_active", "medium"]]
+);
+assert.equal(optionalFallback.runtime.required, false);
+assert.equal(optionalFallback.runtime.fallback_active, true);
 
 const load = await runSqlCacheControlledLoadTest({
   iterations: 60,

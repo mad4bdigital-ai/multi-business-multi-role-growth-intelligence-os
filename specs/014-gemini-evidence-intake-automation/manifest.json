@@ -1,0 +1,110 @@
+{
+  "spec_key": "014-gemini-evidence-intake-automation",
+  "title": "Gemini Evidence Intake and Development Automation",
+  "branch": "gpt/spec-014-gemini-evidence-automation-20260801",
+  "status": "specification_draft_implementation_blocked",
+  "specification_only": true,
+  "delivery_mode": "multi_pr",
+  "created_at": "2026-08-01T11:50:00Z",
+  "spec_owner": "platform-team",
+  "dependencies": [
+    ".specify/memory/constitution.md",
+    "docs/spec-kit-governance.md",
+    "docs/spec-kit-work-map-integration-governance.md",
+    "docs/repository-automation-control-plane.md",
+    ".github/workflows/ci.yml",
+    ".github/workflows/e2e-phase-governance.yml",
+    ".github/workflows/branch-test-diagnostic-shards.yml",
+    ".github/workflows/ci-evidence-pr-publisher.yml",
+    ".github/workflows/spec-kit-work-map-integration.yml",
+    ".specify/pipeline-connectivity-contract.json",
+    "specs/011-dynamic-multi-tenant-growth-control-plane",
+    "specs/012-unified-admin-tenant-context-kernel"
+  ],
+  "files": [
+    "README.md",
+    "SPEC_KIT_OVERVIEW_AR.md",
+    "CI_AUTOMATION_BLUEPRINT_AR.md",
+    "manifest.json",
+    "spec.md",
+    "research.md",
+    "concerns.md",
+    "operation-paths.md",
+    "plan.md",
+    "data-model.md",
+    "quickstart.md",
+    "traceability.md",
+    "tasks.md",
+    "development-automation.json",
+    "development-implementation-bindings.json",
+    "ci-automation.json",
+    "e2e-phases.json",
+    "work-map-integration.json",
+    "completion.json",
+    "contracts/development-automation.schema.json",
+    "contracts/ci-automation.schema.json",
+    "contracts/gemini-evidence-result.schema.json",
+    "contracts/gemini-evidence-gateway.openapi.yaml",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/operations.md",
+    "checklists/ci.md",
+    "tools/validate-contracts.mjs",
+    "tools/generate-work-packet.mjs"
+  ],
+  "requirements": {
+    "functional": 52,
+    "non_functional": 20,
+    "success_criteria": 18,
+    "additive_implementation_bindings": 2,
+    "e2e_phases": 5,
+    "implemented_e2e_journeys": 2,
+    "ci_test_families": 10,
+    "ci_pipelines": 9,
+    "ci_evidence_contracts": 8,
+    "executable_spec_tools": 2
+  },
+  "automation_contracts": {
+    "development": {
+      "instance": "development-automation.json",
+      "implementation_bindings": "development-implementation-bindings.json",
+      "schema": "contracts/development-automation.schema.json",
+      "validator": "tools/validate-contracts.mjs",
+      "work_packet_generator": "tools/generate-work-packet.mjs",
+      "purpose": "Machine-readable requirement, task, gate, evidence, and implementation-wave orchestration contract"
+    },
+    "ci": {
+      "instance": "ci-automation.json",
+      "schema": "contracts/ci-automation.schema.json",
+      "validator": "tools/validate-contracts.mjs",
+      "purpose": "Machine-readable test-family, pipeline, candidate-identity, canonical-evidence, governed-writer, and completion contract"
+    },
+    "e2e": {
+      "instance": "e2e-phases.json",
+      "schema": ".specify/schemas/e2e-phases.schema.json",
+      "purpose": "Executable phase and journey contract consumed by the repository E2E Phase Governance gate"
+    }
+  },
+  "boundaries": {
+    "runtime_changes": false,
+    "database_migrations": false,
+    "provider_calls": false,
+    "external_writes": false,
+    "github_workflow_activation": false,
+    "production_activation": false,
+    "credential_changes": false
+  },
+  "open_decisions": [
+    "OD-001-gateway-runtime",
+    "OD-002-client-confidential-policy",
+    "OD-003-retention-policy",
+    "OD-004-cost-budget",
+    "OD-005-model-benchmark",
+    "OD-006-review-interface",
+    "OD-007-file-upload-policy",
+    "OD-008-embedding-store",
+    "OD-009-recording-consent",
+    "OD-010-pilot-cohort"
+  ],
+  "secrets_included": false
+}

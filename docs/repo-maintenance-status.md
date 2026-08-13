@@ -66,6 +66,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/connector-recovery-evidence.yml`
 - `.github/workflows/context-kernel-hardcoding-report.yml`
 - `.github/workflows/custom-gpt-contract-guard.yml`
+- `.github/workflows/docs-agent-main-followup.yml`
 - `.github/workflows/docs-agent.yml`
 - `.github/workflows/dr-certification-readiness.yml`
 - `.github/workflows/e2e-contract-reference-integrity.yml`
@@ -79,7 +80,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/github-repository-policy-1049-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1050-governed-rollout.yml`
 - `.github/workflows/github-repository-policy-1051-governed-rollout.yml`
+- `.github/workflows/github-repository-policy-readback.yml`
 - `.github/workflows/governance-db-privilege-readiness.yml`
+- `.github/workflows/governed-command-gateway.yml`
+- `.github/workflows/governed-command-registry-validation.yml`
 - `.github/workflows/governed-generated-artifact-refresh-dispatch-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-pr-target-bridge-v2.yml`
 - `.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml`
@@ -87,6 +91,7 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/governed-migration-dependency-gate.yml`
 - `.github/workflows/governed-production-candidate-dispatch-bridge.yml`
 - `.github/workflows/governed-production-candidate-dispatch-push-fallback.yml`
+- `.github/workflows/governed-production-candidate-dispatch-request-dispatcher.yml`
 - `.github/workflows/governed-production-promotion-post-finalization-guard.yml`
 - `.github/workflows/governed-production-promotion-request-launcher.yml`
 - `.github/workflows/hostinger-completed-build-log-evidence-dispatch-r3-contract.yml`
@@ -156,6 +161,10 @@ Deterministic repository-state snapshot. Runtime timestamps are intentionally om
 - `.github/workflows/production-promotion-exact-candidate-validation.yml`
 - `.github/workflows/production-promotion-generated-artifact-evidence.yml`
 - `.github/workflows/production-runtime-parity-evidence.yml`
+- `.github/workflows/remaining-tenant-runtime-migration-governed-readiness.yml`
+- `.github/workflows/repository-evaluation.yml`
+- `.github/workflows/repository-inventory-autofix-dispatch.yml`
+- `.github/workflows/repository-inventory.yml`
 - `.github/workflows/repository-tool-lifecycle-governance.yml`
 - `.github/workflows/repository-write-workflow-prerequisite-guard.yml`
 - `.github/workflows/response-chunk-ownership-governed-rollout.yml`

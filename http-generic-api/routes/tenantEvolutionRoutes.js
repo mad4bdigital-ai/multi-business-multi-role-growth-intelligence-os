@@ -1,18 +1,9 @@
 import { Router } from "express";
 import { randomUUID } from "node:crypto";
-import jwt from "jsonwebtoken";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { getPool } from "../db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 
 async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   const pool = getPool();
@@ -38,9 +29,7 @@ async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({ ok: false, error: { code: "user_jwt_required", message: "Sign in required." }, secrets_included: false });
   }
@@ -155,8 +144,9 @@ function errorResponse(res, err, fallbackCode) {
 
 export function buildTenantEvolutionRoutes() {
   const router = Router();
+  const requireTenant = [requireCanonicalUserJwt, requireTenantUserJwt];
 
-  router.get("/tenant/evolution/switch-options", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/evolution/switch-options", requireTenant, async (req, res) => {
     try {
       const brandKey = nonEmptyString(req.query.brand_key || req.query.brandKey);
       const limit = boundedInt(req.query.limit, 50, 1, 100);
@@ -194,7 +184,7 @@ export function buildTenantEvolutionRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_evolution_switch_options_failed"); }
   });
 
-  router.post("/tenant/evolution/checkpoints", requireTenantUserJwt, async (req, res) => {
+  router.post("/tenant/evolution/checkpoints", requireTenant, async (req, res) => {
     try {
       const body = req.body || {};
       const scope = await resolveAllowedEvolutionScope(req);
@@ -306,7 +296,7 @@ export function buildTenantEvolutionRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_evolution_checkpoint_create_failed"); }
   });
 
-  router.get("/tenant/evolution/activation-card", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/evolution/activation-card", requireTenant, async (req, res) => {
     try {
       const scope = await resolveAllowedEvolutionScope(req);
       const [rows] = await getPool().query(
@@ -330,7 +320,7 @@ export function buildTenantEvolutionRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_evolution_activation_card_failed"); }
   });
 
-  router.get("/tenant/evolution/thread-map", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/evolution/thread-map", requireTenant, async (req, res) => {
     try {
       const scope = await resolveAllowedEvolutionScope(req);
       const status = nonEmptyString(req.query.status);
@@ -362,7 +352,7 @@ export function buildTenantEvolutionRoutes() {
     } catch (err) { return errorResponse(res, err, "tenant_evolution_thread_map_failed"); }
   });
 
-  router.get("/tenant/evolution/open-evidence", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/evolution/open-evidence", requireTenant, async (req, res) => {
     try {
       const scope = await resolveAllowedEvolutionScope(req);
       const threadKey = nonEmptyString(req.query.thread_key || req.query.threadKey);
@@ -398,7 +388,8 @@ export function buildTenantEvolutionRoutes() {
 }
 
 export const _testingTenantEvolutionRoutes = {
-  verifyUserJwt,
+  requireCanonicalUserJwt,
+  requireTenantUserJwt,
   boundedInt,
   nonEmptyString,
 };

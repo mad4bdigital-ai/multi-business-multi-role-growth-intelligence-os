@@ -144,25 +144,34 @@ jobs:
             fi
           }
 
+          resolve_run_once() {
+            local workflow="$1"
+            local earliest="$2"
+            local expected_head_sha="${3:-}"
+            local filter=""
+
+            if [[ -n "$expected_head_sha" ]]; then
+              filter="map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\"))[0].databaseId // empty"
+            else
+              filter="map(select(.createdAt >= \"$earliest\"))[0].databaseId // empty"
+            fi
+
+            gh run list \
+              --repo "$REPOSITORY" \
+              --workflow "$workflow" \
+              --limit 100 \
+              --json databaseId,headSha,createdAt \
+              --jq "$filter" 2>/dev/null || true
+          }
+
           resolve_run() {
             local workflow="$1"
             local earliest="$2"
             local expected_head_sha="${3:-}"
             local run_id=""
-            local filter=""
 
             for _ in $(seq 1 "$RUN_DISCOVERY_ATTEMPTS"); do
-              if [[ -n "$expected_head_sha" ]]; then
-                filter="map(select(.createdAt >= \"$earliest\" and .headSha == \"$expected_head_sha\"))[0].databaseId // empty"
-              else
-                filter="map(select(.createdAt >= \"$earliest\"))[0].databaseId // empty"
-              fi
-              run_id="$(gh run list \
-                --repo "$REPOSITORY" \
-                --workflow "$workflow" \
-                --limit 100 \
-                --json databaseId,headSha,createdAt \
-                --jq "$filter" 2>/dev/null || true)"
+              run_id="$(resolve_run_once "$workflow" "$earliest" "$expected_head_sha")"
               if [[ -n "$run_id" ]]; then
                 printf '%s' "$run_id"
                 return 0
@@ -192,6 +201,11 @@ jobs:
                 if [[ "$status" == "completed" ]]; then
                   if [[ "$conclusion" == "success" ]]; then
                     return 0
+                  fi
+                  if [[ "$conclusion" == "action_required" ]]; then
+                    echo "::warning::$label run $run_id is waiting for required approval; keeping governed review surfaces open"
+                    sleep "$RUN_POLL_INTERVAL_SECONDS"
+                    continue
                   fi
                   echo "::warning::$label run $run_id completed with conclusion $conclusion"
                   return 1
@@ -230,6 +244,12 @@ jobs:
             PRODUCTION_SHA="$(gh api "/repos/${REPOSITORY}/git/ref/heads/Production" --jq '.object.sha')"
             require_sha MAIN_SHA "$MAIN_SHA"
             require_sha PRODUCTION_SHA "$PRODUCTION_SHA"
+            if [[ "$MAIN_SHA" != "$EXPECTED_HEAD_SHA" ]]; then
+              echo "::error::source-pinned main moved during convergence: expected=$EXPECTED_HEAD_SHA actual=$MAIN_SHA"
+              echo "::error::refresh the request PR pin and dispatch a new governed convergence; refusing to build against an unapproved main"
+              echo "::endgroup::"
+              break
+            fi
 
             MAIN_SHORT="${MAIN_SHA:0:12}"
             PRODUCTION_SHORT="${PRODUCTION_SHA:0:12}"
@@ -318,7 +338,34 @@ jobs:
             SUPPORTING_RUNS='{}'
             SUPPORTING_OK=1
             while IFS= read -r workflow_name; do
-              SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+              SUPPORTING_RUN_ID=""
+              if [[ "$workflow_name" == "Spec 011 Delegation MariaDB Certification" ]]; then
+                SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                if [[ -z "$SUPPORTING_RUN_ID" ]]; then
+                  SPEC011_RELEASE_READBACK="$(gh api "/repos/${REPOSITORY}/git/ref/heads/${RELEASE_BRANCH}" --jq '.object.sha')"
+                  if [[ "$SPEC011_RELEASE_READBACK" != "$CANDIDATE_SHA" ]]; then
+                    echo "::warning::Spec 011 release branch moved before supporting gate dispatch: expected=$CANDIDATE_SHA actual=$SPEC011_RELEASE_READBACK"
+                    SUPPORTING_OK=0
+                    break
+                  fi
+
+                  SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                  if [[ -z "$SUPPORTING_RUN_ID" ]]; then
+                    SPEC011_DISPATCH_STATUS=0
+                    gh workflow run spec-011-delegation-mariadb-certification.yml \
+                      --repo "$REPOSITORY" \
+                      --ref "$RELEASE_BRANCH" || SPEC011_DISPATCH_STATUS=$?
+
+                    SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                    if [[ "$SPEC011_DISPATCH_STATUS" != "0" && -z "$SUPPORTING_RUN_ID" ]]; then
+                      echo "::warning::Spec 011 supporting workflow dispatch returned non-zero and no exact-head run was observed; refusing blind dispatch retry"
+                    fi
+                  fi
+                fi
+              else
+                SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+              fi
+
               if [[ -z "$SUPPORTING_RUN_ID" ]] || ! wait_run_success "$SUPPORTING_RUN_ID" "$workflow_name"; then
                 echo "::warning::required supporting workflow failed or was not found: $workflow_name"
                 SUPPORTING_OK=0
@@ -478,7 +525,7 @@ jobs:
 
       - name: Upload convergence evidence
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: governed-production-promotion-convergence-${{ github.run_id }}
           path: ${{ env.EVIDENCE_PATH }}

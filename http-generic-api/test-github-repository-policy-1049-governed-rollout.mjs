@@ -58,7 +58,7 @@ assert.ok(!workflow.includes('issues: write'), 'Rollout producer must remain rea
 assert.ok(publisherWorkflow.includes('workflow_run:'));
 assert.ok(publisherWorkflow.includes('issues: write'));
 assert.ok(publisherWorkflow.includes('github.event.workflow_run.conclusion == \'success\''));
-assert.ok(publisherWorkflow.includes('actions/download-artifact@v4'));
+assert.ok(publisherWorkflow.includes('actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4'));
 assert.ok(publisherWorkflow.includes('migration-1049-readiness-issue-publisher.mjs'));
 
 for (const expected of [

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mad4b.governed-command-parameters.spec-kit-work-map-recovery.v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["pr_number", "expected_head_sha"],
+  "properties": {
+    "pr_number": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "expected_head_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    }
+  }
+}

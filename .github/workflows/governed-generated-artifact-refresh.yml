@@ -1,5 +1,5 @@
 name: Governed Generated Artifact Refresh
-run-name: Governed Generated Artifact Refresh · ${{ inputs.target_ref }} · ${{ inputs.expected_head_sha }}
+run-name: Governed Generated Artifact Refresh · ${{ inputs.recipe }} · ${{ inputs.target_ref }} · ${{ inputs.expected_head_sha }}
 
 on:
   workflow_dispatch:
@@ -12,6 +12,16 @@ on:
         description: Exact current 40-character head SHA
         required: true
         type: string
+      recipe:
+        description: Registered generated-artifact recipe; auto preserves existing classification
+        required: true
+        default: auto
+        type: choice
+        options:
+          - auto
+          - frontend_openapi_refresh
+          - work_map_self_hosting_bootstrap
+          - repository_inventory_refresh
       confirmation:
         description: Type APPLY_GENERATED_ARTIFACT_REFRESH
         required: true
@@ -37,6 +47,7 @@ jobs:
         env:
           TARGET_REF: ${{ inputs.target_ref }}
           EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          RECIPE: ${{ inputs.recipe }}
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           set -euo pipefail
@@ -46,31 +57,38 @@ jobs:
           fi
           [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          case "$RECIPE" in
+            auto|frontend_openapi_refresh|work_map_self_hosting_bootstrap|repository_inventory_refresh) ;;
+            *) echo "Unregistered generated-artifact recipe: $RECIPE" >&2; exit 1 ;;
+          esac
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
 
       - name: Checkout exact expected head
-        uses: actions/checkout@v5
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           ref: ${{ inputs.expected_head_sha }}
           fetch-depth: 0
           persist-credentials: true
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: http-generic-api/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            http-generic-api/package-lock.json
 
       - name: Apply registered generated-artifact refresh tool
         run: >-
           node http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs
           --target-ref "${{ inputs.target_ref }}"
           --expected-head-sha "${{ inputs.expected_head_sha }}"
+          --recipe "${{ inputs.recipe }}"
           --confirmation "${{ inputs.confirmation }}"
           --output-dir "${OUTPUT_DIR}"
 
-      - name: Dispatch read-only verification on resulting exact head
+      - name: Dispatch recipe-specific read-only verification on resulting exact head
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -79,10 +97,27 @@ jobs:
           set -euo pipefail
           report="${OUTPUT_DIR}/generated-artifact-refresh-report.json"
           test -f "$report"
-          result_sha="$(jq -r '.commit_sha // .expected_head_sha' "$report")"
+          resolved_recipe="$(jq -er '.recipe' "$report")"
+          result_sha="$(jq -er '.result_head_sha // .commit_sha // .expected_head_sha' "$report")"
           [[ "$result_sha" =~ ^[0-9a-f]{40}$ ]]
           remote_sha="$(git ls-remote origin "refs/heads/${TARGET_REF}" | awk '{print $1}')"
           [[ "$remote_sha" == "$result_sha" ]]
+
+          case "$resolved_recipe" in
+            repository_inventory_refresh)
+              verifier_workflow="repository-inventory.yml"
+              verifier_name="Repository Inventory"
+              ;;
+            frontend_openapi_refresh|work_map_self_hosting_bootstrap)
+              verifier_workflow="pr-generated-artifact-refresh.yml"
+              verifier_name="PR Generated Artifact Refresh"
+              ;;
+            *)
+              echo "No registered verifier route for recipe: $resolved_recipe" >&2
+              exit 1
+              ;;
+          esac
+
           payload="$(jq -cn \
             --arg ref "$TARGET_REF" \
             --arg target_ref "$TARGET_REF" \
@@ -90,19 +125,21 @@ jobs:
             '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha}}')"
           gh api \
             --method POST \
-            "repos/${GITHUB_REPOSITORY}/actions/workflows/pr-generated-artifact-refresh.yml/dispatches" \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/${verifier_workflow}/dispatches" \
             --input - <<<"$payload"
           jq -cn \
             --arg contract "mad4b.generated-artifact-refresh-verification-dispatch.v1" \
+            --arg recipe "$resolved_recipe" \
             --arg target_ref "$TARGET_REF" \
             --arg candidate_sha "$result_sha" \
-            --arg workflow "PR Generated Artifact Refresh" \
-            '{contract:$contract,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,requested:true,secrets_included:false}' \
+            --arg workflow "$verifier_name" \
+            --arg workflow_file "$verifier_workflow" \
+            '{contract:$contract,recipe:$recipe,target_ref:$target_ref,candidate_sha:$candidate_sha,workflow:$workflow,workflow_file:$workflow_file,requested:true,secrets_included:false}' \
             > "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json"
 
       - name: Upload canonical refresh report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: governed-generated-artifact-refresh-${{ github.run_id }}
           path: ${{ env.OUTPUT_DIR }}/
@@ -118,5 +155,5 @@ jobs:
           fi
           if [[ -f "${OUTPUT_DIR}/generated-artifact-refresh-verification-dispatch.json" ]]; then
             echo >> "$GITHUB_STEP_SUMMARY"
-            echo "Exact-head read-only verification dispatch requested." >> "$GITHUB_STEP_SUMMARY"
+            echo "Recipe-specific exact-head read-only verification dispatch requested." >> "$GITHUB_STEP_SUMMARY"
           fi

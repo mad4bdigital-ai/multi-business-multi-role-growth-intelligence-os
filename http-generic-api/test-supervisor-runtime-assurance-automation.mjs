@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const docsAgent = readFileSync("../.github/workflows/docs-agent.yml", "utf8");
+const docsAgentMainFollowup = readFileSync("../.github/workflows/docs-agent-main-followup.yml", "utf8");
 const workMapAutofix = readFileSync("../.github/workflows/spec-kit-work-map-autofix.yml", "utf8");
 const workMapIntegration = readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
 const workMapRecoveryBridge = readFileSync("../.github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml", "utf8");
@@ -14,10 +15,10 @@ const testManifest = readFileSync("scripts/test-manifest.mjs", "utf8");
 for (const marker of [
   "skip-docs-agent",
   "Upload generated documentation preview",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "Report preview-only PR mode",
   "never commit, push, merge, or authorize Work Map writes",
-  "docs/auto-docs-agent/**",
+  "docs/auto-docs-agent/",
   "Review is required",
 ]) {
   assert.ok(docsAgent.includes(marker), `docs-agent workflow missing ${marker}`);
@@ -25,7 +26,7 @@ for (const marker of [
 
 assert.match(docsAgent, /!contains\(github\.event\.pull_request\.labels\.\*\.name, 'skip-docs-agent'\)/);
 assert.match(docsAgent, /github\.event\.pull_request\.head\.sha/);
-assert.match(docsAgent, /concurrency:\s+[\s\S]*group: repository-generated-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ github\.ref \}\}[\s\S]*cancel-in-progress: false/);
+assert.match(docsAgent, /concurrency:\s+[\s\S]*group: repository-generated-artifacts-\$\{\{ github\.repository \}\}-\$\{\{ github\.ref \}\}[\s\S]*cancel-in-progress: false[\s\S]*queue: max/);
 assert.doesNotMatch(docsAgent, /docs-agent-write/);
 assert.doesNotMatch(docsAgent, /docs-agent-automerge/);
 assert.doesNotMatch(docsAgent, /Governed exact-head Work Map write/);
@@ -35,22 +36,35 @@ assert.doesNotMatch(docsAgent, /gh pr merge/);
 assert.doesNotMatch(docsAgent, /--force(?:-with-lease)?/);
 
 const previewStart = docsAgent.indexOf("pr-impact-note:");
-const followupStart = docsAgent.indexOf("main-followup-pr:");
 assert.ok(previewStart >= 0, "Docs Agent preview job is required");
-assert.ok(followupStart > previewStart, "reviewed main follow-up must remain separate from PR preview");
-const previewJob = docsAgent.slice(previewStart, followupStart);
+const previewJob = docsAgent.slice(previewStart);
 assert.match(previewJob, /Upload generated documentation preview/);
 assert.match(previewJob, /Report preview-only PR mode/);
 assert.doesNotMatch(previewJob, /git push/);
 assert.doesNotMatch(previewJob, /git commit/);
 
-const followupJob = docsAgent.slice(followupStart);
-assert.match(followupJob, /permissions:\s+[\s\S]*contents: write/);
-assert.match(followupJob, /peter-evans\/create-pull-request@v6/);
-assert.match(followupJob, /docs\/auto-docs-agent\/\*\*/);
-assert.match(followupJob, /Review is required/);
-assert.doesNotMatch(followupJob, /docs\/work-maps/);
-assert.doesNotMatch(followupJob, /gh pr merge/);
+for (const marker of [
+  "push:",
+  "workflow_dispatch:",
+  "expected_head_sha:",
+  "Resolve live main and dispatch exact writer",
+  "Pin exact main source and safe target branch",
+  "EXPECTED_HEAD_SHA",
+  "TARGET_BRANCH=\"docs-agent/${EXPECTED_HEAD_SHA}\"",
+  "peter-evans/create-pull-request@c5a7806660adbe173f04e3e038b0ccdcd758773c # v6",
+  "docs/auto-docs-agent/**",
+  "Review is required",
+  "queue: max",
+]) {
+  assert.ok(docsAgentMainFollowup.includes(marker), `Docs Agent main follow-up workflow missing ${marker}`);
+}
+assert.match(docsAgentMainFollowup, /permissions:\s+[\s\S]*contents: write/);
+assert.match(docsAgentMainFollowup, /test "\$\(git rev-parse HEAD\)" = "\$\{EXPECTED_HEAD_SHA\}"/);
+assert.match(docsAgentMainFollowup, /test "\$\{current_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"/);
+assert.match(docsAgentMainFollowup, /main\|Production\)/);
+assert.doesNotMatch(docsAgentMainFollowup, /docs\/work-maps/);
+assert.doesNotMatch(docsAgentMainFollowup, /gh pr merge/);
+assert.doesNotMatch(docsAgentMainFollowup, /--force(?:-with-lease)?/);
 
 for (const marker of [
   "workflow_dispatch:",
@@ -74,7 +88,7 @@ for (const marker of [
   "WORK_MAP_WRITER_DELEGATION contract=mad4b.work-map-writer-delegation.v1 state=issued",
   "state=consumed recovery_run_id=${RECOVERY_RUN_ID}",
   "work-map-autofix-diagnostics-",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "git check-ref-format --branch",
   "git add -- docs/work-maps",
   "git push origin",
@@ -189,7 +203,7 @@ for (const marker of [
   "npm ci --ignore-scripts",
   "cache-dependency-path: http-generic-api/package-lock.json",
   "behavioral-dry-run.json",
-  "actions/upload-artifact@v4",
+  "actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4",
   "supervisor-runtime-assurance",
 ]) {
   assert.ok(assurance.includes(marker), `read-only assurance workflow missing ${marker}`);

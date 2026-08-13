@@ -8,6 +8,8 @@
   "scope": {
     "include": [
       ".changes/e2e/github-repository-policy-controller.json",
+      ".github/ops/github-repository-policy-readback.mjs",
+      ".github/workflows/github-repository-policy-readback.yml",
       "http-generic-api/frontend-operation-governance.generated.json",
       "http-generic-api/frontend-surface-dispatch.generated.json",
       "http-generic-api/githubRepositoryPolicyController.js",
@@ -17,6 +19,7 @@
       "http-generic-api/routes/repositoryAutomationRoutes.js",
       "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
       "http-generic-api/test-github-repository-policy-controller.mjs",
+      "http-generic-api/test-github-repository-policy-readback-producer.mjs",
       "http-generic-api/test-repository-automation-policy-facade.mjs",
       "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
     ]
@@ -38,6 +41,7 @@
           "entrypoint": "POST /admin/repository-automation/policy-controller",
           "terminal_outcome": "Readback and plan remain non-mutating; a mocked exact apply creates or updates one no-bypass main Ruleset only after all authorization and CAS preconditions pass, proves the same policy fingerprint in same-cycle readback, and rolls back when postconditions do not match.",
           "steps": [
+            "Run a manual workflow-dispatch readback producer that binds evidence to the exact workflow SHA, records policy state and findings, uploads only no-secret evidence, and performs no mutation.",
             "Read repository metadata, main identity, active rules, Rulesets, Classic Branch Protection, collaborator permissions, auto-merge posture, and configured finalizer App identity.",
             "Report zero or inaccessible protection state as incomplete without mutation.",
             "Build one deterministic main Ruleset requiring pull requests, one approval, stale-review dismissal, conversation resolution, newest-push approval, six canonical checks, strict status checks, non-fast-forward protection, and zero bypass actors.",
@@ -48,6 +52,7 @@
             "Rollback or fail closed when the observed policy fingerprint, main identity, no-bypass posture, or server policy gate is incomplete."
           ],
           "assertions": [
+            "The workflow-dispatch readback producer permits only GET-oriented policy evidence, fails closed on main-SHA drift or incomplete policy, and emits mutation_executed=false with secrets_included=false.",
             "Zero rules and an unprotected main report server_policy_gate_complete=false without mutation.",
             "HTTP 403 or unknown protection state blocks apply.",
             "Stale expected main SHA blocks before mutation.",
@@ -77,6 +82,13 @@
               "args": []
             },
             {
+              "id": "github-repository-policy-readback-producer-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-github-repository-policy-readback-producer.mjs",
+              "args": []
+            },
+            {
               "id": "repository-automation-policy-facade-regressions",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -100,6 +112,8 @@
           ],
           "evidence_paths": [
             ".changes/e2e/github-repository-policy-controller.json",
+            ".github/ops/github-repository-policy-readback.mjs",
+            ".github/workflows/github-repository-policy-readback.yml",
             "http-generic-api/frontend-operation-governance.generated.json",
             "http-generic-api/frontend-surface-dispatch.generated.json",
             "http-generic-api/githubRepositoryPolicyController.js",
@@ -109,6 +123,7 @@
             "http-generic-api/routes/repositoryAutomationRoutes.js",
             "http-generic-api/scripts/spec014-refresh-final-work-map-binding.mjs",
             "http-generic-api/test-github-repository-policy-controller.mjs",
+            "http-generic-api/test-github-repository-policy-readback-producer.mjs",
             "http-generic-api/test-repository-automation-policy-facade.mjs",
             "http-generic-api/test-spec014-refresh-final-work-map-binding.mjs"
           ]

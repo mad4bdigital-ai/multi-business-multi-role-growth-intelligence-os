@@ -1,11 +1,11 @@
 import { Router } from "express";
-import jwt from "jsonwebtoken";
+import { createUserJwtMiddleware } from "../userJwtAuth.js";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "development_fallback_secret_only";
+const requireCanonicalUserJwt = createUserJwtMiddleware();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const MAX_DOC_CHARS = 20000;
@@ -20,15 +20,6 @@ const TENANT_SAFE_DOC_ALLOWLIST = new Map([
   ["docs/tenant-gpt-operating-guide.md", "docs/tenant-gpt-operating-guide.md"],
   ["schemas/http-generic-api/tenant-capability-registry.json", "schemas/http-generic-api/tenant-capability-registry.json"],
 ]);
-
-function verifyUserJwt(authHeader) {
-  if (!authHeader || !authHeader.startsWith("Bearer ")) return null;
-  try {
-    return jwt.verify(authHeader.slice(7), JWT_SECRET);
-  } catch {
-    return null;
-  }
-}
 
 async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
   const pool = getPool();
@@ -54,9 +45,7 @@ async function fetchActiveMembershipForTenant({ userId, tenantId = null }) {
 }
 
 async function requireTenantUserJwt(req, res, next) {
-  const payload = req.auth?.mode === "user_jwt"
-    ? req.auth
-    : verifyUserJwt(req.headers.authorization);
+  const payload = req.auth?.mode === "user_jwt" ? req.auth : null;
   if (!payload || !payload.user_id) {
     return res.status(401).json({
       ok: false,
@@ -136,8 +125,9 @@ function errorResponse(res, err, fallbackCode) {
 
 export function buildTenantDocsRoutes() {
   const router = Router();
+  const requireTenant = [requireCanonicalUserJwt, requireTenantUserJwt];
 
-  router.get("/tenant/docs", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/docs", requireTenant, async (req, res) => {
     return res.status(200).json({
       ok: true,
       docs: publicCatalog(),
@@ -153,7 +143,7 @@ export function buildTenantDocsRoutes() {
     });
   });
 
-  router.get("/tenant/docs/read", requireTenantUserJwt, async (req, res) => {
+  router.get("/tenant/docs/read", requireTenant, async (req, res) => {
     try {
       const doc = await readTenantSafeDoc({
         requestedPath: req.query.path,
@@ -184,4 +174,6 @@ export const _testingTenantDocsRoutes = {
   TENANT_SAFE_DOC_ALLOWLIST,
   normalizeRequestedPath,
   readTenantSafeDoc,
+  requireCanonicalUserJwt,
+  requireTenantUserJwt,
 };

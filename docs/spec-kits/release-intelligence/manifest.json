@@ -1,0 +1,80 @@
+{
+  "spec_key": "release_intelligence_admin_tenant_v1",
+  "status": "draft",
+  "version": "0.1.0",
+  "owner": "platform_release_governance",
+  "scope": {
+    "admin": {
+      "visibility": "all_authorized_platform_targets",
+      "can_create_release_operation": true,
+      "can_request_gate_open": true,
+      "can_request_gate_close": true,
+      "can_execute_with_envelope": true,
+      "requires_capability_envelope": true,
+      "requires_readback": true
+    },
+    "tenant": {
+      "visibility": "tenant_owned_targets_only",
+      "can_create_release_operation": true,
+      "can_request_gate_open": true,
+      "can_request_gate_close": true,
+      "can_execute_with_envelope": false,
+      "requires_capability_envelope": true,
+      "requires_readback": true,
+      "sanitized_evidence_only": true
+    }
+  },
+  "entities": [
+    "release_operation",
+    "release_operation_step",
+    "release_gate_event",
+    "release_operation_evidence",
+    "capability_envelope_template",
+    "runtime_target_adapter",
+    "readback_contract",
+    "rollback_plan"
+  ],
+  "lifecycle_states": [
+    "draft",
+    "preflight_pending",
+    "preflight_passed",
+    "approval_required",
+    "ready_for_dispatch",
+    "dispatch_started",
+    "restart_in_progress",
+    "readback_pending",
+    "verified",
+    "degraded",
+    "rollback_required",
+    "failed_preflight",
+    "failed_execution",
+    "cleanup_pending",
+    "closed"
+  ],
+  "runtime_adapter_family": [
+    "hostinger_ssh",
+    "cloud_run",
+    "vps_ssh",
+    "github_actions",
+    "n8n_runtime",
+    "wordpress_runtime",
+    "local_connector"
+  ],
+  "required_contracts": {
+    "operation_ledger": true,
+    "capability_template_resolution": true,
+    "dynamic_gate_manager": true,
+    "async_deploy_readback": true,
+    "runtime_parity_probe": true,
+    "bounded_evidence_manifest": true,
+    "tenant_scope_filtering": true,
+    "admin_cross_tenant_audit": true,
+    "no_secret_response": true
+  },
+  "default_response_policy": {
+    "summary_first": true,
+    "chunk_large_evidence": true,
+    "secrets_included": false,
+    "bounded_output": true
+  }
+}
