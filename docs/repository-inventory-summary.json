@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6819,
-    "bytes": 61959091,
-    "lines": 1454056,
+    "files": 6821,
+    "bytes": 61977234,
+    "lines": 1454351,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2049,
-      "documentation": 1868,
+      "documentation": 1869,
       "api-runtime": 1370,
       "database-migrations": 777,
       "root-and-other": 233,
       "ci-workflows": 155,
       "api-contracts": 151,
-      "ci-config": 94,
+      "ci-config": 95,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -26,8 +26,8 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2472,
-      ".mjs": 1567,
+      ".md": 2473,
+      ".mjs": 1568,
       ".js": 958,
       ".sql": 792,
       ".json": 690,
@@ -58,9 +58,9 @@
     },
     "topLevel": {
       "http-generic-api": 3519,
-      "docs": 1775,
+      "docs": 1776,
       "specs": 840,
-      ".github": 249,
+      ".github": 250,
       ".changes": 228,
       "canonicals": 70,
       "local-connector": 23,
@@ -212,7 +212,7 @@
     "workflows": 155,
     "migrations": 777,
     "apiContracts": 151,
-    "testSpecFiles": 2112
+    "testSpecFiles": 2113
   },
   "largestFiles": [
     {

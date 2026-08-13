@@ -109,6 +109,12 @@ jobs:
       - name: Validate memory schema refs
         run: node validate-memory-schema.mjs
 
+      - name: Validate governed production promotion review mode
+        run: node .github/tests/production-promotion-review-mode.test.mjs
+
+      - name: Validate governed command gateway contract
+        run: node --test .github/tests/governed-command-gateway.test.mjs
+
       - name: Check git diff hygiene
         run: git diff --check
 
