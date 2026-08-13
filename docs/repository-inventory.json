@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6756,
-    "bytes": 59522770,
-    "lines": 1387183,
+    "bytes": 59525608,
+    "lines": 1387222,
     "directories": 255,
     "categories": 13
   },
@@ -6381,9 +6381,9 @@
       "path": ".changes/e2e/governed-production-promotion-approval-aware.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5631,
-      "lines": 97,
-      "sha256": "356a3478a6dc7fd9d62ef116a3fb5f0573b703282b4dea014857926293b7d68d",
+      "bytes": 8469,
+      "lines": 136,
+      "sha256": "cded2d7c72c7cf0a59bd21c4600be19f2e3aac50e3a1c495d53457615b6887ab",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31452,7 +31452,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "3175a0f20f2b8d19f7be89801520572b605416b8417d390fcc176493d930fc7a",
+      "sha256": "8cf537a19e9e30df4222e631183c2821cb6e5294ec3970ceb4a2363ec1caa318",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77652,7 +77652,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "1e944176dbd701cd069b90edc569d2e8cbde9117ad2d9d85668d0c2ccb1fe518",
+      "sha256": "ee069679c2c846b30cd8e1105f721f5f31907230428e40d4b1e3b44358cb464d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78213,7 +78213,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "f57966a29b19076ca0c760dcd0e0615cc7cbf7ca3e6075d99eff3861fe2a00f8",
+      "sha256": "731a3eea8f6efd85d5c4b5b611593f1a80eafb5b4db37aad6c59ef37178fee09",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79038,7 +79038,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "44301d9b31aff169e40623e725d93fb9713e26068ac9eaca61e3defbbce738b6",
+      "sha256": "6524123a8eb49e83729e01c2b07412b1b41f94d40ad0353f3ff794473599c05c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79269,7 +79269,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "3c14348c1710bac970b42d16ff89c42ffef197d1dba5ecaef10b2d5dbe66be0f",
+      "sha256": "c21460fcec70411fb9c5e8ac5cda29ff3379843e6de9d69b31a8383d1df079b6",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79588,7 +79588,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "1eff4fb2fa50af2d8a9e079362e970d3ded9330150f2024046d54bf97393840a",
+      "sha256": "581159a3ab26130572155e76d803e027e757776d4245befc39cb09a7de254296",
       "mode": "644",
       "executable": false,
       "generated": false
