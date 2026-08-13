@@ -2755,7 +2755,7 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
       pool: getPool(),
-      runtimePersistencePool,
+      runtimePersistencePoolFactory,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -4289,8 +4289,8 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 }
 
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey, runtimePersistencePool } = deps;
-  const chunkPersistenceDeps = { runtimePersistencePool };
+  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
+  const chunkPersistenceDeps = { runtimePersistencePoolFactory };
   const router = Router();
 
   // GET /gpt/tools

@@ -3172,7 +3172,7 @@ registerRoutes(app, {
   getRedisRuntimeStatus,
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
-  runtimePersistencePool: getRuntimePersistencePool(),
+  runtimePersistencePoolFactory: getRuntimePersistencePool,
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
   // --- mcp ---

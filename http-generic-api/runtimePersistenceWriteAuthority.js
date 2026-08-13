@@ -103,7 +103,11 @@ function requiredOperationsFor(table, requested = undefined) {
 }
 
 export function resolveRuntimePersistenceExecutor(deps = {}) {
-  return deps.runtimePersistencePool || deps.pool || deps.connection || getRuntimePersistencePool();
+  return deps.runtimePersistencePool
+    || (typeof deps.runtimePersistencePoolFactory === "function" ? deps.runtimePersistencePoolFactory() : null)
+    || deps.pool
+    || deps.connection
+    || getRuntimePersistencePool();
 }
 
 function cacheKey(deps = {}) {

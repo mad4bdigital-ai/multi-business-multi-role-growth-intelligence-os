@@ -17,6 +17,7 @@ process.env.RUNTIME_PERSISTENCE_DB_PORT = "3306";
 const pool = getRuntimePersistencePool();
 assert.equal(typeof pool.query, "function");
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: pool }), pool);
+assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePoolFactory: () => pool }), pool);
 const sentinel = { query() {} };
 assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: sentinel }), sentinel);
 
@@ -28,8 +29,8 @@ assert.match(dbSource, /export function getRuntimePersistencePool\(\)/u);
 assert.match(dbSource, /RUNTIME_PERSISTENCE_DB/u);
 assert.match(dbSource, /\$\{prefix\}_USER/u);
 assert.match(authoritySource, /getRuntimePersistencePool\(\)/u);
-assert.match(routeSource, /const chunkPersistenceDeps = \{ runtimePersistencePool \}/u);
-assert.match(serverSource, /runtimePersistencePool: getRuntimePersistencePool\(\)/u);
+assert.match(routeSource, /const chunkPersistenceDeps = \{ runtimePersistencePoolFactory \}/u);
+assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
 
 await pool.end();
 for (const [key, value] of Object.entries(previous)) {
