@@ -28,6 +28,7 @@ on:
 
 # The dispatcher delegates all repository content mutation to the trusted writer.
 # It can classify both stale PR heads and stale exact main heads, but it never writes main or Production.
+# Post-merge convergence auto-seeds and verifies a work branch; PR publication remains outside Actions write authority.
 # Contract: mad4b.repository-inventory-self-hosting.v2.
 env:
   INVENTORY_AUTOFIX_AUTHORITY_MODE: read_only_delegator
@@ -364,7 +365,7 @@ jobs:
               --arg ref "$TARGET_REF" \
               --arg target_ref "$TARGET_REF" \
               --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
-              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",publish_pr:"false",source_main_sha:""}}')"
+              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"false",source_main_sha:""}}')"
             summary="Dispatched governed Repository Inventory refresh for PR #${PR_NUMBER} at ${EXPECTED_HEAD_SHA}."
           elif [[ "$MODE" == "main_convergence" ]]; then
             [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]]
@@ -378,8 +379,8 @@ jobs:
               --arg target_ref "$TARGET_REF" \
               --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
               --arg source_main_sha "$SOURCE_MAIN_SHA" \
-              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"true",publish_pr:"true",source_main_sha:$source_main_sha}}')"
-            summary="Dispatched governed post-merge Repository Inventory convergence from main@${SOURCE_MAIN_SHA} into ${TARGET_REF}."
+              '{ref:$ref,inputs:{target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:"repository_inventory_refresh",confirmation:"APPLY_GENERATED_ARTIFACT_REFRESH",create_from_main:"true",source_main_sha:$source_main_sha}}')"
+            summary="Dispatched governed post-merge Repository Inventory convergence from main@${SOURCE_MAIN_SHA} into ${TARGET_REF}. PR publication remains a separate governed GitHub action after exact-head verification."
           else
             echo "Unsupported autofix mode: $MODE" >&2
             exit 1
