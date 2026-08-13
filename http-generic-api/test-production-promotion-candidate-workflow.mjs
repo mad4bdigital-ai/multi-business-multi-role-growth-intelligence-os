@@ -12,6 +12,7 @@ const contractWorkflow = read(".github/workflows/production-promotion-candidate-
 assert.match(workflow, /workflow_dispatch:/, "candidate creation must remain explicitly dispatched");
 assert.doesNotMatch(workflow, /pull_request_target:/, "candidate creation must not run with pull_request_target privileges");
 assert.match(workflow, /expected_main_sha:/, "workflow must require a pinned main SHA");
+assert.match(workflow, /expected_head_sha:/, "workflow must require an explicit expected workflow head SHA");
 assert.match(workflow, /expected_production_sha:/, "workflow must require a pinned Production SHA");
 assert.match(workflow, /validation_base_branch:/, "workflow must require a pinned validation-base branch");
 assert.match(workflow, /contents:\s*write/, "candidate workflow needs bounded contents write permission");
@@ -20,7 +21,8 @@ assert.match(workflow, /cancel-in-progress:\s*false/, "candidate construction mu
 
 assert.match(workflow, /\^\[0-9a-f\]\{40\}\$/, "workflow must validate exact lowercase 40-character SHAs");
 assert.match(workflow, /git check-ref-format --branch/, "workflow must validate user-supplied branch names");
-assert.match(workflow, /gpt\/validate-production-base/, "validation base must use a governed branch prefix");
+assert.doesNotMatch(workflow, /gpt\/validate-production-base/, "candidate workflow must not embed a work-branch namespace");
+assert.match(workflow, /expected head mismatch: current main is not the authorized workflow head/, "candidate workflow must reject mutation when the authorized head moved");
 assert.match(workflow, /release, validation, and validation-base branches must be distinct/, "candidate branches must be distinct");
 assert.match(workflow, /refs\/remotes\/origin\/main/, "workflow must read back the protected main ref");
 assert.match(workflow, /refs\/remotes\/origin\/Production/, "workflow must read back the protected Production ref");
@@ -57,6 +59,7 @@ assert.match(workflow, /upsert_pr "\$RELEASE_BRANCH" Production/, "workflow must
 assert.match(workflow, /if-no-files-found:\s*error/, "candidate evidence must fail closed when missing");
 assert.match(workflow, /schema_version:\s*"production_promotion_candidate\.v2"/, "candidate evidence must be versioned");
 assert.match(workflow, /validation_policy:\s*"pinned_base_exact_ci_dispatch"/, "candidate evidence must describe exact validation");
+assert.match(workflow, /governed_promotion_candidate: true/, "release surface must include the contract marker used by the source-pin guard");
 assert.match(workflow, /merge_executed:\s*false/, "evidence must state that merge was not executed");
 assert.match(workflow, /deployment_executed:\s*false/, "evidence must state that deployment was not executed");
 assert.match(workflow, /migration_executed:\s*false/, "evidence must state that migration was not executed");
@@ -64,13 +67,22 @@ assert.match(workflow, /provider_call_executed:\s*false/, "evidence must state t
 assert.match(workflow, /credential_payload_read:\s*false/, "evidence must state that credentials were not read");
 assert.match(workflow, /secrets_included:\s*false/, "evidence must state that secrets are excluded");
 
-assert.match(exactValidation, /pull_request:/, "exact validation must be triggered by a reviewable PR");
-assert.match(exactValidation, /gpt\/validate-production-base-\*/, "exact validation must accept source-pinned base branches");
+assert.match(exactValidation, /workflow_dispatch:/, "exact validation must require an explicit governed dispatch");
+assert.doesNotMatch(exactValidation, /pull_request:/, "exact validation must not couple write-capable automation to a PR trigger");
 assert.doesNotMatch(exactValidation, /pull_request_target:/, "exact validation must not use pull_request_target");
+assert.match(exactValidation, /expected_main_sha:/, "exact validation must require the source-pinned main SHA");
+assert.match(exactValidation, /expected_head_sha:/, "exact validation must require an explicit expected head SHA");
+assert.match(exactValidation, /expected_candidate_ref:/, "exact validation must require an explicit candidate ref");
+assert.match(exactValidation, /expected_validation_base_sha:/, "exact validation must require an explicit validation-base SHA");
+assert.match(exactValidation, /expected_validation_base_ref:/, "exact validation must require an explicit validation-base ref");
+assert.match(exactValidation, /VALIDATE_EXACT_PRODUCTION_CANDIDATE/, "exact validation must require typed confirmation");
 assert.match(exactValidation, /actions:\s*write/, "exact validation needs bounded Actions dispatch permission");
 assert.match(exactValidation, /contents:\s*read/, "exact validation must keep repository contents read-only");
-assert.match(exactValidation, /git diff --quiet "\$BASE_SHA" "\$HEAD_SHA"/, "exact validation must require identical trees");
-assert.match(exactValidation, /validation branches moved before exact-CI dispatch/, "exact validation must read refs before dispatch");
+assert.doesNotMatch(exactValidation, /contents:\s*write/, "exact validation must not write repository contents");
+assert.match(exactValidation, /CURRENT_HEAD_SHA="\$\(git rev-parse HEAD\)"/, "exact validation must read the checked-out candidate head");
+assert.match(exactValidation, /expected head mismatch: checkout is not the authorized candidate SHA/, "exact validation must reject a checkout that differs from expected head");
+assert.match(exactValidation, /git diff --quiet "\$BASE_SHA" "\$EXPECTED_HEAD_SHA"/, "exact validation must require identical candidate and base trees");
+assert.match(exactValidation, /source-pinned refs moved before exact-CI dispatch/, "exact validation must read refs before dispatch");
 assert.match(exactValidation, /gh workflow run ci\.yml --ref "\$HEAD_REF"/, "exact validation must dispatch Full CI on the candidate branch");
 assert.doesNotMatch(exactValidation, /gh run watch/, "exact validation must not use API-intensive gh run watch polling");
 assert.match(exactValidation, /POLL_INTERVAL_SECONDS=30/, "exact validation must poll at a bounded low frequency");
@@ -82,8 +94,8 @@ assert.match(exactValidation, /Syntax Check/, "exact validation must require Syn
 assert.match(exactValidation, /Unit & Integration Tests/, "exact validation must require Unit and Integration success");
 assert.match(exactValidation, /Execution Resolver Gate/, "exact validation must require Execution Resolver success");
 assert.match(exactValidation, /Architecture Drift Detection/, "exact validation must require Architecture Drift success");
-assert.match(exactValidation, /validation branches moved during exact-CI execution/, "exact validation must re-read refs after CI");
-assert.match(exactValidation, /schema_version:\s*"production_promotion_exact_candidate_ci\.v1"/, "exact-CI evidence must be versioned");
+assert.match(exactValidation, /source-pinned refs moved during exact-CI execution/, "exact validation must re-read refs after CI");
+assert.match(exactValidation, /schema_version:\s*"production_promotion_exact_candidate_ci\.v2"/, "exact-CI evidence must be versioned");
 assert.match(exactValidation, /if-no-files-found:\s*error/, "exact-CI evidence must fail closed when missing");
 assert.doesNotMatch(exactValidation, /\bgh pr merge\b|\bmerge_pull_request\b/, "exact validation must never merge");
 

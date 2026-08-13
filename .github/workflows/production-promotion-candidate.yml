@@ -7,6 +7,10 @@ on:
         description: Exact 40-character main SHA to snapshot
         required: true
         type: string
+      expected_head_sha:
+        description: Exact trusted main workflow head SHA before candidate ref mutation
+        required: true
+        type: string
       expected_production_sha:
         description: Exact 40-character Production SHA to preserve
         required: true
@@ -14,17 +18,14 @@ on:
       release_branch:
         description: Source-pinned branch for the Production PR
         required: true
-        default: release/production-candidate
         type: string
       validation_branch:
         description: Source-pinned candidate branch for exact CI
         required: true
-        default: gpt/validate-production-candidate
         type: string
       validation_base_branch:
         description: Source-pinned base branch matching the expected main SHA
         required: true
-        default: gpt/validate-production-base
         type: string
       create_pull_requests:
         description: Create or update release and validation PRs
@@ -66,6 +67,7 @@ jobs:
         shell: bash
         env:
           EXPECTED_MAIN_SHA: ${{ inputs.expected_main_sha }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
           EXPECTED_PRODUCTION_SHA: ${{ inputs.expected_production_sha }}
           RELEASE_BRANCH: ${{ inputs.release_branch }}
           VALIDATION_BRANCH: ${{ inputs.validation_branch }}
@@ -98,6 +100,7 @@ jobs:
           }
 
           require_sha EXPECTED_MAIN_SHA "$EXPECTED_MAIN_SHA"
+          require_sha EXPECTED_HEAD_SHA "$EXPECTED_HEAD_SHA"
           require_sha EXPECTED_PRODUCTION_SHA "$EXPECTED_PRODUCTION_SHA"
           require_branch RELEASE_BRANCH "$RELEASE_BRANCH"
           require_branch VALIDATION_BRANCH "$VALIDATION_BRANCH"
@@ -109,18 +112,14 @@ jobs:
             echo "::error::release, validation, and validation-base branches must be distinct"
             exit 1
           fi
-          case "$VALIDATION_BASE_BRANCH" in
-            gpt/validate-production-base|gpt/validate-production-base-*) ;;
-            *)
-              echo "::error::validation base must use the governed gpt/validate-production-base prefix"
-              exit 1
-              ;;
-          esac
-
           git fetch --prune --no-tags origin '+refs/heads/*:refs/remotes/origin/*'
 
           ACTUAL_MAIN="$(git rev-parse refs/remotes/origin/main)"
           ACTUAL_PRODUCTION="$(git rev-parse refs/remotes/origin/Production)"
+          if [[ "$ACTUAL_MAIN" != "$EXPECTED_HEAD_SHA" ]]; then
+            echo "::error::expected head mismatch: current main is not the authorized workflow head"
+            exit 1
+          fi
           if [[ "$ACTUAL_MAIN" != "$EXPECTED_MAIN_SHA" ]]; then
             echo "::error::main moved: expected $EXPECTED_MAIN_SHA, actual $ACTUAL_MAIN"
             exit 1
@@ -305,6 +304,7 @@ jobs:
           - exact candidate: \`$CANDIDATE_SHA\`
           - validation base: \`$VALIDATION_BASE_BRANCH\`
           - tree policy: exact pinned-main tree
+          - governed_promotion_candidate: true
 
           This PR only promotes Git ancestry. It does not execute deployment, SQL, migrations, provider calls, credential reads, restarts, or external writes.
 
