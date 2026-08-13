@@ -20,6 +20,7 @@ export function buildRemoteMcpIncrementalConsentRequest({
   clientId = null,
   resource = null,
   authorizationEndpoint = null,
+  redirectUris = [],
   catalog = getRemoteMcpScopeCatalog(),
 } = {}) {
   const binding = resolveRemoteMcpToolScopeBinding(toolKey, catalog);
@@ -75,6 +76,8 @@ export function buildRemoteMcpIncrementalConsentRequest({
   query.set("response_type", "code");
   query.set("scope", missing.join(" "));
   if (resource) query.set("resource", String(resource));
+  const normalizedRedirectUris = normalizeScopes(redirectUris);
+  if (normalizedRedirectUris.length === 1) query.set("redirect_uri", normalizedRedirectUris[0]);
   query.set("code_challenge_method", "S256");
   return {
     required: true,
@@ -86,7 +89,9 @@ export function buildRemoteMcpIncrementalConsentRequest({
     requested_scopes: mergeRemoteMcpScopes(current, missing),
     default_scopes: [...REMOTE_MCP_SCOPES],
     authorization_endpoint: authorizationEndpoint,
+    redirect_uri_options: normalizedRedirectUris,
     authorization_parameters: Object.fromEntries(query.entries()),
+    required_parameters: ["redirect_uri", "state", "code_challenge", "code_challenge_method"],
     catalog_revision: catalog.revision || null,
     message: "Additional consent is required for this tool. Re-authorize only the missing scope(s).",
     secrets_included: false,

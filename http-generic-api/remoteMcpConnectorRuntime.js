@@ -136,7 +136,7 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
       jsonrpc: "2.0",
       id: body?.id ?? null,
       result: {
-        content: [{ type: "text", text: verification.message }],
+        content: [{ type: "text", text: incrementalConsent?.required ? incrementalConsent.message : verification.message }],
         structuredContent: {
           ok: false,
           error: {
@@ -145,7 +145,7 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
             retryable: verification.status >= 500,
           },
           request_id: requestId,
-          ...(incrementalConsent?.required ? { incremental_consent: incrementalConsent } : {}),
+          ...(incrementalConsent ? { incremental_consent: incrementalConsent } : {}),
           secrets_included: false,
         },
         isError: true,
@@ -249,6 +249,7 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
         clientId: verification.claims?.client_id,
         resource: resolveRemoteMcpResource(sourceEnv),
         authorizationEndpoint: `${resolveRemoteMcpAuthorizationIssuer(sourceEnv)}/oauth/authorize`,
+        redirectUris: client?.redirect_uris || [],
       });
     }
     const decision = buildRemoteMcpAuthorizationDecision({
