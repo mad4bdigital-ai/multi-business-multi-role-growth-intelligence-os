@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6677,
-    "bytes": 58761873,
-    "lines": 1371537,
+    "bytes": 58762626,
+    "lines": 1371544,
     "directories": 251,
     "categories": 13
   },
@@ -6072,9 +6072,9 @@
       "path": ".changes/e2e/governance-db-authority-store-isolation.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5960,
-      "lines": 131,
-      "sha256": "2bda2a8087719fe917c41ac23816b3f3ae40a9f2c7309955cdce455c0e8817de",
+      "bytes": 6256,
+      "lines": 134,
+      "sha256": "ce5cb53762390eccea216e97ae3a2fdb2ae47720a0a91cdbd17448d3681a11cf",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9548,9 +9548,9 @@
       "path": ".github/workflows/governed-production-promotion-request-launcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 28793,
+      "bytes": 29097,
       "lines": 574,
-      "sha256": "fb6f950319448f54f0a6733298bb1f741bf5c17679f58616505d568b5b7beef8",
+      "sha256": "439d69d4b77e672a4f1bb1bb961112250c5f884805fca3c2455e847786eed681",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64328,9 +64328,9 @@
       "path": "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8568,
-      "lines": 209,
-      "sha256": "dee32e2921a532721011f026327c6929f2d2e2e69b39cc02a3fa8ec04bfc653d",
+      "bytes": 8721,
+      "lines": 213,
+      "sha256": "0403d7261464bad256ef6f6ac0a2b48bd91a68ea92d278957a9c50b4a2f2f8bd",
       "mode": "644",
       "executable": false,
       "generated": false
