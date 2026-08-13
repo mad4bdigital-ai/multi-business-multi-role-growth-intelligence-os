@@ -1,4 +1,5 @@
 import { getRemoteMcpRuntimeConfiguration } from "./remoteMcpConnectorRuntime.js";
+import { buildRemoteMcpScopeCatalogReadiness } from "./remoteMcpScopeCatalogReadiness.js";
 import {
   envFlag,
   remoteMcpDynamicClientRegistrationAdvertised,
@@ -68,6 +69,7 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
   const signingSecretReady = Boolean(resolveRemoteMcpOAuthSigningSecret(env));
   const dcrEnabled = remoteMcpDynamicClientRegistrationEnabled(env);
   const dcrAdvertised = remoteMcpDynamicClientRegistrationAdvertised(env);
+  const catalogReadiness = buildRemoteMcpScopeCatalogReadiness({ env });
 
   return {
     ok: true,
@@ -87,6 +89,7 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
       supported_protocol_versions: runtime.supported_protocol_versions,
       supported_client_profiles: runtime.supported_client_profiles,
     },
+    catalog: catalogReadiness,
     prerequisites: {
       redirect_policy_ready: redirectPolicyReady,
       approved_redirect_origin_count: redirectOrigins.length,
@@ -97,14 +100,16 @@ export async function buildRemoteMcpReadiness({ env = process.env, pool = null }
       runtime.enabled
       && remoteMcpOAuthEnabled(env)
       && signingSecretReady
-      && persistence.ready,
+      && persistence.ready
+      && catalogReadiness.catalog_ready,
     ),
     registration_ready: Boolean(
       remoteMcpOAuthEnabled(env)
       && dcrEnabled
       && dcrAdvertised
       && signingSecretReady
-      && persistence.ready,
+      && persistence.ready
+      && catalogReadiness.catalog_ready,
     ),
     secrets_included: false,
   };

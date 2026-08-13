@@ -8,11 +8,14 @@ import {
   chatGptMcpLegacyUserJwtEnabled,
   handleChatGptMcpRequest,
   listChatGptMcpTools,
+  requiredChatGptMcpScopesForTool,
   resolveChatGptMcpAuthorizationServer,
   resolveChatGptMcpEndpoint,
   resolveChatGptMcpResource,
 } from "./chatgptMcpRuntime.js";
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
+import { buildRemoteMcpAuthorizationDecision } from "./remoteMcpAuthorizationDecision.js";
+import { resolveRemoteMcpToolScopeBinding } from "./remoteMcpScopeCatalog.js";
 import {
   remoteMcpOAuthEnabled,
   resolveRemoteMcpAuthorizationIssuer,
@@ -110,12 +113,6 @@ function effectiveRemoteMcpEnv(env = process.env) {
     ),
     CHATGPT_MCP_ALLOWED_ORIGINS: remoteAllowedOrigins,
   };
-}
-
-function requiredScopesForTool(toolName) {
-  if (toolName === "list_accessible_workspaces") return ["workspaces.read"];
-  if (toolName === "list_accessible_brands") return ["brands.read"];
-  return [];
 }
 
 function oauthFailureResponse({ body, headers, env, verification, requiredScopes }) {
@@ -223,22 +220,34 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
 
   if (remoteMcpOAuthEnabled(sourceEnv) && options.body?.method === "tools/call") {
     const toolName = normalizedString(options.body?.params?.name, 128);
-    const requiredScopes = requiredScopesForTool(toolName);
-    const verification = await verifyRemoteMcpBearerAuthorization(
-      headerValue(options.headers || {}, "authorization"),
-      {
-        env: sourceEnv,
-        pool: options.pool,
-        requiredScopes,
-      },
-    );
-    if (!verification.ok) {
+    const requiredScopes = requiredChatGptMcpScopesForTool(toolName);
+    const binding = resolveRemoteMcpToolScopeBinding(toolName);
+    const verification = requiredScopes
+      ? await verifyRemoteMcpBearerAuthorization(
+        headerValue(options.headers || {}, "authorization"),
+        { env: sourceEnv, pool: options.pool, requiredScopes },
+      )
+      : {
+        ok: false,
+        status: 403,
+        code: "MCP_TOOL_SCOPE_BINDING_MISSING",
+        message: "The requested tool has no active OAuth scope binding.",
+      };
+    const decision = buildRemoteMcpAuthorizationDecision({
+      verification,
+      toolKey: toolName,
+      resourceKey: binding?.resource_key,
+      operationKey: binding?.operation_key,
+      effectClass: binding?.effect_class,
+      environmentClass: binding?.environment_class,
+    });
+    if (!decision.ok) {
       const failure = oauthFailureResponse({
         body: options.body,
         headers: options.headers || {},
         env,
-        verification,
-        requiredScopes,
+        verification: { ...verification, code: decision.code, message: decision.message, status: decision.status },
+        requiredScopes: requiredScopes || [],
       });
       return {
         ...failure,

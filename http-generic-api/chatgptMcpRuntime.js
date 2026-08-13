@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
+import { REMOTE_MCP_SCOPES } from "./remoteMcpScopeCatalog.js";
+import { projectRemoteMcpTools, requiredRemoteMcpScopesForTool } from "./remoteMcpToolProjection.js";
 
 export const CHATGPT_MCP_PROTOCOL_VERSION = "2025-06-18";
 export const CHATGPT_MCP_SUPPORTED_PROTOCOL_VERSIONS = Object.freeze([
@@ -17,11 +19,6 @@ const DEFAULT_ALLOWED_ORIGINS = Object.freeze([
 const OWNER_ROLES = new Set(["owner", "admin"]);
 const MAX_WORKSPACES = 50;
 const MAX_BRANDS = 100;
-
-const READ_SCOPES = Object.freeze([
-  "workspaces.read",
-  "brands.read",
-]);
 
 function envFlag(value) {
   return String(value || "").trim().toLowerCase() === "true";
@@ -126,7 +123,7 @@ export function buildChatGptProtectedResourceMetadata(env = process.env) {
   return {
     resource: resolveChatGptMcpResource(env),
     authorization_servers: [resolveChatGptMcpAuthorizationServer(env)],
-    scopes_supported: [...READ_SCOPES],
+    scopes_supported: [...REMOTE_MCP_SCOPES],
     resource_documentation: normalizedString(
       env.CHATGPT_MCP_RESOURCE_DOCUMENTATION_URL
         || `${resolveChatGptMcpResource(env)}/docs`,
@@ -139,7 +136,7 @@ export function buildChatGptProtectedResourceMetadata(env = process.env) {
 export function buildChatGptMcpWwwAuthenticate(
   env = process.env,
   {
-    scope = READ_SCOPES.join(" "),
+    scope = REMOTE_MCP_SCOPES.join(" "),
     error = "invalid_token",
     description = "A valid linked platform account is required.",
   } = {},
@@ -302,7 +299,11 @@ const TOOL_DEFINITIONS = Object.freeze([
 ]);
 
 export function listChatGptMcpTools() {
-  return TOOL_DEFINITIONS.map((tool) => structuredClone(tool));
+  return projectRemoteMcpTools(TOOL_DEFINITIONS).tools;
+}
+
+export function requiredChatGptMcpScopesForTool(toolName) {
+  return requiredRemoteMcpScopesForTool(toolName);
 }
 
 function resolveLegacyPrincipal(headers, env, verifyAuthorization) {
@@ -646,7 +647,7 @@ export async function handleChatGptMcpRequest({
     const principalResult = resolveLegacyPrincipal(headers, env, verifyAuthorization);
     if (!principalResult.ok) {
       const challenge = buildChatGptMcpWwwAuthenticate(env, {
-        scope: toolName === "list_accessible_workspaces" ? "workspaces.read" : "brands.read",
+        scope: (requiredChatGptMcpScopesForTool(toolName) || REMOTE_MCP_SCOPES).join(" "),
         error: "invalid_token",
         description: principalResult.message,
       });
