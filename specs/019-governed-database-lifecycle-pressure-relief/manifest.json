@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "spec_key": "019-governed-database-lifecycle-pressure-relief",
+  "spec_version": "0.1.0",
+  "status": "specification_only",
+  "scope": "platform_database",
+  "created_at": "2026-08-13",
+  "owner": "platform-team",
+  "delivery_mode": "multi_pr",
+  "incident_baseline": {
+    "symptom": "Database storage pressure required manual diagnosis and bounded cleanup outside the platform control plane.",
+    "observed_domains": [
+      "governed_tool_response_chunks",
+      "repo_file_audit_findings",
+      "platform_engine_execution_runs"
+    ],
+    "permanent_need": "Governed pressure observation, domain-aware planning, exact authority, durable bounded execution, same-cycle readback, and separate physical reclaim assessment."
+  },
+  "principal_coverage": [
+    "platform_admin",
+    "database_lifecycle_operator",
+    "service_principal",
+    "governed_planner",
+    "reconciliation_worker"
+  ],
+  "ownership_scopes": ["platform", "exact_database_resource"],
+  "invariants": [
+    "no_arbitrary_sql",
+    "no_wildcard_database_authority",
+    "domain_adapter_owns_semantics",
+    "missing_policy_fails_closed",
+    "immutable_plan_and_fingerprint",
+    "fixed_cutoff_not_moving_apply_time",
+    "bounded_batches",
+    "typed_plan_bound_approval",
+    "durable_mutation_receipt_required",
+    "unknown_outcome_reconcile_before_retry",
+    "same_cycle_readback",
+    "latest_observation_preserved",
+    "engine_runs_plan_only_without_archive_policy",
+    "logical_cleanup_separate_from_physical_reclaim",
+    "no_secret_output",
+    "production_mutation_default_off"
+  ],
+  "artifacts": [
+    "README.md",
+    "manifest.json",
+    "spec.md",
+    "research.md",
+    "concerns.md",
+    "operation-paths.md",
+    "plan.md",
+    "data-model.md",
+    "threat-model.md",
+    "testing-strategy.md",
+    "rollout.md",
+    "quickstart.md",
+    "tasks.md",
+    "traceability.md",
+    "e2e-phases.json",
+    "work-map-integration.json",
+    "completion.json",
+    "checklists/requirements.md",
+    "checklists/security.md",
+    "checklists/operations.md",
+    "decisions/ADR-001-reuse-resource-recipes-and-durable-execution.md",
+    "decisions/ADR-002-plan-only-unknown-retention.md",
+    "contracts/lifecycle-plan.schema.json",
+    "contracts/authority-binding.schema.json",
+    "contracts/approval-binding.schema.json",
+    "contracts/mutation-receipt.schema.json",
+    "contracts/lifecycle-evidence.schema.json",
+    "contracts/error-catalog.json",
+    "contracts/compatibility.md"
+  ],
+  "implementation_artifacts": [
+    "http-generic-api/databaseLifecyclePressureInspector.js",
+    "http-generic-api/databaseLifecyclePlanner.js",
+    "http-generic-api/databaseLifecycleDomainAdapters.js",
+    "http-generic-api/databaseLifecycleExecutor.js",
+    "http-generic-api/test-database-lifecycle-pressure-inspector.mjs",
+    "http-generic-api/test-database-lifecycle-planner.mjs",
+    "http-generic-api/test-database-lifecycle-executor.mjs"
+  ],
+  "implementation_state": {
+    "specification_and_contracts": "implemented_in_current_pr",
+    "read_only_pressure_intelligence": "planned",
+    "exact_database_resource_authority": "planned",
+    "durable_mutation_receipt_readiness": "planned",
+    "response_chunk_ttl_pilot": "planned_non_production",
+    "repo_audit_supersession_adapter": "planned",
+    "engine_run_archive_thin": "separate_project",
+    "physical_reclaim": "separate_high_risk_project",
+    "live_apply_dispatch": "disabled"
+  },
+  "public_api_boundary": {
+    "status": "contract_only",
+    "pressure_inspection_surface": "planned",
+    "planning_surface": "planned",
+    "mutation_surface": "disabled",
+    "provider_dispatch": false,
+    "runtime_authority": false
+  },
+  "migration_boundary": {
+    "schema_design": "reuse_existing_durable_execution_and_resource_recipe_authorities",
+    "sql_files": "not_created_in_specification_pr",
+    "migration_apply": false,
+    "backfill": false
+  },
+  "deployment_boundary": {
+    "main_merge": false,
+    "production_promotion": false,
+    "hostinger_auto_deploy": false,
+    "live_database_execution": false,
+    "physical_reclaim": false
+  },
+  "secrets_included": false,
+  "production_mutation": false,
+  "provider_write": false,
+  "credential_read": false,
+  "protected_branch_write": false
+}
