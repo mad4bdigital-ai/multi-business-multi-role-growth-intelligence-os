@@ -27,6 +27,10 @@ for (const required of [
   /Platform Remaining Scope Scorecard/,
   /Spec 011 Delegation MariaDB Certification/,
   /resolve_run_once\(\)/,
+  /sort_by\(\.createdAt, \.databaseId\)/,
+  /\.status != \\"completed\\"/,
+  /\.conclusion == \\"success\\"/,
+  /\.conclusion == \\"action_required\\"/,
   /spec-011-delegation-mariadb-certification\.yml/,
   /Spec 011 release branch moved before supporting gate dispatch/,
   /refusing blind dispatch retry/,
@@ -46,6 +50,8 @@ for (const required of [
   /run \$run_id is waiting for required approval; keeping governed review surfaces open/,
   /source-pinned main moved during convergence/,
   /refusing to build against an unapproved main/,
+  /validation branch prefix must use the governed candidate namespace/,
+  /validation base branch prefix must use the governed base namespace/,
 ]) {
   assert.match(launcher, required);
 }

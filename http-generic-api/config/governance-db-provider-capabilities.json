@@ -1,21 +1,18 @@
 {
-  "schema_version": "mad4b.governance-db-provider-capabilities.v1",
+  "schema_version": "mad4b.governance-db-provider-capabilities.v2",
   "environments": {
     "Production": {
       "provider_key": "hostinger_web_cloud_mysql",
-      "provider_mode": "managed_hpanel_mysql",
+      "provider_mode": "managed_hpanel_two_database_mysql",
       "capabilities": {
-        "second_principal_same_database_via_managed_control_plane": false,
-        "exact_direct_table_grants_via_managed_control_plane": false,
-        "dedicated_governance_writer_contract_v1": false
+        "independent_governance_database_via_managed_control_plane": true,
+        "exact_direct_table_grants_on_governance_database_via_managed_control_plane": true,
+        "dedicated_governance_writer_contract_v1": true
       },
-      "remediation_classes": [
-        "provider_migration",
-        "governance_datastore_redesign"
-      ],
+      "remediation_classes": [],
       "evidence": {
-        "source": "provider_capability_review",
-        "reviewed_at": "2026-08-11",
+        "source": "user_confirmed_manual_hostinger_provisioning",
+        "reviewed_at": "2026-08-13",
         "secret_bearing": false
       }
     }

@@ -15,16 +15,19 @@ function makePool() {
 }
 
 {
+  const pool = makePool();
   await assert.rejects(
-    () => resolvePlatformPluginExecution({ pool: makePool(), pluginKey: "github" }),
+    () => resolvePlatformPluginExecution({ pool, governancePool: pool, pluginKey: "github" }),
     (err) => err?.code === "MISSING_CAPABILITY_SELECTOR" && err?.status === 400,
   );
 }
 
 {
+  const pool = makePool();
   await assert.rejects(
     () => resolvePlatformPluginExecution({
-      pool: makePool(),
+      pool,
+      governancePool: pool,
       pluginKey: "github",
       actionKey: "github.repo.read",
       toolKey: "github.repo.read",

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/spec019/contracts/mutation-receipt.schema.json",
+  "title": "Database Lifecycle Mutation Receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_id",
+    "plan_id",
+    "plan_fingerprint",
+    "idempotency_key",
+    "dispatch_status",
+    "same_cycle_readback_required"
+  ],
+  "properties": {
+    "receipt_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "plan_fingerprint": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dispatch_status": {
+      "enum": [
+        "planned",
+        "dispatched",
+        "succeeded",
+        "failed",
+        "unknown_outcome",
+        "reconciled"
+      ]
+    },
+    "same_cycle_readback_required": {
+      "const": true
+    },
+    "readback_status": {
+      "enum": [
+        "pending",
+        "matched",
+        "mismatched",
+        "unknown"
+      ]
+    }
+  }
+}

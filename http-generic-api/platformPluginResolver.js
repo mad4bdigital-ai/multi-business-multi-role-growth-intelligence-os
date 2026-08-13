@@ -1,4 +1,5 @@
 import { getPool } from "./db.js";
+import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
 import { normalizePlatformPlugin } from "./platformPluginCatalog.js";
 import { resolvePlatformManagedTargetAuthority } from "./platformPluginTargetAuthority.js";
 import { schedulePlatformPluginSecurityAlerts } from "./platformPluginSecurityAlerts.js";
@@ -700,6 +701,7 @@ async function persistSecurityDecisionTrace({
 }
 export async function resolvePlatformPluginExecution({
   pool = getPool(),
+  governancePool = resolvePlatformResourceAuthorityPool(),
   pluginKey,
   actionKey = null,
   toolKey = null,
@@ -859,7 +861,7 @@ export async function resolvePlatformPluginExecution({
           candidate_scopes: credentialRequirement.candidate_scopes,
         });
   const targetAuthority = await resolvePlatformManagedTargetAuthority({
-    pool,
+    pool: governancePool,
     credentialSource: credential.credential_source,
     principalClass,
     tenantId,

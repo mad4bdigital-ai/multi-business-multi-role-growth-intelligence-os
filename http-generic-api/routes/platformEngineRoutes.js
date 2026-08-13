@@ -22,6 +22,7 @@ import {
   verifyDatabaseLifecycleSchedulerApprovalReadback,
   writeDatabaseLifecycleReportSnapshot,
 } from "../databaseTableLifecycle.js";
+import { collectDatabaseLifecyclePressureEvidence } from "../databaseLifecyclePressureIntelligence.js";
 import {
   buildPlatformEngineDecisionBrief,
   checkPlatformEngineCapability,
@@ -144,6 +145,18 @@ export function buildPlatformEngineRoutes(deps = {}) {
       res.json({ ok: true, brief });
     } catch (error) {
       res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_table_lifecycle_decision_brief_failed", message: error.message } });
+    }
+  });
+
+  router.get("/platform/engines/database-lifecycle/pressure-intelligence", ...requireAdmin, async (req, res) => {
+    try {
+      const report = await collectDatabaseLifecyclePressureEvidence({
+        limit: req.query.limit,
+        observed_at: req.query.observed_at,
+      }, deps);
+      res.json({ ok: true, report });
+    } catch (error) {
+      res.status(error.status || 500).json({ ok: false, error: { code: error.code || "database_lifecycle_pressure_intelligence_failed", message: error.message } });
     }
   });
 

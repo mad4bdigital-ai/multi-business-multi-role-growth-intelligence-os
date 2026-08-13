@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "feature_key": "governance-db-authority-store-isolation",
+  "title": "Governance DB Authority Store isolation",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/**",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".changes/e2e/governance-db-authority-store-isolation.json"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Route every platform_resource_authority_bindings read and write through the dedicated Governance DB pool while preserving fail-closed behavior and runtime evidence separation.",
+      "e2e_journeys": [
+        {
+          "id": "governance-authority-store-source-to-readback",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "platform_governance_operator",
+          "entrypoint": "Governance Authority Store executor and governed repository capability paths",
+          "terminal_outcome": "Authority writes, scoped reads, recipe resolution, and repository readback use the Governance DB source without a Runtime DB fallback.",
+          "steps": [
+            "Evaluate the Production provider capability for an independent Governance database and exact grants.",
+            "Configure an isolated Governance DB pool and a distinct Runtime DB pool.",
+            "Reject missing or Runtime-equal Governance database names before pool creation.",
+            "Exercise authority write and same-source readback contracts.",
+            "Resolve a platform resource capability through the Governance authority source.",
+            "Verify governed repository readback fails closed when the authority source is unavailable or mismatched."
+          ],
+          "assertions": [
+            "Production provider capability recognizes the independent two-database contract without performing provider mutation.",
+            "Promotion run resolution selects the newest eligible exact-head workflow run and excludes completed failure/skip runs.",
+            "Promotion dispatch rejects validation branch prefixes that cannot trigger the exact-candidate workflow.",
+            "Authority reads and writes select the explicit Governance DB pool.",
+            "A missing or Runtime-equal Governance database name fails closed before connection creation.",
+            "A missing or ambiguous authority binding does not fall back to the Runtime DB.",
+            "Scoped authority resolution remains tenant and workspace bounded.",
+            "Repository governance readback preserves fail-closed binding validation."
+          ],
+          "tests": [
+            {
+              "id": "governance-db-provider-and-preflight-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-production-preflight.mjs",
+              "args": []
+            },
+            {
+              "id": "governance-db-writer-identity-and-database-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-db-writer-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "authority-store-same-source-regression",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-authority-store.mjs",
+              "args": []
+            },
+            {
+              "id": "authority-write-governance-pool-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-authority-write-authority.mjs",
+              "args": []
+            },
+            {
+              "id": "recipe-capability-governance-resolution",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-platform-resource-recipe-capability.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-governance-v6-authority-readback",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-repository-governance-v6.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/config/governance-db-provider-capabilities.json",
+            "http-generic-api/governanceDbProviderCapability.js",
+            "http-generic-api/governanceProductionPreflight.js",
+            "http-generic-api/governanceDb.js",
+            "http-generic-api/platformResourceAuthorityStore.js",
+            "http-generic-api/platformResourceAuthorityGrantTool.js",
+            "http-generic-api/platformResourceRecipeCapability.js",
+            "http-generic-api/repositoryGovernanceV6.js",
+            "http-generic-api/repositoryTenantIntelligenceV2.js",
+            "http-generic-api/test-governance-production-preflight.mjs",
+            "http-generic-api/test-governance-db-writer-authority.mjs",
+            "http-generic-api/test-platform-resource-authority-store.mjs",
+            "http-generic-api/test-platform-resource-authority-write-authority.mjs",
+            "http-generic-api/test-platform-resource-recipe-capability.mjs",
+            "http-generic-api/test-repository-governance-v6.mjs",
+            ".github/workflows/governed-production-promotion-request-launcher.yml"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Add deployed Hostinger Governance DB provisioning, grant readback, and operational monitoring after explicit infrastructure approval."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Add reconciliation and recovery evidence for Governance DB availability and authority-source drift."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Validate one non-production Hostinger tenant with separate Runtime and Governance database identities."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Verify exact production readback only after approved Hostinger provisioning and redeployment."
+    }
+  ]
+}

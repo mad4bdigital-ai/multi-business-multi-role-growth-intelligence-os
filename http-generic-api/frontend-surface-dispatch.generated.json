@@ -2,7 +2,7 @@
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
     "ref": "main",
-    "source_digest": "2b145636770b3d55858eef13482fbfe1cd3f83e3ad947a5ef9e3cd9f405e0dfa",
+    "source_digest": "5d555a3bd06e961c306f6e5e8f0093d578d14b58facfe5bcbde0f19b5421038b",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -76,7 +76,7 @@
       },
       {
         "file": "openapi/frontend-runtime-routes.generated.yaml",
-        "sha256": "6ba667f6e04d26960ed55661dace1a5342d6d7f8017f1ef47d589c14727a0f12",
+        "sha256": "8819e9be405d9043e8aadf091eeb41f73f2b3392f84efa8b5cf499020497d2c1",
         "present": true
       },
       {
@@ -596,7 +596,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+        "sha256": "479fc85f27d55e53863f4c35644d1ffc1367ab644ece4324bb3029ad8d71f4bc",
         "present": true
       },
       {
@@ -721,7 +721,7 @@
       },
       {
         "file": "routes/platformEngineRoutes.js",
-        "sha256": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+        "sha256": "8ca4348932b92a7ebe13def206d920088742227db0e9830f657cf84f68f8ae4c",
         "present": true
       },
       {
@@ -1099,15 +1099,15 @@
     "mounted_family_count": 178,
     "mounted_route_file_count": 140,
     "mixed_scope_route_file_count": 28,
-    "operation_count": 1054,
-    "openapi_documented_count": 1038,
+    "operation_count": 1055,
+    "openapi_documented_count": 1039,
     "openapi_canonical_documented_count": 720,
-    "openapi_generated_index_count": 318,
+    "openapi_generated_index_count": 319,
     "openapi_exemption_count": 16,
     "openapi_gap_count": 0,
-    "openapi_detail_gap_count": 318,
+    "openapi_detail_gap_count": 319,
     "auth_parity_counts": {
-      "equivalent": 1038,
+      "equivalent": 1039,
       "exempt": 16
     },
     "auth_contract_gap_count": 0,
@@ -1121,7 +1121,7 @@
     "test_owned_family_count": 0,
     "untested_family_count": 178,
     "test_owned_operation_count": 4,
-    "untested_operation_count": 1050,
+    "untested_operation_count": 1051,
     "ready_task_count": 0,
     "blocked_task_count": 178,
     "coverage_complete": false
@@ -44353,7 +44353,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+      "source_digest": "479fc85f27d55e53863f4c35644d1ffc1367ab644ece4324bb3029ad8d71f4bc",
       "mount_prefix": "/",
       "mount_order": 17495,
       "split_from_mixed_scope_file": false,
@@ -45920,7 +45920,7 @@
       "family_key": "platform-engine",
       "label": "platform engine",
       "source_file": "routes/platformEngineRoutes.js",
-      "source_digest": "582c29b0a34ce938b92de0003db7da1aa1693980309b1770e3dda949c35e5a0b",
+      "source_digest": "8ca4348932b92a7ebe13def206d920088742227db0e9830f657cf84f68f8ae4c",
       "mount_prefix": "/",
       "mount_order": 17722,
       "split_from_mixed_scope_file": false,
@@ -46285,6 +46285,76 @@
             "rule_id": null
           },
           "mutation_candidate": true,
+          "mutation": false
+        },
+        {
+          "method": "GET",
+          "path": "/platform/engines/database-lifecycle/pressure-intelligence",
+          "signature": "GET /platform/engines/database-lifecycle/pressure-intelligence",
+          "source_file": "routes/platformEngineRoutes.js",
+          "scope": "admin",
+          "runtime_auth": {
+            "state": "resolved",
+            "profile": "admin_backend",
+            "alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "principal": "admin",
+            "guard_chain": [
+              "requireAdmin",
+              "requireAdminPrincipal",
+              "requireBackendApiKey"
+            ],
+            "evidence": [
+              "route:requireAdmin",
+              "route:requireAdminPrincipal",
+              "route:requireBackendApiKey"
+            ],
+            "configuration_dependencies": [
+              "BACKEND_API_KEY"
+            ]
+          },
+          "openapi_auth": {
+            "source_file": "openapi/frontend-runtime-routes.generated.yaml",
+            "security_declared": true,
+            "security_alternatives": [
+              [
+                "adminBearerAuth"
+              ],
+              [
+                "backendApiKeyAuth"
+              ]
+            ],
+            "unknown_security_schemes": []
+          },
+          "auth_parity": {
+            "state": "equivalent",
+            "reasons": []
+          },
+          "openapi_documented": true,
+          "openapi_canonical_documented": false,
+          "openapi_exempt": false,
+          "openapi_contract_level": "operation-index-only",
+          "evidence_candidate": false,
+          "embedded_ui": false,
+          "embedded_ui_evidence": [],
+          "delivery_kind": "api",
+          "tests": [],
+          "governance": {
+            "classification": "read",
+            "classification_source": "http_method",
+            "mutation_candidate": false,
+            "governed": true,
+            "controls": null,
+            "blockers": [],
+            "rule_id": null
+          },
+          "mutation_candidate": false,
           "mutation": false
         },
         {
@@ -47645,6 +47715,7 @@
       "openapi_gaps": [],
       "openapi_exemptions": [],
       "openapi_detail_gaps": [
+        "GET /platform/engines/database-lifecycle/pressure-intelligence",
         "GET /platform/engines/validator-results",
         "POST /platform/engines/validator-results"
       ],
@@ -47660,6 +47731,7 @@
         "POST /platform/engines/resolve-intent",
         "POST /platform/engines/decision-brief",
         "POST /platform/engines/database-table-lifecycle/decision-brief",
+        "GET /platform/engines/database-lifecycle/pressure-intelligence",
         "POST /platform/engines/database-table-lifecycle/register-plan",
         "GET /platform/engines/database-lifecycle/report-snapshots",
         "GET /platform/engines/database-lifecycle/operational-status",

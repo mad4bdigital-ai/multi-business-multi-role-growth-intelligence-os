@@ -126,6 +126,54 @@ permissions:
 );
 assert(multilineBranchFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"));
 
+const governedPrefixCaseWorkflow = ".github/workflows/governed-prefix-contract.yml";
+const governedPrefixCaseFindings = await evaluate(
+  [{ status: "A", path: governedPrefixCaseWorkflow }],
+  {
+    [governedPrefixCaseWorkflow]: `
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    steps:
+      - run: |
+          case "$VALIDATION_BRANCH_PREFIX" in
+            gpt/validate-production-candidate) ;;
+            gpt/validate-production-base) ;;
+            *) exit 1 ;;
+          esac
+`,
+  },
+);
+assert.deepEqual(
+  governedPrefixCaseFindings,
+  [],
+  "exact governed prefix case labels are contracts, not concrete work-branch refs",
+);
+
+const governedPrefixPushWorkflow = ".github/workflows/governed-prefix-push.yml";
+const governedPrefixPushFindings = await evaluate(
+  [{ status: "A", path: governedPrefixPushWorkflow }],
+  {
+    [governedPrefixPushWorkflow]: `
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    steps:
+      - run: git push origin HEAD:gpt/validate-production-candidate
+`,
+  },
+);
+assert(
+  governedPrefixPushFindings.some((item) => item.code === "BRANCH_SPECIFIC_WORKFLOW"),
+  "a concrete push to a governed namespace must remain branch-specific",
+);
+
 const repositoryPathWorkflow = ".github/workflows/repository-path-filter.yml";
 const repositoryPathFindings = await evaluate(
   [{ status: "A", path: repositoryPathWorkflow }],
