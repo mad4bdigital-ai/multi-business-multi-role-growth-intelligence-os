@@ -8923,8 +8923,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
-      "source_line": 280,
-      "source_offset": 10627,
+      "source_line": 283,
+      "source_offset": 10832,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -48609,10 +48609,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "source_line": 280,
+        "source_line": 283,
         "handler_window_lines": [
-          280,
-          567
+          283,
+          570
         ],
         "evidence_flags": {
           "handler_window_present": true,

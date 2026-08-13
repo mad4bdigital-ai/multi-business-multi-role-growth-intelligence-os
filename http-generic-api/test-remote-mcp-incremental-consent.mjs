@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   REMOTE_MCP_SCOPES,
   REMOTE_MCP_SUPPORTED_SCOPES,
@@ -14,6 +15,8 @@ import {
   buildRemoteMcpWriteScopeReadback,
   evaluateRemoteMcpWriteScopeDecision,
 } from "./remoteMcpWriteScopeGovernance.js";
+
+const inventory = JSON.parse(readFileSync(new URL("./remote-mcp-write-scope-inventory.generated.json", import.meta.url), "utf8"));
 
 assert.deepEqual(REMOTE_MCP_SCOPES, ["identity.read", "workspaces.read", "brands.read", "permissions.read"]);
 assert(REMOTE_MCP_SUPPORTED_SCOPES.includes("sessions.read"));
@@ -88,9 +91,9 @@ assert.equal(catalogReadiness.fingerprint_match, true);
 assert.equal(catalogReadiness.drift_detected, false);
 assert.equal(catalogReadiness.default_write_scope_count, 0);
 assert.equal(catalogReadiness.write_governance.write_scope_count, 6);
-assert.equal(catalogReadiness.write_governance.classified_write_route_count, 649);
+assert.equal(catalogReadiness.write_governance.classified_write_route_count, inventory.classified_write_route_count);
 assert.equal(catalogReadiness.write_governance.unclassified_write_route_count, 0);
-assert.equal(catalogReadiness.write_governance.intentionally_unmapped_write_route_count, 611);
+assert.equal(catalogReadiness.write_governance.intentionally_unmapped_write_route_count, inventory.intentionally_unmapped_write_route_count);
 assert.equal(catalogReadiness.write_governance.mode, "shadow");
 assert.equal(catalogReadiness.write_governance.activation_ready, false);
 assert.equal(catalogReadiness.write_governance.inventory_ready, false);

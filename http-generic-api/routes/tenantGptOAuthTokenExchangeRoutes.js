@@ -275,7 +275,10 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
   const accessTokenTtlSeconds = deps.accessTokenTtlSeconds === undefined
     ? resolveTenantGptAccessTokenTtlSeconds(deps.env || process.env)
     : validateTenantGptAccessTokenTtlSeconds(deps.accessTokenTtlSeconds);
-  const refreshTokensEnabled = tenantGptRefreshTokensEnabled(deps.env || process.env);
+  const refreshReady = deps.tenantGptRefreshReady || tenantGptRefreshReady;
+  const refreshTokensEnabled = typeof deps.tenantGptRefreshTokensEnabled === "function"
+    ? deps.tenantGptRefreshTokensEnabled(deps.env || process.env)
+    : tenantGptRefreshTokensEnabled(deps.env || process.env);
 
   router.post("/auth/oauth/token", express.urlencoded({ extended: false }), async (req, res) => {
     const startedAtMs = now();
@@ -361,7 +364,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         }));
       }
       const pool = resolvePool();
-      const refreshReadiness = await tenantGptRefreshReady(deps.env || process.env, pool);
+      const refreshReadiness = await refreshReady(deps.env || process.env, pool);
       tokenQuery = (sql, params) => pool.query(sql, params);
       const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery });
       tokenLogContext.client_validation_source = clientValidation.source || null;
