@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6716,
-    "bytes": 58963138,
-    "lines": 1376161,
+    "bytes": 58963137,
+    "lines": 1376160,
     "directories": 255,
     "categories": 13
   },
@@ -6107,9 +6107,9 @@
       "path": ".changes/e2e/github-repository-capability-key-contract.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 4164,
-      "lines": 87,
-      "sha256": "f2592d276b1437d6808e629d096a215d1ff325168d005b929864a1938eff0340",
+      "bytes": 4163,
+      "lines": 86,
+      "sha256": "0de35320831dda5095f55f8450e0c71d5e98592823ebcc8d2d6b5c48e15a7511",
       "mode": "644",
       "executable": false,
       "generated": false
