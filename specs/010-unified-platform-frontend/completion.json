@@ -12,61 +12,19 @@
   "delivery": {
     "specification_pr": {
       "number": 2579,
-      "branch": "gpt/repo-driven-frontend-dispatch-20260713",
-      "role": "specification_dispatch_and_f1_shell_foundation",
       "status": "merged",
       "merge_sha": "d1648852ae375f81fa9cba07af96af978df10a1d"
     },
     "implementation_prs": [
-      {
-        "number": 2735,
-        "branch": "gpt/frontend-dispatch-router-all-20260717",
-        "role": "router_all_discovery_auth_sync_and_governed_root_methods",
-        "status": "merged",
-        "merge_sha": "87901f8ec94d488a9fbb8c27441eb4366d19148e"
-      },
-      {
-        "number": 2738,
-        "branch": "gpt/frontend-dispatch-t018d-contracts-20260717",
-        "role": "session_insight_adapter_read_model_contracts_and_classification",
-        "status": "merged",
-        "merge_sha": "eaed12936e12bd1852e4303c0eb78cdf86a03e65"
-      },
-      {
-        "number": 2740,
-        "branch": "gpt/frontend-dispatch-t018d-read-models-wave2-20260717",
-        "role": "session_insight_review_planning_read_model_contracts_auth_error_alignment_and_classification",
-        "status": "merged",
-        "merge_sha": "0cb8960dbcb57985b10ac9b221ec32ed759b875f"
-      },
-      {
-        "number": 2743,
-        "branch": "gpt/frontend-dispatch-t018d-read-models-wave3-20260717",
-        "role": "session_insight_capability_envelope_lifecycle_read_model_contracts_and_classification",
-        "status": "merged",
-        "merge_sha": "bcfb1e73add75869755f80e5b04cb677163459b0"
-      },
-      {
-        "number": 2749,
-        "branch": "gpt/frontend-dispatch-t018d-read-models-wave4-20260717",
-        "role": "session_insight_capability_envelope_request_approval_dispatch_readback_contracts_and_classification",
-        "status": "merged",
-        "merge_sha": "6ea87be48d656e138a8862c0edebf773d5bbef37"
-      },
-      {
-        "number": 2751,
-        "branch": "gpt/frontend-dispatch-t018d-lifecycle-contract-hardening-wave5-20260717",
-        "role": "session_insight_lifecycle_contract_hardening_and_select_only_read_model_classification",
-        "status": "merged",
-        "merge_sha": "851ff7be36e6b82e489c4bfd4c35ae75d886f2e7"
-      }
+      {"number": 2735, "status": "merged", "merge_sha": "87901f8ec94d488a9fbb8c27441eb4366d19148e"},
+      {"number": 2738, "status": "merged", "merge_sha": "eaed12936e12bd1852e4303c0eb78cdf86a03e65"},
+      {"number": 2740, "status": "merged", "merge_sha": "0cb8960dbcb57985b10ac9b221ec32ed759b875f"},
+      {"number": 2743, "status": "merged", "merge_sha": "bcfb1e73add75869755f80e5b04cb677163459b0"},
+      {"number": 2749, "status": "merged", "merge_sha": "6ea87be48d656e138a8862c0edebf773d5bbef37"},
+      {"number": 2751, "status": "merged", "merge_sha": "851ff7be36e6b82e489c4bfd4c35ae75d886f2e7"},
+      {"number": 7107, "branch": "agent/track-c-surfaces-mcp-gpt-frontend", "status": "draft_in_progress"}
     ],
-    "closeout_pr": {
-      "number": null,
-      "branch": null,
-      "role": "completion",
-      "status": "pending"
-    }
+    "closeout_pr": null
   },
   "evidence": {
     "specification": {
@@ -77,28 +35,14 @@
       "delivery_dag": true
     },
     "implementation": {
-      "status": "t018d_in_progress",
       "dispatch_generator": true,
       "dispatch_fixture_tests": true,
-      "full_repo_generated_plan": true,
       "runtime_openapi_auth_parity_model": true,
-      "canonical_auth_sync_all_occurrences": true,
-      "canonical_runtime_auth_error_envelope_alignment": true,
+      "canonical_auth_sync": true,
       "runtime_openapi_auth_contract_gap_count": 0,
       "openapi_operation_presence_gap_count": 0,
-      "canonical_openapi_operation_count": 567,
-      "operation_index_detail_gap_count": 378,
-      "canonical_session_insight_read_model_count": 15,
-      "canonical_tenant_activation_session_operation_count": 2,
-      "operation_level_mutation_governance": true,
-      "fully_governed_mutation_operation_count": 2,
-      "classified_non_mutating_action_count": 32,
-      "unresolved_non_get_operation_count": 546,
-      "generated_runtime_openapi_index": true,
-      "t018_status": "auth_and_presence_complete_first_fifteen_session_insight_read_models_and_two_tenant_activation_session_operations_canonical_activation_host_gateway_and_oauth_preset_aligned_remaining_detail_classification_and_resource_compensation_fail_closed",
       "platform_shell": true,
       "browser_safe_surface_catalog": true,
-      "light_dark_system_theme": true,
       "tenant_shell": false,
       "admin_bff": false,
       "admin_workspaces": false,
@@ -106,10 +50,28 @@
       "developer_evidence": false,
       "cutover": false
     },
-    "ci": { "status": "required_for_each_pr_head" },
-    "migration": { "status": "pending_admin_ui_session_ledger" },
-    "production_verification": { "status": "pending" },
-    "post_merge_audit": { "status": "pending" }
+    "track_c": {
+      "validated_head_before_ledger_reconciliation": "183c4da19ab9e2673ac4092c59097ed93f963723",
+      "frontend_surface_dispatch": "pass",
+      "e2e_reference_integrity": "pass",
+      "e2e_phase_governance": "pass",
+      "generated_artifacts_modified": false,
+      "runtime_contract_dependency": "track_a_pending",
+      "readiness_dependency": "track_b_pending",
+      "current_head_validation": "pending_after_completion_ledger_reconciliation"
+    },
+    "migration": {"status": "pending_admin_ui_session_ledger"},
+    "production_verification": {"status": "pending"},
+    "post_merge_audit": {"status": "pending"}
   },
+  "blocking_reasons": [
+    "track_b_not_landed",
+    "track_a_not_landed",
+    "tenant_and_admin_bff_slices_pending",
+    "session_ledger_migration_pending",
+    "classified_detail_gap_reduction_pending",
+    "integration_generated_refresh_pending",
+    "production_cutover_and_post_merge_audit_pending"
+  ],
   "sensitive_values_included": false
 }
