@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6757,
-    "bytes": 59579332,
-    "lines": 1388360,
+    "bytes": 59580858,
+    "lines": 1388377,
     "directories": 255,
     "categories": 13
   },
@@ -261,8 +261,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 209004,
-      "lines": 4454
+      "bytes": 209252,
+      "lines": 4457
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
