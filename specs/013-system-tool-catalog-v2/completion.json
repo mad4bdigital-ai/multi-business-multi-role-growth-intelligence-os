@@ -41,7 +41,7 @@
     },
     "ci": {
       "status": "pass",
-      "head_sha": "659edcfc1e485a58e613a3c59906401f440aebd1",
+      "head_sha": "04f9d7fed5878b2cfa64f258490a80c6ddb84385",
       "checks_passed": 4,
       "checks_total": 4,
       "checks": [
@@ -56,7 +56,7 @@
         "npm run remote-mcp:architecture:test",
         "npm run ci:execution-resolvers"
       ],
-      "source": "PR #3260 CI plus current-main local validation"
+      "source": "PR #3260 CI plus exact-head validation on origin/main 04f9d7fed5878b2cfa64f258490a80c6ddb84385"
     },
     "release_readiness": {
       "status": "pass",

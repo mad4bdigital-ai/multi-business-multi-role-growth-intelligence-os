@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6814,
-    "bytes": 61930873,
+    "bytes": 61930921,
     "lines": 1453763,
     "directories": 255,
     "categories": 13
@@ -77520,9 +77520,9 @@
       "path": "specs/013-system-tool-catalog-v2/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 2154,
+      "bytes": 2202,
       "lines": 74,
-      "sha256": "8af9d4861baac4a1769174ee4bac31a95365d014de7aa83f80284fa91174ffa8",
+      "sha256": "585e73cc43b531358f0517a1a69022e968623f70bbbda87c7062377cb43abfed",
       "mode": "644",
       "executable": false,
       "generated": false
