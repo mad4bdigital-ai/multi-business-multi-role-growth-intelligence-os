@@ -1,5 +1,3 @@
-import { getPool } from "./db.js";
-
 export const RUNTIME_PERSISTENCE_IDENTITY_CONTRACT = Object.freeze({
   identity_env: "DB_USER",
   mode: "shared_runtime_writer",
@@ -9,6 +7,13 @@ export const RUNTIME_PERSISTENCE_IDENTITY_CONTRACT = Object.freeze({
 
 export const RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX = Object.freeze({
   governed_tool_response_chunks: Object.freeze(["SELECT", "INSERT", "UPDATE", "DELETE"]),
+});
+
+export const RUNTIME_PERSISTENCE_EXECUTOR_CONTRACT = Object.freeze({
+  injection_key: "runtimePersistencePool",
+  query_required: true,
+  implicit_pool_fallback_allowed: false,
+  secrets_included: false,
 });
 
 export const RUNTIME_PERSISTENCE_PRIVILEGE_READINESS_TTL_MS = 60_000;
@@ -103,7 +108,20 @@ function requiredOperationsFor(table, requested = undefined) {
 }
 
 export function resolveRuntimePersistenceExecutor(deps = {}) {
-  return deps.runtimePersistencePool || deps.pool || deps.connection || getPool();
+  const target = deps.runtimePersistencePool;
+  if (!target || typeof target.query !== "function") {
+    throw authorityError(
+      "RUNTIME_PERSISTENCE_POOL_REQUIRED",
+      "Runtime persistence requires an explicit runtimePersistencePool query executor.",
+      503,
+      {
+        contract: "mad4b.runtime-persistence-write-authority.v1",
+        executor_contract: RUNTIME_PERSISTENCE_EXECUTOR_CONTRACT,
+        secrets_included: false,
+      },
+    );
+  }
+  return target;
 }
 
 function cacheKey(deps = {}) {

@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import {
+  RUNTIME_PERSISTENCE_EXECUTOR_CONTRACT,
   RUNTIME_PERSISTENCE_IDENTITY_CONTRACT,
   RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX,
   evaluateRuntimePersistencePrivilegeReadiness,
+  resolveRuntimePersistenceExecutor,
 } from "./runtimePersistenceWriteAuthority.js";
 
 const database = "runtime_test";
@@ -17,7 +19,20 @@ const exactTablePrivileges = RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX[table].map((PR
 assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.identity_env, "DB_USER");
 assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.mode, "shared_runtime_writer");
 assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.separated_identity_required, false);
+assert.equal(RUNTIME_PERSISTENCE_EXECUTOR_CONTRACT.injection_key, "runtimePersistencePool");
+assert.equal(RUNTIME_PERSISTENCE_EXECUTOR_CONTRACT.implicit_pool_fallback_allowed, false);
 assert.deepEqual(RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX[table], ["SELECT", "INSERT", "UPDATE", "DELETE"]);
+
+const explicitExecutor = { query: async () => [[]] };
+assert.equal(resolveRuntimePersistenceExecutor({ runtimePersistencePool: explicitExecutor }), explicitExecutor);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({ pool: explicitExecutor }),
+  (error) => error?.code === "RUNTIME_PERSISTENCE_POOL_REQUIRED" && error?.status === 503,
+);
+assert.throws(
+  () => resolveRuntimePersistenceExecutor({}),
+  (error) => error?.code === "RUNTIME_PERSISTENCE_POOL_REQUIRED" && error?.status === 503,
+);
 
 const exact = evaluateRuntimePersistencePrivilegeReadiness({
   database,

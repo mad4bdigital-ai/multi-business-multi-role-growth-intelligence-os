@@ -315,7 +315,7 @@ import {
   executeSiteMigrationJob,
   firstPopulated
 } from "./domainAdapters/wordpressAdapter.js";
-import { testConnection } from "./db.js";
+import { getRuntimePersistencePool, testConnection } from "./db.js";
 import {
   toJobSummary,
   inferLocalDispatchHttpStatus,
@@ -3172,6 +3172,7 @@ registerRoutes(app, {
   getRedisRuntimeStatus,
   getSqlCacheRuntimeStatus,
   testDbConnection: testConnection,
+  runtimePersistencePool: getRuntimePersistencePool(),
   SERVICE_VERSION,
   QUEUE_WORKER_ENABLED,
   // --- mcp ---

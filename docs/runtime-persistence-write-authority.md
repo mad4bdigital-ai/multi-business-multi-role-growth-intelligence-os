@@ -6,6 +6,12 @@ The current repository architecture uses `DB_USER` through `http-generic-api/db.
 
 This is intentionally distinct from the Governance DB writer. Governance/control-plane writes that require a dedicated governance identity remain under their existing governance contract and are not migrated back to `DB_USER` by this work.
 
+### Explicit runtime executor boundary
+
+The runtime persistence authority now requires callers to inject an explicit `runtimePersistencePool` with a callable `query` method. It no longer falls back implicitly to `pool`, `connection`, or `getPool()`. The server wiring obtains this pool only from the dedicated `RUNTIME_PERSISTENCE_DB_HOST`, `RUNTIME_PERSISTENCE_DB_NAME`, `RUNTIME_PERSISTENCE_DB_USER`, and `RUNTIME_PERSISTENCE_DB_PASSWORD` environment variables, with optional `RUNTIME_PERSISTENCE_DB_PORT`, `RUNTIME_PERSISTENCE_DB_CONNECTION_LIMIT`, and `RUNTIME_PERSISTENCE_DB_CONNECT_TIMEOUT_MS`. If the dedicated configuration is absent, the executor is `null` and governed response-chunk persistence fails closed with `RUNTIME_PERSISTENCE_POOL_REQUIRED` rather than writing through the default application pool.
+
+This preserves the shared `DB_USER` identity contract when an explicitly configured runtime pool uses that identity, but it does not establish that the live account satisfies the bounded privilege matrix. Live table privileges, active grants, and runtime account parity remain separate readback requirements.
+
 ## Canonical current-main inventory
 
 Run from `http-generic-api`:

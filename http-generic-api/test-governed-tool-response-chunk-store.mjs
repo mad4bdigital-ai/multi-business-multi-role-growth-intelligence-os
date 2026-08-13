@@ -193,7 +193,7 @@ const persisted = await persistGovernedToolResponseChunk({
   source_tool_key: "test_unicode_response",
   source_surface: "test_suite",
   auth: tenantA,
-}, { pool, now });
+}, { runtimePersistencePool: pool, now });
 assert.equal(persisted.cursor_policy, GOVERNED_RESPONSE_CHUNK_CURSOR_POLICY);
 assert.equal(persisted.response_sha256, sha256ResponseChunk(serialized));
 assert.equal(persisted.response_bytes, Buffer.byteLength(serialized, "utf8"));
@@ -204,7 +204,7 @@ assert.equal(pool.rows.get(chunkId).owner_principal_type, "tenant_user");
 assert.equal(pool.state.schema_probe_count, 1, "persist plus verification must share one successful schema probe");
 assert.equal(pool.state.privilege_probe_count, 1, "persist plus verification must share one bounded privilege readback");
 
-const loaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantA }, { pool, now: now + 1000 });
+const loaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantA }, { runtimePersistencePool: pool, now: now + 1000 });
 assert.equal(loaded.serialized, serialized);
 assert.equal(loaded.response_sha256, persisted.response_sha256);
 assert.equal(loaded.response_bytes, Buffer.byteLength(serialized, "utf8"));
@@ -217,7 +217,7 @@ pool.state.fail_next_durable_query = true;
 await assert.rejects(
   extendGovernedToolResponseChunkExpiry(
     { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
-    { pool, now: now + 1500 },
+    { runtimePersistencePool: pool, now: now + 1500 },
   ),
   (error) => error?.code === "response_chunk_persistence_unavailable" && error?.status === 503,
 );
@@ -225,33 +225,33 @@ const probesBeforeRecovery = pool.state.schema_probe_count;
 const privilegeProbesBeforeRecovery = pool.state.privilege_probe_count;
 await extendGovernedToolResponseChunkExpiry(
   { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
-  { pool, now: now + 1501 },
+  { runtimePersistencePool: pool, now: now + 1501 },
 );
 assert.equal(pool.state.schema_probe_count, probesBeforeRecovery + 1, "durable query failures must invalidate cached schema readiness");
 assert.equal(pool.state.privilege_probe_count, privilegeProbesBeforeRecovery + 1, "durable query failures must invalidate cached DB privilege readiness");
 const probesBeforeLiveDiagnostics = pool.state.schema_probe_count;
-await inspectGovernedResponseChunkSchema({ pool, now: now + 1502, operation: "diagnostic_one" });
-await inspectGovernedResponseChunkSchema({ pool, now: now + 1503, operation: "diagnostic_two" });
+await inspectGovernedResponseChunkSchema({ runtimePersistencePool: pool, now: now + 1502, operation: "diagnostic_one" });
+await inspectGovernedResponseChunkSchema({ runtimePersistencePool: pool, now: now + 1503, operation: "diagnostic_two" });
 assert.equal(pool.state.schema_probe_count, probesBeforeLiveDiagnostics + 2, "explicit diagnostics must remain live and bypass readiness cache");
 
-const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { pool, now: now + 1000 });
+const crossTenantLoad = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: tenantB }, { runtimePersistencePool: pool, now: now + 1000 });
 assert.equal(crossTenantLoad, null, "unauthorized cross-tenant principals must not read another owner's chunk");
 const crossWorkspaceLoad = await loadGovernedToolResponseChunk(
   { chunk_id: chunkId, auth: tenantAOtherWorkspace },
-  { pool, now: now + 1000 },
+  { runtimePersistencePool: pool, now: now + 1000 },
 );
 assert.equal(crossWorkspaceLoad, null, "unauthorized cross-workspace principals must not read another workspace's chunk");
 
 const beforeUnauthorizedExtend = new Date(pool.rows.get(chunkId).expires_at).toISOString();
 const unauthorizedExtend = await extendGovernedToolResponseChunkExpiry(
   { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantB },
-  { pool, now: now + 2000 },
+  { runtimePersistencePool: pool, now: now + 2000 },
 );
 assert.equal(unauthorizedExtend.extended, false);
 assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), beforeUnauthorizedExtend);
 const unauthorizedWorkspaceExtend = await extendGovernedToolResponseChunkExpiry(
   { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantAOtherWorkspace },
-  { pool, now: now + 2000 },
+  { runtimePersistencePool: pool, now: now + 2000 },
 );
 assert.equal(unauthorizedWorkspaceExtend.extended, false);
 assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), beforeUnauthorizedExtend);
@@ -262,7 +262,7 @@ await assert.rejects(
     serialized: JSON.stringify({ overwritten: true }),
     ttl_ms: 300000,
     auth: tenantB,
-  }, { pool, now: now + 3000 }),
+  }, { runtimePersistencePool: pool, now: now + 3000 }),
   (err) => err.code === "response_chunk_not_found" && err.status === 404,
 );
 assert.equal(pool.rows.get(chunkId).response_json, serialized, "unauthorized cross-tenant principal must not overwrite another owner's response");
@@ -272,7 +272,7 @@ await assert.rejects(
     serialized: JSON.stringify({ workspace_overwrite: true }),
     ttl_ms: 300000,
     auth: tenantAOtherWorkspace,
-  }, { pool, now: now + 3000 }),
+  }, { runtimePersistencePool: pool, now: now + 3000 }),
   (err) => err.code === "response_chunk_not_found" && err.status === 404,
 );
 assert.equal(pool.rows.get(chunkId).response_json, serialized, "cross-workspace overwrite must not mutate the stored response");
@@ -282,7 +282,7 @@ await assert.rejects(
     serialized: JSON.stringify({ admin_overwrite: true }),
     ttl_ms: 300000,
     auth: admin,
-  }, { pool, now: now + 3000 }),
+  }, { runtimePersistencePool: pool, now: now + 3000 }),
   (err) => err.code === "response_chunk_not_found" && err.status === 404,
 );
 assert.equal(pool.rows.get(chunkId).response_json, serialized, "privileged principals must not overwrite another owner's response");
@@ -293,23 +293,23 @@ await persistGovernedToolResponseChunk({
   serialized,
   ttl_ms: 300000,
   auth: tenantA,
-}, { pool, now });
+}, { runtimePersistencePool: pool, now });
 const rewrittenSerialized = JSON.stringify({ same_owner_rewrite: true });
 await persistGovernedToolResponseChunk({
   chunk_id: sameOwnerRewriteId,
   serialized: rewrittenSerialized,
   ttl_ms: 300000,
   auth: tenantA,
-}, { pool, now: now + 1 });
+}, { runtimePersistencePool: pool, now: now + 1 });
 assert.equal(pool.rows.get(sameOwnerRewriteId).response_json, rewrittenSerialized, "the exact same owner may replace its own chunk");
 
 await extendGovernedToolResponseChunkExpiry(
   { chunk_id: chunkId, ttl_ms: 20 * 60 * 1000, auth: tenantA },
-  { pool, now: now + 2000 },
+  { runtimePersistencePool: pool, now: now + 2000 },
 );
 assert.equal(new Date(pool.rows.get(chunkId).expires_at).toISOString(), new Date(now + 2000 + 20 * 60 * 1000).toISOString());
 
-const adminLoaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: admin }, { pool, now: now + 1000 });
+const adminLoaded = await loadGovernedToolResponseChunk({ chunk_id: chunkId, auth: admin }, { runtimePersistencePool: pool, now: now + 1000 });
 assert.equal(adminLoaded.serialized, serialized);
 
 const legacyId = "22222222-3333-4444-8555-666666666666";
@@ -331,46 +331,46 @@ pool.rows.set(legacyId, {
   created_at: new Date(now),
   expires_at: new Date(now + 300000),
 });
-assert.equal(await loadGovernedToolResponseChunk({ chunk_id: legacyId, auth: tenantA }, { pool, now: now + 1 }), null);
-assert.equal((await loadGovernedToolResponseChunk({ chunk_id: legacyId, auth: backend }, { pool, now: now + 1 })).serialized, serialized);
+assert.equal(await loadGovernedToolResponseChunk({ chunk_id: legacyId, auth: tenantA }, { runtimePersistencePool: pool, now: now + 1 }), null);
+assert.equal((await loadGovernedToolResponseChunk({ chunk_id: legacyId, auth: backend }, { runtimePersistencePool: pool, now: now + 1 })).serialized, serialized);
 const legacyRewrittenSerialized = JSON.stringify({ legacy_backend_rewrite: true });
 await persistGovernedToolResponseChunk({
   chunk_id: legacyId,
   serialized: legacyRewrittenSerialized,
   ttl_ms: 300000,
   auth: backend,
-}, { pool, now: now + 2 });
+}, { runtimePersistencePool: pool, now: now + 2 });
 assert.equal(pool.rows.get(legacyId).response_json, legacyRewrittenSerialized, "privileged compatibility writes remain limited to ownerless legacy rows");
 assert.equal(pool.rows.get(legacyId).owner_principal_type, null, "legacy ownership must not be guessed or backfilled");
 
 await assert.rejects(
-  persistGovernedToolResponseChunk({ chunk_id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", serialized, ttl_ms: 300000 }, { pool, now }),
+  persistGovernedToolResponseChunk({ chunk_id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee", serialized, ttl_ms: 300000 }, { runtimePersistencePool: pool, now }),
   (err) => err.code === "response_chunk_owner_required" && err.status === 403,
 );
 await assert.rejects(
-  persistGovernedToolResponseChunk({ chunk_id: "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff", serialized, ttl_ms: 300000, secrets_included: true, auth: tenantA }, { pool, now }),
+  persistGovernedToolResponseChunk({ chunk_id: "bbbbbbbb-cccc-4ddd-8eee-ffffffffffff", serialized, ttl_ms: 300000, secrets_included: true, auth: tenantA }, { runtimePersistencePool: pool, now }),
   (err) => err.code === "response_chunk_secret_policy_failed" && err.status === 403,
 );
 
 const tamperedId = "99999999-8888-4777-8666-555555555555";
-await persistGovernedToolResponseChunk({ chunk_id: tamperedId, serialized, ttl_ms: 300000, auth: tenantA }, { pool, now });
+await persistGovernedToolResponseChunk({ chunk_id: tamperedId, serialized, ttl_ms: 300000, auth: tenantA }, { runtimePersistencePool: pool, now });
 pool.rows.get(tamperedId).response_json = `${serialized}tampered`;
 await assert.rejects(
-  loadGovernedToolResponseChunk({ chunk_id: tamperedId, auth: tenantA }, { pool, now: now + 1 }),
+  loadGovernedToolResponseChunk({ chunk_id: tamperedId, auth: tenantA }, { runtimePersistencePool: pool, now: now + 1 }),
   (err) => err.code === "response_chunk_integrity_failed" && err.status === 500,
 );
 
 const expiredId = "12121212-3434-4567-8989-101010101010";
-await persistGovernedToolResponseChunk({ chunk_id: expiredId, serialized, ttl_ms: 300000, auth: tenantA }, { pool, now });
+await persistGovernedToolResponseChunk({ chunk_id: expiredId, serialized, ttl_ms: 300000, auth: tenantA }, { runtimePersistencePool: pool, now });
 await assert.rejects(
-  loadGovernedToolResponseChunk({ chunk_id: expiredId, auth: tenantA }, { pool, now: now + 300000 }),
+  loadGovernedToolResponseChunk({ chunk_id: expiredId, auth: tenantA }, { runtimePersistencePool: pool, now: now + 300000 }),
   (err) => err.code === "response_chunk_expired" && err.status === 410,
 );
 
 const cleanupId = "56565656-7878-4901-8234-565656565656";
-await persistGovernedToolResponseChunk({ chunk_id: cleanupId, serialized, ttl_ms: 1000, auth: tenantA }, { pool, now });
+await persistGovernedToolResponseChunk({ chunk_id: cleanupId, serialized, ttl_ms: 1000, auth: tenantA }, { runtimePersistencePool: pool, now });
 pool.state.cleanup_now_ms = now + 2000;
-const cleanup = await deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { pool, now: now + 2000 });
+const cleanup = await deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { runtimePersistencePool: pool, now: now + 2000 });
 assert.equal(cleanup.deleted_count, 1, "expired chunk cleanup must exercise bounded DELETE authority");
 assert.equal(pool.rows.has(cleanupId), false);
 assert.equal(pool.rows.has(chunkId), true, "cleanup must preserve unexpired chunks");
@@ -382,7 +382,7 @@ await assert.rejects(
     serialized,
     ttl_ms: 300000,
     auth: tenantA,
-  }, { pool: missingUpdatePool, now }),
+  }, { runtimePersistencePool: missingUpdatePool, now }),
   (err) => err?.code === "response_chunk_persistence_unavailable"
     && err?.status === 503
     && err?.details?.cause_code === "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
@@ -391,34 +391,24 @@ assert.equal(missingUpdatePool.rows.size, 0, "missing DB UPDATE privilege must f
 
 const missingDeletePool = createFakePool({ tablePrivileges: ["SELECT", "INSERT", "UPDATE"] });
 await assert.rejects(
-  deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { pool: missingDeletePool, now }),
+  deleteExpiredGovernedToolResponseChunks({ limit: 10 }, { runtimePersistencePool: missingDeletePool, now }),
   (err) => err?.code === "response_chunk_persistence_unavailable"
     && err?.status === 503
     && err?.details?.cause_code === "RUNTIME_PERSISTENCE_WRITE_AUTHORITY_NOT_READY",
 );
 
-const dbEnvKeys = ["DB_HOST", "DB_NAME", "DB_USER", "DB_PASSWORD"];
-const previousDbEnv = Object.fromEntries(dbEnvKeys.map((key) => [key, process.env[key]]));
-for (const key of dbEnvKeys) delete process.env[key];
-try {
-  await assert.rejects(
-    persistGovernedToolResponseChunk({
-      chunk_id: "cdcdcdcd-efef-4abc-8123-456789abcdef",
-      serialized,
-      ttl_ms: 300000,
-      auth: tenantA,
-    }, { now }),
-    (err) => err?.code === "response_chunk_persistence_unavailable"
-      && err?.status === 503
-      && err?.details?.cause_code === "DB_CONFIG_MISSING"
-      && err?.details?.secrets_included === false,
-  );
-} finally {
-  for (const key of dbEnvKeys) {
-    if (previousDbEnv[key] === undefined) delete process.env[key];
-    else process.env[key] = previousDbEnv[key];
-  }
-}
+await assert.rejects(
+  persistGovernedToolResponseChunk({
+    chunk_id: "cdcdcdcd-efef-4abc-8123-456789abcdef",
+    serialized,
+    ttl_ms: 300000,
+    auth: tenantA,
+  }, { now }),
+  (err) => err?.code === "response_chunk_persistence_unavailable"
+    && err?.status === 503
+    && err?.details?.cause_code === "RUNTIME_PERSISTENCE_POOL_REQUIRED"
+    && err?.details?.secrets_included === false,
+);
 
 const failingPool = { async query() { const err = new Error("db down"); err.code = "ECONNREFUSED"; throw err; } };
 await assert.rejects(
@@ -427,7 +417,7 @@ await assert.rejects(
     serialized,
     ttl_ms: 300000,
     auth: tenantA,
-  }, { pool: failingPool, now }),
+  }, { runtimePersistencePool: failingPool, now }),
   (err) => err.code === "response_chunk_persistence_unavailable" && err.status === 503,
 );
 

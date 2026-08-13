@@ -11,6 +11,7 @@ import {
   extractMigrationReadinessRequirementsFromSql,
   splitSqlStatements,
 } from "../releaseReadiness.js";
+import { assessDatabaseCollationPolicyMigrationContract } from "../databaseCollationPolicyGuard.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const API_DIR = path.resolve(__dirname, "..");
@@ -483,6 +484,7 @@ async function main() {
   const sql = await fs.readFile(migrationPath, "utf8");
   const migration_checksum_sha256 = sha256(sql);
   const preflight = assessMigrationSqlPreflight(migration, sql);
+  const collation_policy_preflight = assessDatabaseCollationPolicyMigrationContract({ migrationName: migration, sql });
   const requirements = extractMigrationReadinessRequirementsFromSql(sql);
   const statements = splitSqlStatements(sql);
   const statement_count = statements.length;
@@ -515,6 +517,24 @@ async function main() {
       migration,
       blocked_reason: "preflight_not_pass",
       preflight,
+      collation_policy_preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
+
+  if (collation_policy_preflight.status === "fail") {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "database_collation_policy_contract_failed",
+      preflight,
+      collation_policy_preflight,
       requirements: artifactNames(requirements),
       before_schema_objects,
       applies_sql: false,
@@ -532,6 +552,7 @@ async function main() {
       blocked_reason: "identifier_comparison_contract_mismatch",
       preflight,
       identifier_contract_preflight,
+      collation_policy_preflight,
       requirements: artifactNames(requirements),
       before_schema_objects,
       applies_sql: false,

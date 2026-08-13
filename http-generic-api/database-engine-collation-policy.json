@@ -1,0 +1,17 @@
+{
+  "contract": "mad4b.database-engine-collation-policy.v1",
+  "policy_key": "default_utf8mb4_unicode_ci",
+  "target_character_set": "utf8mb4",
+  "target_collation": "utf8mb4_unicode_ci",
+  "json_allowed_collations": [
+    "utf8mb4_bin",
+    "utf8mb4_unicode_ci"
+  ],
+  "blocking": true,
+  "policy_migration_file": "198_sprint67_database_collation_policy_guard.sql",
+  "readback_views": [
+    "v_database_collation_policy_violations",
+    "v_database_collation_policy_status"
+  ],
+  "secrets_included": false
+}

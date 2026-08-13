@@ -469,7 +469,7 @@ function httpError(status, code, message, details = null) {
 }
 
 export function buildLocalGatewayToolsRoutes(deps) {
-  const { requireBackendApiKey } = deps;
+  const { requireBackendApiKey, runtimePersistencePool } = deps;
   const router = Router();
 
   router.get("/local/tools", requireBackendApiKey, async (req, res) => {
@@ -710,7 +710,9 @@ export function buildLocalGatewayToolsRoutes(deps) {
         dispatchArgs.user_id = req.auth.user_id;
       }
       const dispatchCallerType = resolveCallerTypeForRequest(req);
-      const result = await dispatchToolForCaller(dispatchCallerType, row.dispatch_tool_key, dispatchArgs, req);
+      const result = await dispatchToolForCaller(dispatchCallerType, row.dispatch_tool_key, dispatchArgs, req, {
+        runtimePersistencePool,
+      });
       const ok = result?.body?.ok !== false && result.status < 400;
       await completeCallLog({
         callId,
