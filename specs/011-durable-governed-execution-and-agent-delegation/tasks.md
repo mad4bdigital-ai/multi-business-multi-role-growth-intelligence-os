@@ -40,7 +40,7 @@
 ## Phase 3 — Plan-Bound Sessions and Delegation
 
 - [x] T140 Add execution session shadow with plan hash, resource snapshot, risk ceiling, limits, and expiry.
-- [ ] T141 Add delegation grant preview, create, inspect, revoke, and expire.
+- [x] T141 Add delegation grant preview, create, inspect, revoke, and expire.
 - [x] T142 Implement `user_approval_only`.
 - [x] T143 Implement `agent_recommend_only`.
 - [x] T144 Implement `agent_queue_for_approval`.

@@ -4,7 +4,7 @@
   "title": "Unified Effective Authority Control Plane",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
-  "last_updated_at": "2026-07-30T21:30:00Z",
+  "last_updated_at": "2026-08-14T00:00:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -336,6 +336,24 @@
       "deployment_authorized": false,
       "production_promotion_authorized": false
     }
+  },
+  "current_main_observation": {
+    "main_head": "069b116d20aa4216cfe25acb9144bceb8e00ca2d",
+    "status": "recorded_slices_revalidated_shadow_only",
+    "focused_tests_passed": [
+      "test-context-kernel-principal-resolver.mjs",
+      "test-context-kernel-subject-scope-delegation-resolver.mjs",
+      "test-context-kernel-resource-graph-resolver.mjs",
+      "test-context-kernel-semantic-capability-before-provider.mjs",
+      "test-context-kernel-policy-grant-evaluator.mjs",
+      "test-context-kernel-endpoint-certification-resolver.mjs",
+      "test-context-kernel-shadow-authority-parity.mjs",
+      "test-context-kernel-cross-tenant-isolation.mjs"
+    ],
+    "runtime_enforcement_enabled": false,
+    "migration_applied": false,
+    "production_promotion_authorized": false,
+    "provider_mutation_allowed": false
   },
   "secrets_included": false,
   "sensitive_values_included": false

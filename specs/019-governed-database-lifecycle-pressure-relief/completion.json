@@ -4,6 +4,7 @@
   "title": "Governed Database Lifecycle and Pressure Relief",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-08-14T00:00:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -16,52 +17,9 @@
       "number": null,
       "branch": "gpt/019-governed-database-lifecycle-pressure-relief-20260813",
       "role": "specification_and_contracts",
-      "status": "current_pr"
+      "status": "observed_on_main"
     },
-    "implementation_prs": [
-      {
-        "number": null,
-        "branch": null,
-        "role": "read_only_pressure_intelligence",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "authority_and_durable_mutation_readiness",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "response_chunk_ttl_pilot",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "repo_audit_supersession_adapter",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "jobrunner_and_policy_bound_autopilot",
-        "status": "planned"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "engine_run_archive_thin",
-        "status": "separate_project"
-      },
-      {
-        "number": null,
-        "branch": null,
-        "role": "physical_reclaim",
-        "status": "separate_high_risk_project"
-      }
-    ],
+    "implementation_prs": [],
     "closeout_pr": {
       "number": null,
       "branch": null,
@@ -71,33 +29,64 @@
   },
   "evidence": {
     "implementation": {
-      "status": "contracts_only_no_runtime_mutation",
-      "read_only_current_main_lifecycle_foundation": true,
+      "status": "read_only_pressure_intelligence_and_contract_foundation_present",
+      "read_only_pressure_intelligence": true,
+      "bounded_select_only_observation": true,
+      "domain_adapter_classification": true,
+      "immutable_plan_fingerprints": true,
+      "exact_resource_and_recipe_authority": true,
+      "missing_policy_fail_closed": true,
+      "mutation_execution_enabled": false,
+      "durable_receipt_runtime_enabled": false,
       "arbitrary_sql_surface": false,
       "production_mutation": false,
       "migration_applied": false,
-      "production_deployed": false,
       "secrets_included": false
     },
     "ci": {
-      "status": "pending",
-      "head_sha": null
+      "status": "pass",
+      "head_sha": "5ed0144db24a025764286874d69e74bca6b7646b",
+      "focused_tests": [
+        "test-spec019-database-lifecycle-contract.mjs",
+        "test-database-lifecycle-pressure-intelligence.mjs",
+        "test-database-lifecycle-retention-plan.mjs",
+        "test-database-lifecycle-report-schedule-readiness.mjs",
+        "test-database-lifecycle-report-snapshot.mjs",
+        "test-database-lifecycle-reporting-views.mjs",
+        "test-database-lifecycle-operational-status.mjs"
+      ],
+      "source": "exact-main local validation"
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "blocked_pending_durable_mutation_staging_and_production_evidence",
+      "read_only_scope": "pass",
+      "mutation_scope": "not_started",
+      "staging_canary": "pending",
+      "production_promotion_authorized": false,
+      "provider_mutation": false
     },
     "migration": {
-      "status": "not_created_in_pr_a",
-      "paths": [
-        "http-generic-api/migrations/20260730_spec011_durable_execution_control.sql"
-      ]
+      "status": "sources_present_not_applied",
+      "apply_authorized": false,
+      "readback": "pending"
     },
     "production_verification": {
-      "status": "not_run"
+      "status": "not_run",
+      "reason": "Production access and mutation are explicitly excluded from this execution loop."
     },
     "post_merge_audit": {
-      "status": "pending"
-    }
+      "status": "pending",
+      "reason": "Requires implementation PRs, staging/canary evidence, and protected readback."
+    },
+    "residual_debt": [
+      "C01-C07 durable mutation authority and receipt/readback readiness remain open.",
+      "D01-D08 response-chunk TTL pilot remains open and must stay non-production.",
+      "E01-E05 repository-audit supersession adapter remains open.",
+      "F01-G03 JobRunner/autopilot remains open and must stay disabled.",
+      "H01-H04 engine-run archive/thin is a separate project.",
+      "I01-I04 physical reclaim is a separate high-risk project.",
+      "V05-V06 staging/canary and main-to-Production approval remain open."
+    ]
   },
   "secrets_included": false
 }

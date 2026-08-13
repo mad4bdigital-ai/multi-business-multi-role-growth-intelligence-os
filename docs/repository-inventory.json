@@ -3,16 +3,16 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6817,
-    "bytes": 61960008,
-    "lines": 1454273,
+    "files": 6821,
+    "bytes": 61983290,
+    "lines": 1454516,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
       "tests-and-specs": 2051,
-      "documentation": 1863,
+      "documentation": 1867,
       "api-runtime": 1370,
       "database-migrations": 778,
       "root-and-other": 233,
@@ -26,7 +26,7 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2467,
+      ".md": 2471,
       ".mjs": 1568,
       ".js": 958,
       ".sql": 793,
@@ -58,7 +58,7 @@
     },
     "topLevel": {
       "http-generic-api": 3521,
-      "docs": 1770,
+      "docs": 1774,
       "specs": 841,
       ".github": 249,
       ".changes": 228,
@@ -29606,6 +29606,39 @@
       "generated": false
     },
     {
+      "path": "docs/p1-completion-matrix-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 5099,
+      "lines": 32,
+      "sha256": "44f03cedd9cf2974cc1fced89026cde6414b69b92651e3c9b1ffc1cae5fff9a1",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/p2-completion-matrix-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 3214,
+      "lines": 27,
+      "sha256": "1078947f81909e8881aa64ab7de73abae52eaa4c0224402ae816a937d8656f87",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/p3-p4-deferred-matrix-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 2522,
+      "lines": 22,
+      "sha256": "bdea0e19e3c0412c72d63ba03774be170d38fe2b39b59e141b1d4f1ac8d4fe02",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/platform-adapter-contract-kernel.md",
       "category": "documentation",
       "extension": ".md",
@@ -30260,7 +30293,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "e75a98c4f9cdda2965bea6ddc2afaf097ce5bfda9160806ee234755d97e12be9",
+      "sha256": "61e2816a48789bf1c7732f4d2f5872b64d47c906845e006d2b4551dcac0775bb",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31075,6 +31108,17 @@
       "bytes": 890,
       "lines": 27,
       "sha256": "a356279be8d24fb6ece8401ba22d08bb6e48dd3b19542b7a52ffc8acfed06003",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/spec-pr-reconciliation-2026-08-14.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 5739,
+      "lines": 50,
+      "sha256": "79f4cf231c1b92ae94b0cbd68d7dc9c6ea472213cefe142d13168932ce812111",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49048,7 +49092,7 @@
       "extension": ".json",
       "bytes": 1929181,
       "lines": 58335,
-      "sha256": "c7083d80ed0c352ece5a03a29cfa494ba46cc76d0b44cb25a3fdc8d5ecd9804e",
+      "sha256": "a302c3afc2280bbfe11dd42ac023d668ebbd7d4d31b9d4d82c080aed8d34f92e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -74753,9 +74797,9 @@
       "path": "specs/011-durable-governed-execution-and-agent-delegation/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 42622,
-      "lines": 1006,
-      "sha256": "9cd1ca5bcbc57feaf15deb3cadb44e0ea815933182e33aa9845847557004940c",
+      "bytes": 42876,
+      "lines": 1012,
+      "sha256": "75bc84d7a7020c1b67a38921226371798744c4f9a22c42955f2cb0ff569aa0c7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -75349,7 +75393,7 @@
       "extension": ".md",
       "bytes": 5520,
       "lines": 107,
-      "sha256": "5373228e887fbabb9dd920df6975ffb4f7421e4c699393e19155ebfcdf535002",
+      "sha256": "8a0e766b7468e38ecb747c85cdb30eb644d2055700ea2cdc7adcbf17c789fb8f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76117,9 +76161,9 @@
       "path": "specs/011-unified-effective-authority-control-plane/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 12370,
-      "lines": 343,
-      "sha256": "91cc8088e173fffe21afd272dff0a5ad09f07fd890bd190e0cf81fd734ed369f",
+      "bytes": 13199,
+      "lines": 361,
+      "sha256": "3dfda154dabf89ee184893925d125f981e072f9e6f03e0f6f2591db2d8ed8632",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77096,9 +77140,9 @@
       "path": "specs/012-unified-admin-tenant-context-kernel/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 25358,
-      "lines": 498,
-      "sha256": "fbaf4679ba8b8dcbf4939097ecb78c7f34f877ac7c7efd75f069e70041a20dff",
+      "bytes": 26348,
+      "lines": 520,
+      "sha256": "e6c5100ecce70a49d9b45a3ea168eb98fdc4ff7443665c000975113c3e7dacde",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77549,7 +77593,7 @@
       "extension": ".md",
       "bytes": 1275,
       "lines": 18,
-      "sha256": "046749db4a4f68921a8b25f4d6df97d84247e7f491d8bf4f5f29aba519f0425f",
+      "sha256": "09120fd6206fafb6d342bb5980fd5112ea891ad25f7cbefa992e04430e7a5474",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77558,9 +77602,9 @@
       "path": "specs/013-system-tool-catalog-v2/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 935,
-      "lines": 45,
-      "sha256": "9b2fee307d5b02cc7eca773e9cfb3af67cc76b3a0c9ab7fffb170cd62d79663b",
+      "bytes": 2202,
+      "lines": 74,
+      "sha256": "585e73cc43b531358f0517a1a69022e968623f70bbbda87c7062377cb43abfed",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77648,7 +77692,7 @@
       "extension": ".md",
       "bytes": 1029,
       "lines": 24,
-      "sha256": "e5804308d3367fb4445aa09ce71c1f41abb299b089e215c345752251985aa446",
+      "sha256": "10f2a4fe027de62a9a4b8fb894ad47ae1d2647084d78c2836ec1401119c01872",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79903,7 +79947,7 @@
       "extension": ".md",
       "bytes": 2936,
       "lines": 38,
-      "sha256": "81262ed6e035d53029b628bfb3307758674234a02caf6f756e998d102a7cff09",
+      "sha256": "ad977a3a2ceb915267690610cb316d4698637e14a77bb2ebcd698f1e5aabad6f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79912,9 +79956,9 @@
       "path": "specs/018-environment-promotion-runtime-integrity/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 3375,
-      "lines": 102,
-      "sha256": "b403d303e8eff0cc6efe6c680564bf7a948fb160c91ae46bd094e9d2847568ce",
+      "bytes": 5942,
+      "lines": 150,
+      "sha256": "17825425ee7974fe259af1162cb6f6247a07f9839b4aef4a1c87ebc5758efa43",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79980,7 +80024,7 @@
       "extension": ".md",
       "bytes": 6161,
       "lines": 98,
-      "sha256": "5e3e4f4c84bb7c446d5707d053fc458bbfd7af5e848c3d8165e34bdd6da4d980",
+      "sha256": "af4b541876f04b1beeb437a98c81b01dfee610a67efba3f1b27a814cd0c034e7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80024,7 +80068,7 @@
       "extension": ".md",
       "bytes": 713,
       "lines": 15,
-      "sha256": "9d7656fb50f88e5bb32fb70fc3b2a4dab8ce1d4b4029eaade3e1936056b2a3e1",
+      "sha256": "ede4345b18682fc558c545a7953c82e8e459bb2ae1c86aef237c51c73caaab11",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80044,9 +80088,9 @@
       "path": "specs/019-governed-database-lifecycle-pressure-relief/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 2610,
-      "lines": 104,
-      "sha256": "681e7480af5c5a53f8c47fc8bb0c3a5e2309f1a23ba8fe95c5ee9c94718628a7",
+      "bytes": 3411,
+      "lines": 93,
+      "sha256": "c9465512f95419aa6775933b57f431d3ddf88ffec2749fc5769a113ec9d2a522",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80266,7 +80310,7 @@
       "extension": ".md",
       "bytes": 4624,
       "lines": 86,
-      "sha256": "4481ad6f683b0d975c2720a40eeeac3aae961367d6764785c263400d9ab6074d",
+      "sha256": "a7abd812dfbb9cd92baefb507db26367aaadae6e56f24f5ec6859f7fd7b6ebf9",
       "mode": "644",
       "executable": false,
       "generated": false

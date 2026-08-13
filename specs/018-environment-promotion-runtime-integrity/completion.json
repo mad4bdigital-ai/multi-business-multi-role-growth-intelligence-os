@@ -4,6 +4,7 @@
   "title": "Environment Promotion and Runtime Integrity",
   "status": "in_progress",
   "delivery_mode": "multi_pr",
+  "last_updated_at": "2026-08-14T00:00:00Z",
   "requirements": {
     "migration": true,
     "production_verification": true,
@@ -16,32 +17,45 @@
       "number": 6618,
       "branch": "gpt/018-environment-promotion-runtime-integrity-20260807",
       "role": "specification",
-      "status": "merged"
+      "status": "merged",
+      "merge_sha": "89fc84819fda6f9fe39090a1b78bbaf3deff264f",
+      "merged_at": "2026-08-10T11:32:37Z"
     },
     "implementation_prs": [
       {
         "number": 6819,
-        "branch": "gpt/018-environment-authority-20260810",
         "role": "environment_authority_foundation",
-        "status": "merged"
+        "status": "merged",
+        "merge_sha": "a979a6eab960d7d13702cf1a542f10f85696e0f6",
+        "merged_at": "2026-08-10T16:43:11Z"
       },
       {
         "number": 6852,
-        "branch": "gpt/018-production-deploy-authority-20260810",
         "role": "production_deploy_authority_binding",
-        "status": "merged"
+        "status": "merged",
+        "merge_sha": "fdfd7bfdc1aef12d8d332c84fa238ebcad7b0623",
+        "merged_at": "2026-08-10T19:02:44Z"
       },
       {
         "number": 6876,
-        "branch": "gpt/018-runtime-immutability-20260810",
-        "role": "runtime_immutability_c01_c06",
-        "status": "merged"
+        "role": "runtime_immutability_and_integrity_readback",
+        "status": "merged",
+        "merge_sha": "9df5ac716ee1eeec4e3e92858a6880b60a4f7adb",
+        "merged_at": "2026-08-10T20:45:35Z"
       },
       {
         "number": 6886,
-        "branch": "gpt/018-break-glass-lifecycle-20260810",
         "role": "break_glass_lifecycle_d01_d06",
-        "status": "current_pr"
+        "status": "merged",
+        "merge_sha": "6c43458c751dcdb45fc951d50e0b775034a02334",
+        "merged_at": "2026-08-13T20:01:57Z"
+      },
+      {
+        "number": 6950,
+        "role": "consolidated_runtime_contracts_registry_attestation_and_break_glass_closure",
+        "status": "merged",
+        "merge_sha": "273a642e7aae0eb3cbb1e3fb8ab665d4524da900",
+        "merged_at": "2026-08-13T19:20:26Z"
       }
     ],
     "closeout_pr": {
@@ -53,8 +67,8 @@
   },
   "evidence": {
     "implementation": {
-      "status": "environment_deploy_authority_and_runtime_immutability_merged_break_glass_d01_d06_candidate",
-      "runtime_authority_foundation_merged": true,
+      "status": "foundation_registry_attestation_and_break_glass_d01_d06_merged",
+      "environment_authority_foundation_merged": true,
       "production_deploy_binding_merged": true,
       "caller_branch_selection_removed_from_governed_schemas": true,
       "same_cycle_production_head_readback_merged": true,
@@ -62,24 +76,46 @@
       "runtime_integrity_readback_merged": true,
       "tracked_dirty_runtime_detection_merged": true,
       "service_health_separate_from_runtime_integrity_merged": true,
-      "break_glass_persistence_candidate": true,
-      "break_glass_lifecycle_d01_d06_candidate": true,
-      "break_glass_governed_scope_issuer_candidate": true,
-      "break_glass_run_bound_readback_producer_candidate": true,
-      "break_glass_authority_metadata_candidate": true,
-      "break_glass_runtime_mutation_enabled": false,
+      "canonical_resource_registry_sources_present": true,
+      "deployment_attestation_sources_present": true,
+      "break_glass_d01_d06_merged": true,
       "break_glass_d07_d13_implemented": false,
+      "break_glass_runtime_mutation_enabled": false,
       "migration_applied": false,
       "production_deployed": false,
       "hostinger_mutated": false,
       "secrets_included": false
     },
     "ci": {
-      "status": "pending",
-      "head_sha": null
+      "status": "pass",
+      "head_sha": "5c52a18e1cda7daab02f18fc610db5204e596f0d",
+      "checks_passed": 4,
+      "checks_total": 4,
+      "checks": [
+        "Syntax Check",
+        "Architecture Drift Detection",
+        "Execution Resolver Gate",
+        "Unit & Integration Tests"
+      ],
+      "implementation_specific_tests": [
+        "test-canonical-resource-registry.mjs",
+        "test-deployment-attestation.mjs",
+        "test-runtime-break-glass-lifecycle.mjs",
+        "test-runtime-break-glass-reconciliation-closure.mjs",
+        "test-runtime-break-glass-review-regressions.mjs",
+        "test-consolidated-governance-runtime-contracts.mjs",
+        "test-repository-reconciliation-engine-routing.mjs",
+        "test-repository-reconciliation-orchestrator-export.mjs"
+      ],
+      "source": "merged implementation PR checks plus exact-main local validation"
     },
     "release_readiness": {
-      "status": "pending"
+      "status": "blocked_pending_staging_production_and_post_merge_evidence",
+      "staging_verification": "pending",
+      "production_parity": "pending",
+      "rollback_rehearsal": "implementation_tests_passed_runtime_rehearsal_pending",
+      "production_promotion_authorized": false,
+      "migration_apply_authorized": false
     },
     "migration": {
       "status": "sources_present_not_applied",
@@ -87,15 +123,27 @@
         "http-generic-api/migrations/20260810_environment_branch_authority_v1.sql",
         "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
         "http-generic-api/migrations/20260810_runtime_break_glass_lifecycle_v1.sql",
-        "http-generic-api/migrations/20260811_runtime_break_glass_authority_metadata_v1.sql"
+        "http-generic-api/migrations/20260811_runtime_break_glass_authority_metadata_v1.sql",
+        "http-generic-api/migrations/20260812_deployment_attestation_runtime_integrity_v1.sql",
+        "http-generic-api/migrations/20260812_dynamic_canonical_resource_registry.sql",
+        "http-generic-api/migrations/20260812_runtime_break_glass_reconciliation_closure_v1.sql"
       ]
     },
     "production_verification": {
-      "status": "pending"
+      "status": "pending",
+      "reason": "No Production deployment or external runtime mutation is permitted in this task."
     },
     "post_merge_audit": {
-      "status": "pending"
-    }
+      "status": "pending",
+      "reason": "Requires protected staging/Production parity and runtime readback evidence."
+    },
+    "residual_debt": [
+      "D07-D13 governed Git reconciliation, promotion, clean redeploy, closure, rollback state, and stale-evidence tests remain open.",
+      "F09 attestation enforcement remains shadow-only until parity evidence exists.",
+      "H06 security review evidence remains open.",
+      "H10-H12 staging CI, release-readiness, and explicit Production promotion remain open.",
+      "Final post-merge audit and runtime-integrity readback remain open."
+    ]
   },
   "secrets_included": false
 }
