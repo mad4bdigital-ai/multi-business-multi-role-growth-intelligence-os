@@ -7,6 +7,7 @@ tenantPlatformPluginResolvePath:
     tags:
       - platform-plugins
     operationId: tenantPlatformPluginResolve
+    x-custom-gpt-surfaces: [tenant_core]
     summary: Resolve tenant readiness for a Platform Plugin action/tool in one exact workspace
     description: >-
       Checks tenant plugin readiness without executing actions or returning secrets. The exact

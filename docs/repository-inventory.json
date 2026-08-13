@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6822,
-    "bytes": 61990926,
-    "lines": 1454637,
+    "bytes": 61990967,
+    "lines": 1454638,
     "directories": 255,
     "categories": 13
   },
@@ -47605,9 +47605,9 @@
       "path": "http-generic-api/openapi/platform-plugin-tenant-resolve.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 13884,
-      "lines": 365,
-      "sha256": "b6676fb1a6b9cc8af0ab6c05084606ed9d5a6fac8cc551a22927cfcaa4fa9c22",
+      "bytes": 13925,
+      "lines": 366,
+      "sha256": "83b7e94fb2451ec0600dc7848e067ee5a7613648277e151dc6599afa6e4a18ec",
       "mode": "644",
       "executable": false,
       "generated": false
