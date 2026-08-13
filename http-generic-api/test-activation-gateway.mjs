@@ -321,7 +321,7 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
     "https://activation.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed",
     {
       headers: {
-        cookie: "session=must-not-forward",
+        cookie: "session=oauth-handoff-cookie",
         authorization: "Bearer tenant-token",
         "x-request-id": "oauth-request-001",
       },
@@ -331,8 +331,8 @@ assert.equal(verification.surfaceRegistryVersion, policy.surface_registry_versio
   assert.equal(upstreamRequest.url, "https://auth.mad4b.com/auth/oauth/authorize?client_id=mad4b-tenant-gpt&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fcallback&response_type=code&scope=activation&state=test-state&activation_mode=managed");
   assert.equal(upstreamRequest.method, "GET");
   assert.equal(upstreamRequest.headers.get("authorization"), "Bearer tenant-token");
-  assert.equal(upstreamRequest.headers.get("cookie"), null);
-  assert.equal(response.headers.get("set-cookie"), null);
+  assert.equal(upstreamRequest.headers.get("cookie"), "session=oauth-handoff-cookie");
+  assert.equal(response.headers.get("set-cookie"), "never-forward=true");
   assert.equal(response.headers.get("x-internal-debug"), null);
 }
 

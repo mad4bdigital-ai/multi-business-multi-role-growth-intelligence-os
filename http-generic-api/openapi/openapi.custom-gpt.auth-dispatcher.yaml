@@ -1886,3 +1886,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: 2bbfc6ddfdd77f5536fa4255f58bb3d2d71efd544dc3779b8d300a6704fad4c6
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: fb750d040863c7408d4a7a27d408d35306f0ea736c056f805fb4e7e9eef8e34b
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: admin_core
+    candidate_tags:
+      - admin-control
+      - system-layer
+    omission: fail
+    exclusion_records:
+      - operation_id: sessionInsightTargetWriteReadbackCreate
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: sessionInsightTargetWriteReadbackList
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: createAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listAdminScopeGrants
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: revokeAdminScopeGrant
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomySummary
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyAppMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyToolMap
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: connectorTaxonomyFamilyCoverage
+        reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+        owner: platform-governance
+        review_after: 2026-09-30
+  operation_count: 23
+  warning_operation_limit: 24
+  warning_budget_exceeded: false
+  hard_operation_limit: 30
+  secrets_included: false

@@ -16,7 +16,7 @@ assert(inventory.route_count > 0);
 assert(inventory.write_route_count > 0);
 assert.equal(inventory.classified_write_route_count, inventory.write_route_count, "every write route must have an explicit classification");
 assert.equal(inventory.unclassified_write_route_count, 0);
-assert.equal(inventory.intentionally_unmapped_write_route_count, 611);
+assert.equal(inventory.intentionally_unmapped_write_route_count, 612);
 assert.equal(inventory.write_route_classifications.filter((route) => route.classification === "shadow_candidate").length, 38);
 assert(inventory.write_route_classifications.every((route) => route.route_id));
 assert.equal(new Set(inventory.write_route_classifications.map((route) => route.route_id)).size, inventory.write_route_count);

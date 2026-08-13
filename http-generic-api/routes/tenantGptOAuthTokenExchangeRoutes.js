@@ -10,6 +10,7 @@ import {
   resolveTenantGptOAuthResourceProfile,
   tenantGptRequestHostFromHeaders,
 } from "../tenantGptOAuthResourceProfile.js";
+import { verifyTenantGptPkce } from "../tenantGptOAuthPkce.js";
 import { validateTenantGptOAuthClientCredentials } from "../tenantGptOAuthClientConfig.js";
 import { consumeTenantGptOAuthAuthorizationCode } from "../tenantGptOAuthAuthorizationCodeStore.js";
 import {
@@ -22,6 +23,7 @@ import {
   readTenantGptOAuthGrantByRefreshToken,
   rotateTenantGptOAuthGrant,
   tenantGptRefreshTokensEnabled,
+  tenantGptRefreshReady,
   TENANT_GPT_REFRESH_TOKEN_TTL_SECONDS,
 } from "../tenantGptOAuthGrantStore.js";
 
@@ -359,6 +361,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         }));
       }
       const pool = resolvePool();
+      const refreshReadiness = await tenantGptRefreshReady(deps.env || process.env, pool);
       tokenQuery = (sql, params) => pool.query(sql, params);
       const clientValidation = await validateClientCredentials(credentials, { query: tokenQuery });
       tokenLogContext.client_validation_source = clientValidation.source || null;
@@ -397,7 +400,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       }
 
       if (grantType === "refresh_token") {
-        if (!refreshTokensEnabled) {
+        if (!refreshTokensEnabled || !refreshReadiness.ready) {
           return res.status(400).json(directOAuthError({
             error: "unsupported_grant_type",
             description: "refresh_token is not enabled for this Tenant GPT deployment.",
@@ -445,7 +448,13 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         }
         const accessToken = issueAccessToken(
           { user_id: subject.user.user_id, email: subject.user.email, tenant_id: subject.tenant_id },
-          { clientId: clientValidation.client_id, jwtid: accessJti, resource: resourceProfile.resource, expiresIn: accessTokenTtlSeconds },
+          {
+            clientId: clientValidation.client_id,
+            jwtid: accessJti,
+            resource: resourceProfile.resource,
+            expiresIn: accessTokenTtlSeconds,
+            scope: current.scopes,
+          },
         );
         res.setHeader("Cache-Control", "no-store");
         res.setHeader("Pragma", "no-cache");
@@ -470,6 +479,15 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
       }
 
       const codePayload = verifyCode(code);
+      try {
+        verifyTenantGptPkce({
+          codeChallenge: codePayload?.code_challenge,
+          codeChallengeMethod: codePayload?.code_challenge_method,
+          codeVerifier: req.body?.code_verifier,
+        });
+      } catch (error) {
+        return invalidGrant(error.code || "pkce_verification_failed");
+      }
       tokenLogContext.code = {
         ...tokenLogContext.code,
         jti_present: Boolean(codePayload?.jti),
@@ -522,6 +540,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
           jwtid: accessJti,
           resource: resourceProfile.resource,
           expiresIn: accessTokenTtlSeconds,
+          scope: codePayload.scope,
         },
       );
       tokenLogContext.access_token_prepared = true;
@@ -581,7 +600,7 @@ export function buildTenantGptOAuthTokenExchangeRoutes(deps = {}) {
         expires_in: accessTokenTtlSeconds,
       };
       if (codePayload.scope) tokenResponse.scope = codePayload.scope;
-      if (refreshTokensEnabled) {
+      if (refreshTokensEnabled && refreshReadiness.ready) {
         try {
           const refreshGrant = await createTenantGptOAuthGrant({
             pool,

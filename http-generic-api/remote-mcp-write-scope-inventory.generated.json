@@ -8,14 +8,14 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 6743,
-  "route_count": 1070,
-  "write_route_count": 649,
+  "file_count": 6749,
+  "route_count": 1071,
+  "write_route_count": 650,
   "classified_write_surface_count": 38,
-  "classified_write_route_count": 649,
+  "classified_write_route_count": 650,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 611,
-  "sensitive_intentionally_unmapped_write_route_count": 611,
+  "intentionally_unmapped_write_route_count": 612,
+  "sensitive_intentionally_unmapped_write_route_count": 612,
   "migration_count": 441,
   "registry_evidence_count": 101,
   "write_scope_count": 6,
@@ -1228,8 +1228,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/platform-jwt/issue:0",
-      "source_line": 984,
-      "source_offset": 39157,
+      "source_line": 1014,
+      "source_offset": 40821,
       "method": "POST",
       "path": "/platform-jwt/issue",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1237,8 +1237,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#GET:/oauth/authorize:1",
-      "source_line": 1080,
-      "source_offset": 42569,
+      "source_line": 1110,
+      "source_offset": 44232,
       "method": "GET",
       "path": "/oauth/authorize",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1246,8 +1246,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/code:2",
-      "source_line": 1141,
-      "source_offset": 45244,
+      "source_line": 1179,
+      "source_offset": 47211,
       "method": "POST",
       "path": "/oauth/code",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1255,8 +1255,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/token:3",
-      "source_line": 1311,
-      "source_offset": 52903,
+      "source_line": 1360,
+      "source_offset": 55585,
       "method": "POST",
       "path": "/oauth/token",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1264,8 +1264,8 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/register:4",
-      "source_line": 1479,
-      "source_offset": 61010,
+      "source_line": 1528,
+      "source_offset": 63691,
       "method": "POST",
       "path": "/register",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -1273,44 +1273,53 @@
     },
     {
       "route_id": "http-generic-api/routes/authRoutes.js#POST:/login:5",
-      "source_line": 1488,
-      "source_offset": 61353,
+      "source_line": 1537,
+      "source_offset": 64034,
       "method": "POST",
       "path": "/login",
       "file": "http-generic-api/routes/authRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:6",
-      "source_line": 1497,
-      "source_offset": 61682,
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/revoke:6",
+      "source_line": 1546,
+      "source_offset": 64364,
+      "method": "POST",
+      "path": "/oauth/revoke",
+      "file": "http-generic-api/routes/authRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:7",
+      "source_line": 1561,
+      "source_offset": 65385,
       "method": "POST",
       "path": "/password/forgot",
       "file": "http-generic-api/routes/authRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#GET:/password/reset:7",
-      "source_line": 1559,
-      "source_offset": 64741,
+      "route_id": "http-generic-api/routes/authRoutes.js#GET:/password/reset:8",
+      "source_line": 1623,
+      "source_offset": 68444,
       "method": "GET",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:8",
-      "source_line": 1572,
-      "source_offset": 66915,
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:9",
+      "source_line": 1636,
+      "source_offset": 70618,
       "method": "POST",
       "path": "/password/reset",
       "file": "http-generic-api/routes/authRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:9",
-      "source_line": 1627,
-      "source_offset": 69406,
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:10",
+      "source_line": 1697,
+      "source_offset": 73433,
       "method": "POST",
       "path": "/google",
       "file": "http-generic-api/routes/authRoutes.js",
@@ -8870,7 +8879,7 @@
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-authorization-server:0",
       "source_line": 99,
-      "source_offset": 3749,
+      "source_offset": 3741,
       "method": "GET",
       "path": "/.well-known/oauth-authorization-server",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -8878,8 +8887,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js#GET:/.well-known/oauth-protected-resource:1",
-      "source_line": 112,
-      "source_offset": 4396,
+      "source_line": 122,
+      "source_offset": 4880,
       "method": "GET",
       "path": "/.well-known/oauth-protected-resource",
       "file": "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
@@ -8887,8 +8896,8 @@
     },
     {
       "route_id": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js#POST:/auth/oauth/token:0",
-      "source_line": 278,
-      "source_offset": 10538,
+      "source_line": 280,
+      "source_offset": 10627,
       "method": "POST",
       "path": "/auth/oauth/token",
       "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
@@ -14484,10 +14493,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 984,
+        "source_line": 1014,
         "handler_window_lines": [
-          984,
-          1078
+          1014,
+          1108
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14550,10 +14559,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1141,
+        "source_line": 1179,
         "handler_window_lines": [
-          1141,
-          1309
+          1179,
+          1358
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14574,8 +14583,8 @@
             "lease"
           ],
           "readback": [
-            "verify",
-            "select"
+            "select",
+            "verify"
           ],
           "mutation": []
         },
@@ -14617,10 +14626,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1311,
+        "source_line": 1360,
         "handler_window_lines": [
-          1311,
-          1478
+          1360,
+          1527
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14683,10 +14692,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1479,
+        "source_line": 1528,
         "handler_window_lines": [
-          1479,
-          1487
+          1528,
+          1536
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14743,10 +14752,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1488,
+        "source_line": 1537,
         "handler_window_lines": [
-          1488,
-          1496
+          1537,
+          1545
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14796,17 +14805,77 @@
       "reason": "credential_or_identity_mutation_requires_security_contract"
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:6",
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/oauth/revoke:6",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "identity",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1497,
+        "source_line": 1546,
         "handler_window_lines": [
-          1497,
-          1558
+          1546,
+          1560
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": false,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": true,
+          "mutation_signal": false
+        },
+        "signals": {
+          "provider": [],
+          "db_registry": [],
+          "authority": [],
+          "readback": [
+            "verify"
+          ],
+          "mutation": []
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "identity",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "identity-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "critical",
+      "reason": "credential_or_identity_mutation_requires_security_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/forgot:7",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "identity",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/authRoutes.js",
+        "source_line": 1561,
+        "handler_window_lines": [
+          1561,
+          1622
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14859,17 +14928,17 @@
       "reason": "credential_or_identity_mutation_requires_security_contract"
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:8",
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/password/reset:9",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "identity",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1572,
+        "source_line": 1636,
         "handler_window_lines": [
-          1572,
-          1626
+          1636,
+          1696
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -14925,17 +14994,17 @@
       "reason": "credential_or_identity_mutation_requires_security_contract"
     },
     {
-      "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:9",
+      "route_id": "http-generic-api/routes/authRoutes.js#POST:/google:10",
       "classification": "intentionally_unmapped",
       "mapping_status": "blocked",
       "domain": "identity",
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/authRoutes.js",
-        "source_line": 1627,
+        "source_line": 1697,
         "handler_window_lines": [
-          1627,
-          1637
+          1697,
+          1707
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -48378,10 +48447,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/tenantGptOAuthTokenExchangeRoutes.js",
-        "source_line": 278,
+        "source_line": 280,
         "handler_window_lines": [
-          278,
-          565
+          280,
+          567
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -51717,17 +51786,17 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 649,
+      "routes": 650,
       "domains": 11,
       "handler_files": 126
     },
     "edge_counts": {
-      "route_to_handler_file": 649,
-      "route_to_domain": 649,
+      "route_to_handler_file": 650,
+      "route_to_domain": 650,
       "route_to_provider_signal": 91,
       "route_to_db_registry_signal": 0,
       "route_to_authority_signal": 402,
-      "route_to_readback_signal": 361,
+      "route_to_readback_signal": 362,
       "route_to_mutation_signal": 369,
       "route_to_explicit_scope_candidate": 38
     },
@@ -58035,8 +58104,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 611,
-      "sensitive_count": 611
+      "count": 612,
+      "sensitive_count": 612
     },
     {
       "severity": "medium",

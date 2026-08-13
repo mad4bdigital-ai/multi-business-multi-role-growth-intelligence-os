@@ -1,5 +1,13 @@
-version: 1
+version: 2
 source_openapi: http-generic-api/openapi.yaml
+shared_surface_allowlist:
+  - listSystemTools
+  - callSystemTool
+oauth_client_contract:
+  client_id_ref: tenant_gpt.oauth.client
+  authorization_server: https://auth.mad4b.com
+  activation_gateway_alias: true
+  consent_model: one_client_resource_bound
 surfaces:
   admin_core:
     mode: generated_from_openapi
@@ -12,9 +20,53 @@ surfaces:
       title: Growth Intelligence Platform - Admin Core Actions
       summary: Admin and system MCP facades without Activation routes.
       description: Stable Admin Core transport for governed admin-control and system-layer operations. Dynamic MCP tool schemas remain SQL-driven.
+    candidate_policy:
+      mode: marker_required
+      required_marker: admin_core
+      candidate_tags:
+        - admin-control
+        - system-layer
+      omission: fail
+      exclusion_records:
+        - operation_id: sessionInsightTargetWriteReadbackCreate
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: sessionInsightTargetWriteReadbackList
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: createAdminScopeGrant
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listAdminScopeGrants
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: revokeAdminScopeGrant
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: connectorTaxonomySummary
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: connectorTaxonomyAppMap
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: connectorTaxonomyToolMap
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: connectorTaxonomyFamilyCoverage
+          reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
+          owner: platform-governance
+          review_after: 2026-09-30
     selector:
-      source_markers: [admin_core]
-
+      source_markers:
+        - admin_core
   activation_admin:
     mode: generated_from_openapi
     output_file: openapi/openapi.custom-gpt.activation-admin.yaml
@@ -27,9 +79,125 @@ surfaces:
       title: Growth Intelligence Platform - Activation Admin Actions
       summary: Admin/service Activation orchestration and read surfaces.
       description: Activation-only admin transport. Authentication and business authorization remain on auth.mad4b.com.
+    candidate_policy:
+      mode: marker_required
+      required_marker: activation_admin
+      candidate_tags:
+        - activation
+        - runtime-verification
+      omission: fail
+      exclusion_records:
+        - operation_id: createRuntimeVerificationRun
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getRuntimeVerificationRun
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listRuntimeVerificationEvidence
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getDefaultRuntimeParity
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getRuntimeParity
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationRunArchive
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantActivationRunArchive
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: synchronizeActivationOperationalAttention
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: ingestActivationOperationalCiSignal
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: updateActivationOperationalAlertLifecycle
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationOperationalAttention
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationAwareness
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantResolutionProblemCards
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantResolutionCases
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: createTenantResolutionCase
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantResolutionCase
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: transitionTenantResolutionCase
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runTenantResolutionDiagnosticAction
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: previewTenantTaskSourceRepair
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: applyTenantTaskSourceRepair
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationDynamicTabDetail
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantActivationSessionContext
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantActivationSessions
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: writeTenantActivationSessionTurns
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: verifyTenantTaskSourceRepair
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantSkillApprovals
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: decideTenantSkillApproval
+          reason: Tenant or internal runtime candidate remains outside the Admin Activation surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
     selector:
-      source_markers: [activation_admin]
-
+      source_markers:
+        - activation_admin
   tenant_core:
     mode: generated_from_openapi
     output_file: openapi/openapi.tenant-gpt.auth.yaml
@@ -41,8 +209,502 @@ surfaces:
       title: Growth Intelligence Platform - Tenant Core Actions
       summary: Tenant resources, dashboard, session, plugin, and SQL-driven MCP facades without Activation routes.
       description: Tenant Core transport. Tenant identity is derived from OAuth JWT. Use listTools then callTool for SQL-registered tools such as connect_activate, passing mode and integration_modes through tool_args.
+    candidate_policy:
+      mode: marker_required
+      required_marker: tenant_core
+      candidate_tags:
+        - resource-api
+        - growth-dashboard
+        - system-layer
+        - local-connector
+        - platform-plugins
+        - activation
+        - session-archive
+      omission: fail
+      exclusion_records:
+        - operation_id: getAdminResourceTypes
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourceTypesResourceKey
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourcesResourceKey
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postAdminResourcesResourceKey
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourcesResourceKeyResourceId
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: patchAdminResourcesResourceKeyResourceId
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: deleteAdminResourcesResourceKeyResourceId
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postAdminResourcesResourceKeyResourceIdRestore
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postAdminResourcesResourceKeyResourceIdPurge
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourcesResourceKeyResourceIdPermissions
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourcesResourceKeyResourceIdRevisions
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourcesResourceKeyResourceIdChanges
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourceChanges
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminResourceCoverageAudit
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getAdminOperationsOperationId
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listSessions
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessions
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessionsId
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: writeGptSessionTurns
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessionsIdTurns
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessionsIdSummary
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessionsIdEvents
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getGptSessionsIdTranscript
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postGptSessionsIdSummaryGenerate
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationHardRunSummary
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readPlatformHealthScorecard
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: recordPlatformHealthScorecardSnapshot
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readPlatformHealthScorecardRemediationPlan
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readPlatformHealthScorecardTenantRollout
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readPlatformHealthScorecardLedgerHygiene
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationRunArchive
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantActivationRunArchive
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationAwareness
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationOperationalAttention
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: synchronizeActivationOperationalAttention
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: ingestActivationOperationalCiSignal
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: updateActivationOperationalAlertLifecycle
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationDynamicTabDetail
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: acknowledgeActivationRun
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyDashboard
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyWorkspaceDashboard
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyWorkspaceDashboardTab
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyWorkspaceDashboardPreferences
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: putMyWorkspaceDashboardPreferences
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyWorkspaceDashboardDigest
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getMyWorkspaceDashboardActionPreview
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postMyWorkspaceDashboardRecommendationFeedback
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationOperationalAttention
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationAwareness
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantResolutionProblemCards
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantResolutionCases
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: createTenantResolutionCase
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantResolutionCase
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: transitionTenantResolutionCase
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runTenantResolutionDiagnosticAction
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: previewTenantTaskSourceRepair
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: applyTenantTaskSourceRepair
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readTenantActivationDynamicTabDetail
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runLegacyFullHardActivation
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runHardActivation
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationSessionContext
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantActivationSessionContext
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantActivationSessions
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: writeTenantActivationSessionTurns
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationPlatformAccess
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listSystemConnectors
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getSystemConnector
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getSystemToolCatalogObservability
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getSystemToolDescriptor
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: resolveSystemToolCapability
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getLocalConnectorHealth
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getLocalConnectorDevices
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getConnectorAgentVersion
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getConnectorAgentManifest
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getConnectorAgentInstallerScript
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getConnectorAgentFile
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: postConnectorAgentHeartbeat
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: adsProviderGovernanceSnapshotRecord
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: supportTicketLifecycleSnapshotRecord
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: supportTicketLifecycleSnapshotPropose
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: adsProviderGovernanceSnapshotPropose
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformOrchestrationReadback
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginCatalog
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformMockProvidersList
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformMockProviderResource
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformMockCrmContacts
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginResolve
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: actionManifestResolve
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: executionReadinessDryRun
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeHostingerDeployRunRead
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeLocalReadonlyExecute
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeDispatchDryRun
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeCertify
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeCertificationStatus
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyResolve
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyList
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyUpsert
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyHistory
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyRollbackPreview
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationPolicyRollbackApply
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationQueue
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginSmokeRecertificationBatch
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeTargetUpsert
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeTargetValidate
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeTargetCatalog
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: remoteRuntimeProbe
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginPolicyUpsert
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginActionTemplateUpsert
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginDispatchRest
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginActionGrantUpsert
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginInstall
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionList
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionCreate
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionGet
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionCertify
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionPromote
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionPrivateActivate
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionPrivateResolve
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: platformPluginContributionPrivateDispatchRest
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: verifyTenantTaskSourceRepair
+          reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
     selector:
-      source_markers: [tenant_core]
+      source_markers:
+        - tenant_core
       order_operation_ids:
         - getMeWorkspacesTenantIdResources
         - getMeWorkspacesTenantIdResourcesResourceKey
@@ -74,7 +736,6 @@ surfaces:
         - decideTenantSkillApproval
         - writeSessionTurn
         - endSession
-
   tenant_activation:
     mode: generated_from_openapi
     output_file: openapi/openapi.tenant-gpt.activation.yaml
@@ -83,6 +744,10 @@ surfaces:
     oauth_endpoints:
       authorization_url: https://activation.mad4b.com/auth/oauth/authorize
       token_url: https://activation.mad4b.com/auth/oauth/token
+    oauth_authority:
+      authorization_server: https://auth.mad4b.com
+      gateway_alias: true
+      same_client_id: true
     hard_operation_limit: 30
     warning_operation_limit: 26
     gateway_policy: activation_gateway
@@ -90,8 +755,97 @@ surfaces:
       title: Growth Intelligence Platform - Tenant Activation Actions
       summary: Tenant-scoped Activation session, awareness, attention, and dynamic-tab reads.
       description: Tenant Activation transport. Tenant and user identity are derived from OAuth JWT and revalidated by auth.mad4b.com.
+    candidate_policy:
+      mode: marker_required
+      required_marker: tenant_activation
+      candidate_tags:
+        - activation
+        - session-archive
+      omission: fail
+      exclusion_records:
+        - operation_id: listSessions
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: writeGptSessionTurns
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationHardRunSummary
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationRunArchive
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getTenantActivationRunArchive
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationAwareness
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationOperationalAttention
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: synchronizeActivationOperationalAttention
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: ingestActivationOperationalCiSignal
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: updateActivationOperationalAlertLifecycle
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: readActivationDynamicTabDetail
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: acknowledgeActivationRun
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runLegacyFullHardActivation
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: runHardActivation
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationSessionContext
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: getActivationPlatformAccess
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: listTenantSkillApprovals
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: decideTenantSkillApproval
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: writeGptSessionTurn
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
+        - operation_id: endGptSession
+          reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+          owner: platform-governance
+          review_after: 2026-09-30
     selector:
-      source_markers: [tenant_activation]
+      source_markers:
+        - tenant_activation
       order_operation_ids:
         - activateSession
         - readTenantActivationOperationalAttention
@@ -108,7 +862,6 @@ surfaces:
         - readTenantActivationDynamicTabDetail
         - listSessions
         - writeGptSessionTurns
-
   local_connector_admin:
     mode: canonical_copy
     canonical_file: canonicals/openapi/local-connector.openapi.yaml
@@ -117,7 +870,6 @@ surfaces:
     auth_profile: device_admin
     hard_operation_limit: 30
     warning_operation_limit: 24
-
   development:
     mode: externally_managed
     output_file: openapi/openapi.gpt-action.dev-dispatcher.yaml
@@ -125,7 +877,6 @@ surfaces:
     auth_profile: development
     hard_operation_limit: 30
     warning_operation_limit: 24
-
 gateway_policies:
   activation_gateway:
     public_host: activation.mad4b.com

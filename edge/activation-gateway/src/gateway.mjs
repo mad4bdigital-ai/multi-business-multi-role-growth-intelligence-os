@@ -222,11 +222,11 @@ function resolveOAuthHandoff(index, method, pathname) {
   return index.get(routeKey(method, pathname)) || null;
 }
 
-function forwardedRequestHeaders(request, policy, requestId) {
+function forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie = false } = {}) {
   const headers = new Headers();
   for (const [name, value] of request.headers.entries()) {
     const lower = name.toLowerCase();
-    if (REQUEST_HEADER_ALLOWLIST.has(lower)) headers.set(lower, value);
+    if (REQUEST_HEADER_ALLOWLIST.has(lower) || (allowOauthSessionCookie && lower === "cookie")) headers.set(lower, value);
   }
   headers.set("x-request-id", requestId);
   headers.set("x-forwarded-host", policy.public_host);
@@ -235,10 +235,11 @@ function forwardedRequestHeaders(request, policy, requestId) {
   return headers;
 }
 
-function filteredResponseHeaders(response, requestId, policy) {
+function filteredResponseHeaders(response, requestId, policy, { allowOauthSessionCookie = false } = {}) {
   const headers = new Headers();
   for (const [name, value] of response.headers.entries()) {
-    if (RESPONSE_HEADER_ALLOWLIST.has(name.toLowerCase())) headers.set(name, value);
+    const lower = name.toLowerCase();
+    if (RESPONSE_HEADER_ALLOWLIST.has(lower) || (allowOauthSessionCookie && lower === "set-cookie")) headers.set(name, value);
   }
   if (!headers.has("cache-control")) headers.set("cache-control", "no-store");
   headers.set("x-content-type-options", "nosniff");
@@ -381,7 +382,7 @@ export function createActivationGateway({
         try {
           upstream = await fetchImpl(target, {
             method: request.method,
-            headers: forwardedRequestHeaders(request, policy, requestId),
+            headers: forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie: true }),
             body,
             redirect: "manual",
             signal: controller.signal,
@@ -396,10 +397,10 @@ export function createActivationGateway({
         }
         const responseBody = await boundedResponseBody(upstream, Number(oauthHandoff.response_body_limit_bytes));
         status = upstream.status;
-        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy) });
+        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy, { allowOauthSessionCookie: true }) });
       }
-
       const { route, allowedMethods } = resolveRoute(indexes, request.method, url.pathname);
+
       if (!route) {
         if (allowedMethods.size > 0) {
           status = 405;

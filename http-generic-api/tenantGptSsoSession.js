@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+import { randomUUID } from "node:crypto";
+import { getPool } from "./db.js";
 
 export const TENANT_GPT_SSO_SESSION_COOKIE = "mad4b_tenant_gpt_sso";
 export const TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -49,8 +51,13 @@ function normalizeScopes(value) {
 
 function requireSecret(jwtSecret) {
   const secret = String(jwtSecret || "");
-  if (secret.length < 16) throw sessionError("tenant_gpt_sso_session_secret_invalid", "A signing secret is required for the Tenant GPT SSO session.");
+  if (secret.length < 32) throw sessionError("tenant_gpt_sso_session_secret_invalid", "A signing secret with at least 32 characters is required for the Tenant GPT SSO session.");
   return secret;
+}
+
+function sessionId(value) {
+  const sid = text(value, 128);
+  return sid && /^[A-Za-z0-9_-]{16,128}$/u.test(sid) ? sid : "";
 }
 
 export function issueTenantGptSsoSession({
@@ -62,16 +69,19 @@ export function issueTenantGptSsoSession({
   jwtSecret,
   ttlSeconds,
   nowSeconds,
+  sid,
 } = {}) {
   const userId = text(user_id, 64);
   const tenantId = text(tenant_id, 64);
   const clientId = text(client_id, 191);
-  if (!userId || !tenantId || !clientId) throw sessionError("tenant_gpt_sso_session_claims_invalid", "Tenant GPT SSO session requires user_id, tenant_id, and client_id.");
+  const resolvedSid = sessionId(sid) || randomUUID();
+  if (!userId || !tenantId || !clientId || !resolvedSid) throw sessionError("tenant_gpt_sso_session_claims_invalid", "Tenant GPT SSO session requires user_id, tenant_id, client_id, and sid.");
   const ttl = ttlSeconds === undefined ? TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS : validateTenantGptSsoSessionTtlSeconds(ttlSeconds);
   const issuedAt = finiteInteger(nowSeconds) ?? Math.floor(Date.now() / 1000);
   return jwt.sign({
     purpose: TENANT_GPT_SSO_SESSION_PURPOSE,
     version: 1,
+    sid: resolvedSid,
     user_id: userId,
     tenant_id: tenantId,
     email: text(email, 255) || null,
@@ -85,6 +95,7 @@ export function verifyTenantGptSsoSession(value, {
   jwtSecret,
   expectedClientId,
   nowSeconds,
+  revokedSessionIds,
 } = {}) {
   const token = text(value, 8192);
   if (!token) return { ok: false, code: "session_missing" };
@@ -96,12 +107,18 @@ export function verifyTenantGptSsoSession(value, {
     const userId = text(claims.user_id, 64);
     const tenantId = text(claims.tenant_id, 64);
     const clientId = text(claims.client_id, 191);
-    if (!userId || !tenantId || !clientId) return { ok: false, code: "session_claims_invalid" };
+    const sid = sessionId(claims.sid);
+    if (!userId || !tenantId || !clientId || !sid) return { ok: false, code: "session_claims_invalid" };
     if (expectedClientId && clientId !== text(expectedClientId, 191)) return { ok: false, code: "session_client_mismatch" };
+    const revoked = revokedSessionIds instanceof Set
+      ? revokedSessionIds.has(sid)
+      : Array.isArray(revokedSessionIds) && revokedSessionIds.includes(sid);
+    if (revoked) return { ok: false, code: "session_revoked" };
     return {
       ok: true,
       claims: {
         ...claims,
+        sid,
         user_id: userId,
         tenant_id: tenantId,
         client_id: clientId,
@@ -111,6 +128,53 @@ export function verifyTenantGptSsoSession(value, {
   } catch (error) {
     return { ok: false, code: error?.name === "TokenExpiredError" ? "session_expired" : "session_invalid" };
   }
+}
+
+export async function persistTenantGptSsoSession({ pool = getPool(), claims, expiresAt } = {}) {
+  const sid = sessionId(claims?.sid);
+  if (!sid || !claims?.user_id || !claims?.tenant_id || !claims?.client_id) throw sessionError("tenant_gpt_sso_session_claims_invalid", "Persistent Tenant GPT SSO session claims are incomplete.");
+  await pool.query(
+    `INSERT INTO tenant_gpt_sso_sessions
+      (sid, user_id, tenant_id, client_id, scopes_json, status, issued_at, expires_at)
+     VALUES (?, ?, ?, ?, ?, 'active', FROM_UNIXTIME(?), ?)
+     ON DUPLICATE KEY UPDATE status = 'active', expires_at = VALUES(expires_at), scopes_json = VALUES(scopes_json)`,
+    [sid, claims.user_id, claims.tenant_id, claims.client_id, JSON.stringify(normalizeScopes(claims.scopes)), Number(claims.iat || Math.floor(Date.now() / 1000)), expiresAt || new Date(Number(claims.exp || 0) * 1000)],
+  );
+  return { ok: true, sid };
+}
+
+export async function isTenantGptSsoSessionActive({ pool = getPool(), sid } = {}) {
+  const normalizedSid = sessionId(sid);
+  if (!normalizedSid) return { ok: false, active: false, code: "session_sid_invalid" };
+  try {
+    const [rows] = await pool.query(
+      `SELECT sid FROM tenant_gpt_sso_sessions WHERE sid = ? AND status = 'active' AND expires_at > NOW() LIMIT 1`,
+      [normalizedSid],
+    );
+    return { ok: true, active: Boolean(rows?.[0]?.sid), sid: normalizedSid };
+  } catch {
+    return { ok: false, active: false, code: "session_revocation_store_unavailable", sid: normalizedSid };
+  }
+}
+
+export async function revokeTenantGptSsoSessionBySid({ pool = getPool(), sid } = {}) {
+  const normalizedSid = sessionId(sid);
+  if (!normalizedSid) return false;
+  const [result] = await pool.query(
+    `UPDATE tenant_gpt_sso_sessions SET status = 'revoked', revoked_at = NOW() WHERE sid = ? AND status = 'active'`,
+    [normalizedSid],
+  );
+  return Number(result?.affectedRows || 0) > 0;
+}
+
+export async function revokeTenantGptSsoSessionsForUser({ pool = getPool(), userId } = {}) {
+  const normalizedUserId = text(userId, 64);
+  if (!normalizedUserId) return 0;
+  const [result] = await pool.query(
+    `UPDATE tenant_gpt_sso_sessions SET status = 'revoked', revoked_at = NOW() WHERE user_id = ? AND status = 'active'`,
+    [normalizedUserId],
+  );
+  return Number(result?.affectedRows || 0);
 }
 
 export function parseTenantGptSsoCookie(cookieHeader) {
@@ -133,3 +197,5 @@ export function buildTenantGptSsoCookieHeader(token, { ttlSeconds } = {}) {
 export function buildTenantGptSsoClearCookieHeader() {
   return `${TENANT_GPT_SSO_SESSION_COOKIE}=; Max-Age=0; Domain=.mad4b.com; Path=/; HttpOnly; Secure; SameSite=Lax`;
 }
+
+export { sessionId };

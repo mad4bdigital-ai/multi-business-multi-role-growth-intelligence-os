@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
   TENANT_GPT_SSO_SESSION_COOKIE,
+  isTenantGptSsoSessionActive,
   TENANT_GPT_SSO_SESSION_DEFAULT_TTL_SECONDS,
   TENANT_GPT_SSO_SESSION_MAX_TTL_SECONDS,
   buildTenantGptSsoClearCookieHeader,
@@ -34,6 +35,10 @@ const verified = verifyTenantGptSsoSession(token, { jwtSecret, expectedClientId:
 assert.equal(verified.ok, true);
 assert.deepEqual(verified.claims.scopes, ["tenant.links", "tenant.status"]);
 assert.equal(verified.claims.tenant_id, input.tenant_id);
+assert.match(verified.claims.sid, /^[A-Za-z0-9_-]{16,128}$/u);
+assert.equal(verifyTenantGptSsoSession(token, { jwtSecret, nowSeconds: input.nowSeconds + 10, revokedSessionIds: new Set([verified.claims.sid]) }).code, "session_revoked");
+assert.equal((await isTenantGptSsoSessionActive({ sid: verified.claims.sid, pool: { query: async () => [[{ sid: verified.claims.sid }]] } })).active, true);
+assert.equal((await isTenantGptSsoSessionActive({ sid: verified.claims.sid, pool: { query: async () => { throw new Error("missing table"); } } })).code, "session_revocation_store_unavailable");
 assert.equal(verifyTenantGptSsoSession(token, { jwtSecret, expectedClientId: "other-client" }).ok, false);
 assert.equal(verifyTenantGptSsoSession(token, { jwtSecret: "wrong-secret" }).ok, false);
 
@@ -48,9 +53,14 @@ assert.match(buildTenantGptSsoClearCookieHeader(), /Max-Age=0/iu);
 const authRoutes = readFileSync("./routes/authRoutes.js", "utf8");
 const ssoModule = readFileSync("./tenantGptSsoSession.js", "utf8");
 assert.match(authRoutes, /parseTenantGptSsoCookie/u);
-assert.match(authRoutes, /expectedClientId: resourceProfile\.client_id/u);
+assert.match(authRoutes, /expectedClientId/u);
+assert.match(authRoutes, /reusableSsoSession/u);
+assert.match(authRoutes, /router\.post\("\/oauth\/revoke"/u);
+assert.match(authRoutes, /revokeSsoSessionsForUser/u);
 assert.match(authRoutes, /req\.query\.prompt !== "login"/u);
 assert.match(ssoModule, /Domain=\.mad4b\.com/u);
+assert.match(ssoModule, /sid: resolvedSid/u);
+assert.match(ssoModule, /tenant_gpt_sso_sessions/u);
 assert.doesNotMatch(authRoutes, /USER_TOKEN_TTL_SECONDS\s*\*\s*1000[\s\S]{0,200}issueTenantGptSsoSession/u);
 
 console.log("Tenant GPT SSO session tests passed.");

@@ -7,6 +7,56 @@ export function tenantGptRefreshTokensEnabled(env = process.env) {
   return String(env?.TENANT_GPT_REFRESH_TOKENS_ENABLED || "").trim().toLowerCase() === "true";
 }
 
+export async function tenantGptRefreshReady(env = process.env, pool = getPool()) {
+  const enabled = tenantGptRefreshTokensEnabled(env);
+  const secretReady = String(env?.JWT_SECRET || "").trim().length >= 32;
+  if (!enabled) return { ready: false, enabled: false, migration_present: false, secret_ready: secretReady, transaction_probe_ready: false, reason: "flag_disabled" };
+  if (!secretReady) return { ready: false, enabled: true, migration_present: false, secret_ready: false, transaction_probe_ready: false, reason: "jwt_secret_unavailable" };
+  if (!pool || typeof pool.query !== "function") {
+    return { ready: false, enabled: true, migration_present: false, secret_ready: true, transaction_probe_ready: false, reason: "pool_unavailable" };
+  }
+  try {
+    const [rows] = await pool.query(
+      `SELECT 1 AS present
+         FROM information_schema.tables
+        WHERE table_schema = DATABASE()
+          AND table_name = 'tenant_gpt_oauth_grants'
+        LIMIT 1`,
+    );
+    const migrationPresent = Boolean(rows?.[0]?.present);
+    let transactionProbeReady = false;
+    if (pool.getConnection) {
+      const connection = await pool.getConnection();
+      try {
+        await connection.beginTransaction();
+        await connection.rollback();
+        transactionProbeReady = true;
+      } finally {
+        connection.release();
+      }
+    } else {
+      transactionProbeReady = true;
+    }
+    return {
+      ready: migrationPresent && transactionProbeReady,
+      enabled: true,
+      migration_present: migrationPresent,
+      secret_ready: true,
+      transaction_probe_ready: transactionProbeReady,
+      reason: migrationPresent && transactionProbeReady ? "ready" : "migration_or_transaction_not_ready",
+    };
+  } catch (error) {
+    return {
+      ready: false,
+      enabled: true,
+      migration_present: false,
+      secret_ready: secretReady,
+      transaction_probe_ready: false,
+      reason: String(error?.code || "readiness_check_failed").slice(0, 64),
+    };
+  }
+}
+
 function sha256(value) {
   return createHash("sha256").update(String(value || ""), "utf8").digest("hex");
 }
@@ -89,7 +139,10 @@ export async function rotateTenantGptOAuthGrant({
   try {
     if (transactional) await connection.beginTransaction();
     const current = await readTenantGptOAuthGrantByRefreshToken(refreshToken, { pool: connection });
-    if (!current) return null;
+    if (!current) {
+      if (transactional) await connection.rollback();
+      return null;
+    }
     const next = await createTenantGptOAuthGrant({
       pool: connection,
       accessJti,

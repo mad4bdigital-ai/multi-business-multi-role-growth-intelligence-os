@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,737 |
-| Total bytes | 61,036,370 |
-| Counted text lines | 1,436,949 |
+| Tracked files | 6,743 |
+| Total bytes | 61,181,399 |
+| Counted text lines | 1,439,441 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,026 |
+| `tests-and-specs` | 2,028 |
 | `documentation` | 1,858 |
-| `api-runtime` | 1,341 |
-| `database-migrations` | 768 |
+| `api-runtime` | 1,343 |
+| `database-migrations` | 769 |
 | `root-and-other` | 229 |
 | `ci-workflows` | 152 |
-| `api-contracts` | 147 |
+| `api-contracts` | 148 |
 | `ci-config` | 94 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,10 +35,10 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,461 |
-| `.mjs` | 1,540 |
-| `.js` | 939 |
-| `.sql` | 783 |
+| `.md` | 2,462 |
+| `.mjs` | 1,542 |
+| `.js` | 941 |
+| `.sql` | 784 |
 | `.json` | 677 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
@@ -70,9 +70,9 @@ This report is generated deterministically from the Git index. It is intentional
 | Surface | Count |
 |---|---:|
 | GitHub Actions workflows | 152 |
-| Database migrations | 768 |
-| API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,089 |
+| Database migrations | 769 |
+| API/OpenAPI contracts | 148 |
+| Test/spec files (paths) | 2,091 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -88,7 +88,7 @@ This report is generated deterministically from the Git index. It is intentional
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
 | `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,920,239 | 58056 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,922,440 | 58125 |
 | `http-generic-api/openapi.yaml` | api-contracts | 982,699 | 22796 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
@@ -100,6 +100,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 145,911 | 1339 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 140,472 | 3795 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
@@ -107,10 +108,9 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
+| `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 111,485 | 3393 |
 | `deployment_parity_checklist.md` | documentation | 109,207 | 571 |
 | `http-generic-api/server.js` | api-runtime | 107,240 | 3308 |
-| `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 105,919 | 3292 |
 | `http-generic-api/routes/systemLayerRoutes.js` | api-runtime | 103,931 | 2644 |
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |
 | `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |

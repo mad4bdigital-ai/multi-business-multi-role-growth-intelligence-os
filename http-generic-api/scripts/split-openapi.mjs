@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import YAML from "yaml";
 import { assertOpenApiResponseObjects } from "./openapi-response-object-guard.mjs";
@@ -11,6 +12,8 @@ const SOURCE_OPENAPI_FILE = path.join(API_ROOT, "openapi.yaml");
 const SURFACE_REGISTRY_FILE = path.join(REPO_ROOT, "canonicals", "openapi", "custom-gpt-surfaces.yaml");
 const METHOD_NAMES = new Set(["get", "post", "put", "delete", "patch", "options", "head", "trace"]);
 const DESCRIPTION_LIMIT = 300;
+const SOURCE_OPENAPI_SHA256 = createHash("sha256").update(fs.readFileSync(SOURCE_OPENAPI_FILE, "utf8")).digest("hex");
+const SURFACE_REGISTRY_SHA256 = createHash("sha256").update(fs.readFileSync(SURFACE_REGISTRY_FILE, "utf8")).digest("hex");
 
 function cliValue(name) {
   const inline = process.argv.find((arg) => String(arg).startsWith(`${name}=`));
@@ -268,7 +271,61 @@ function selectCoverageOperations(sourceOperations, surfaceKey, surface) {
   return selected;
 }
 
+function validateCandidatePolicy(sourceOperations, surfaceKey, surface) {
+  const policy = surface.candidate_policy;
+  if (!policy || policy.mode !== "marker_required" || policy.omission !== "fail") {
+    throw new Error(`${surfaceKey}: candidate_policy must use marker_required mode with omission=fail`);
+  }
+  const requiredMarker = String(policy.required_marker || "").trim();
+  const candidateTags = new Set(Array.isArray(policy.candidate_tags) ? policy.candidate_tags.map((tag) => String(tag).trim()).filter(Boolean) : []);
+  const sourceMarkers = new Set(surface.selector?.source_markers || []);
+  if (!requiredMarker || !sourceMarkers.has(requiredMarker)) {
+    throw new Error(`${surfaceKey}: candidate_policy.required_marker must be present in selector.source_markers`);
+  }
+  if (candidateTags.size === 0) throw new Error(`${surfaceKey}: candidate_policy.candidate_tags must be non-empty`);
+  if (!Array.isArray(policy.exclusion_records)) throw new Error(`${surfaceKey}: candidate_policy.exclusion_records must be an array`);
+  const exclusions = new Map();
+  for (const exclusion of policy.exclusion_records) {
+    if (!exclusion?.operation_id || !exclusion?.reason || !exclusion?.owner || !exclusion?.review_after) {
+      throw new Error(`${surfaceKey}: every candidate exclusion record requires operation_id, reason, owner, and review_after`);
+    }
+    if (exclusions.has(exclusion.operation_id)) throw new Error(`${surfaceKey}: duplicate candidate exclusion ${exclusion.operation_id}`);
+    exclusions.set(exclusion.operation_id, exclusion);
+  }
+  const candidates = sourceOperations.filter((entry) => (entry.operation?.tags || []).some((tag) => candidateTags.has(tag)));
+  if (candidates.length === 0) throw new Error(`${surfaceKey}: candidate policy tags have no source candidates`);
+  const unresolved = candidates.filter((entry) => {
+    const operationId = entry.operation?.operationId;
+    return !(entry.operation?.["x-custom-gpt-surfaces"] || []).includes(requiredMarker) && !exclusions.has(operationId);
+  });
+  if (unresolved.length > 0) {
+    throw new Error(`${surfaceKey}: unmapped candidates: ${unresolved.map((entry) => entry.operation?.operationId).join(", ")}`);
+  }
+  const invalidExclusions = [...exclusions.keys()].filter((operationId) => !candidates.some((entry) => entry.operation?.operationId === operationId));
+  if (invalidExclusions.length > 0) throw new Error(`${surfaceKey}: exclusions are not candidates: ${invalidExclusions.join(", ")}`);
+  const marked = sourceOperations.filter((entry) => (entry.operation?.["x-custom-gpt-surfaces"] || []).includes(requiredMarker));
+  if (marked.length === 0) throw new Error(`${surfaceKey}: candidate policy marker has no source candidates`);
+}
+
+function validateMarkerOverlapAllowlist(sourceOperations, registry) {
+  const allowlist = new Set(Array.isArray(registry.shared_surface_allowlist) ? registry.shared_surface_allowlist : []);
+  const overlaps = [];
+  for (const entry of sourceOperations) {
+    const markers = Array.isArray(entry.operation?.["x-custom-gpt-surfaces"]) ? entry.operation["x-custom-gpt-surfaces"] : [];
+    if (markers.length <= 1) continue;
+    const operationId = entry.operation?.operationId || tenantOperationId(entry.operation);
+    overlaps.push(operationId);
+    if (!allowlist.has(operationId)) {
+      throw new Error(`Marker overlap is not allowlisted: ${operationId}`);
+    }
+  }
+  for (const operationId of allowlist) {
+    if (!overlaps.includes(operationId)) throw new Error(`Shared surface allowlist entry has no marker overlap: ${operationId}`);
+  }
+}
+
 function validateSourceMarkerCoverage(sourceOperations, surfaceKey, surface) {
+  validateCandidatePolicy(sourceOperations, surfaceKey, surface);
   const markers = new Set(surface.selector?.source_markers || []);
   if (!markers.size) return;
   if (!markers.has(surfaceKey)) throw new Error(`${surfaceKey}: source_markers must include the surface key`);
@@ -360,7 +417,7 @@ function applySecurityProfile(doc, sourceDoc, surface) {
   throw new Error(`Unsupported generated auth profile: ${surface.auth_profile}`);
 }
 
-function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
+function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface, registry) {
   const paths = {};
   for (const entry of selectedOperations) {
     if (!paths[entry.pathKey]) {
@@ -378,6 +435,23 @@ function buildSurfaceDoc(sourceDoc, selectedOperations, surfaceKey, surface) {
     description: surface.info?.description || `Generated from ${path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE)} and ${path.relative(REPO_ROOT, SURFACE_REGISTRY_FILE)}.`,
   };
   doc.servers = [{ url: surface.server_url, description: `${surfaceKey} surface` }];
+  const operationCount = selectedOperations.length;
+  const warningLimit = Number(surface.warning_operation_limit || surface.hard_operation_limit || 30);
+  doc["x-custom-gpt-generation"] = {
+    generator: "http-generic-api/scripts/split-openapi.mjs",
+    source_openapi: path.relative(REPO_ROOT, SOURCE_OPENAPI_FILE),
+    source_openapi_sha256: SOURCE_OPENAPI_SHA256,
+    registry_file: path.relative(REPO_ROOT, SURFACE_REGISTRY_FILE),
+    registry_sha256: SURFACE_REGISTRY_SHA256,
+    registry_version: Number(registry.version || 1),
+    selector_model: surface.candidate_policy?.mode || "unspecified",
+    candidate_policy: surface.candidate_policy || null,
+    operation_count: operationCount,
+    warning_operation_limit: warningLimit,
+    warning_budget_exceeded: operationCount > warningLimit,
+    hard_operation_limit: Number(surface.hard_operation_limit || 30),
+    secrets_included: false,
+  };
   doc.paths = paths;
   doc.tags = collectTags(paths, sourceDoc.tags || []);
   delete doc["x-tenant-gpt-auth"];
@@ -415,11 +489,12 @@ function validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface) {
 }
 
 function generateConfiguredSurfaces(sourceDoc, sourceOperations, registry) {
+  validateMarkerOverlapAllowlist(sourceOperations, registry);
   const generated = [];
   for (const [surfaceKey, surface] of Object.entries(registry.surfaces || {})) {
     if (surface.mode !== "generated_from_openapi") continue;
     const selected = selectOperations(sourceOperations, surfaceKey, surface);
-    const doc = buildSurfaceDoc(sourceDoc, selected, surfaceKey, surface);
+    const doc = buildSurfaceDoc(sourceDoc, selected, surfaceKey, surface, registry);
     const count = validateGeneratedDoc(doc, sourceDoc, surfaceKey, surface);
     const target = outputPath(surface.output_file);
     fs.writeFileSync(target, YAML.stringify(doc, { lineWidth: -1, aliasDuplicateObjects: false }), "utf8");

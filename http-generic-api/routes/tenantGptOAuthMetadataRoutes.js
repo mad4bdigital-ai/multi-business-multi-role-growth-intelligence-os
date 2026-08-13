@@ -24,7 +24,7 @@ import {
   buildTenantGptOAuthTokenRequestBindingGuard,
 } from "../tenantGptOAuthTokenExchangeBindingGuard.js";
 import { buildTenantGptOAuthTokenExchangeRoutes } from "./tenantGptOAuthTokenExchangeRoutes.js";
-import { tenantGptRefreshTokensEnabled } from "../tenantGptOAuthGrantStore.js";
+import { tenantGptRefreshReady } from "../tenantGptOAuthGrantStore.js";
 
 function resourceHost(resource) {
   try {
@@ -96,16 +96,26 @@ export function buildTenantGptOAuthMetadataRoutes(deps = {}) {
 
   // Existing Tenant GPT/Activation authorization-server metadata remains
   // unchanged for backwards compatibility.
-  router.get("/.well-known/oauth-authorization-server", (_req, res) => {
+  router.get("/.well-known/oauth-authorization-server", async (_req, res) => {
+    const refreshReady = await tenantGptRefreshReady(env, typeof deps.getPool === "function" ? deps.getPool() : null);
     res.status(200).json({
       issuer: TENANT_GPT_AUTHORIZATION_SERVER,
       authorization_endpoint: "https://auth.mad4b.com/auth/oauth/authorize",
       token_endpoint: "https://auth.mad4b.com/auth/oauth/token",
       response_types_supported: ["code"],
-      grant_types_supported: ["authorization_code", ...(tenantGptRefreshTokensEnabled(env) ? ["refresh_token"] : [])],
+      grant_types_supported: ["authorization_code", ...(refreshReady.ready ? ["refresh_token"] : [])],
       token_endpoint_auth_methods_supported: ["client_secret_basic", "client_secret_post"],
       scopes_supported: TENANT_GPT_SCOPE_LINKS,
       resource_parameter_supported: true,
+      refresh_ready: refreshReady.ready,
+      refresh_readiness: {
+        enabled: refreshReady.enabled,
+        migration_present: refreshReady.migration_present,
+        secret_ready: refreshReady.secret_ready === true,
+        transaction_probe_ready: refreshReady.transaction_probe_ready === true,
+        reason: refreshReady.reason,
+        secrets_included: false,
+      },
     });
   });
 
