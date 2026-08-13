@@ -92,7 +92,7 @@
           "terminal_outcome": "The guard reads the current exact main SHA, cancels only outdated governed promotion runs, marks only stale governed release PRs with auditable evidence, and leaves ordinary development branches and unrelated PRs untouched. A required read-only Production source-pin gate then prevents any stale release surface from becoming merge-eligible.",
           "steps": [
             "Read back the current main ref and require the workflow event to be a main push or an explicitly pinned guard dispatch.",
-            "List only in-progress governed promotion and candidate-validation runs bound to obsolete source pins and cancel those runs.",
+            "List only in-progress governed promotion and candidate-validation runs bound to obsolete source pins, parse API JSON through jq outside the GitHub CLI, and cancel those runs.",
             "Inspect only governed release PRs targeting Production through the immutable promotion marker, extract their pinned main SHA, and mark only stale candidates without closing them automatically.",
             "Require the read-only Production source-pin gate to compare the release pin and candidate tree against the live main and Production refs before merge eligibility.",
             "Publish a structured evidence artifact that records canceled runs and marked stale release PRs without secrets or external provider/database mutations.",
@@ -100,6 +100,7 @@
           ],
           "assertions": [
             "The guard runs automatically on every push to main.",
+            "Run-selection filters pass dynamic values to jq through a JSON pipe rather than unsupported gh api jq argument flags.",
             "The guard never closes ordinary development PRs, touches Spec 015, merges Production, deploys, runs migrations, grants privileges, reads credential payloads, or calls providers.",
             "A candidate with a stale main or Production pin cannot pass the required source-pin gate and therefore cannot remain an eligible governed release surface.",
             "secrets_included is false."
