@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6722,
-    "bytes": 59017578,
-    "lines": 1377165,
+    "bytes": 59019103,
+    "lines": 1377181,
     "directories": 255,
     "categories": 13
   },
@@ -9589,9 +9589,9 @@
       "path": ".github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 22105,
-      "lines": 381,
-      "sha256": "bc18baf03919e326bbf3cf56166a2de96248b166f2a9fe0f47973462546d3feb",
+      "bytes": 23036,
+      "lines": 392,
+      "sha256": "48eb710e8d158bf792f187b3008c71eca00d389f38c8d62aebf2973f7b2a9ef0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31393,7 +31393,7 @@
       "extension": ".md",
       "bytes": 4206,
       "lines": 43,
-      "sha256": "142e4718fb1351299ea1237d77778c3824f1106d71243d14512a0825520aabe1",
+      "sha256": "62d5c928b06fbcc77aa4dcedc9d616ac1ab3e46870fa5817fe7b1688be435785",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31558,7 +31558,7 @@
       "extension": ".md",
       "bytes": 45468,
       "lines": 487,
-      "sha256": "4c7b6611124f5c1724eccaa36ff76da8611f2380dded7586a93101ee1d5857ac",
+      "sha256": "de8e2a1f56e5b433988f4a0e2adb5d8c66354645d6f745fe9886e0787bb91d78",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -60948,9 +60948,9 @@
       "path": "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7003,
-      "lines": 78,
-      "sha256": "7704e62ce1145197429d30f484267e1a5c45c9ef4e3573a7b549c4338f329cb1",
+      "bytes": 7597,
+      "lines": 83,
+      "sha256": "a487f9e389267952d882014b5b41f8146207d014c04bacb0596c0bdf180ae993",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77252,7 +77252,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "5c992ba8d824410b22a0c4bd42c5068eee36d2d9ff68d493c76d124a6132eba7",
+      "sha256": "b2a97e4c082399d8ebfe29141d035be6f3667ad7a5526a53adf5960d4ff6a611",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77813,7 +77813,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "9fbd56c9a80cc5283316c00bda651a3c9e0f6eec752b307424ccc7fa9c771da8",
+      "sha256": "2906a11a708713b3bd214af29425fdc7ff6ff3d0a66f430abbb702b4580d346a",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78638,7 +78638,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "a42e9d73d4bea183b7dc1bde0823f255309eb7a68772244aab30f9c062b889ef",
+      "sha256": "7f5f67081d2c4d25bf19d78c7efb6dc823d1fe4156f13405286b345541419633",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78869,7 +78869,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "06dd7594c6e79cbdb29bfcf902d4082e6ee25da0817cfa256c76b0d829e5a1f7",
+      "sha256": "2259cd248294689adff37d2a79290e6e0c908c9668b8470faa68b2521a61535f",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79188,7 +79188,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "ea78a0bed47582ecf76dd24caf953bd23717ff4531e9ad49dccb35a3dda4eb1f",
+      "sha256": "2c771969c02b43ea8109ade97fa6bbb4277fc0b101fac651ff11112a3190f3d3",
       "mode": "644",
       "executable": false,
       "generated": false
