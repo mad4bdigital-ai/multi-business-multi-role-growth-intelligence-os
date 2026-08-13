@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,668 |
-| Total bytes | 58,718,786 |
-| Counted text lines | 1,370,578 |
+| Tracked files | 6,671 |
+| Total bytes | 58,734,439 |
+| Counted text lines | 1,370,950 |
 | Directories | 251 |
 | Categories | 13 |
 
@@ -17,9 +17,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 1,987 |
+| `tests-and-specs` | 1,988 |
 | `documentation` | 1,853 |
-| `api-runtime` | 1,323 |
+| `api-runtime` | 1,325 |
 | `database-migrations` | 767 |
 | `root-and-other` | 223 |
 | `ci-workflows` | 152 |
@@ -36,10 +36,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Extension | Files |
 |---|---:|
 | `.md` | 2,438 |
-| `.mjs` | 1,528 |
-| `.js` | 928 |
+| `.mjs` | 1,529 |
+| `.js` | 929 |
 | `.sql` | 782 |
-| `.json` | 656 |
+| `.json` | 657 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -72,7 +72,7 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 152 |
 | Database migrations | 767 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,050 |
+| Test/spec files (paths) | 2,051 |
 | package.json manifests | 2 |
 
 ## Package manifests
@@ -87,20 +87,20 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,158,811 | 97001 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,158,809 | 97001 |
 | `http-generic-api/openapi.yaml` | api-contracts | 979,336 | 22721 |
 | `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 328,113 | 8552 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 203,883 | 4369 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 204,161 | 4371 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 145,911 | 1339 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
-| `http-generic-api/releaseReadiness.js` | api-runtime | 134,992 | 2591 |
+| `http-generic-api/releaseReadiness.js` | api-runtime | 134,744 | 2589 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
 | `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
@@ -108,7 +108,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,202 | 2722 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
 | `deployment_parity_checklist.md` | documentation | 109,207 | 571 |
-| `http-generic-api/server.js` | api-runtime | 107,153 | 3307 |
+| `http-generic-api/server.js` | api-runtime | 107,235 | 3308 |
 | `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 105,919 | 3292 |
 | `http-generic-api/routes/systemLayerRoutes.js` | api-runtime | 103,931 | 2644 |
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |

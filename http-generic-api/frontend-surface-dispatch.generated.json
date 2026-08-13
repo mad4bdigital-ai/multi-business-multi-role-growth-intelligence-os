@@ -1,8 +1,8 @@
 {
   "schema_version": "frontend-surface-dispatch-v1",
   "baseline": {
-    "ref": "main",
-    "source_digest": "2b145636770b3d55858eef13482fbfe1cd3f83e3ad947a5ef9e3cd9f405e0dfa",
+    "ref": null,
+    "source_digest": "756aa0f0637d8a835c7a3e3eb608811f403ffef58068a68ac225b4a3233a10af",
     "authority": [
       {
         "file": "../canonicals/openapi/custom-gpt-surfaces.yaml",
@@ -596,7 +596,7 @@
       },
       {
         "file": "routes/gptToolsRoutes.js",
-        "sha256": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+        "sha256": "e5dca5a82d5b4783960484331b0157a74fcc550969f973240b3ed16fb5620e5e",
         "present": true
       },
       {
@@ -651,7 +651,7 @@
       },
       {
         "file": "routes/localGatewayToolsRoutes.js",
-        "sha256": "dda55c32b77e18239f78b33e6f764856a7b5b2c2e399f9492ad070b8d70b17dd",
+        "sha256": "b46544e05068f4005f94a30f2a0a99a216a358187fbec2092d522ff5accb3bfd",
         "present": true
       },
       {
@@ -44353,7 +44353,7 @@
       "family_key": "gpt-tools",
       "label": "gpt tools",
       "source_file": "routes/gptToolsRoutes.js",
-      "source_digest": "db79bad567912b25e7e95e09281998a1b05bd5c4ed8ef7ac3600e1bfa3dfab97",
+      "source_digest": "e5dca5a82d5b4783960484331b0157a74fcc550969f973240b3ed16fb5620e5e",
       "mount_prefix": "/",
       "mount_order": 17495,
       "split_from_mixed_scope_file": false,
@@ -86118,7 +86118,7 @@
       "family_key": "local-gateway-tools",
       "label": "local gateway tools",
       "source_file": "routes/localGatewayToolsRoutes.js",
-      "source_digest": "dda55c32b77e18239f78b33e6f764856a7b5b2c2e399f9492ad070b8d70b17dd",
+      "source_digest": "b46544e05068f4005f94a30f2a0a99a216a358187fbec2092d522ff5accb3bfd",
       "mount_prefix": "/",
       "mount_order": 22017,
       "split_from_mixed_scope_file": false,

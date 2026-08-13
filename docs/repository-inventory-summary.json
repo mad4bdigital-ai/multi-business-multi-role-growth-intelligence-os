@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6668,
-    "bytes": 58718786,
-    "lines": 1370578,
+    "files": 6671,
+    "bytes": 58734439,
+    "lines": 1370950,
     "directories": 251,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 1987,
+      "tests-and-specs": 1988,
       "documentation": 1853,
-      "api-runtime": 1323,
+      "api-runtime": 1325,
       "database-migrations": 767,
       "root-and-other": 223,
       "ci-workflows": 152,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2438,
-      ".mjs": 1528,
-      ".js": 928,
+      ".mjs": 1529,
+      ".js": 929,
       ".sql": 782,
-      ".json": 656,
+      ".json": 657,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3429,
+      "http-generic-api": 3432,
       "docs": 1759,
       "specs": 809,
       ".github": 246,
@@ -205,7 +205,7 @@
     "workflows": 152,
     "migrations": 767,
     "apiContracts": 147,
-    "testSpecFiles": 2050
+    "testSpecFiles": 2051
   },
   "largestFiles": [
     {
@@ -217,7 +217,7 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3158811,
+      "bytes": 3158809,
       "lines": 97001
     },
     {
@@ -259,8 +259,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 203883,
-      "lines": 4369
+      "bytes": 204161,
+      "lines": 4371
     },
     {
       "path": "http-generic-api/supportTicketService.js",
@@ -295,8 +295,8 @@
     {
       "path": "http-generic-api/releaseReadiness.js",
       "category": "api-runtime",
-      "bytes": 134992,
-      "lines": 2591
+      "bytes": 134744,
+      "lines": 2589
     },
     {
       "path": "schemas/operations.schema.json",

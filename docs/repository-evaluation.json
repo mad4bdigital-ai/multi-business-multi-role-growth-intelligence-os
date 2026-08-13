@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "1743ab8ba09e7a946c0f3f7e690470b8767564a232ef0c641522d1b103ca5132",
+  "inputFingerprint": "62f00d82c2d7d3287461e5e331f8a3d0ad620e8714a4445d5ead718b0f5f03b1",
   "inventory": {
-    "files": 6668,
-    "bytes": 58718786,
+    "files": 6671,
+    "bytes": 58734439,
     "directories": 251,
     "categories": 13
   },
@@ -24,7 +24,7 @@
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6639,
+      "trackedTextFilesScanned": 6642,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
