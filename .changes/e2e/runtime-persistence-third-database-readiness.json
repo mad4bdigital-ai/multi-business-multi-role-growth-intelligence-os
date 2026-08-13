@@ -11,6 +11,7 @@
       "docs/durable-governed-response-chunks.md",
       "docs/runbooks/runtime-persistence-third-database-activation.md",
       "http-generic-api/package.json",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-runtime-persistence-operational-readiness.mjs"
@@ -77,6 +78,13 @@
               "args": []
             },
             {
+              "id": "generated-artifact-refresh-governance-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/test-generated-artifact-refresh-maintenance-tool.mjs",
+              "args": []
+            },
+            {
               "id": "production-safe-degradation-regression",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -87,6 +95,7 @@
           "evidence_paths": [
             "docs/durable-governed-response-chunks.md",
             "docs/runbooks/runtime-persistence-third-database-activation.md",
+            "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
             "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
             "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
             "http-generic-api/test-runtime-persistence-write-authority.mjs",
