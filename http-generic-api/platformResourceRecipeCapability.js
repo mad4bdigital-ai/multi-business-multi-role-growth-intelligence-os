@@ -2209,7 +2209,7 @@ async function resolvePlatformResourceAuthorityBinding(plan = {}, args = {}, mod
   if (scope.user_id) { clauses.push("(user_id IS NULL OR user_id = ?)"); params.push(scope.user_id); } else clauses.push("user_id IS NULL");
   let rows = [];
   try {
-    [rows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC LIMIT 1`, params);
+    [rows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${clauses.join(" AND ")} ORDER BY user_id IS NOT NULL DESC, workspace_id IS NOT NULL DESC, recipe_key IS NOT NULL DESC, created_at DESC`, params);
   } catch (error) {
     if (/ER_NO_SUCH_TABLE|doesn't exist/i.test(String(error?.message || ""))) return { required: true, granted: false, decision: "blocked_authority_binding_table_missing", scope, resource_type: resourceType, resource_uri: resourceUri, recipe_key: recipeKey, secrets_included: false };
     throw error;

@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6671,
-    "bytes": 58731872,
+    "bytes": 58731856,
     "lines": 1370868,
     "directories": 251,
     "categories": 13
@@ -325,7 +325,7 @@
     {
       "path": "http-generic-api/platformResourceRecipeCapability.js",
       "category": "api-runtime",
-      "bytes": 112474,
+      "bytes": 112466,
       "lines": 2727
     }
   ]

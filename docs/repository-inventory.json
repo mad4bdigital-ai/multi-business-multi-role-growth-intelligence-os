@@ -4,7 +4,7 @@
   "deterministic": true,
   "totals": {
     "files": 6671,
-    "bytes": 58731872,
+    "bytes": 58731856,
     "lines": 1370868,
     "directories": 251,
     "categories": 13
@@ -47813,9 +47813,9 @@
       "path": "http-generic-api/platformResourceRecipeCapability.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 112474,
+      "bytes": 112466,
       "lines": 2727,
-      "sha256": "24b76be30e76e8558c42ada62a74c3176082f534ffb479b7d7eeae02d0cb1537",
+      "sha256": "d9d9ee1aa3088da637658049550d55b6c11f67e8b01f618ead3b0bfc56a13cc4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48495,9 +48495,9 @@
       "path": "http-generic-api/repositoryGovernanceV6.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 91769,
+      "bytes": 91761,
       "lines": 1043,
-      "sha256": "ce3ed39639176b25c4c5161cd466e7a75ed47ff0fbbf00c1284a68d6341429db",
+      "sha256": "27de0f56c6c463f24526616498ee46da2d98f58cd4a36e803bb5ef39de2d682f",
       "mode": "644",
       "executable": false,
       "generated": false

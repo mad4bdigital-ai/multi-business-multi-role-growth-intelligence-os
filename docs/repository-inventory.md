@@ -8,7 +8,7 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,671 |
-| Total bytes | 58,731,872 |
+| Total bytes | 58,731,856 |
 | Counted text lines | 1,370,868 |
 | Directories | 251 |
 | Categories | 13 |
@@ -105,7 +105,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
 | `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
-| `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,474 | 2727 |
+| `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
 | `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 110,362 | 3289 |
 | `deployment_parity_checklist.md` | documentation | 109,207 | 571 |
 | `http-generic-api/server.js` | api-runtime | 107,153 | 3307 |
@@ -115,7 +115,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |
 | `http-generic-api/registry.js` | api-runtime | 96,496 | 2451 |
 | `http-generic-api/execution.js` | api-runtime | 93,620 | 2881 |
-| `http-generic-api/repositoryGovernanceV6.js` | api-runtime | 91,769 | 1043 |
+| `http-generic-api/repositoryGovernanceV6.js` | api-runtime | 91,761 | 1043 |
 
 ## Complete machine-readable inventory
 
