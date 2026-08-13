@@ -55,9 +55,9 @@ No `chunk_id` is returned when durable persistence fails. The route returns a st
 
 ## Runtime Persistence Write Authority
 
-Architecture decision: **use the existing `DB_USER` as the shared ordinary runtime writer (option A)**. The repository already routes a broad set of ordinary business/runtime persistence surfaces through `db.js#getPool()`. Splitting only the response chunk table into a new credential identity would create a one-table boundary without removing the shared writer from the rest of runtime persistence.
+Architecture decision: **use a dedicated `RUNTIME_PERSISTENCE_DB_*` identity backed by a separate persistence database (option A)**. The runtime already exposes `getRuntimePersistencePool()` and fails closed when the dedicated configuration is absent. Keeping durable response chunks on a third database isolates continuation payloads from the application `DB_USER` and the governance `GOVERNANCE_DB_USER`, while allowing the migration/admin identity to remain separate from the long-lived application identity.
 
-This decision does **not** mean that `DB_USER` may hold broad schema or global write authority. The response chunk lifecycle now has an explicit table-scoped contract:
+This decision does **not** require a new copy of the application database and does not authorize broad schema or global write authority. The response chunk lifecycle has an explicit table-scoped contract:
 
 | Table | Required direct operations | Used by |
 |---|---|---|
@@ -70,7 +70,7 @@ This decision does **not** mean that `DB_USER` may hold broad schema or global w
 
 Privilege metadata readiness is cached for a bounded interval and invalidated after durable query failures. The hot persist path needs `SELECT + INSERT + UPDATE`; load needs `SELECT`; TTL extension needs `UPDATE`; expiry cleanup needs `DELETE`. Cleanup now performs schema readiness and DB-authority readiness before issuing the bounded delete.
 
-This source contract does not execute `GRANT`, create a database user, change Hostinger secrets, or run Production SQL. Production privilege adjustment and readback remain separately governed operational work.
+The source contract does not execute `GRANT`, create a database user, change Hostinger secrets, or run Production SQL. Production provisioning of the third persistence database, its restricted user, migration apply, secret configuration, and readback remain separately governed operational work. The application must not fall back to `DB_USER` when `RUNTIME_PERSISTENCE_DB_*` is missing.
 
 ## SQL mutation inventory
 

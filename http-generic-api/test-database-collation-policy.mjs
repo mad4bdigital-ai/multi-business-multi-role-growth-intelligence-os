@@ -35,6 +35,26 @@ const wrongDefault = inspectMigrationCollationSql(
 assert.equal(wrongDefault.ok, false);
 assert(wrongDefault.issues.some((issue) => issue.code === "migration_default_charset_not_allowed"));
 
+const binaryTableDefault = inspectMigrationCollationSql(
+  "CREATE TABLE governed_example (id BIGINT NOT NULL) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;",
+  { engine: "mariadb", policy },
+);
+assert.equal(binaryTableDefault.ok, false);
+assert(binaryTableDefault.issues.some((issue) => issue.code === "migration_default_collation_not_allowed"));
+
+const binaryJsonColumn = inspectMigrationCollationSql(
+  "CREATE TABLE governed_example (payload_json LONGTEXT COLLATE=utf8mb4_bin) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  { engine: "mariadb", policy },
+);
+assert.equal(binaryJsonColumn.ok, true, JSON.stringify(binaryJsonColumn));
+
+const binaryRelationalColumn = inspectMigrationCollationSql(
+  "CREATE TABLE governed_example (owner_id VARCHAR(64) COLLATE=utf8mb4_bin) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  { engine: "mariadb", policy },
+);
+assert.equal(binaryRelationalColumn.ok, false);
+assert(binaryRelationalColumn.issues.some((issue) => issue.code === "migration_column_collation_not_allowed"));
+
 const unknown = inspectMigrationCollationSql(validSql, { engine: "sqlite", policy });
 assert.equal(unknown.ok, false);
 assert.equal(unknown.blocked_reason, "database_engine_unknown");
