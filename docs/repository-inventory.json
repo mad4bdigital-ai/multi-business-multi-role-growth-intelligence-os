@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6712,
-    "bytes": 58918590,
-    "lines": 1375324,
+    "bytes": 58922016,
+    "lines": 1375420,
     "directories": 255,
     "categories": 13
   },
@@ -36564,9 +36564,9 @@
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 3158811,
-      "lines": 97001,
-      "sha256": "1f291ea700b17769b8b847ae6f5eeb8d586dacd94c25e6ee739c858f5a38760b",
+      "bytes": 3161187,
+      "lines": 97073,
+      "sha256": "bf96511af82f4e24ff70aa8714088432c74fcd0089a2d600f7832b83008b39e8",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -46805,9 +46805,9 @@
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
       "extension": ".yaml",
-      "bytes": 328113,
-      "lines": 8552,
-      "sha256": "6ba667f6e04d26960ed55661dace1a5342d6d7f8017f1ef47d589c14727a0f12",
+      "bytes": 329163,
+      "lines": 8576,
+      "sha256": "8819e9be405d9043e8aadf091eeb41f73f2b3392f84efa8b5cf499020497d2c1",
       "mode": "644",
       "executable": false,
       "generated": false
