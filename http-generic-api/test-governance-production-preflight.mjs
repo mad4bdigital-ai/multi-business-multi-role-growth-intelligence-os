@@ -15,6 +15,7 @@ const governanceEnv = {
   DB_PORT: "3306",
   DB_USER: "runtime_identity_fixture_6813",
   DB_PASSWORD: "runtime-secret-value",
+  GOVERNANCE_DB_NAME: "governance_platform",
   GOVERNANCE_DB_USER: "governance_identity_fixture_6813",
   GOVERNANCE_DB_PASSWORD: "governance-secret-value",
   GOVERNANCE_DB_CONNECTION_LIMIT: "2",
@@ -30,14 +31,29 @@ const canonicalAuthority = {
   secrets_included: false,
 };
 
+const unsupportedProviderPolicy = {
+  environments: {
+    Production: {
+      provider_key: "synthetic_unsupported_mysql",
+      provider_mode: "synthetic_unsupported_provider",
+      capabilities: {
+        independent_governance_database_via_managed_control_plane: false,
+        exact_direct_table_grants_on_governance_database_via_managed_control_plane: false,
+        dedicated_governance_writer_contract_v1: false,
+      },
+      remediation_classes: ["provider_capability_review"],
+    },
+  },
+};
+
 const supportedProviderPolicy = {
   environments: {
     Production: {
       provider_key: "synthetic_multi_principal_mysql",
       provider_mode: "synthetic_test_provider",
       capabilities: {
-        second_principal_same_database_via_managed_control_plane: true,
-        exact_direct_table_grants_via_managed_control_plane: true,
+        independent_governance_database_via_managed_control_plane: true,
+        exact_direct_table_grants_on_governance_database_via_managed_control_plane: true,
         dedicated_governance_writer_contract_v1: true,
       },
       remediation_classes: [],
@@ -50,26 +66,20 @@ const assertSupportedProviderCapability = (input = {}) =>
 
 {
   const provider = evaluateGovernanceDbProviderCapability({ environment: "Production" });
-  assert.equal(provider.ready, false);
-  assert.equal(provider.status, "unsupported");
-  assert.equal(provider.code, "GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED");
+  assert.equal(provider.ready, true);
+  assert.equal(provider.status, "supported");
+  assert.equal(provider.code, null);
   assert.equal(provider.provider_key, "hostinger_web_cloud_mysql");
-  assert.equal(provider.provider_mode, "managed_hpanel_mysql");
-  assert.equal(provider.checks.second_principal_same_database_via_managed_control_plane, false);
-  assert.equal(provider.checks.exact_direct_table_grants_via_managed_control_plane, false);
-  assert.equal(provider.checks.dedicated_governance_writer_contract_v1, false);
-  assert.equal(provider.remediation_required, true);
-  assert.deepEqual(provider.remediation_classes, ["provider_migration", "governance_datastore_redesign"]);
+  assert.equal(provider.provider_mode, "managed_hpanel_two_database_mysql");
+  assert.equal(provider.checks.independent_governance_database_via_managed_control_plane, true);
+  assert.equal(provider.checks.exact_direct_table_grants_on_governance_database_via_managed_control_plane, true);
+  assert.equal(provider.checks.dedicated_governance_writer_contract_v1, true);
+  assert.equal(provider.remediation_required, false);
+  assert.deepEqual(provider.remediation_classes, []);
   assert.equal(provider.provider_mutation_performed, false);
   assert.equal(provider.database_connection_performed, false);
   assert.equal(provider.sql_execution_performed, false);
   assert.equal(provider.secrets_included, false);
-  assert.throws(
-    () => assertGovernanceDbProviderCapability({ environment: "Production" }),
-    (error) => error?.code === "GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED"
-      && error?.details?.provider_key === "hostinger_web_cloud_mysql"
-      && error?.details?.secrets_included === false,
-  );
 }
 
 const asserted = assertGovernanceProductionEnvironmentAuthority(canonicalAuthority);
@@ -117,9 +127,11 @@ assert.equal(preflight.ready, true);
 assert.equal(preflight.provider_capability.supported, true);
 assert.equal(preflight.provider_capability.provider_key, "synthetic_multi_principal_mysql");
 assert.equal(preflight.provider_capability.remediation_required, false);
-assert.equal(preflight.governance_db.identity_configured, true);
-assert.equal(preflight.governance_db.runtime_identity_fallback_allowed, false);
-assert.equal(preflight.governance_db.same_runtime_identity_rejected, true);
+  assert.equal(preflight.governance_db.identity_configured, true);
+  assert.equal(preflight.governance_db.runtime_identity_fallback_allowed, false);
+  assert.equal(preflight.governance_db.same_runtime_identity_rejected, true);
+  assert.equal(preflight.governance_db.same_runtime_database_rejected, true);
+
 assert.equal(preflight.environment_authority.production_branch, "Production");
 assert.equal(preflight.environment_authority.promotion_target_branch, "Production");
 assert.equal(preflight.database_connection_performed, false);
@@ -147,6 +159,7 @@ await assert.rejects(
       },
     },
     {
+      governanceDbProviderPolicy: unsupportedProviderPolicy,
       loadEnvironmentBranchAuthority: async () => {
         providerBlockedAuthorityLoads += 1;
         return canonicalAuthority;
@@ -154,7 +167,7 @@ await assert.rejects(
     },
   ),
   (error) => error?.code === "GOVERNANCE_DB_PROVIDER_CAPABILITY_UNSUPPORTED"
-    && error?.details?.provider_key === "hostinger_web_cloud_mysql"
+    && error?.details?.provider_key === "synthetic_unsupported_mysql"
     && error?.details?.secrets_included === false,
   "Provider capability must fail closed before credential readiness or environment-authority loading",
 );

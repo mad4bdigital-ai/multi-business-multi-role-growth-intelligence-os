@@ -27,6 +27,7 @@
           "entrypoint": "Governance Authority Store executor and governed repository capability paths",
           "terminal_outcome": "Authority writes, scoped reads, recipe resolution, and repository readback use the Governance DB source without a Runtime DB fallback.",
           "steps": [
+            "Evaluate the Production provider capability for an independent Governance database and exact grants.",
             "Configure an isolated Governance DB pool and a distinct Runtime DB pool.",
             "Reject missing or Runtime-equal Governance database names before pool creation.",
             "Exercise authority write and same-source readback contracts.",
@@ -34,6 +35,7 @@
             "Verify governed repository readback fails closed when the authority source is unavailable or mismatched."
           ],
           "assertions": [
+            "Production provider capability recognizes the independent two-database contract without performing provider mutation.",
             "Authority reads and writes select the explicit Governance DB pool.",
             "A missing or Runtime-equal Governance database name fails closed before connection creation.",
             "A missing or ambiguous authority binding does not fall back to the Runtime DB.",
@@ -41,6 +43,13 @@
             "Repository governance readback preserves fail-closed binding validation."
           ],
           "tests": [
+            {
+              "id": "governance-db-provider-and-preflight-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governance-production-preflight.mjs",
+              "args": []
+            },
             {
               "id": "governance-db-writer-identity-and-database-contract",
               "runner": "node",
@@ -78,12 +87,16 @@
             }
           ],
           "evidence_paths": [
+            "http-generic-api/config/governance-db-provider-capabilities.json",
+            "http-generic-api/governanceDbProviderCapability.js",
+            "http-generic-api/governanceProductionPreflight.js",
             "http-generic-api/governanceDb.js",
             "http-generic-api/platformResourceAuthorityStore.js",
             "http-generic-api/platformResourceAuthorityGrantTool.js",
             "http-generic-api/platformResourceRecipeCapability.js",
             "http-generic-api/repositoryGovernanceV6.js",
             "http-generic-api/repositoryTenantIntelligenceV2.js",
+            "http-generic-api/test-governance-production-preflight.mjs",
             "http-generic-api/test-governance-db-writer-authority.mjs",
             "http-generic-api/test-platform-resource-authority-store.mjs",
             "http-generic-api/test-platform-resource-authority-write-authority.mjs",

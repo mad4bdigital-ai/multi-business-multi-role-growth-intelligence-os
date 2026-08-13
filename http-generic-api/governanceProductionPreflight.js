@@ -81,6 +81,8 @@ export async function resolveGovernanceProductionPreflight({ env = process.env }
       identity_configured: true,
       runtime_identity_fallback_allowed: false,
       same_runtime_identity_rejected: true,
+      same_runtime_database_rejected: true,
+      governance_database_fallback_allowed: false,
       host_configured: Boolean(governanceConfig.host),
       database_configured: Boolean(governanceConfig.database),
       connection_limit: governanceConfig.connectionLimit,
