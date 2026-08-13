@@ -1,10 +1,7 @@
 import { buildTenantGptEffectiveCapabilitySurface } from "./tenantGptEffectiveCapabilitySurface.js";
 
-const READ_ONLY_TOOLS = new Set([
-  "list_accessible_workspaces",
-  "list_accessible_brands",
-]);
-
+const READ_ONLY_EFFECTS = new Set(["read", "read_only", "readonly"]);
+const BINDING_KEYS = Object.freeze(["tenant_id", "workspace_id", "brand_id"]);
 const SECRET_KEY = /(?:^|_)(?:authorization|cookie|password|passwd|secret|client_secret|api_key|access_key|private_key|token|access_token|refresh_token|id_token|credential|credentials|raw_row|raw_rows)(?:_|$)/i;
 
 function plainObject(value) {
@@ -43,47 +40,6 @@ function pick(source, keys) {
   return output;
 }
 
-function projectToolResult(toolName, result) {
-  if (!plainObject(result)) return null;
-  if (toolName === "list_accessible_workspaces") {
-    const workspaces = Array.isArray(result.workspaces)
-      ? result.workspaces.map((workspace) => pick(workspace, [
-          "workspace_id",
-          "display_name",
-          "role",
-          "membership_status",
-          "workspace_status",
-        ]))
-      : [];
-    return {
-      workspaces,
-      count: workspaces.length,
-    };
-  }
-  if (toolName === "list_accessible_brands") {
-    const brands = Array.isArray(result.brands)
-      ? result.brands.map((brand) => pick(brand, [
-          "brand_ref",
-          "permission",
-          "permission_source",
-          "display_name",
-          "target_key",
-          "brand_domain",
-          "base_url",
-          "status",
-          "brand_core_ready",
-        ]))
-      : [];
-    return {
-      workspace_id: text(result.workspace_id, 128),
-      membership_role: result.membership_role == null ? null : text(result.membership_role, 64),
-      brands,
-      count: brands.length,
-    };
-  }
-  return null;
-}
-
 function failure(code, message, blockers = []) {
   return {
     ok: false,
@@ -93,6 +49,25 @@ function failure(code, message, blockers = []) {
     retryable: false,
     secrets_included: false,
   };
+}
+
+function resolvedEffect(resolved, projection) {
+  return text(
+    projection?.effect
+      || resolved?.final_authority?.effect
+      || resolved?.authority_preflight?.effect
+      || resolved?.plan?.effect,
+    64,
+  ).toLowerCase();
+}
+
+function bindingMismatch(toolArguments, context) {
+  for (const key of BINDING_KEYS) {
+    const requested = text(toolArguments?.[key], 256);
+    const authoritative = text(context?.[key], 256);
+    if (requested && authoritative && requested !== authoritative) return key;
+  }
+  return null;
 }
 
 export function buildRemoteMcpGovernedSurfaceRequest({ toolName, toolArguments, authentication } = {}) {
@@ -115,8 +90,8 @@ export async function consumeRemoteMcpGovernedSurface({
   resolveGovernedSurface,
 } = {}) {
   const normalizedTool = text(toolName, 128);
-  if (!READ_ONLY_TOOLS.has(normalizedTool)) {
-    return failure("MCP_WRITE_SURFACE_NOT_ENABLED", "This Remote MCP surface exposes governed read-only tools only.");
+  if (!normalizedTool) {
+    return failure("MCP_TOOL_NAME_REQUIRED", "A governed Remote MCP tool name is required.");
   }
   if (typeof resolveGovernedSurface !== "function") {
     return failure(
@@ -161,17 +136,26 @@ export async function consumeRemoteMcpGovernedSurface({
   if (!plainObject(projection) || text(projection.tool_name, 128) !== normalizedTool) {
     return failure("MCP_SURFACE_PROJECTION_MISMATCH", "The authoritative projection does not match the requested tool.");
   }
-
-  const result = projectToolResult(normalizedTool, projection.result);
-  if (!result) {
-    return failure("MCP_SURFACE_PROJECTION_INVALID", "The authoritative projection result is invalid.");
+  if (projection.secrets_included === true) {
+    return failure("MCP_SURFACE_SECRET_PROJECTION_REJECTED", "The authoritative projection is not public-safe.");
   }
 
-  if (normalizedTool === "list_accessible_brands") {
-    const requestedWorkspace = text(toolArguments?.workspace_id, 128);
-    if (!requestedWorkspace || result.workspace_id !== requestedWorkspace) {
-      return failure("MCP_SURFACE_BINDING_MISMATCH", "The authoritative projection is not bound to the requested workspace.");
-    }
+  const effect = resolvedEffect(resolved, projection);
+  if (!READ_ONLY_EFFECTS.has(effect)) {
+    return failure("MCP_WRITE_SURFACE_NOT_ENABLED", "This Remote MCP surface exposes governed read-only projections only.");
+  }
+
+  const mismatchedBinding = bindingMismatch(toolArguments, resolved.context);
+  if (mismatchedBinding) {
+    return failure(
+      "MCP_SURFACE_BINDING_MISMATCH",
+      `The authoritative projection is not bound to the requested ${mismatchedBinding}.`,
+    );
+  }
+
+  const result = sanitize(projection.result);
+  if (result === undefined || result === null) {
+    return failure("MCP_SURFACE_PROJECTION_INVALID", "The authoritative projection result is invalid.");
   }
 
   return {
