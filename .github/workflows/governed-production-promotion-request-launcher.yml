@@ -372,7 +372,46 @@ jobs:
                   fi
                 fi
               else
-                SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                SUPPORTING_RUN_ID="$(resolve_run_once "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA")"
+                if [[ -z "$SUPPORTING_RUN_ID" ]]; then
+                  case "$workflow_name" in
+                    "Frontend surface dispatch")
+                      gh workflow run frontend-surface-dispatch.yml \
+                        --repo "$REPOSITORY" \
+                        --ref "$RELEASE_BRANCH"
+                      ;;
+                    "HTTP Generic API Fanout Relocation")
+                      gh workflow run http-generic-api-fanout-relocation.yml \
+                        --repo "$REPOSITORY" \
+                        --ref "$RELEASE_BRANCH" \
+                        --field scope=scripts \
+                        --field max_files=20 \
+                        --field target_branch="$RELEASE_BRANCH"
+                      ;;
+                    "Custom GPT Contract Guard")
+                      gh workflow run custom-gpt-contract-guard.yml \
+                        --repo "$REPOSITORY" \
+                        --ref "$RELEASE_BRANCH" \
+                        --field drill_mode=none
+                      ;;
+                    "Platform Completion Cleanup Readback")
+                      gh workflow run platform-completion-cleanup-readback.yml \
+                        --repo "$REPOSITORY" \
+                        --ref "$RELEASE_BRANCH"
+                      ;;
+                    "Platform Remaining Scope Scorecard")
+                      gh workflow run platform-remaining-scope-scorecard.yml \
+                        --repo "$REPOSITORY" \
+                        --ref "$RELEASE_BRANCH"
+                      ;;
+                    *)
+                      echo "::error::no bounded dispatch contract for supporting workflow: $workflow_name"
+                      SUPPORTING_OK=0
+                      break
+                      ;;
+                  esac
+                  SUPPORTING_RUN_ID="$(resolve_run "$workflow_name" "$ATTEMPT_STARTED_AT" "$CANDIDATE_SHA" || true)"
+                fi
               fi
 
               if [[ -z "$SUPPORTING_RUN_ID" ]] || ! wait_run_success "$SUPPORTING_RUN_ID" "$workflow_name"; then

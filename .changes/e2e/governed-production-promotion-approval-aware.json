@@ -31,12 +31,14 @@
           "steps": [
             "Build the candidate and verify the release branch and validation branch point to the exact candidate SHA.",
             "Resolve the exact candidate validation run by the candidate SHA and bounded attempt window.",
+            "Dispatch each non-Spec-011 supporting gate exactly once on the release branch when no exact-candidate run is already visible, then resolve it by the candidate SHA.",
             "When the run is action_required, retain the release and validation PRs and continue bounded polling for the required approval.",
             "After approval, require exact validation success and continue the supporting gates and final protected-ref readbacks.",
             "If the approval deadline expires or the run fails for a non-approval conclusion, close the governed surfaces with an explicit fail-closed reason."
           ],
           "assertions": [
             "action_required is an approval-pending state, not an immediate validation failure.",
+            "Supporting gates are dispatched only on the exact release branch and accepted only when their head SHA equals the candidate SHA.",
             "No fake approval, review bypass, dummy commit, Production merge, deployment, migration, provider call, credential read, Cloudflare change, or external write is performed.",
             "The review surfaces remain available for the authorized human approval while the bounded wait is active.",
             "Exact candidate evidence remains required before convergence can be marked successful.",
