@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6716,
-    "bytes": 58966013,
-    "lines": 1376211,
+    "bytes": 58966356,
+    "lines": 1376215,
     "directories": 255,
     "categories": 13
   },
@@ -6734,9 +6734,9 @@
       "path": ".changes/e2e/production-write-authority-degradation.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8315,
-      "lines": 164,
-      "sha256": "6335e7e3afa27d650eb0520355eb56475491da130d2fe092513edc59035820c0",
+      "bytes": 8658,
+      "lines": 168,
+      "sha256": "6e7734f9acc989e1821ea8b11d0ded0309364bb5c987ab7d248bd51e6bc7a8b5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77741,7 +77741,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "8bb830c38e8b041c51271b38e48089339e9b2190c1e3f5ac223b110b25214824",
+      "sha256": "4f444f6f4e99d6304deb6c6c7b65e76457a613dacc0d1c6e298097927b23d0be",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78566,7 +78566,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "c7f29c48e743fedf0b270fa45c48dcdae6eb71dd713c1ee0c5b029921787162d",
+      "sha256": "075e3b3a18a56afb6c8c062c0e51778b416563a113fe45ff23e2fce189c27bb3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78797,7 +78797,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "5ffcaba2678b86fbbdedce4bc4b585fdd0dc98e25910d60687b4068eb58d8355",
+      "sha256": "09ed4c70809e6d15ba290f914f0b6cf8828ae3f781feab67f6267eb16cc64de3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79116,7 +79116,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "fed4c0f984af29838f6609d9166694faa9145d4286a1c7b0d1d890df81740c63",
+      "sha256": "ad8f45d2af1d0ee69d9c8dafd0b68bf00453f102e068a8d6a7291d73d422a6b2",
       "mode": "644",
       "executable": false,
       "generated": false
