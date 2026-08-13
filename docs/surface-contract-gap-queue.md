@@ -4,10 +4,10 @@
 
 ## Summary
 
-- Total queue items: 12
+- Total queue items: 13
 - Critical review: 3
 - High review: 2
-- Medium review: 5
+- Medium review: 6
 - Low review: 2
 - Machine-readable queue: `docs/surface-contract-gap-queue.json`
 
@@ -86,7 +86,21 @@
 - `verify_policy_seed_readiness` → runtime-policy-review; targets: `runtime_break_glass_bounded_file_patch_apply_policy_v1`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_raw_secrets`
 
-### 6. `20260812_dynamic_canonical_resource_registry.sql`
+### 6. `20260813_virtual_tool_endpoint_scoped_capability_identity.sql`
+
+- Queue class: medium_review
+- Score: 394
+- Gap severity: low
+- Missing docs: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- Missing OpenAPI routes: none
+- Safety marker gaps: `no_credential_payload_read`, `no_raw_secrets`
+- Surface counts: plugins=0, tools=0, views=6, policies=0, routes=0
+- Remediation actions:
+- `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
+- `verify_readback_view` → db-readback-review; targets: `v_platform_virtual_tool_bindings_classified`, `v_platform_virtual_tool_bindings_current`, `v_platform_virtual_tool_capabilities_current`, `v_platform_virtual_tool_capability_gaps`, `v_platform_virtual_tool_exports_current`, `v_platform_virtual_tool_identity_resolution`
+- `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`
+
+### 7. `20260812_dynamic_canonical_resource_registry.sql`
 
 - Queue class: medium_review
 - Score: 392
@@ -100,7 +114,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_canonical_resource_activation_registry`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 7. `20260810_platform_runtime_registry_drift_reconciliation.sql`
+### 8. `20260810_platform_runtime_registry_drift_reconciliation.sql`
 
 - Queue class: medium_review
 - Score: 389
@@ -114,7 +128,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_platform_semantic_capability_canonical_reconciliation`, `v_wordpress_registry_runtime_reconciliation`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 8. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
+### 9. `1042_sprint69_support_ticket_lifecycle_sla_dedupe.sql`
 
 - Queue class: medium_review
 - Score: 358
@@ -128,7 +142,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_support_ticket_integrity_readiness`, `v_support_ticket_latest_activity`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_provider_call`, `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`, `secrets_included_false`
 
-### 9. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
+### 10. `1047_sprint69_tenant_request_inbox_and_chunk_store_hardening.sql`
 
 - Queue class: medium_review
 - Score: 334
@@ -142,7 +156,7 @@
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_runtime_schema_readiness`, `v_tenant_request_inbox_schema_readiness`
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 10. `20260728_governed_response_chunk_ownership.sql`
+### 11. `20260728_governed_response_chunk_ownership.sql`
 
 - Queue class: medium_review
 - Score: 317
@@ -155,7 +169,7 @@
 - `document_surface_contract` → docs-agent/human-review; targets: `Updating Registry Patch Index.md`, `deployment_parity_checklist.md`, `docs/ai-docs-agent-governance.md`, `docs/auto-docs-agent/README.md`, `docs/change-documentation-governance.md`
 - `verify_readback_view` → db-readback-review; targets: `v_governed_response_chunk_ownership_readiness`
 
-### 11. `1026_sprint69_repository_reconciliation_automation.sql`
+### 12. `1026_sprint69_repository_reconciliation_automation.sql`
 
 - Queue class: low_review
 - Score: 180
@@ -167,7 +181,7 @@
 - Remediation actions:
 - `add_explicit_safety_markers` → safety-contract-review; targets: `no_credential_payload_read`, `no_raw_secrets`, `no_external_send`, `no_external_write`
 
-### 12. `1023_sprint69_sql_cache_runtime_policy.sql`
+### 13. `1023_sprint69_sql_cache_runtime_policy.sql`
 
 - Queue class: low_review
 - Score: 123
