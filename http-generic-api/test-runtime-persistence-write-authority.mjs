@@ -14,9 +14,9 @@ const exactTablePrivileges = RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX[table].map((PR
   IS_GRANTABLE: "NO",
 }));
 
-assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.identity_env, "DB_USER");
-assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.mode, "shared_runtime_writer");
-assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.separated_identity_required, false);
+assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.identity_env, "RUNTIME_PERSISTENCE_DB_USER");
+assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.mode, "dedicated_runtime_persistence_writer");
+assert.equal(RUNTIME_PERSISTENCE_IDENTITY_CONTRACT.separated_identity_required, true);
 assert.deepEqual(RUNTIME_PERSISTENCE_PRIVILEGE_MATRIX[table], ["SELECT", "INSERT", "UPDATE", "DELETE"]);
 
 const exact = evaluateRuntimePersistencePrivilegeReadiness({

@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "policy_key": "database_engine_collation_governance",
+  "default_engine": "unknown",
+  "engines": {
+    "mysql": {
+      "allowed_default_charsets": ["utf8mb4"],
+      "allowed_default_collations": ["utf8mb4_unicode_ci", "utf8mb4_bin"],
+      "required_default_charset": "utf8mb4",
+      "required_default_collation": "utf8mb4_unicode_ci",
+      "binary_collation_allowlist": ["utf8mb4_bin"],
+      "join_key_collation_mode": "uniform",
+      "allow_implicit_collation_conversion": false
+    },
+    "mariadb": {
+      "allowed_default_charsets": ["utf8mb4"],
+      "allowed_default_collations": ["utf8mb4_unicode_ci", "utf8mb4_bin"],
+      "required_default_charset": "utf8mb4",
+      "required_default_collation": "utf8mb4_unicode_ci",
+      "binary_collation_allowlist": ["utf8mb4_bin"],
+      "join_key_collation_mode": "uniform",
+      "allow_implicit_collation_conversion": false
+    },
+    "postgresql": {
+      "allowed_default_charsets": [],
+      "allowed_default_collations": [],
+      "required_default_charset": null,
+      "required_default_collation": null,
+      "binary_collation_allowlist": [],
+      "join_key_collation_mode": "provider_defined",
+      "allow_implicit_collation_conversion": false
+    }
+  },
+  "unknown_engine": {
+    "allowed_default_charsets": [],
+    "allowed_default_collations": [],
+    "required_default_charset": null,
+    "required_default_collation": null,
+    "binary_collation_allowlist": [],
+    "join_key_collation_mode": "blocked",
+    "allow_implicit_collation_conversion": false
+  },
+  "migration_rules": {
+    "require_engine_detection": true,
+    "require_explicit_charset_and_collation_for_new_mariadb_mysql_tables": true,
+    "reject_mixed_join_key_collations": true,
+    "reject_unregistered_collation_exceptions": true,
+    "exception_registry_table": "database_collation_policy_exception_registry",
+    "policy_registry_table": "database_collation_policy_registry",
+    "status_view": "v_database_collation_policy_status",
+    "violations_view": "v_database_collation_policy_violations",
+    "unified_collation_required_key": "database_schema_governance.unified_collation_required"
+  },
+  "secrets_included": false
+}
