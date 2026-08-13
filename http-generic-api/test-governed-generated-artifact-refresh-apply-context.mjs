@@ -8,7 +8,7 @@ const workflow = fs.readFileSync(workflowPath, "utf8");
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh$/mu);
 assert.match(
   workflow,
-  /^run-name:\s*Governed Generated Artifact Refresh · \$\{\{ inputs\.target_ref \}\} · \$\{\{ inputs\.expected_head_sha \}\}$/mu,
+  /^run-name:\s*Governed Generated Artifact Refresh · \$\{\{ inputs\.recipe \}\} · \$\{\{ inputs\.target_ref \}\} · \$\{\{ inputs\.expected_head_sha \}\}$/mu,
   "writer runs must expose target branch and exact SHA for direct observability",
 );
 assert.match(workflow, /^\s*workflow_dispatch:\s*$/mu);
@@ -46,7 +46,9 @@ assert.match(workflow, /expected_head_sha/u);
 assert.match(workflow, /persist-credentials:\s*true/u);
 assert.match(workflow, /maintenance-tools\/generated-artifact-refresh\.mjs/u);
 assert.match(workflow, /--output-dir "\$\{OUTPUT_DIR\}"/u);
-assert.match(workflow, /pr-generated-artifact-refresh\.yml\/dispatches/u);
+assert.match(workflow, /verifier_workflow="repository-inventory\.yml"/u);
+assert.match(workflow, /verifier_workflow="pr-generated-artifact-refresh\.yml"/u);
+assert.match(workflow, /actions\/workflows\/\$\{verifier_workflow\}\/dispatches/u);
 assert.match(workflow, /generated-artifact-refresh-verification-dispatch\.json/u);
 assert.match(workflow, /path:\s*\$\{\{ env\.OUTPUT_DIR \}\}\//u);
 assert.doesNotMatch(

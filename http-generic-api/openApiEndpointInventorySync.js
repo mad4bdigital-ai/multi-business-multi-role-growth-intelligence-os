@@ -33,6 +33,32 @@ function syncError(status, code, message, details = {}) {
   return error;
 }
 
+function isWriteAuthorityUnavailableError(error) {
+  const code = String(error?.code || error?.errno || "").trim().toUpperCase();
+  const message = String(error?.message || error || "");
+  return [
+    "ER_TABLEACCESS_DENIED_ERROR",
+    "ER_ACCESS_DENIED_ERROR",
+    "ER_DBACCESS_DENIED_ERROR",
+    "OPENAPI_INVENTORY_WRITE_AUTHORITY_UNAVAILABLE",
+  ].includes(code) || (String(error?.sqlState || "") === "42000" && /command denied|access denied/i.test(message));
+}
+
+function normalizeWriteAuthorityError(error, table = "actions") {
+  if (String(error?.code || "").toLowerCase() === "openapi_inventory_write_authority_unavailable") return error;
+  return syncError(
+    503,
+    "openapi_inventory_write_authority_unavailable",
+    "OpenAPI inventory write authority is unavailable.",
+    {
+      table,
+      reason: "write_authority_unavailable",
+      write_authority_unavailable: true,
+      original_error_code: String(error?.code || error?.errno || "write_authority_denied").slice(0, 128),
+    },
+  );
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (!value || typeof value !== "object") return value;
@@ -483,25 +509,30 @@ async function latestRun(pool) {
 }
 
 async function ensureInventoryAction(connection) {
-  await connection.query(
-    `INSERT INTO actions
-      (action_key, action_id, action_title, status, module_binding, connector_family,
-       runtime_capability_class, runtime_callable, primary_executor, notes, action_class,
-       action_scope, route_target, execution_layer, inventory_role, review_required,
-       provider_agnostic, admin_only, writeback_scope)
-     VALUES (?, ?, 'Internal Platform API Route Inventory', 'inventory_only', 'internal_http_route_inventory',
-             'internal_platform', 'inventory_only', 'false', 'none', ?, 'internal_inventory',
-             'platform', 'internal_platform_api', 'http_generic_api', 'openapi_inventory', 'true',
-             'true', 'true', 'inventory_metadata_only')
-     ON DUPLICATE KEY UPDATE
-       action_title=VALUES(action_title), module_binding=VALUES(module_binding), connector_family=VALUES(connector_family),
-       runtime_capability_class='inventory_only', runtime_callable='false', primary_executor='none',
-       notes=VALUES(notes), action_class='internal_inventory', action_scope='platform',
-       route_target='internal_platform_api', execution_layer='http_generic_api', inventory_role='openapi_inventory',
-       review_required='true', provider_agnostic='true', admin_only='true', writeback_scope='inventory_metadata_only',
-       updated_at=CURRENT_TIMESTAMP`,
-    [PARENT_ACTION_KEY, PARENT_ACTION_KEY, stableJson({ callable: false, auto_promote: false, secrets_included: false })]
-  );
+  try {
+    await connection.query(
+      `INSERT INTO actions
+        (action_key, action_id, action_title, status, module_binding, connector_family,
+         runtime_capability_class, runtime_callable, primary_executor, notes, action_class,
+         action_scope, route_target, execution_layer, inventory_role, review_required,
+         provider_agnostic, admin_only, writeback_scope)
+       VALUES (?, ?, 'Internal Platform API Route Inventory', 'inventory_only', 'internal_http_route_inventory',
+               'internal_platform', 'inventory_only', 'false', 'none', ?, 'internal_inventory',
+               'platform', 'internal_platform_api', 'http_generic_api', 'openapi_inventory', 'true',
+               'true', 'true', 'inventory_metadata_only')
+       ON DUPLICATE KEY UPDATE
+         action_title=VALUES(action_title), module_binding=VALUES(module_binding), connector_family=VALUES(connector_family),
+         runtime_capability_class='inventory_only', runtime_callable='false', primary_executor='none',
+         notes=VALUES(notes), action_class='internal_inventory', action_scope='platform',
+         route_target='internal_platform_api', execution_layer='http_generic_api', inventory_role='openapi_inventory',
+         review_required='true', provider_agnostic='true', admin_only='true', writeback_scope='inventory_metadata_only',
+         updated_at=CURRENT_TIMESTAMP`,
+      [PARENT_ACTION_KEY, PARENT_ACTION_KEY, stableJson({ callable: false, auto_promote: false, secrets_included: false })]
+    );
+  } catch (error) {
+    if (isWriteAuthorityUnavailableError(error)) throw normalizeWriteAuthorityError(error, "actions");
+    throw error;
+  }
 }
 
 async function upsertInventoryRow(connection, row) {
@@ -745,6 +776,7 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
       capability_envelope_id: capabilityEnvelope?.envelope_id || null,
     };
   } catch (error) {
+    if (isWriteAuthorityUnavailableError(error)) error = normalizeWriteAuthorityError(error, error?.details?.table || "actions/endpoints");
     if (transactional) {
       try { await connection.rollback(); } catch { }
     }
@@ -779,6 +811,21 @@ export async function syncOpenApiEndpointInventory(input = {}, deps = {}) {
   }
 }
 
+let openApiWriteAuthorityWarningLogged = false;
+
+function logOpenApiWriteAuthorityUnavailable(error) {
+  if (openApiWriteAuthorityWarningLogged) return;
+  openApiWriteAuthorityWarningLogged = true;
+  console.error(JSON.stringify({
+    event: "openapi_endpoint_inventory_sync_start_failed",
+    code: "openapi_inventory_write_authority_unavailable",
+    status: "degraded",
+    reason: "write_authority_unavailable",
+    table: error?.details?.table || "actions/endpoints",
+    secrets_included: false,
+  }));
+}
+
 export async function startOpenApiEndpointInventorySync(deps = {}) {
   const pool = deps.pool || getPool();
   if (String(process.env.OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED || "").trim().toLowerCase() === "true") {
@@ -799,6 +846,20 @@ export async function startOpenApiEndpointInventorySync(deps = {}) {
   } catch (error) {
     if (/doesn't exist|ER_NO_SUCH_TABLE/i.test(String(error?.message || ""))) {
       return { ok: true, started: false, status: "migration_required", secrets_included: false };
+    }
+    if (isWriteAuthorityUnavailableError(error)) {
+      const normalized = normalizeWriteAuthorityError(error, error?.details?.table || "actions/endpoints");
+      logOpenApiWriteAuthorityUnavailable(normalized);
+      return {
+        ok: true,
+        started: false,
+        status: "write_authority_unavailable",
+        reason: "write_authority_unavailable",
+        write_authority_unavailable: true,
+        error_code: normalized.code,
+        table: normalized.details?.table || "actions/endpoints",
+        secrets_included: false,
+      };
     }
     throw error;
   }

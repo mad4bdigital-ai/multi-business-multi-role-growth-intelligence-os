@@ -55,6 +55,8 @@ Manual apply requires:
 
 Startup synchronization is controlled by `platform_runtime_config.config_key=openapi_endpoint_inventory_sync` and may be stopped with `OPENAPI_ENDPOINT_INVENTORY_SYNC_DISABLED=true`.
 
+When the runtime identity lacks INSERT/UPDATE authority for the inventory metadata path, startup catches `ER_TABLEACCESS_DENIED_ERROR`, `ER_ACCESS_DENIED_ERROR`, and equivalent access-denied outcomes and returns `status=write_authority_unavailable`, `started=false`, and `secrets_included=false`. The service emits one bounded `openapi_endpoint_inventory_sync_start_failed` degradation event per process; it does not expose a stack trace, promote inventory rows, call a provider, or grant database privileges.
+
 ## Dynamic Container curated tools
 
 Migration `1024_sprint69_openapi_endpoint_inventory_sync.sql` registers only the approved Admin tools:
