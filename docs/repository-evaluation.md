@@ -10,14 +10,14 @@ This report is generated from the dynamic Repository Inventory and deterministic
 | Decision | **warn** |
 | Blocking gaps | 0 |
 | Warning or informational gaps | 1 |
-| Input fingerprint | `b312a4326386cad103d898e78ed4a562fcae202235138d5d89be50b2b7feddb5` |
+| Input fingerprint | `abdaef9d9cf5c55f120887f5b3e59bef535cdb962ad3743ac7df50f1985f5903` |
 
 ## Repository signals
 
 | Signal | Value |
 |---|---:|
 | Inventory files | 6,814 |
-| Inventory bytes | 61,933,488 |
+| Inventory bytes | 61,934,289 |
 | Workflows | 155 |
 | Workflows without explicit permissions | 0 |
 | Broad write permission matches | 0 |
