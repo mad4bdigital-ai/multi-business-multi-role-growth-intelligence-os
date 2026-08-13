@@ -40,6 +40,7 @@ const WORK_MAP_BOOTSTRAP_EXACT_OUTPUTS = new Set([
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
   "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+  "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ]);
 const REPOSITORY_INVENTORY_OUTPUTS = new Set([
   "docs/repository-inventory.json",
@@ -74,6 +75,7 @@ const WORK_MAP_BOOTSTRAP_GOVERNED_PATHS = [
   "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
   "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
   "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+  "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
 ];
 
 const scriptPath = fileURLToPath(import.meta.url);
@@ -270,6 +272,7 @@ function runWorkMapSelfHostingBootstrap() {
     run("refresh_retail_spec014_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os"], { cwd: apiDir });
     run("refresh_remote_mcp_spec017_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "017-remote-mcp-host-isolation-oauth-readiness"], { cwd: apiDir });
     run("refresh_runtime_integrity_spec018_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "018-environment-promotion-runtime-integrity"], { cwd: apiDir });
+    run("refresh_database_lifecycle_spec019_binding", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "019-governed-database-lifecycle-pressure-relief"], { cwd: apiDir });
   };
 
   converge();
@@ -291,6 +294,7 @@ function runWorkMapSelfHostingBootstrap() {
   run("verify_retail_spec014_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "014-retail-commerce-operations-growth-os", "--check"], { cwd: apiDir });
   run("verify_remote_mcp_spec017_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "017-remote-mcp-host-isolation-oauth-readiness", "--check"], { cwd: apiDir });
   run("verify_runtime_integrity_spec018_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "018-environment-promotion-runtime-integrity", "--check"], { cwd: apiDir });
+  run("verify_database_lifecycle_spec019_binding_current", "node", ["scripts/spec014-refresh-final-work-map-binding.mjs", "--feature-key", "019-governed-database-lifecycle-pressure-relief", "--check"], { cwd: apiDir });
   run("verify_spec014_binding_regression", "node", ["test-spec014-refresh-final-work-map-binding.mjs"], { cwd: apiDir });
 }
 

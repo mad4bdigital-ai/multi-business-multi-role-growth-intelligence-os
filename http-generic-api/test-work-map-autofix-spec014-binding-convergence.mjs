@@ -26,6 +26,7 @@ const hostingerManifest = "specs/014-governed-hostinger-storage-orchestration/wo
 const hostingerTasks = "specs/014-governed-hostinger-storage-orchestration/tasks.md";
 const retailManifest = "specs/014-retail-commerce-operations-growth-os/work-map-integration.json";
 const runtimeIntegrityManifest = "specs/018-environment-promotion-runtime-integrity/work-map-integration.json";
+const databaseLifecycleManifest = "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json";
 const dynamicManifestPattern = "specs/[0-9][0-9][0-9]-[a-z0-9][a-z0-9-]*/work-map-integration.json";
 
 assert.match(workflow, /node http-generic-api\/scripts\/platform-work-map-generator\.mjs --write/u);
@@ -38,6 +39,10 @@ assert.match(
   workflow,
   /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 018-environment-promotion-runtime-integrity/u,
 );
+assert.match(
+  workflow,
+  /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 019-governed-database-lifecycle-pressure-relief/u,
+);
 assert.match(workflow, /node http-generic-api\/scripts\/platform-work-map-generator\.mjs --check/u);
 assert.match(workflow, /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --check/u);
 assert.match(
@@ -48,8 +53,12 @@ assert.match(
   workflow,
   /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 018-environment-promotion-runtime-integrity --check/u,
 );
+assert.match(
+  workflow,
+  /node http-generic-api\/scripts\/spec014-refresh-final-work-map-binding\.mjs --feature-key 019-governed-database-lifecycle-pressure-relief --check/u,
+);
 
-for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest, runtimeIntegrityManifest]) {
+for (const governedPath of [hostingerManifest, hostingerTasks, retailManifest, runtimeIntegrityManifest, databaseLifecycleManifest]) {
   assert.ok(workflow.includes(governedPath), `writer allowlist/staging must include ${governedPath}`);
   assert.ok(maintenance.includes(governedPath), `self-hosting maintenance must include ${governedPath}`);
 }
@@ -58,12 +67,24 @@ assert.ok(
   "trusted generated-artifact evidence publisher must accept the Spec018 integration manifest output",
 );
 assert.ok(
+  publisher.includes(databaseLifecycleManifest),
+  "trusted generated-artifact evidence publisher must accept the Spec019 integration manifest output",
+);
+assert.ok(
   generator.includes(runtimeIntegrityManifest),
   "generated README source must declare the Spec018 integration manifest in the bounded writer set",
 );
 assert.ok(
+  generator.includes(databaseLifecycleManifest),
+  "generated README source must declare the Spec019 integration manifest in the bounded writer set",
+);
+assert.ok(
   supervisorRunbook.includes(runtimeIntegrityManifest),
   "supervisor runbook must declare the Spec018 integration manifest in the bounded writer set",
+);
+assert.ok(
+  supervisorRunbook.includes(databaseLifecycleManifest),
+  "supervisor runbook must declare the Spec019 integration manifest in the bounded writer set",
 );
 
 assert.match(
@@ -216,7 +237,7 @@ assert.match(workflow, /git add -- "\$\{target_binding_paths\[@\]\}"/u);
 assert.doesNotMatch(workflow, /inputs\.(?:feature_key|binding_path|work_map_manifest)/u);
 assert.match(
   workflow,
-  /014-governed-hostinger-storage-orchestration\|014-retail-commerce-operations-growth-os\|018-environment-promotion-runtime-integrity\) continue/u,
+  /014-governed-hostinger-storage-orchestration\|014-retail-commerce-operations-growth-os\|018-environment-promotion-runtime-integrity\|019-governed-database-lifecycle-pressure-relief\) continue/u,
   "registered static bindings must be excluded from target-derived replay",
 );
 
@@ -231,6 +252,9 @@ assert.match(workflow, /test "\$\{remote_head_sha\}" = "\$\{EXPECTED_HEAD_SHA\}"
 assert.match(maintenance, /refresh_runtime_integrity_spec018_binding/u);
 assert.match(maintenance, /verify_runtime_integrity_spec018_binding_current/u);
 assert.match(maintenance, /018-environment-promotion-runtime-integrity/u);
+assert.match(maintenance, /refresh_database_lifecycle_spec019_binding/u);
+assert.match(maintenance, /verify_database_lifecycle_spec019_binding_current/u);
+assert.match(maintenance, /019-governed-database-lifecycle-pressure-relief/u);
 assert.doesNotMatch(maintenance, /"git", \["push"[^\n]*(?:"--force"|"-f")/u);
 
 const maintenanceRegistration = maintenanceGovernance.tools?.["generated-artifact-refresh"];
@@ -241,6 +265,12 @@ assert.ok(
   ),
   "maintenance governance must register the Spec018 integration manifest output",
 );
+assert.ok(
+  maintenanceRegistration.allowed_changed_path_patterns?.includes(
+    "^specs/019-governed-database-lifecycle-pressure-relief/work-map-integration\\.json$",
+  ),
+  "maintenance governance must register the Spec019 integration manifest output",
+);
 
 const writerOwnership = overlapPolicy.resource_groups?.find(
   (group) => group.key === "pull-request-work-map-generated-artifacts",
@@ -249,6 +279,10 @@ assert.ok(writerOwnership, "Work Map writer ownership group is required");
 assert.ok(
   writerOwnership.write_patterns?.includes(runtimeIntegrityManifest),
   "automation overlap policy must assign Spec018 to the sole Work Map writer",
+);
+assert.ok(
+  writerOwnership.write_patterns?.includes(databaseLifecycleManifest),
+  "automation overlap policy must assign Spec019 to the sole Work Map writer",
 );
 assert.ok(
   writerOwnership.write_patterns?.includes(dynamicManifestPattern),
@@ -285,6 +319,7 @@ console.log(JSON.stringify({
   ok: true,
   combined_idempotency: true,
   runtime_integrity_binding_convergence: true,
+  database_lifecycle_binding_convergence: true,
   target_pr_binding_discovery: true,
   target_pr_file_discovery_fail_closed: true,
   target_pr_file_cap_guard: true,
