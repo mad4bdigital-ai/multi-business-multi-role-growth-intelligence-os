@@ -3,17 +3,17 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6716,
-    "bytes": 58969971,
-    "lines": 1376271,
+    "files": 6719,
+    "bytes": 58987947,
+    "lines": 1376617,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2022,
-      "documentation": 1856,
-      "api-runtime": 1328,
+      "tests-and-specs": 2023,
+      "documentation": 1857,
+      "api-runtime": 1329,
       "database-migrations": 767,
       "root-and-other": 228,
       "ci-workflows": 152,
@@ -26,8 +26,8 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2459,
-      ".mjs": 1535,
+      ".md": 2460,
+      ".mjs": 1537,
       ".js": 931,
       ".sql": 782,
       ".json": 672,
@@ -57,8 +57,8 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3440,
-      "docs": 1762,
+      "http-generic-api": 3442,
+      "docs": 1763,
       "specs": 838,
       ".github": 246,
       ".changes": 224,
@@ -402,6 +402,7 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "supervisor:readiness",
+        "runtime-persistence:readiness",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",
@@ -2444,6 +2445,7 @@
       "http-generic-api/test-runtime-guards.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
       "http-generic-api/test-runtime-parity-startup-reconciler.mjs",
+      "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
       "http-generic-api/test-runtime-persistence-wiring.mjs",
       "http-generic-api/test-runtime-persistence-write-authority.mjs",
       "http-generic-api/test-runtime-persistence-write-inventory.mjs",
@@ -4531,6 +4533,7 @@
       "http-generic-api/test-runtime-guards.mjs",
       "http-generic-api/test-runtime-integrity.mjs",
       "http-generic-api/test-runtime-parity-startup-reconciler.mjs",
+      "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
       "http-generic-api/test-runtime-persistence-wiring.mjs",
       "http-generic-api/test-runtime-persistence-write-authority.mjs",
       "http-generic-api/test-runtime-persistence-write-inventory.mjs",
@@ -28525,9 +28528,9 @@
       "path": "docs/durable-governed-response-chunks.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 8418,
+      "bytes": 8744,
       "lines": 139,
-      "sha256": "daa333b839ae551ef61b3ed39e3265014a9a7c8d6add3288cfb7c3ade95c27c3",
+      "sha256": "ad837b0386dc1d7dde0a94c94ceca925bfbf2aa5ef80a8f414c9480d0aa0325c",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30277,6 +30280,17 @@
       "bytes": 9194,
       "lines": 257,
       "sha256": "5ecc777ec9c24678174ce4063bf0676377584f3c582a7f4faeaef6b5a1a30d60",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/runbooks/runtime-persistence-third-database-activation.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 9245,
+      "lines": 119,
+      "sha256": "ca20f04d50f3dbfb1562b1c579bfd8bc4692ee96771b5fd6d2a6cf9f4f329238",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -47467,9 +47481,9 @@
       "path": "http-generic-api/package.json",
       "category": "api-runtime",
       "extension": ".json",
-      "bytes": 6639,
-      "lines": 82,
-      "sha256": "19683617a1bb88a55f4c52028d9aca057b1b78342c66349a9cf58f2bbbce77ce",
+      "bytes": 6738,
+      "lines": 83,
+      "sha256": "201950f702b5e277584c3bb81730da9dd933ad7630c957c25fe1c21798f8d736",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53184,6 +53198,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/scripts/runtime-persistence-operational-readiness.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 4147,
+      "lines": 125,
+      "sha256": "5a91de464ed0aee6562f4726ff9a08e01c2e14ff8bee07fe3ea0bdb2e4d75480",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/scripts/runtime-persistence-write-inventory.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
@@ -53803,9 +53828,9 @@
       "path": "http-generic-api/scripts/test-manifest.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7852,
-      "lines": 148,
-      "sha256": "e7b40847392580c1eaace3e3f95c36a30dabfcafe30fb19c7d2d1159c2a4a9fe",
+      "bytes": 7913,
+      "lines": 149,
+      "sha256": "8787c45522112a3459d794df89d4ba7d5dfb7b0f8c3e69c6088aac1f65f0dc43",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -65510,6 +65535,17 @@
       "bytes": 5361,
       "lines": 179,
       "sha256": "6e51eab45177f08bafcd65b34cb5e1ba8f0ffbae30b6cec7754e8e2bae32adbb",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-runtime-persistence-operational-readiness.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 4098,
+      "lines": 100,
+      "sha256": "06c1fa51c9dca77f259da589fad35afa6b006af5e4ba1d20af69121f13845453",
       "mode": "644",
       "executable": false,
       "generated": false
