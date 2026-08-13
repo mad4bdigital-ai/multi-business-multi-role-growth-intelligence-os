@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "005-dynamic-mcp-schema-surfaces",
+  "title": "Dynamic MCP schema and governed surface projections",
+  "delivery_mode": "multi_pr",
+  "current_phase": "operational",
+  "scope": {
+    "include": [
+      "specs/005-dynamic-mcp-schema-surfaces/e2e-phases.json",
+      "specs/005-dynamic-mcp-schema-surfaces/evidence/track-c-openapi-schema-parity-20260814.json",
+      "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+      "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs",
+      "http-generic-api/remoteMcpGovernedSurfaceConsumer.js",
+      "http-generic-api/test-remote-mcp-governed-surface-consumer.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Define deterministic public surface projection contracts that consume authoritative runtime decisions and readiness evidence without creating a second authority or connection-selection path.",
+      "e2e_journeys": [
+        {
+          "id": "authoritative-contract-to-public-surface-projection",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Tenant-facing GPT or Remote MCP surface",
+          "entrypoint": "Authoritative context, capability, authority, plan, readback, and readiness contracts",
+          "terminal_outcome": "The surface returns a bounded no-secret projection or fails closed when authoritative contracts, readiness, or tenant binding are missing.",
+          "steps": [
+            "Receive the resolved context and capability manifest from the upstream runtime contract.",
+            "Receive preflight, plan, approval or delegation, final authority, execution, adapter, readback, and readiness evidence without deriving replacements locally.",
+            "Project only allowlisted identity, capability, blocker, questionnaire, readback, and public-result fields.",
+            "Ignore caller-provided identity as an authority source.",
+            "Reject a Remote MCP projection when the authoritative result is not bound to the requested workspace.",
+            "Reject write-tool projection on the Track C read-only consumer boundary."
+          ],
+          "assertions": [
+            "The surface does not mint execution authority.",
+            "The surface does not select a connection.",
+            "The surface does not execute a provider.",
+            "Caller identity cannot widen the authoritative tenant or workspace context.",
+            "Sensitive questionnaire fields and secret-like values are excluded from the public projection.",
+            "Missing final authority or readiness evidence fails closed."
+          ],
+          "tests": [
+            {
+              "id": "tenant-gpt-effective-capability-surface",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-effective-capability-surface.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-governed-surface-consumer",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-governed-surface-consumer.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "specs/005-dynamic-mcp-schema-surfaces/e2e-phases.json",
+            "specs/005-dynamic-mcp-schema-surfaces/evidence/track-c-openapi-schema-parity-20260814.json",
+            "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+            "http-generic-api/remoteMcpGovernedSurfaceConsumer.js"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "implemented",
+      "objective": "Keep public projections deterministic, tenant-bound, no-secret, and dependent on upstream authority/readiness contracts while generated artifacts remain reserved for final integration."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Validate exact-head repository gates and upstream contract drift after Tracks B and A land."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run separately authorized non-production live-client acceptance after exact runtime composition is available."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Complete separately authorized production parity, monitoring, rollback, and post-merge audit."
+    }
+  ]
+}
