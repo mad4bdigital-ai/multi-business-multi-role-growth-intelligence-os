@@ -18,6 +18,8 @@ export function buildRuntimeVerificationRoutes(deps = {}) {
   const router = Router();
   const guards = [deps.requireBackendApiKey, deps.requireAdminPrincipal].filter(Boolean);
 
+  // Break-glass verification runs require a run-bound readback from the Governance DB.
+  // Ordinary verification runs continue through the canonical legacy builder below.
   router.post("/runtime/verification-runs", ...guards, async (req, res, next) => {
     const input = req.body || {};
     const breakGlassId = String(input.break_glass_id || "").trim();
@@ -40,15 +42,22 @@ export function buildRuntimeVerificationRoutes(deps = {}) {
           secrets_included: false,
         });
       }
-      return res.status(201).json({ ok: true, ...run, runtime_break_glass_readback: readback, secrets_included: false });
+      return res.status(201).json({
+        ok: true,
+        ...run,
+        runtime_break_glass_readback: readback,
+        secrets_included: false,
+      });
     } catch (error) {
       return next(error);
     }
   });
 
-  // Canonical surface delegates the read-only run, evidence-pagination, parity, and hard-run summary routes to the governed legacy builder.
+  // Canonical surface delegates ordinary verification, evidence, parity, readiness,
+  // and hard-run summary routes to the governed legacy builder.
   // GET /runtime/verification-runs/:runId/evidence
   // GET /runtime/parity/:environmentKey?
+  // GET /runtime/readiness/remote-mcp
   // GET /activation/hard-run/summary
   router.use(legacy.buildRuntimeVerificationRoutes(deps));
   return router;
