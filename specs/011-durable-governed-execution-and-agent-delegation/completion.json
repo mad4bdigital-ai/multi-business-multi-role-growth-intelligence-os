@@ -946,7 +946,13 @@
       "legacy_direct_delegation_default_off": true,
       "canonical_lifecycle_reused": true,
       "mariadb_runtime_binding_reused_default_off": true,
-      "t141_status": "open_pending_governed_production_lifecycle_mutations",
+      "t141_status": "shadow_lifecycle_tests_passed_runtime_mutation_disabled",
+      "t141_focused_tests": [
+        "test-delegation-grant-lifecycle-shadow.mjs",
+        "test-delegation-grant-shadow.mjs",
+        "test-delegation-grant-repository-mutation.mjs",
+        "test-agent-delegation-persistence-contract.mjs"
+      ],
       "production_migration_applied": false,
       "production_database_write": false,
       "runtime_binding_enabled": false,

@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6815,
-    "bytes": 61941847,
-    "lines": 1453890,
+    "bytes": 61942101,
+    "lines": 1453896,
     "directories": 255,
     "categories": 13
   },
@@ -74726,9 +74726,9 @@
       "path": "specs/011-durable-governed-execution-and-agent-delegation/completion.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 42622,
-      "lines": 1006,
-      "sha256": "9cd1ca5bcbc57feaf15deb3cadb44e0ea815933182e33aa9845847557004940c",
+      "bytes": 42876,
+      "lines": 1012,
+      "sha256": "75bc84d7a7020c1b67a38921226371798744c4f9a22c42955f2cb0ff569aa0c7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -75322,7 +75322,7 @@
       "extension": ".md",
       "bytes": 5520,
       "lines": 107,
-      "sha256": "5373228e887fbabb9dd920df6975ffb4f7421e4c699393e19155ebfcdf535002",
+      "sha256": "8a0e766b7468e38ecb747c85cdb30eb644d2055700ea2cdc7adcbf17c789fb8f",
       "mode": "644",
       "executable": false,
       "generated": false
