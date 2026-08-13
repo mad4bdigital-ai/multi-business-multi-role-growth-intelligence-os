@@ -29,7 +29,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Add a deterministic, read-only readiness contract for a dedicated third persistence database while preserving safe degradation and separating runtime data, governance authority, migration authority, and durable response persistence.",
+      "objective": "Add a deterministic, read-only readiness contract for a dedicated third persistence database, prepare the separate governance database migration path, enforce charset/collation policy, and preserve safe degradation without conflating runtime data, governance authority, migration authority, and durable response persistence.",
       "e2e_journeys": [
         {
           "id": "third-database-runtime-persistence-readiness",
@@ -37,13 +37,14 @@
           "level": "synthetic_runtime",
           "actor": "Runtime persistence readiness verifier",
           "entrypoint": "runtime-persistence:readiness",
-          "terminal_outcome": "The verifier reports blocked when RUNTIME_PERSISTENCE_DB_* is incomplete, reports ready only when the dedicated table authority and 16-column transport schema are both ready, and never executes a grant, migration, provider call, external write, or credential payload read.",
+          "terminal_outcome": "The verifier reports blocked when RUNTIME_PERSISTENCE_DB_* is incomplete, reports ready only when dedicated table authority, the 16-column transport schema, and utf8mb4/utf8mb4_unicode_ci collation readback are all ready, while Governance DB migration preparation remains blocked until its foundation/readback contract is satisfied; it never executes a grant, migration, provider call, external write, or credential payload read.",
           "steps": [
             "Resolve only the presence of RUNTIME_PERSISTENCE_DB_HOST, RUNTIME_PERSISTENCE_DB_NAME, RUNTIME_PERSISTENCE_DB_USER, and RUNTIME_PERSISTENCE_DB_PASSWORD without returning values.",
             "Fail closed with runtime_persistence_configuration_missing when the dedicated configuration is incomplete and never fall back to DB_USER.",
             "When configuration is supplied by the runtime, inspect direct table-scoped SELECT, INSERT, UPDATE, and DELETE readiness for governed_tool_response_chunks.",
             "Inspect the current 16-column transport schema contract without issuing DDL or applying migration SQL.",
-            "Return ready only when both authority and schema are ready; otherwise return blocked with bounded no-secret evidence.",
+            "Read database, table, engine, and character-column charset/collation metadata and fail closed on actionable mismatch against utf8mb4/utf8mb4_unicode_ci.",
+            "Return ready only when authority, schema, and collation are ready; otherwise return blocked with bounded no-secret evidence.",
             "Keep migration 1048 as a separately governed apply step and keep Production grants, secret writes, provider mutations, and deployment outside this source PR.",
             "Exclude feat/spec015-tenant-audit-convergence from the scope and recommendations."
           ],
@@ -52,6 +53,7 @@
             "The readiness probe never exposes credential values and always emits secrets_included=false.",
             "Missing dedicated configuration fails closed and fallback_to_db_user is false.",
             "The required durable chunk authority is exactly SELECT, INSERT, UPDATE, and DELETE on governed_tool_response_chunks.",
+            "The readiness probe requires utf8mb4 and utf8mb4_unicode_ci for the persistence database/table and relational text columns, with only the documented JSON-like exception policy.",
             "The readiness probe performs no grant, migration apply, SQL mutation, provider call, external write, or deployment.",
             "Migration 1048 is the bounded transport-only migration path; migration apply remains blocked pending explicit governed authorization.",
             "Safe degradation remains covered by the existing production write-authority regression test.",
@@ -114,6 +116,8 @@
       "objective": "Activate the third persistence database and prove schema and direct table privileges in Production without exposing credentials.",
       "blockers": [
         "A third persistence database and restricted runtime user must be created by the authorized hosting/DB administrator.",
+        "The separate governance database requires its seven privilege-matrix foundation tables and a non-self-contained bootstrap path before migration 950 can be applied.",
+        "Both target databases require read-only charset/collation/engine preflight against utf8mb4/utf8mb4_unicode_ci before DDL.",
         "Migration 1048 requires governed preflight, dry-run, explicit apply confirmation, and same-cycle schema readback.",
         "RUNTIME_PERSISTENCE_DB_* secrets must be configured through the hosting secret manager without being committed or returned.",
         "Production privilege readback and runtime durable recovery smoke are not performed by this source PR."
@@ -135,6 +139,7 @@
       "objective": "Treat durable response persistence as Production-ready only after exact source promotion, migration readback, restricted privilege readback, secret configuration, and recovery smoke pass.",
       "blockers": [
         "No Production database grant or migration apply is authorized by this source PR.",
+        "No Governance DB foundation bootstrap, migration 950 apply, or persistence migration 1048 apply is authorized by this source PR.",
         "No Production credentials are available to this execution context.",
         "No deployment or provider mutation is introduced by this source PR."
       ]

@@ -35,6 +35,7 @@ assert.equal(JSON.stringify(missingResult).includes("test-only-secret"), false);
 const sentinelPool = {};
 let authorityDeps = null;
 let schemaDeps = null;
+let collationDeps = null;
 const readyResult = await runRuntimePersistenceOperationalReadiness({
   env: configuredEnv,
   runtimePersistencePoolFactory: () => sentinelPool,
@@ -58,6 +59,15 @@ const readyResult = await runRuntimePersistenceOperationalReadiness({
       secrets_included: false,
     };
   },
+  inspectCollation: async (deps) => {
+    collationDeps = deps;
+    return {
+      ready: true,
+      reason: "runtime_persistence_collation_ready",
+      violations: [],
+      secrets_included: false,
+    };
+  },
 });
 assert.equal(readyResult.ok, true);
 assert.equal(readyResult.status, "ready");
@@ -65,7 +75,9 @@ assert.equal(readyResult.reason, "runtime_persistence_ready");
 assert.equal(authorityDeps.input.table, "governed_tool_response_chunks");
 assert.equal(authorityDeps.deps.runtimePersistencePool, sentinelPool);
 assert.equal(schemaDeps.runtimePersistencePool, sentinelPool);
+assert.equal(collationDeps.runtimePersistencePool, sentinelPool);
 assert.equal(readyResult.activation_contract.migration_file, "1048_transport_response_chunk_schema_recovery.sql");
+assert.equal(readyResult.activation_contract.collation_policy.table_collation, "utf8mb4_unicode_ci");
 assert.deepEqual(readyResult.activation_contract.required_operations, ["SELECT", "INSERT", "UPDATE", "DELETE"]);
 assert.equal(readyResult.secrets_included, false);
 
@@ -74,10 +86,11 @@ const blockedResult = await runRuntimePersistenceOperationalReadiness({
   runtimePersistencePoolFactory: () => sentinelPool,
   inspectAuthority: async () => ({ ready: false, missing_required: ["INSERT"], secrets_included: false }),
   inspectSchema: async () => ({ ready: true, missing_columns: [], secrets_included: false }),
+  inspectCollation: async () => ({ ready: true, violations: [], secrets_included: false }),
 });
 assert.equal(blockedResult.ok, false);
 assert.equal(blockedResult.status, "blocked");
-assert.equal(blockedResult.reason, "runtime_persistence_authority_or_schema_not_ready");
+assert.equal(blockedResult.reason, "runtime_persistence_authority_schema_or_collation_not_ready");
 assert.equal(blockedResult.authority.missing_required[0], "INSERT");
 assert.equal(blockedResult.secrets_included, false);
 
