@@ -8,7 +8,7 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 6825,
+  "file_count": 6830,
   "route_count": 1074,
   "write_route_count": 652,
   "classified_write_surface_count": 38,
@@ -16,8 +16,8 @@
   "unclassified_write_route_count": 0,
   "intentionally_unmapped_write_route_count": 614,
   "sensitive_intentionally_unmapped_write_route_count": 614,
-  "migration_count": 444,
-  "registry_evidence_count": 104,
+  "migration_count": 445,
+  "registry_evidence_count": 106,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:0",
-      "source_line": 4379,
-      "source_offset": 206100,
+      "source_line": 4382,
+      "source_offset": 206344,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,8 +3631,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:1",
-      "source_line": 4406,
-      "source_offset": 207062,
+      "source_line": 4409,
+      "source_offset": 207297,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -25652,10 +25652,10 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4406,
+        "source_line": 4409,
         "handler_window_lines": [
-          4406,
-          4454
+          4409,
+          4457
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -55539,6 +55539,36 @@
       ]
     },
     {
+      "path": "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+      "tables": [
+        "platform_tool_dispatch_bindings",
+        "v_platform_virtual_tool_bindings_classified",
+        "v_platform_virtual_tool_identity_resolution",
+        "v_platform_virtual_tool_capabilities_current",
+        "source",
+        "platform_plugin_capabilities",
+        "platform_plugins",
+        "display_name",
+        "resource_authority_required",
+        "platform_plugin_bindings",
+        "v_platform_virtual_tool_bindings_current",
+        "capability_key",
+        "platform_plugin_capability_exports",
+        "v_platform_virtual_tool_exports_current",
+        "platform_capability_readback_contracts",
+        "adapter_key",
+        "platform_capability_source_links",
+        "resolution_status",
+        "platform_capability_debt",
+        "v_platform_virtual_tool_capability_gaps",
+        "severity",
+        "governed_migration_authorization_registry",
+        "authorization_status"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
       "path": "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "tables": [
         "tenant_platform_endpoint_tools",
@@ -57861,6 +57891,12 @@
       ]
     },
     {
+      "path": "http-generic-api/migrations/20260813_virtual_tool_endpoint_scoped_capability_identity.sql",
+      "registries": [
+        "platform_tool_dispatch_bindings"
+      ]
+    },
+    {
       "path": "http-generic-api/migrations/307_sprint69_hostinger_deploy_restart_option_support.sql",
       "registries": [
         "platform_resource_authority_bindings"
@@ -58251,6 +58287,12 @@
       "path": "http-generic-api/test-spec-011-phase0-contract-baseline.mjs",
       "registries": [
         "platform_resource_operation_registry"
+      ]
+    },
+    {
+      "path": "http-generic-api/test-virtual-tool-endpoint-scoped-capability-identity.mjs",
+      "registries": [
+        "platform_tool_dispatch_bindings"
       ]
     },
     {

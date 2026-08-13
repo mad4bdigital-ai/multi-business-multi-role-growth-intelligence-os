@@ -5,7 +5,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { getPool } from "../db.js";
+import { getPool, getRuntimePersistencePool } from "../db.js";
 import { getGovernancePool } from "../governanceDb.js";
 import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
 import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
@@ -2499,8 +2499,11 @@ export async function fetchToolsForCaller(callerType) {
   return fetchTools(callerType);
 }
 
-export async function dispatchToolForCaller(callerType, toolKey, args, req) {
-  return dispatchTool(callerType, toolKey, args, req);
+export async function dispatchToolForCaller(callerType, toolKey, args, req, runtimeDeps = {}) {
+  return dispatchTool(callerType, toolKey, args, req, {
+    ...runtimeDeps,
+    runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory || getRuntimePersistencePool,
+  });
 }
 
 async function fetchTools(callerType) {
@@ -2606,7 +2609,7 @@ async function detectMissingRequiredArgs(callerType, toolKey, args) {
   }
 }
 
-async function dispatchTool(callerType, toolKey, args, req) {
+async function dispatchTool(callerType, toolKey, args, req, runtimeDeps = {}) {
   if (callerType === "tenant") {
     const [blockedTenantManifests, blockedTenantSchemas] = await Promise.all([
       loadTenantToolManifestBlocks(getPool()),
@@ -2630,7 +2633,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
       },
     }));
   }
-  const result = await dispatchToolImpl(callerType, toolKey, args, req);
+  const result = await dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps);
   const responseOptions = args && typeof args === "object" ? args : {};
   const resultForClient = {
     ...result,
@@ -2641,7 +2644,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
           source_tool_key: toolKey,
           source_surface: "gpt_tools_dispatch",
           request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps)
+        }, runtimeDeps)
       : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn only after the exchange has
@@ -2668,7 +2671,7 @@ export function buildInternalToolDispatchHeaders(req, env = process.env, options
   return headers;
 }
 
-async function dispatchToolImpl(callerType, toolKey, args, req) {
+async function dispatchToolImpl(callerType, toolKey, args, req, runtimeDeps = {}) {
   if (callerType === "admin" && toolKey === "repo_inspect") {
     return { status: 200, body: { ok: true, name: toolKey, result: await inspectRepoReadOnly(args) } };
   }
@@ -2815,14 +2818,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         ...(args || {}),
         auth: req?.auth || null,
         source_surface: "gpt_tools_admin_response_chunk_read",
-      }, chunkPersistenceDeps),
+      }, runtimeDeps),
     };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
       pool: getPool(),
-      runtimePersistencePoolFactory,
+      runtimePersistencePoolFactory: runtimeDeps.runtimePersistencePoolFactory,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -4372,7 +4375,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 
 export function buildGptToolsRoutes(deps) {
   const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
-  const chunkPersistenceDeps = { runtimePersistencePoolFactory };
+  const runtimeDeps = { runtimePersistencePoolFactory };
   const router = Router();
 
   // GET /gpt/tools
@@ -4395,7 +4398,7 @@ export function buildGptToolsRoutes(deps) {
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
                   request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps));
+        }, runtimeDeps));
 
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
@@ -4434,7 +4437,7 @@ export function buildGptToolsRoutes(deps) {
         });
       }
 
-      const result = await dispatchTool(callerType, name, args, req);
+      const result = await dispatchTool(callerType, name, args, req, runtimeDeps);
       return res.status(result.status).json(result.body);
     } catch (err) {
       return res.status(err.status || 500).json({

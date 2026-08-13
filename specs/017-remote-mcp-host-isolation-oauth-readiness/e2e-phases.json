@@ -36,7 +36,8 @@
       "http-generic-api/scripts/test-manifest.mjs",
       "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
       "http-generic-api/test-remote-mcp-host-isolation.mjs",
-      "http-generic-api/test-remote-mcp-readiness.mjs"
+      "http-generic-api/test-remote-mcp-readiness.mjs",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
     ]
   },
   "merge_contract": {
@@ -193,7 +194,8 @@
             "http-generic-api/scripts/test-manifest.mjs",
             "http-generic-api/test-remote-mcp-host-isolation.mjs",
             "http-generic-api/test-remote-mcp-readiness.mjs",
-            "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs"
+            "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
           ]
         }
       ]

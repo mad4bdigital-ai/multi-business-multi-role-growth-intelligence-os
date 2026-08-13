@@ -26,10 +26,18 @@ const authoritySource = fs.readFileSync(new URL("./runtimePersistenceWriteAuthor
 const routeSource = fs.readFileSync(new URL("./routes/gptToolsRoutes.js", import.meta.url), "utf8");
 const serverSource = fs.readFileSync(new URL("./server.js", import.meta.url), "utf8");
 assert.match(dbSource, /export function getRuntimePersistencePool\(\)/u);
+assert.match(routeSource, /getPool, getRuntimePersistencePool/u);
+assert.match(routeSource, /runtimePersistencePoolFactory: runtimeDeps\.runtimePersistencePoolFactory \|\| getRuntimePersistencePool/u);
 assert.match(dbSource, /RUNTIME_PERSISTENCE_DB/u);
 assert.match(dbSource, /\$\{prefix\}_USER/u);
 assert.match(authoritySource, /getRuntimePersistencePool\(\)/u);
-assert.match(routeSource, /const chunkPersistenceDeps = \{ runtimePersistencePoolFactory \}/u);
+assert.match(routeSource, /async function dispatchTool\(callerType, toolKey, args, req, runtimeDeps = \{\}\)/u);
+assert.match(routeSource, /dispatchToolImpl\(callerType, toolKey, args, req, runtimeDeps\)/u);
+assert.match(routeSource, /async function dispatchToolImpl\(callerType, toolKey, args, req, runtimeDeps = \{\}\)/u);
+assert.match(routeSource, /maybeChunkToolResponseBody\([\s\S]*?runtimeDeps\)/u);
+assert.match(routeSource, /runtimePersistencePoolFactory: runtimeDeps\.runtimePersistencePoolFactory/u);
+assert.match(routeSource, /const runtimeDeps = \{ runtimePersistencePoolFactory \}/u);
+assert.doesNotMatch(routeSource, /chunkPersistenceDeps/u, "module-scope dispatch must not depend on a build-local lexical variable");
 assert.match(serverSource, /runtimePersistencePoolFactory: getRuntimePersistencePool/u);
 
 await pool.end();

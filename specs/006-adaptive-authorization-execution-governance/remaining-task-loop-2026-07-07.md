@@ -67,3 +67,6 @@ The merged source branch `gpt/t043-legacy-compatibility-wrapper` was verified ab
 ## Current next scope
 
 The next implementation scope is T050: register unit, integration, isolation, replay, stale-revision, ambiguity, and redaction tests across the completed authorization and execution-governance surfaces. T050 is verification registration only and must not enable provider execution, canary activation, route removal, migration execution, external writes, or production enforcement cutover.
+
+
+The tenant enforcement kernel remains **dynamic resolver-derived**: boundary policy is resolved from the tenant-effective capability resolver at runtime, while this scope remains shadow-only and fail-closed with no provider mutation or enforcement cutover.

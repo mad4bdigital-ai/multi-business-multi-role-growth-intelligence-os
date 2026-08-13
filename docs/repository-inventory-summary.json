@@ -3,18 +3,18 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6821,
-    "bytes": 61977234,
-    "lines": 1454351,
+    "files": 6824,
+    "bytes": 62011472,
+    "lines": 1454970,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2049,
+      "tests-and-specs": 2051,
       "documentation": 1869,
       "api-runtime": 1370,
-      "database-migrations": 777,
+      "database-migrations": 778,
       "root-and-other": 233,
       "ci-workflows": 155,
       "api-contracts": 151,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2473,
-      ".mjs": 1568,
+      ".mjs": 1569,
       ".js": 958,
-      ".sql": 792,
-      ".json": 690,
+      ".sql": 793,
+      ".json": 691,
       ".yml": 157,
       ".yaml": 107,
       ".ts": 15,
@@ -57,9 +57,9 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3519,
+      "http-generic-api": 3521,
       "docs": 1776,
-      "specs": 840,
+      "specs": 841,
       ".github": 250,
       ".changes": 228,
       "canonicals": 70,
@@ -210,9 +210,9 @@
   ],
   "surfaces": {
     "workflows": 155,
-    "migrations": 777,
+    "migrations": 778,
     "apiContracts": 151,
-    "testSpecFiles": 2113
+    "testSpecFiles": 2115
   },
   "largestFiles": [
     {
@@ -230,8 +230,8 @@
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1929181,
-      "lines": 58335
+      "bytes": 1930662,
+      "lines": 58377
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -272,8 +272,8 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 209004,
-      "lines": 4454
+      "bytes": 209252,
+      "lines": 4457
     },
     {
       "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
