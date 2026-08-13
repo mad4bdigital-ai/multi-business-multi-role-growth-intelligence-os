@@ -1,14 +1,10 @@
 import { Router } from "express";
-import * as legacy from "./gptToolsRoutesLegacy.js";
 import crypto from "node:crypto";
 import { execFile } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { getPool } from "../db.js";
-import { getGovernancePool } from "../governanceDb.js";
-import { transitionRuntimeBreakGlassReconciliation } from "../runtimeBreakGlassReconciliationClosure.js";
-import { buildDeploymentAttestation, evaluateRuntimeIntegrity } from "../deploymentAttestation.js";
 import { getGitHubAppInstallationToken } from "../githubAppAuth.js";
 import { resolveActivationBootstrapConfig } from "../activationBootstrapConfig.js";
 import { writeAuditLog, writeAuditLogAsync } from "../auditLogger.js";
@@ -107,22 +103,6 @@ import { issueRuntimeDispatchCertification } from "../runtimeDispatchCertificati
 import { serializeDbControlQueryResult } from "./adminCliRoutes.js";
 import { normalizeRegistryTags } from "../registryTagParser.js";
 
-const TENANT_TOOL_COMPATIBILITY_CONTRACT = String.raw`
-sqlCacheKey("tools", callerType, "list", "v3")
-filterTenantToolsByManifest(rows, blockedTenantManifests)
-filterTenantToolsByStrictSchema(rows, blockedTenantSchemas)
-async function dispatchTool(callerType, toolKey, args, req) {
-  assertTenantToolManifestAllows(callerType, toolKey, blockedTenantManifests)
-  assertTenantToolSchemaAllows(callerType, toolKey, blockedTenantSchemas)
-  resolveToolPreflightDescriptor(callerType, toolKey)
-  name: "tenant_connection_operation_preview"
-  if (toolKey === "tenant_connection_operation_preview") {
-    return buildTenantConnectionOperationPreview(args)
-  }
-}
-`;
-void legacy;
-void TENANT_TOOL_COMPATIBILITY_CONTRACT;
 const execFileAsync = promisify(execFile);
 
 const PLATFORM_TENANT_ID = "00000000-0000-0000-0000-000000000000";
@@ -1548,44 +1528,6 @@ const VIRTUAL_ADMIN_TOOLS = [
     },
   },
   {
-    name: "runtime_break_glass_reconciliation_transition",
-    displayName: "Runtime Break-Glass Reconciliation Transition",
-    description: "Records one governed D07-D13 break-glass reconciliation evidence transition. It never performs Git, Production promotion, deployment, or Hostinger mutation itself; it accepts only already-verified evidence and requires typed confirmation plus same-cycle DB readback.",
-    method: "VIRTUAL",
-    path: "internal://runtime-break-glass/reconciliation-transition",
-    tags: ["runtime", "break-glass", "governance", "reconciliation", "admin"],
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        break_glass_id: { type: "string" },
-        to_state: { type: "string", enum: ["MAIN_COMMITTED", "STAGING_VERIFIED", "PRODUCTION_PROMOTED", "REDEPLOYED", "CLEAN_READBACK", "CLOSED"] },
-        evidence: { type: "object" },
-        confirm: { type: "string" },
-        actor: { type: "string" },
-      },
-      required: ["break_glass_id", "to_state", "evidence", "confirm"],
-    },
-  },
-  {
-    name: "deployment_attestation_generate",
-    displayName: "Deployment Attestation Generate",
-    description: "Generates deterministic, secret-free deployment attestation and optionally evaluates runtime integrity. This surface does not deploy or persist provider state.",
-    method: "VIRTUAL",
-    path: "internal://deployment-attestation/generate",
-    tags: ["deployment", "attestation", "runtime-integrity", "admin", "read-only"],
-    inputSchema: {
-      type: "object",
-      additionalProperties: true,
-      properties: {
-        environment_key: { type: "string" }, repository_uri: { type: "string" }, source_branch: { type: "string" }, source_commit_sha: { type: "string" },
-        build_id: { type: "string" }, build_timestamp: { type: "string" }, canonical_registry_revision: { type: "integer" }, canonical_resource_hashes: { type: "array" },
-        generation_policy_version: { type: "string" }, runtime_readback: { type: "object" }, break_glass: { type: "object" },
-      },
-      required: ["environment_key", "repository_uri", "source_branch", "source_commit_sha", "build_id", "canonical_resource_hashes"],
-    },
-  },
-  {
     name: "admin_branch_reconcile",
     displayName: "Admin Branch Reconcile",
     description: "Dry-run branch drift reconciliation adapter. Reads GitHub refs/compare through the GitHub App, classifies drift, returns a no-secret continuation checkpoint, and blocks apply until explicit review/confirmation surfaces exist.",
@@ -2641,7 +2583,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
           source_tool_key: toolKey,
           source_surface: "gpt_tools_dispatch",
           request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps)
+        })
       : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn only after the exchange has
@@ -2815,14 +2757,13 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         ...(args || {}),
         auth: req?.auth || null,
         source_surface: "gpt_tools_admin_response_chunk_read",
-      }, chunkPersistenceDeps),
+      }),
     };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
       pool: getPool(),
-      runtimePersistencePoolFactory,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -3369,31 +3310,6 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
           },
           secrets_included: false,
         },
-      };
-    }
-  }
-  if (callerType === "admin" && toolKey === "runtime_break_glass_reconciliation_transition") {
-    try {
-      const result = await transitionRuntimeBreakGlassReconciliation(args || {}, { pool: getGovernancePool() });
-      return { status: 200, body: { ok: true, name: toolKey, result, secrets_included: false } };
-    } catch (err) {
-      return {
-        status: err?.status || 500,
-        body: { ok: false, error: { code: err?.code || "runtime_break_glass_reconciliation_transition_failed", message: err?.message || "Runtime break-glass reconciliation transition failed.", details: err?.details || null }, secrets_included: false },
-      };
-    }
-  }
-  if (callerType === "admin" && toolKey === "deployment_attestation_generate") {
-    try {
-      const attestation = buildDeploymentAttestation(args || {});
-      const runtimeIntegrity = args?.runtime_readback
-        ? evaluateRuntimeIntegrity({ attestation, runtime_readback: args.runtime_readback, break_glass: args.break_glass || {} })
-        : null;
-      return { status: 200, body: { ok: true, name: toolKey, result: { attestation, runtime_integrity: runtimeIntegrity, service_health_separate: true, secrets_included: false }, secrets_included: false } };
-    } catch (err) {
-      return {
-        status: err?.status || 500,
-        body: { ok: false, error: { code: err?.code || "deployment_attestation_generate_failed", message: err?.message || "Deployment attestation generation failed.", details: err?.details || null }, secrets_included: false },
       };
     }
   }
@@ -4371,8 +4287,7 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 }
 
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
-  const chunkPersistenceDeps = { runtimePersistencePoolFactory };
+  const { requireBackendApiKey } = deps;
   const router = Router();
 
   // GET /gpt/tools
@@ -4394,9 +4309,8 @@ export function buildGptToolsRoutes(deps) {
         auth: req?.auth || null,
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
-                  request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        }, chunkPersistenceDeps));
-
+        request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+      }));
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }

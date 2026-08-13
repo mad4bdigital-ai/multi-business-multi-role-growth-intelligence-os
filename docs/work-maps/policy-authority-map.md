@@ -343,7 +343,7 @@ flowchart TD
 | `platform_capability_shadow_certification_issue_policy_v1` | 1 |
 | `platform_development_constitution_policy_v1` | 1 |
 | `platform_private_capability_vault_policy_v1` | 1 |
-| `platform_resource_api_coverage_policy_v1` | 2 |
+| `platform_resource_api_coverage_policy_v1` | 3 |
 | `platform_resource_api_secret_field_policy_v1` | 1 |
 | `platform_resource_authority_binding_policy_v1` | 1 |
 | `platform_resource_context_dynamic_policy_v1` | 1 |

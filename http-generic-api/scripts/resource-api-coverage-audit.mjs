@@ -41,18 +41,25 @@ function openApiHas(source, signature) {
   return new RegExp(`(?:^|\\n)\\s+${method.toLowerCase()}:`).test(block);
 }
 
-function gitChangedFiles() {
+function gitChangeContext() {
   const candidates = [
     process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}...HEAD` : null,
     "origin/main...HEAD", "HEAD~1...HEAD",
   ].filter(Boolean);
+  let repoPrefix = "";
+  try {
+    repoPrefix = execFileSync("git", ["rev-parse", "--show-prefix"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+  } catch {}
   for (const range of candidates) {
     try {
       const output = execFileSync("git", ["diff", "--name-only", range], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
-      return output.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+      const files = output.split(/\r?\n/).map((value) => value.trim()).filter(Boolean);
+      const baseRef = range.split("...", 1)[0];
+      const baseSha = execFileSync("git", ["merge-base", baseRef, "HEAD"], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+      return { files, range, base_ref: baseRef, base_sha: baseSha, repo_prefix: repoPrefix };
     } catch {}
   }
-  return [];
+  return { files: [], range: null, base_ref: null, base_sha: null, repo_prefix: repoPrefix };
 }
 
 function changedContent(files) {
@@ -61,6 +68,37 @@ function changedContent(files) {
     if (!fs.existsSync(full) || !fs.statSync(full).isFile()) return "";
     return fs.readFileSync(full, "utf8");
   }).join("\n");
+}
+
+function gitBaseContent(file, changeContext) {
+  if (!changeContext?.base_sha) return "";
+  const repoPath = `${changeContext.repo_prefix || ""}${file}`.replace(/\\/g, "/");
+  try {
+    return execFileSync("git", ["show", `${changeContext.base_sha}:${repoPath}`], { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return "";
+  }
+}
+
+function baseChangedContent(files, changeContext) {
+  return files.map((file) => gitBaseContent(file, changeContext)).join("\n");
+}
+
+function relationDeclarations(source) {
+  const result = new Set();
+  for (const match of String(source || "").matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?(TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([A-Za-z0-9_]+)[`"]?/gi)) {
+    result.add(`${match[1].toLowerCase()}:${match[2]}`);
+  }
+  return result;
+}
+
+function registeredToolKeys(source) {
+  const result = new Set();
+  for (const match of String(source || "").matchAll(/(?:admin_platform_endpoint_tools|tenant_platform_endpoint_tools)[\s\S]{0,400}?['"]([a-z][a-z0-9_]{3,})['"]/gi)) {
+    const toolKey = match[1];
+    if (!["tool_key", "display_name", "description"].includes(toolKey)) result.add(toolKey);
+  }
+  return result;
 }
 
 function declaredSurfacePolicies(source) {
@@ -111,12 +149,7 @@ function validateCallabilityContracts(manifest, findings) {
     const implementationSource = readContractSource(contract.implementation_file, findings, familyKey, "implementation");
 
     if (contractSource && contract.contract_source_marker && !contractSource.includes(contract.contract_source_marker)) {
-      findings.push({
-        type: "callability_contract_source_marker_missing",
-        family_key: familyKey,
-        file: contract.contract_source_file,
-        marker: contract.contract_source_marker,
-      });
+      findings.push({ type: "callability_contract_source_marker_missing", family_key: familyKey, file: contract.contract_source_file, marker: contract.contract_source_marker });
     }
 
     if (contractSource && contract.contract_key_pattern) {
@@ -131,79 +164,32 @@ function validateCallabilityContracts(manifest, findings) {
         const uniqueKeys = new Set(keys.filter(Boolean));
         for (const key of uniqueKeys) coveredToolKeys.add(key);
         if (Number.isInteger(contract.expected_contract_count) && keys.length !== contract.expected_contract_count) {
-          findings.push({
-            type: "callability_contract_count_mismatch",
-            family_key: familyKey,
-            expected: contract.expected_contract_count,
-            actual: keys.length,
-          });
+          findings.push({ type: "callability_contract_count_mismatch", family_key: familyKey, expected: contract.expected_contract_count, actual: keys.length });
         }
-        if (uniqueKeys.size !== keys.length) {
-          findings.push({
-            type: "callability_contract_keys_not_unique",
-            family_key: familyKey,
-            contract_count: keys.length,
-            unique_count: uniqueKeys.size,
-          });
-        }
+        if (uniqueKeys.size !== keys.length) findings.push({ type: "callability_contract_keys_not_unique", family_key: familyKey, contract_count: keys.length, unique_count: uniqueKeys.size });
       } catch (error) {
-        findings.push({
-          type: "callability_contract_pattern_invalid",
-          family_key: familyKey,
-          pattern: contract.contract_key_pattern,
-          message: String(error?.message || error),
-        });
+        findings.push({ type: "callability_contract_pattern_invalid", family_key: familyKey, pattern: contract.contract_key_pattern, message: String(error?.message || error) });
       }
     } else {
       findings.push({ type: "callability_contract_key_pattern_missing", family_key: familyKey });
     }
 
-    for (const [markerRole, marker] of [
-      ["descriptor", contract.descriptor_marker],
-      ["handler", contract.handler_marker],
-      ["handler_call", contract.handler_call_marker],
-    ]) {
-      if (!marker) {
-        findings.push({ type: "callability_marker_not_declared", family_key: familyKey, role: markerRole });
-      } else if (registrySource && !registrySource.includes(marker)) {
-        findings.push({
-          type: "callability_registry_marker_missing",
-          family_key: familyKey,
-          role: markerRole,
-          file: contract.admin_registry_file,
-          marker,
-        });
-      }
+    for (const [markerRole, marker] of [["descriptor", contract.descriptor_marker], ["handler", contract.handler_marker], ["handler_call", contract.handler_call_marker]]) {
+      if (!marker) findings.push({ type: "callability_marker_not_declared", family_key: familyKey, role: markerRole });
+      else if (registrySource && !registrySource.includes(marker)) findings.push({ type: "callability_registry_marker_missing", family_key: familyKey, role: markerRole, file: contract.admin_registry_file, marker });
     }
 
-    if (!contract.implementation_export_marker) {
-      findings.push({ type: "callability_implementation_export_not_declared", family_key: familyKey });
-    } else if (implementationSource && !implementationSource.includes(contract.implementation_export_marker)) {
-      findings.push({
-        type: "callability_implementation_export_missing",
-        family_key: familyKey,
-        file: contract.implementation_file,
-        marker: contract.implementation_export_marker,
-      });
+    if (!contract.implementation_export_marker) findings.push({ type: "callability_implementation_export_not_declared", family_key: familyKey });
+    else if (implementationSource && !implementationSource.includes(contract.implementation_export_marker)) {
+      findings.push({ type: "callability_implementation_export_missing", family_key: familyKey, file: contract.implementation_file, marker: contract.implementation_export_marker });
     }
 
     for (const marker of contract.required_safety_markers || []) {
-      if (implementationSource && !implementationSource.includes(marker)) {
-        findings.push({
-          type: "callability_safety_marker_missing",
-          family_key: familyKey,
-          file: contract.implementation_file,
-          marker,
-        });
-      }
+      if (implementationSource && !implementationSource.includes(marker)) findings.push({ type: "callability_safety_marker_missing", family_key: familyKey, file: contract.implementation_file, marker });
     }
 
-    if (contract.admin_preview_required_while_disabled === true && !contract.admin_preview_tool) {
-      findings.push({ type: "callability_admin_preview_not_declared", family_key: familyKey });
-    }
-    if (contract.runtime_execution_allowed !== false) {
-      findings.push({ type: "callability_preview_runtime_execution_not_explicitly_blocked", family_key: familyKey });
-    }
+    if (contract.admin_preview_required_while_disabled === true && !contract.admin_preview_tool) findings.push({ type: "callability_admin_preview_not_declared", family_key: familyKey });
+    if (contract.runtime_execution_allowed !== false) findings.push({ type: "callability_preview_runtime_execution_not_explicitly_blocked", family_key: familyKey });
   }
   return coveredToolKeys;
 }
@@ -217,9 +203,7 @@ const tenantOpenapi = fs.readFileSync(TENANT_OPENAPI_PATH, "utf8");
 const findings = [];
 
 if (manifest.new_feature_gate?.require_surface_policy_decision !== true) findings.push({ type: "surface_policy_gate_not_enabled" });
-if (manifest.new_feature_gate?.require_callable_handler_or_explicit_admin_preview !== true) {
-  findings.push({ type: "callable_handler_or_admin_preview_gate_not_enabled" });
-}
+if (manifest.new_feature_gate?.require_callable_handler_or_explicit_admin_preview !== true) findings.push({ type: "callable_handler_or_admin_preview_gate_not_enabled" });
 const callabilityCoveredTools = validateCallabilityContracts(manifest, findings);
 const directRouteCallability = validateDirectRouteCallabilityContracts({ root: ROOT, manifest });
 findings.push(...directRouteCallability.findings);
@@ -235,9 +219,7 @@ for (const resource of manifest.resources || []) {
     if (!state) findings.push({ type: "missing_required_operation_class", resource_key: resource.resource_key, operation });
     else if (!REQUIRED_STATES.has(state)) findings.push({ type: "invalid_operation_state", resource_key: resource.resource_key, operation, state });
   }
-  if (resource.tenant && !String(resource.scope_class || "").includes("tenant")) {
-    findings.push({ type: "tenant_resource_missing_tenant_scope", resource_key: resource.resource_key, scope_class: resource.scope_class });
-  }
+  if (resource.tenant && !String(resource.scope_class || "").includes("tenant")) findings.push({ type: "tenant_resource_missing_tenant_scope", resource_key: resource.resource_key, scope_class: resource.scope_class });
 }
 
 for (const signature of manifest.route_operations || []) {
@@ -247,42 +229,43 @@ for (const signature of manifest.route_operations || []) {
   if (!openApiHas(targetSpec, normalized)) findings.push({ type: "route_missing_openapi_contract", signature: normalized });
 }
 
-const changedFiles = args.has("--changed") || args.has("--ci") ? gitChangedFiles() : [];
+const changeContext = args.has("--changed") || args.has("--ci") ? gitChangeContext() : { files: [], range: null, base_ref: null, base_sha: null, repo_prefix: "" };
+const changedFiles = changeContext.files;
 const combined = changedContent(changedFiles);
+const baseCombined = baseChangedContent(changedFiles, changeContext);
+const baseRelations = relationDeclarations(baseCombined);
+const baseToolKeys = registeredToolKeys(baseCombined);
 const surfacePolicyDecisions = declaredSurfacePolicies(combined);
+
 if (combined) {
   const coveredTables = new Set((manifest.resources || []).flatMap((resource) => [...(resource.source_tables || []), ...(resource.read_models || [])]));
   const exemptionPatterns = (manifest.coverage_exemptions?.tables || []).map((row) => ({ ...row, re: new RegExp(row.pattern) }));
-  for (const match of combined.matchAll(/CREATE\s+(?:OR\s+REPLACE\s+)?(TABLE|VIEW)\s+(?:IF\s+NOT\s+EXISTS\s+)?[`"]?([A-Za-z0-9_]+)[`"]?/gi)) {
-    const kind = match[1].toLowerCase();
-    const relation = match[2];
+  for (const relationKey of relationDeclarations(combined)) {
+    if (baseRelations.has(relationKey)) continue;
+    const [kind, relation] = relationKey.split(":", 2);
     const exempt = exemptionPatterns.some((row) => row.re.test(relation) && (!row.expires_on || new Date(`${row.expires_on}T23:59:59Z`) >= new Date()));
-    if (!coveredTables.has(relation) && !exempt && !surfacePolicyDecisions.has(`${kind}:${relation}`)) {
+    if (!coveredTables.has(relation) && !exempt && !surfacePolicyDecisions.has(relationKey)) {
       findings.push({ type: "new_relation_missing_surface_policy_decision", surface_kind: kind, relation });
     }
   }
 
   const manifestTools = new Set(manifest.tool_exports || []);
-  for (const match of combined.matchAll(/(?:admin_platform_endpoint_tools|tenant_platform_endpoint_tools)[\s\S]{0,400}?['"]([a-z][a-z0-9_]{3,})['"]/gi)) {
-    const toolKey = match[1];
-    if (
-      !manifestTools.has(toolKey)
-      && !callabilityCoveredTools.has(toolKey)
-      && !surfacePolicyDecisions.has(`tool:${toolKey}`)
-      && !["tool_key", "display_name", "description"].includes(toolKey)
-    ) {
-      findings.push({
-        type: "new_tool_missing_callability_contract_or_surface_policy_decision",
-        tool_key: toolKey,
-      });
+  for (const toolKey of registeredToolKeys(combined)) {
+    if (baseToolKeys.has(toolKey)) continue;
+    if (!manifestTools.has(toolKey) && !callabilityCoveredTools.has(toolKey) && !surfacePolicyDecisions.has(`tool:${toolKey}`)) {
+      findings.push({ type: "new_tool_missing_callability_contract_or_surface_policy_decision", tool_key: toolKey });
     }
   }
 
   const changedRouteFiles = changedFiles.filter((file) => file.startsWith("routes/") && file.endsWith(".js"));
+  const baseRouteSignatures = new Set();
+  for (const file of changedRouteFiles) {
+    for (const signature of routeSignatures(gitBaseContent(file, changeContext))) baseRouteSignatures.add(signature);
+  }
   for (const file of changedRouteFiles) {
     const source = fs.readFileSync(path.join(ROOT, file), "utf8");
     for (const signature of routeSignatures(source)) {
-      if (file === "routes/resourceApiRoutes.js") continue;
+      if (file === "routes/resourceApiRoutes.js" || baseRouteSignatures.has(signature)) continue;
       const documented = openApiHas(openapi, signature) || openApiHas(tenantOpenapi, signature);
       if (!documented) findings.push({ type: "new_route_missing_openapi_contract", file, signature });
     }
@@ -292,7 +275,10 @@ if (combined) {
 const unique = [...new Map(findings.map((row) => [JSON.stringify(row), row])).values()];
 if (unique.length) {
   fail("resource_api_coverage_gate_failed", "New or declared feature surfaces are missing governed Resource API coverage or an explicit surface-policy decision.", {
-    finding_count: unique.length, findings: unique.slice(0, 200), changed_files: changedFiles,
+    finding_count: unique.length,
+    findings: unique.slice(0, 200),
+    changed_files: changedFiles,
+    changed_surface_baseline: { range: changeContext.range, base_ref: changeContext.base_ref, base_sha: changeContext.base_sha },
   });
 }
 
@@ -304,6 +290,7 @@ console.log(JSON.stringify({
   tool_exports: manifest.tool_exports.length,
   surface_policy_decisions: surfacePolicyDecisions.size,
   changed_files_checked: changedFiles.length,
+  changed_surface_baseline: { range: changeContext.range, base_ref: changeContext.base_ref, base_sha: changeContext.base_sha },
   gate: "fail_closed",
   secrets_included: false,
 }));
