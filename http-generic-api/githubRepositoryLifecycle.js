@@ -101,6 +101,7 @@ export function createRepositoryAuthorityCheckedFetch({
           expected_commit_sha: resolvedCommitParentSha || expected_commit_sha,
         },
         acceptedAppKeys: ["github"],
+        acceptedCapabilityKeys: ["repo_patch_apply"],
         acceptedIntents: REPOSITORY_PATCH_MUTATION_INTENTS,
         expectedResourceUri: owner && repo ? `github://${owner}/${repo}` : requestTarget.resourceUri,
         expectedCommitSha: resolvedCommitParentSha || expected_commit_sha || expected_branch_sha || expected_base_sha,
