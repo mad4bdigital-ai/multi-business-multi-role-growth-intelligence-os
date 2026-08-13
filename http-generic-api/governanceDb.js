@@ -9,11 +9,10 @@ function boundedInteger(value, fallback, { min = 1, max = 10 } = {}) {
 }
 
 export function resolveGovernanceDbConfig(env = process.env) {
-  const missing = ["GOVERNANCE_DB_USER", "GOVERNANCE_DB_PASSWORD"].filter((key) => !String(env[key] || "").trim());
+  const missing = ["GOVERNANCE_DB_NAME", "GOVERNANCE_DB_USER", "GOVERNANCE_DB_PASSWORD"].filter((key) => !String(env[key] || "").trim());
   const host = String(env.GOVERNANCE_DB_HOST || env.DB_HOST || "").trim();
-  const database = String(env.GOVERNANCE_DB_NAME || env.DB_NAME || "").trim();
+  const database = String(env.GOVERNANCE_DB_NAME || "").trim();
   if (!host) missing.push("GOVERNANCE_DB_HOST|DB_HOST");
-  if (!database) missing.push("GOVERNANCE_DB_NAME|DB_NAME");
   if (missing.length) {
     const error = new Error(`Missing required governance DB configuration: ${missing.join(", ")}`);
     error.code = "GOVERNANCE_DB_CONFIG_MISSING";
@@ -22,6 +21,8 @@ export function resolveGovernanceDbConfig(env = process.env) {
       governance_identity_required: true,
       runtime_identity_fallback_allowed: false,
       same_runtime_identity_rejected: true,
+      same_runtime_database_rejected: true,
+      governance_database_fallback_allowed: false,
       secrets_included: false,
     };
     throw error;
@@ -29,6 +30,21 @@ export function resolveGovernanceDbConfig(env = process.env) {
 
   const governanceUser = String(env.GOVERNANCE_DB_USER).trim();
   const runtimeUser = String(env.DB_USER || "").trim();
+  const runtimeDatabase = String(env.DB_NAME || "").trim();
+  if (runtimeDatabase && database === runtimeDatabase) {
+    const error = new Error("Governance DB name must be distinct from the ordinary runtime DB name.");
+    error.code = "GOVERNANCE_DB_DATABASE_NOT_DEDICATED";
+    error.details = {
+      governance_identity_required: true,
+      runtime_identity_fallback_allowed: false,
+      same_runtime_identity_rejected: true,
+      same_runtime_database_rejected: true,
+      governance_database_fallback_allowed: false,
+      secrets_included: false,
+    };
+    throw error;
+  }
+
   if (runtimeUser && governanceUser === runtimeUser) {
     const error = new Error("Governance DB writer identity must be distinct from the ordinary runtime DB identity.");
     error.code = "GOVERNANCE_DB_IDENTITY_NOT_DEDICATED";
@@ -36,6 +52,8 @@ export function resolveGovernanceDbConfig(env = process.env) {
       governance_identity_required: true,
       runtime_identity_fallback_allowed: false,
       same_runtime_identity_rejected: true,
+      same_runtime_database_rejected: true,
+      governance_database_fallback_allowed: false,
       secrets_included: false,
     };
     throw error;

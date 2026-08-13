@@ -1,0 +1,84 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "governed-production-promotion-approval-aware",
+  "title": "Approval-aware exact candidate validation and source-pinned convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/governed-production-promotion-approval-aware.json",
+      ".github/workflows/governed-production-promotion-request-launcher.yml",
+      "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep governed release and validation surfaces open while Exact Candidate Validation waits for its required approval, and reject any retry whose live main no longer equals the authorized request pin.",
+      "e2e_journeys": [
+        {
+          "id": "wait-for-exact-validation-approval-without-closing-surfaces",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production Promotion Request Launcher",
+          "entrypoint": "A source-pinned candidate has an open release PR and validation PR, while exact candidate CI is completed with action_required.",
+          "terminal_outcome": "The launcher keeps bounded polling and both governed review surfaces open until approval produces a successful exact validation, a non-approval failure occurs, or the bounded deadline expires; it never treats action_required as an immediate stale-candidate failure.",
+          "steps": [
+            "Build the candidate and verify the release branch and validation branch point to the exact candidate SHA.",
+            "Resolve the exact candidate validation run by the candidate SHA and bounded attempt window.",
+            "When the run is action_required, retain the release and validation PRs and continue bounded polling for the required approval.",
+            "After approval, require exact validation success and continue the supporting gates and final protected-ref readbacks.",
+            "If the approval deadline expires or the run fails for a non-approval conclusion, close the governed surfaces with an explicit fail-closed reason."
+          ],
+          "assertions": [
+            "action_required is an approval-pending state, not an immediate validation failure.",
+            "No fake approval, review bypass, dummy commit, Production merge, deployment, migration, provider call, credential read, Cloudflare change, or external write is performed.",
+            "The review surfaces remain available for the authorized human approval while the bounded wait is active.",
+            "Exact candidate evidence remains required before convergence can be marked successful.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-production-promotion-approval-aware.json",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe approval-aware convergence on a stable exact-main pin and publish the resulting candidate evidence without changing protected refs."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise delayed approval, canceled validation, API readback errors, and concurrent main movement while proving the launcher stays bounded and fail-closed."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "This orchestration repair has no provider or live-runtime canary authority."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This repair does not authorize Production merge, deployment, database mutation, migration, provider calls, or Cloudflare changes."
+    }
+  ],
+  "secrets_included": false
+}

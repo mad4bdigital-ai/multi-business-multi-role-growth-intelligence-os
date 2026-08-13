@@ -2574,7 +2574,7 @@ async function dispatchTool(callerType, toolKey, args, req) {
           source_tool_key: toolKey,
           source_surface: "gpt_tools_dispatch",
           request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-        })
+        }, chunkPersistenceDeps)
       : result?.body,
   };
   // Best-effort: archive the dispatch as a tool turn only after the exchange has
@@ -2748,13 +2748,14 @@ async function dispatchToolImpl(callerType, toolKey, args, req) {
         ...(args || {}),
         auth: req?.auth || null,
         source_surface: "gpt_tools_admin_response_chunk_read",
-      }),
+      }, chunkPersistenceDeps),
     };
   }
 
   if (callerType === "admin" && toolKey === "response_chunk_durable_recovery_smoke") {
     const body = await runGovernedResponseChunkDurableRecoverySmoke(args, {
       pool: getPool(),
+      runtimePersistencePoolFactory,
       maybeChunkToolResponseBody,
       evictToolResponseChunkMemoryCache,
       readCachedToolResponseChunk,
@@ -4288,7 +4289,8 @@ export async function applyRepoPatch(args = {}, ctx = {}) {
 }
 
 export function buildGptToolsRoutes(deps) {
-  const { requireBackendApiKey } = deps;
+  const { requireBackendApiKey, runtimePersistencePoolFactory } = deps;
+  const chunkPersistenceDeps = { runtimePersistencePoolFactory };
   const router = Router();
 
   // GET /gpt/tools
@@ -4310,8 +4312,9 @@ export function buildGptToolsRoutes(deps) {
         auth: req?.auth || null,
         source_tool_key: "gpt_tools_list",
         source_surface: "gpt_tools_list",
-        request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
-      }));
+                  request_id: req?.requestId || req?.headers?.["x-request-id"] || null,
+        }, chunkPersistenceDeps));
+
     } catch (err) {
       return res.status(500).json({ ok: false, error: { code: "tools_list_failed", message: err.message } });
     }

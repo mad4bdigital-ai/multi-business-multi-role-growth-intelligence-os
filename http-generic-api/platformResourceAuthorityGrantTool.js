@@ -1,5 +1,8 @@
 import crypto from "node:crypto";
-import { getGovernancePool } from "./governanceDb.js";
+import {
+  assertPlatformResourceAuthorityStoreSource,
+  resolvePlatformResourceAuthorityPool,
+} from "./platformResourceAuthorityStore.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const SHA_RE = /^[0-9a-f]{40}$/i;
@@ -326,7 +329,11 @@ export async function applyPlatformResourceAuthorityGrant(args = {}, deps = {}) 
     return { ...plan, readback_verified: false };
   }
 
-  const writerPool = deps.writerPool || getGovernancePool();
+  const writerPool = resolvePlatformResourceAuthorityPool(deps);
+  assertPlatformResourceAuthorityStoreSource({
+    pool: writerPool,
+    runtimePool: deps.runtimePool || deps.pool,
+  });
   const bindingId = crypto.randomUUID();
   await writerPool.query(
     `INSERT INTO platform_resource_authority_bindings

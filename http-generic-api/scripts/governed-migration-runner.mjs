@@ -5,6 +5,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getPool } from "../db.js";
+import { runDatabaseCollationPreflight } from "../databaseCollationPolicyGuard.js";
 import { assessLiveIdentifierComparisonContracts } from "../canonicalIdentifierContract.js";
 import {
   assessMigrationSqlPreflight,
@@ -489,6 +490,24 @@ async function main() {
   const preflight_statement_count = Number(preflight?.counts?.statements || 0);
   const before_schema_objects = await existingSchemaObjects(requirements.schema_objects);
   const identifier_contract_preflight = await assessLiveIdentifierComparisonContracts(sql);
+  const collation_preflight = await runDatabaseCollationPreflight({ pool: getPool(), sql, migration });
+
+  if (!collation_preflight.ready) {
+    console.log(JSON.stringify({
+      ok: false,
+      mode: args.mode,
+      migration,
+      blocked_reason: "collation_policy_not_pass",
+      collation_preflight,
+      preflight,
+      requirements: artifactNames(requirements),
+      before_schema_objects,
+      applies_sql: false,
+      secrets_included: false,
+    }, null, 2));
+    process.exitCode = 2;
+    return;
+  }
 
   if (preflight_statement_count !== statement_count) {
     console.log(JSON.stringify({
@@ -498,6 +517,7 @@ async function main() {
       blocked_reason: "preflight_statement_count_mismatch",
       preflight_statement_count,
       statement_count,
+      collation_preflight,
       preflight,
       requirements: artifactNames(requirements),
       before_schema_objects,
@@ -530,6 +550,7 @@ async function main() {
       mode: args.mode,
       migration,
       blocked_reason: "identifier_comparison_contract_mismatch",
+      collation_preflight,
       preflight,
       identifier_contract_preflight,
       requirements: artifactNames(requirements),
@@ -555,6 +576,7 @@ async function main() {
       records_ledger_only: Boolean(args.recordOnly),
       existing_record_only_ledger: existingRecordOnlyLedger,
       authorization,
+      collation_preflight,
       preflight,
       statement_count: statements.length,
       requirements: artifactNames(requirements),
@@ -582,6 +604,7 @@ async function main() {
         recorded: false,
         duplicate: true,
         existing_ledger: existingRecordOnlyLedger,
+        collation_preflight,
         preflight,
         statement_count,
         requirements: artifactNames(requirements),

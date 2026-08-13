@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 
 import { getPool } from "./db.js";
+import { resolvePlatformResourceAuthorityPool } from "./platformResourceAuthorityStore.js";
 
 export const REPOSITORY_PR_RECONCILE_RECIPE_KEY = "repo.pr.reconciliation_sweep";
 export const GITHUB_REPO_RESOURCE_TYPE = "github_repo";
@@ -85,14 +86,12 @@ function bindingRowToObject(row = {}) {
   };
 }
 
-export async function findUsableRepositoryProviderBinding(repoRef, { pool = getPool() } = {}) {
+export async function findUsableRepositoryProviderBinding(repoRef, { pool = getPool(), authorityStorePool = null } = {}) {
   if (!repoRef?.resource_uri) return null;
-  const [rows] = await pool.query(
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [bindingRows] = await authorityPool.query(
     `SELECT b.*
        FROM platform_resource_authority_bindings b
-       JOIN connected_systems s ON BINARY s.system_id = BINARY b.source_system_id
-       LEFT JOIN installations i ON BINARY i.installation_id = BINARY b.source_installation_id
-                                AND BINARY i.system_id = BINARY b.source_system_id
       WHERE b.status = 'active'
         AND b.resource_type = 'github_repo'
         AND BINARY b.resource_uri = BINARY ?
@@ -102,25 +101,48 @@ export async function findUsableRepositoryProviderBinding(repoRef, { pool = getP
         AND b.user_id IS NULL
         AND b.source_system_id IS NOT NULL
         AND (b.expires_at IS NULL OR b.expires_at > NOW())
-        AND s.status = 'active'
-        AND LOWER(s.provider_family) = 'github'
-        AND BINARY s.tenant_id = BINARY b.tenant_id
-        AND (b.source_installation_id IS NULL OR (i.status = 'active' AND BINARY i.tenant_id = BINARY b.tenant_id AND (i.expires_at IS NULL OR i.expires_at > NOW())))
-        AND (b.source_installation_id IS NOT NULL
-          OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.github_app_installation_id')), '') IS NOT NULL
-          OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.provider_installation_id')), '') IS NOT NULL)
-      ORDER BY b.workspace_id IS NOT NULL DESC, b.updated_at DESC, b.created_at DESC
-      LIMIT 1`,
+      ORDER BY b.workspace_id IS NOT NULL DESC, b.updated_at DESC, b.created_at DESC`,
     [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
   );
-  return rows?.[0] ? bindingRowToObject(rows[0]) : null;
+  for (const binding of bindingRows || []) {
+    const [providerRows] = await pool.query(
+      `SELECT s.system_id, s.tenant_id, s.status, s.provider_family, s.config_json,
+              i.installation_id, i.status AS installation_status, i.tenant_id AS installation_tenant_id,
+              i.expires_at AS installation_expires_at
+         FROM connected_systems s
+         LEFT JOIN installations i
+           ON BINARY i.installation_id = BINARY ?
+          AND BINARY i.system_id = BINARY s.system_id
+        WHERE BINARY s.system_id = BINARY ?
+          AND s.status = 'active'
+          AND LOWER(s.provider_family) = 'github'
+          AND BINARY s.tenant_id = BINARY ?
+          AND (
+            ? IS NULL
+            OR (
+              i.status = 'active'
+              AND BINARY i.tenant_id = BINARY ?
+              AND (i.expires_at IS NULL OR i.expires_at > NOW())
+            )
+          )
+          AND (
+            ? IS NOT NULL
+            OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.github_app_installation_id')), '') IS NOT NULL
+            OR NULLIF(JSON_UNQUOTE(JSON_EXTRACT(s.config_json, '$.provider_installation_id')), '') IS NOT NULL
+          )
+        LIMIT 1`,
+      [binding.source_installation_id || null, binding.source_system_id, binding.tenant_id, binding.source_installation_id || null, binding.tenant_id, binding.source_installation_id || null],
+    );
+    if (providerRows?.[0]) return bindingRowToObject(binding);
+  }
+  return null;
 }
 
 function repositoryProviderAuthorizationGatedResult(tool, classification, checks = []) {
   return { ok:false, tool, status:'authorization_gated', classification, reason_code:'repository_provider_binding_required', checks, provider_calls_made:0, apply_allowed:false, mutations_executed:false, secrets_included:false };
 }
 
-export async function createRepositoryAuthorityBinding(args = {}, { auth } = {}) {
+export async function createRepositoryAuthorityBinding(args = {}, { auth, authorityStorePool = null } = {}) {
   const repoRef = normalizeGithubRepoRef(args);
   if (!repoRef) { const err = new Error("A GitHub repository owner/repo or github://owner/repo resource_uri is required."); err.status = 400; err.code = "github_repo_ref_required"; throw err; }
   const recipeKey = asString(args.recipe_key || REPOSITORY_PR_RECONCILE_RECIPE_KEY);
@@ -131,8 +153,8 @@ export async function createRepositoryAuthorityBinding(args = {}, { auth } = {})
   const allowedModes = Array.isArray(args.allowed_modes) ? args.allowed_modes : ["read_only"];
   if (allowedModes.some((mode) => asString(mode) !== "read_only")) { const err = new Error("V2 repository authority bindings only allow read_only mode."); err.status = 400; err.code = "repository_binding_mode_read_only_required"; throw err; }
 
-  const pool = getPool();
-  const [existingRows] = await pool.query(
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [existingRows] = await authorityPool.query(
     `SELECT * FROM platform_resource_authority_bindings
       WHERE status = 'active' AND resource_type = ? AND resource_uri = ? AND recipe_key = ? AND permission_level = 'read_only'
         AND COALESCE(tenant_id, '') = COALESCE(?, '') AND COALESCE(workspace_id, '') = COALESCE(?, '') AND COALESCE(user_id, '') = COALESCE(?, '')
@@ -142,17 +164,17 @@ export async function createRepositoryAuthorityBinding(args = {}, { auth } = {})
   if (existingRows.length) return { ok: true, tool: "platform_resource_authority_binding_create", classification: "repository_authority_binding_already_active", binding: bindingRowToObject(existingRows[0]), created: false, provider_calls_made: 0, secrets_included: false };
 
   const bindingId = randomUUID();
-  await pool.query(
+  await authorityPool.query(
     `INSERT INTO platform_resource_authority_bindings
        (binding_id, tenant_id, workspace_id, user_id, resource_type, resource_uri, resource_ref_json, recipe_key, permission_level, allowed_modes_json, authority_source, expires_at, status, notes, created_by)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'read_only', ?, ?, ?, 'active', ?, ?)`,
     [bindingId, scope.tenant_id, scope.workspace_id, scope.user_id, GITHUB_REPO_RESOURCE_TYPE, repoRef.resource_uri, JSON.stringify(repoRef.resource_ref), recipeKey, JSON.stringify(["read_only"]), asString(args.authority_source || "admin_grant"), args.expires_at || null, asString(args.notes || "tenant_repository_intelligence_v2_read_only_binding"), asString(args.created_by || auth?.user_id || "system:tenant_repository_intelligence_v2")]
   );
-  const [readbackRows] = await pool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
+  const [readbackRows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
   return { ok: true, tool: "platform_resource_authority_binding_create", classification: "repository_authority_binding_created", binding: bindingRowToObject(readbackRows[0]), created: true, provider_calls_made: 0, secrets_included: false };
 }
 
-export async function listRepositoryAuthorityBindings(args = {}, { auth } = {}) {
+export async function listRepositoryAuthorityBindings(args = {}, { auth, authorityStorePool = null } = {}) {
   const scope = principalScope(args, auth);
   const repoRef = normalizeGithubRepoRef(args);
   const conditions = ["1=1"];
@@ -165,17 +187,19 @@ export async function listRepositoryAuthorityBindings(args = {}, { auth } = {}) 
   if (scope.workspace_id) { conditions.push("workspace_id = ?"); params.push(scope.workspace_id); }
   if (scope.user_id) { conditions.push("user_id = ?"); params.push(scope.user_id); }
   const limit = clampLimit(args.limit, 50, 200); params.push(limit);
-  const [rows] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE ${conditions.join(" AND ")} ORDER BY updated_at DESC, created_at DESC LIMIT ?`, params);
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [rows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE ${conditions.join(" AND ")} ORDER BY updated_at DESC, created_at DESC LIMIT ?`, params);
   return { ok: true, tool: "platform_resource_authority_binding_list", count: rows.length, bindings: rows.map(bindingRowToObject), provider_calls_made: 0, secrets_included: false };
 }
 
-export async function revokeRepositoryAuthorityBinding(args = {}, { auth } = {}) {
+export async function revokeRepositoryAuthorityBinding(args = {}, { auth, authorityStorePool = null } = {}) {
   const bindingId = asString(args.binding_id);
   if (!bindingId) { const err = new Error("binding_id is required."); err.status = 400; err.code = "binding_id_required"; throw err; }
-  const [beforeRows] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  const [beforeRows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
   if (!beforeRows.length) { const err = new Error(`Binding ${bindingId} not found.`); err.status = 404; err.code = "repository_authority_binding_not_found"; throw err; }
-  await getPool().query(`UPDATE platform_resource_authority_bindings SET status = 'revoked', notes = CONCAT(COALESCE(notes, ''), ?), updated_at = CURRENT_TIMESTAMP WHERE binding_id = ?`, [`\nrevoked_by=${asString(args.revoked_by || auth?.user_id || "system:tenant_repository_intelligence_v2")}`, bindingId]);
-  const [afterRows] = await getPool().query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
+  await authorityPool.query(`UPDATE platform_resource_authority_bindings SET status = 'revoked', notes = CONCAT(COALESCE(notes, ''), ?), updated_at = CURRENT_TIMESTAMP WHERE binding_id = ?`, [`\nrevoked_by=${asString(args.revoked_by || auth?.user_id || "system:tenant_repository_intelligence_v2")}`, bindingId]);
+  const [afterRows] = await authorityPool.query(`SELECT * FROM platform_resource_authority_bindings WHERE binding_id = ? LIMIT 1`, [bindingId]);
   return { ok: true, tool: "platform_resource_authority_binding_revoke", classification: "repository_authority_binding_revoked", before: bindingRowToObject(beforeRows[0]), binding: bindingRowToObject(afterRows[0]), provider_calls_made: 0, secrets_included: false };
 }
 
@@ -396,28 +420,33 @@ export function smokeSafeTenantId(value = "") {
   return `smoke_${sha256Hex(raw).slice(0, 24)}`;
 }
 
-async function selectRepositoryNegativeSmokeMembership(repoRef) {
-  const [rows] = await getPool().query(
+async function selectRepositoryNegativeSmokeMembership(repoRef, { authorityStorePool = null } = {}) {
+  const [memberships] = await getPool().query(
     `SELECT m.tenant_id,m.user_id
        FROM memberships m
       WHERE m.status='active'
-        AND NOT EXISTS (
-          SELECT 1
-            FROM platform_resource_authority_bindings b
-           WHERE b.status='active'
-             AND b.resource_type='github_repo'
-             AND BINARY b.resource_uri=BINARY ?
-             AND (BINARY b.recipe_key=BINARY ? OR b.recipe_key IS NULL)
-             AND BINARY b.tenant_id=BINARY m.tenant_id
-             AND b.workspace_id IS NULL
-             AND (b.user_id IS NULL OR BINARY b.user_id=BINARY m.user_id)
-             AND (b.expires_at IS NULL OR b.expires_at>NOW())
-        )
       ORDER BY FIELD(m.role,'owner','admin','operator','member','viewer'),m.updated_at DESC,m.id DESC
-      LIMIT 1`,
-    [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY]
+      LIMIT 100`,
   );
-  return rows?.[0] || null;
+  const authorityPool = resolvePlatformResourceAuthorityPool({ authorityStorePool });
+  for (const membership of memberships || []) {
+    const [bindings] = await authorityPool.query(
+      `SELECT 1
+         FROM platform_resource_authority_bindings
+        WHERE status='active'
+          AND resource_type='github_repo'
+          AND BINARY resource_uri=BINARY ?
+          AND (BINARY recipe_key=BINARY ? OR recipe_key IS NULL)
+          AND BINARY tenant_id=BINARY ?
+          AND workspace_id IS NULL
+          AND (user_id IS NULL OR BINARY user_id=BINARY ?)
+          AND (expires_at IS NULL OR expires_at>NOW())
+        LIMIT 1`,
+      [repoRef.resource_uri, REPOSITORY_PR_RECONCILE_RECIPE_KEY, membership.tenant_id, membership.user_id],
+    );
+    if (!bindings?.length) return membership;
+  }
+  return null;
 }
 
 export async function tenantRepositoryIntelligenceV2ReadinessSmoke(args = {}, { auth, runGovernedResource, dispatchSystemTool, descriptorReadiness } = {}) {
@@ -461,7 +490,8 @@ export async function tenantRepositoryIntelligenceV3V4ReadinessSmoke(args = {}, 
   const planner = await tenantRepositoryActionPlannerDryRun({ tenant_id: tenantId, owner: repoRef.owner, repo: repoRef.repo, state: "open", limit: clampLimit(args.limit, 1, 5), include_changed_files: false, include_check_runs: false, record_evidence: true }, { auth, runGovernedResource });
   const bindingId = create?.binding?.binding_id;
   const revoke = bindingId ? await revokeRepositoryAuthorityBinding({ binding_id: bindingId, revoked_by: "system:tenant_repository_intelligence_v3_v4_readiness_smoke_cleanup" }, { auth: { ...(auth || {}), is_admin: true } }) : null;
-  const [cleanupRows] = await getPool().query(
+  const authorityPool = resolvePlatformResourceAuthorityPool();
+  const [cleanupRows] = await authorityPool.query(
     `SELECT SUM(status = 'active') AS active_smoke_bindings, COUNT(*) AS total_smoke_bindings
        FROM platform_resource_authority_bindings
       WHERE tenant_id IN (?, ?) OR created_by = 'system:tenant_repository_intelligence_v3_v4_readiness_smoke'`,

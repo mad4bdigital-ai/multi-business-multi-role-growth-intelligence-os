@@ -151,6 +151,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -199,6 +200,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -221,6 +223,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, runtimeOnly: true, withActionGrant: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -242,6 +245,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true, withSmokeCertification: false });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -260,6 +264,7 @@ function makePool({
   const pool = makePool({ withConnection: false, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -279,6 +284,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: false, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -295,7 +301,7 @@ function makePool({
 
 {
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: false });
-  const result = await resolvePlatformPluginExecution({ pool, pluginKey: "github", actionKey: "github.unknown", tenantId: "tenant-1" });
+  const result = await resolvePlatformPluginExecution({ pool, governancePool: pool, pluginKey: "github", actionKey: "github.unknown", tenantId: "tenant-1" });
   assert.equal(result.allowed, false);
   assert(result.reason.includes("action_binding_not_found"));
   assert.equal(result.credential_lookup.attempted, false);
@@ -313,6 +319,7 @@ function makePool({
   });
   const dualSurfaceActionResult = await resolvePlatformPluginExecution({
     pool: actionPool,
+    governancePool: actionPool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -336,6 +343,7 @@ function makePool({
   });
   const dualSurfaceToolResult = await resolvePlatformPluginExecution({
     pool: toolPool,
+    governancePool: toolPool,
     pluginKey: "github",
     toolKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -372,6 +380,7 @@ function makePool({
     const pool = makePool({ withToolBinding: true, ...surfaceCase });
     const result = await resolvePlatformPluginExecution({
       pool,
+    governancePool: pool,
       pluginKey: "github",
       toolKey: "credential_effective_status",
       tenantId: "tenant-1",
@@ -403,6 +412,7 @@ function makePool({
   await assert.rejects(
     () => resolvePlatformPluginExecution({
       pool,
+    governancePool: pool,
       pluginKey: "github",
       actionKey: "github.repo.read",
       toolKey: "credential_effective_status",
@@ -419,6 +429,7 @@ function makePool({
   const pool = makePool({ withToolBinding: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     toolKey: "credential_effective_status",
     tenantId: "tenant-1",
@@ -446,6 +457,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -476,6 +488,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -502,6 +515,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -530,6 +544,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -555,6 +570,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -582,6 +598,7 @@ function makePool({
   const targetResourceUri = "github://other-org/private-repo";
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -611,6 +628,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -634,6 +652,7 @@ function makePool({
   const pool = makePool({ withConnection: true, withSkill: true, tenantDedicated: true });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -659,6 +678,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -684,6 +704,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-2",
@@ -726,6 +747,7 @@ function makePool({
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
@@ -768,6 +790,7 @@ async function resolveAmbiguityRows(connectionRows, credentialSource = "mixed") 
   });
   const result = await resolvePlatformPluginExecution({
     pool,
+    governancePool: pool,
     pluginKey: "github",
     actionKey: "github.repo.read",
     tenantId: "tenant-1",
