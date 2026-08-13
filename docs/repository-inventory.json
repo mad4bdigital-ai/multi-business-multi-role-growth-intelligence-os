@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6716,
-    "bytes": 58965927,
-    "lines": 1376210,
+    "bytes": 58966013,
+    "lines": 1376211,
     "directories": 255,
     "categories": 13
   },
@@ -6734,9 +6734,9 @@
       "path": ".changes/e2e/production-write-authority-degradation.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 8229,
-      "lines": 163,
-      "sha256": "7fecec3ade13ed3729b7bfd5e3469c099d56a2ddcdb49d222315b61e31badfc2",
+      "bytes": 8315,
+      "lines": 164,
+      "sha256": "6335e7e3afa27d650eb0520355eb56475491da130d2fe092513edc59035820c0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -77180,7 +77180,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "d201078673efcee85dda09f3f83c49a7d5e6d9a7e1ac9d370d564095e94792c4",
+      "sha256": "d86beea3574a6afe471ac66168b529ebb90d7d9859d0b219b31dd4b8d852328f",
       "mode": "644",
       "executable": false,
       "generated": false

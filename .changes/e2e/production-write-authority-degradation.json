@@ -15,6 +15,7 @@
       ".github/workflows/repository-inventory.yml",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
       "docs/dynamic-audit-runtime-closure.md",
       "docs/openapi-endpoint-inventory-sync-2026-06-22.md",
       "docs/runbooks/production-write-authority-recovery.md",
