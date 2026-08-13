@@ -8,11 +8,17 @@ import {
   chatGptMcpLegacyUserJwtEnabled,
   handleChatGptMcpRequest,
   listChatGptMcpTools,
+  requiredChatGptMcpScopesForTool,
   resolveChatGptMcpAuthorizationServer,
   resolveChatGptMcpEndpoint,
   resolveChatGptMcpResource,
 } from "./chatgptMcpRuntime.js";
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
+import { buildRemoteMcpAuthorizationDecision } from "./remoteMcpAuthorizationDecision.js";
+import { resolveRemoteMcpToolScopeBinding } from "./remoteMcpScopeCatalog.js";
+import { evaluateRemoteMcpWriteScopeDecision } from "./remoteMcpWriteScopeGovernance.js";
+import { buildRemoteMcpIncrementalConsentRequest } from "./remoteMcpIncrementalConsent.js";
+import { readRemoteMcpOAuthClient } from "./remoteMcpOAuthStore.js";
 import {
   remoteMcpOAuthEnabled,
   resolveRemoteMcpAuthorizationIssuer,
@@ -112,15 +118,9 @@ function effectiveRemoteMcpEnv(env = process.env) {
   };
 }
 
-function requiredScopesForTool(toolName) {
-  if (toolName === "list_accessible_workspaces") return ["workspaces.read"];
-  if (toolName === "list_accessible_brands") return ["brands.read"];
-  return [];
-}
-
-function oauthFailureResponse({ body, headers, env, verification, requiredScopes }) {
+function oauthFailureResponse({ body, headers, env, verification, requiredScopes, incrementalConsent = null, writeGovernance = null }) {
   const requestId = normalizedString(headerValue(headers, "x-request-id"), 128) || randomUUID();
-  const challenge = verification.status === 401
+  const challenge = (verification.status === 401 || verification.code === "MCP_SCOPE_INSUFFICIENT")
     ? [buildRemoteMcpWwwAuthenticate(env, {
       scope: requiredScopes.join(" "),
       error: verification.code === "MCP_SCOPE_INSUFFICIENT" ? "insufficient_scope" : "invalid_token",
@@ -137,7 +137,7 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
       jsonrpc: "2.0",
       id: body?.id ?? null,
       result: {
-        content: [{ type: "text", text: verification.message }],
+        content: [{ type: "text", text: incrementalConsent?.required ? incrementalConsent.message : verification.message }],
         structuredContent: {
           ok: false,
           error: {
@@ -146,6 +146,8 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
             retryable: verification.status >= 500,
           },
           request_id: requestId,
+          ...(incrementalConsent ? { incremental_consent: incrementalConsent } : {}),
+          ...(writeGovernance ? { write_governance: writeGovernance } : {}),
           secrets_included: false,
         },
         isError: true,
@@ -223,22 +225,77 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
 
   if (remoteMcpOAuthEnabled(sourceEnv) && options.body?.method === "tools/call") {
     const toolName = normalizedString(options.body?.params?.name, 128);
-    const requiredScopes = requiredScopesForTool(toolName);
-    const verification = await verifyRemoteMcpBearerAuthorization(
-      headerValue(options.headers || {}, "authorization"),
-      {
+    const requiredScopes = requiredChatGptMcpScopesForTool(toolName);
+    const binding = resolveRemoteMcpToolScopeBinding(toolName);
+    const verification = requiredScopes
+      ? await verifyRemoteMcpBearerAuthorization(
+        headerValue(options.headers || {}, "authorization"),
+        { env: sourceEnv, pool: options.pool, requiredScopes },
+      )
+      : {
+        ok: false,
+        status: 403,
+        code: "MCP_TOOL_SCOPE_BINDING_MISSING",
+        message: "The requested tool has no active OAuth scope binding.",
+      };
+    let incrementalConsent = null;
+    if (!verification.ok && verification.code === "MCP_SCOPE_INSUFFICIENT") {
+      let client = null;
+      try {
+        client = await readRemoteMcpOAuthClient(verification.claims?.client_id, { pool: options.pool });
+      } catch {}
+      incrementalConsent = buildRemoteMcpIncrementalConsentRequest({
+        toolKey: toolName,
+        grantedScopes: verification.claims?.scope,
+        clientAllowedScopes: client ? client.allowed_scopes : null,
+        clientId: verification.claims?.client_id,
+        resource: resolveRemoteMcpResource(sourceEnv),
+        authorizationEndpoint: `${resolveRemoteMcpAuthorizationIssuer(sourceEnv)}/oauth/authorize`,
+        redirectUris: client?.redirect_uris || [],
+        state: options.incrementalConsentState || options.oauthState || null,
+        codeChallenge: options.incrementalConsentCodeChallenge || options.codeChallenge || null,
+      });
+    }
+    const decision = buildRemoteMcpAuthorizationDecision({
+      verification,
+      toolKey: toolName,
+      resourceKey: binding?.resource_key,
+      operationKey: binding?.operation_key,
+      effectClass: binding?.effect_class,
+      environmentClass: binding?.environment_class,
+    });
+    const writeGovernance = binding?.effect_class && binding.effect_class !== "read_only"
+      ? evaluateRemoteMcpWriteScopeDecision({
+        scopeKey: binding.scope_keys?.[0],
+        tokenScopes: verification.claims?.scope || verification.claims?.scopes || [],
+        resourceAuthority: options.resourceAuthority === true,
+        operationEligible: Boolean(binding.resource_key && binding.operation_key),
+        approvalSatisfied: options.approvalSatisfied === true,
+        capabilitySatisfied: options.capabilitySatisfied === true,
+        leaseActive: options.leaseActive === true,
+        environment: String(sourceEnv.REMOTE_MCP_ENVIRONMENT || "staging").trim().toLowerCase(),
         env: sourceEnv,
-        pool: options.pool,
-        requiredScopes,
-      },
-    );
-    if (!verification.ok) {
+      })
+      : null;
+    const combinedDecision = writeGovernance
+      ? {
+        ...decision,
+        ok: decision.ok && writeGovernance.ok,
+        code: decision.ok && writeGovernance.ok ? decision.code : writeGovernance.code,
+        status: decision.ok && writeGovernance.ok ? decision.status : 403,
+        message: decision.ok && writeGovernance.ok ? decision.message : "Write governance denied this tools/call operation.",
+        write_governance: writeGovernance,
+      }
+      : decision;
+    if (!combinedDecision.ok) {
       const failure = oauthFailureResponse({
         body: options.body,
         headers: options.headers || {},
         env,
-        verification,
-        requiredScopes,
+        verification: { ...verification, code: combinedDecision.code, message: combinedDecision.message, status: combinedDecision.status },
+        requiredScopes: requiredScopes || [],
+        incrementalConsent,
+        writeGovernance,
       });
       return {
         ...failure,

@@ -19,6 +19,26 @@ const RESPONSE_HEADER_ALLOWLIST = new Set([
   "x-request-id",
 ]);
 
+const TENANT_GPT_SSO_COOKIE_NAME = "mad4b_tenant_gpt_sso";
+
+function filterOauthSsoCookieHeader(value) {
+  const pair = String(value || "").split(";").map((part) => part.trim()).find((part) => part.startsWith(`${TENANT_GPT_SSO_COOKIE_NAME}=`));
+  return pair && pair.includes("=") ? pair : "";
+}
+
+function filterOauthSsoSetCookieHeader(value) {
+  const candidates = String(value || "").split(/,(?=\s*mad4b_tenant_gpt_sso=)/iu).map((item) => item.trim());
+  const approved = candidates.find((item) =>
+    item.startsWith(`${TENANT_GPT_SSO_COOKIE_NAME}=`)
+    && /(?:^|;\s*)Domain=\.mad4b\.com(?:;|$)/iu.test(item)
+    && /(?:^|;\s*)Path=\/(?:;|$)/iu.test(item)
+    && /(?:^|;\s*)HttpOnly(?:;|$)/iu.test(item)
+    && /(?:^|;\s*)Secure(?:;|$)/iu.test(item)
+    && /(?:^|;\s*)SameSite=Lax(?:;|$)/iu.test(item),
+  );
+  return approved || "";
+}
+
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
   if (!value || typeof value !== "object") return value;
@@ -48,6 +68,9 @@ export function policyPayload(policy) {
   return {
     manifest_version: policy.manifest_version,
     surface_registry_version: policy.surface_registry_version,
+    source_openapi_sha256: policy.source_openapi_sha256,
+    surface_registry_sha256: policy.surface_registry_sha256,
+    warning_budget: policy.warning_budget,
     policy_key: policy.policy_key,
     public_host: policy.public_host,
     upstream_origin: policy.upstream_origin,
@@ -222,10 +245,15 @@ function resolveOAuthHandoff(index, method, pathname) {
   return index.get(routeKey(method, pathname)) || null;
 }
 
-function forwardedRequestHeaders(request, policy, requestId) {
+function forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie = false } = {}) {
   const headers = new Headers();
   for (const [name, value] of request.headers.entries()) {
     const lower = name.toLowerCase();
+    if (allowOauthSessionCookie && lower === "cookie") {
+      const filtered = filterOauthSsoCookieHeader(value);
+      if (filtered) headers.set(lower, filtered);
+      continue;
+    }
     if (REQUEST_HEADER_ALLOWLIST.has(lower)) headers.set(lower, value);
   }
   headers.set("x-request-id", requestId);
@@ -235,10 +263,16 @@ function forwardedRequestHeaders(request, policy, requestId) {
   return headers;
 }
 
-function filteredResponseHeaders(response, requestId, policy) {
+function filteredResponseHeaders(response, requestId, policy, { allowOauthSessionCookie = false } = {}) {
   const headers = new Headers();
   for (const [name, value] of response.headers.entries()) {
-    if (RESPONSE_HEADER_ALLOWLIST.has(name.toLowerCase())) headers.set(name, value);
+    const lower = name.toLowerCase();
+    if (allowOauthSessionCookie && lower === "set-cookie") {
+      const filtered = filterOauthSsoSetCookieHeader(value);
+      if (filtered) headers.set(name, filtered);
+      continue;
+    }
+    if (RESPONSE_HEADER_ALLOWLIST.has(lower)) headers.set(name, value);
   }
   if (!headers.has("cache-control")) headers.set("cache-control", "no-store");
   headers.set("x-content-type-options", "nosniff");
@@ -318,6 +352,9 @@ export function createActivationGateway({
           deploymentId: verification.deploymentId,
           sourceCommit: verification.sourceCommit,
           surfaceRegistryVersion: verification.surfaceRegistryVersion,
+          sourceOpenapiSha256: policy.source_openapi_sha256,
+          surfaceRegistrySha256: policy.surface_registry_sha256,
+          warningBudget: policy.warning_budget,
           stale: verification.stale,
           routeCount: policy.routes.length,
           secretsIncluded: false,
@@ -381,7 +418,7 @@ export function createActivationGateway({
         try {
           upstream = await fetchImpl(target, {
             method: request.method,
-            headers: forwardedRequestHeaders(request, policy, requestId),
+            headers: forwardedRequestHeaders(request, policy, requestId, { allowOauthSessionCookie: oauthHandoff.allow_session_cookie === true }),
             body,
             redirect: "manual",
             signal: controller.signal,
@@ -396,10 +433,10 @@ export function createActivationGateway({
         }
         const responseBody = await boundedResponseBody(upstream, Number(oauthHandoff.response_body_limit_bytes));
         status = upstream.status;
-        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy) });
+        return new Response(responseBody, { status, headers: filteredResponseHeaders(upstream, requestId, policy, { allowOauthSessionCookie: oauthHandoff.allow_session_cookie === true }) });
       }
-
       const { route, allowedMethods } = resolveRoute(indexes, request.method, url.pathname);
+
       if (!route) {
         if (allowedMethods.size > 0) {
           status = 405;

@@ -1,4 +1,8 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  REMOTE_MCP_SCOPES as CATALOG_REMOTE_MCP_SCOPES,
+  REMOTE_MCP_SUPPORTED_SCOPES as CATALOG_REMOTE_MCP_SUPPORTED_SCOPES,
+} from "./remoteMcpScopeCatalog.js";
 
 export const REMOTE_MCP_RESOURCE = "https://mcp.mad4b.com";
 export const REMOTE_MCP_AUTHORIZATION_SERVER = "https://auth.mad4b.com/auth/mcp";
@@ -6,10 +10,8 @@ export const REMOTE_MCP_ACCESS_TOKEN_TTL_SECONDS = 60 * 60;
 export const REMOTE_MCP_REFRESH_TOKEN_TTL_SECONDS = 30 * 24 * 60 * 60;
 export const REMOTE_MCP_AUTHORIZATION_CODE_TTL_SECONDS = 5 * 60;
 export const REMOTE_MCP_AUTHORIZATION_REQUEST_TTL_SECONDS = 5 * 60;
-export const REMOTE_MCP_SCOPES = Object.freeze([
-  "workspaces.read",
-  "brands.read",
-]);
+export const REMOTE_MCP_SCOPES = CATALOG_REMOTE_MCP_SCOPES;
+export const REMOTE_MCP_SUPPORTED_SCOPES = CATALOG_REMOTE_MCP_SUPPORTED_SCOPES;
 
 const TOKEN_ENDPOINT_AUTH_METHODS = new Set([
   "none",
@@ -116,13 +118,19 @@ export function remoteMcpDynamicRedirectUriAllowed(value, env = process.env) {
   return resolveRemoteMcpAllowedRedirectOrigins(env).has(url.origin);
 }
 
-export function normalizeRemoteMcpScopes(value, allowedScopes = REMOTE_MCP_SCOPES) {
+export function normalizeRemoteMcpScopes(
+  value,
+  allowedScopes = REMOTE_MCP_SUPPORTED_SCOPES,
+  defaultScopes = REMOTE_MCP_SCOPES,
+) {
   const requested = Array.isArray(value)
     ? value
     : String(value || "").split(/\s+/u);
   const allowed = new Set(allowedScopes.map((scope) => String(scope || "").trim()).filter(Boolean));
   const normalized = [...new Set(requested.map((scope) => String(scope || "").trim()).filter(Boolean))];
-  if (!normalized.length) return { ok: true, scopes: [...allowed] };
+  if (!normalized.length) {
+    return { ok: true, scopes: [...new Set(defaultScopes)].filter((scope) => allowed.has(scope)) };
+  }
   const rejected = normalized.filter((scope) => !allowed.has(scope));
   if (rejected.length) return { ok: false, scopes: [], rejected };
   return { ok: true, scopes: normalized };

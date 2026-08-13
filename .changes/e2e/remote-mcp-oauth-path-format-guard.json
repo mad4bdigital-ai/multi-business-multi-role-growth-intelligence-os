@@ -1,0 +1,119 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "remote-mcp-oauth-path-format-guard",
+  "title": "Remote MCP OAuth path format, generated surface, and write inventory guard",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/remote-mcp-oauth-path-format-guard.json",
+      "http-generic-api/**",
+      "scripts/remote-mcp-write-scope-inventory.mjs",
+      "scripts/test-remote-mcp-write-scope-inventory.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Keep future OpenAPI, Custom GPT surface, OAuth, and Remote MCP write paths fail-closed, generated-artifact synchronized, and covered by deterministic local and CI contracts without activating write scopes.",
+      "e2e_journeys": [
+        {
+          "id": "verify-future-path-format-and-governance-coverage",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Repository maintainer and deterministic CI guard",
+          "entrypoint": "A changed OpenAPI, OAuth, Custom GPT surface, migration, route, or write-inventory artifact is evaluated by the local path guard and its required contract tests.",
+          "terminal_outcome": "Every source operation is marker-covered or explicitly excluded, generated registries match their source fingerprints, write inventory remains classified with activation disabled, and parity contracts pass.",
+          "steps": [
+            "Load the canonical OpenAPI source, v2 Custom GPT surface registry, operation registry, and write-scope inventory.",
+            "Check source-operation marker and exclusion coverage against the historical baseline so a new unmarked path fails closed.",
+            "Regenerate and compare operation and surface artifacts without applying migrations or calling providers.",
+            "Run OAuth token exchange, activation coverage, mutation governance, and shared-policy parity fixtures.",
+            "Report deterministic pass or fail evidence with no write-scope activation and no secret values."
+          ],
+          "assertions": [
+            "A new source OpenAPI operation requires a surface marker or a bounded exclusion record.",
+            "Operation registry and generated artifacts must match the current source fingerprint.",
+            "unclassified_write_route_count remains zero and write activation remains disabled.",
+            "Tenant GPT OAuth token exchange remains PKCE S256-bound and testable without a live provider or database migration.",
+            "Internal OAuth, SSO, and scope-catalog ledgers remain outside tenant or admin activation surfaces.",
+            "All checks are deterministic, bounded, and secret-free."
+          ],
+          "tests": [
+            {
+              "id": "remote-mcp-oauth-path-format-workflow-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-oauth-path-format-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "remote-mcp-oauth-path-format-local-guard",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/ci-path-format-guard.mjs",
+              "args": []
+            },
+            {
+              "id": "activation-surface-coverage",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "scripts/activation-surface-coverage-check.mjs",
+              "args": ["--changed"]
+            },
+            {
+              "id": "oauth-token-exchange-pkce-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-tenant-gpt-oauth-token-exchange-routes.mjs",
+              "args": []
+            },
+            {
+              "id": "incremental-consent-inventory-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-remote-mcp-incremental-consent.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/scripts/ci-path-format-guard.mjs",
+            "http-generic-api/test-remote-mcp-oauth-path-format-guard.mjs",
+            "http-generic-api/openapi/source-operation-coverage.baseline.json",
+            "http-generic-api/openapi/openapi-mutation-policy.generated.json",
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "http-generic-api/scripts/activation-surface-coverage-check.mjs",
+            "http-generic-api/test-tenant-gpt-oauth-token-exchange-routes.mjs",
+            "http-generic-api/test-remote-mcp-incremental-consent.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe the guard and external readiness contracts on an exact staging candidate without enabling provider or internal writes."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale artifacts, concurrent refresh, ingress drift, and path-registry conflicts with bounded recovery evidence."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Run the exact read-only OAuth and MCP client canaries against an authorized non-production endpoint."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require independent approval, production ingress attestation, live database readiness, and rollback evidence before any production advertisement or write activation."
+    }
+  ],
+  "secrets_included": false
+}

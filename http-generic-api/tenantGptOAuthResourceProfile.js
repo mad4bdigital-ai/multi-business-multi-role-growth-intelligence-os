@@ -21,14 +21,17 @@ export function normalizeTenantGptRequestHost(value) {
 }
 
 export function tenantGptRequestHostFromHeaders(headers = {}) {
+  const originalHost = normalizeTenantGptRequestHost(headers["x-original-host"]);
+  const forwardedHost = normalizeTenantGptRequestHost(headers["x-forwarded-host"]);
+  if (originalHost && forwardedHost && originalHost !== forwardedHost) return "";
   const candidates = [
-    headers["x-original-host"],
-    headers["x-forwarded-host"],
-    headers["x-host"],
-    headers[":authority"],
-    headers.host,
+    originalHost,
+    forwardedHost,
+    normalizeTenantGptRequestHost(headers["x-host"]),
+    normalizeTenantGptRequestHost(headers[":authority"]),
+    normalizeTenantGptRequestHost(headers.host),
   ];
-  return candidates.map(normalizeTenantGptRequestHost).find(Boolean) || "";
+  return candidates.find(Boolean) || "";
 }
 
 export function normalizeTenantGptOAuthResource(value) {

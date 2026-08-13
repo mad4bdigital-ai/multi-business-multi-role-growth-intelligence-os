@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import YAML from "yaml";
 import { assessMigrationSqlPreflight } from "./releaseReadiness.js";
 
 const migrationName = "311_sprint69_platform_tool_dispatch_binding_integrity.sql";
@@ -15,6 +16,7 @@ const health = readFileSync("localConnectorCompositeHealth.js", "utf8");
 const openapi = readFileSync("openapi.yaml", "utf8");
 const adminSchema = readFileSync("openapi/openapi.custom-gpt.auth-dispatcher.yaml", "utf8");
 const tenantSchema = readFileSync("openapi/openapi.tenant-gpt.auth.yaml", "utf8");
+const adminDocument = YAML.parse(adminSchema);
 
 assert.match(migration, /CREATE TABLE IF NOT EXISTS platform_tool_dispatch_bindings/);
 assert.match(migration, /CREATE OR REPLACE VIEW v_platform_tool_dispatch_integrity/);
@@ -94,8 +96,8 @@ assert.match(openapi, /operationId: sessionInsightTargetWriteReadbackCreate[\s\S
 assert.match(openapi, /operationId: sessionInsightTargetWriteReadbackList[\s\S]*?x-custom-gpt-exclude: true/);
 assert.match(openapi, /Governed DB-backed or virtual tool key returned by listAdminTools/);
 assert.match(tenantSchema, /Tool key returned by listTools; runtime validates registration/);
-assert.doesNotMatch(adminSchema, /sessionInsightTargetWriteReadbackCreate/);
-assert.doesNotMatch(adminSchema, /sessionInsightTargetWriteReadbackList/);
+assert.equal(adminDocument.paths?.["/platform/session-insight-promotions/target-write-readbacks/create"], undefined);
+assert.equal(adminDocument.paths?.["/platform/session-insight-promotions/target-write-readbacks"], undefined);
 const adminOperationCount = (adminSchema.match(/\n    (?:get|post|put|patch|delete):\n/g) || []).length;
 assert(adminOperationCount <= 30, `Admin Custom GPT schema exceeds operation cap: ${adminOperationCount}`);
 

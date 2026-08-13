@@ -538,17 +538,13 @@ await stage("tenant_surface_operation_budgets", async () => {
     .filter((method) => ["get", "post", "put", "patch", "delete"].includes(method)).length;
 
   const expectedOperationCount = (surfaceKey) => {
-    const operationIds = customGptSurfaceRegistry.surfaces?.[surfaceKey]?.selector?.tenant_operation_ids;
-    assert.ok(
-      Array.isArray(operationIds),
-      `${surfaceKey} must declare selector.tenant_operation_ids in the canonical surface registry`,
-    );
-    assert.equal(
-      new Set(operationIds).size,
-      operationIds.length,
-      `${surfaceKey} selector.tenant_operation_ids must not contain duplicates`,
-    );
-    return operationIds.length;
+    const selector = customGptSurfaceRegistry.surfaces?.[surfaceKey]?.selector;
+    assert.deepEqual(selector?.source_markers, [surfaceKey], `${surfaceKey} must use its source marker selector`);
+    const source = YAML.parse(fs.readFileSync("openapi.yaml", "utf8"));
+    return Object.values(source.paths || {})
+      .flatMap((pathItem) => Object.values(pathItem || {}))
+      .filter((operation) => Array.isArray(operation?.["x-custom-gpt-surfaces"]) && operation["x-custom-gpt-surfaces"].includes(surfaceKey))
+      .length;
   };
 
   assert.equal(countOperations(tenantCore), expectedOperationCount("tenant_core"));

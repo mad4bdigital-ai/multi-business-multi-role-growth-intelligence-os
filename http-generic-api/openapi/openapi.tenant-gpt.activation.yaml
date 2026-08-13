@@ -3268,6 +3268,107 @@ paths:
             - https://auth.mad4b.com/scopes/tenant.activation
             - https://auth.mad4b.com/scopes/tenant.install
             - https://auth.mad4b.com/scopes/tenant.system-tools
+x-custom-gpt-generation:
+  generator: http-generic-api/scripts/split-openapi.mjs
+  source_openapi: http-generic-api/openapi.yaml
+  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
+  registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
+  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
+  registry_version: 2
+  selector_model: marker_required
+  candidate_policy:
+    mode: marker_required
+    required_marker: tenant_activation
+    candidate_tags:
+      - activation
+      - session-archive
+    omission: fail
+    exclusion_records:
+      - operation_id: listSessions
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: writeGptSessionTurns
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationHardRunSummary
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationRunArchive
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getTenantActivationRunArchive
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationAwareness
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationOperationalAttention
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: synchronizeActivationOperationalAttention
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: ingestActivationOperationalCiSignal
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: updateActivationOperationalAlertLifecycle
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: readActivationDynamicTabDetail
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: acknowledgeActivationRun
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: runLegacyFullHardActivation
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: runHardActivation
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationSessionContext
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: getActivationPlatformAccess
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: listTenantSkillApprovals
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: decideTenantSkillApproval
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: writeGptSessionTurn
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+      - operation_id: endGptSession
+        reason: Core, Admin, or internal activation candidate remains outside the Tenant Activation OAuth surface boundary.
+        owner: platform-governance
+        review_after: 2026-09-30
+  operation_count: 15
+  warning_operation_limit: 26
+  warning_budget_exceeded: false
+  hard_operation_limit: 30
+  secrets_included: false
 x-gpt-action-auth-preset:
   authentication_type: OAuth
   schema_url: https://auth.mad4b.com/openapi.tenant-gpt.auth.yaml

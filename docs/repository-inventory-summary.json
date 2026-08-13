@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6757,
-    "bytes": 59584734,
-    "lines": 1388439,
+    "files": 6812,
+    "bytes": 61926231,
+    "lines": 1453620,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2033,
-      "documentation": 1857,
-      "api-runtime": 1345,
-      "database-migrations": 774,
-      "root-and-other": 231,
-      "ci-workflows": 154,
-      "api-contracts": 147,
+      "tests-and-specs": 2047,
+      "documentation": 1863,
+      "api-runtime": 1370,
+      "database-migrations": 777,
+      "root-and-other": 233,
+      "ci-workflows": 155,
+      "api-contracts": 151,
       "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2460,
-      ".mjs": 1550,
-      ".js": 943,
-      ".sql": 789,
-      ".json": 676,
-      ".yml": 156,
+      ".md": 2467,
+      ".mjs": 1567,
+      ".js": 958,
+      ".sql": 792,
+      ".json": 688,
+      ".yml": 157,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3475,
-      "docs": 1763,
+      "http-generic-api": 3519,
+      "docs": 1770,
       "specs": 838,
-      ".github": 248,
-      ".changes": 227,
+      ".github": 249,
+      ".changes": 228,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -69,7 +69,7 @@
       "schemas": 14,
       "src": 12,
       "edge": 9,
-      "scripts": 7,
+      "scripts": 9,
       "tests": 3,
       ".gitattributes": 1,
       ".gitignore": 1,
@@ -162,6 +162,7 @@
         "verify",
         "activation-gateway:bundle:sync",
         "activation-gateway:bundle:check",
+        "ci:path-guard",
         "outbox:status",
         "outbox:dry-run",
         "outbox:run-once",
@@ -191,6 +192,10 @@
         "inventory:write",
         "inventory:check",
         "inventory:test",
+        "write-scopes:inventory",
+        "write-scopes:inventory:check",
+        "write-scopes:inventory:test",
+        "remote-mcp:architecture:test",
         "evaluation:write",
         "evaluation:enforce",
         "evaluation:check",
@@ -204,10 +209,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 154,
-    "migrations": 774,
-    "apiContracts": 147,
-    "testSpecFiles": 2096
+    "workflows": 155,
+    "migrations": 777,
+    "apiContracts": 151,
+    "testSpecFiles": 2110
   },
   "largestFiles": [
     {
@@ -219,20 +224,26 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3148159,
-      "lines": 96652
+      "bytes": 3121096,
+      "lines": 95769
+    },
+    {
+      "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "category": "api-runtime",
+      "bytes": 1929181,
+      "lines": 58335
     },
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 979336,
-      "lines": 22721
+      "bytes": 984031,
+      "lines": 22830
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 328218,
-      "lines": 8553
+      "bytes": 325509,
+      "lines": 8484
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -295,6 +306,12 @@
       "lines": 1339
     },
     {
+      "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
+      "category": "api-contracts",
+      "bytes": 140742,
+      "lines": 3799
+    },
+    {
       "path": "package-lock.json",
       "category": "build-and-dependencies",
       "bytes": 138721,
@@ -317,18 +334,6 @@
       "category": "api-runtime",
       "bytes": 127236,
       "lines": 2754
-    },
-    {
-      "path": "docs/work-maps/data-model-domain-map.md",
-      "category": "documentation",
-      "bytes": 118205,
-      "lines": 854
-    },
-    {
-      "path": "apps/local-manager-windows/Program.cs",
-      "category": "applications",
-      "bytes": 112920,
-      "lines": 2024
     }
   ]
 }
