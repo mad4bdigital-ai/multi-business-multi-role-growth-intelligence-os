@@ -2,11 +2,13 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-evaluation",
   "deterministic": true,
-  "inputFingerprint": "f016b503d5e715879ba9455822045a96058d503ba5fe781228b76a1562c20f17",
+  "inputFingerprint": "a38aadd4b8393206192eb1dcd67bae63ff13d59009f0cb33fc070ff9379deb2c",
   "gate": {
-    "decision": "pass",
+    "decision": "warn",
     "blockingGapIds": [],
-    "warningGapIds": []
+    "warningGapIds": [
+      "MAINT-LARGE-TRACKED-FILES"
+    ]
   },
   "baselineDiff": {
     "available": false,
@@ -16,15 +18,26 @@
     "resolvedGapIds": []
   },
   "gapCounts": {
-    "total": 0,
+    "total": 1,
     "bySeverity": {
       "critical": 0,
       "high": 0,
       "medium": 0,
-      "low": 0,
+      "low": 1,
       "info": 0
     },
-    "byDomain": {}
+    "byDomain": {
+      "maintainability": 1
+    }
   },
-  "topGaps": []
+  "topGaps": [
+    {
+      "gapId": "MAINT-LARGE-TRACKED-FILES",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "lifecycle": "new",
+      "blocking": false
+    }
+  ]
 }

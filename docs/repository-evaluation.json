@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "f016b503d5e715879ba9455822045a96058d503ba5fe781228b76a1562c20f17",
+  "inputFingerprint": "a38aadd4b8393206192eb1dcd67bae63ff13d59009f0cb33fc070ff9379deb2c",
   "inventory": {
-    "files": 6757,
-    "bytes": 59584734,
+    "files": 6812,
+    "bytes": 61926231,
     "directories": 255,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 154,
-      "explicitPermissions": 154,
+      "workflowCount": 155,
+      "explicitPermissions": 155,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -20,11 +20,11 @@
       "budget": {
         "max": 160,
         "warning": 155,
-        "status": "within-budget"
+        "status": "near-limit"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6727,
+      "trackedTextFilesScanned": 6782,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -50,10 +50,10 @@
     "maintainability": {
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
-      "workflowBudgetStatus": "within-budget",
-      "totalLargeFiles": 2,
+      "workflowBudgetStatus": "near-limit",
+      "totalLargeFiles": 3,
       "approvedLargeFiles": 2,
-      "unapprovedLargeFiles": 0
+      "unapprovedLargeFiles": 1
     }
   },
   "policies": {
@@ -164,11 +164,43 @@
       "exitCode": 0
     }
   ],
-  "gaps": [],
+  "gaps": [
+    {
+      "gapId": "MAINT-LARGE-TRACKED-FILES",
+      "domain": "maintainability",
+      "severity": "low",
+      "status": "open",
+      "blocking": false,
+      "evidence": {
+        "totalLargeFiles": 3,
+        "approved": [
+          {
+            "path": "http-generic-api/schemas/wordpress/wordpress_api.yaml",
+            "bytes": 4831654
+          },
+          {
+            "path": "http-generic-api/frontend-surface-dispatch.generated.json",
+            "bytes": 3121096
+          }
+        ],
+        "unapproved": [
+          {
+            "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+            "bytes": 1929181
+          }
+        ]
+      },
+      "impact": "Large files without an explicit ownership and rationale policy increase review and change costs.",
+      "recommendation": "Split or generate the file, or add a bounded rationale to the large-file policy.",
+      "lifecycle": "new"
+    }
+  ],
   "gate": {
-    "decision": "pass",
+    "decision": "warn",
     "blockingGapIds": [],
-    "warningGapIds": []
+    "warningGapIds": [
+      "MAINT-LARGE-TRACKED-FILES"
+    ]
   },
   "baselineDiff": {
     "available": false,
