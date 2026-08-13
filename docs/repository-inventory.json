@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6749,
-    "bytes": 59459884,
-    "lines": 1385990,
+    "bytes": 59460365,
+    "lines": 1385995,
     "directories": 255,
     "categories": 13
   },
@@ -5978,9 +5978,9 @@
       "path": ".changes/e2e/consolidated-governance-runtime-contracts.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 11367,
-      "lines": 146,
-      "sha256": "959922ecb0d803e9117f2758edebf201a333035ea3b986ee522bfc0125759f0d",
+      "bytes": 11848,
+      "lines": 151,
+      "sha256": "6295faf93ef0f4c54ed9ab7d1ab82884c55a5197398e3b935d0f220709ac9af5",
       "mode": "644",
       "executable": false,
       "generated": false
