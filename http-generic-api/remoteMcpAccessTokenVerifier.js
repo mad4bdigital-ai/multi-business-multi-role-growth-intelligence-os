@@ -109,7 +109,17 @@ export async function verifyRemoteMcpBearerAuthorization(authorization, options 
     .filter(Boolean)
     .filter((scope) => !grantedScopes.has(scope));
   if (missingScopes.length) {
-    return failure(403, "MCP_SCOPE_INSUFFICIENT", "OAuth access token does not include the required scope.");
+    return {
+      ...failure(403, "MCP_SCOPE_INSUFFICIENT", "OAuth access token does not include the required scope."),
+      claims: {
+        ...claims,
+        user_id: userId,
+        tenant_id: tenantId,
+        client_id: clientId,
+        auth_mode: "remote_mcp_oauth_2_1_scope_insufficient",
+        missing_scopes: missingScopes,
+      },
+    };
   }
 
   let pool;

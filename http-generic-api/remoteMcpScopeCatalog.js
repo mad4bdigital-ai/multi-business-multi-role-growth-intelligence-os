@@ -95,7 +95,9 @@ export const REMOTE_MCP_SCOPES = Object.freeze(
   GENERATED_CATALOG.scopes.filter((scope) => scope.default_request === true).map((scope) => scope.scope_key),
 );
 export const REMOTE_MCP_SUPPORTED_SCOPES = Object.freeze(
-  GENERATED_CATALOG.scopes.filter((scope) => scope.status === "active").map((scope) => scope.scope_key),
+  GENERATED_CATALOG.scopes
+    .filter((scope) => scope.status === "active" && scope.effect_class === "read_only")
+    .map((scope) => scope.scope_key),
 );
 
 export function getRemoteMcpScopeCatalog() {

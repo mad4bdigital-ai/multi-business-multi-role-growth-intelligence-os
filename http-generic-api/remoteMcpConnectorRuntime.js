@@ -16,6 +16,8 @@ import {
 import { verifyRemoteMcpBearerAuthorization } from "./remoteMcpAccessTokenVerifier.js";
 import { buildRemoteMcpAuthorizationDecision } from "./remoteMcpAuthorizationDecision.js";
 import { resolveRemoteMcpToolScopeBinding } from "./remoteMcpScopeCatalog.js";
+import { buildRemoteMcpIncrementalConsentRequest } from "./remoteMcpIncrementalConsent.js";
+import { readRemoteMcpOAuthClient } from "./remoteMcpOAuthStore.js";
 import {
   remoteMcpOAuthEnabled,
   resolveRemoteMcpAuthorizationIssuer,
@@ -115,9 +117,9 @@ function effectiveRemoteMcpEnv(env = process.env) {
   };
 }
 
-function oauthFailureResponse({ body, headers, env, verification, requiredScopes }) {
+function oauthFailureResponse({ body, headers, env, verification, requiredScopes, incrementalConsent = null }) {
   const requestId = normalizedString(headerValue(headers, "x-request-id"), 128) || randomUUID();
-  const challenge = verification.status === 401
+  const challenge = (verification.status === 401 || verification.code === "MCP_SCOPE_INSUFFICIENT")
     ? [buildRemoteMcpWwwAuthenticate(env, {
       scope: requiredScopes.join(" "),
       error: verification.code === "MCP_SCOPE_INSUFFICIENT" ? "insufficient_scope" : "invalid_token",
@@ -143,6 +145,7 @@ function oauthFailureResponse({ body, headers, env, verification, requiredScopes
             retryable: verification.status >= 500,
           },
           request_id: requestId,
+          ...(incrementalConsent?.required ? { incremental_consent: incrementalConsent } : {}),
           secrets_included: false,
         },
         isError: true,
@@ -233,6 +236,21 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
         code: "MCP_TOOL_SCOPE_BINDING_MISSING",
         message: "The requested tool has no active OAuth scope binding.",
       };
+    let incrementalConsent = null;
+    if (!verification.ok && verification.code === "MCP_SCOPE_INSUFFICIENT") {
+      let client = null;
+      try {
+        client = await readRemoteMcpOAuthClient(verification.claims?.client_id, { pool: options.pool });
+      } catch {}
+      incrementalConsent = buildRemoteMcpIncrementalConsentRequest({
+        toolKey: toolName,
+        grantedScopes: verification.claims?.scope,
+        clientAllowedScopes: client ? client.allowed_scopes : null,
+        clientId: verification.claims?.client_id,
+        resource: resolveRemoteMcpResource(sourceEnv),
+        authorizationEndpoint: `${resolveRemoteMcpAuthorizationIssuer(sourceEnv)}/oauth/authorize`,
+      });
+    }
     const decision = buildRemoteMcpAuthorizationDecision({
       verification,
       toolKey: toolName,
@@ -248,6 +266,7 @@ export async function handleRemoteMcpConnectorRequest(options = {}) {
         env,
         verification: { ...verification, code: decision.code, message: decision.message, status: decision.status },
         requiredScopes: requiredScopes || [],
+        incrementalConsent,
       });
       return {
         ...failure,

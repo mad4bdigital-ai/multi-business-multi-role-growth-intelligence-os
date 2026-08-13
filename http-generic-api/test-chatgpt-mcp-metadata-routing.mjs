@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import express from "express";
 import { buildTenantGptOAuthMetadataRoutes } from "./routes/tenantGptOAuthMetadataRoutes.js";
+import { REMOTE_MCP_SUPPORTED_SCOPES } from "./remoteMcpScopeCatalog.js";
 
 function startServer(app) {
   return new Promise((resolve) => {
@@ -42,7 +43,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
     assert.equal(mcp.status, 200);
     assert.equal(mcp.body.resource, "https://mcp.example.test");
     assert.deepEqual(mcp.body.authorization_servers, ["https://auth.example.test"]);
-    assert.deepEqual(mcp.body.scopes_supported, ["identity.read", "workspaces.read", "brands.read", "permissions.read"]);
+    assert.deepEqual(mcp.body.scopes_supported, REMOTE_MCP_SUPPORTED_SCOPES);
     assert.deepEqual(mcp.body.bearer_methods_supported, ["header"]);
     assert(mcp.cacheControl.includes("max-age=300"));
 
@@ -108,7 +109,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
     assert.equal(oauthOnly.status, 200);
     assert.equal(oauthOnly.body.resource, "https://mcp.example.test");
     assert.deepEqual(oauthOnly.body.authorization_servers, ["https://auth.example.test"]);
-    assert.deepEqual(oauthOnly.body.scopes_supported, ["identity.read", "workspaces.read", "brands.read", "permissions.read"]);
+    assert.deepEqual(oauthOnly.body.scopes_supported, REMOTE_MCP_SUPPORTED_SCOPES);
     assert(oauthOnly.cacheControl.includes("max-age=300"));
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
@@ -152,7 +153,7 @@ async function getProtectedResourceMetadata(baseUrl, host) {
     assert.equal(metadata.body.revocation_endpoint, "https://auth.example.test/auth/mcp/oauth/revoke");
     assert.equal(metadata.body.registration_endpoint, undefined);
     assert.deepEqual(metadata.body.code_challenge_methods_supported, ["S256"]);
-    assert.deepEqual(metadata.body.scopes_supported, ["identity.read", "workspaces.read", "brands.read", "permissions.read"]);
+    assert.deepEqual(metadata.body.scopes_supported, REMOTE_MCP_SUPPORTED_SCOPES);
     assert(metadata.cacheControl.includes("max-age=300"));
   } finally {
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));

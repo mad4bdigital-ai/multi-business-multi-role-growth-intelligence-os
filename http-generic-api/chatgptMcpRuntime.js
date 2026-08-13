@@ -1,7 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { getPool } from "./db.js";
 import { verifyUserJwtAuthorization } from "./userJwtAuth.js";
-import { REMOTE_MCP_SCOPES } from "./remoteMcpScopeCatalog.js";
+import {
+  REMOTE_MCP_SCOPES,
+  REMOTE_MCP_SUPPORTED_SCOPES,
+} from "./remoteMcpScopeCatalog.js";
 import { projectRemoteMcpTools, requiredRemoteMcpScopesForTool } from "./remoteMcpToolProjection.js";
 
 export const CHATGPT_MCP_PROTOCOL_VERSION = "2025-06-18";
@@ -123,7 +126,7 @@ export function buildChatGptProtectedResourceMetadata(env = process.env) {
   return {
     resource: resolveChatGptMcpResource(env),
     authorization_servers: [resolveChatGptMcpAuthorizationServer(env)],
-    scopes_supported: [...REMOTE_MCP_SCOPES],
+    scopes_supported: [...REMOTE_MCP_SUPPORTED_SCOPES],
     resource_documentation: normalizedString(
       env.CHATGPT_MCP_RESOURCE_DOCUMENTATION_URL
         || `${resolveChatGptMcpResource(env)}/docs`,

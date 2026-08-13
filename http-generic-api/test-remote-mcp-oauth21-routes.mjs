@@ -110,6 +110,9 @@ const pool = {
       grantsByRefreshHash.set(row.refresh_token_hash, row);
       return result(1);
     }
+    if (sql.includes("FROM remote_mcp_oauth_grants") && sql.includes("tenant_id <=> ?")) {
+      return [[...grantsById.values()].filter((row) => row.status === "active"), []];
+    }
     if (sql.includes("FROM remote_mcp_oauth_grants") && sql.includes("refresh_token_hash = ?")) {
       const row = grantsByRefreshHash.get(params[0]);
       return [[row && row.status === "active" ? row : null].filter(Boolean), []];
@@ -208,7 +211,7 @@ try {
   authorizeUrl.searchParams.set("response_type", "code");
   authorizeUrl.searchParams.set("redirect_uri", redirectUri);
   authorizeUrl.searchParams.set("state", "state-1");
-  authorizeUrl.searchParams.set("scope", "workspaces.read brands.read");
+  authorizeUrl.searchParams.set("scope", "workspaces.read");
   authorizeUrl.searchParams.set("resource", env.REMOTE_MCP_RESOURCE_URL);
   authorizeUrl.searchParams.set("code_challenge", challenge);
   authorizeUrl.searchParams.set("code_challenge_method", "S256");
@@ -232,6 +235,7 @@ try {
   assert.equal(authorizationClaims.client_id, registered.client_id);
   assert.equal(authorizationClaims.redirect_uri, redirectUri);
   assert.equal(authorizationClaims.code_challenge, challenge);
+  assert.equal(authorizationClaims.scope, "workspaces.read");
 
   const userToken = jwt.sign(
     { user_id: "user-1", tenant_id: "workspace-1", email: "user@example.test" },
@@ -334,7 +338,53 @@ try {
   assert.equal(accessClaims.user_id, "user-1");
   assert.equal(accessClaims.tenant_id, "workspace-1");
   assert.equal(accessClaims.sub, "tenant:workspace-1:user:user-1");
+  assert.equal(accessClaims.scope, "workspaces.read");
   assert.throws(() => jwt.verify(tokens.access_token, env.JWT_SECRET, { algorithms: ["HS256"] }));
+
+  const incrementalAuthorizeUrl = new URL(authorizeUrl);
+  incrementalAuthorizeUrl.searchParams.set("scope", "brands.read");
+  incrementalAuthorizeUrl.searchParams.set("state", "state-2");
+  const incrementalAuthorizeResponse = await fetch(incrementalAuthorizeUrl);
+  const incrementalAuthorizeHtml = await incrementalAuthorizeResponse.text();
+  assert.equal(incrementalAuthorizeResponse.status, 200);
+  const incrementalRequestMatch = incrementalAuthorizeHtml.match(/"authorization_request":"([^"]+)"/u);
+  assert(incrementalRequestMatch?.[1]);
+  const incrementalClaims = jwt.verify(incrementalRequestMatch[1], env.REMOTE_MCP_OAUTH_SIGNING_SECRET, {
+    algorithms: ["HS256"],
+    issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
+    audience: env.REMOTE_MCP_RESOURCE_URL,
+  });
+  assert.equal(incrementalClaims.scope, "brands.read");
+
+  const incrementalCodeResponse = await fetch(`${baseUrl}/auth/mcp/oauth/code`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${userToken}` },
+    body: JSON.stringify({ authorization_request: incrementalRequestMatch[1], consent: true }),
+  });
+  const incrementalCode = await json(incrementalCodeResponse);
+  assert.equal(incrementalCodeResponse.status, 200);
+
+  const incrementalTokenResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: registered.client_id,
+      code: incrementalCode.code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier,
+      resource: env.REMOTE_MCP_RESOURCE_URL,
+    }),
+  });
+  const incrementalTokens = await json(incrementalTokenResponse);
+  assert.equal(incrementalTokenResponse.status, 200);
+  assert.equal(incrementalTokens.scope, "workspaces.read brands.read");
+  const incrementalAccessClaims = jwt.verify(incrementalTokens.access_token, env.REMOTE_MCP_OAUTH_SIGNING_SECRET, {
+    algorithms: ["HS256"],
+    issuer: env.REMOTE_MCP_AUTHORIZATION_SERVER_URL,
+    audience: env.REMOTE_MCP_RESOURCE_URL,
+  });
+  assert.equal(incrementalAccessClaims.scope, "workspaces.read brands.read");
 
   const refreshResponse = await fetch(`${baseUrl}/auth/mcp/oauth/token`, {
     method: "POST",

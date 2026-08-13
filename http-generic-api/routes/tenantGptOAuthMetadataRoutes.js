@@ -10,7 +10,7 @@ import {
   remoteMcpEnabled,
 } from "../remoteMcpConnectorRuntime.js";
 import {
-  REMOTE_MCP_SCOPES,
+  REMOTE_MCP_SUPPORTED_SCOPES,
   remoteMcpDynamicClientRegistrationAdvertised,
   remoteMcpOAuthEnabled,
   resolveRemoteMcpAuthorizationIssuer,
@@ -59,7 +59,7 @@ function remoteMcpAuthorizationServerMetadata(env) {
     grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
     code_challenge_methods_supported: ["S256"],
-    scopes_supported: [...REMOTE_MCP_SCOPES],
+    scopes_supported: [...REMOTE_MCP_SUPPORTED_SCOPES],
     resource_parameter_supported: true,
   };
 }
