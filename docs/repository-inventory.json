@@ -3,18 +3,18 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6716,
-    "bytes": 58969971,
-    "lines": 1376271,
+    "files": 6726,
+    "bytes": 59002817,
+    "lines": 1376904,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2022,
+      "tests-and-specs": 2023,
       "documentation": 1856,
-      "api-runtime": 1328,
-      "database-migrations": 767,
+      "api-runtime": 1336,
+      "database-migrations": 768,
       "root-and-other": 228,
       "ci-workflows": 152,
       "api-contracts": 147,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2459,
-      ".mjs": 1535,
-      ".js": 931,
-      ".sql": 782,
-      ".json": 672,
+      ".mjs": 1536,
+      ".js": 936,
+      ".sql": 783,
+      ".json": 675,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,7 +57,7 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3440,
+      "http-generic-api": 3450,
       "docs": 1762,
       "specs": 838,
       ".github": 246,
@@ -1148,6 +1148,7 @@
       "http-generic-api/migrations/20260810_hostinger_production_deploy_authority_binding.sql",
       "http-generic-api/migrations/20260810_platform_runtime_registry_drift_reconciliation.sql",
       "http-generic-api/migrations/20260810_remaining_tenant_runtime_lifecycle_gap_closure.sql",
+      "http-generic-api/migrations/20260813_remote_mcp_dynamic_permission_tree_v1.sql",
       "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "http-generic-api/migrations/202_sprint67_policy_only_runtime_policy_target_rules.sql",
       "http-generic-api/migrations/202_sprint68_admin_workspace_authority_tools.sql",
@@ -2374,6 +2375,7 @@
       "http-generic-api/test-remaining-tenant-runtime-migration-governed-readiness.mjs",
       "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
       "http-generic-api/test-remote-mcp-disabled-startup-boundary.mjs",
+      "http-generic-api/test-remote-mcp-dynamic-permission-tree.mjs",
       "http-generic-api/test-remote-mcp-host-isolation.mjs",
       "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
       "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
@@ -4461,6 +4463,7 @@
       "http-generic-api/test-remaining-tenant-runtime-migration-governed-readiness.mjs",
       "http-generic-api/test-remote-mcp-access-token-verifier.mjs",
       "http-generic-api/test-remote-mcp-disabled-startup-boundary.mjs",
+      "http-generic-api/test-remote-mcp-dynamic-permission-tree.mjs",
       "http-generic-api/test-remote-mcp-host-isolation.mjs",
       "http-generic-api/test-remote-mcp-multi-client-profiles.mjs",
       "http-generic-api/test-remote-mcp-oauth21-profile.mjs",
@@ -34564,9 +34567,9 @@
       "path": "http-generic-api/chatgptMcpRuntime.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 21847,
-      "lines": 703,
-      "sha256": "29a7748c39a26da589658b011725c583087702390bf976ea4792b3b0b0103093",
+      "bytes": 22049,
+      "lines": 704,
+      "sha256": "a0e8676c159e14b1f66938fe99dfeb5ce825c534196a1c48115db22e2b071549",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -43977,6 +43980,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/migrations/20260813_remote_mcp_dynamic_permission_tree_v1.sql",
+      "category": "database-migrations",
+      "extension": ".sql",
+      "bytes": 7994,
+      "lines": 125,
+      "sha256": "75cde9d82c0a7bf483bcd8e782cbae38b357d9875c1c4215ed198f5af3dee9b8",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/migrations/202_sprint66_tenant_ssh_cli_allowlisted_execute_tool.sql",
       "category": "database-migrations",
       "extension": ".sql",
@@ -48498,6 +48512,39 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/remote-mcp-permission-tree.generated.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 1173,
+      "lines": 18,
+      "sha256": "25f4680c950ee2cd2a3c9ccca23a9ecc6adbba89f0a54e5b725e6c8de37f9e0e",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/remote-mcp-scope-catalog.generated.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 4514,
+      "lines": 35,
+      "sha256": "3284e1311bb6c7e5c11d1229169c18f78a19fef200332d004e08e15ad69738e7",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/remote-mcp-tool-catalog.generated.json",
+      "category": "api-runtime",
+      "extension": ".json",
+      "bytes": 642,
+      "lines": 10,
+      "sha256": "ad66e5582ce97340073084613d3df599ef9e1bc2eb4adbe1a141fb9ac48f5b60",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/remoteMcpAccessTokenVerifier.js",
       "category": "api-runtime",
       "extension": ".js",
@@ -48509,12 +48556,23 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/remoteMcpAuthorizationDecision.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1516,
+      "lines": 52,
+      "sha256": "bad3a148e3f2e42d60cd3641ff9e3e58c56f84c466164753282ebb58ed79a8fe",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/remoteMcpConnectorRuntime.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 9337,
-      "lines": 288,
-      "sha256": "4df1fc15f4eb98e76e45f36e2a743b77d738d7bdaaf6e8539027557db147fe68",
+      "bytes": 9993,
+      "lines": 297,
+      "sha256": "ec5c0d047d6700e497c13e5bdfb4d7f2055a9f37d97c763988f7a2d10b0c6943",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48523,9 +48581,9 @@
       "path": "http-generic-api/remoteMcpOAuthProfile.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 6465,
-      "lines": 166,
-      "sha256": "028088a345dc9126a5714ee793655d19dbc086a0444460d04e2a44bf9e9754fa",
+      "bytes": 6527,
+      "lines": 164,
+      "sha256": "03786b3730224c190e5dc4dd068de45cac13e5a6d141c7118c71cb437348ed41",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48553,12 +48611,23 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/remoteMcpPermissionTree.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 3796,
+      "lines": 88,
+      "sha256": "0a3fe84dabee8b5ce292858ba2bf1a7babf07a42624900b28168d3c12423fd9c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/remoteMcpReadiness.js",
       "category": "api-runtime",
       "extension": ".js",
-      "bytes": 3643,
-      "lines": 112,
-      "sha256": "11b0818c96ccfdce4ea08746666d473731cb48aca5c5db87adb48454ccb094f8",
+      "bytes": 3918,
+      "lines": 117,
+      "sha256": "917c4d6fa86a7895e7e36145f990fb2b01567613f3ef35711e7b6560d49c9c83",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -48570,6 +48639,39 @@
       "bytes": 2466,
       "lines": 73,
       "sha256": "a3c27fcad649811c5f6b8e89fe3f2dc8b7771b005ca2e2eb24e6e735c894d6b6",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/remoteMcpScopeCatalog.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 6373,
+      "lines": 143,
+      "sha256": "5d4476d5f437198c975dea5fe5a197f8a556a195c863582b108fe744fe259a5a",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/remoteMcpScopeCatalogReadiness.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1030,
+      "lines": 28,
+      "sha256": "0e09701f11b1a4c4ae96d55f4849035e16aab0c2542bc0b8c6f6060ec30bd34d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/remoteMcpToolProjection.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 1482,
+      "lines": 41,
+      "sha256": "702d5a2074a54d7f23bef01cff6e4c7fef7c5d9105bfc0e4b60f2187d1064723",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -53803,9 +53905,9 @@
       "path": "http-generic-api/scripts/test-manifest.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 7852,
-      "lines": 148,
-      "sha256": "e7b40847392580c1eaace3e3f95c36a30dabfcafe30fb19c7d2d1159c2a4a9fe",
+      "bytes": 7906,
+      "lines": 149,
+      "sha256": "8946ffde2577f3b4fc9c5f0de484b49c861a7013d4bbe04cc9d98d3b64888fea",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58049,9 +58151,9 @@
       "path": "http-generic-api/test-chatgpt-mcp-metadata-routing.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
-      "bytes": 8132,
+      "bytes": 8243,
       "lines": 202,
-      "sha256": "4d4ead263b9d33cf60995c5fe4afe763755aa81fce5d6dc74317fcc272fb8781",
+      "sha256": "38aea069e1b58c1bb3828bead3003f2fe61f284a107dfdcc484a8fcf02059f6d",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -64740,6 +64842,17 @@
       "bytes": 1721,
       "lines": 61,
       "sha256": "a0dda8a1f5064440da9737efd85cf5092cbb3d153747a2c6dff14c8aac5dcd28",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-remote-mcp-dynamic-permission-tree.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 2966,
+      "lines": 79,
+      "sha256": "b3722d4f3f4b76f848a3a7d53311e8fa31e761cfb47261b0196a316315570444",
       "mode": "644",
       "executable": false,
       "generated": false
