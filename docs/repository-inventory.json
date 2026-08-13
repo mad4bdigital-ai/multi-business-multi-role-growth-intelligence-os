@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6703,
-    "bytes": 58989538,
-    "lines": 1375554,
+    "bytes": 59005919,
+    "lines": 1375816,
     "directories": 251,
     "categories": 13
   },
@@ -52491,11 +52491,11 @@
       "path": "http-generic-api/scripts/governed-migration-runner.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
-      "bytes": 3916,
-      "lines": 110,
-      "sha256": "365bb71dc8325df1af9af663a437a812f841be58fd6fd22586fc570f19083155",
-      "mode": "755",
-      "executable": true,
+      "bytes": 20297,
+      "lines": 372,
+      "sha256": "ae0a57eea3138b2d3e2b07f62cad6a7ca52e20498a18f975d5040ba044e2db6a",
+      "mode": "644",
+      "executable": false,
       "generated": false
     },
     {
