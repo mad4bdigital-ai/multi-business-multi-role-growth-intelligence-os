@@ -1,0 +1,100 @@
+{
+  "contract": "mad4b.track-b-migration-readiness.v1",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "shared_base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "entries": [
+    {
+      "migration_key": "context_connection_ownership",
+      "feature_key": "012-unified-admin-tenant-context-kernel",
+      "migration_file": "20260730_context_kernel_connection_ownership_persistence.sql",
+      "source_merge_sha": "a9c3aa67e4ed2d846fc9a0697fa95d5c5fd35902",
+      "checksum_sha256": "8689a9440be9224e1b19ee1d88c983feb10f4056cc7a83d59790e9230ed28faf",
+      "statement_count": 4,
+      "resource_uri": "db-migration://growth_intelligence_platform/20260730_context_kernel_connection_ownership_persistence.sql",
+      "repository_preflight_status": "pass_existing_contract_reused",
+      "authorization_status": "pending_separate_authorization",
+      "ledger_contract": {
+        "exact_filename_required": true,
+        "exact_checksum_required": true,
+        "exact_statement_count_required": true,
+        "source_merge_binding_required": true,
+        "readback_before_retry_required": true
+      },
+      "same_cycle_readback_contract": {
+        "migration_ledger_required": true,
+        "expected_objects_required": true,
+        "authoritative_schema_source_required": true,
+        "checksum_and_statement_count_must_match": true,
+        "unknown_outcome_requires_readback": true
+      },
+      "expected_objects": [
+        "workspace_registry.workspace_ownership_type",
+        "workspace_registry.owner_user_id",
+        "workspace_registry.ownership_revision",
+        "connection_ownership_scopes",
+        "provider_authorization_states",
+        "v_context_kernel_connection_ownership_compatibility"
+      ],
+      "live_dry_run_executed": false,
+      "migration_applied": false,
+      "database_mutated": false,
+      "same_cycle_readback_complete": false,
+      "runtime_consumers_enabled": false,
+      "provider_called": false,
+      "credential_payload_read": false,
+      "production_mutated": false,
+      "secrets_included": false,
+      "requires_separate_authorization": true
+    },
+    {
+      "migration_key": "tenant_managed_execution_1043",
+      "feature_key": "017-tenant-managed-execution-lifecycle",
+      "migration_file": "1043_sprint69_tenant_managed_execution_lifecycle.sql",
+      "source_pr": 4845,
+      "source_merge_sha": "a1c1f3d4f4b36a3a5764d898194818e3e9ea1ce3",
+      "git_blob_sha": "7f3e0152bcdfba36a659ff4a1df8e30d82024c8c",
+      "checksum_sha256": "a11dff751fca4df19a6acfc188ca7310d8e1a90aa5c3f06fe0c3efeb1213a2a9",
+      "statement_count": 4,
+      "repository_preflight_status": "pass_existing_contract_reused",
+      "authorization_status": "pending_separate_authorization",
+      "ledger_contract": {
+        "exact_filename_required": true,
+        "exact_checksum_required": true,
+        "exact_statement_count_required": true,
+        "source_merge_binding_required": true,
+        "readback_before_retry_required": true
+      },
+      "same_cycle_readback_contract": {
+        "migration_ledger_required": true,
+        "expected_objects_required": true,
+        "authoritative_schema_source_required": true,
+        "checksum_and_statement_count_must_match": true,
+        "unknown_outcome_requires_readback": true
+      },
+      "expected_objects": [
+        "managed_execution_bindings",
+        "managed_execution_step_requests",
+        "managed_execution_events",
+        "v_managed_execution_lifecycle_readiness"
+      ],
+      "live_dry_run_executed": false,
+      "migration_applied": false,
+      "database_mutated": false,
+      "same_cycle_readback_complete": false,
+      "runtime_consumers_enabled": false,
+      "provider_called": false,
+      "credential_payload_read": false,
+      "production_mutated": false,
+      "secrets_included": false,
+      "requires_separate_authorization": true
+    }
+  ],
+  "new_migration_added": false,
+  "independent_apply_authorization_required": true,
+  "migration_applied": false,
+  "database_mutated": false,
+  "provider_called": false,
+  "runtime_consumers_enabled": false,
+  "production_mutated": false,
+  "secrets_included": false
+}

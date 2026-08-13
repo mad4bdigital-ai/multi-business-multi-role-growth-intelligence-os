@@ -1,0 +1,83 @@
+{
+  "contract": "mad4b.agent-track-handoff.v1",
+  "track": "B",
+  "title": "Database Lifecycle, Migrations, Readiness",
+  "branch": "agent/track-b-db-lifecycle-readiness",
+  "shared_base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "observed_main_after_parallel_work_sha": "2033e0797775e8931f973ec298111b961f1f435e",
+  "cooperation_chain": [
+    "Context Kernel",
+    "Capability Manifest",
+    "Authority Preflight",
+    "Plan",
+    "Approval/Delegation",
+    "Final Authority",
+    "Durable Execution",
+    "Adapter",
+    "Readback",
+    "Surface Projection"
+  ],
+  "owned_completion_ledgers": [
+    "specs/018-environment-promotion-runtime-integrity/completion.json",
+    "specs/019-governed-database-lifecycle-pressure-relief/completion.json"
+  ],
+  "supporting_readiness_only_specs": [
+    "012-unified-admin-tenant-context-kernel",
+    "017-tenant-managed-execution-lifecycle"
+  ],
+  "implementation": {
+    "database_lifecycle_mutation_readiness_evidence_validator": true,
+    "response_chunk_ttl_non_production_dry_run_pilot": true,
+    "repository_audit_supersession_adapter": true,
+    "break_glass_d07_d13_reconciliation_readiness": true,
+    "break_glass_rollback_rehearsal": true,
+    "migration_checksum_readback_aggregator": true,
+    "new_migration_added": false,
+    "policy_engine_added": false,
+    "connection_selector_added": false,
+    "tenant_authority_added": false,
+    "authority_resolver_modified": false,
+    "context_decision_code_modified": false,
+    "openapi_or_mcp_modified": false,
+    "frontend_or_catalog_modified": false,
+    "repository_wide_generated_artifact_modified": false
+  },
+  "mandatory_outputs": [
+    "docs/agent-tracks/track-b-handoff.json",
+    "docs/agent-tracks/track-b-migration-checksum-readback-manifest.json",
+    "docs/agent-tracks/track-b-dry-run-evidence.json",
+    "docs/agent-tracks/track-b-rollback-matrix.json"
+  ],
+  "validation": {
+    "focused_tests": "pass",
+    "syntax_checks": "pass",
+    "full_checkout_guards": "deferred_to_post_commit_ci_and_final_integration_refresh_due_connector_only_checkout_limit_and_reserved_generated_artifacts",
+    "generated_artifact_refresh_owner": "final_integration_branch"
+  },
+  "handoff_to_track_a": {
+    "consume": [
+      "database lifecycle authority/receipt/readback readiness evidence",
+      "break-glass reconciliation readiness evidence",
+      "migration checksum/ledger/readback readiness manifest"
+    ],
+    "must_not_assume": [
+      "Track B grants Final Authority",
+      "Track B enables runtime execution",
+      "Track B applied migrations",
+      "Track B mutated any database"
+    ]
+  },
+  "handoff_to_track_c": {
+    "direct_runtime_authority": false,
+    "surface_projection_must_follow_track_a_final_authority": true
+  },
+  "explicit_safety_state": {
+    "migration_applied": false,
+    "database_mutated": false,
+    "provider_called": false,
+    "runtime_consumer_enabled": false,
+    "production_mutated": false,
+    "protected_branch_mutated": false,
+    "secrets_included": false
+  }
+}
