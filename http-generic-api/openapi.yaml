@@ -3922,6 +3922,40 @@ paths:
               schema:
                 $ref: '../specs/010-unified-platform-frontend/contracts/ui-surface-catalog.schema.json'
         '503': { description: Dispatch artifact missing or invalid }
+  /auth/oauth/revoke:
+    post:
+      operationId: revokeAuthOAuthSsoSession
+      x-custom-gpt-exclude: true
+      x-gpt-action-exclude: true
+      summary: Revoke the current Tenant GPT SSO session
+      description: Revokes the SSO session represented by the submitted session token or trusted SSO cookie and always returns a secret-free idempotent response.
+      tags: [auth, system-layer]
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                session_token: { type: string, maxLength: 8192 }
+                token: { type: string, maxLength: 8192 }
+      responses:
+        '200':
+          description: Session revocation result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok, revoked, secrets_included]
+                properties:
+                  ok: { type: boolean, const: true }
+                  revoked: { type: boolean }
+                  sid: { type: string }
+                  reason: { type: string }
+                  secrets_included: { type: boolean, const: false }
+        '503': { description: SSO persistence unavailable }
   # BEGIN RESOURCE API COVERAGE
   /admin/resource-types:
     get:

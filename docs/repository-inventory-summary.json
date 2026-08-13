@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6812,
-    "bytes": 61947558,
-    "lines": 1454434,
+    "bytes": 61920829,
+    "lines": 1453541,
     "directories": 255,
     "categories": 13
   },
@@ -224,8 +224,8 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3148159,
-      "lines": 96652
+      "bytes": 3121096,
+      "lines": 95769
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
@@ -236,14 +236,14 @@
     {
       "path": "http-generic-api/openapi.yaml",
       "category": "api-contracts",
-      "bytes": 982699,
-      "lines": 22796
+      "bytes": 984031,
+      "lines": 22830
     },
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 328218,
-      "lines": 8553
+      "bytes": 325509,
+      "lines": 8484
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -308,8 +308,8 @@
     {
       "path": "http-generic-api/openapi/openapi.tenant-gpt.auth.yaml",
       "category": "api-contracts",
-      "bytes": 140472,
-      "lines": 3795
+      "bytes": 140742,
+      "lines": 3799
     },
     {
       "path": "package-lock.json",

@@ -28,6 +28,10 @@ surfaces:
         - system-layer
       omission: fail
       exclusion_records:
+        - operation_id: revokeAuthOAuthSsoSession
+          reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
+          owner: identity-platform
+          review_after: 2026-09-30
         - operation_id: sessionInsightTargetWriteReadbackCreate
           reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
           owner: platform-governance
@@ -222,6 +226,10 @@ surfaces:
         - session-archive
       omission: fail
       exclusion_records:
+        - operation_id: revokeAuthOAuthSsoSession
+          reason: Shared OAuth and SSO lifecycle endpoint remains outside the Tenant Core OAuth surface boundary; revocation is handled by the auth boundary.
+          owner: identity-platform
+          review_after: 2026-09-30
         - operation_id: getAdminResourceTypes
           reason: Admin, Activation, or internal platform candidate remains outside the Tenant Core OAuth surface boundary.
           owner: platform-governance

@@ -8,8 +8,8 @@ This report is generated deterministically from the Git index. It is intentional
 | Metric | Value |
 |---|---:|
 | Tracked files | 6,812 |
-| Total bytes | 61,947,558 |
-| Counted text lines | 1,454,434 |
+| Total bytes | 61,920,829 |
+| Counted text lines | 1,453,541 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -87,10 +87,10 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,148,159 | 96652 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,121,096 | 95769 |
 | `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,929,181 | 58335 |
-| `http-generic-api/openapi.yaml` | api-contracts | 982,699 | 22796 |
-| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 328,218 | 8553 |
+| `http-generic-api/openapi.yaml` | api-contracts | 984,031 | 22830 |
+| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 325,509 | 8484 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
@@ -101,7 +101,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
 | `AI_Agent_Knowledge_Guide.md` | documentation | 145,911 | 1339 |
-| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 140,472 | 3795 |
+| `http-generic-api/openapi/openapi.tenant-gpt.auth.yaml` | api-contracts | 140,742 | 3799 |
 | `package-lock.json` | build-and-dependencies | 138,721 | 3861 |
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |

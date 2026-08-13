@@ -1889,9 +1889,9 @@ paths:
 x-custom-gpt-generation:
   generator: http-generic-api/scripts/split-openapi.mjs
   source_openapi: http-generic-api/openapi.yaml
-  source_openapi_sha256: 2bbfc6ddfdd77f5536fa4255f58bb3d2d71efd544dc3779b8d300a6704fad4c6
+  source_openapi_sha256: a29cb5c22f9dfcfa67a94e284bb4191e78f89467c5e5d25878f77079b9e28a62
   registry_file: canonicals/openapi/custom-gpt-surfaces.yaml
-  registry_sha256: dc302fe23c45f4e33adf013ad7c7c8ffb9cb5fd907c4f3cc3dea6e6edbf279e6
+  registry_sha256: a9aa8208ebbacb2e2b1a4c58a35dcb89e546afb064846b57ee3bafa35b3bb748
   registry_version: 2
   selector_model: marker_required
   candidate_policy:
@@ -1902,6 +1902,10 @@ x-custom-gpt-generation:
       - system-layer
     omission: fail
     exclusion_records:
+      - operation_id: revokeAuthOAuthSsoSession
+        reason: Shared OAuth and SSO lifecycle endpoint remains outside the public Custom GPT operation surfaces; revocation is handled by the auth boundary.
+        owner: identity-platform
+        review_after: 2026-09-30
       - operation_id: sessionInsightTargetWriteReadbackCreate
         reason: Admin scope-grant, taxonomy, or internal evidence candidate remains outside the public Custom GPT Admin Core surface.
         owner: platform-governance
