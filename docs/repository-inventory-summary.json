@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6749,
-    "bytes": 59460365,
-    "lines": 1385995,
+    "files": 6755,
+    "bytes": 59507972,
+    "lines": 1386889,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2031,
-      "documentation": 1856,
-      "api-runtime": 1343,
+      "tests-and-specs": 2033,
+      "documentation": 1857,
+      "api-runtime": 1345,
       "database-migrations": 774,
-      "root-and-other": 230,
+      "root-and-other": 231,
       "ci-workflows": 152,
       "api-contracts": 147,
       "ci-config": 94,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2459,
-      ".mjs": 1546,
+      ".md": 2460,
+      ".mjs": 1550,
       ".js": 943,
       ".sql": 789,
-      ".json": 675,
+      ".json": 676,
       ".yml": 154,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3471,
-      "docs": 1762,
+      "http-generic-api": 3475,
+      "docs": 1763,
       "specs": 838,
       ".github": 246,
-      ".changes": 226,
+      ".changes": 227,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -145,6 +145,8 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "supervisor:readiness",
+        "runtime-persistence:readiness",
+        "database:collation:check",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",
@@ -205,7 +207,7 @@
     "workflows": 152,
     "migrations": 774,
     "apiContracts": 147,
-    "testSpecFiles": 2094
+    "testSpecFiles": 2096
   },
   "largestFiles": [
     {

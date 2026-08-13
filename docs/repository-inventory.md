@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,749 |
-| Total bytes | 59,460,365 |
-| Counted text lines | 1,385,995 |
+| Tracked files | 6,755 |
+| Total bytes | 59,507,972 |
+| Counted text lines | 1,386,889 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,11 +17,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,031 |
-| `documentation` | 1,856 |
-| `api-runtime` | 1,343 |
+| `tests-and-specs` | 2,033 |
+| `documentation` | 1,857 |
+| `api-runtime` | 1,345 |
 | `database-migrations` | 774 |
-| `root-and-other` | 230 |
+| `root-and-other` | 231 |
 | `ci-workflows` | 152 |
 | `api-contracts` | 147 |
 | `ci-config` | 94 |
@@ -35,11 +35,11 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,459 |
-| `.mjs` | 1,546 |
+| `.md` | 2,460 |
+| `.mjs` | 1,550 |
 | `.js` | 943 |
 | `.sql` | 789 |
-| `.json` | 675 |
+| `.json` | 676 |
 | `.yml` | 154 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
@@ -72,14 +72,14 @@ This report is generated deterministically from the Git index. It is intentional
 | GitHub Actions workflows | 152 |
 | Database migrations | 774 |
 | API/OpenAPI contracts | 147 |
-| Test/spec files (paths) | 2,094 |
+| Test/spec files (paths) | 2,096 |
 | package.json manifests | 2 |
 
 ## Package manifests
 
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 58 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 60 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 15 | 0 | 4 |
 
 ## Largest tracked files
