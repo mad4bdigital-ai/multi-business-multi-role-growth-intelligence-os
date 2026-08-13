@@ -38,6 +38,7 @@
           "assertions": [
             "Production provider capability recognizes the independent two-database contract without performing provider mutation.",
             "Promotion run resolution selects the newest eligible exact-head workflow run and excludes completed failure/skip runs.",
+            "Promotion dispatch rejects validation branch prefixes that cannot trigger the exact-candidate workflow.",
             "Authority reads and writes select the explicit Governance DB pool.",
             "A missing or Runtime-equal Governance database name fails closed before connection creation.",
             "A missing or ambiguous authority binding does not fall back to the Runtime DB.",
