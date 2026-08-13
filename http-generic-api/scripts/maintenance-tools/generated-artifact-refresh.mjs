@@ -15,6 +15,7 @@ const AUTO_RECIPE = "auto";
 const FRONTEND_OPENAPI_RECIPE = "frontend_openapi_refresh";
 const WORK_MAP_BOOTSTRAP_RECIPE = "work_map_self_hosting_bootstrap";
 const REPOSITORY_INVENTORY_RECIPE = "repository_inventory_refresh";
+const TRUSTED_WRITER_AUTHORITY_MODE = "trusted_generated_artifact_writer";
 const EXPLICIT_RECIPES = new Set([
   FRONTEND_OPENAPI_RECIPE,
   WORK_MAP_BOOTSTRAP_RECIPE,
@@ -325,6 +326,7 @@ function runRepositoryInventoryRefresh() {
     inventory_test: true,
     before_hashes: beforeHashes,
     after_hashes: secondPassHashes,
+    authority_mode: TRUSTED_WRITER_AUTHORITY_MODE,
   };
 }
 
@@ -365,6 +367,7 @@ function writeReport(outputDir, report) {
     `- Resulting head SHA: \`${report.result_head_sha || "none"}\``,
     `- Resulting commit SHA: \`${report.commit_sha || "none"}\``,
     `- Changed files: **${report.changed_files.length}**`,
+    `- Authority mode: \`${report.authority?.mode || "unknown"}\``,
     "- Force push: **no**",
     "- Protected branch mutation: **no**",
     "- Job logs: **diagnostic-only**",
@@ -460,6 +463,11 @@ export function runGovernedGeneratedArtifactRefresh(argv = process.argv) {
     commit_sha: commitSha,
     changed_files: changedFiles,
     verification,
+    authority: {
+      mode: TRUSTED_WRITER_AUTHORITY_MODE,
+      candidate_mutation_before_main_trust: false,
+      contents_write_scope: "registered_recipe_outputs_only",
+    },
     first_failure: firstFailure,
     mutation: {
       mode: "mutating",

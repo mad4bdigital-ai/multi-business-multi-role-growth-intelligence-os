@@ -45,6 +45,78 @@ const DEFAULT_CONFIG = Object.freeze({
 
 let schedulerHandle = null;
 let startupHandle = null;
+let dynamicAuditWriteAuthorityUnavailable = false;
+let dynamicAuditWriteAuthorityWarningLogged = false;
+
+const DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE = "dynamic_audit_scheduler_runs";
+
+function isWriteAuthorityUnavailableError(error) {
+  const code = String(error?.code || error?.errno || "").trim().toUpperCase();
+  const message = String(error?.message || error || "");
+  return [
+    "ER_TABLEACCESS_DENIED_ERROR",
+    "ER_ACCESS_DENIED_ERROR",
+    "ER_DBACCESS_DENIED_ERROR",
+  ].includes(code) || (String(error?.sqlState || "") === "42000" && /command denied|access denied/i.test(message));
+}
+
+function writeAuthorityFailure(error, table = DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE) {
+  return {
+    code: "dynamic_audit_write_authority_unavailable",
+    reason: "write_authority_unavailable",
+    table,
+    write_authority_unavailable: true,
+    original_error_code: String(error?.code || error?.errno || "write_authority_denied").slice(0, 128),
+    secrets_included: false,
+  };
+}
+
+function logDynamicAuditWriteAuthorityUnavailable(error, context = "startup") {
+  if (dynamicAuditWriteAuthorityWarningLogged) return;
+  dynamicAuditWriteAuthorityWarningLogged = true;
+  console.error(JSON.stringify({
+    event: context === "cycle" ? "dynamic_audit_cycle_failed" : "dynamic_audit_write_authority_unavailable",
+    ...writeAuthorityFailure(error),
+    context,
+  }));
+}
+
+async function probeDynamicAuditWriteAuthority(connection) {
+  if (!(await tableExists(connection, DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE))) {
+    return { available: true, table_present: false, secrets_included: false };
+  }
+  if (typeof connection.beginTransaction !== "function" || typeof connection.rollback !== "function") {
+    return {
+      available: true,
+      table_present: true,
+      probe_skipped: true,
+      reason: "write_authority_probe_transaction_unavailable",
+      secrets_included: false,
+    };
+  }
+
+  const probeRunId = `write-authority-probe-${randomUUID()}`.slice(0, 64);
+  let transactionStarted = false;
+  try {
+    await connection.beginTransaction();
+    transactionStarted = true;
+    await connection.query(
+      `INSERT INTO ${DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE}
+        (run_id,mode,run_status,started_at,secrets_included)
+       VALUES (?,?,'skipped',UTC_TIMESTAMP(),0)`,
+      [probeRunId, "write_authority_probe"],
+    );
+    await connection.rollback();
+    transactionStarted = false;
+    return { available: true, table_present: true, probe_rolled_back: true, secrets_included: false };
+  } catch (error) {
+    if (transactionStarted) await connection.rollback().catch(() => {});
+    if (isWriteAuthorityUnavailableError(error)) {
+      return { available: false, table_present: true, ...writeAuthorityFailure(error), secrets_included: false };
+    }
+    throw error;
+  }
+}
 
 function safeJsonParse(value, fallback = {}) {
   if (!value) return fallback;
@@ -668,9 +740,9 @@ async function writeCheckpoint(connection, config, commitSha) {
 }
 
 async function recordSchedulerStart(connection, runId, mode) {
-  if (!(await tableExists(connection, "dynamic_audit_scheduler_runs"))) return false;
+  if (!(await tableExists(connection, DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE))) return false;
   await connection.query(
-    `INSERT INTO dynamic_audit_scheduler_runs
+    `INSERT INTO ${DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE}
       (run_id,mode,run_status,started_at,secrets_included)
      VALUES (?,?,'running',UTC_TIMESTAMP(),0)`,
     [runId, mode]
@@ -679,9 +751,9 @@ async function recordSchedulerStart(connection, runId, mode) {
 }
 
 async function recordSchedulerFinish(connection, runId, status, result, error = null) {
-  if (!(await tableExists(connection, "dynamic_audit_scheduler_runs"))) return;
+  if (!(await tableExists(connection, DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE))) return;
   await connection.query(
-    `UPDATE dynamic_audit_scheduler_runs
+    `UPDATE ${DYNAMIC_AUDIT_SCHEDULER_RUNS_TABLE}
         SET run_status=?,stage_summary_json=?,error_code=?,error_message=?,
             completed_at=UTC_TIMESTAMP(),updated_at=UTC_TIMESTAMP()
       WHERE run_id=?`,
@@ -691,6 +763,16 @@ async function recordSchedulerFinish(connection, runId, status, result, error = 
 }
 
 export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
+  if (dynamicAuditWriteAuthorityUnavailable && options.force !== true) {
+    return {
+      ok: false,
+      run_id: randomUUID(),
+      skipped: true,
+      reason: "write_authority_unavailable",
+      write_authority_unavailable: true,
+      secrets_included: false,
+    };
+  }
   const pool = dependencies.pool || getPool();
   const connection = await pool.getConnection();
   const runId = randomUUID();
@@ -769,6 +851,23 @@ export async function runDynamicAuditCycle(options = {}, dependencies = {}) {
     if (runRecorded) await recordSchedulerFinish(connection, runId, result.ok ? "succeeded" : "failed", result);
     return result;
   } catch (error) {
+    if (isWriteAuthorityUnavailableError(error)) {
+      dynamicAuditWriteAuthorityUnavailable = true;
+      logDynamicAuditWriteAuthorityUnavailable(error, "cycle");
+      stopDynamicAuditScheduler();
+      result = {
+        ok: false,
+        run_id: runId,
+        mode: options.mode || "scheduled",
+        skipped: true,
+        reason: "write_authority_unavailable",
+        write_authority_unavailable: true,
+        error: writeAuthorityFailure(error),
+        secrets_included: false,
+      };
+      if (runRecorded) await recordSchedulerFinish(connection, runId, "skipped", result, error).catch(() => {});
+      return result;
+    }
     result = {
       ok: false,
       run_id: runId,
@@ -788,12 +887,34 @@ export async function startDynamicAuditScheduler(options = {}) {
   if (process.env.NODE_ENV === "test" || schedulerHandle || startupHandle) {
     return { started: false, reason: "disabled_or_already_started", secrets_included: false };
   }
+  if (dynamicAuditWriteAuthorityUnavailable) {
+    return {
+      started: false,
+      reason: "write_authority_unavailable",
+      write_authority_unavailable: true,
+      secrets_included: false,
+    };
+  }
   const pool = options.pool || getPool();
   const connection = await pool.getConnection();
   let config;
-  try { config = await loadRuntimeConfig(connection); }
-  finally { connection.release(); }
+  let writeAuthorityProbe;
+  try {
+    config = await loadRuntimeConfig(connection);
+    if (config.enabled) writeAuthorityProbe = await probeDynamicAuditWriteAuthority(connection);
+  } finally { connection.release(); }
   if (!config.enabled) return { started: false, reason: "runtime_config_disabled", secrets_included: false };
+  if (writeAuthorityProbe?.available === false) {
+    dynamicAuditWriteAuthorityUnavailable = true;
+    logDynamicAuditWriteAuthorityUnavailable({ code: writeAuthorityProbe.original_error_code }, "startup");
+    return {
+      started: false,
+      reason: "write_authority_unavailable",
+      write_authority_unavailable: true,
+      readiness: writeAuthorityProbe,
+      secrets_included: false,
+    };
+  }
 
   const cadenceMs = Math.max(1, Number(config.cadence_minutes || 5)) * 60_000;
   const run = async (mode) => {

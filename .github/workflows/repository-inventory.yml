@@ -25,6 +25,10 @@ on:
       - '!docs/repository-inventory-summary.json'
       - '!docs/repository-inventory.md'
 
+# This verifier is read-only; generated-artifact writes remain delegated to the trusted writer workflow.
+env:
+  INVENTORY_AUTHORITY_MODE: read_only_verifier
+
 permissions:
   contents: read
 
@@ -78,6 +82,7 @@ jobs:
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
+          test "$INVENTORY_AUTHORITY_MODE" = "read_only_verifier"
           node scripts/repository-inventory-verification-gate.mjs \
             --event-name "$EVENT_NAME" \
             --target-ref "$TARGET_REF" \

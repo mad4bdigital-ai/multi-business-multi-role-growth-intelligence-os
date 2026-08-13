@@ -1,0 +1,167 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "production-write-authority-degradation",
+  "title": "Production write-authority safe degradation for Dynamic Audit and OpenAPI inventory sync",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      "http-generic-api/dynamicAuditRuntime.js",
+      "http-generic-api/openApiEndpointInventorySync.js",
+      "http-generic-api/test-production-write-authority-degradation.mjs",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/repository-inventory-autofix-dispatch.yml",
+      ".github/workflows/repository-inventory.yml",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+      "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
+      "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
+      "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
+      "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
+      "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json",
+      "docs/dynamic-audit-runtime-closure.md",
+      "docs/openapi-endpoint-inventory-sync-2026-06-22.md",
+      "docs/runbooks/production-write-authority-recovery.md",
+      ".changes/e2e/production-write-authority-degradation.json"
+    ],
+    "exclude": [
+      "feat/spec015-tenant-audit-convergence",
+      "database grants",
+      "database migrations",
+      "production deployment or restart"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Prevent repeated production startup and five-minute scheduler failures when runtime write authority is unavailable, while preserving fail-closed inventory-only boundaries.",
+      "e2e_journeys": [
+        {
+          "id": "dynamic-audit-write-authority-startup-probe",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "runtime startup",
+          "entrypoint": "startDynamicAuditScheduler() with ER_TABLEACCESS_DENIED_ERROR on dynamic_audit_scheduler_runs",
+          "terminal_outcome": "A transactional readiness probe rolls back, returns started=false with reason=write_authority_unavailable, emits one bounded structured warning, and does not create a scheduler interval or retry loop.",
+          "steps": [
+            "Read active scheduler configuration without changing it.",
+            "Probe the scheduler ledger INSERT inside a transaction.",
+            "Rollback the probe on both success and failure paths.",
+            "Classify ER_TABLEACCESS_DENIED_ERROR as write-authority-unavailable.",
+            "Return a structured degraded startup result and stop before interval creation.",
+            "Call startup again and verify no second database connection or retry is created."
+          ],
+          "assertions": [
+            "The result contains started=false, reason=write_authority_unavailable, and write_authority_unavailable=true.",
+            "The probe does not leave a durable scheduler row.",
+            "The warning contains secrets_included=false and no stack trace.",
+            "The scheduler does not repeat the denied startup on the next cadence.",
+            "The inventory verifier and dispatcher remain read-only while the trusted writer is the sole contents-write authority."
+          ],
+          "tests": [
+            {
+              "id": "production-write-authority-degradation",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-write-authority-degradation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/dynamicAuditRuntime.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
+          ]
+        },
+        {
+          "id": "dynamic-audit-write-authority-cycle-degradation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "dynamic audit cycle",
+          "entrypoint": "runDynamicAuditCycle() with denied scheduler ledger INSERT",
+          "terminal_outcome": "The cycle returns ok=false and skipped=true with reason=write_authority_unavailable, stops the scheduler, and later cycles short-circuit without repeating the denied write.",
+          "steps": [
+            "Acquire the advisory lock in the synthetic runtime fixture.",
+            "Attempt scheduler run registration.",
+            "Classify the denied INSERT without exposing the database message as an unbounded stack trace.",
+            "Stop any active startup or interval handles.",
+            "Return the bounded cycle result and verify the next cycle is skipped."
+          ],
+          "assertions": [
+            "The first denied cycle is not reported as a successful cycle.",
+            "The result contains ok=false, skipped=true, and write_authority_unavailable=true.",
+            "A second cycle does not acquire a second database connection."
+          ],
+          "tests": [
+            {
+              "id": "production-write-authority-degradation-cycle",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-write-authority-degradation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/dynamicAuditRuntime.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
+          ]
+        },
+        {
+          "id": "openapi-inventory-write-authority-startup-degradation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "OpenAPI inventory startup sync",
+          "entrypoint": "startOpenApiEndpointInventorySync() with ER_TABLEACCESS_DENIED_ERROR on actions",
+          "terminal_outcome": "Startup returns ok=true, started=false, status=write_authority_unavailable, and emits one structured degradation event while preserving non-callable inventory boundaries.",
+          "steps": [
+            "Read startup configuration and confirm startup_apply is active in the fixture.",
+            "Parse and plan OpenAPI inventory without provider calls.",
+            "Attempt the parent actions upsert.",
+            "Normalize access-denied to openapi_inventory_write_authority_unavailable.",
+            "Rollback the transaction and return a bounded startup degradation result.",
+            "Invoke startup again and verify the warning is emitted only once."
+          ],
+          "assertions": [
+            "The status is write_authority_unavailable rather than an uncaught exception.",
+            "The response contains secrets_included=false.",
+            "No callable row or provider/tool export is created.",
+            "The structured warning contains write_authority_unavailable and no stack trace."
+          ],
+          "tests": [
+            {
+              "id": "production-write-authority-degradation-openapi",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-write-authority-degradation.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/openApiEndpointInventorySync.js",
+            "http-generic-api/test-production-write-authority-degradation.mjs",
+            "docs/runbooks/production-write-authority-recovery.md",
+            ".changes/e2e/production-write-authority-degradation.json"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "After separately authorized Production configuration, validate the runtime identity, bounded probe, structured startup evidence, and one-cycle readback without granting broad privileges."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Require owner-authorized grants, environment parity, deployment, and post-promotion readback; these actions are intentionally outside this source PR."
+    }
+  ]
+}
