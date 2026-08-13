@@ -32,6 +32,7 @@
             "Detect the active database engine through the governed pool.",
             "Evaluate migration DDL against the engine-aware charset and collation policy.",
             "For a first push whose CI event carries an all-zero before SHA, omit that invalid diff base and evaluate the parent of the exact head instead.",
+            "When a syntactically valid base SHA is unavailable after a force-push or non-ancestor update, retry the collation diff against the exact head parent rather than failing open or blocking unrelated work.",
             "Reject unknown engines, implicit defaults, or mixed join-key collations before apply.",
             "Resolve the dedicated runtime persistence pool for governed response chunks.",
             "Verify least-privilege readiness and same-source chunk readback or fail closed when configuration is absent."
@@ -40,6 +41,7 @@
             "Unknown or undetected database engines never reach migration apply.",
             "MariaDB/MySQL new-table DDL requires explicit utf8mb4 and policy-approved collation.",
             "An all-zero CI before SHA never reaches git diff as a base revision; the collation guard falls back to the exact head parent.",
+            "An unavailable but syntactically valid CI base SHA fails closed only if the exact head-parent fallback also fails; otherwise the collation guard evaluates that bounded parent diff.",
             "Runtime persistence uses RUNTIME_PERSISTENCE_DB_* identity rather than DB_USER fallback.",
             "Missing dedicated runtime persistence configuration returns a bounded 503 and no durable mutation."
           ],

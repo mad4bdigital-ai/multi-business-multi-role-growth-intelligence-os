@@ -36,6 +36,23 @@ const zeroBaseFiles = resolveSqlFiles({
 });
 assert.deepEqual(zeroBaseFiles, ["http-generic-api/migrations/valid.sql"]);
 
+let unavailableBaseCalls = 0;
+const unavailableBaseFiles = resolveSqlFiles({
+  baseSha: "c".repeat(40),
+  headSha: "b".repeat(40),
+  gitFn: (args) => {
+    unavailableBaseCalls += 1;
+    if (unavailableBaseCalls === 1) {
+      assert.deepEqual(args, ["diff", "--name-only", "c".repeat(40), "b".repeat(40), "--"]);
+      throw new Error("base commit is unavailable in this CI checkout");
+    }
+    assert.deepEqual(args, ["diff", "--name-only", `${"b".repeat(40)}^`, "b".repeat(40), "--"]);
+    return "http-generic-api/migrations/valid.sql\n";
+  },
+});
+assert.deepEqual(unavailableBaseFiles, ["http-generic-api/migrations/valid.sql"]);
+assert.equal(unavailableBaseCalls, 2);
+
 const ciWorkflow = readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
 assert.match(
   ciWorkflow,
