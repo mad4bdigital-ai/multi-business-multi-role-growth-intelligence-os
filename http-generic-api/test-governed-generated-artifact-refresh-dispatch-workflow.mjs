@@ -6,6 +6,11 @@ const workflowPath = "../.github/workflows/governed-generated-artifact-refresh-d
 const retiredWorkflowPath = "../.github/workflows/governed-generated-artifact-refresh-dispatch.yml";
 assert.equal(fs.existsSync(retiredWorkflowPath), false, "retired dispatcher path must remain absent");
 const workflow = fs.readFileSync(workflowPath, "utf8");
+const requestDispatcherPath = "../.github/workflows/governed-generated-artifact-refresh-request-dispatcher.yml";
+const requestDispatcher = fs.readFileSync(requestDispatcherPath, "utf8");
+
+assert.match(requestDispatcher, /if \[\[ "\$\{failure_code\}" == "pull_request_is_draft" \]\]; then[\s\S]*outcome:"skipped"[\s\S]*reason:\$reason/u, "a draft PR must emit auditable skipped evidence rather than fail main");
+assert.match(requestDispatcher, /else[\s\S]*outcome:"blocked"[\s\S]*first_failure:\{code:\$code,diagnostic_tail:\$detail\}/u, "non-draft evaluator failures must remain fail-closed");
 
 assert.match(workflow, /^name:\s*Governed Generated Artifact Refresh Dispatch V2$/mu);
 assert.doesNotMatch(workflow, /^\s*push:\s*$/mu, "dispatcher must not run from work-branch pushes");
@@ -59,7 +64,7 @@ assert.match(workflow, /delegated_run_conclusion:\(if \(\$delegated_run_conclusi
 
 console.log(JSON.stringify({
   ok: true,
-  tests: 50,
+  tests: 52,
   gate: "governed_generated_artifact_refresh_dispatch_workflow",
   contract: "mad4b.governed-generated-artifact-refresh-dispatch.v1",
   unique_workflow_identity: "Governed Generated Artifact Refresh Dispatch V2",
