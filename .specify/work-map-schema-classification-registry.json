@@ -456,6 +456,23 @@
       "rationale": "Tenant-managed execution events are append-only lifecycle evidence carrying state transitions, actors, and redacted evidence for deterministic operational readback."
     },
     {
+      "rule_key": "deployment_attestation_runtime_integrity",
+      "scope": "bounded_exact",
+      "match": {
+        "exact_names": [
+          "deployment_attestations"
+        ]
+      },
+      "domain": "Observability & release",
+      "existing_map_refs": [
+        "observability-release-map",
+        "execution-log-evidence-map",
+        "repository-development-map",
+        "data-model-domain-map"
+      ],
+      "rationale": "Deployment attestations are secret-free release and runtime-integrity evidence bound to exact source commit, build, environment, and same-cycle runtime readback."
+    },
+    {
       "rule_key": "spec014_hostinger_storage_authorized_injection_states",
       "scope": "bounded_exact",
       "match": {

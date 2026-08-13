@@ -7,9 +7,9 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Metric | Value |
 |---|---:|
-| Tracked files | 6,761 |
-| Total bytes | 61,272,585 |
-| Counted text lines | 1,441,137 |
+| Tracked files | 6,807 |
+| Total bytes | 61,934,601 |
+| Counted text lines | 1,454,221 |
 | Directories | 255 |
 | Categories | 13 |
 
@@ -17,13 +17,13 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Category | Files |
 |---|---:|
-| `tests-and-specs` | 2,035 |
-| `documentation` | 1,861 |
-| `api-runtime` | 1,348 |
-| `database-migrations` | 770 |
-| `root-and-other` | 229 |
-| `ci-workflows` | 152 |
-| `api-contracts` | 150 |
+| `tests-and-specs` | 2,047 |
+| `documentation` | 1,863 |
+| `api-runtime` | 1,366 |
+| `database-migrations` | 777 |
+| `root-and-other` | 232 |
+| `ci-workflows` | 155 |
+| `api-contracts` | 151 |
 | `ci-config` | 94 |
 | `schemas-and-data` | 66 |
 | `connectors-and-edge` | 23 |
@@ -35,12 +35,12 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Extension | Files |
 |---|---:|
-| `.md` | 2,465 |
-| `.mjs` | 1,550 |
-| `.js` | 946 |
-| `.sql` | 785 |
-| `.json` | 678 |
-| `.yml` | 154 |
+| `.md` | 2,467 |
+| `.mjs` | 1,567 |
+| `.js` | 958 |
+| `.sql` | 792 |
+| `.json` | 683 |
+| `.yml` | 157 |
 | `.yaml` | 107 |
 | `.ts` | 15 |
 | `.cs` | 14 |
@@ -69,17 +69,17 @@ This report is generated deterministically from the Git index. It is intentional
 
 | Surface | Count |
 |---|---:|
-| GitHub Actions workflows | 152 |
-| Database migrations | 770 |
-| API/OpenAPI contracts | 150 |
-| Test/spec files (paths) | 2,098 |
+| GitHub Actions workflows | 155 |
+| Database migrations | 777 |
+| API/OpenAPI contracts | 151 |
+| Test/spec files (paths) | 2,110 |
 | package.json manifests | 2 |
 
 ## Package manifests
 
 | Path | Name | Version | Scripts | Dependencies | Dev dependencies |
 |---|---|---|---:|---:|---:|
-| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 59 | 9 | 0 |
+| `http-generic-api/package.json` | `http-generic-api-connector` | `2.7.0-wordpress-dry-run-preflight` | 61 | 9 | 0 |
 | `package.json` | `multi-business-growth-intelligence-os` | `1.0.0` | 19 | 0 | 4 |
 
 ## Largest tracked files
@@ -87,15 +87,16 @@ This report is generated deterministically from the Git index. It is intentional
 | Path | Category | Bytes | Lines |
 |---|---|---:|---:|
 | `http-generic-api/schemas/wordpress/wordpress_api.yaml` | schemas-and-data | 4,831,654 | 142814 |
-| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,161,187 | 97073 |
-| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,922,441 | 58125 |
+| `http-generic-api/frontend-surface-dispatch.generated.json` | api-runtime | 3,148,159 | 96652 |
+| `http-generic-api/remote-mcp-write-scope-inventory.generated.json` | api-runtime | 1,929,181 | 58335 |
 | `http-generic-api/openapi.yaml` | api-contracts | 982,699 | 22796 |
-| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 329,163 | 8576 |
+| `http-generic-api/openapi/frontend-runtime-routes.generated.yaml` | api-contracts | 328,218 | 8553 |
 | `http-generic-api/wordpress/phaseA.js` | api-runtime | 286,142 | 7691 |
 | `docs/surface-contract-safety-attestations.json` | documentation | 265,603 | 7914 |
 | `http-generic-api/schemas/hostinger/hostinger_api.yaml` | schemas-and-data | 242,696 | 7657 |
 | `docs/spec-portfolio/spec015-gap-matrix.generated.json` | documentation | 210,893 | 3134 |
-| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 204,096 | 4372 |
+| `http-generic-api/routes/gptToolsRoutes.js` | api-runtime | 209,004 | 4454 |
+| `http-generic-api/routes/gptToolsRoutesLegacy.js` | api-runtime | 203,999 | 4368 |
 | `http-generic-api/supportTicketService.js` | api-runtime | 157,662 | 2301 |
 | `Updating Registry Patch Index.md` | documentation | 155,274 | 1826 |
 | `http-generic-api/routes/adminCliRoutes.js` | api-runtime | 149,339 | 3362 |
@@ -105,7 +106,7 @@ This report is generated deterministically from the Git index. It is intentional
 | `http-generic-api/releaseReadiness.js` | api-runtime | 135,154 | 2593 |
 | `schemas/operations.schema.json` | schemas-and-data | 134,568 | 3397 |
 | `http-generic-api/routes/devAgentRoutes.js` | api-runtime | 127,236 | 2754 |
-| `docs/work-maps/data-model-domain-map.md` | documentation | 117,364 | 848 |
+| `docs/work-maps/data-model-domain-map.md` | documentation | 118,205 | 854 |
 | `apps/local-manager-windows/Program.cs` | applications | 112,920 | 2024 |
 | `http-generic-api/platformResourceRecipeCapability.js` | api-runtime | 112,466 | 2727 |
 | `http-generic-api/openapi/openapi.tenant-gpt.activation.yaml` | api-contracts | 111,485 | 3393 |
@@ -115,7 +116,6 @@ This report is generated deterministically from the Git index. It is intentional
 | `docs/change-documentation-governance.md` | documentation | 102,373 | 533 |
 | `http-generic-api/openapi/session-insight-promotion-read-models.yaml` | api-contracts | 101,333 | 1743 |
 | `http-generic-api/registry.js` | api-runtime | 96,496 | 2451 |
-| `http-generic-api/execution.js` | api-runtime | 93,620 | 2881 |
 
 ## Complete machine-readable inventory
 

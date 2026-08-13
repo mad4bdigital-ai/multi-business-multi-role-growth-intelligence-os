@@ -55,9 +55,12 @@ function tableHasExplicitCollation(statement) {
 }
 
 function tableDefault(statement) {
-  const charset = statement.match(/\b(?:DEFAULT\s+)?CHARSET\s*=\s*([A-Za-z0-9_]+)/iu)?.[1] || null;
-  const collation = statement.match(/\b(?:DEFAULT\s+)?COLLATE\s*=\s*([A-Za-z0-9_]+)/iu)?.[1] || null;
-  return { charset, collation };
+  const charsetMatches = [...statement.matchAll(/\b(?:DEFAULT\s+)?CHARSET\s*=\s*([A-Za-z0-9_]+)/giu)];
+  const collationMatches = [...statement.matchAll(/\b(?:DEFAULT\s+)?COLLATE\s*=\s*([A-Za-z0-9_]+)/giu)];
+  return {
+    charset: charsetMatches.at(-1)?.[1] || null,
+    collation: collationMatches.at(-1)?.[1] || null,
+  };
 }
 
 function normalizeIdentifier(value) {
@@ -83,8 +86,20 @@ export function inspectMigrationCollationSql(sql, { engine, policy = POLICY } = 
     if (resolved.rules.required_default_charset && defaults.charset && NORMALIZE(defaults.charset) !== NORMALIZE(resolved.rules.required_default_charset)) {
       issues.push({ code: "migration_default_charset_not_allowed", table: name, value: defaults.charset });
     }
-    if (resolved.rules.required_default_collation && defaults.collation && !resolved.rules.allowed_default_collations.map(NORMALIZE).includes(NORMALIZE(defaults.collation))) {
-      issues.push({ code: "migration_default_collation_not_allowed", table: name, value: defaults.collation });
+    if (resolved.rules.required_default_collation && defaults.collation && NORMALIZE(defaults.collation) !== NORMALIZE(resolved.rules.required_default_collation)) {
+      issues.push({ code: "migration_default_collation_not_allowed", table: name, value: defaults.collation, required: resolved.rules.required_default_collation });
+    }
+    const inlineColumnCollations = [...statement.matchAll(/(?:\(|,)\s*`?([A-Za-z][A-Za-z0-9_]*)`?\s+[^,\n]+?\bCOLLATE\s*=?\s*([A-Za-z0-9_]+)/giu)];
+    for (const match of inlineColumnCollations) {
+      const column = match[1];
+      const collation = match[2];
+      const isJsonLike = /(^|_)json$|_json$|json_/.test(column);
+      const allowed = isJsonLike
+        ? (resolved.rules.binary_collation_allowlist || []).map(NORMALIZE).concat([NORMALIZE(resolved.rules.required_default_collation)])
+        : [NORMALIZE(resolved.rules.required_default_collation)];
+      if (!allowed.includes(NORMALIZE(collation))) {
+        issues.push({ code: "migration_column_collation_not_allowed", table: name, column, value: collation, required: allowed });
+      }
     }
     if (resolved.rules.required_default_charset && resolved.rules.required_default_collation && !tableHasExplicitCollation(statement)) {
       issues.push({ code: "migration_table_collation_not_explicit", table: name });

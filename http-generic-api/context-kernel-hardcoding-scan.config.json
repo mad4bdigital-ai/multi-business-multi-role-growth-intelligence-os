@@ -54,6 +54,198 @@
       "rule_id": "first_candidate_selection",
       "line": 40,
       "reason": "oneOrNull returns a row only when the candidate count is exactly one; zero and multiple candidates return null and are surfaced as explicit structural contradictions."
+    },
+    {
+      "path": "http-generic-api/repositoryReconciliationOrchestrator.js",
+      "rule_id": "first_candidate_selection",
+      "line": 375,
+      "reason": "repository_mutation_runs_v6 enforces UNIQUE KEY uq_repo_v6_run_plan_item (plan_id, plan_item_id) in migration 1011_sprint69_governed_repository_engine_v6.sql; this readback query binds both exact key columns after ER_DUP_ENTRY, so database authority guarantees candidate cardinality is at most one. The line-bound approval fails closed if the selection moves."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 308,
+      "reason": "Pinned session identity is unique in migration 018; the exact tenant/user/active predicates are checked before its conversation count is read."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 310,
+      "reason": "The explicit-session result is the unique tenant/user/originator-bound session and is returned only after the exact-session count gate."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 313,
+      "reason": "The pre-final-capture result remains bound to the same unique pinned session and fails closed when capture is incomplete."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 337,
+      "reason": "Fallback session selection is newest-first over a bounded set and is reached only after no candidate has conversation turns."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 339,
+      "reason": "The fallback is explicitly marked pre-final-capture-required rather than treated as unqualified authority."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 2515,
+      "reason": "The admin and tenant registry tables enforce a unique tool-key constraint, so this exact-key lookup is single-valued."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 2516,
+      "reason": "Tags are normalized from the same unique registry authority row with no alternate selection."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "unproven_single_candidate_query",
+      "line": 3407,
+      "reason": "Tenant tool availability uses the registry unique tool-key constraint and fails closed to the grant path when the key is absent."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3445,
+      "reason": "Dispatch resolves an exact key in a registry with a migration-defined unique constraint; no row returns a 404."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3449,
+      "reason": "HTTP method and path are read only from the unique registry authority row after the fail-closed lookup."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3463,
+      "reason": "Path parameter keys are parsed from the same unique registry authority row with no second selection."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 327,
+      "reason": "Pinned session identity is unique in migration 018; the exact tenant/user/active predicates are checked before its conversation count is read."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 328,
+      "reason": "The explicit-session result is the unique tenant/user/originator-bound session and is returned only after the exact-session count gate."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 330,
+      "reason": "The pre-final-capture result remains bound to the same unique pinned session and fails closed when capture is incomplete."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 357,
+      "reason": "Fallback session selection is newest-first over a bounded set and is reached only after no candidate has conversation turns."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 359,
+      "reason": "The fallback is explicitly marked pre-final-capture-required rather than treated as unqualified authority."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 2573,
+      "reason": "The admin and tenant registry tables enforce a unique tool-key constraint, so this exact-key lookup is single-valued."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 2574,
+      "reason": "Tags are normalized from the same unique registry authority row with no alternate selection."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "unproven_single_candidate_query",
+      "line": 3491,
+      "reason": "Tenant tool availability uses the registry unique tool-key constraint and fails closed to the grant path when the key is absent."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3529,
+      "reason": "Dispatch resolves an exact key in a registry with a migration-defined unique constraint; no row returns a 404."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3533,
+      "reason": "HTTP method and path are read only from the unique registry authority row after the fail-closed lookup."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3547,
+      "reason": "Path parameter keys are parsed from the same unique registry authority row with no second selection."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3548,
+      "reason": "Fixed body data is parsed from the same unique registry authority row, preserving bounded registry authority."
+    },
+    {
+      "path": "http-generic-api/activationDynamicEvidenceLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 444,
+      "reason": "The platform-brand source router exposes one optional dashboard identity; absence or source ambiguity is represented as null rather than silently selecting unverified authority."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutes.js",
+      "rule_id": "first_candidate_selection",
+      "line": 333,
+      "reason": "The pre-final-capture result remains bound to the same unique pinned session and fails closed when capture is incomplete."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 307,
+      "reason": "Pinned-session absence returns null before any conversation or fallback selection is attempted."
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "rule_id": "first_candidate_selection",
+      "line": 3464,
+      "reason": "Fixed body data is parsed from the same unique registry authority row as the path parameters, preserving bounded registry authority."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 13,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 94,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 261,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
+    },
+    {
+      "path": "docs/surface-contract-manual-safety-attestations.json",
+      "rule_id": "fixed_customer_identifier",
+      "line": 348,
+      "reason": "This UUID is an explicit reviewed_by platform-admin principal in a checksum-bound safety attestation, not a customer or tenant identifier."
     }
   ]
 }

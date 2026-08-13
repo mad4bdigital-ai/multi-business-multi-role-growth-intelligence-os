@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "generatedFrom": "repository-inventory",
   "deterministic": true,
-  "inputFingerprint": "b48aec752daaf1d99639718a3f9c5de6652eecf57fda7486a8d7c23876d94db0",
+  "inputFingerprint": "f2a2b93a08ae94fb665ddda7214d0951504190151b4378ea54ea12e7321a0eb2",
   "inventory": {
-    "files": 6761,
-    "bytes": 61272585,
+    "files": 6807,
+    "bytes": 61934601,
     "directories": 255,
     "categories": 13
   },
   "signals": {
     "workflow": {
-      "workflowCount": 152,
-      "explicitPermissions": 152,
+      "workflowCount": 155,
+      "explicitPermissions": 155,
       "missingExplicitPermissions": 0,
       "broadWrite": 0,
       "unpinnedActions": 0,
@@ -20,11 +20,11 @@
       "budget": {
         "max": 160,
         "warning": 155,
-        "status": "within-budget"
+        "status": "near-limit"
       }
     },
     "secrets": {
-      "trackedTextFilesScanned": 6731,
+      "trackedTextFilesScanned": 6777,
       "suspectedSecretFiles": [],
       "placeholderOnlyFiles": [
         "http-generic-api/test-github-repository-policy-controller.mjs",
@@ -50,7 +50,7 @@
     "maintainability": {
       "workflowBudget": 160,
       "workflowBudgetWarning": 155,
-      "workflowBudgetStatus": "within-budget",
+      "workflowBudgetStatus": "near-limit",
       "totalLargeFiles": 3,
       "approvedLargeFiles": 2,
       "unapprovedLargeFiles": 1
@@ -180,13 +180,13 @@
           },
           {
             "path": "http-generic-api/frontend-surface-dispatch.generated.json",
-            "bytes": 3161187
+            "bytes": 3148159
           }
         ],
         "unapproved": [
           {
             "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
-            "bytes": 1922441
+            "bytes": 1929181
           }
         ]
       },

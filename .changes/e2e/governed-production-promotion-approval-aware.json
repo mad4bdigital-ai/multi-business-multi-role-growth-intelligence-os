@@ -2,13 +2,18 @@
   "$schema": "../../.specify/schemas/e2e-phases.schema.json",
   "schema_version": 1,
   "feature_key": "governed-production-promotion-approval-aware",
-  "title": "Approval-aware exact candidate validation and source-pinned convergence",
+  "title": "Approval-aware exact candidate validation, main-wide source pinning, and source-pinned convergence",
   "delivery_mode": "single_pr",
   "current_phase": "mvp",
   "scope": {
     "include": [
       ".changes/e2e/governed-production-promotion-approval-aware.json",
       ".github/workflows/governed-production-promotion-request-launcher.yml",
+      ".github/workflows/governed-production-main-source-pin-guard.yml",
+      ".github/workflows/governed-production-release-source-pin-gate.yml",
+      ".github/workflows/production-promotion-candidate.yml",
+      ".github/workflows/production-promotion-exact-candidate-validation.yml",
+      "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs",
       "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
       "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
@@ -51,6 +56,13 @@
           ],
           "tests": [
             {
+              "id": "production-promotion-candidate-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-candidate-workflow.mjs",
+              "args": []
+            },
+            {
               "id": "production-promotion-convergence-contract",
               "runner": "node",
               "working_directory": "http-generic-api",
@@ -61,12 +73,55 @@
           "evidence_paths": [
             ".changes/e2e/governed-production-promotion-approval-aware.json",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/production-promotion-candidate.yml",
+            "http-generic-api/test-production-promotion-candidate-workflow.mjs",
             "http-generic-api/test-production-promotion-convergence-workflows.mjs",
             "specs/014-governed-hostinger-storage-orchestration/work-map-integration.json",
             "specs/014-retail-commerce-operations-growth-os/work-map-integration.json",
             "specs/017-remote-mcp-host-isolation-oauth-readiness/work-map-integration.json",
             "specs/018-environment-promotion-runtime-integrity/work-map-integration.json",
             "specs/019-governed-database-lifecycle-pressure-relief/work-map-integration.json"
+          ]
+        },
+        {
+          "id": "main-wide-source-pin-invalidation",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Governed Production Main Source-Pin Guard",
+          "entrypoint": "A new commit is pushed to main while a governed launcher run or release candidate is pinned to an older main SHA.",
+          "terminal_outcome": "The guard reads the current exact main SHA, cancels only outdated governed promotion runs, marks only stale governed release PRs with auditable evidence, and leaves ordinary development branches and unrelated PRs untouched. A required read-only Production source-pin gate then prevents any stale release surface from becoming merge-eligible.",
+          "steps": [
+            "Read back the current main ref and require the workflow event to be a main push or an explicitly pinned guard dispatch.",
+            "List only in-progress governed promotion and candidate-validation runs bound to obsolete source pins and cancel those runs.",
+            "Inspect only governed release PRs targeting Production through the immutable promotion marker, extract their pinned main SHA, and mark only stale candidates without closing them automatically.",
+            "Require the read-only Production source-pin gate to compare the release pin and candidate tree against the live main and Production refs before merge eligibility.",
+            "Publish a structured evidence artifact that records canceled runs and marked stale release PRs without secrets or external provider/database mutations.",
+            "Require the next promotion request to build a new exact candidate and re-run workflow-dispatch Exact Candidate Validation from the current main pin."
+          ],
+          "assertions": [
+            "The guard runs automatically on every push to main.",
+            "The guard never closes ordinary development PRs, touches Spec 015, merges Production, deploys, runs migrations, grants privileges, reads credential payloads, or calls providers.",
+            "A candidate with a stale main or Production pin cannot pass the required source-pin gate and therefore cannot remain an eligible governed release surface.",
+            "secrets_included is false."
+          ],
+          "tests": [
+            {
+              "id": "production-promotion-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-production-promotion-convergence-workflows.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".changes/e2e/governed-production-promotion-approval-aware.json",
+            ".github/workflows/governed-production-main-source-pin-guard.yml",
+            ".github/workflows/governed-production-release-source-pin-gate.yml",
+            ".github/workflows/governed-production-promotion-request-launcher.yml",
+            ".github/workflows/production-promotion-candidate.yml",
+            ".github/workflows/production-promotion-exact-candidate-validation.yml",
+            "http-generic-api/test-production-promotion-candidate-workflow.mjs",
+            "http-generic-api/test-production-promotion-convergence-workflows.mjs"
           ]
         }
       ]

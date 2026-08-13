@@ -28,6 +28,7 @@ on:
         type: string
 
 # This is the sole registered generated-artifact writer; all inputs remain exact-head and branch-scoped.
+# Contract: mad4b.repository-inventory-self-hosting.v1 for the repository_inventory_refresh recipe.
 env:
   GENERATED_ARTIFACT_AUTHORITY_MODE: trusted_writer
 

@@ -3,21 +3,21 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6761,
-    "bytes": 61272585,
-    "lines": 1441137,
+    "files": 6807,
+    "bytes": 61934601,
+    "lines": 1454221,
     "directories": 255,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2035,
-      "documentation": 1861,
-      "api-runtime": 1348,
-      "database-migrations": 770,
-      "root-and-other": 229,
-      "ci-workflows": 152,
-      "api-contracts": 150,
+      "tests-and-specs": 2047,
+      "documentation": 1863,
+      "api-runtime": 1366,
+      "database-migrations": 777,
+      "root-and-other": 232,
+      "ci-workflows": 155,
+      "api-contracts": 151,
       "ci-config": 94,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
@@ -26,12 +26,12 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2465,
-      ".mjs": 1550,
-      ".js": 946,
-      ".sql": 785,
-      ".json": 678,
-      ".yml": 154,
+      ".md": 2467,
+      ".mjs": 1567,
+      ".js": 958,
+      ".sql": 792,
+      ".json": 683,
+      ".yml": 157,
       ".yaml": 107,
       ".ts": 15,
       ".cs": 14,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3477,
-      "docs": 1768,
+      "http-generic-api": 3515,
+      "docs": 1770,
       "specs": 838,
-      ".github": 246,
-      ".changes": 224,
+      ".github": 249,
+      ".changes": 227,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -145,6 +145,8 @@
         "readiness:verify-plan",
         "manifest:deployment",
         "supervisor:readiness",
+        "runtime-persistence:readiness",
+        "database:collation:check",
         "supervisor:readiness:live",
         "supervisor:certify",
         "supervisor:certify:live",
@@ -207,10 +209,10 @@
     }
   ],
   "surfaces": {
-    "workflows": 152,
-    "migrations": 770,
-    "apiContracts": 150,
-    "testSpecFiles": 2098
+    "workflows": 155,
+    "migrations": 777,
+    "apiContracts": 151,
+    "testSpecFiles": 2110
   },
   "largestFiles": [
     {
@@ -222,14 +224,14 @@
     {
       "path": "http-generic-api/frontend-surface-dispatch.generated.json",
       "category": "api-runtime",
-      "bytes": 3161187,
-      "lines": 97073
+      "bytes": 3148159,
+      "lines": 96652
     },
     {
       "path": "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
       "category": "api-runtime",
-      "bytes": 1922441,
-      "lines": 58125
+      "bytes": 1929181,
+      "lines": 58335
     },
     {
       "path": "http-generic-api/openapi.yaml",
@@ -240,8 +242,8 @@
     {
       "path": "http-generic-api/openapi/frontend-runtime-routes.generated.yaml",
       "category": "api-contracts",
-      "bytes": 329163,
-      "lines": 8576
+      "bytes": 328218,
+      "lines": 8553
     },
     {
       "path": "http-generic-api/wordpress/phaseA.js",
@@ -270,8 +272,14 @@
     {
       "path": "http-generic-api/routes/gptToolsRoutes.js",
       "category": "api-runtime",
-      "bytes": 204096,
-      "lines": 4372
+      "bytes": 209004,
+      "lines": 4454
+    },
+    {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "category": "api-runtime",
+      "bytes": 203999,
+      "lines": 4368
     },
     {
       "path": "http-generic-api/supportTicketService.js",
@@ -326,12 +334,6 @@
       "category": "api-runtime",
       "bytes": 127236,
       "lines": 2754
-    },
-    {
-      "path": "docs/work-maps/data-model-domain-map.md",
-      "category": "documentation",
-      "bytes": 117364,
-      "lines": 848
     }
   ]
 }

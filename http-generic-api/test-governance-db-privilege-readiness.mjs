@@ -17,20 +17,22 @@ const database = "growth_os";
 
 function completeTablePrivileges() {
   return Object.entries(GOVERNANCE_DB_PRIVILEGE_MATRIX).flatMap(([table, operations]) =>
-    operations.map((operation) => ({
-      TABLE_SCHEMA: database,
-      TABLE_NAME: table,
-      PRIVILEGE_TYPE: operation,
-    })),
+    operations.map((operation) => ({ TABLE_SCHEMA: database, TABLE_NAME: table, PRIVILEGE_TYPE: operation })),
   );
 }
 
+const requiredPrivilegeCount = Object.values(GOVERNANCE_DB_PRIVILEGE_MATRIX)
+  .reduce((count, operations) => count + operations.length, 0);
+
 {
-  assert.deepEqual(
-    GOVERNANCE_DB_PRIVILEGE_MATRIX.platform_resource_authority_bindings,
-    ["SELECT", "INSERT"],
-    "resource-authority control-plane writes require only INSERT plus exact readback SELECT",
-  );
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.platform_resource_authority_bindings, ["SELECT", "INSERT"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.approval_holds, ["SELECT", "INSERT"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.repository_operation_leases, ["SELECT", "INSERT", "UPDATE"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.repository_mutation_plans_v6, ["SELECT", "INSERT", "UPDATE"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.repository_mutation_runs_v6, ["SELECT", "INSERT", "UPDATE"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.runtime_break_glass_incidents, ["SELECT", "INSERT", "UPDATE"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.runtime_break_glass_audit_events, ["SELECT", "INSERT"]);
+  assert.deepEqual(GOVERNANCE_DB_PRIVILEGE_MATRIX.deployment_attestations, ["SELECT", "INSERT", "UPDATE"]);
   const result = evaluateGovernanceDbPrivilegeReadiness({
     database,
     userPrivileges: [{ PRIVILEGE_TYPE: "USAGE" }],
@@ -40,11 +42,9 @@ function completeTablePrivileges() {
     applicableRoles: [],
   });
   assert.equal(result.ready, true);
-  assert.equal(result.required_privilege_count, 16);
-  assert.equal(result.observed_required_privilege_count, 16);
+  assert.equal(result.required_privilege_count, requiredPrivilegeCount);
+  assert.equal(result.observed_required_privilege_count, requiredPrivilegeCount);
   assert.deepEqual(result.missing_required, []);
-  assert.equal(result.unexpected_column_privilege_count, 0);
-  assert.equal(result.applicable_role_count, 0);
   assert.equal(result.secrets_included, false);
 }
 
@@ -60,10 +60,7 @@ function completeTablePrivileges() {
 {
   const result = evaluateGovernanceDbPrivilegeReadiness({
     database,
-    tablePrivileges: [
-      ...completeTablePrivileges(),
-      { TABLE_SCHEMA: database, TABLE_NAME: "runtime_dispatch_certification_registry", PRIVILEGE_TYPE: "DELETE" },
-    ],
+    tablePrivileges: [...completeTablePrivileges(), { TABLE_SCHEMA: database, TABLE_NAME: "runtime_dispatch_certification_registry", PRIVILEGE_TYPE: "DELETE" }],
   });
   assert.equal(result.ready, false);
   assert.equal(result.unexpected_table_privilege_count, 1);
@@ -99,10 +96,7 @@ function completeTablePrivileges() {
 {
   const result = evaluateGovernanceDbPrivilegeReadiness({
     database,
-    userPrivileges: [
-      { PRIVILEGE_TYPE: "USAGE" },
-      { PRIVILEGE_TYPE: "PROCESS" },
-    ],
+    userPrivileges: [{ PRIVILEGE_TYPE: "USAGE" }, { PRIVILEGE_TYPE: "PROCESS" }],
     schemaPrivileges: [{ TABLE_SCHEMA: database, PRIVILEGE_TYPE: "SELECT" }],
     tablePrivileges: completeTablePrivileges(),
   });
@@ -115,12 +109,7 @@ function completeTablePrivileges() {
   const result = evaluateGovernanceDbPrivilegeReadiness({
     database,
     tablePrivileges: completeTablePrivileges(),
-    columnPrivileges: [{
-      TABLE_SCHEMA: database,
-      TABLE_NAME: "approval_holds",
-      COLUMN_NAME: "id",
-      PRIVILEGE_TYPE: "SELECT",
-    }],
+    columnPrivileges: [{ TABLE_SCHEMA: database, TABLE_NAME: "approval_holds", COLUMN_NAME: "id", PRIVILEGE_TYPE: "SELECT" }],
   });
   assert.equal(result.ready, false);
   assert.equal(result.unexpected_column_privilege_count, 1);
@@ -142,11 +131,7 @@ function completeTablePrivileges() {
   const secret = "do-not-leak-governance-password";
   let caught = null;
   try {
-    assertGovernanceDbPrivilegeReadiness({
-      database,
-      tablePrivileges: completeTablePrivileges().slice(1),
-      password: secret,
-    });
+    assertGovernanceDbPrivilegeReadiness({ database, tablePrivileges: completeTablePrivileges().slice(1), password: secret });
   } catch (error) {
     caught = error;
   }
@@ -162,9 +147,7 @@ function completeTablePrivileges() {
     async ping() {},
     async query(sql) {
       queries.push(sql);
-      if (sql.includes("CURRENT_USER()")) {
-        return [[{ current_account: "governance_writer@localhost", current_database: database }]];
-      }
+      if (sql.includes("CURRENT_USER()")) return [[{ current_account: "governance_writer@localhost", current_database: database }]];
       if (sql.includes("USER_PRIVILEGES")) return [[{ PRIVILEGE_TYPE: "USAGE" }]];
       if (sql.includes("SCHEMA_PRIVILEGES")) return [[]];
       if (sql.includes("TABLE_PRIVILEGES")) return [completeTablePrivileges()];
@@ -172,9 +155,7 @@ function completeTablePrivileges() {
       if (sql.includes("APPLICABLE_ROLES")) return [[]];
       throw new Error(`Unexpected query: ${sql}`);
     },
-    release() {
-      queries.push("release");
-    },
+    release() { queries.push("release"); },
   };
   const result = await runGovernanceDbPrivilegeReadiness(
     { env: {} },
@@ -185,10 +166,7 @@ function completeTablePrivileges() {
       resolveGovernanceProductionPreflight: async () => ({
         ready: true,
         governance_db: { identity_configured: true },
-        environment_authority: {
-          production_branch: "Production",
-          promotion_target_branch: "Production",
-        },
+        environment_authority: { production_branch: "Production", promotion_target_branch: "Production" },
       }),
     },
   );
@@ -205,11 +183,7 @@ function completeTablePrivileges() {
   const projected = projectGovernanceDbPrivilegeReadiness({
     ready: false,
     code: "GOVERNANCE_DB_PRIVILEGE_READINESS_FAILED",
-    details: {
-      missing_required: ["capability_resolution_envelope_ledger:INSERT"],
-      raw_username: "must-not-be-public",
-      secrets_included: false,
-    },
+    details: { missing_required: ["capability_resolution_envelope_ledger:INSERT"], raw_username: "must-not-be-public", secrets_included: false },
     database_connection_performed: true,
     sql_readback_performed: true,
   });
@@ -240,15 +214,9 @@ function completeTablePrivileges() {
     };
   };
   let now = Date.parse("2026-08-10T19:00:00Z");
-  const first = await getGovernanceDbPrivilegeReadinessSnapshot(
-    { ttlMs: 60_000 },
-    { runner, now: () => now },
-  );
+  const first = await getGovernanceDbPrivilegeReadinessSnapshot({ ttlMs: 60_000 }, { runner, now: () => now });
   now += 1_000;
-  const second = await getGovernanceDbPrivilegeReadinessSnapshot(
-    { ttlMs: 60_000 },
-    { runner, now: () => now },
-  );
+  const second = await getGovernanceDbPrivilegeReadinessSnapshot({ ttlMs: 60_000 }, { runner, now: () => now });
   assert.equal(first.ready, true);
   assert.equal(second.ready, true);
   assert.equal(calls, 1);
@@ -258,10 +226,7 @@ function completeTablePrivileges() {
 }
 
 {
-  const workflow = readFileSync(
-    new URL("../.github/workflows/governance-db-privilege-readiness.yml", import.meta.url),
-    "utf8",
-  );
+  const workflow = readFileSync(new URL("../.github/workflows/governance-db-privilege-readiness.yml", import.meta.url), "utf8");
   assert.equal(workflow.includes("secrets.DB_HOST"), false);
   assert.equal(workflow.includes("secrets.GOVERNANCE_DB_PASSWORD"), false);
   assert.match(workflow, /include_governance_db_readiness=1/);

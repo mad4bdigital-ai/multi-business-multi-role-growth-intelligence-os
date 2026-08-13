@@ -8,16 +8,16 @@
     "7eaf87af3c9df2a3aa55a9f6adbd93d4d7bc4334c58084cb382d851af888e4a2"
   ],
   "db_catalog_fingerprint_match": true,
-  "file_count": 6767,
-  "route_count": 1071,
-  "write_route_count": 650,
+  "file_count": 6813,
+  "route_count": 1074,
+  "write_route_count": 652,
   "classified_write_surface_count": 38,
-  "classified_write_route_count": 650,
+  "classified_write_route_count": 652,
   "unclassified_write_route_count": 0,
-  "intentionally_unmapped_write_route_count": 612,
-  "sensitive_intentionally_unmapped_write_route_count": 612,
-  "migration_count": 441,
-  "registry_evidence_count": 101,
+  "intentionally_unmapped_write_route_count": 614,
+  "sensitive_intentionally_unmapped_write_route_count": 614,
+  "migration_count": 444,
+  "registry_evidence_count": 104,
   "write_scope_count": 6,
   "bound_write_scope_count": 0,
   "write_scopes": [
@@ -3622,8 +3622,8 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#GET:/gpt/tools:0",
-      "source_line": 4297,
-      "source_offset": 201192,
+      "source_line": 4379,
+      "source_offset": 206100,
       "method": "GET",
       "path": "/gpt/tools",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
@@ -3631,11 +3631,29 @@
     },
     {
       "route_id": "http-generic-api/routes/gptToolsRoutes.js#POST:/gpt/tools/call:1",
-      "source_line": 4324,
-      "source_offset": 202154,
+      "source_line": 4406,
+      "source_offset": 207062,
       "method": "POST",
       "path": "/gpt/tools/call",
       "file": "http-generic-api/routes/gptToolsRoutes.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#GET:/gpt/tools:0",
+      "source_line": 4294,
+      "source_offset": 201130,
+      "method": "GET",
+      "path": "/gpt/tools",
+      "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "write": false
+    },
+    {
+      "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
+      "source_line": 4320,
+      "source_offset": 202057,
+      "method": "POST",
+      "path": "/gpt/tools/call",
+      "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
       "write": true
     },
     {
@@ -7042,56 +7060,65 @@
     },
     {
       "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#POST:/runtime/verification-runs:0",
-      "source_line": 35,
-      "source_offset": 979,
+      "source_line": 23,
+      "source_offset": 988,
       "method": "POST",
       "path": "/runtime/verification-runs",
       "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
       "write": true
     },
     {
-      "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#GET:/runtime/verification-runs/:runId:1",
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#POST:/runtime/verification-runs:0",
+      "source_line": 35,
+      "source_offset": 979,
+      "method": "POST",
+      "path": "/runtime/verification-runs",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
+      "write": true
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#GET:/runtime/verification-runs/:runId:1",
       "source_line": 44,
       "source_offset": 1269,
       "method": "GET",
       "path": "/runtime/verification-runs/:runId",
-      "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#GET:/runtime/verification-runs/:runId/evidence:2",
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#GET:/runtime/verification-runs/:runId/evidence:2",
       "source_line": 54,
       "source_offset": 1722,
       "method": "GET",
       "path": "/runtime/verification-runs/:runId/evidence",
-      "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#GET:/runtime/parity/:environmentKey?:3",
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#GET:/runtime/parity/:environmentKey?:3",
       "source_line": 67,
       "source_offset": 2175,
       "method": "GET",
       "path": "/runtime/parity/:environmentKey?",
-      "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#GET:/runtime/readiness/remote-mcp:4",
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#GET:/runtime/readiness/remote-mcp:4",
       "source_line": 76,
       "source_offset": 2497,
       "method": "GET",
       "path": "/runtime/readiness/remote-mcp",
-      "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "write": false
     },
     {
-      "route_id": "http-generic-api/routes/runtimeVerificationRoutes.js#GET:/activation/hard-run/summary:5",
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#GET:/activation/hard-run/summary:5",
       "source_line": 93,
       "source_offset": 2997,
       "method": "GET",
       "path": "/activation/hard-run/summary",
-      "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+      "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
       "write": false
     },
     {
@@ -25625,10 +25652,77 @@
       "operation_class": "create_or_request",
       "evidence": {
         "file": "http-generic-api/routes/gptToolsRoutes.js",
-        "source_line": 4324,
+        "source_line": 4406,
         "handler_window_lines": [
-          4324,
-          4372
+          4406,
+          4454
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": true,
+          "readback_signal": false,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "dispatch"
+          ],
+          "db_registry": [],
+          "authority": [
+            "admin"
+          ],
+          "readback": [],
+          "mutation": [
+            "dispatch"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/gptToolsRoutesLegacy.js#POST:/gpt/tools/call:1",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "create_or_request",
+      "evidence": {
+        "file": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+        "source_line": 4320,
+        "handler_window_lines": [
+          4320,
+          4368
         ],
         "evidence_flags": {
           "handler_window_present": true,
@@ -39921,6 +40015,74 @@
       "operation_class": "execute",
       "evidence": {
         "file": "http-generic-api/routes/runtimeVerificationRoutes.js",
+        "source_line": 23,
+        "handler_window_lines": [
+          23,
+          65
+        ],
+        "evidence_flags": {
+          "handler_window_present": true,
+          "provider_signal": true,
+          "db_registry_signal": false,
+          "authority_signal": false,
+          "readback_signal": true,
+          "mutation_signal": true
+        },
+        "signals": {
+          "provider": [
+            "request("
+          ],
+          "db_registry": [],
+          "authority": [],
+          "readback": [
+            "readback",
+            "readback"
+          ],
+          "mutation": [
+            "create"
+          ]
+        },
+        "static_only": true,
+        "secrets_included": false
+      },
+      "evidence_confidence": {
+        "level": "low_static",
+        "basis": "handler_window_signals_only",
+        "authorizes": false
+      },
+      "promotion_prerequisites": [
+        "explicit_resource_operation_scope_binding",
+        "live_resource_authority_binding",
+        "approval_policy_evidence",
+        "capability_envelope_evidence",
+        "lease_evidence",
+        "staging_environment",
+        "same_cycle_readback_contract",
+        "provider_adapter_allowlist",
+        "provider_idempotency",
+        "provider_rollback_or_compensation"
+      ],
+      "promotion_status": "blocked",
+      "scope_keys": [],
+      "resource_candidate": "application_domain",
+      "resource_key": null,
+      "operation_key": null,
+      "authority_required": true,
+      "provider_mutation_allowed": false,
+      "readback_required": true,
+      "owner": "application-domain-governance",
+      "classification_confidence": "heuristic_requires_manual_confirmation",
+      "risk_class": "high",
+      "reason": "registry_mutation_requires_live_schema_and_policy_contract"
+    },
+    {
+      "route_id": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js#POST:/runtime/verification-runs:0",
+      "classification": "intentionally_unmapped",
+      "mapping_status": "blocked",
+      "domain": "application_domain",
+      "operation_class": "execute",
+      "evidence": {
+        "file": "http-generic-api/routes/runtimeVerificationRoutesLegacy.js",
         "source_line": 35,
         "handler_window_lines": [
           35,
@@ -51786,18 +51948,18 @@
   ],
   "evidence_graph": {
     "node_counts": {
-      "routes": 650,
+      "routes": 652,
       "domains": 11,
-      "handler_files": 126
+      "handler_files": 128
     },
     "edge_counts": {
-      "route_to_handler_file": 650,
-      "route_to_domain": 650,
-      "route_to_provider_signal": 91,
+      "route_to_handler_file": 652,
+      "route_to_domain": 652,
+      "route_to_provider_signal": 93,
       "route_to_db_registry_signal": 0,
-      "route_to_authority_signal": 402,
-      "route_to_readback_signal": 362,
-      "route_to_mutation_signal": 369,
+      "route_to_authority_signal": 403,
+      "route_to_readback_signal": 363,
+      "route_to_mutation_signal": 371,
       "route_to_explicit_scope_candidate": 38
     },
     "execution_edges_are_non_authorizing": true,
@@ -55319,6 +55481,36 @@
       "catalog_fingerprints": []
     },
     {
+      "path": "http-generic-api/migrations/20260812_dynamic_canonical_resource_registry.sql",
+      "tables": [
+        "canonical_resource_registry",
+        "CURRENT_TIMESTAMP",
+        "path"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20260812_repository_reconciliation_admin_apply_activation.sql",
+      "tables": [
+        "1026",
+        "platform_resource_recipes",
+        "platform_resource_recipe_steps",
+        "execution_policies"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
+      "path": "http-generic-api/migrations/20260812_resource_surface_policy_decisions_consolidated.sql",
+      "tables": [
+        "platform_resource_surface_policy_registry",
+        "exposure_class"
+      ],
+      "write_scopes": [],
+      "catalog_fingerprints": []
+    },
+    {
       "path": "http-generic-api/migrations/20260813_remote_mcp_dynamic_permission_tree_v1.sql",
       "tables": [
         "platform_oauth_scope_registry",
@@ -57654,6 +57846,12 @@
       ]
     },
     {
+      "path": "http-generic-api/migrations/20260812_resource_surface_policy_decisions_consolidated.sql",
+      "registries": [
+        "platform_resource_surface_policy_registry"
+      ]
+    },
+    {
       "path": "http-generic-api/migrations/20260813_remote_mcp_dynamic_permission_tree_v1.sql",
       "registries": [
         "platform_tool_scope_bindings",
@@ -57801,7 +57999,19 @@
       ]
     },
     {
+      "path": "http-generic-api/routes/gptToolsRoutesLegacy.js",
+      "registries": [
+        "platform_tool_dispatch_bindings"
+      ]
+    },
+    {
       "path": "http-generic-api/scripts/capability-resolution-dry-run.mjs",
+      "registries": [
+        "platform_resource_authority_bindings"
+      ]
+    },
+    {
+      "path": "http-generic-api/scripts/governed-migration-runner-legacy.mjs",
       "registries": [
         "platform_resource_authority_bindings"
       ]
@@ -58104,8 +58314,8 @@
     {
       "severity": "high",
       "code": "INTENTIONALLY_UNMAPPED_WRITE_ROUTES_BLOCKED",
-      "count": 612,
-      "sensitive_count": 612
+      "count": 614,
+      "sensitive_count": 614
     },
     {
       "severity": "medium",
