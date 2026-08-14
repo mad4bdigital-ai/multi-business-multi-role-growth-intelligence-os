@@ -9,6 +9,7 @@
     "include": [
       ".changes/e2e/production-promotion-release-cut-controller.json",
       ".github/contracts/production-promotion-supporting-gates.v1.json",
+      ".github/repository-maintenance-tool-governance.json",
       ".github/scripts/production-promotion-release-cut-evidence.mjs",
       ".github/scripts/production-promotion-supporting-gates.mjs",
       ".github/tests/production-promotion-review-mode.test.mjs",
@@ -19,9 +20,12 @@
       ".github/workflows/governed-production-release-source-pin-gate.yml",
       ".github/workflows/production-promotion-candidate-contract.yml",
       ".github/workflows/production-promotion-candidate.yml",
+      ".github/workflows/repository-tool-lifecycle-governance.yml",
       "docs/ai-policy-review-mode.md",
       "docs/production-promotion-candidate-automation.md",
       "docs/production-promotion-release-cut-controller.md",
+      "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs",
+      "http-generic-api/scripts/test-repository-tool-discovery.mjs",
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-candidate-workflow.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs"
@@ -34,7 +38,7 @@
     {
       "id": "mvp",
       "status": "implemented",
-      "objective": "Replace moving-main equality with a certified immutable release-cut contract, make required supporting gates declarative and parallel-dispatched, keep Production exact-pinned, and make comment publication non-authoritative after canonical evidence exists.",
+      "objective": "Replace moving-main equality with a certified immutable release-cut contract, make required supporting gates declarative and parallel-dispatched, keep Production exact-pinned, and add live repository-tool discovery backed by the central inventory without granting auto-discovered tools mutation authority.",
       "e2e_journeys": [
         {
           "id": "converge-production-from-immutable-release-cut",
@@ -42,13 +46,14 @@
           "level": "synthetic_runtime",
           "actor": "Governed Production Promotion Controller",
           "entrypoint": "An exact-head governed Production request authorizes one main commit as an immutable release cut while Production remains pinned.",
-          "terminal_outcome": "A candidate whose tree and first parent are bound to the release cut passes certified direct CI and every required declarative read-only supporting gate; later main descendants do not invalidate it, while Production movement, release-cut ancestry loss, candidate drift, or required-gate failure fails closed.",
+          "terminal_outcome": "A candidate whose tree and first parent are bound to the release cut passes certified direct CI and every required declarative read-only supporting gate; later main descendants do not invalidate it, while Production movement, release-cut ancestry loss, candidate drift, required-gate failure, or newly introduced unregistered mutation tooling fails closed.",
           "steps": [
             "Validate the exact request PR, authorized release-cut SHA, tree-identical request head, current main ancestry, and pinned Production ancestry before candidate construction.",
             "Build one candidate with the release cut as first parent and pinned Production as second parent while preserving an exact release-cut tree.",
             "Create a certified immutable validation surface whose base is the release cut and use the existing certified release-cut direct CI contract.",
             "Resolve required supporting gates from the typed registry rather than from workflow-name branches embedded in launcher YAML.",
             "Dispatch all required read-only supporting gates against the exact candidate before waiting for their results.",
+            "Discover repository tools from the live Git index, cross-check central inventory coverage, auto-catalog read-only helpers without execution authority, and require explicit authority registration for governed or mutating tools.",
             "Re-read main, Production, candidate, release, and validation identities; allow main to advance only when the release cut remains an ancestor.",
             "Publish typed canonical convergence evidence; treat PR-comment publication as observability only after the canonical artifact exists.",
             "Run the post-finalization and Production release-source gates using the same release-cut ancestry contract."
@@ -59,7 +64,9 @@
             "Production must remain exactly pinned and must be an ancestor of the release cut and candidate.",
             "The candidate tree must remain byte-identical to the release cut and its first parent must be the release cut.",
             "Supporting gates are registered data with read_only effect and cannot add arbitrary workflow execution or secret-bearing inputs.",
-            "All required supporting gates are dispatched before the wait pass, reducing stale-window duration without weakening exact-head checks.",
+            "All required supporting gates are dispatched before the wait pass, reducing the stale-window duration without weakening exact-head checks.",
+            "Live tool discovery uses the Git index; central repository inventory is a coverage reference and explicit maintenance-tool registry remains the only mutation authority.",
+            "Read-only helpers may be auto-catalogued but new or changed mutating helpers outside the governed tool root fail closed.",
             "Canonical artifacts remain authoritative when PR comment transport is unavailable.",
             "No Production merge, deployment, migration apply, grant apply, provider mutation, credential payload read, protected-ref direct write, or force push is authorized by this controller.",
             "secrets_included is false."
@@ -77,6 +84,13 @@
               "runner": "node",
               "working_directory": ".",
               "path": ".github/tests/production-promotion-review-mode.test.mjs",
+              "args": []
+            },
+            {
+              "id": "repository-tool-discovery-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/scripts/test-repository-tool-discovery.mjs",
               "args": []
             },
             {
@@ -103,6 +117,7 @@
           ],
           "evidence_paths": [
             ".github/contracts/production-promotion-supporting-gates.v1.json",
+            ".github/repository-maintenance-tool-governance.json",
             ".github/scripts/production-promotion-release-cut-evidence.mjs",
             ".github/scripts/production-promotion-supporting-gates.mjs",
             ".github/workflows/governed-production-promotion-request-launcher.yml",
@@ -110,7 +125,9 @@
             ".github/workflows/production-promotion-candidate.yml",
             ".github/workflows/governed-production-main-source-pin-guard.yml",
             ".github/workflows/governed-production-release-source-pin-gate.yml",
-            ".github/workflows/governed-production-promotion-post-finalization-guard.yml"
+            ".github/workflows/governed-production-promotion-post-finalization-guard.yml",
+            ".github/workflows/repository-tool-lifecycle-governance.yml",
+            "http-generic-api/scripts/maintenance-tools/repository-tool-discovery.mjs"
           ]
         }
       ]
@@ -123,7 +140,7 @@
     {
       "id": "resilient",
       "status": "planned",
-      "objective": "Exercise main advancement during every controller phase, GitHub API transport faults, comment permission loss, delayed workflow registration, and duplicate dispatch races while preserving one candidate and fail-closed Production identity."
+      "objective": "Exercise main advancement during every controller phase, GitHub API transport faults, comment permission loss, delayed workflow registration, duplicate dispatch races, and repository-tool inventory lag while preserving one candidate and fail-closed Production identity."
     },
     {
       "id": "canary",

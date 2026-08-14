@@ -87,7 +87,7 @@ jobs:
           node .github/scripts/production-promotion-supporting-gates.mjs \
             --registry "$GATE_REGISTRY" \
             --review-mode "$REVIEW_MODE" \
-            --release-branch release/preflight-probe \
+            --release-branch "${RELEASE_BRANCH_PREFIX}-preflight-probe" \
             --candidate-sha 1111111111111111111111111111111111111111 \
             --output "$RUNNER_TEMP/supporting-gate-preflight.json" >/dev/null
           jq -e '.gates | length > 0' "$RUNNER_TEMP/supporting-gate-preflight.json" >/dev/null
@@ -113,8 +113,14 @@ jobs:
             git check-ref-format --branch "${prefix}-probe" >/dev/null 2>&1 || reject "invalid branch prefix: $prefix"
             case "$prefix" in main|main/*|Production|Production/*|refs/*) reject "branch prefix must reject protected refs" ;; esac
           done
-          [[ "$VALIDATION_BRANCH_PREFIX" == gpt/validate-production-candidate ]] || reject "validation branch prefix must use governed candidate namespace"
-          [[ "$VALIDATION_BASE_BRANCH_PREFIX" == gpt/validate-production-base ]] || reject "validation base prefix must use governed base namespace"
+          case "$VALIDATION_BRANCH_PREFIX" in
+            gpt/validate-production-candidate) ;;
+            *) reject "validation branch prefix must use governed candidate namespace" ;;
+          esac
+          case "$VALIDATION_BASE_BRANCH_PREFIX" in
+            gpt/validate-production-base) ;;
+            *) reject "validation base prefix must use governed base namespace" ;;
+          esac
 
           request_file="$RUNNER_TEMP/production-promotion-request-pr.json"
           gh api "/repos/${REPOSITORY}/pulls/${REQUEST_PR}" > "$request_file"
