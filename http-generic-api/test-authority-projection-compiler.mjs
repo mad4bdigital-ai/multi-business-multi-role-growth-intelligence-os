@@ -129,9 +129,12 @@ const hidden = compileAuthoritySurfaceProjections({
     },
   }),
   registrations: {
-    dynamic_tabs: [{ key: "secret-tab", label: "Must not leak" }],
-    dashboard: [{ key: "secret-widget", label: "Must not leak" }],
-    tool_catalog: [{ key: "secret-tool", label: "Must not leak" }],
+    dynamic_tabs: [
+      { key: "secret-tab", label: "Must not leak" },
+      { key: "secret-tab", label: "Duplicate must not be inspected" },
+    ],
+    dashboard: "malformed-hidden-dashboard-registration-must-not-be-inspected",
+    tool_catalog: [{ label: "missing-key-must-not-be-inspected" }],
   },
   now: NOW,
 });
@@ -142,13 +145,18 @@ for (const surface of AUTHORITY_PROJECTION_SURFACES) {
   assert.equal(projection.candidate_count_disclosed, false);
   assert.deepEqual(projection.reason_codes, ["AUTHORITY_PROJECTION_NOT_ELIGIBLE"]);
 }
-assert.equal(JSON.stringify(hidden).includes("secret-tab"), false);
-assert.equal(JSON.stringify(hidden).includes("secret-widget"), false);
-assert.equal(JSON.stringify(hidden).includes("secret-tool"), false);
+const hiddenJson = JSON.stringify(hidden);
+assert.equal(hiddenJson.includes("secret-tab"), false);
+assert.equal(hiddenJson.includes("malformed-hidden-dashboard"), false);
+assert.equal(hiddenJson.includes("missing-key-must-not-be-inspected"), false);
 
 const expired = compileAuthoritySurfaceProjections({
   manifest: manifest({ expiresAt: "2029-12-31T23:59:59.000Z" }),
-  registrations,
+  registrations: {
+    dynamic_tabs: [{ key: "expired-secret", label: "Must not leak" }, { key: "expired-secret" }],
+    dashboard: { malformed: true },
+    tool_catalog: [{ label: "expired-missing-key" }],
+  },
   now: NOW,
 });
 assert.equal(expired.manifest_expired, true);
@@ -157,6 +165,7 @@ for (const surface of AUTHORITY_PROJECTION_SURFACES) {
   assert.deepEqual(expired.surfaces[surface].reason_codes, ["AUTHORITY_MANIFEST_EXPIRED"]);
   assert.deepEqual(expired.surfaces[surface].items, []);
 }
+assert.equal(JSON.stringify(expired).includes("expired-secret"), false);
 
 const permuted = compileAuthoritySurfaceProjections({
   manifest: manifest(),
