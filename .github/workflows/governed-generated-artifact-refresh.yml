@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       recipe:
-        description: Registered generated-artifact recipe; auto preserves existing classification
+        description: Registered generated-artifact recipe; auto preserves existing classification and currentness routing
         required: true
         default: auto
         type: choice
@@ -22,6 +22,7 @@ on:
           - frontend_openapi_refresh
           - work_map_self_hosting_bootstrap
           - repository_inventory_refresh
+          - remote_mcp_write_scope_refresh
       confirmation:
         description: Type APPLY_GENERATED_ARTIFACT_REFRESH
         required: true
@@ -80,7 +81,7 @@ jobs:
           [[ "$TARGET_REF" =~ ^(gpt|fix|feat|chore|docs|release)/[A-Za-z0-9._/-]+$ ]]
           [[ "$EXPECTED_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
           case "$RECIPE" in
-            auto|frontend_openapi_refresh|work_map_self_hosting_bootstrap|repository_inventory_refresh) ;;
+            auto|frontend_openapi_refresh|work_map_self_hosting_bootstrap|repository_inventory_refresh|remote_mcp_write_scope_refresh) ;;
             *) echo "Unregistered generated-artifact recipe: $RECIPE" >&2; exit 1 ;;
           esac
           [[ "$CONFIRMATION" == "APPLY_GENERATED_ARTIFACT_REFRESH" ]]
@@ -167,6 +168,9 @@ jobs:
           if [[ "$resolved_recipe" == "repository_inventory_refresh" ]]; then
             verifier_workflows=("repository-inventory.yml" "repository-evaluation.yml")
             verifier_names=("Repository Inventory" "Repository Evaluation")
+          elif [[ "$resolved_recipe" == "remote_mcp_write_scope_refresh" ]]; then
+            verifier_workflows=("remote-mcp-write-scope-verification.yml")
+            verifier_names=("Remote MCP Write-Scope Verification")
           elif [[ "$resolved_recipe" == "frontend_openapi_refresh" || "$resolved_recipe" == "work_map_self_hosting_bootstrap" ]]; then
             verifier_workflows=("pr-generated-artifact-refresh.yml")
             verifier_names=("PR Generated Artifact Refresh")
