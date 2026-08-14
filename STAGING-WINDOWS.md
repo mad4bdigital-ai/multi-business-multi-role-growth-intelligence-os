@@ -69,3 +69,32 @@ The root package is a separate test/governance workspace. Its `package.json` has
 ## Safety boundary
 
 This document describes local container startup only. It does not authorize database migration, SQL apply, Production deployment, GitHub writes, Ruleset changes, or use of real external credentials. For protected routes, set a local-only `BACKEND_API_KEY`; leave all external provider fields blank unless a separate local test contract authorizes them.
+
+## Three-database local topology
+
+The application has three independent MariaDB bindings and the staging override keeps them separate:
+
+| Binding | Container | Environment prefix | Local identity |
+|---|---|---|---|
+| Ordinary runtime DB | `runtime-db` | `DB_*` | `runtime_app` |
+| Governance DB | `governance-db` | `GOVERNANCE_DB_*` | `governance_writer` |
+| Runtime persistence DB | `persistence-db` | `RUNTIME_PERSISTENCE_DB_*` | `runtime_persistence_writer` |
+
+The ordinary runtime pool is created by `getPool()`. Governance writes use `getGovernancePool()` and reject the ordinary runtime identity or the ordinary runtime database. Runtime persistence writes use `getRuntimePersistencePool()` and are evaluated against their own privilege contract. Do not point two prefixes at the same database name or user.
+
+The staging Compose override starts three separate `mariadb:11.4` services with separate named volumes. It creates empty local databases only; it does not run schema migrations. A service may start successfully while application features that require schema objects remain unavailable until a separately approved, local-only schema provisioning procedure exists.
+
+To validate the complete topology without starting it:
+
+```bash
+cp .env.staging.example .env.staging
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging config --quiet
+```
+
+To start all local services:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.staging.yml --env-file .env.staging up -d --build
+```
+
+Use `docker compose ... ps` and `docker compose ... logs --tail=100 app` for read-only diagnostics. Do not use `down -v`; the three database volumes are local state.
