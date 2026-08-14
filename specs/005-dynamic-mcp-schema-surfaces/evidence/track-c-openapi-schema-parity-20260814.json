@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "evidence_key": "track-c-openapi-schema-parity-20260814",
+  "track": "C",
+  "base_sha": "8e6df87643f39449f4543b5f875acadf6e60de19",
+  "contract_chain": [
+    "Context Kernel",
+    "Capability Manifest",
+    "Authority Preflight",
+    "Plan",
+    "Approval/Delegation",
+    "Final Authority",
+    "Durable Execution",
+    "Adapter",
+    "Readback",
+    "Surface Projection"
+  ],
+  "canonical_sources_reviewed": [
+    "canonicals/openapi/custom-gpt-surfaces.yaml",
+    "http-generic-api/routes/tenantGptOAuthMetadataRoutes.js",
+    "http-generic-api/routes/remoteMcpConnectorRoutes.js",
+    "http-generic-api/remoteMcpRequestHost.js",
+    "http-generic-api/tenantGptOperationalReadiness.js"
+  ],
+  "surface_delta": {
+    "new_transport_route_added": false,
+    "openapi_path_delta_required": false,
+    "reason": "The Track C slice adds a pure public ECE projection contract only. It does not mount a route or expose a new transport operation, so inventing an OpenAPI path would create false route parity.",
+    "generated_schema_refresh_deferred_to_integration_branch": true
+  },
+  "parity_claims": {
+    "custom_gpt_surface_selection_remains_canonical_source_driven": true,
+    "remote_mcp_resource_host_isolated_before_connector_runtime": true,
+    "oauth_protected_resource_metadata_is_host_specific": true,
+    "tenant_and_remote_mcp_scope_sets_are_not_interchangeable": true,
+    "ece_projection_mints_no_authority_or_execution_grant": true,
+    "ece_projection_selects_no_connection": true,
+    "ece_projection_emits_no_credentials": true,
+    "generated_artifacts_modified": false
+  },
+  "ece_schema_contract": {
+    "source": "http-generic-api/tenantGptEffectiveCapabilitySurface.js",
+    "schema_version": 1,
+    "identity_source": "authoritative_context_contract_only",
+    "authority_source": "projected_final_authority_contract_only",
+    "readiness_source": "track_b_evidence_contract",
+    "questionnaire_policy": "explicit_public_non_sensitive_questions_only",
+    "fail_closed_on_missing": [
+      "context",
+      "capability_manifest",
+      "authority_preflight",
+      "final_authority",
+      "readiness"
+    ],
+    "secrets_included": false
+  },
+  "validation": {
+    "standalone_ece_node22": {
+      "status": "pass",
+      "runtime": "node v22.16.0",
+      "test": "http-generic-api/test-tenant-gpt-effective-capability-surface.mjs"
+    },
+    "repository_schemas_guard": {
+      "status": "not_executed",
+      "reason": "The GitHub connector session does not expose a complete executable checkout. Exact-head repository gates must run before merge readiness is claimed."
+    },
+    "frontend_dispatch_check": {
+      "status": "not_executed",
+      "reason": "No frontend generated artifact was modified; exact-head repository check remains mandatory before merge readiness."
+    }
+  },
+  "live_environment": {
+    "used": false,
+    "live_client_used": false,
+    "dcr_executed": false,
+    "oauth_client_acceptance_executed": false,
+    "provider_mutation_performed": false
+  }
+}
