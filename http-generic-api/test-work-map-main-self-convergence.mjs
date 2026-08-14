@@ -21,7 +21,7 @@ assert.match(convergence, /source_main_head_is_stale/u);
 assert.match(convergence, /manual_failed_source_run_not_found/u);
 assert.match(convergence, /actions\/workflows\/spec-kit-work-map-integration\.yml\/runs/u);
 
-// The dispatcher is deliberately not a Work Map producer. It consumes the
+// The main dispatcher is deliberately not a Work Map producer. It consumes the
 // bounded exact-head artifact emitted by the read-only Integration Gate and
 // delegates all generation/mutation to the sole registered writer.
 assert.doesNotMatch(convergence, /platform-work-map-generator\.mjs\s+--write/u);
@@ -81,6 +81,16 @@ assert.match(writerTool, /generated_artifact_write_set_violation/u);
 assert.match(writerTool, /postpush_exact_head_readback/u);
 assert.match(writerTool, /protected_branch_mutation_forbidden/u);
 
+// Prevention is pre-merge: every main-bound PR runs this gate and currentness
+// cannot be disabled by a second, narrower changed-path classifier. This keeps
+// the workflow trigger and the generator's evolving source universe from
+// silently diverging again.
+assert.match(integration, /pull_request:\s*\n\s*branches: \[main\]/u);
+assert.match(integration, /paths:\s*\n\s*- "\*\*"/u);
+assert.match(integration, /\.github\/workflows\/\*\*/u);
+assert.match(integration, /currentness_required=true/u);
+assert.doesNotMatch(integration, /currentness_required=false/u);
+assert.doesNotMatch(integration, /git diff --name-only "origin\/main\.\.\.HEAD"/u);
 assert.match(integration, /push:\s*\n\s*branches: \[main\]/u);
 assert.match(integration, /Generate exact-head Work Map repair candidate/u);
 assert.match(integration, /work-map-repair-candidate-/u);
@@ -95,8 +105,10 @@ assert.doesNotMatch(integration, /git\s+push/u);
 console.log(JSON.stringify({
   contract: "mad4b.work-map-main-self-convergence-test.v1",
   ok: true,
+  prevention: "all_main_prs_require_work_map_currentness",
+  source_scope_divergence_possible: false,
   source_identity: "exact_current_main",
-  trigger: "failed_push_work_map_integration",
+  fallback_trigger: "failed_push_work_map_integration",
   repair_evidence: "exact_head_integration_artifact",
   dispatcher_work_map_generation: false,
   writer_deterministic_double_pass: true,
