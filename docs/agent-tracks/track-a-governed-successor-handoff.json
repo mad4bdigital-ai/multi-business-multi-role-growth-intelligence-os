@@ -24,11 +24,13 @@
     },
     "superseded_successor": {
       "pr": 7141,
+      "status": "closed_unmerged",
       "branch": "fix/track-a-authority-runtime-governed",
       "reason": "current main moved by merging PR #7122 and the synchronization PR developed an add/add handoff conflict"
     },
     "failed_sync_pr": {
       "pr": 7143,
+      "status": "closed_unmerged",
       "reason": "content conflict after parallel PR #7122 merge; no force push or low-level Git rewrite used"
     }
   },
@@ -45,7 +47,7 @@
     "Surface Projection"
   ],
   "current_slice": {
-    "status": "mvp_read_only_authoritative_composition_contract_pending_exact_head_validation",
+    "status": "mvp_read_only_composition_and_t043_closed_pending_final_exact_head_revalidation",
     "composition_module": "http-generic-api/governedExecutionRuntimeComposition.js",
     "composition_test": "http-generic-api/test-governed-execution-runtime-composition.mjs",
     "context_integrity_regression": {
@@ -65,6 +67,18 @@
     "migration_applied": false,
     "secrets_included": false
   },
+  "pre_ledger_validation": {
+    "exact_head_sha": "6ee51f910a6d7b5a42904d1de29fe46ceaaf687c",
+    "e2e_phase_governance": "passed",
+    "e2e_current_phase_journey": "passed",
+    "syntax_check": "passed",
+    "execution_resolver_gate": "passed",
+    "architecture_drift_detection": "passed",
+    "full_ordered_npm_test": "passed",
+    "repository_inventory": "passed",
+    "repository_evaluation": "baseline_failure_shared_with_main",
+    "used_to_close_t043_only": true
+  },
   "ueacp_t043": {
     "task": "T043 Add graph inheritance/restriction property tests",
     "implementation_test": "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
@@ -79,8 +93,9 @@
       "inheritance_policy_allowlist",
       "root_restriction_terminal_block"
     ],
-    "task_ledger_closed": false,
-    "closure_condition": "exact-head E2E and CI must pass before changing specs/011-unified-effective-authority-control-plane/tasks.md"
+    "task_ledger_closed": true,
+    "ledger_commit_sha": "8ff036f44668d2952d49267e436f23dfe04c8de7",
+    "final_head_revalidation_required": true
   },
   "composition_contract": {
     "requires_explicit_authoritative_final_authority": true,
