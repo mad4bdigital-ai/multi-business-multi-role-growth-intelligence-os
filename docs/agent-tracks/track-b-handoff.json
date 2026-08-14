@@ -17,7 +17,9 @@
     "Evidence-first rollback matrix",
     "Exact database-table authority and registered recipe allowlist validation",
     "Capability, lease, typed approval, and receipt/readback fail-closed readiness",
+    "Preflight-only migration ledger entry and readiness aggregate",
     "Replay, idempotency, wildcard, and path-traversal negative checks",
+    "No-secret evidence payload boundary",
     "Focused no-apply contract tests",
     "Migration/readiness manifest generator"
   ],
@@ -31,7 +33,7 @@
     "focused_tests": {
       "status": "pass",
       "command": "node --test http-generic-api/test-database-lifecycle-readiness-track-b.mjs",
-      "passed": 11,
+      "passed": 14,
       "failed": 0
     },
     "syntax_check": {
@@ -43,7 +45,10 @@
     "rollback_matrix_present": true,
     "authority_binding_contract": "implemented",
     "mutation_readiness_contract": "fail_closed_without_receipt_readback",
-    "replay_and_path_safety_tests": "pass"
+    "replay_and_path_safety_tests": "pass",
+    "migration_ledger_contract": "preflight_only",
+    "readiness_aggregate": "production_fail_closed",
+    "no_secret_evidence_boundary": "pass"
   },
   "guarantees": {
     "migration_applied": false,

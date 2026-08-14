@@ -11,6 +11,8 @@ import {
   reconcileMutationReceipt,
   validateApprovalBinding,
   validateAuthorityBinding,
+  buildMigrationLedgerEntry,
+  assessReadinessAggregate,
 } from "./databaseLifecycleReadiness.js";
 
 const SQL = "CREATE TABLE IF NOT EXISTS `track_b_probe` (id BIGINT PRIMARY KEY);";
@@ -98,6 +100,34 @@ test("receipt reconciliation rejects replay or mismatched idempotency", () => {
   const receipt = { plan_id: "plan-1", plan_fingerprint: PLAN_FINGERPRINT, idempotency_key: "idem-1" };
   assert.equal(reconcileMutationReceipt({ receipt, readback: { ...receipt, status: "matched" } }).reconciliation_status, "reconciled");
   assert.equal(reconcileMutationReceipt({ receipt, readback: { ...receipt, idempotency_key: "idem-2", status: "matched" } }).reconciliation_status, "blocked");
+});
+
+test("migration ledger remains preflight-only without explicit apply authorization", () => {
+  const migration = assessMigrationPreflight({ file: "probe.sql", sql: SQL, expectedTables: ["track_b_probe"] });
+  const ledger = buildMigrationLedgerEntry({ migration, authorization: { status: "approved", environment: "non-production", apply_authorized: true, authorization_id: "auth-1" }, environment: "non-production", readback: { checksum_sha256: migration.checksum_sha256, statement_count: migration.statement_count } });
+  assert.equal(ledger.ledger_entry_status, "preflight_authorized");
+  assert.equal(ledger.apply_authorized, false);
+  assert.equal(ledger.readback_status, "verified");
+  assert.equal(ledger.migration_applied, false);
+  assert.equal(ledger.database_mutated, false);
+});
+
+test("readiness aggregate blocks production and failed checks", () => {
+  const staging = assessReadinessAggregate({ checks: { checksum: true, authorization: true, readback: true }, environment: "staging" });
+  assert.equal(staging.readiness_status, "ready_for_review");
+  const production = assessReadinessAggregate({ checks: { checksum: true, authorization: true, readback: true }, environment: "production" });
+  assert.equal(production.readiness_status, "blocked");
+  assert.ok(production.blocking_reasons.includes("production_apply_disabled"));
+});
+
+test("readiness evidence payloads contain no credential-bearing fields", () => {
+  const migration = assessMigrationPreflight({ file: "probe.sql", sql: SQL, expectedTables: ["track_b_probe"] });
+  const ledger = buildMigrationLedgerEntry({ migration, authorization: {}, readback: {} });
+  const aggregate = assessReadinessAggregate({ checks: { checksum: true }, environment: "staging" });
+  const serialized = JSON.stringify({ migration, ledger, aggregate });
+  for (const forbidden of ["password", "client_secret", "access_token", "refresh_token", "private_key"]) {
+    assert.equal(serialized.includes(forbidden), false, `forbidden field found: ${forbidden}`);
+  }
 });
 
 test("manifest explicitly declares all forbidden side effects as false", () => {
