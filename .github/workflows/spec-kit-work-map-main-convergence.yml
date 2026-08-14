@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       expected_head_sha:
-        description: Exact current main SHA to reproduce and converge
+        description: Exact current main SHA to converge from an existing failed Work Map Integration run
         required: true
         type: string
       confirmation:
@@ -19,6 +19,7 @@ on:
         type: string
 
 # Read-only classifier/delegator for stale Work Maps observed on exact main.
+# It consumes the Integration Gate's exact-head repair artifact instead of becoming another Work Map producer.
 # It never writes main or Production and never writes repository content itself.
 # The only mutation path is the registered governed generated-artifact writer on a SHA-specific non-protected branch.
 # Contract: mad4b.work-map-main-self-convergence.v1.
@@ -35,16 +36,16 @@ concurrency:
 
 jobs:
   classify-and-dispatch:
-    name: Classify stale exact-main Work Maps and delegate repair
+    name: Validate exact-main repair evidence and delegate convergence
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Pin exact source main identity
+      - name: Pin exact source main and failed Integration run identity
         id: identity
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
+          EVENT_SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || '' }}
           SOURCE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || 'workflow_dispatch' }}
           SOURCE_CONCLUSION: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.conclusion || 'manual' }}
           SOURCE_HEAD_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || '' }}
@@ -64,42 +65,40 @@ jobs:
           [[ "$SOURCE_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]] || ineligible "source_head_sha_invalid"
 
           if [[ "$GITHUB_EVENT_NAME" == "workflow_run" ]]; then
-            [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || ineligible "source_run_id_invalid"
+            [[ "$EVENT_SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || ineligible "source_run_id_invalid"
             [[ "$SOURCE_CONCLUSION" == "failure" ]] || ineligible "source_run_not_failed"
             [[ "$SOURCE_EVENT" == "push" ]] || ineligible "source_run_not_push"
             [[ "$SOURCE_HEAD_BRANCH" == "main" ]] || ineligible "source_push_not_main"
+            source_run_id="$EVENT_SOURCE_RUN_ID"
           else
             [[ "$MANUAL_CONFIRMATION" == "REQUEST_WORK_MAP_MAIN_CONVERGENCE" ]] || ineligible "manual_confirmation_invalid"
+            source_run_id="$(gh api --method GET \
+              "repos/${GITHUB_REPOSITORY}/actions/workflows/spec-kit-work-map-integration.yml/runs" \
+              -f event=push \
+              -f branch=main \
+              -f status=completed \
+              -f per_page=100 \
+              --jq ".workflow_runs | map(select(.head_sha == \"${SOURCE_HEAD_SHA}\" and .conclusion == \"failure\")) | sort_by(.created_at) | last | .id // empty")"
+            [[ "$source_run_id" =~ ^[1-9][0-9]*$ ]] || ineligible "manual_failed_source_run_not_found"
           fi
 
           current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           [[ "$current_main_sha" == "$SOURCE_HEAD_SHA" ]] || ineligible "source_main_head_is_stale"
 
           target_ref="chore/work-map-main-sync-${SOURCE_HEAD_SHA:0:12}"
-          echo "eligible=pending_reproduction" >> "$GITHUB_OUTPUT"
-          echo "reason=pending_reproduction" >> "$GITHUB_OUTPUT"
+          echo "eligible=pending_evidence_validation" >> "$GITHUB_OUTPUT"
+          echo "reason=pending_evidence_validation" >> "$GITHUB_OUTPUT"
+          echo "source_run_id=${source_run_id}" >> "$GITHUB_OUTPUT"
           echo "source_main_sha=${SOURCE_HEAD_SHA}" >> "$GITHUB_OUTPUT"
           echo "target_ref=${target_ref}" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout exact failed main head
-        if: steps.identity.outputs.eligible == 'pending_reproduction'
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-        with:
-          ref: ${{ steps.identity.outputs.source_main_sha }}
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Set up Node.js 22
-        if: steps.identity.outputs.eligible == 'pending_reproduction'
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version: "22"
-
-      - name: Reproduce deterministic Work Map-only drift
-        id: reproduce
-        if: steps.identity.outputs.eligible == 'pending_reproduction'
+      - name: Validate exact-head Work Map repair candidate artifact
+        id: evidence
+        if: steps.identity.outputs.eligible == 'pending_evidence_validation'
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ steps.identity.outputs.source_run_id }}
           SOURCE_MAIN_SHA: ${{ steps.identity.outputs.source_main_sha }}
         run: |
           set -euo pipefail
@@ -111,52 +110,85 @@ jobs:
             exit 0
           }
 
-          local_sha="$(git rev-parse HEAD)"
-          [[ "$local_sha" == "$SOURCE_MAIN_SHA" ]] || ineligible "checkout_not_exact_source_main"
-          git fetch origin main --depth=1
-          trusted_main_sha="$(git rev-parse origin/main)"
-          [[ "$trusted_main_sha" == "$SOURCE_MAIN_SHA" ]] || ineligible "main_moved_during_reproduction"
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || ineligible "source_run_id_invalid"
+          [[ "$SOURCE_MAIN_SHA" =~ ^[0-9a-f]{40}$ ]] || ineligible "source_main_sha_invalid"
 
-          set +e
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-          stale_status=$?
-          set -e
-          [[ "$stale_status" -ne 0 ]] || ineligible "work_maps_already_current"
+          current_main_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$current_main_sha" == "$SOURCE_MAIN_SHA" ]] || ineligible "main_moved_before_evidence_validation"
 
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          changed_files="${RUNNER_TEMP}/work-map-main-convergence-changed-files.txt"
-          {
-            git diff --name-only
-            git ls-files --others --exclude-standard
-          } | sed '/^$/d' | sort -u > "$changed_files"
+          run_file="${RUNNER_TEMP}/work-map-main-convergence-source-run.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$run_file"
+          [[ "$(jq -r '.path' "$run_file")" == ".github/workflows/spec-kit-work-map-integration.yml" ]] || ineligible "source_workflow_path_mismatch"
+          [[ "$(jq -r '.event' "$run_file")" == "push" ]] || ineligible "source_run_event_mismatch"
+          [[ "$(jq -r '.head_branch' "$run_file")" == "main" ]] || ineligible "source_run_branch_mismatch"
+          [[ "$(jq -r '.head_sha' "$run_file")" == "$SOURCE_MAIN_SHA" ]] || ineligible "source_run_sha_mismatch"
+          [[ "$(jq -r '.status' "$run_file")" == "completed" ]] || ineligible "source_run_not_completed"
+          [[ "$(jq -r '.conclusion' "$run_file")" == "failure" ]] || ineligible "source_run_not_failed_readback"
+          source_run_attempt="$(jq -r '.run_attempt' "$run_file")"
+          [[ "$source_run_attempt" =~ ^[1-9][0-9]*$ ]] || ineligible "source_run_attempt_invalid"
 
-          changed_count="$(wc -l < "$changed_files" | tr -d '[:space:]')"
-          [[ "$changed_count" =~ ^[1-9][0-9]*$ ]] || ineligible "stale_check_not_reproduced"
+          artifact_name="work-map-repair-candidate-main-${SOURCE_MAIN_SHA}"
+          artifact_file="${RUNNER_TEMP}/work-map-main-convergence-artifacts.json"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}/artifacts?per_page=100" > "$artifact_file"
+          artifact_id="$(jq -r --arg name "$artifact_name" \
+            '[.artifacts[] | select(.name == $name and .expired == false)] | sort_by(.created_at) | last | .id // empty' \
+            "$artifact_file")"
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ ]] || ineligible "exact_repair_artifact_not_found"
 
-          unexpected="$(grep -Ev '^docs/work-maps/' "$changed_files" || true)"
-          if [[ -n "$unexpected" ]]; then
+          artifact_root="${RUNNER_TEMP}/work-map-main-convergence-repair-artifact"
+          rm -rf "$artifact_root"
+          mkdir -p "$artifact_root"
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact_name" --dir "$artifact_root"
+
+          report="$artifact_root/report.json"
+          changed_file="$artifact_root/changed-files.txt"
+          [[ -f "$report" && -f "$changed_file" ]] || ineligible "repair_artifact_contract_files_missing"
+          [[ -z "$(find "$artifact_root" -type l -print -quit)" ]] || ineligible "repair_artifact_symlink_forbidden"
+
+          [[ "$(jq -r '.contract' "$report")" == "mad4b.work-map-repair-candidate.v1" ]] || ineligible "repair_contract_mismatch"
+          [[ "$(jq -r '.repository' "$report")" == "$GITHUB_REPOSITORY" ]] || ineligible "repair_repository_mismatch"
+          [[ "$(jq -r '.run_id | tostring' "$report")" == "$SOURCE_RUN_ID" ]] || ineligible "repair_run_id_mismatch"
+          [[ "$(jq -r '.run_attempt | tostring' "$report")" == "$source_run_attempt" ]] || ineligible "repair_run_attempt_mismatch"
+          [[ "$(jq -r '.event_name' "$report")" == "push" ]] || ineligible "repair_event_mismatch"
+          [[ "$(jq -r '.event_sha' "$report")" == "$SOURCE_MAIN_SHA" ]] || ineligible "repair_event_sha_mismatch"
+          [[ "$(jq -r '.expected_head_sha' "$report")" == "$SOURCE_MAIN_SHA" ]] || ineligible "repair_expected_head_mismatch"
+          [[ "$(jq -r '.tested_head_sha' "$report")" == "$SOURCE_MAIN_SHA" ]] || ineligible "repair_tested_head_mismatch"
+          [[ "$(jq -r '.generated_from_exact_checked_out_head' "$report")" == "true" ]] || ineligible "repair_not_exact_checkout"
+          [[ "$(jq -r '.allowed_root' "$report")" == "docs/work-maps" ]] || ineligible "repair_allowed_root_mismatch"
+          [[ "$(jq -r '.remote_write_executed' "$report")" == "false" ]] || ineligible "repair_remote_write_claimed"
+          [[ "$(jq -r '.secrets_included' "$report")" == "false" ]] || ineligible "repair_secret_claimed"
+          [[ "$(jq -r '.source_hash_sha256 // ""' "$report")" =~ ^[0-9a-f]{64}$ ]] || ineligible "repair_source_hash_invalid"
+
+          changed_count="$(jq -r '.changed_count' "$report")"
+          [[ "$changed_count" =~ ^[1-9][0-9]*$ ]] || ineligible "repair_changed_count_invalid"
+          [[ "$(jq '.changed_files | length' "$report")" == "$changed_count" ]] || ineligible "repair_changed_count_mismatch"
+
+          report_changed="${RUNNER_TEMP}/work-map-main-convergence-report-changed.txt"
+          file_changed="${RUNNER_TEMP}/work-map-main-convergence-file-changed.txt"
+          jq -r '.changed_files[]' "$report" | sort -u > "$report_changed"
+          sed '/^$/d' "$changed_file" | sort -u > "$file_changed"
+          [[ "$(wc -l < "$report_changed" | tr -d '[:space:]')" == "$changed_count" ]] || ineligible "repair_changed_files_not_unique"
+          cmp -s "$report_changed" "$file_changed" || ineligible "repair_changed_file_manifest_mismatch"
+
+          unexpected="$(grep -Ev '^docs/work-maps/' "$report_changed" || true)"
+          [[ -z "$unexpected" ]] || {
             printf '%s\n' "$unexpected"
-            ineligible "dirty_set_exceeds_work_map_outputs"
-          fi
+            ineligible "repair_changed_set_exceeds_work_maps"
+          }
 
-          first_diff_sha="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          node http-generic-api/scripts/platform-work-map-generator.mjs --write
-          second_diff_sha="$(git diff --binary -- docs/work-maps | sha256sum | awk '{print $1}')"
-          [[ "$first_diff_sha" == "$second_diff_sha" ]] || ineligible "work_map_generation_not_deterministic"
-
-          node http-generic-api/scripts/platform-work-map-generator.mjs --check
-
-          unexpected_after="$(git diff --name-only | grep -Ev '^docs/work-maps/' || true)"
-          [[ -z "$unexpected_after" ]] || ineligible "second_pass_dirty_set_exceeds_work_map_outputs"
+          while IFS= read -r generated_path; do
+            [[ -n "$generated_path" ]] || continue
+            [[ -f "$artifact_root/$generated_path" ]] || ineligible "repair_changed_output_missing"
+          done < "$report_changed"
 
           echo "eligible=true" >> "$GITHUB_OUTPUT"
-          echo "reason=deterministic_work_map_drift_only" >> "$GITHUB_OUTPUT"
+          echo "reason=exact_head_repair_evidence_valid" >> "$GITHUB_OUTPUT"
+          echo "artifact_id=${artifact_id}" >> "$GITHUB_OUTPUT"
           echo "changed_count=${changed_count}" >> "$GITHUB_OUTPUT"
-          echo "diff_sha256=${second_diff_sha}" >> "$GITHUB_OUTPUT"
 
       - name: Reject stale or already-converged target reuse
         id: target
-        if: steps.reproduce.outputs.eligible == 'true'
+        if: steps.evidence.outputs.eligible == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -242,6 +274,8 @@ jobs:
           {
             echo "Governed Work Map main convergence delegated."
             echo "Source main: ${SOURCE_MAIN_SHA}"
+            echo "Source Integration run: ${{ steps.identity.outputs.source_run_id }}"
+            echo "Validated repair artifact: ${{ steps.evidence.outputs.artifact_id }}"
             echo "Target branch: ${TARGET_REF}"
             echo "Direct repository mutation by dispatcher: false"
             echo "Protected branch mutation: false"
@@ -254,14 +288,14 @@ jobs:
         env:
           IDENTITY_ELIGIBLE: ${{ steps.identity.outputs.eligible }}
           IDENTITY_REASON: ${{ steps.identity.outputs.reason }}
-          REPRODUCE_ELIGIBLE: ${{ steps.reproduce.outputs.eligible }}
-          REPRODUCE_REASON: ${{ steps.reproduce.outputs.reason }}
+          EVIDENCE_ELIGIBLE: ${{ steps.evidence.outputs.eligible }}
+          EVIDENCE_REASON: ${{ steps.evidence.outputs.reason }}
           TARGET_REASON: ${{ steps.target.outputs.reason }}
         run: |
           {
             echo "Work Map main convergence did not dispatch a writer."
             echo "Identity: ${IDENTITY_ELIGIBLE:-not_run} / ${IDENTITY_REASON:-not_run}"
-            echo "Reproduction: ${REPRODUCE_ELIGIBLE:-not_run} / ${REPRODUCE_REASON:-not_run}"
+            echo "Evidence: ${EVIDENCE_ELIGIBLE:-not_run} / ${EVIDENCE_REASON:-not_run}"
             echo "Target: ${TARGET_REASON:-not_run}"
             echo "Direct repository mutation by dispatcher: false"
             echo "Protected branch mutation: false"
