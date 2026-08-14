@@ -4,8 +4,8 @@
   "deterministic": true,
   "totals": {
     "files": 6841,
-    "bytes": 62142415,
-    "lines": 1457479,
+    "bytes": 62144135,
+    "lines": 1457509,
     "directories": 256,
     "categories": 13
   },
@@ -80211,9 +80211,9 @@
       "path": "specs/018-environment-promotion-runtime-integrity/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 17901,
-      "lines": 271,
-      "sha256": "2c1ddb03fce4e3b09b8fb9fc27bbf118ed35f6bbf58a29633467e246654eb1e4",
+      "bytes": 18073,
+      "lines": 273,
+      "sha256": "d6f0657004523a59c60f03f4d2a2fb1506de6e30d012f72981d829b957cb8bda",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80453,9 +80453,9 @@
       "path": "specs/019-governed-database-lifecycle-pressure-relief/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 9743,
-      "lines": 182,
-      "sha256": "027be3b4a32623989bd93d5c47f0aae336cdd9e3049f6eb4d880c301a0bb79b1",
+      "bytes": 11291,
+      "lines": 210,
+      "sha256": "504ada768775fc6d4af72fefec72137e3b426945c3a040135caf61d8555a8850",
       "mode": "644",
       "executable": false,
       "generated": false
