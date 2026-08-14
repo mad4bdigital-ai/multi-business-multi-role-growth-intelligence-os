@@ -62,6 +62,28 @@ jobs:
     env:
       OUTPUT_DIR: .ci-evidence/governed-generated-artifact-refresh
     steps:
+      - name: Initialize bounded refresh evidence
+        shell: bash
+        env:
+          TARGET_REF: ${{ inputs.target_ref }}
+          EXPECTED_HEAD_SHA: ${{ inputs.expected_head_sha }}
+          RECIPE: ${{ inputs.recipe }}
+          CREATE_FROM_MAIN: ${{ inputs.create_from_main }}
+          SOURCE_MAIN_SHA: ${{ inputs.source_main_sha }}
+        run: |
+          set -euo pipefail
+          rm -rf "$OUTPUT_DIR"
+          mkdir -p "$OUTPUT_DIR"
+          jq -cn \
+            --arg contract "mad4b.generated-artifact-refresh-preflight.v1" \
+            --arg target_ref "$TARGET_REF" \
+            --arg expected_head_sha "$EXPECTED_HEAD_SHA" \
+            --arg recipe "$RECIPE" \
+            --arg create_from_main "$CREATE_FROM_MAIN" \
+            --arg source_main_sha "$SOURCE_MAIN_SHA" \
+            '{contract:$contract,target_ref:$target_ref,expected_head_sha:$expected_head_sha,recipe:$recipe,create_from_main:$create_from_main,source_main_sha:(if ($source_main_sha|length)>0 then $source_main_sha else null end),remote_write_executed:false,secrets_included:false}' \
+            > "$OUTPUT_DIR/generated-artifact-refresh-preflight.json"
+
       - name: Validate dispatch identity
         shell: bash
         env:
@@ -113,19 +135,68 @@ jobs:
           test "$current_main_sha" = "$SOURCE_MAIN_SHA"
           test "$SOURCE_MAIN_SHA" = "$EXPECTED_HEAD_SHA"
 
+          lookup_err="$RUNNER_TEMP/generated-artifact-target-ref-lookup.err"
+          create_response="$RUNNER_TEMP/generated-artifact-target-ref-create.json"
+          create_err="$RUNNER_TEMP/generated-artifact-target-ref-create.err"
+          : > "$lookup_err"
+          : > "$create_err"
+
           set +e
-          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>/dev/null)"
+          existing_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>"$lookup_err")"
           existing_status=$?
           set -e
           if (( existing_status == 0 )); then
-            test "$existing_sha" = "$EXPECTED_HEAD_SHA"
+            if [[ "$existing_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+              echo "Target branch already exists at unexpected SHA: ${existing_sha}" >&2
+              exit 1
+            fi
           else
+            if ! grep -Eqi 'HTTP 404|Not Found' "$lookup_err"; then
+              cat "$lookup_err" >&2
+              echo "Target branch lookup failed with a non-404 error; refusing to infer absence." >&2
+              exit "$existing_status"
+            fi
+
             payload="$(jq -cn --arg ref "refs/heads/${TARGET_REF}" --arg sha "$EXPECTED_HEAD_SHA" '{ref:$ref,sha:$sha}')"
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" --input - <<<"$payload"
+            set +e
+            gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" --input - <<<"$payload" >"$create_response" 2>"$create_err"
+            create_status=$?
+            set -e
+            if (( create_status == 0 )); then
+              created_sha="$(jq -er '.object.sha' "$create_response")"
+              if [[ "$created_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+                echo "Created target branch returned unexpected SHA: ${created_sha}" >&2
+                exit 1
+              fi
+            else
+              echo "::warning::Target ref create returned status ${create_status}; requiring bounded exact-SHA readback before continuing."
+            fi
           fi
 
-          remote_target_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha')"
-          test "$remote_target_sha" = "$EXPECTED_HEAD_SHA"
+          remote_target_sha=""
+          for attempt in $(seq 1 8); do
+            set +e
+            candidate_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_REF}" --jq '.object.sha' 2>/dev/null)"
+            readback_status=$?
+            set -e
+            if (( readback_status == 0 )); then
+              if [[ "$candidate_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+                echo "Target ref resolved to unexpected SHA during readback: ${candidate_sha}" >&2
+                exit 1
+              fi
+              remote_target_sha="$candidate_sha"
+              break
+            fi
+            sleep "$attempt"
+          done
+
+          if [[ "$remote_target_sha" != "$EXPECTED_HEAD_SHA" ]]; then
+            if [[ -s "$create_err" ]]; then
+              cat "$create_err" >&2
+            fi
+            echo "Target ref did not converge to expected SHA after bounded readback retries." >&2
+            exit 1
+          fi
           echo "Prepared governed convergence branch ${TARGET_REF} from exact main@${SOURCE_MAIN_SHA}." >> "$GITHUB_STEP_SUMMARY"
 
       - name: Checkout exact expected head
