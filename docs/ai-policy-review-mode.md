@@ -2,41 +2,76 @@
 
 ## Purpose
 
-`mad4b.production-promotion-review-mode.v1` adds a bounded review mode to the governed Production promotion launcher. It prevents a promotion run from waiting indefinitely on GitHub `pull_request` workflow approvals when the required checks are read-only supporting gates, while preserving the protected `Production` review surface.
+`mad4b.production-promotion-review-mode.v2` is the bounded review mode used by the governed Production release-cut controller. It automates only non-mutating verification and does not inherit authority to merge `Production`, deploy, apply SQL or migrations, apply grants, mutate providers, or read credential payloads.
 
-The mode is implemented as a deterministic **AI policy agent contract** inside the governed launcher. It is intentionally reproducible and does not require an LLM key, credential payload, external model call, database access, or provider mutation. Any future model-backed reviewer must be introduced as a separately reviewed adapter and must not inherit this mode's authority automatically.
+The mode is deterministic and does not require an LLM key, external model call, database access, provider access, or secret payload. A future model-backed reviewer would require a separately reviewed adapter and would not inherit this authority automatically.
 
 ## Modes
 
-| Mode | Supporting workflow behavior | Protected Production behavior |
+| Mode | Supporting-gate behavior | Production behavior |
 |---|---|---|
-| `human` | Preserve the existing behavior and wait for the normal maintainer-controlled workflow result. | No merge or deployment is performed by the launcher. |
-| `ai_policy` | Ignore stale or approval-blocked `pull_request` runs for the supporting gates, dispatch each exact-head read-only workflow through `workflow_dispatch`, and wait for its result. | The mode may not merge `Production`, deploy, apply migrations or grants, mutate databases or providers, read credential payloads, or authorize protected-ref mutation. |
+| `human` | Execute the registered exact-candidate read-only gates and preserve human-action-required states when the workflow itself requires them. | No merge or deployment is performed by the controller. |
+| `ai_policy` | Execute only the declaratively registered exact-candidate read-only gates and reject approval-blocked or non-success terminal results. | No protected merge, deploy, migration, grant, provider mutation, credential read, or protected-ref write is permitted. |
 
-The value is validated by the gateway parameter schema and is limited to `human` or `ai_policy`. Unknown values fail closed before the launcher is dispatched.
+The gateway parameter schema accepts only `human` or `ai_policy`. Unknown values fail closed before dispatch.
 
-## Exact-head and review contract
+## Release identity
 
-The gateway still requires trusted `main`, an exact lowercase SHA pin, an open same-repository request PR targeting `main`, and the fixed typed authorization `AUTHORIZE_GOVERNED_PRODUCTION_PROMOTION_REQUEST`. The launcher independently validates the request PR, current `main`, `Production`, candidate branches, validation branches, tree equality, exact candidate validation, and protected-ref readback.
+The authorized identity is an immutable **release cut**, not the moving `main` tip.
 
-In `ai_policy` mode, the agent reviews only the following bounded condition: the candidate is source-pinned, exact validation succeeds, the supporting workflow is one of the registered read-only workflows, and the run is dispatched against the exact candidate head. The mode does not convert a failed test into success and does not approve a deployment environment or a protected release PR.
+The gateway still runs from trusted `main` and binds the request to an exact SHA. The request PR head must be same-repository, descend from the authorized release cut, and be tree-identical to it. This allows a marker-only governed request without changing release bytes.
+
+During convergence:
+
+- current `main` may advance only while the release cut remains an ancestor;
+- `Production` must remain exactly pinned;
+- pinned `Production` must already be an ancestor of the release cut;
+- candidate first parent must be the release cut;
+- candidate tree must be byte-identical to the release cut;
+- candidate must contain pinned Production ancestry.
+
+A descendant commit on `main` therefore does not invalidate an already authorized release. A Production move, release-cut ancestry loss, candidate drift, or required-gate failure does.
+
+## Supporting-gate authority
+
+The supporting workflow inventory is not embedded in launcher control flow. It is declared in:
+
+`.github/contracts/production-promotion-supporting-gates.v1.json`
+
+The typed resolver validates that every current gate is required, `read_only`, enabled only for registered review modes, and free of secret-like input names or unsupported templates. The registry SHA-256 identity is recorded in convergence evidence.
+
+The controller dispatches all required supporting gates against the exact candidate before beginning the wait pass. This reduces the validation window while keeping exact candidate SHA and exact run-ID evidence for every gate.
+
+## Certified exact validation
+
+The candidate opens a `test(release): certify immutable Production candidate …` validation surface. The existing `Certified Production Release Cut Validation` workflow performs direct CI against the immutable candidate and requires release-cut/current-main ancestry plus Production stability before and after the CI cycle.
+
+A failed test is never converted into success by `ai_policy`.
 
 ## Evidence
 
-Successful convergence evidence records `review_mode`, `review_authority`, `ai_policy_scope`, exact supporting run IDs, exact candidate validation, protected-ref stability, and the invariant fields `merge_executed=false`, `deployment_executed=false`, `migration_executed=false`, `provider_call_executed=false`, `credential_payload_read=false`, and `secrets_included=false`.
+Canonical convergence evidence uses `governed_production_promotion_convergence.v2` and records:
 
-The resulting release PR remains a review surface. It states the exact pinned `main` and `Production` SHAs and remains subject to the repository's protected-release policy. The launcher creates review surfaces and evidence only; it does not merge them.
+- release cut and current `main` separately;
+- whether `main` advanced after the cut;
+- pinned Production and exact candidate;
+- certified validation run ID;
+- supporting-gate registry digest and exact gate run IDs;
+- release-cut/current-main ancestry;
+- Production/release-cut and Production/candidate ancestry;
+- exact candidate/release-cut tree identity;
+- explicit non-mutation flags.
 
-## Runtime reliability guards
+The evidence does not claim that candidate bytes equal the latest moving `main` when `main` has advanced.
 
-The launcher runs a trusted preflight for its runtime helpers before creating a candidate. Evidence serialization is implemented by the typed `production-promotion-evidence.mjs` helper rather than an untested YAML-embedded jq expression. The helper validates review mode, SHAs, run IDs, digest format, and all non-mutation invariants.
+PR comments are observability surfaces after the canonical artifact exists. Comment-transport failure is reported as degraded observability and cannot create execution authority or turn valid canonical evidence into a synthetic promotion failure.
 
-Supporting-run selection is implemented by `production-promotion-run-selector.mjs`. Direct run IDs returned by workflow dispatch are preferred. If a discovery fallback is required, it filters by exact candidate SHA, event, and attempt start time, prefers a terminal `success` over a newer queued duplicate, and excludes `action_required` in `ai_policy`. This prevents a duplicate dispatch or stale approval-blocked run from hiding a valid exact-head result. The behavior is covered by runtime regression tests in `.github/tests/production-promotion-runtime.test.mjs`.
+## Runtime reliability
 
-## Failure behavior
+Direct workflow run IDs are preferred. Bounded run discovery is retained only as a fallback and filters by exact candidate SHA, workflow event, and dispatch time. Terminal exact-head success is preferred over a newer queued duplicate.
 
-The mode fails closed when the trusted SHA moves, the request PR changes identity, the candidate tree differs from `main`, exact validation is missing or unsuccessful, a supporting workflow is outside the registered allowlist, an exact-head dispatch run cannot be observed, or any protected reference changes during validation. The source-pin guard also marks stale release surfaces and cancels stale governed runs when its write permission is available.
+The main source guard, Production release-source gate, and post-finalization guard all use the same release-cut ancestry contract. The post-finalization guard does not blindly reopen a stale authorization after Production or release ancestry changes; a truly invalid cut requires a new governed authorization.
 
 ## Security boundary
 
-This feature is not an approval bypass for production execution. It is an automation mode for non-mutating verification. A deployment, migration, grant, provider mutation, credential read, or protected `Production` merge still requires its own explicit governed path and authorization. Spec 015 remains outside the scope of this change.
+This mode is not a Production approval bypass. It is a bounded verifier for repository evidence. Merge, deployment, migration apply, grant apply, provider mutation, credential access, protected-ref mutation, and force push remain outside its authority.
