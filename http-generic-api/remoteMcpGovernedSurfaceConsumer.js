@@ -12,10 +12,29 @@ function text(value, maximum = 256) {
   return String(value || "").trim().slice(0, maximum);
 }
 
+function sanitizeString(value) {
+  const input = String(value).slice(0, 4096);
+  if (/-----BEGIN [A-Z ]*PRIVATE KEY-----/.test(input)) return "[redacted]";
+  if (/^\s*(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+\s*$/i.test(input)) return "[redacted]";
+  try {
+    const url = new URL(input);
+    if (url.username || url.password) {
+      url.username = "";
+      url.password = "";
+    }
+    for (const key of [...url.searchParams.keys()]) {
+      if (SECRET_KEY.test(key)) url.searchParams.set(key, "[redacted]");
+    }
+    return url.toString().slice(0, 4096);
+  } catch {
+    return input;
+  }
+}
+
 function sanitize(value, seen = new WeakSet()) {
   if (value === null || value === undefined) return value;
   if (["boolean", "number"].includes(typeof value)) return value;
-  if (typeof value === "string") return value.slice(0, 4096);
+  if (typeof value === "string") return sanitizeString(value);
   if (typeof value !== "object") return undefined;
   if (seen.has(value)) return undefined;
   seen.add(value);
@@ -71,11 +90,13 @@ function normalizeProjectionResult(value) {
 
 function bindingMismatch(toolArguments, context, result) {
   for (const key of BINDING_KEYS) {
+    const authoritative = text(context?.[key], 256);
+    const projected = text(plainObject(result) ? result[key] : "", 256);
+    if (authoritative && projected && authoritative !== projected) return key;
+
     const requested = text(toolArguments?.[key], 256);
     if (!requested) continue;
-    const authoritative = text(context?.[key], 256);
     if (authoritative && requested !== authoritative) return key;
-    const projected = text(plainObject(result) ? result[key] : "", 256);
     if (projected && requested !== projected) return key;
   }
   return null;
