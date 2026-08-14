@@ -20,6 +20,7 @@ This record describes the maximum locally verifiable closure achieved on `agent/
 | Replay and idempotency protection | Receipt reconciliation tests | Closed locally |
 | Path traversal and wildcard rejection | Negative authority tests | Closed locally |
 | Migration ledger | Preflight-only ledger entry contract | Closed locally |
+| Readback classification | Ready, absent, partial, and mismatched evidence states | Closed locally |
 | Rollback evidence | Evidence-first rollback matrix | Closed locally |
 | No-secret boundary | Evidence payload test and `secrets_included=false` markers | Closed locally |
 
