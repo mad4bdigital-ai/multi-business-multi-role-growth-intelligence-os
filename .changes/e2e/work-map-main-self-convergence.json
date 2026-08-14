@@ -1,0 +1,101 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "work-map-main-self-convergence",
+  "title": "Work Map exact-main post-merge self-convergence",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/work-map-main-self-convergence.json",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      ".github/workflows/spec-kit-work-map-main-convergence.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
+      "http-generic-api/test-work-map-main-self-convergence.mjs",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Convert failed push-time Work Map currentness on exact main from a recurring manual repair into a deterministic, fail-closed, SHA-bound post-merge convergence loop that delegates mutation only to the registered generated-artifact writer on a non-protected branch.",
+      "e2e_journeys": [
+        {
+          "id": "converge-stale-work-maps-after-main-advance",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Spec Kit Work Map Integration, read-only main convergence dispatcher, and governed generated-artifact writer",
+          "entrypoint": "Spec Kit Work Map Integration completes with failure for a push event whose head branch and live exact head are main.",
+          "terminal_outcome": "The dispatcher reproduces deterministic Work Map-only drift without repository mutation and delegates the exact main SHA to work_map_self_hosting_bootstrap on chore/work-map-main-sync-<sha12>; the writer creates or validates that branch, regenerates bounded Work Map artifacts, pushes without force, reads back the exact result head, and dispatches read-only verification while main and Production remain untouched.",
+          "steps": [
+            "Accept only a failed Spec Kit Work Map Integration workflow_run whose source event is push, source branch is main, and source SHA still equals the live main ref; manual recovery requires the exact same main SHA plus REQUEST_WORK_MAP_MAIN_CONVERGENCE.",
+            "Checkout the exact source main SHA with persisted credentials disabled and re-read origin/main before reproduction.",
+            "Require platform-work-map-generator --check to demonstrate stale state; if Work Maps are already current, perform no delegation.",
+            "Generate Work Maps twice locally, require the dirty set to stay under docs/work-maps, require identical binary diff SHA-256 across both passes, and require a final currentness check to pass.",
+            "Derive one SHA-specific target branch chore/work-map-main-sync-<sha12> and re-read live main before any delegation.",
+            "If the target branch is absent or still equals the exact source main SHA, dispatch the governed generated-artifact writer; if an already-converged generated-only descendant exists, stop idempotently; reject unrelated branch collisions.",
+            "Invoke only work_map_self_hosting_bootstrap with create_from_main=true, source_main_sha equal to expected_head_sha, and the typed generated-artifact confirmation.",
+            "Inside the writer, reject main and Production targets, validate the Work Map convergence branch namespace, require exact live-main equality, create the target branch only from that exact main SHA, and never force-push.",
+            "Run the existing deterministic Work Map bootstrap recipe, bound changed files to registered Work Map outputs, commit only generated artifacts, require pre-push exact-head CAS, and require post-push remote readback.",
+            "Dispatch read-only PR Generated Artifact Refresh verification on the resulting exact branch head; PR publication and merge remain separate governed actions."
+          ],
+          "assertions": [
+            "A failed Work Map Integration run from a stale main SHA cannot start a repair.",
+            "A non-push event, non-main branch, successful source run, or malformed SHA cannot start automatic main convergence.",
+            "The classifier/delegator has contents read only and performs no git commit, git push, direct protected-ref update, force push, or PR merge.",
+            "The stale classifier reproduces only docs/work-maps drift and requires deterministic two-pass generation before delegating mutation authority.",
+            "The target branch identity is derived from the exact source main SHA, making retries idempotent and preventing cross-main branch reuse.",
+            "Existing target reuse is accepted only for the exact source seed or an already-converged generated-only descendant; unrelated branch contents fail closed.",
+            "create_from_main is accepted for work_map_self_hosting_bootstrap only under the SHA-specific Work Map convergence branch pattern or for the pre-existing Repository Inventory convergence recipe under its own pattern.",
+            "The generated-artifact writer still rejects main and Production as mutation targets and preserves exact-head CAS, bounded changed paths, post-push readback, and no-force-push semantics.",
+            "The ordinary Spec Kit Work Map Integration gate remains read-only and continues to publish an exact-head repair candidate before failing closed on stale generated Work Maps.",
+            "No Production deployment, database or provider mutation, credential payload read, migration apply, grant mutation, or protected-branch mutation is part of this feature."
+          ],
+          "tests": [
+            {
+              "id": "work-map-main-self-convergence-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-work-map-main-self-convergence.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            ".github/workflows/spec-kit-work-map-main-convergence.yml",
+            ".github/workflows/governed-generated-artifact-refresh.yml",
+            ".github/workflows/spec-kit-work-map-integration.yml",
+            "http-generic-api/test-work-map-main-self-convergence.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "blocked",
+      "objective": "Observe the first exact-main failed Work Map currentness run after this authority is trusted on main and verify automatic SHA-specific branch creation, governed regeneration, read-only exact-head verification, and idempotent retry behavior.",
+      "blockers": [
+        "The dispatcher and create_from_main Work Map authority are not trusted until this source change merges to main; the first post-merge canary must remain non-protected and review-gated."
+      ]
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise stale workflow_run heads, main movement during reproduction, nondeterministic generation, dirty-set escape, pre-existing unrelated target collisions, seeded-target retry, already-converged target retry, writer CAS failure, and verifier-dispatch failure."
+    },
+    {
+      "id": "canary",
+      "status": "planned",
+      "objective": "Use the first real post-merge Work Map drift as a bounded canary with exact main identity and no protected-ref mutation."
+    },
+    {
+      "id": "production",
+      "status": "planned",
+      "objective": "Keep Production entirely outside this repository-generated-state convergence path."
+    }
+  ]
+}
