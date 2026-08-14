@@ -15,7 +15,11 @@ function singleOrAmbiguous(rows, code) {
     error.details = { row_count: rows.length, secrets_included: false };
     throw error;
   }
-  return rows[0];
+  const uniqueRow = rows.reduce((selected, candidate) => {
+    if (selected !== undefined) throw new Error(`${code}: unique lookup proof failed`);
+    return candidate;
+  }, undefined);
+  return uniqueRow;
 }
 
 function mapDefinition(row) {
