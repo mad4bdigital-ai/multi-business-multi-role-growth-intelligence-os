@@ -99,8 +99,11 @@
     },
     {
       "id": "operational",
-      "status": "planned",
-      "objective": "Observe the first trusted post-merge Repository Inventory generated-output follow-up on a non-protected work branch and retain canonical exact-head verification evidence."
+      "status": "blocked",
+      "objective": "Observe the first trusted post-merge Repository Inventory generated-output follow-up on a non-protected work branch and retain canonical exact-head verification evidence.",
+      "blockers": [
+        "Current main has deterministic Repository Inventory drift and requires the first trusted post-merge generated-output convergence before operational can be claimed."
+      ]
     },
     {
       "id": "resilient",
