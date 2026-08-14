@@ -18,6 +18,7 @@
       ".github/workflows/governed-production-promotion-request-launcher.yml",
       ".github/workflows/governed-production-release-source-pin-gate.yml",
       ".github/workflows/production-promotion-candidate.yml",
+      "docs/ai-policy-review-mode.md",
       "docs/production-promotion-release-cut-controller.md",
       "http-generic-api/test-production-promotion-candidate-dispatch-input-parity.mjs",
       "http-generic-api/test-production-promotion-convergence-workflows.mjs"
