@@ -50,7 +50,8 @@
             "MIGRATION_APPLIED=false and DATABASE_MUTATED=false remain explicit local defaults.",
             "Staging uses host-only Tenant GPT SSO cookies and never shares a .mad4b.com cookie with Production.",
             "The current Activation Gateway bundle is Production-only for activation.mad4b.com to https://auth.mad4b.com; activation_dev.mad4b.com remains reserved-disabled until a dedicated staging bundle exists.",
-            "The Dev MCP hostname remains reserved-disabled until the explicit staging MCP runtime flag is enabled under separate credentials."
+            "The Dev MCP hostname remains reserved-disabled until the explicit staging MCP runtime flag is enabled under separate credentials.",
+            "The staging hostname list in env is declaration-only; Cloudflare remote ingress is the source of truth, and any mismatch denies exposure without origin fallback."
           ],
           "tests": [
             {

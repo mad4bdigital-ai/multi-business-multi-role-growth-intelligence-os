@@ -16,6 +16,11 @@ const activationGatewaySource = read("http-generic-api/activation-gateway-runtim
 const ssoSessionSource = read("http-generic-api/tenantGptSsoSession.js");
 
 assert.equal(policy.enforcement_mode, "fail_closed");
+assert.equal(policy.routing_authority.staging_ingress_source_of_truth, "cloudflare_remote_tunnel_configuration");
+assert.equal(policy.routing_authority.staging_env_hostname_role, "declaration_only");
+assert.equal(policy.routing_authority.staging_origin_source_of_truth, "docker_compose_app_service");
+assert.equal(policy.routing_authority.provider_mutation_required_to_activate, true);
+assert.equal(policy.routing_authority.mismatch_action, "deny_and_do_not_fallback");
 assert.deepEqual(policy.default_route, {
   action: "http_status",
   status: 404,
