@@ -42,7 +42,7 @@ The following items are intentionally not marked complete because closing them w
 
 ## Verification record
 
-The focused Track B suite passes **14/14 tests**. The schema and frontend guards pass. The repository evaluation loop and path guard remain blocked by stale shared inventory artifacts, which are explicitly reserved for the integration branch and were not regenerated on this agent branch.
+The focused Track B suite passes **14/14 tests**. The schema and frontend guards pass. An isolated validation command, `http-generic-api/scripts/track-b-local-validation.mjs`, now regenerates both inventory families only under a temporary `.track-b-validation` directory, verifies them there, runs the focused suite, and removes the temporary directory. It completes successfully while leaving all integration-reserved artifacts untouched. The repository evaluation loop and default path guard remain blocked only because their default commands inspect the stale shared artifacts in their committed locations.
 
 ## Handoff decision
 
