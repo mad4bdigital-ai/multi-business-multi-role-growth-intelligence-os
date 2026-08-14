@@ -1,0 +1,62 @@
+name: Track A Remote MCP Write Scope Recovery Temporary
+
+on:
+  push:
+    branches:
+      - fix/track-a-authority-runtime-governed-v2
+    paths:
+      - .github/workflows/track-a-remote-mcp-write-scope-recovery.yml
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout exact Track A head
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '22'
+
+      - name: Regenerate and verify bounded write-scope inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+
+          node scripts/remote-mcp-write-scope-inventory.mjs
+          node scripts/remote-mcp-write-scope-inventory.mjs --check
+
+          mapfile -t dirty < <(git status --porcelain=v1 | sed -E 's/^...//' | sort)
+          printf '%s\n' "${dirty[@]}"
+          expected=(
+            "docs/remote-mcp-write-scope-inventory.md"
+            "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          test "${#dirty[@]}" -eq "${#expected_sorted[@]}"
+          test "$(printf '%s\n' "${dirty[@]}")" = "$(printf '%s\n' "${expected_sorted[@]}")"
+
+      - name: Commit canonical generated outputs with exact-head race guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin "${GITHUB_REF_NAME}"
+          test "$(git rev-parse "origin/${GITHUB_REF_NAME}")" = "${GITHUB_SHA}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/remote-mcp-write-scope-inventory.md http-generic-api/remote-mcp-write-scope-inventory.generated.json
+          mapfile -t staged < <(git diff --cached --name-only | sort)
+          test "${#staged[@]}" -eq 2
+          test "${staged[0]}" = "docs/remote-mcp-write-scope-inventory.md"
+          test "${staged[1]}" = "http-generic-api/remote-mcp-write-scope-inventory.generated.json"
+          git commit -m "chore(governance): refresh Remote MCP write-scope inventory"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
