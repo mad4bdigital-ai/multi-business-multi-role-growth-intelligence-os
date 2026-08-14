@@ -13,6 +13,7 @@
       ".github/workflows/governed-generated-artifact-refresh.yml",
       ".github/workflows/repository-inventory-autofix-dispatch.yml",
       ".github/workflows/repository-inventory.yml",
+      ".github/workflows/spec-kit-work-map-integration.yml",
       "docs/repository-inventory-guide.md",
       "scripts/repository-inventory-verification-gate.mjs",
       "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
@@ -71,6 +72,7 @@
             "Generated-artifact verification routes repository_inventory_refresh to Repository Inventory rather than a generic verifier.",
             "Push-triggered and workflow_dispatch-triggered recovery use the same exact-head and fail-closed source identity contract.",
             "A governed work-branch push may publish bootstrap evidence only with repository identity, main-base identity, and a non-protected governed branch; protected-ref pushes remain blocked.",
+            "Work Map Integration must not be triggered by the broad .github/workflows/** pattern for unrelated generated-artifact or inventory changes; its trigger scope remains limited to Work Map control surfaces.",
             "Main convergence creates only a non-protected branch and never grants the dispatcher contents write authority.",
             "The writer refuses protected targets, requires typed confirmation, and does not merge or publish a Production change.",
             "Production deployment, database mutation, direct protected-ref mutation, and secret publication are outside this feature."

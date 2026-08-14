@@ -21,7 +21,10 @@ on:
       - "http-generic-api/test-spec-kit-work-map-governance-gate.mjs"
       - "http-generic-api/test-pipeline-connectivity-check.mjs"
       - ".specify/pipeline-connectivity-contract.json"
-      - ".github/workflows/**"
+      - ".github/workflows/spec-kit-work-map-integration.yml"
+      - ".github/workflows/spec-kit-work-map-autofix.yml"
+      - ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml"
+      - ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml"
   push:
     branches: [main]
 

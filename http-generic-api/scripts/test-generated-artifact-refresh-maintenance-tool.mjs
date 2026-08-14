@@ -237,6 +237,19 @@ runCheck("pr-workflow-runner-context-availability", () => {
 
 const inventoryWorkflowSource = fs.readFileSync("../.github/workflows/repository-inventory.yml", "utf8");
 const inventoryGateSource = fs.readFileSync("../scripts/repository-inventory-verification-gate.mjs", "utf8");
+const workMapIntegrationWorkflowSource = fs.readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
+runCheck("work-map-integration-trigger-scope", () => {
+  assert.doesNotMatch(workMapIntegrationWorkflowSource, /^\s*-\s*"\.github\/workflows\/\*\*"/mu);
+  for (const workflow of [
+    ".github/workflows/spec-kit-work-map-integration.yml",
+    ".github/workflows/spec-kit-work-map-autofix.yml",
+    ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+    ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+  ]) {
+    assert.match(workMapIntegrationWorkflowSource, new RegExp(workflow.replaceAll("/", "\\/"), "u"));
+  }
+});
+
 runCheck("repository-inventory-exact-head-verifier", () => {
   assert.match(inventoryWorkflowSource, /workflow_dispatch:/u);
   assert.match(inventoryWorkflowSource, /target_ref:/u);
@@ -331,6 +344,7 @@ console.log(JSON.stringify({
   repository_inventory_refresh_registered: true,
   repository_inventory_autofix_dispatch_registered: true,
   main_convergence_recovery_registered: true,
+  work_map_trigger_scope_bounded: true,
   pull_request_write_authority: false,
   jobs_level_runner_context_used: false,
   secrets_included: false,
