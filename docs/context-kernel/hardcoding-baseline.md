@@ -81,6 +81,39 @@ No production resolver behavior is changed by this baseline.
 4. Introduce blocking enforcement only for high-confidence runtime rules with an approved baseline or zero-tolerance policy.
 5. Keep test, migration, and documentation zones non-blocking unless a separate policy explicitly changes them.
 
+## Database runtime identity policy
+
+Database and schema names are deployment identity, not source-code identity. Their values are owned by the deployed application environment and must not be copied into runtime code, workflows, repository configuration, or operator-entered live-evidence inputs.
+
+The canonical role-to-environment contract is:
+
+| Role | App Env source of truth | Runtime behavior |
+|---|---|---|
+| ordinary application/runtime database | `DB_NAME` | required; fail closed when absent |
+| governance/control-plane database | `GOVERNANCE_DB_NAME` | required for governance ownership; no fallback to `DB_NAME` |
+| durable runtime persistence database | `RUNTIME_PERSISTENCE_DB_NAME` | required for persistence ownership; no literal fallback |
+
+The values of these variables are intentionally not recorded in this policy. Hostinger App Env is the deployment source of truth today; a future hosting or database provider may inject the same role contract through another governed deployment adapter without changing runtime source code.
+
+`Context Kernel Hardcoding Report` enforces a zero-tolerance runtime ratchet for:
+
+- concrete Hostinger-style database/schema literals in executable repository content;
+- non-empty literal fallbacks for `DB_NAME`, `GOVERNANCE_DB_NAME`, or `RUNTIME_PERSISTENCE_DB_NAME`;
+- static assignments to database identity fields such as `TARGET_SCHEMA`;
+- workflow inputs that can override `TARGET_SCHEMA` or any canonical database identity environment variable.
+
+The UEACP live source-capture workflow therefore resolves `DB_NAME` from the deployed Hostinger application process through the authenticated read-only admin env surface. The resulting value is used only as the same-cycle `TARGET_SCHEMA`; the live census then verifies `DATABASE()` equals that App Env-derived identity before accepting catalog evidence. A mismatch, missing variable, masked value, malformed identity, or changed readback fails closed before authority evidence can advance.
+
+Governance and persistence paths must preserve their own dedicated environment variables and connection ownership. A future migration to a different database engine must change provider/connection adapters and capability evidence rather than introduce hardcoded schema names or a second identity source.
+
+A suppression is permitted only for a reviewed non-runtime compatibility case and must use:
+
+```text
+database-runtime-identity-policy: allow <rule-id> -- <reason of at least 12 characters>
+```
+
+Runtime suppressions should be treated as exceptional debt requiring explicit review; documentation, migrations, tests, and synthetic fixtures remain non-blocking evidence zones.
+
 ## Known unrelated workflow drift
 
 A separate `Frontend surface dispatch` workflow failure was observed while validating this branch. Its log showed committed deterministic frontend and generated OpenAPI evidence had drifted because of unrelated `auth-email-outbox` changes already present in the base history. The Phase 1 files do not modify those generated surfaces.
