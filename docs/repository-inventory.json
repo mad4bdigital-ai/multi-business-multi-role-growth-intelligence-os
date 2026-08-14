@@ -3,22 +3,22 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6900,
-    "bytes": 64110950,
-    "lines": 1514246,
+    "files": 6901,
+    "bytes": 64140691,
+    "lines": 1514870,
     "directories": 259,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2077,
+      "tests-and-specs": 2076,
       "documentation": 1884,
-      "api-runtime": 1390,
+      "api-runtime": 1388,
       "database-migrations": 778,
-      "root-and-other": 239,
-      "ci-workflows": 157,
+      "root-and-other": 240,
+      "ci-workflows": 158,
       "api-contracts": 152,
-      "ci-config": 101,
+      "ci-config": 103,
       "schemas-and-data": 66,
       "connectors-and-edge": 23,
       "applications": 19,
@@ -27,10 +27,10 @@
     },
     "byExtension": {
       ".md": 2479,
-      ".mjs": 1602,
+      ".mjs": 1603,
       ".js": 969,
       ".sql": 793,
-      ".json": 712,
+      ".json": 714,
       ".yml": 160,
       ".yaml": 107,
       ".ts": 15,
@@ -39,17 +39,16 @@
       ".txt": 7,
       ".py": 5,
       ".ps1": 5,
-      ".example": 3,
       ".css": 3,
       ".csproj": 2,
       ".toml": 2,
+      ".example": 2,
       ".gitattributes": 1,
       ".gitignore": 1,
       ".nvmrc": 1,
       ".manifest": 1,
       ".jsonl": 1,
       ".htaccess": 1,
-      ".dockerignore": 1,
       ".gcloudignore": 1,
       "[no extension]": 1,
       ".png": 1,
@@ -58,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3563,
-      "docs": 1790,
+      "http-generic-api": 3560,
+      "docs": 1791,
       "specs": 846,
-      ".github": 258,
-      ".changes": 234,
+      ".github": 261,
+      ".changes": 235,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -81,7 +80,6 @@
       "GPT_Tenant_Connector_Instructions.md": 1,
       "GPT_Tenant_Connector_Knowledge.md": 1,
       "README.md": 1,
-      "STAGING-WINDOWS.md": 1,
       "Top Level Instructions.md": 1,
       "Updating Registry Patch Index.md": 1,
       "build-canonicals.mjs": 1,
@@ -474,6 +472,7 @@
   "surfaces": {
     "workflows": [
       ".github/workflows/automation-overlap-guard.yml",
+      ".github/workflows/branch-hygiene.yml",
       ".github/workflows/branch-test-diagnostic-shards.yml",
       ".github/workflows/brand-skill-mariadb-certification.yml",
       ".github/workflows/brand-skill-staging-preflight-dispatch-bridge.yml",
@@ -1568,6 +1567,7 @@
     "tests": [
       ".github/ops/spec014-wave1-apply.mjs",
       ".github/ops/spec014-wave1-runtime-readiness.mjs",
+      ".github/tests/branch-hygiene-policy.test.mjs",
       ".github/tests/governed-command-gateway.test.mjs",
       ".github/tests/production-promotion-review-mode.test.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
@@ -2620,7 +2620,6 @@
       "http-generic-api/test-sql-cache-runtime-policy.mjs",
       "http-generic-api/test-sql-first-governed-record-resolution.mjs",
       "http-generic-api/test-sql-only-runtime-contracts.mjs",
-      "http-generic-api/test-staging-three-db-topology.mjs",
       "http-generic-api/test-starter-authority-surfaces.mjs",
       "http-generic-api/test-status-component-readiness-freshness.mjs",
       "http-generic-api/test-status-database-lifecycle-component.mjs",
@@ -3713,6 +3712,7 @@
     "testSpecFiles": [
       ".github/ops/spec014-wave1-apply.mjs",
       ".github/ops/spec014-wave1-runtime-readiness.mjs",
+      ".github/tests/branch-hygiene-policy.test.mjs",
       ".github/tests/governed-command-gateway.test.mjs",
       ".github/tests/production-promotion-review-mode.test.mjs",
       ".github/tests/production-promotion-runtime.test.mjs",
@@ -4765,7 +4765,6 @@
       "http-generic-api/test-sql-cache-runtime-policy.mjs",
       "http-generic-api/test-sql-first-governed-record-resolution.mjs",
       "http-generic-api/test-sql-only-runtime-contracts.mjs",
-      "http-generic-api/test-staging-three-db-topology.mjs",
       "http-generic-api/test-starter-authority-surfaces.mjs",
       "http-generic-api/test-status-component-readiness-freshness.mjs",
       "http-generic-api/test-status-database-lifecycle-component.mjs",
@@ -5919,6 +5918,17 @@
       "bytes": 13723,
       "lines": 121,
       "sha256": "e0deb7e6aa81727e60f7e5d72961c6596ddc20be89666cc40f690c92b440ac0d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/branch-hygiene-policy.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 4630,
+      "lines": 96,
+      "sha256": "6fae92defd148b374382929025b893eb5920f06332506d73311316c709f8f2aa",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8443,6 +8453,17 @@
       "generated": false
     },
     {
+      "path": ".github/branch-hygiene-policy.json",
+      "category": "ci-config",
+      "extension": ".json",
+      "bytes": 1701,
+      "lines": 64,
+      "sha256": "ad17a48b5e03aa3b18c74cd8cea26971fe17a4158ebd6024dbee6c46271e03b3",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/ci-evidence-routing.json",
       "category": "ci-config",
       "extension": ".json",
@@ -9381,9 +9402,9 @@
       "path": ".github/repository-maintenance-tool-governance.json",
       "category": "ci-config",
       "extension": ".json",
-      "bytes": 5282,
-      "lines": 109,
-      "sha256": "cf6942eabcbfd39a80052f8c2693140c66486aeb72d7654e031e87140bc3936e",
+      "bytes": 6056,
+      "lines": 122,
+      "sha256": "131fe441b960b81e9cbbbb4c4261d91308a254168a42f3ca3908591694d70de0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9488,6 +9509,17 @@
       "generated": false
     },
     {
+      "path": ".github/tests/branch-hygiene-policy.test.mjs",
+      "category": "ci-config",
+      "extension": ".mjs",
+      "bytes": 7930,
+      "lines": 196,
+      "sha256": "a2c59ea046320655486d18026e5f880e42007d1f3152420a481326bf5396d4c9",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": ".github/tests/governed-command-gateway.test.mjs",
       "category": "ci-config",
       "extension": ".mjs",
@@ -9560,6 +9592,17 @@
       "bytes": 2848,
       "lines": 85,
       "sha256": "3468d0fde64339be3ecf2fbedcf6ba7175c2b719d37466b7bbd34b1b2f9ed44d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".github/workflows/branch-hygiene.yml",
+      "category": "ci-workflows",
+      "extension": ".yml",
+      "bytes": 3888,
+      "lines": 106,
+      "sha256": "44160507608b62bf4240ce993e77be5938b9965f23cfcb51a8c9ee4ccbdd5f35",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -9645,9 +9688,9 @@
       "path": ".github/workflows/ci.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 18603,
-      "lines": 429,
-      "sha256": "ae2c96968383f1689a74429db7763e191da902603ae1d521cf28353d7a848d30",
+      "bytes": 18719,
+      "lines": 432,
+      "sha256": "0aaf387b18ed6cfc666ecdecd500be4c9206a008bc9e003b9ea986dded8659f3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11284,9 +11327,9 @@
       "path": ".gitignore",
       "category": "root-and-other",
       "extension": ".gitignore",
-      "bytes": 492,
-      "lines": 26,
-      "sha256": "528f6beb2d628bc053dc4407e9ab16ba3203696f02f53903ee5b341962536e9e",
+      "bytes": 417,
+      "lines": 23,
+      "sha256": "2538aa58ed2a5339b48a76bf1286df847740788eb59c7e918d42eb8c6cab32e9",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11518,17 +11561,6 @@
       "bytes": 35223,
       "lines": 515,
       "sha256": "023c6a91631b06a65252fc08746887d4fd1d8f822178675dff384e2890426714",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
-      "path": "STAGING-WINDOWS.md",
-      "category": "documentation",
-      "extension": ".md",
-      "bytes": 5393,
-      "lines": 101,
-      "sha256": "54ec6c8e7552455b6caafac893756e0f567f0e600de920574582774121220143",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -28727,6 +28759,17 @@
       "generated": false
     },
     {
+      "path": "docs/branch-hygiene.md",
+      "category": "documentation",
+      "extension": ".md",
+      "bytes": 6154,
+      "lines": 58,
+      "sha256": "f79deef2eda9e343e6d9d01d186d5ef4ac9e3bb805727a9c13ec2160a5935c27",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "docs/branch-test-diagnostic-shards.md",
       "category": "documentation",
       "extension": ".md",
@@ -30679,7 +30722,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "ef09180c6e911bb234de12fea7b8c1d39f996917fce66da6ad585583b0bb00f0",
+      "sha256": "de972c157b804d7d68e80ab60293825c33e4c8de6a9ff44c1f37a6779e179682",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30721,9 +30764,9 @@
       "path": "docs/repo-maintenance-status.md",
       "category": "documentation",
       "extension": ".md",
-      "bytes": 19841,
-      "lines": 330,
-      "sha256": "52c05058c9bebd8e4ba60336471e2c38ddadc7f61be738cc4308125dce6f4bff",
+      "bytes": 19882,
+      "lines": 331,
+      "sha256": "7d9dc01c79f269f7132eafbd4e50f69ef8458567bb1f6b9543c4df0cba73a6f1",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32434,34 +32477,12 @@
       "generated": false
     },
     {
-      "path": "http-generic-api/.dockerignore",
-      "category": "api-runtime",
-      "extension": ".dockerignore",
-      "bytes": 140,
-      "lines": 15,
-      "sha256": "6838e1dc2e9421b067ad618664dd5557fb31ce50e3fe5dc568680253afc4f882",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
       "path": "http-generic-api/.env.example",
       "category": "api-runtime",
       "extension": ".example",
-      "bytes": 6151,
-      "lines": 111,
-      "sha256": "db7e5398fbc586d66f35a48b8dc9dd1c99faccf7e88e6f538086497abb496cc7",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
-      "path": "http-generic-api/.env.staging.example",
-      "category": "api-runtime",
-      "extension": ".example",
-      "bytes": 2839,
-      "lines": 82,
-      "sha256": "0e777550715ed35d9794407ef83c57d787b9db44227dae68a0ef4442060383fe",
+      "bytes": 5658,
+      "lines": 101,
+      "sha256": "bdc42282070cb5d0684bd5ca2fab5d791027dcac2cf334ca45aaba9503b99072",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32481,9 +32502,9 @@
       "path": "http-generic-api/Dockerfile",
       "category": "api-runtime",
       "extension": "[no extension]",
-      "bytes": 240,
-      "lines": 12,
-      "sha256": "25cfaadebb9874f349bc13b3b365c39cdac6335f89a7406026fe6c6249b439dc",
+      "bytes": 193,
+      "lines": 9,
+      "sha256": "caf232806b7f524be9ea915ee48d08b1dc13dfd669e545ce91d04be4e116baf4",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -36724,23 +36745,12 @@
       "generated": false
     },
     {
-      "path": "http-generic-api/docker-compose.staging.yml",
-      "category": "api-runtime",
-      "extension": ".yml",
-      "bytes": 3859,
-      "lines": 90,
-      "sha256": "dcde0705b172d014a6cafce137edd6f785062b1608dbb9f8ef9d7f11dd9fed33",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
       "path": "http-generic-api/docker-compose.yml",
       "category": "api-runtime",
       "extension": ".yml",
-      "bytes": 737,
+      "bytes": 720,
       "lines": 38,
-      "sha256": "06539f972c22dc0d60be2c5b47dcb56818d50b913e881db057dbeb6de5bb59e8",
+      "sha256": "5dee0a5426036467761030789b68c78901f496d0ff4f53d33ae0a6fb16a4215e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49632,7 +49642,7 @@
       "extension": ".json",
       "bytes": 1930662,
       "lines": 58377,
-      "sha256": "bcddb9a9a5a7e7ce95c93dcef14a7d613582f4cc35d506e4a71a70efa2345b2c",
+      "sha256": "375f7ae5b807f97c5f45a9f02d6dd04183dd53d26b22df5ac91f1869eec857b7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -54077,6 +54087,17 @@
       "bytes": 8706,
       "lines": 231,
       "sha256": "89518fef745d2dbcd7ea641f778d562c94f8d052194e84bb7e378c64ce464092",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/maintenance-tools/branch-hygiene-policy.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 19693,
+      "lines": 433,
+      "sha256": "c03ee92c2100d9ae952531b95a5b8b1f26e8e36291ef19f954855252da9c4466",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -68586,17 +68607,6 @@
       "bytes": 4056,
       "lines": 92,
       "sha256": "0b4eaed4ca78239b4d07cd331749c72132f4d5f405f8035d7dbc0798be534fb9",
-      "mode": "644",
-      "executable": false,
-      "generated": false
-    },
-    {
-      "path": "http-generic-api/test-staging-three-db-topology.mjs",
-      "category": "tests-and-specs",
-      "extension": ".mjs",
-      "bytes": 2323,
-      "lines": 42,
-      "sha256": "ae1292e394bc442a52e0410fc4f07d5656aad096cd463ef494c42ec3d02c1c00",
       "mode": "644",
       "executable": false,
       "generated": false
