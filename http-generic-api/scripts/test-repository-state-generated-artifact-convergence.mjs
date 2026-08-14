@@ -77,7 +77,9 @@ check("writer-dispatches-dual-exact-head-verification", () => {
   assert.match(governedWorkflow, /expected_head_sha/u);
   assert.match(governedWorkflow, /result_sha/u);
   assert.match(governedWorkflow, /remote_sha/u);
-  assert.match(governedWorkflow, /generated-artifact-refresh-verification-dispatch\.v2/u);
+  assert.match(governedWorkflow, /generated-artifact-refresh-verification-dispatch\.v1/u);
+  assert.match(governedWorkflow, /workflow_file:\$workflow_file/u);
+  assert.match(governedWorkflow, /verifiers:\$verifiers/u);
   assert.doesNotMatch(governedWorkflow, /git\s+push\s+.*--force/u);
 });
 
@@ -98,6 +100,7 @@ console.log(JSON.stringify({
   checks,
   inventory_then_evaluation: true,
   exact_head_dual_verification: true,
+  verification_dispatch_v1_compatible: true,
   sole_mutating_writer_preserved: true,
   protected_branch_mutation: false,
   force_push: false,
