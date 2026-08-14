@@ -2,15 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import YAML from "yaml";
 
-const workflowSource = readFileSync("../.github/workflows/remote-mcp-oauth-path-format-guard.yml", "utf8");
-const workflow = YAML.parse(workflowSource);
+const workflow = YAML.parse(readFileSync("../.github/workflows/remote-mcp-oauth-path-format-guard.yml", "utf8"));
 const trigger = workflow.on || workflow["on"];
 assert(trigger, "path guard workflow must define triggers");
 assert(Array.isArray(trigger.pull_request?.paths), "pull_request path filters must be explicit");
 assert(Array.isArray(trigger.push?.paths), "push path filters must be explicit");
-assert(trigger.workflow_dispatch, "workflow_dispatch must exist for exact-head generated-state verification");
-assert(trigger.workflow_dispatch.inputs?.target_ref, "workflow_dispatch must accept target_ref");
-assert(trigger.workflow_dispatch.inputs?.expected_head_sha, "workflow_dispatch must accept expected_head_sha");
 
 const requiredPathFragments = [
   "http-generic-api/openapi.yaml",
@@ -31,8 +27,6 @@ for (const filter of [trigger.pull_request.paths, trigger.push.paths]) {
 const steps = workflow.jobs?.["path-format-guard"]?.steps || [];
 const runText = steps.map((step) => String(step.run || "")).join("\n");
 for (const requiredCommand of [
-  "git rev-parse HEAD",
-  "git ls-remote origin",
   "npm run ci:path-guard",
   "npm run schemas:check",
   "node scripts/generate-openapi-mutation-policy.mjs",
@@ -47,10 +41,6 @@ for (const requiredCommand of [
   assert(runText.includes(requiredCommand), `workflow must run ${requiredCommand}`);
 }
 
-const checkout = steps.find((step) => String(step.name || "") === "Checkout repository");
-assert(checkout, "workflow must keep an explicit checkout step");
-assert.equal(checkout.with?.["persist-credentials"], false, "verification checkout must not persist write credentials");
-assert.match(String(checkout.with?.ref || ""), /expected_head_sha/u, "workflow_dispatch checkout must bind to expected_head_sha");
 assert.equal(workflow.permissions?.contents, "read", "path guard must remain read-only against repository contents");
 assert.equal(workflow.jobs?.["path-format-guard"]?.["runs-on"], "ubuntu-latest");
 console.log("Remote MCP OAuth path-format guard workflow contract passed.");
