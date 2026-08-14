@@ -188,8 +188,14 @@ if (dirtyOutputs.length === 0) {
   process.exit(0);
 }
 
-if (!ALLOWED_BOOTSTRAP_EVENTS.has(eventName)) {
-  fail("repository_inventory_stale", `Inventory differs from HEAD during event=${eventName}; bootstrap evidence is allowed only for pull_request or workflow_dispatch.`, {
+const governedWorkPush = eventName === "push"
+  && headRepository === repository
+  && baseRef === "main"
+  && GOVERNED_BRANCH.test(targetRef)
+  && targetRef !== "main"
+  && targetRef !== "Production";
+if (!ALLOWED_BOOTSTRAP_EVENTS.has(eventName) && !governedWorkPush) {
+  fail("repository_inventory_stale", `Inventory differs from HEAD during event=${eventName}; bootstrap evidence is allowed only for pull_request, workflow_dispatch, or a same-repository governed work-branch push.`, {
     actual_head_sha: actualHeadSha,
     dirty_files: dirtyOutputs,
     deterministic_generation_verified: true,
@@ -291,4 +297,5 @@ writeEvidence(outputPath, {
   dirty_files: actualOutputs,
   followup_required: true,
   followup_mode: "trusted_post_merge_work_branch",
+  governed_work_push: governedWorkPush,
 });

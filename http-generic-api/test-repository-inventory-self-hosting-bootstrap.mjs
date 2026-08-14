@@ -38,6 +38,8 @@ assert.match(writer, /Protected branch mutation is forbidden/u);
 assert.doesNotMatch(writer, /gh\s+pr\s+merge/u);
 assert.match(gate, /mad4b\.repository-inventory-verification-gate\.v1/u);
 assert.match(gate, /ALLOWED_BOOTSTRAP_EVENTS = new Set\(\["pull_request", "workflow_dispatch"\]\)/u);
+assert.match(gate, /governedWorkPush/u);
+assert.match(gate, /same-repository governed work-branch push/u);
 assert.match(gate, /scripts\/repository-inventory\.mjs/u);
 assert.match(gate, /firstHashes = outputHashes\(\)/u);
 assert.match(gate, /secondHashes = outputHashes\(\)/u);
@@ -94,6 +96,7 @@ console.log(JSON.stringify({
   main_push_and_workflow_dispatch_recovery: true,
   manual_main_convergence_mode: true,
   trusted_authority_on_main_readback: true,
+  governed_work_branch_push_recovery: true,
   candidate_mutation_before_main_trust: false,
   protected_branch_mutation: false,
   force_push: false,

@@ -58,7 +58,7 @@
             "The shared gate performs two generation passes and compares SHA-256 identities before claiming deterministic_generation_verified.",
             "Repository Inventory pull-request verification has contents read only and performs no git push.",
             "Repository Inventory regeneration writes exactly docs/repository-inventory.json, docs/repository-inventory-summary.json, and docs/repository-inventory.md.",
-            "The self-hosting bootstrap may report bootstrap_pending only on pull_request or workflow_dispatch, never on push.",
+            "The self-hosting bootstrap may report bootstrap_pending on pull_request or workflow_dispatch, and on push only when the same-repository target is a governed non-protected work branch; push on main or Production remains fail-closed.",
             "workflow_dispatch bootstrap_pending requires a governed non-protected branch and remote exact-head equality.",
             "bootstrap_pending requires the canonical Inventory generator and package contract to be unchanged from trusted main.",
             "bootstrap_pending requires behind_by zero and an exact three-output dirty set with no additional worktree changes.",
@@ -70,6 +70,7 @@
             "The post-merge bootstrap uses a non-protected work branch; main and Production remain outside direct generated-artifact mutation targets.",
             "Generated-artifact verification routes repository_inventory_refresh to Repository Inventory rather than a generic verifier.",
             "Push-triggered and workflow_dispatch-triggered recovery use the same exact-head and fail-closed source identity contract.",
+            "A governed work-branch push may publish bootstrap evidence only with repository identity, main-base identity, and a non-protected governed branch; protected-ref pushes remain blocked.",
             "Main convergence creates only a non-protected branch and never grants the dispatcher contents write authority.",
             "The writer refuses protected targets, requires typed confirmation, and does not merge or publish a Production change.",
             "Production deployment, database mutation, direct protected-ref mutation, and secret publication are outside this feature."
