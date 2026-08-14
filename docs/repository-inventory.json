@@ -3,19 +3,19 @@
   "generatedFrom": "git-index",
   "deterministic": true,
   "totals": {
-    "files": 6856,
-    "bytes": 62273099,
-    "lines": 1460091,
+    "files": 6872,
+    "bytes": 62448740,
+    "lines": 1464372,
     "directories": 256,
     "categories": 13
   },
   "counts": {
     "byCategory": {
-      "tests-and-specs": 2061,
-      "documentation": 1876,
-      "api-runtime": 1377,
+      "tests-and-specs": 2068,
+      "documentation": 1877,
+      "api-runtime": 1384,
       "database-migrations": 778,
-      "root-and-other": 236,
+      "root-and-other": 237,
       "ci-workflows": 157,
       "api-contracts": 151,
       "ci-config": 98,
@@ -26,11 +26,11 @@
       "build-and-dependencies": 2
     },
     "byExtension": {
-      ".md": 2474,
-      ".mjs": 1585,
-      ".js": 962,
+      ".md": 2475,
+      ".mjs": 1593,
+      ".js": 967,
       ".sql": 793,
-      ".json": 700,
+      ".json": 702,
       ".yml": 159,
       ".yaml": 107,
       ".ts": 15,
@@ -57,11 +57,11 @@
       ".keep": 1
     },
     "topLevel": {
-      "http-generic-api": 3538,
-      "docs": 1783,
-      "specs": 841,
+      "http-generic-api": 3551,
+      "docs": 1784,
+      "specs": 842,
       ".github": 255,
-      ".changes": 231,
+      ".changes": 232,
       "canonicals": 70,
       "local-connector": 23,
       "apps": 19,
@@ -1741,8 +1741,11 @@
       "http-generic-api/test-authority-catalog-census.mjs",
       "http-generic-api/test-authority-data-foundation-planner.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+      "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
       "http-generic-api/test-authority-evidence-source-adapters.mjs",
+      "http-generic-api/test-authority-governance-evidence-gate.mjs",
       "http-generic-api/test-authority-live-census-adapter.mjs",
       "http-generic-api/test-authority-live-census-observer-contract.mjs",
       "http-generic-api/test-authority-live-evidence-collect-runner-contract.mjs",
@@ -1751,6 +1754,7 @@
       "http-generic-api/test-authority-live-source-collectors.mjs",
       "http-generic-api/test-authority-ownership-review.mjs",
       "http-generic-api/test-authority-path-inventory-compiler.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "http-generic-api/test-authority-scope-foundation.mjs",
       "http-generic-api/test-authority-scope-shadow-evidence.mjs",
       "http-generic-api/test-authority-scope-shadow-integration.mjs",
@@ -1864,6 +1868,7 @@
       "http-generic-api/test-context-kernel-registry-adapters-core.mjs",
       "http-generic-api/test-context-kernel-registry-adapters.mjs",
       "http-generic-api/test-context-kernel-resource-graph-fail-closed.mjs",
+      "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
       "http-generic-api/test-context-kernel-resource-graph-resolver.mjs",
       "http-generic-api/test-context-kernel-semantic-capability-before-provider.mjs",
       "http-generic-api/test-context-kernel-shadow-authority-parity-fail-closed.mjs",
@@ -2063,6 +2068,7 @@
       "http-generic-api/test-governed-context-resolution.mjs",
       "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
       "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+      "http-generic-api/test-governed-execution-runtime-composition.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-eligible-request-json.mjs",
@@ -3297,6 +3303,7 @@
       "specs/011-unified-effective-authority-control-plane/query-performance-retention-review.md",
       "specs/011-unified-effective-authority-control-plane/quickstart.md",
       "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
+      "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md",
       "specs/011-unified-effective-authority-control-plane/research.md",
       "specs/011-unified-effective-authority-control-plane/security-review-evidence.md",
       "specs/011-unified-effective-authority-control-plane/spec.md",
@@ -3869,8 +3876,11 @@
       "http-generic-api/test-authority-catalog-census.mjs",
       "http-generic-api/test-authority-data-foundation-planner.mjs",
       "http-generic-api/test-authority-evidence-repository-candidate-builder.mjs",
+      "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs",
       "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
+      "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
       "http-generic-api/test-authority-evidence-source-adapters.mjs",
+      "http-generic-api/test-authority-governance-evidence-gate.mjs",
       "http-generic-api/test-authority-live-census-adapter.mjs",
       "http-generic-api/test-authority-live-census-observer-contract.mjs",
       "http-generic-api/test-authority-live-evidence-collect-runner-contract.mjs",
@@ -3879,6 +3889,7 @@
       "http-generic-api/test-authority-live-source-collectors.mjs",
       "http-generic-api/test-authority-ownership-review.mjs",
       "http-generic-api/test-authority-path-inventory-compiler.mjs",
+      "http-generic-api/test-authority-projection-compiler.mjs",
       "http-generic-api/test-authority-scope-foundation.mjs",
       "http-generic-api/test-authority-scope-shadow-evidence.mjs",
       "http-generic-api/test-authority-scope-shadow-integration.mjs",
@@ -3992,6 +4003,7 @@
       "http-generic-api/test-context-kernel-registry-adapters-core.mjs",
       "http-generic-api/test-context-kernel-registry-adapters.mjs",
       "http-generic-api/test-context-kernel-resource-graph-fail-closed.mjs",
+      "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
       "http-generic-api/test-context-kernel-resource-graph-resolver.mjs",
       "http-generic-api/test-context-kernel-semantic-capability-before-provider.mjs",
       "http-generic-api/test-context-kernel-shadow-authority-parity-fail-closed.mjs",
@@ -4191,6 +4203,7 @@
       "http-generic-api/test-governed-context-resolution.mjs",
       "http-generic-api/test-governed-execution-baseline-benchmark.mjs",
       "http-generic-api/test-governed-execution-baseline-telemetry.mjs",
+      "http-generic-api/test-governed-execution-runtime-composition.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-dispatch-workflow.mjs",
       "http-generic-api/test-governed-generated-artifact-refresh-eligible-request-json.mjs",
@@ -5425,6 +5438,7 @@
       "specs/011-unified-effective-authority-control-plane/query-performance-retention-review.md",
       "specs/011-unified-effective-authority-control-plane/quickstart.md",
       "specs/011-unified-effective-authority-control-plane/repository-source-candidate-builder.md",
+      "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md",
       "specs/011-unified-effective-authority-control-plane/research.md",
       "specs/011-unified-effective-authority-control-plane/security-review-evidence.md",
       "specs/011-unified-effective-authority-control-plane/spec.md",
@@ -6822,9 +6836,9 @@
       "path": ".changes/e2e/production-promotion-direct-run-id-settlement.json",
       "category": "root-and-other",
       "extension": ".json",
-      "bytes": 5992,
-      "lines": 109,
-      "sha256": "e031a66e577bba127e36ab206840eccab917d66c1c5c0eed2b55e0eb50b6b5a4",
+      "bytes": 5991,
+      "lines": 108,
+      "sha256": "f36fcc6dba5a51bb82555751701b21b545795e78a62fdfefb01dbea82a5ef584",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -8167,6 +8181,17 @@
       "bytes": 4530,
       "lines": 79,
       "sha256": "d26c664f0b267c759e8706ef927047219b815528967831ddf9699c6e4564cc29",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": ".changes/e2e/track-a-governed-runtime-composition.json",
+      "category": "root-and-other",
+      "extension": ".json",
+      "bytes": 8688,
+      "lines": 154,
+      "sha256": "567c8dee28db30e154fd035dd48810367b75f49beded7b79b1640ff80db064c5",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -11145,9 +11170,9 @@
       "path": ".github/workflows/ueacp-governed-operational-evidence-cycle.yml",
       "category": "ci-workflows",
       "extension": ".yml",
-      "bytes": 12923,
-      "lines": 258,
-      "sha256": "3ae52463e817155c857cf76e0d5e6a262df0777a51ab676319322d588064dfb4",
+      "bytes": 17028,
+      "lines": 320,
+      "sha256": "2ae38d7f4a97d27be184faab747d2041b69fcbb5345f5053778b8538e6b466ea",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -12677,6 +12702,17 @@
       "bytes": 746,
       "lines": 21,
       "sha256": "ad485067cf425161cd335ca10321d09cc32308fc84a68f2769df96b8e5c0ea17",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "docs/agent-tracks/track-a-governed-successor-handoff.json",
+      "category": "documentation",
+      "extension": ".json",
+      "bytes": 8766,
+      "lines": 207,
+      "sha256": "d57a9245ade76a4c5a7a8c84bd11d05524b826f7570ee2d636808c2b150b5c9e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -30507,7 +30543,7 @@
       "extension": ".md",
       "bytes": 2817,
       "lines": 52,
-      "sha256": "8f732778c04020d3ac4939d334d8db4051711c3c83e464a6212365889a650c49",
+      "sha256": "6a7e9d5ebc5a1ab86184fa5bba878952cc3b40a3ea5778753f582eb00d22ded3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -31882,7 +31918,7 @@
       "extension": ".md",
       "bytes": 4318,
       "lines": 43,
-      "sha256": "c8e24aa7533254ff6b4f84188b0d408ad644cd408e45c15106df8adbbeb372a4",
+      "sha256": "7cf123ab7dad3419c1ec5b9400204489405d69b6fad193c848b0b63a87bf3de2",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -32047,7 +32083,7 @@
       "extension": ".md",
       "bytes": 46801,
       "lines": 502,
-      "sha256": "f4b8acff1a206688a212e4ff6794f4549447b1a1ea47c73105364b9eabadb597",
+      "sha256": "cb3093afa3ec3cee0505b064e485fd6e33fba272dadfb96c8b0d85043b3a0891",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34803,12 +34839,45 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/authorityEvidenceRepositorySourceMaterializer.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 11193,
+      "lines": 316,
+      "sha256": "d3f9f0b3791910bee6f55dbd71dffd2a3075e60a5339f239bcf6f2a2567767f0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/authorityEvidenceRepositorySourceMaterializerStrict.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 21721,
+      "lines": 540,
+      "sha256": "6380d79fdf10f04e91466368b046e21962e4d32467c4dbf4b943feb805a4de96",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/authorityEvidenceSourceAdapters.js",
       "category": "api-runtime",
       "extension": ".js",
       "bytes": 15941,
       "lines": 426,
       "sha256": "4522bc83e70a7b87c7571a5035691ba3602a728d8f65a419a53785e3a4723d96",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/authorityGovernanceEvidenceGate.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 4887,
+      "lines": 110,
+      "sha256": "312a18ec16a3ed2654504ee71bea63787f1cf85551a0af9e9c2f321581ec3373",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -34864,6 +34933,17 @@
       "bytes": 18499,
       "lines": 432,
       "sha256": "8527d5b25c10a5dd616ddc31c894d10a95c64064cf29f1fee503827f689bdde1",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/authorityProjectionCompiler.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 10008,
+      "lines": 281,
+      "sha256": "71d9c9a4905a139f9e77b85705c1399ceeaa23d40393d440ac3c63d810c7b051",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -37559,6 +37639,17 @@
       "bytes": 46150,
       "lines": 708,
       "sha256": "a803f091c0f7844f8905e4e6f989585e6ca52d1e650fe61289cbf6ba20c02d97",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/governedExecutionRuntimeComposition.js",
+      "category": "api-runtime",
+      "extension": ".js",
+      "bytes": 17534,
+      "lines": 481,
+      "sha256": "badc50d3f831f68057434fd73d087e42097513bd07a513741f89aa68d4cf87b7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -49350,7 +49441,7 @@
       "extension": ".json",
       "bytes": 1930662,
       "lines": 58377,
-      "sha256": "5580f72a35fa9fc5e173be5efcd72b15632d9adbda4862bdd8508b5268ee678c",
+      "sha256": "863f26a2719dfdfe46c7e3cebada8227c6e893663b8255eca69ae65c3a0a191e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -52359,12 +52450,34 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/scripts/authority-evidence-repository-manifest-finalize.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 7035,
+      "lines": 180,
+      "sha256": "4c40a57242aa5aea1f0cc47b3ee770b7e29ca0164fe379ac9c51442bbd17a1e0",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/scripts/authority-evidence-repository-snapshots.mjs",
       "category": "api-runtime",
       "extension": ".mjs",
       "bytes": 3870,
       "lines": 94,
       "sha256": "047191ea0d3fcbd32583c9456d304a15f25d9951788713d3ba94efd38c33798d",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/scripts/authority-evidence-repository-source-materialize.mjs",
+      "category": "api-runtime",
+      "extension": ".mjs",
+      "bytes": 7434,
+      "lines": 194,
+      "sha256": "c9dc82a1e785385db44eec07a1d16436abbc791d0cd026aa24af7c329a2470c3",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58651,6 +58764,17 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-authority-evidence-repository-pagination-roundtrip.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 8717,
+      "lines": 231,
+      "sha256": "c9aa91485ee5067aa3dc03d3d43d3be70720c5bccd2986a52d2983dc4d0a9d1c",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-authority-evidence-repository-snapshot-collector.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
@@ -58662,12 +58786,34 @@
       "generated": false
     },
     {
+      "path": "http-generic-api/test-authority-evidence-repository-source-materializer.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 14419,
+      "lines": 357,
+      "sha256": "db1052290c5f52055b01b8a007f5d314ecd3d543d976de278e31d3218a43d854",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "http-generic-api/test-authority-evidence-source-adapters.mjs",
       "category": "tests-and-specs",
       "extension": ".mjs",
       "bytes": 7197,
       "lines": 205,
       "sha256": "045a306c2e25ea99166f4445694485bc79843561206a9ad5b4614ef5a5a9ea63",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-authority-governance-evidence-gate.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 4950,
+      "lines": 127,
+      "sha256": "ca3ecdb6bfd10a31f523a934670ab792e5b12160150615f3d2ac665763961c33",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -58756,6 +58902,17 @@
       "bytes": 7199,
       "lines": 197,
       "sha256": "b362e610de6ea42b54bea8bca91a32f26012eafa919e76bd7e3dcea462dae4f5",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-authority-projection-compiler.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 8664,
+      "lines": 257,
+      "sha256": "a33942e35da05fe34ec8c00e758d2d5e00836497b40db835fc203701b565dcf0",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -59999,6 +60156,17 @@
       "bytes": 6283,
       "lines": 234,
       "sha256": "594d67fcaf3cc4933ec87646baae8fd299cd8db397a0daefecbb4ac8996750a3",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-context-kernel-resource-graph-properties.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 6661,
+      "lines": 185,
+      "sha256": "2f997d14a9bd746c9ada135f93bc84e3d60812728f5ecb76c3225699d92f6e57",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -62188,6 +62356,17 @@
       "bytes": 9028,
       "lines": 233,
       "sha256": "a66a0f28852a86fd7822775c14ac9c8d40dafad0d5a0063fc66a293a6ea78d54",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
+      "path": "http-generic-api/test-governed-execution-runtime-composition.mjs",
+      "category": "tests-and-specs",
+      "extension": ".mjs",
+      "bytes": 9278,
+      "lines": 282,
+      "sha256": "97cff6f86a23b3ec6269906c22136c25c30abeee5ea465dd7d89600ba01c98f7",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76661,9 +76840,9 @@
       "path": "specs/011-unified-effective-authority-control-plane/e2e-phases.json",
       "category": "tests-and-specs",
       "extension": ".json",
-      "bytes": 9322,
-      "lines": 137,
-      "sha256": "bca95e2b90fec8a2c035003035a9eb3ddd8fe8083cdb5b9d5ba07f2ed9cde803",
+      "bytes": 22335,
+      "lines": 306,
+      "sha256": "a6097d320b44ac210cbc1071d7d9f112e7f4e8b6b50ee98d28401fa96a227b47",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -76779,6 +76958,17 @@
       "generated": false
     },
     {
+      "path": "specs/011-unified-effective-authority-control-plane/repository-source-materialization-phase.md",
+      "category": "tests-and-specs",
+      "extension": ".md",
+      "bytes": 8569,
+      "lines": 149,
+      "sha256": "1998931770bc77e30abca62a26299d4c8aa4d4dbd2612b89a33cf361093c040b",
+      "mode": "644",
+      "executable": false,
+      "generated": false
+    },
+    {
       "path": "specs/011-unified-effective-authority-control-plane/research.md",
       "category": "tests-and-specs",
       "extension": ".md",
@@ -76817,7 +77007,7 @@
       "extension": ".md",
       "bytes": 3617,
       "lines": 83,
-      "sha256": "239723b6c52e505fa1aff4dddb6939a56a54ea111b980162c7a0b0c8655e84d1",
+      "sha256": "795ed77755e9d8f8d25f1f8eba47cd5667a00140e1840cea6bcc517ce5f7d363",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -78830,7 +79020,7 @@
       "extension": ".json",
       "bytes": 30769,
       "lines": 1002,
-      "sha256": "e7d09b94783182aff35b1a91086b12cfd236d88a8f83e4340430b623fc4c0269",
+      "sha256": "9d9961a0c9b847e5c3d2b09534a145892951cf205a1e3d63af11d05070391a2b",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -79391,7 +79581,7 @@
       "extension": ".json",
       "bytes": 35870,
       "lines": 1062,
-      "sha256": "77488cce9f62d6a5a183ce71eb3e8168938a41dbcb7029cda90f0c6ca247cd7d",
+      "sha256": "7c5d9ed1227236e753acebbbeaa98c2633da67399c138804c05a85b293e52876",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80216,7 +80406,7 @@
       "extension": ".json",
       "bytes": 29614,
       "lines": 909,
-      "sha256": "9f4a77fc2f8652abb340bcce738c4567f6eb72449038c1ad88380e60335a3774",
+      "sha256": "9eafc1f30c4fa4d3e2224d8f1527b3cb4987e42b6613d4a03652a03577c44e2e",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80447,7 +80637,7 @@
       "extension": ".json",
       "bytes": 23188,
       "lines": 700,
-      "sha256": "088302da843e69cb5e950793ccff41164b60b1a5ae64742c71c424b1542c60b6",
+      "sha256": "443151b021fb0bd09a51d86accd0c1be58f7683a5846ff062cba795651cb5c77",
       "mode": "644",
       "executable": false,
       "generated": false
@@ -80766,7 +80956,7 @@
       "extension": ".json",
       "bytes": 46568,
       "lines": 1395,
-      "sha256": "3dac8076424dc21f9f220334abdb77649a3447e152a253cb9a616c87f58029e3",
+      "sha256": "4750694c602e1dc0b22968daf67755a549c05b1a1ad84a979154055f7941a0ff",
       "mode": "644",
       "executable": false,
       "generated": false
