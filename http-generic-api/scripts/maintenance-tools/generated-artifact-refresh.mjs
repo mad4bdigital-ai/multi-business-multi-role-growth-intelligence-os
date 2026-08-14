@@ -84,6 +84,10 @@ const WORK_MAP_SELF_HOSTING_SOURCE_PATTERNS = [
   /^http-generic-api\/test-spec014-refresh-final-work-map-binding\.mjs$/u,
   /^http-generic-api\/test-work-map-autofix-spec014-binding-convergence\.mjs$/u,
   /^http-generic-api\/test-supervisor-runtime-assurance-automation\.mjs$/u,
+  /^\.changes\/e2e\/generated-artifact-ref-readback-race-hardening\.json$/u,
+  /^docs\/remote-mcp-write-scope-inventory\.md$/u,
+  /^http-generic-api\/remote-mcp-write-scope-inventory\.generated\.json$/u,
+  /^http-generic-api\/test-governed-generated-artifact-refresh-apply-context\.mjs$/u,
 ];
 const WORK_MAP_BOOTSTRAP_GOVERNED_PATHS = [
   "docs/work-maps",

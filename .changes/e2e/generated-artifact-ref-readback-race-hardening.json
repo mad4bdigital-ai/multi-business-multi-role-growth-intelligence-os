@@ -1,0 +1,95 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "generated-artifact-ref-readback-race-hardening",
+  "title": "Generated artifact exact-ref readback hardening",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/generated-artifact-ref-readback-race-hardening.json",
+      ".github/workflows/governed-generated-artifact-refresh.yml",
+      "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+      "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs",
+      "docs/remote-mcp-write-scope-inventory.md",
+      "http-generic-api/remote-mcp-write-scope-inventory.generated.json",
+      "docs/work-maps/README.md",
+      "docs/work-maps/repository-automation-map.md"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Make SHA-scoped generated-artifact convergence resilient to GitHub ref visibility delay without weakening exact-head CAS, protected-branch rejection, writer authority, or generated-state governance.",
+      "e2e_journeys": [
+        {
+          "id": "bounded-exact-ref-convergence",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "trusted generated-artifact dispatcher and sole governed generated-state writer",
+          "entrypoint": "workflow_dispatch of governed-generated-artifact-refresh.yml with an exact non-protected target ref and, for post-merge convergence, create_from_main=true plus an exact source_main_sha",
+          "terminal_outcome": "A truly absent SHA-scoped branch is created from exact current main, transient post-create ref invisibility is retried within a bounded backoff window, any visible wrong SHA fails closed immediately, non-404 lookup errors are never treated as absence, and early failures still publish bounded non-secret preflight evidence.",
+          "steps": [
+            "Initialize the bounded evidence directory and a non-secret preflight record before dispatch validation or branch preparation can fail.",
+            "Validate trusted-writer mode, exact expected SHA, registered recipe, typed confirmation, and protected-branch rejection.",
+            "For create_from_main, require current main, source_main_sha, and expected_head_sha to be identical before branch mutation.",
+            "Read the target ref and interpret absence only when the GitHub API explicitly reports HTTP 404 or Not Found; fail closed on every other lookup error.",
+            "When the ref is absent, create it at the exact expected SHA and validate the create response when GitHub returns success.",
+            "Whether creation succeeds or races with another idempotent creator, perform at most eight backoff readbacks and continue only after the remote ref resolves to the exact expected SHA.",
+            "Reject immediately if a visible target ref resolves to any SHA other than expected_head_sha.",
+            "Delegate deterministic generated-state mutation and exact-head verification through the existing registered writer paths without force push or protected-branch mutation."
+          ],
+          "assertions": [
+            "main and Production remain forbidden mutation targets.",
+            "A non-404 target-ref lookup failure cannot be converted into an inferred missing branch.",
+            "Post-create readback is bounded to eight attempts with backoff and cannot spin indefinitely.",
+            "An existing or newly visible target ref at the wrong SHA fails closed rather than being moved or force-updated.",
+            "A create API collision or transient create error is accepted only if subsequent bounded remote readback proves the exact expected SHA.",
+            "The evidence directory exists before mutable preflight and records remote_write_executed=false and secrets_included=false.",
+            "Generated artifacts remain owned by registered writers; this contract does not authorize hand-edited generated outputs.",
+            "No deployment, migration apply, grant, provider mutation, live database mutation, credential payload read, direct Production write, or force push is authorized."
+          ],
+          "tests": [
+            {
+              "id": "generated-artifact-ref-readback-contract",
+              "runner": "node",
+              "working_directory": "http-generic-api",
+              "path": "test-governed-generated-artifact-refresh-apply-context.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+          ".github/workflows/governed-generated-artifact-refresh.yml",
+          "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
+          "http-generic-api/test-governed-generated-artifact-refresh-apply-context.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Observe an exact-main convergence run create or reuse its SHA-scoped branch and complete writer verification with the hardened readback logic active."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Exercise delayed ref visibility, a concurrent idempotent create collision, a non-404 lookup error, a visible wrong SHA, and readback exhaustion while preserving fail-closed behavior and bounded evidence."
+    },
+    {
+      "id": "canary",
+      "status": "not_applicable",
+      "objective": "Repository ref convergence performs no live provider or deployment canary."
+    },
+    {
+      "id": "production",
+      "status": "not_applicable",
+      "objective": "This writer is prohibited from mutating Production and the hardening grants no deployment authority."
+    }
+  ],
+  "secrets_included": false
+}
