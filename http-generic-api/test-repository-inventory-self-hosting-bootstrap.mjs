@@ -6,6 +6,7 @@ const ci = fs.readFileSync("../.github/workflows/ci.yml", "utf8");
 const dispatcher = fs.readFileSync("../.github/workflows/repository-inventory-autofix-dispatch.yml", "utf8");
 const writer = fs.readFileSync("../.github/workflows/governed-generated-artifact-refresh.yml", "utf8");
 const gate = fs.readFileSync("../scripts/repository-inventory-verification-gate.mjs", "utf8");
+const workMapIntegration = fs.readFileSync("../.github/workflows/spec-kit-work-map-integration.yml", "utf8");
 const contract = JSON.parse(
   fs.readFileSync("../.changes/e2e/repository-inventory-governed-regeneration.json", "utf8"),
 );
@@ -30,6 +31,15 @@ assert.match(dispatcher, /chore\/repository-inventory-main-sync-\$\{SOURCE_HEAD_
 assert.match(dispatcher, /main_convergence_exact_head_not_trusted/u);
 assert.match(dispatcher, /PR publication remains a separate governed/u);
 assert.doesNotMatch(dispatcher, /contents:\s*write/u);
+assert.doesNotMatch(workMapIntegration, /^\s*-\s*"\.github\/workflows\/\*\*"/mu);
+for (const workflow of [
+  ".github/workflows/spec-kit-work-map-integration.yml",
+  ".github/workflows/spec-kit-work-map-autofix.yml",
+  ".github/workflows/spec-kit-work-map-autofix-recovery-dispatch.yml",
+  ".github/workflows/spec-kit-work-map-recovery-bootstrap.yml",
+]) {
+  assert.match(workMapIntegration, new RegExp(workflow.replaceAll("/", "\\/"), "u"));
+}
 assert.match(writer, /create_from_main/u);
 assert.match(writer, /source_main_sha/u);
 assert.match(writer, /git\/refs/u);
@@ -97,6 +107,7 @@ console.log(JSON.stringify({
   manual_main_convergence_mode: true,
   trusted_authority_on_main_readback: true,
   governed_work_branch_push_recovery: true,
+  work_map_trigger_scope_bounded: true,
   candidate_mutation_before_main_trust: false,
   protected_branch_mutation: false,
   force_push: false,
