@@ -4,70 +4,74 @@ import test from "node:test";
 
 const root = process.cwd();
 const launcher = fs.readFileSync(`${root}/.github/workflows/governed-production-promotion-request-launcher.yml`, "utf8");
-const evidenceHelper = fs.readFileSync(`${root}/.github/scripts/production-promotion-evidence.mjs`, "utf8");
-const sourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-main-source-pin-guard.yml`, "utf8");
+const mainSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-main-source-pin-guard.yml`, "utf8");
+const releaseSourcePin = fs.readFileSync(`${root}/.github/workflows/governed-production-release-source-pin-gate.yml`, "utf8");
 const schema = JSON.parse(fs.readFileSync(`${root}/.github/contracts/governed-command-parameters/production-promotion-request.v1.json`, "utf8"));
+const registry = JSON.parse(fs.readFileSync(`${root}/.github/contracts/production-promotion-supporting-gates.v1.json`, "utf8"));
 
-test("promotion launcher registers bounded human and AI policy review modes", () => {
+test("promotion launcher keeps bounded human and AI policy review modes", () => {
   assert.match(launcher, /review_mode:/u);
-  assert.match(launcher, /type: choice/u);
-  assert.match(launcher, /- human/u);
-  assert.match(launcher, /- ai_policy/u);
+  assert.match(launcher, /options: \[human, ai_policy\]/u);
   assert.match(launcher, /AI_POLICY_REVIEW_MODE=bounded_supporting_gates_only/u);
-  assert.match(launcher, /resolve_dispatch_run_once/u);
-  assert.match(launcher, /dispatch_workflow_and_capture_run/u);
-  assert.match(launcher, /candidate_builder_run=/u);
-  assert.match(launcher, /exact_validation_run=/u);
-  assert.ok(launcher.includes("workflow_dispatch"), "AI policy resolver must select workflow_dispatch runs");
-  for (const workflowFile of [
-    "frontend-surface-dispatch.yml",
-    "http-generic-api-fanout-relocation.yml",
-    "custom-gpt-contract-guard.yml",
-    "platform-completion-cleanup-readback.yml",
-    "platform-remaining-scope-scorecard.yml",
-    "spec-011-delegation-mariadb-certification.yml",
-  ]) {
-    assert.ok(launcher.includes(workflowFile), `AI policy allowlist must include ${workflowFile}`);
-  }
-  assert.match(launcher, /read_only_supporting_workflows_and_exact_candidate_validation/u);
-  assert.match(evidenceHelper, /deployment_executed: false/u);
-  assert.match(evidenceHelper, /migration_executed: false/u);
-  assert.match(evidenceHelper, /credential_payload_read: false/u);
+  assert.match(launcher, /declarative_read_only_supporting_gates_and_certified_release_cut_validation/u);
+  assert.match(launcher, /AI_POLICY_REVIEW_FORBIDDEN=production_merge,deployment,migration,grant,provider_mutation,credential_payload_read/u);
+  assert.match(launcher, /GATE_REGISTRY: \.github\/contracts\/production-promotion-supporting-gates\.v1\.json/u);
+  assert.match(launcher, /production-promotion-supporting-gates\.mjs/u);
+  assert.match(launcher, /production-certified-release-cut-validation\.yml/u);
+  assert.doesNotMatch(launcher, /contents:\s*write/u);
+  assert.doesNotMatch(launcher, /gh pr merge/u);
 });
 
-test("promotion parameter schema fails closed outside the two registered modes", () => {
+test("supporting-gate registry is the single read-only review-gate source", () => {
+  assert.equal(registry.contract, "mad4b.production-promotion-supporting-gates.v1");
+  assert.equal(registry.version, 1);
+  assert.equal(registry.gates.length, 6);
+  assert.equal(new Set(registry.gates.map((gate) => gate.id)).size, registry.gates.length);
+  for (const gate of registry.gates) {
+    assert.equal(gate.required, true);
+    assert.equal(gate.effect, "read_only");
+    assert.deepEqual(gate.modes, ["human", "ai_policy"]);
+    assert.match(gate.workflow, /^[A-Za-z0-9][A-Za-z0-9._-]*\.ya?ml$/u);
+  }
+  for (const value of Object.values(registry.safety)) assert.equal(value, false);
+});
+
+test("promotion parameter schema fails closed outside registered review modes", () => {
   assert.deepEqual(schema.required.at(-1), "review_mode");
   assert.equal(schema.properties.review_mode.pattern, "^(human|ai_policy)$");
   assert.equal(schema.additionalProperties, false);
 });
 
-test("promotion launcher settles transient exact and supporting run readback before closing surfaces", () => {
-  assert.match(launcher, /RUN_SETTLE_GRACE_SECONDS=180/u);
-  assert.match(launcher, /wait_run_success_settled/u);
-  assert.match(launcher, /HTTP 404\|HTTP 408\|HTTP 409\|HTTP 429/u);
-  assert.match(launcher, /transient GitHub API error while polling/u);
-  assert.match(launcher, /transient GitHub API error during settle readback/u);
-  assert.match(launcher, /exact candidate validation/u);
-  assert.match(launcher, /required supporting workflow failed or was not found/u);
-  assert.match(launcher, /workflow dispatch returned no run URL/u);
-  assert.match(launcher, /exact_validation_dispatch_failed/u);
+test("source-pin guards preserve immutable release cuts while forbidding protected writes", () => {
+  assert.match(mainSourcePin, /actions:\s*write/u);
+  assert.match(mainSourcePin, /contents:\s*read/u);
+  assert.match(mainSourcePin, /guard_scope:"release_cut_ancestry"/u);
+  assert.match(mainSourcePin, /main_tip_may_advance:true/u);
+  assert.doesNotMatch(mainSourcePin, /git push/u);
+  assert.doesNotMatch(mainSourcePin, /gh pr merge/u);
+
+  assert.match(releaseSourcePin, /permissions:\s*\n\s*contents: read\s*\n\s*pull-requests: read/u);
+  assert.match(releaseSourcePin, /certified release cut is not an ancestor of current main/u);
+  assert.match(releaseSourcePin, /production_is_ancestor_of_release_cut:true/u);
+  assert.match(releaseSourcePin, /main_tip_may_advance/u);
+  assert.doesNotMatch(releaseSourcePin, /contents:\s*write/u);
+  assert.doesNotMatch(releaseSourcePin, /gh pr (?:comment|close|merge)/u);
 });
 
-test("main source-pin guard can comment stale release PRs without broader mutation permission", () => {
-  assert.match(sourcePin, /actions: write/u);
-  assert.match(sourcePin, /contents: read/u);
-  assert.match(sourcePin, /issues: write/u);
-  assert.match(sourcePin, /pull-requests: write/u);
-  assert.doesNotMatch(sourcePin, /contents: write/u);
-  assert.doesNotMatch(sourcePin, /deployments: write/u);
-  assert.match(sourcePin, /gh pr comment/u);
+test("comment transport is observability only after canonical promotion evidence exists", () => {
+  assert.match(launcher, /request evidence comment transport degraded/u);
+  assert.match(launcher, /validation evidence comment transport degraded/u);
+  assert.match(launcher, /Upload convergence evidence/u);
+  assert.match(launcher, /if-no-files-found: error/u);
 });
 
 console.log(JSON.stringify({
-  contract: "mad4b.production-promotion-review-mode.v1",
+  contract: "mad4b.production-promotion-review-mode.v2",
   ok: true,
   modes: ["human", "ai_policy"],
-  ai_policy_scope: "read_only_supporting_workflows_and_exact_candidate_validation",
+  support_gate_authority: "declarative_read_only_registry",
+  release_mode: "certified_release_cut",
+  main_tip_may_advance: true,
   protected_production_merge: false,
   deployment: false,
   migration_apply: false,
