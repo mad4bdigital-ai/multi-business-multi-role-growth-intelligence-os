@@ -35,7 +35,7 @@
       "report_contract": "mad4b.repository-tool-lifecycle-report.v1"
     },
     "generated-artifact-refresh": {
-      "description": "Regenerate bounded OpenAPI/frontend, Work Map, or Repository Inventory plus Repository Evaluation generated state through the existing registered exact-head mutation authority.",
+      "description": "Regenerate bounded OpenAPI/frontend, Work Map, Repository Inventory plus Repository Evaluation, or Remote MCP write-scope generated state through the existing registered exact-head mutation authority.",
       "entrypoint": "http-generic-api/scripts/maintenance-tools/generated-artifact-refresh.mjs",
       "mode": "mutating",
       "allowed_changed_path_patterns": [
@@ -61,7 +61,9 @@
         "^docs/repository-inventory\\.md$",
         "^docs/repository-evaluation\\.json$",
         "^docs/repository-evaluation-summary\\.json$",
-        "^docs/repository-evaluation\\.md$"
+        "^docs/repository-evaluation\\.md$",
+        "^http-generic-api/remote-mcp-write-scope-inventory\\.generated\\.json$",
+        "^docs/remote-mcp-write-scope-inventory\\.md$"
       ],
       "report_contract": "mad4b.governed-generated-artifact-refresh.v1"
     },
