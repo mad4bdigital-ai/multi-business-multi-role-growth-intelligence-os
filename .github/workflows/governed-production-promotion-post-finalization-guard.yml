@@ -56,7 +56,6 @@ jobs:
 
           jq -e '
             .ok == true and
-            .candidate_tree_matches_main == true and
             .protected_refs_stable_during_validation == true and
             .exact_full_ci_success == true and
             .merge_executed == false and
@@ -75,6 +74,7 @@ jobs:
           RELEASE_MODE="$(jq -r '.release_mode // "legacy_exact_main"' "$EVIDENCE_PATH")"
           RELEASE_CUT_SHA="$(jq -r '.release_cut_sha // .main_sha // ""' "$EVIDENCE_PATH")"
           [[ "$RELEASE_CUT_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::release cut SHA is invalid"; exit 1; }
+
           if [[ "$SCHEMA_VERSION" == governed_production_promotion_convergence.v2 ]]; then
             [[ "$RELEASE_MODE" == certified_release_cut ]] || { echo "::error::v2 evidence must use certified_release_cut mode"; exit 1; }
             jq -e '
@@ -86,6 +86,8 @@ jobs:
               .supporting_gates_success == true and
               .main_tip_may_advance == true
             ' "$EVIDENCE_PATH" >/dev/null
+          else
+            jq -e '.candidate_tree_matches_main == true' "$EVIDENCE_PATH" >/dev/null
           fi
 
           {
@@ -97,7 +99,6 @@ jobs:
             echo "candidate_sha=$(jq -r '.candidate_sha' "$EVIDENCE_PATH")"
             echo "release_pr=$(jq -r '.release_pr' "$EVIDENCE_PATH")"
             echo "validation_pr=$(jq -r '.validation_pr' "$EVIDENCE_PATH")"
-            echo "evidence_path=$EVIDENCE_PATH"
           } >> "$GITHUB_OUTPUT"
 
       - name: Perform post-finalization protected-ref and ancestry readback
