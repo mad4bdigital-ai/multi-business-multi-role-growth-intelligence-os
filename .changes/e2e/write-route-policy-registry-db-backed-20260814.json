@@ -1,0 +1,96 @@
+{
+  "$schema": "../../.specify/schemas/e2e-phases.schema.json",
+  "schema_version": 1,
+  "feature_key": "write-route-policy-registry-db-backed-20260814",
+  "title": "DB-backed write-route policy registry with fail-closed runtime resolution",
+  "delivery_mode": "single_pr",
+  "current_phase": "mvp",
+  "scope": {
+    "include": [
+      ".changes/e2e/write-route-policy-registry-db-backed-20260814.json",
+      "http-generic-api/migrations/20260814_write_route_policy_registry.sql",
+      "http-generic-api/writeRoutePolicyRegistry.js",
+      "http-generic-api/test-write-route-policy-registry.mjs"
+    ]
+  },
+  "merge_contract": {
+    "minimum_phase": "mvp"
+  },
+  "phases": [
+    {
+      "id": "mvp",
+      "status": "implemented",
+      "objective": "Persist route policy configuration in a versioned registry and resolve it read-only with deny-by-default behavior.",
+      "e2e_journeys": [
+        {
+          "id": "resolve-db-backed-write-route-policy-safely",
+          "end_to_end": true,
+          "level": "synthetic_runtime",
+          "actor": "Write-route policy registry",
+          "entrypoint": "Injected-pool policy resolver contract suite",
+          "terminal_outcome": "A valid staging shadow policy resolves, mismatched modes are denied, Production activation is denied, and a missing migration fails closed.",
+          "steps": [
+            "Load a representative registry row through an injected query pool.",
+            "Normalize rollback, readback, approval, TTL, quota, lease, version, and hash fields without secrets.",
+            "Resolve a staging shadow policy and require an active, allowlisted, approval-bound result.",
+            "Reject a mode mismatch and reject Production activation even when a Production row exists.",
+            "Simulate a missing table and require the registry-not-migrated fail-closed result."
+          ],
+          "assertions": [
+            "Database configuration is read through a parameterized query and never becomes authority by itself.",
+            "Production-live and production-canary cannot activate through the resolver.",
+            "Missing migration, missing policy, invalid mode, and mismatched environment fail closed.",
+            "No provider call, credential read, migration apply, database write, or Production mutation occurs."
+          ],
+          "tests": [
+            {
+              "id": "write-route-policy-registry-contract",
+              "runner": "node",
+              "working_directory": ".",
+              "path": "http-generic-api/test-write-route-policy-registry.mjs",
+              "args": []
+            }
+          ],
+          "evidence_paths": [
+            "http-generic-api/migrations/20260814_write_route_policy_registry.sql",
+            "http-generic-api/writeRoutePolicyRegistry.js",
+            "http-generic-api/test-write-route-policy-registry.mjs"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "operational",
+      "status": "planned",
+      "objective": "Connect approved staging shadow policies to environment-bound readback and audit evidence without applying the migration automatically."
+    },
+    {
+      "id": "resilient",
+      "status": "planned",
+      "objective": "Prove optimistic locking, policy-version reconciliation, lease expiry, quota enforcement, and kill-switch behavior."
+    },
+    {
+      "id": "canary",
+      "status": "blocked",
+      "objective": "Production canary remains disabled until independent approval, route/resource allowlist, rollback rehearsal, and environment authorization exist.",
+      "blockers": [
+        "migration_apply_approval",
+        "same_cycle_readback",
+        "rollback_reconciliation_evidence",
+        "independent_production_change_approval"
+      ]
+    },
+    {
+      "id": "production",
+      "status": "blocked",
+      "objective": "Production-live remains disabled; this PR only adds configuration storage and read-only resolution.",
+      "blockers": [
+        "successful_canary",
+        "production_change_approval",
+        "live_oauth_or_dcr_acceptance_where_applicable",
+        "durable_receipt_and_audit_evidence"
+      ]
+    }
+  ],
+  "secrets_included": false
+}
