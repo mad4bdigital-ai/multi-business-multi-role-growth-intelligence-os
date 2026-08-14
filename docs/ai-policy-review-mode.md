@@ -27,6 +27,12 @@ Successful convergence evidence records `review_mode`, `review_authority`, `ai_p
 
 The resulting release PR remains a review surface. It states the exact pinned `main` and `Production` SHAs and remains subject to the repository's protected-release policy. The launcher creates review surfaces and evidence only; it does not merge them.
 
+## Runtime reliability guards
+
+The launcher runs a trusted preflight for its runtime helpers before creating a candidate. Evidence serialization is implemented by the typed `production-promotion-evidence.mjs` helper rather than an untested YAML-embedded jq expression. The helper validates review mode, SHAs, run IDs, digest format, and all non-mutation invariants.
+
+Supporting-run selection is implemented by `production-promotion-run-selector.mjs`. Direct run IDs returned by workflow dispatch are preferred. If a discovery fallback is required, it filters by exact candidate SHA, event, and attempt start time, prefers a terminal `success` over a newer queued duplicate, and excludes `action_required` in `ai_policy`. This prevents a duplicate dispatch or stale approval-blocked run from hiding a valid exact-head result. The behavior is covered by runtime regression tests in `.github/tests/production-promotion-runtime.test.mjs`.
+
 ## Failure behavior
 
 The mode fails closed when the trusted SHA moves, the request PR changes identity, the candidate tree differs from `main`, exact validation is missing or unsuccessful, a supporting workflow is outside the registered allowlist, an exact-head dispatch run cannot be observed, or any protected reference changes during validation. The source-pin guard also marks stale release surfaces and cancels stale governed runs when its write permission is available.
